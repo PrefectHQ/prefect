@@ -784,6 +784,9 @@ class DeploymentSchedule(Base):
     )
     active: Mapped[bool] = mapped_column(default=True)
     max_scheduled_runs: Mapped[Optional[int]]
+    parameters: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict, nullable=False
+    )
 
 
 class Deployment(Base):
@@ -828,18 +831,18 @@ class Deployment(Base):
     concurrency_limit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
     )
-    global_concurrency_limit: Mapped[
-        Optional["ConcurrencyLimitV2"]
-    ] = sa.orm.relationship(
-        lazy="selectin",
+    global_concurrency_limit: Mapped[Optional["ConcurrencyLimitV2"]] = (
+        sa.orm.relationship(
+            lazy="selectin",
+        )
     )
-    concurrency_options: Mapped[
-        Optional[schemas.core.ConcurrencyOptions]
-    ] = mapped_column(
-        Pydantic(schemas.core.ConcurrencyOptions),
-        server_default=None,
-        nullable=True,
-        default=None,
+    concurrency_options: Mapped[Optional[schemas.core.ConcurrencyOptions]] = (
+        mapped_column(
+            Pydantic(schemas.core.ConcurrencyOptions),
+            server_default=None,
+            nullable=True,
+            default=None,
+        )
     )
 
     tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)

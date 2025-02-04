@@ -198,7 +198,9 @@ class EventTrigger(ResourceTrigger):
                     "10 seconds"
                 )
 
-        return data | {"within": within} if within else data
+        if within:
+            data = {**data, "within": within}
+        return data
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
@@ -248,7 +250,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     threshold: float = Field(
         ...,
         description=(
-            "The threshold value against which we'll compare " "the query result."
+            "The threshold value against which we'll compare the query result."
         ),
     )
     operator: MetricTriggerOperator = Field(

@@ -16,7 +16,7 @@ from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.objects import StateType, WorkerMetadata
+from prefect.client.schemas.objects import Integration, StateType, WorkerMetadata
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -1990,7 +1990,7 @@ class TestBaseWorkerHeartbeat:
                     "prefect.workers.base.load_prefect_collections"
                 ) as mock_load_prefect_collections,
                 mock.patch(
-                    "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+                    "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.send_worker_heartbeat",
                 ) as mock_send_worker_heartbeat_post,
                 mock.patch("prefect.workers.base.distributions") as mock_distributions,
             ):
@@ -2010,17 +2010,13 @@ class TestBaseWorkerHeartbeat:
                     await worker.sync_with_backend()
 
                 mock_send_worker_heartbeat_post.assert_called_once_with(
-                    f"/work_pools/{work_pool.name}/workers/heartbeat",
-                    json={
-                        "name": worker.name,
-                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "metadata": {
-                            "integrations": [
-                                {"name": "prefect-aws", "version": "1.0.0"}
-                            ]
-                        },
-                        "return_id": True,
-                    },
+                    work_pool_name=work_pool.name,
+                    worker_name=worker.name,
+                    heartbeat_interval_seconds=30.0,
+                    get_worker_id=True,
+                    worker_metadata=WorkerMetadata(
+                        integrations=[Integration(name="prefect-aws", version="1.0.0")]
+                    ),
                 )
 
             assert worker._worker_metadata_sent
@@ -2050,7 +2046,7 @@ class TestBaseWorkerHeartbeat:
                     "prefect.workers.base.load_prefect_collections"
                 ) as mock_load_prefect_collections,
                 mock.patch(
-                    "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+                    "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.send_worker_heartbeat",
                 ) as mock_send_worker_heartbeat_post,
                 mock.patch("prefect.workers.base.distributions") as mock_distributions,
             ):
@@ -2070,18 +2066,14 @@ class TestBaseWorkerHeartbeat:
                     await worker.sync_with_backend()
 
                 mock_send_worker_heartbeat_post.assert_called_once_with(
-                    f"/work_pools/{work_pool.name}/workers/heartbeat",
-                    json={
-                        "name": worker.name,
-                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "metadata": {
-                            "integrations": [
-                                {"name": "prefect-aws", "version": "1.0.0"}
-                            ],
-                            "custom_field": "heya",
-                        },
-                        "return_id": True,
-                    },
+                    work_pool_name=work_pool.name,
+                    worker_name=worker.name,
+                    heartbeat_interval_seconds=30.0,
+                    get_worker_id=True,
+                    worker_metadata=WorkerMetadata(
+                        integrations=[Integration(name="prefect-aws", version="1.0.0")],
+                        custom_field="heya",
+                    ),
                 )
 
             assert worker._worker_metadata_sent

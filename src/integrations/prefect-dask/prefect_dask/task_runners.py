@@ -321,8 +321,7 @@ class DaskTaskRunner(TaskRunner):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDaskFuture[R]:
-        ...
+    ) -> PrefectDaskFuture[R]: ...
 
     @overload
     def submit(
@@ -331,8 +330,7 @@ class DaskTaskRunner(TaskRunner):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDaskFuture[R]:
-        ...
+    ) -> PrefectDaskFuture[R]: ...
 
     def submit(
         self,
@@ -367,8 +365,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectDaskFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectDaskFuture[R]]: ...
 
     @overload
     def map(
@@ -376,8 +373,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectDaskFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectDaskFuture[R]]: ...
 
     def map(
         self,

@@ -2167,7 +2167,7 @@ components:
         tasks:
           description: The list of tasks performed by the run. Each task has its own
             `run_id` which you can use to call `JobsGetOutput` to retrieve the run
-            resutls.
+            results.
           example:
           - attempt_number: 0
             cleanup_duration: 0

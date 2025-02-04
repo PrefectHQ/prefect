@@ -16,11 +16,20 @@ type JsonInputProps = React.ComponentProps<"div"> & {
 	onBlur?: () => void;
 	disabled?: boolean;
 	className?: string;
+	hideLineNumbers?: boolean;
 };
 
 export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 	(
-		{ className, value, onChange, onBlur, disabled, ...props },
+		{
+			className,
+			value,
+			onChange,
+			onBlur,
+			disabled,
+			hideLineNumbers = false,
+			...props
+		},
 		forwardedRef,
 	) => {
 		const editor = useRef<HTMLDivElement | null>(null);
@@ -29,6 +38,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		let basicSetup: BasicSetupOptions | undefined;
 		if (disabled) {
 			basicSetup = {
+				lineNumbers: !hideLineNumbers,
 				highlightActiveLine: false,
 				foldGutter: false,
 				highlightActiveLineGutter: false,

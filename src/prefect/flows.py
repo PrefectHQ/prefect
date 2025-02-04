@@ -82,6 +82,7 @@ from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
+    run_coro_as_sync,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -97,7 +98,7 @@ from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
 
-from ._internal.compatibility.async_dispatch import is_in_async_context
+from ._internal.compatibility.async_dispatch import async_dispatch, is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
 from ._internal.pydantic.v2_validated_func import (
@@ -119,8 +120,7 @@ class FlowStateHook(Protocol, Generic[P, R]):
 
     def __call__(
         self, flow: Flow[P, R], flow_run: FlowRun, state: State
-    ) -> Awaitable[None] | None:
-        ...
+    ) -> Awaitable[None] | None: ...
 
 
 if TYPE_CHECKING:
@@ -654,8 +654,138 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
-    @sync_compatible
-    async def to_deployment(
+    async def ato_deployment(
+        self,
+        name: str,
+        interval: Optional[
+            Union[
+                Iterable[Union[int, float, datetime.timedelta]],
+                int,
+                float,
+                datetime.timedelta,
+            ]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        description: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = True,
+        work_pool_name: Optional[str] = None,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[dict[str, Any]] = None,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+    ) -> "RunnerDeployment":
+        """
+        Asynchronously creates a runner deployment object for this flow.
+
+        Args:
+            name: The name to give the created deployment.
+            interval: An interval on which to execute the new deployment. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this deployment.
+            rrule: An rrule schedule of when to execute runs of this deployment.
+            paused: Whether or not to set this deployment as paused.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to define multiple schedules or additional scheduling options such as `timezone`.
+            concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
+            work_pool_name: The name of the work pool to use for this deployment.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+        Examples:
+            Prepare two deployments and serve them:
+
+            ```python
+            from prefect import flow, serve
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            @flow
+            def my_other_flow(name):
+                print(f"goodbye {name}")
+
+            if __name__ == "__main__":
+                hello_deploy = my_flow.to_deployment("hello", tags=["dev"])
+                bye_deploy = my_other_flow.to_deployment("goodbye", tags=["dev"])
+                serve(hello_deploy, bye_deploy)
+            ```
+        """
+        from prefect.deployments.runner import RunnerDeployment
+
+        if not name.endswith(".py"):
+            _raise_on_name_with_banned_characters(name)
+
+        if self._storage and self._entrypoint:
+            return await RunnerDeployment.afrom_storage(
+                storage=self._storage,
+                entrypoint=self._entrypoint,
+                name=name,
+                flow_name=self.name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                paused=paused,
+                schedules=schedules,
+                concurrency_limit=concurrency_limit,
+                tags=tags,
+                triggers=triggers,
+                parameters=parameters or {},
+                description=description,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
+                _sla=_sla,
+            )
+        else:
+            return RunnerDeployment.from_flow(
+                flow=self,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                paused=paused,
+                schedules=schedules,
+                concurrency_limit=concurrency_limit,
+                tags=tags,
+                triggers=triggers,
+                parameters=parameters or {},
+                description=description,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+                work_pool_name=work_pool_name,
+                work_queue_name=work_queue_name,
+                job_variables=job_variables,
+                entrypoint_type=entrypoint_type,
+                _sla=_sla,
+            )
+
+    @async_dispatch(ato_deployment)
+    def to_deployment(
         self,
         name: str,
         interval: Optional[
@@ -740,28 +870,32 @@ class Flow(Generic[P, R]):
             _raise_on_name_with_banned_characters(name)
 
         if self._storage and self._entrypoint:
-            return await RunnerDeployment.from_storage(
-                storage=self._storage,
-                entrypoint=self._entrypoint,
-                name=name,
-                flow_name=self.name,
-                interval=interval,
-                cron=cron,
-                rrule=rrule,
-                paused=paused,
-                schedules=schedules,
-                concurrency_limit=concurrency_limit,
-                tags=tags,
-                triggers=triggers,
-                parameters=parameters or {},
-                description=description,
-                version=version,
-                enforce_parameter_schema=enforce_parameter_schema,
-                work_pool_name=work_pool_name,
-                work_queue_name=work_queue_name,
-                job_variables=job_variables,
-                _sla=_sla,
-            )  # type: ignore # TODO: remove sync_compatible
+            return cast(
+                RunnerDeployment,
+                RunnerDeployment.from_storage(
+                    storage=self._storage,
+                    entrypoint=self._entrypoint,
+                    name=name,
+                    flow_name=self.name,
+                    interval=interval,
+                    cron=cron,
+                    rrule=rrule,
+                    paused=paused,
+                    schedules=schedules,
+                    concurrency_limit=concurrency_limit,
+                    tags=tags,
+                    triggers=triggers,
+                    parameters=parameters or {},
+                    description=description,
+                    version=version,
+                    enforce_parameter_schema=enforce_parameter_schema,
+                    work_pool_name=work_pool_name,
+                    work_queue_name=work_queue_name,
+                    job_variables=job_variables,
+                    _sla=_sla,
+                    _sync=True,  # pyright: ignore[reportCallIssue] _sync is valid because .from_storage is decorated with async_dispatch
+                ),
+            )
         else:
             return RunnerDeployment.from_flow(
                 flow=self,
@@ -957,14 +1091,13 @@ class Flow(Generic[P, R]):
                 loop.stop()
 
     @classmethod
-    @sync_compatible
-    async def from_source(
+    async def afrom_source(
         cls,
         source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
     ) -> "Flow[..., Any]":
         """
-        Loads a flow from a remote source.
+        Loads a flow from a remote source asynchronously.
 
         Args:
             source: Either a URL to a git repository or a storage object.
@@ -1065,6 +1198,115 @@ class Flow(Generic[P, R]):
                     create_call(load_flow_from_entrypoint, full_entrypoint)
                 ),
             )
+            flow._storage = storage
+            flow._entrypoint = entrypoint
+
+        return flow
+
+    @classmethod
+    @async_dispatch(afrom_source)
+    def from_source(
+        cls,
+        source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
+        entrypoint: str,
+    ) -> "Flow[..., Any]":
+        """
+        Loads a flow from a remote source.
+
+        Args:
+            source: Either a URL to a git repository or a storage object.
+            entrypoint:  The path to a file containing a flow and the name of the flow function in
+                the format `./path/to/file.py:flow_func_name`.
+
+        Returns:
+            A new `Flow` instance.
+
+        Examples:
+            Load a flow from a public git repository:
+
+
+            ```python
+            from prefect import flow
+            from prefect.runner.storage import GitRepository
+            from prefect.blocks.system import Secret
+
+            my_flow = flow.from_source(
+                source="https://github.com/org/repo.git",
+                entrypoint="flows.py:my_flow",
+            )
+
+            my_flow()
+            ```
+
+            Load a flow from a private git repository using an access token stored in a `Secret` block:
+
+            ```python
+            from prefect import flow
+            from prefect.runner.storage import GitRepository
+            from prefect.blocks.system import Secret
+
+            my_flow = flow.from_source(
+                source=GitRepository(
+                    url="https://github.com/org/repo.git",
+                    credentials={"access_token": Secret.load("github-access-token")}
+                ),
+                entrypoint="flows.py:my_flow",
+            )
+
+            my_flow()
+            ```
+
+            Load a flow from a local directory:
+
+            ``` python
+            # from_local_source.py
+
+            from pathlib import Path
+            from prefect import flow
+
+            @flow(log_prints=True)
+            def my_flow(name: str = "world"):
+                print(f"Hello {name}! I'm a flow from a Python script!")
+
+            if __name__ == "__main__":
+                my_flow.from_source(
+                    source=str(Path(__file__).parent),
+                    entrypoint="from_local_source.py:my_flow",
+                ).deploy(
+                    name="my-deployment",
+                    parameters=dict(name="Marvin"),
+                    work_pool_name="local",
+                )
+            ```
+        """
+
+        from prefect.runner.storage import (
+            BlockStorageAdapter,
+            LocalStorage,
+            RunnerStorage,
+            create_storage_from_source,
+        )
+
+        if isinstance(source, (Path, str)):
+            if isinstance(source, Path):
+                source = str(source)
+            storage = create_storage_from_source(source)
+        elif isinstance(source, RunnerStorage):
+            storage = source
+        elif hasattr(source, "get_directory"):
+            storage = BlockStorageAdapter(source)
+        else:
+            raise TypeError(
+                f"Unsupported source type {type(source).__name__!r}. Please provide a"
+                " URL to remote storage or a storage object."
+            )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if not isinstance(storage, LocalStorage):
+                storage.set_base_path(Path(tmpdir))
+                run_coro_as_sync(storage.pull_code())
+
+            full_entrypoint = str(storage.destination / entrypoint)
+            flow = load_flow_from_entrypoint(full_entrypoint)
             flow._storage = storage
             flow._entrypoint = entrypoint
 
@@ -1292,16 +1534,14 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Coroutine[Any, Any, T]:
-        ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
         self: "Flow[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -1309,8 +1549,7 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> Awaitable[State[T]]:
-        ...
+    ) -> Awaitable[State[T]]: ...
 
     @overload
     def __call__(
@@ -1318,8 +1557,7 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
+    ) -> State[T]: ...
 
     def __call__(
         self,
@@ -1458,8 +1696,7 @@ class Flow(Generic[P, R]):
 
 class FlowDecorator:
     @overload
-    def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]:
-        ...
+    def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
 
     @overload
     def __call__(
@@ -1485,8 +1722,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     @overload
     def __call__(
@@ -1512,8 +1748,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     def __call__(
         self,
@@ -1707,8 +1942,7 @@ class FlowDecorator:
         def from_source(
             source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
             entrypoint: str,
-        ) -> Union["Flow[..., Any]", Coroutine[Any, Any, "Flow[..., Any]"]]:
-            ...
+        ) -> Union["Flow[..., Any]", Coroutine[Any, Any, "Flow[..., Any]"]]: ...
 
 
 flow: FlowDecorator = FlowDecorator()
@@ -1980,8 +2214,7 @@ def _display_serve_start_message(*args: "RunnerDeployment"):
     from rich.table import Table
 
     help_message_top = (
-        "[green]Your deployments are being served and polling for"
-        " scheduled runs!\n[/]"
+        "[green]Your deployments are being served and polling for scheduled runs!\n[/]"
     )
 
     table = Table(title="Deployments", show_header=False)
