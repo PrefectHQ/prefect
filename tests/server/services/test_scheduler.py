@@ -10,6 +10,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.utilities.callables import parameter_schema
 
 
 @pytest.fixture
@@ -125,19 +126,26 @@ async def test_create_schedules_from_deployment(
 
 
 async def test_create_parametrized_schedules_from_deployment(
-    flow, session, simple_parameter_schema
+    flow,
+    session,
 ):
     schedule = schemas.schedules.IntervalSchedule(
         interval=datetime.timedelta(days=30),
         anchor_date=pendulum.now("UTC"),
     )
 
+    def func_for_params(name: str, x: int = 42):
+        pass
+
+    param_schema = parameter_schema(func_for_params).model_dump_for_openapi()
+
     await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
+            parameters={"name": "deployment-test", "x": 11},
+            parameter_openapi_schema=param_schema,
             schedules=[
                 schemas.core.DeploymentSchedule(
                     schedule=schedule,
@@ -163,7 +171,7 @@ async def test_create_parametrized_schedules_from_deployment(
     assert all([r.state_name == "Scheduled" for r in runs]), (
         "Scheduler sets flow_run.state_name"
     )
-    assert all([r.parameters["name"] == "whoami" for r in runs])
+    assert all([r.parameters == dict(name="whoami", x=11) for r in runs])
 
 
 async def test_create_schedule_respects_max_future_time(flow, session):
