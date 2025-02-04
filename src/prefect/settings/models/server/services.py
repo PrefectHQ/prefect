@@ -85,6 +85,16 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
         ),
     )
 
+    batch_size_delete: int = Field(
+        default=10_000,
+        gt=0,
+        description="The number of expired events and event resources the event persister will attempt to delete in one batch.",
+        validation_alias=AliasChoices(
+            AliasPath("batch_size_delete"),
+            "prefect_server_services_event_persister_batch_size_delete",
+        ),
+    )
+
 
 class ServerServicesEventLoggerSettings(ServicesBaseSetting):
     """
