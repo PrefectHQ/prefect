@@ -8,7 +8,7 @@ from packaging.version import Version
 
 from prefect.server.api.server import create_app
 
-MINTLIFY_SCRAPE = ["npx", "--yes", "@mintlify/scraping@4.0.106"]
+MINTLIFY_SCRAPE = ["npx", "--yes", "@mintlify/scraping@4.0.107"]
 
 
 def docs_path() -> Path:
