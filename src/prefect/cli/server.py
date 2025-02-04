@@ -262,6 +262,10 @@ def start(
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port))
+    except socket.gaierror:
+        exit_with_error(
+            f"Invalid host '{host}'. Please specify a valid hostname or IP address."
+        )
     except socket.error:
         if pid_file.exists():
             exit_with_error(

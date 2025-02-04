@@ -322,7 +322,7 @@ class TestPrestartCheck:
             )
             yield path
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture
     def stop_server(self):
         yield
         invoke_and_assert(
@@ -334,6 +334,7 @@ class TestPrestartCheck:
             expected_code=0,
         )
 
+    @pytest.mark.usefixtures("stop_server")
     def test_switch_to_local_profile_by_default(self):
         invoke_and_assert(
             command=[
@@ -348,6 +349,7 @@ class TestPrestartCheck:
         profiles = load_profiles()
         assert profiles.active_name == "local"
 
+    @pytest.mark.usefixtures("stop_server")
     def test_choose_when_multiple_profiles_have_same_api_url(self):
         save_profiles(
             profiles=ProfilesCollection(
@@ -378,3 +380,19 @@ class TestPrestartCheck:
 
         profiles = load_profiles()
         assert profiles.active_name == "local"
+
+    def test_start_invalid_host(self):
+        """Test that providing an invalid host returns a clear error message.
+
+        this is a regression test for https://github.com/PrefectHQ/prefect/issues/16950
+        """
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--host",
+                "foo",
+            ],
+            expected_output_contains="Invalid host 'foo'. Please specify a valid hostname or IP address.",
+            expected_code=1,
+        )
