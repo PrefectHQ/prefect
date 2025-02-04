@@ -25,6 +25,7 @@ import { Route as DeploymentsIndexImport } from './routes/deployments/index'
 import { Route as ConcurrencyLimitsIndexImport } from './routes/concurrency-limits/index'
 import { Route as BlocksIndexImport } from './routes/blocks/index'
 import { Route as AutomationsIndexImport } from './routes/automations/index'
+import { Route as ArtifactsIndexImport } from './routes/artifacts/index'
 import { Route as BlocksCatalogImport } from './routes/blocks/catalog'
 import { Route as AutomationsCreateImport } from './routes/automations/create'
 import { Route as WorkPoolsWorkPoolWorkPoolNameImport } from './routes/work-pools/work-pool.$workPoolName'
@@ -121,6 +122,12 @@ const BlocksIndexRoute = BlocksIndexImport.update({
 const AutomationsIndexRoute = AutomationsIndexImport.update({
   id: '/automations/',
   path: '/automations/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ArtifactsIndexRoute = ArtifactsIndexImport.update({
+  id: '/artifacts/',
+  path: '/artifacts/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -266,6 +273,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/blocks/catalog'
       preLoaderRoute: typeof BlocksCatalogImport
       parentRoute: typeof BlocksImport
+    }
+    '/artifacts/': {
+      id: '/artifacts/'
+      path: '/artifacts'
+      fullPath: '/artifacts'
+      preLoaderRoute: typeof ArtifactsIndexImport
+      parentRoute: typeof rootRoute
     }
     '/automations/': {
       id: '/automations/'
@@ -445,6 +459,7 @@ export interface FileRoutesByFullPath {
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
+  '/artifacts': typeof ArtifactsIndexRoute
   '/automations': typeof AutomationsIndexRoute
   '/blocks/': typeof BlocksIndexRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
@@ -473,6 +488,7 @@ export interface FileRoutesByTo {
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
+  '/artifacts': typeof ArtifactsIndexRoute
   '/automations': typeof AutomationsIndexRoute
   '/blocks': typeof BlocksIndexRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
@@ -503,6 +519,7 @@ export interface FileRoutesById {
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
+  '/artifacts/': typeof ArtifactsIndexRoute
   '/automations/': typeof AutomationsIndexRoute
   '/blocks/': typeof BlocksIndexRoute
   '/concurrency-limits/': typeof ConcurrencyLimitsIndexRoute
@@ -534,6 +551,7 @@ export interface FileRouteTypes {
     | '/variables'
     | '/automations/create'
     | '/blocks/catalog'
+    | '/artifacts'
     | '/automations'
     | '/blocks/'
     | '/concurrency-limits'
@@ -561,6 +579,7 @@ export interface FileRouteTypes {
     | '/variables'
     | '/automations/create'
     | '/blocks/catalog'
+    | '/artifacts'
     | '/automations'
     | '/blocks'
     | '/concurrency-limits'
@@ -589,6 +608,7 @@ export interface FileRouteTypes {
     | '/variables'
     | '/automations/create'
     | '/blocks/catalog'
+    | '/artifacts/'
     | '/automations/'
     | '/blocks/'
     | '/concurrency-limits/'
@@ -618,6 +638,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   AutomationsCreateRoute: typeof AutomationsCreateRoute
+  ArtifactsIndexRoute: typeof ArtifactsIndexRoute
   AutomationsIndexRoute: typeof AutomationsIndexRoute
   ConcurrencyLimitsIndexRoute: typeof ConcurrencyLimitsIndexRoute
   DeploymentsIndexRoute: typeof DeploymentsIndexRoute
@@ -642,6 +663,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   AutomationsCreateRoute: AutomationsCreateRoute,
+  ArtifactsIndexRoute: ArtifactsIndexRoute,
   AutomationsIndexRoute: AutomationsIndexRoute,
   ConcurrencyLimitsIndexRoute: ConcurrencyLimitsIndexRoute,
   DeploymentsIndexRoute: DeploymentsIndexRoute,
@@ -677,6 +699,7 @@ export const routeTree = rootRoute
         "/settings",
         "/variables",
         "/automations/create",
+        "/artifacts/",
         "/automations/",
         "/concurrency-limits/",
         "/deployments/",
@@ -724,6 +747,9 @@ export const routeTree = rootRoute
     "/blocks/catalog": {
       "filePath": "blocks/catalog.tsx",
       "parent": "/blocks"
+    },
+    "/artifacts/": {
+      "filePath": "artifacts/index.tsx"
     },
     "/automations/": {
       "filePath": "automations/index.ts"

@@ -118,7 +118,6 @@ from typing import (
     Union,
 )
 
-import aiohttp
 import anyio.abc
 import kubernetes_asyncio
 from jsonpatch import JsonPatch
@@ -405,9 +404,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # a list of dicts. Might be able to improve this in the future with a better
         # default `env` value and better typing.
         else:
-            self.job_manifest["spec"]["template"]["spec"]["containers"][0][
-                "env"
-            ] = transformed_env
+            self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = (
+                transformed_env
+            )
 
     def _update_prefect_api_url_if_local_server(self):
         """If the API URL has been set by the base environment rather than the by the
@@ -705,9 +704,9 @@ class KubernetesWorker(BaseWorker):
             )
             # Store configuration so that we can delete the secret when the worker shuts
             # down
-            self._created_secrets[
-                (secret.metadata.name, secret.metadata.namespace)
-            ] = configuration
+            self._created_secrets[(secret.metadata.name, secret.metadata.namespace)] = (
+                configuration
+            )
         if secret_name:
             new_api_env_entry = {
                 "name": "PREFECT_API_KEY",
@@ -866,7 +865,6 @@ class KubernetesWorker(BaseWorker):
         configuration: KubernetesWorkerJobConfiguration,
         client,
     ):
-        timeout = aiohttp.ClientTimeout(total=None)
         core_client = CoreV1Api(client)
 
         logs = await core_client.read_namespaced_pod_log(
@@ -875,7 +873,6 @@ class KubernetesWorker(BaseWorker):
             follow=True,
             _preload_content=False,
             container="prefect-job",
-            _request_timeout=timeout,
         )
         try:
             async for line in logs.content:
@@ -916,7 +913,6 @@ class KubernetesWorker(BaseWorker):
                         func=batch_client.list_namespaced_job,
                         namespace=namespace,
                         field_selector=f"metadata.name={job_name}",
-                        _request_timeout=aiohttp.ClientTimeout(),
                         **watch_kwargs,
                     ):
                         yield event
@@ -925,7 +921,6 @@ class KubernetesWorker(BaseWorker):
                         job_list = await batch_client.list_namespaced_job(
                             namespace=namespace,
                             field_selector=f"metadata.name={job_name}",
-                            _request_timeout=aiohttp.ClientTimeout(),
                         )
 
                         resource_version = job_list.metadata.resource_version
@@ -1129,7 +1124,6 @@ class KubernetesWorker(BaseWorker):
                 namespace=configuration.namespace,
                 label_selector=f"job-name={job_name}",
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
-                _request_timeout=aiohttp.ClientTimeout(),
             ):
                 pod: V1Pod = event["object"]
                 last_pod_name = pod.metadata.name

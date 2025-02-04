@@ -4,6 +4,7 @@ import re
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Literal,
     NamedTuple,
     Optional,
@@ -92,22 +93,19 @@ def find_placeholders(template: T) -> set[Placeholder]:
 @overload
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: Literal[True] = True
-) -> T:
-    ...
+) -> T: ...
 
 
 @overload
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: Literal[False] = False
-) -> Union[T, type[NotSet]]:
-    ...
+) -> Union[T, type[NotSet]]: ...
 
 
 @overload
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: bool = False
-) -> Union[T, type[NotSet]]:
-    ...
+) -> Union[T, type[NotSet]]: ...
 
 
 def apply_values(
@@ -197,11 +195,13 @@ def apply_values(
 
 @inject_client
 async def resolve_block_document_references(
-    template: T, client: Optional["PrefectClient"] = None
+    template: T,
+    client: Optional["PrefectClient"] = None,
+    value_transformer: Optional[Callable[[str, Any], Any]] = None,
 ) -> Union[T, dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
-    the data of the block document.
+    its value or the return value of the transformer function if provided.
 
     Recursively searches for block document references in dictionaries and lists.
 
@@ -258,6 +258,7 @@ async def resolve_block_document_references(
 
     Args:
         template: The template to resolve block documents in
+        value_transformer: A function that takes the block placeholder and the block value and returns replacement text for the template
 
     Returns:
         The template with block documents resolved
@@ -275,13 +276,15 @@ async def resolve_block_document_references(
         updated_template: dict[str, Any] = {}
         for key, value in template.items():
             updated_value = await resolve_block_document_references(
-                value, client=client
+                value, value_transformer=value_transformer, client=client
             )
             updated_template[key] = updated_value
         return updated_template
     elif isinstance(template, list):
         return [
-            await resolve_block_document_references(item, client=client)
+            await resolve_block_document_references(
+                item, value_transformer=value_transformer, client=client
+            )
             for item in template
         ]
     elif isinstance(template, str):
@@ -325,6 +328,9 @@ async def resolve_block_document_references(
                         " keypath in the block document data."
                     )
                 value = from_dict
+
+            if value_transformer:
+                value = value_transformer(placeholder.full_match, value)
 
             return value
         else:

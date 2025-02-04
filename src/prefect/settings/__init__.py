@@ -15,7 +15,7 @@ from prefect.settings.legacy import (
     _get_settings_fields,
     _get_valid_setting_names,
 )
-from prefect.settings.models.root import Settings
+from prefect.settings.models.root import Settings, canonical_environment_prefix
 
 from prefect.settings.profiles import (
     Profile,
@@ -51,6 +51,7 @@ __all__ = [  # noqa: F822
     "load_profiles",
     "get_current_settings",
     "temporary_settings",
+    "canonical_environment_prefix",
     "DEFAULT_PROFILES_PATH",
     # add public settings here for auto-completion
     "PREFECT_API_AUTH_STRING",  # type: ignore

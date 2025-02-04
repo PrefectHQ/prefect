@@ -7,7 +7,14 @@ from pydantic_settings import SettingsConfigDict
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
-class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
+class ServicesBaseSetting(PrefectBaseSettings):
+    enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the service in the server application.",
+    )
+
+
+class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
     """
     Settings for controlling the cancellation cleanup service
     """
@@ -37,7 +44,7 @@ class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesEventPersisterSettings(PrefectBaseSettings):
+class ServerServicesEventPersisterSettings(ServicesBaseSetting):
     """
     Settings for controlling the event persister service
     """
@@ -79,7 +86,27 @@ class ServerServicesEventPersisterSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesFlowRunNotificationsSettings(PrefectBaseSettings):
+class ServerServicesEventLoggerSettings(ServicesBaseSetting):
+    """
+    Settings for controlling the event logger service
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "event_logger")
+    )
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether or not to start the event logger service in the server application.",
+        validation_alias=AliasChoices(
+            AliasPath("enabled"),
+            "prefect_server_services_event_logger_enabled",
+            "prefect_api_services_event_logger_enabled",
+        ),
+    )
+
+
+class ServerServicesFlowRunNotificationsSettings(ServicesBaseSetting):
     """
     Settings for controlling the flow run notifications service
     """
@@ -99,7 +126,7 @@ class ServerServicesFlowRunNotificationsSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesForemanSettings(PrefectBaseSettings):
+class ServerServicesForemanSettings(ServicesBaseSetting):
     """
     Settings for controlling the foreman service
     """
@@ -180,7 +207,7 @@ class ServerServicesForemanSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesLateRunsSettings(PrefectBaseSettings):
+class ServerServicesLateRunsSettings(ServicesBaseSetting):
     """
     Settings for controlling the late runs service
     """
@@ -224,7 +251,7 @@ class ServerServicesLateRunsSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesSchedulerSettings(PrefectBaseSettings):
+class ServerServicesSchedulerSettings(ServicesBaseSetting):
     """
     Settings for controlling the scheduler service
     """
@@ -349,7 +376,7 @@ class ServerServicesSchedulerSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesPauseExpirationsSettings(PrefectBaseSettings):
+class ServerServicesPauseExpirationsSettings(ServicesBaseSetting):
     """
     Settings for controlling the pause expiration service
     """
@@ -385,7 +412,7 @@ class ServerServicesPauseExpirationsSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesTaskRunRecorderSettings(PrefectBaseSettings):
+class ServerServicesTaskRunRecorderSettings(ServicesBaseSetting):
     """
     Settings for controlling the task run recorder service
     """
@@ -405,7 +432,7 @@ class ServerServicesTaskRunRecorderSettings(PrefectBaseSettings):
     )
 
 
-class ServerServicesTriggersSettings(PrefectBaseSettings):
+class ServerServicesTriggersSettings(ServicesBaseSetting):
     """
     Settings for controlling the triggers service
     """
@@ -441,6 +468,10 @@ class ServerServicesSettings(PrefectBaseSettings):
     event_persister: ServerServicesEventPersisterSettings = Field(
         default_factory=ServerServicesEventPersisterSettings,
         description="Settings for controlling the event persister service",
+    )
+    event_logger: ServerServicesEventLoggerSettings = Field(
+        default_factory=ServerServicesEventLoggerSettings,
+        description="Settings for controlling the event logger service",
     )
     flow_run_notifications: ServerServicesFlowRunNotificationsSettings = Field(
         default_factory=ServerServicesFlowRunNotificationsSettings,

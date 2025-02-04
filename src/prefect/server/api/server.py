@@ -19,9 +19,9 @@ import subprocess
 import sys
 import time
 from contextlib import asynccontextmanager
-from functools import partial, wraps
+from functools import wraps
 from hashlib import sha256
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
@@ -42,17 +42,12 @@ from typing_extensions import Self
 
 import prefect
 import prefect.server.api as api
-import prefect.server.services as services
 import prefect.settings
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
-from prefect.server.events import stream
-from prefect.server.events.services.actions import Actions
-from prefect.server.events.services.event_persister import EventPersister
-from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.services.task_run_recorder import TaskRunRecorder
+from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -605,96 +600,23 @@ def create_app(
         async with session:
             await run_block_auto_registration(session=session)
 
-    async def start_services():
-        """Start additional services when the Prefect REST API starts up."""
-
-        service_instances: list[Any] = []
-
-        # these services are for events and are not implemented as loop services right now
-        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
-            service_instances.append(TaskRunRecorder())
-
-        if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
-            service_instances.append(EventPersister())
-
-        if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
-            service_instances.append(stream.Distributor())
-
-        if (
-            not webserver_only
-            and prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value()
-        ):
-            service_instances.append(services.telemetry.Telemetry())
-
-        # don't run services in ephemeral mode
-        if not ephemeral and not webserver_only:
-            if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
-                service_instances.append(services.scheduler.Scheduler())
-                service_instances.append(
-                    services.scheduler.RecentDeploymentsScheduler()
-                )
-
-            if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
-                service_instances.append(services.late_runs.MarkLateRuns())
-
-            if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
-                service_instances.append(services.pause_expirations.FailExpiredPauses())
-
-            if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
-                service_instances.append(
-                    services.cancellation_cleanup.CancellationCleanup()
-                )
-
-            if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
-                service_instances.append(
-                    services.flow_run_notifications.FlowRunNotifications()
-                )
-
-            if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
-                service_instances.append(services.foreman.Foreman())
-
-            if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
-                service_instances.append(ReactiveTriggers())
-                service_instances.append(ProactiveTriggers())
-                service_instances.append(Actions())
-
-        loop = asyncio.get_running_loop()
-
-        app.state.services = {
-            service: loop.create_task(service.start()) for service in service_instances
-        }
-
-        for service, task in app.state.services.items():
-            logger.info(f"{service.name} service scheduled to start in-app")
-            task.add_done_callback(partial(on_service_exit, service))
-
-    async def stop_services():
-        """Ensure services are stopped before the Prefect REST API shuts down."""
-        if hasattr(app.state, "services") and app.state.services:
-            await asyncio.gather(*[service.stop() for service in app.state.services])
-            try:
-                await asyncio.gather(
-                    *[task.stop() for task in app.state.services.values()]
-                )
-            except Exception:
-                # `on_service_exit` should handle logging exceptions on exit
-                pass
-
     @asynccontextmanager
-    async def lifespan(app: FastAPI):
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if app not in LIFESPAN_RAN_FOR_APP:
-            try:
-                await run_migrations()
-                await add_block_types()
-                await start_services()
+            await run_migrations()
+            await add_block_types()
+
+            Services: type[Service] = Service
+            if ephemeral or webserver_only:
+                Services = RunInAllServers
+
+            async with Services.running():
                 LIFESPAN_RAN_FOR_APP.add(app)
                 yield
-            finally:
-                await stop_services()
         else:
             yield
 
-    def on_service_exit(service: Any, task: Any) -> None:
+    def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
         """
         Added as a callback for completion of services to log exit
         """

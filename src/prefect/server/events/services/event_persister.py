@@ -17,6 +17,7 @@ from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
+from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -28,6 +29,8 @@ from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -35,14 +38,17 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class EventPersister:
+class EventPersister(RunInAllServers, Service):
     """A service that persists events to the database as they arrive."""
-
-    name: str = "EventLogger"
 
     consumer_task: asyncio.Task[None] | None = None
 
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_persister
+
     def __init__(self):
+        super().__init__()
         self._started_event: asyncio.Event | None = None
 
     @property
@@ -126,16 +132,25 @@ async def create_handler(
 
         try:
             async with db.session_context() as session:
-                result = await session.execute(
+                resource_result = await session.execute(
+                    sa.delete(db.EventResource).where(
+                        db.EventResource.occurred < older_than
+                    )
+                )
+                event_result = await session.execute(
                     sa.delete(db.Event).where(db.Event.occurred < older_than)
                 )
                 await session.commit()
-                if result.rowcount:
+
+                if resource_result.rowcount or event_result.rowcount:
                     logger.debug(
-                        "Trimmed %s events older than %s.", result.rowcount, older_than
+                        "Trimmed %s events and %s event resources older than %s.",
+                        event_result.rowcount,
+                        resource_result.rowcount,
+                        older_than,
                     )
         except Exception:
-            logger.exception("Error trimming events", exc_info=True)
+            logger.exception("Error trimming events and resources", exc_info=True)
 
     async def flush_periodically():
         try:

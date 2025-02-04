@@ -19,22 +19,26 @@ from prefect.server.schemas.statuses import (
     WorkerStatus,
     WorkPoolStatus,
 )
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE,
     PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
+    get_current_settings,
 )
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 
 class Foreman(LoopService):
     """
-    A loop service responsible for monitoring the status of workers.
-
-    Handles updating the status of workers and their associated work pools.
+    Monitors the status of workers and their associated work pools
     """
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.foreman
 
     def __init__(
         self,

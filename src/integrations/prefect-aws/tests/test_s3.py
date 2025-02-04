@@ -1138,9 +1138,9 @@ class TestS3Bucket:
         # https://github.com/PrefectHQ/prefect/issues/13349
         S3Bucket(bucket_name="round-trip-bucket").save("round-tripper")
         loaded = S3Bucket.load("round-tripper")
-        assert hasattr(
-            loaded.credentials, "aws_access_key_id"
-        ), "`credentials` were not properly initialized"
+        assert hasattr(loaded.credentials, "aws_access_key_id"), (
+            "`credentials` were not properly initialized"
+        )
 
     @pytest.mark.parametrize(
         "client_parameters",
