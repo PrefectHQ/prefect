@@ -636,13 +636,13 @@ def create_app(
     )
     api_app = create_api_app(
         fast_api_app_kwargs={
-        "exception_handlers": {
-            # NOTE: FastAPI special cases the generic `Exception` handler and
-            #       registers it as a separate middleware from the others
-            Exception: custom_internal_exception_handler,
-            RequestValidationError: validation_exception_handler,
-            sa.exc.IntegrityError: integrity_exception_handler,
-            ObjectNotFoundError: prefect_object_not_found_exception_handler,
+            "exception_handlers": {
+                # NOTE: FastAPI special cases the generic `Exception` handler and
+                #       registers it as a separate middleware from the others
+                Exception: custom_internal_exception_handler,
+                RequestValidationError: validation_exception_handler,
+                sa.exc.IntegrityError: integrity_exception_handler,
+                ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         },
         final=final,

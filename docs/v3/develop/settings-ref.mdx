@@ -950,7 +950,7 @@ Controls maximum overflow of the connection pool. To prevent overflow, set to -1
 ## ServerAPISettings
 Settings for controlling API server behavior
 ### `auth_string`
-A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.
+A string to use for basic authentication with the API in the form 'user:password'.
 
 **Type**: `string | None`
 
@@ -984,6 +984,18 @@ The API's port address (defaults to `4200`).
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_PORT`
+
+### `base_path`
+The base URL path to serve the API under, e.g., /v2/api
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.base_path`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_BASE_PATH`
 
 ### `default_limit`
 The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.
