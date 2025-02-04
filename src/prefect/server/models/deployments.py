@@ -154,6 +154,7 @@ async def create_deployment(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
+                    parameters=schedule.parameters,
                 )
                 for schedule in schedules
             ],
@@ -714,7 +715,7 @@ async def _generate_scheduled_flow_runs(
 
         parameters = {
             **deployment.parameters,
-            **deployment_schedule.schedule.parameters,
+            **deployment_schedule.parameters,
         }
         for date in dates:
             runs.append(

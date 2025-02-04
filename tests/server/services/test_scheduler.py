@@ -130,7 +130,6 @@ async def test_create_parametrized_schedules_from_deployment(
     schedule = schemas.schedules.IntervalSchedule(
         interval=datetime.timedelta(days=30),
         anchor_date=pendulum.now("UTC"),
-        parameters={"name": "whoami"},
     )
 
     await models.deployments.create_deployment(
@@ -142,6 +141,7 @@ async def test_create_parametrized_schedules_from_deployment(
             schedules=[
                 schemas.core.DeploymentSchedule(
                     schedule=schedule,
+                    parameters={"name": "whoami"},
                     active=True,
                 ),
             ],

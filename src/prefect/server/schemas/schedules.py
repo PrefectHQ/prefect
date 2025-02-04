@@ -69,7 +69,6 @@ class IntervalSchedule(PrefectBaseModel):
         anchor_date (DateTime, optional): an anchor date to schedule increments against;
             if not provided, the current timestamp will be used.
         timezone (str, optional): a valid timezone string.
-        parameters (dict): a dictionary of parameter value overrides
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
@@ -80,7 +79,6 @@ class IntervalSchedule(PrefectBaseModel):
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
-    parameters: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_timezone(self):
@@ -208,8 +206,6 @@ class CronSchedule(PrefectBaseModel):
             OR. If the switch is set to False, the values are connected using AND. This
             behaves like fcron and enables you to e.g. define a job that executes each
             2nd friday of a month by setting the days of month and the weekday.
-        parameters (dict): a dictionary of parameter value overrides
-
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
@@ -222,7 +218,6 @@ class CronSchedule(PrefectBaseModel):
             "Control croniter behavior for handling day and day_of_week entries."
         ),
     )
-    parameters: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_timezone(self):
@@ -365,14 +360,12 @@ class RRuleSchedule(PrefectBaseModel):
     Args:
         rrule (str): a valid RRule string
         timezone (str, optional): a valid timezone string
-        parameters (dict): a dictionary of parameter value overrides
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
-    parameters: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("rrule")
     @classmethod
