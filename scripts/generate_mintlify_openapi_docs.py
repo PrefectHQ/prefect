@@ -72,7 +72,7 @@ def generate_schema_documentation(version: str, server_docs_path: Path):
     """Writes the current OpenAPI schema to the given path, generates documentation files
     from it, then returns Mintlify's recommended navigation updates."""
     openapi_schema = create_app().openapi()
-    openapi_schema["info"]["version"] = "3.1.0"
+    openapi_schema["info"]["version"] = version
 
     schema_path = server_docs_path / "schema.json"
     with open(schema_path, "w") as f:
