@@ -4,7 +4,7 @@ docs:
 
 migration:
   - changed-files:
-      - any-glob-to-any-file: src/**/migrations/**/*.py
+      - any-glob-to-any-file: src/**/_migrations/**/*.py
 
 upstream dependency:
   - changed-files:

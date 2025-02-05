@@ -6,9 +6,18 @@
 
 # documentation
 /docs                                @aaazzam @kevingrismore @daniel-prefect @seanpwlms
+
+# integrations
+/src/integrations/prefect-dbt        @aaazzam @kevingrismore
+
+# GitHub takes into account the last file ref for review requests
+# this resets the file to global owners to avoid huge review teams
+/docs/v3/develop/settings-ref.mdx    @cicdw @desertaxle @zzstoatzz
+
 # imports
 /src/prefect/__init__.py             @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
 /src/prefect/main.py                 @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
 
 # UI Replatform
-/ui-v2                               @aaazzam @cicdw @desertaxle @zzstoatzz @devinvillarosa
+/ui-v2                               @aaazzam @desertaxle @devinvillarosa
+/ui-v2/src/api/prefect.ts            @cicdw @desertaxle @zzstoatzz

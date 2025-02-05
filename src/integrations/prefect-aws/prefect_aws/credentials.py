@@ -43,9 +43,12 @@ def _get_client_cached(ctx, client_type: Union[str, ClientType]) -> Any:
         if isinstance(client_type, ClientType):
             client_type = client_type.value
 
+        params_override = ctx.aws_client_parameters.get_params_override()
+        if ctx.region_name is not None:
+            params_override["region_name"] = ctx.region_name
         client = ctx.get_boto3_session().client(
             service_name=client_type,
-            **ctx.aws_client_parameters.get_params_override(),
+            **params_override,
         )
     return client
 
