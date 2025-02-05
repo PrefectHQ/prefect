@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Union
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import is_schedule_type
+from prefect.schedules import Schedule
 
 if TYPE_CHECKING:
     from prefect.client.schemas.schedules import SCHEDULE_TYPES
-    from prefect.schedules import Schedule
 
 FlexibleScheduleList = Sequence[
-    Union[DeploymentScheduleCreate, dict[str, Any], "SCHEDULE_TYPES", "Schedule"]
+    Union[DeploymentScheduleCreate, dict[str, Any], "SCHEDULE_TYPES"]
 ]
 
 
@@ -17,6 +17,7 @@ def create_deployment_schedule_create(
     active: Optional[bool] = True,
 ) -> DeploymentScheduleCreate:
     """Create a DeploymentScheduleCreate object from common schedule parameters."""
+
     if isinstance(schedule, Schedule):
         return DeploymentScheduleCreate.from_schedule(schedule)
     return DeploymentScheduleCreate(
