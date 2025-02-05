@@ -249,7 +249,7 @@ class BaseTaskRunEngine(Generic[P, R]):
         display_state = repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
         level = logging.INFO if self.state.is_completed() else logging.ERROR
         msg = f"Finished in state {display_state}"
-        if self.state.is_pending():
+        if self.state.is_pending() and self.state.name != "NotReady":
             msg += (
                 "\nPlease wait for all submitted tasks to complete"
                 " before exiting your flow by calling `.wait()` on the "
