@@ -94,6 +94,7 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
+from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RUNNER_SERVER_ENABLE,
@@ -278,6 +279,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -303,6 +305,8 @@ class Runner:
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set the created deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this flow.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs of this flow to allow.
@@ -317,7 +321,7 @@ class Runner:
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
-        if any([interval, cron, rrule]) and not api:
+        if any([interval, cron, rrule, schedule, schedules]) and not api:
             self._logger.warning(
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
                 " start` to start the scheduler."
@@ -329,6 +333,7 @@ class Runner:
             interval=interval,
             cron=cron,
             rrule=rrule,
+            schedule=schedule,
             schedules=schedules,
             paused=paused,
             triggers=triggers,
