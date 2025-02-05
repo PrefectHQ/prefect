@@ -44,6 +44,7 @@ from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check, start_webserver
+from prefect.schedules import Cron, Interval
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -441,6 +442,7 @@ class TestRunner:
                             )
                         ]
                     },
+                    {"schedule": Cron("* * * * *")},
                 ],
                 2,
             )
@@ -450,9 +452,7 @@ class TestRunner:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = (
-                "Only one of interval, cron, rrule, or schedules can be provided."
-            )
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             runner = Runner()
             with pytest.raises(ValueError, match=expected_message):
                 await runner.add_flow(dummy_flow_1, __file__, **kwargs)
@@ -1266,6 +1266,7 @@ class TestRunnerDeployment:
                     "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
                     "active": False,
                 },
+                Interval(datetime.timedelta(days=3)),
             ],
         )
         assert deployment.schedules
@@ -1275,6 +1276,8 @@ class TestRunnerDeployment:
         assert deployment.schedules[1].active is True
         assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
         assert deployment.schedules[2].active is False
+        assert deployment.schedules[3].schedule.interval == datetime.timedelta(days=3)
+        assert deployment.schedules[3].active is True
 
     @pytest.mark.parametrize(
         "value,expected",
@@ -1316,6 +1319,7 @@ class TestRunnerDeployment:
                             )
                         ],
                     },
+                    {"schedule": Cron("* * * * *")},
                 ],
                 2,
             )
@@ -1323,7 +1327,7 @@ class TestRunnerDeployment:
     )
     def test_from_flow_raises_on_multiple_schedule_parameters(self, kwargs):
         expected_message = (
-            "Only one of interval, cron, rrule, or schedules can be provided."
+            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_flow(dummy_flow_1, __file__, **kwargs)
@@ -1531,7 +1535,7 @@ class TestRunnerDeployment:
         self, dummy_flow_1_entrypoint, kwargs
     ):
         expected_message = (
-            "Only one of interval, cron, rrule, or schedules can be provided."
+            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
@@ -1751,6 +1755,7 @@ class TestRunnerDeployment:
                     "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
                     "active": False,
                 },
+                Interval(datetime.timedelta(days=3)),
             ],
         )
         assert isinstance(deployment, RunnerDeployment)
@@ -1761,6 +1766,8 @@ class TestRunnerDeployment:
         assert deployment.schedules[1].active is True
         assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
         assert deployment.schedules[2].active is False
+        assert deployment.schedules[3].schedule.interval == datetime.timedelta(days=3)
+        assert deployment.schedules[3].active is True
 
     async def test_afrom_storage_accepts_schedules(self, temp_storage: MockStorage):
         deployment = await RunnerDeployment.afrom_storage(
@@ -1776,6 +1783,7 @@ class TestRunnerDeployment:
                     "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
                     "active": False,
                 },
+                Interval(datetime.timedelta(days=3)),
             ],
         )
         assert deployment.schedules
@@ -1785,6 +1793,8 @@ class TestRunnerDeployment:
         assert deployment.schedules[1].active is True
         assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
         assert deployment.schedules[2].active is False
+        assert deployment.schedules[3].schedule.interval == datetime.timedelta(days=3)
+        assert deployment.schedules[3].active is True
 
     @pytest.mark.parametrize(
         "value,expected",
@@ -1915,12 +1925,24 @@ class TestDeploy:
         temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
-            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_1.to_deployment(
+                __file__,
+                schedule=Interval(
+                    3600,
+                    parameters={"number": 42},
+                ),
+            ),
             await (
                 await flow.from_source(
                     source=temp_storage, entrypoint="flows.py:test_flow"
                 )
-            ).to_deployment(__file__),
+            ).to_deployment(
+                __file__,
+                schedule=Interval(
+                    3600,
+                    parameters={"number": 42},
+                ),
+            ),
             work_pool_name=work_pool_with_image_variable.name,
             image=DockerImage(
                 name="test-registry/test-image",
@@ -1943,12 +1965,24 @@ class TestDeploy:
             f"{dummy_flow_1.name}/test_runner"
         )
         assert deployment_1.id == deployment_ids[0]
+        assert len(deployment_1.schedules) == 1
+        assert isinstance(deployment_1.schedules[0].schedule, IntervalSchedule)
+        assert deployment_1.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment_1.schedules[0].parameters == {"number": 42}
 
         deployment_2 = await prefect_client.read_deployment_by_name(
             "test-flow/test_runner"
         )
         assert deployment_2.id == deployment_ids[1]
         assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
+        assert len(deployment_2.schedules) == 1
+        assert isinstance(deployment_2.schedules[0].schedule, IntervalSchedule)
+        assert deployment_2.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment_2.schedules[0].parameters == {"number": 42}
 
         console_output = capsys.readouterr().out
         assert "prefect worker start --pool" in console_output
