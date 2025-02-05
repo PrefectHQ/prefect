@@ -910,35 +910,6 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    @pytest.mark.skip(
-        reason="This test is not compatible with the current state of client side task orchestration"
-    )
-    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
-        """
-        If submitted tasks aren't waited on before a flow exits, they may fail to run
-        because they're transition from PENDING to RUNNING is denied. This test ensures
-        that a message is logged when this happens.
-        """
-
-        @task
-        def find_palindromes():
-            """This is a computationally expensive task that never ends,
-            allowing the flow to exit before the task is completed."""
-            num = 10
-            while True:
-                _ = str(num) == str(num)[::-1]
-                num += 1
-
-        @flow
-        def test_flow():
-            find_palindromes.submit()
-
-        test_flow()
-        assert (
-            "Please wait for all submitted tasks to complete before exiting your flow"
-            in caplog.text
-        )
-
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
