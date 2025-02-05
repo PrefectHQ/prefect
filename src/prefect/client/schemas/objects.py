@@ -1094,6 +1094,10 @@ class DeploymentSchedule(ObjectBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
+    )
 
 
 class Deployment(ObjectBaseModel):

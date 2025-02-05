@@ -941,6 +941,7 @@ def _schedule_config_to_deployment_schedule(
     anchor_date = schedule_config.get("anchor_date")
     timezone = schedule_config.get("timezone")
     schedule_active = schedule_config.get("active", True)
+    parameters = schedule_config.get("parameters", {})
 
     if cron := schedule_config.get("cron"):
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -972,6 +973,7 @@ def _schedule_config_to_deployment_schedule(
     return DeploymentScheduleCreate(
         schedule=schedule,
         active=schedule_active,
+        parameters=parameters,
     )
 
 
