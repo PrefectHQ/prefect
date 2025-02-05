@@ -423,10 +423,9 @@ class RunnerDeployment(BaseModel):
               this list is returned as-is, bypassing other schedule construction
               logic.
         """
-
         num_schedules = sum(
             1
-            for entry in (interval, cron, rrule, schedule, schedules, schedule)
+            for entry in (interval, cron, rrule, schedule, schedules)
             if entry is not None
         )
         if num_schedules > 1:

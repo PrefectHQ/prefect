@@ -321,7 +321,7 @@ class Runner:
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
-        if any([interval, cron, rrule]) and not api:
+        if any([interval, cron, rrule, schedule, schedules]) and not api:
             self._logger.warning(
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
                 " start` to start the scheduler."
