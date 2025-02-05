@@ -750,6 +750,14 @@
       "destination": "https://reference.prefect.io/:slug*"
     },
     {
+      "source": "v3/reference",
+      "destination": "https://reference.prefect.io"
+    },
+    {
+      "source": "v3/reference/:slug*",
+      "destination": "https://reference.prefect.io/:slug*"
+    },
+    {
       "destination": "/v3/getting-started/:slug*",
       "source": "/getting-started/:slug*"
     },
