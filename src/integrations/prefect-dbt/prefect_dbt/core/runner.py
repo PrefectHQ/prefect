@@ -112,16 +112,17 @@ class PrefectDbtRunner:
                     if depends_manifest_node.relation_name
                     else None
                 )
-                upstream_manifest_nodes.append(
-                    {
-                        "prefect.resource.id": f"{adapter_type}://{depends_relation_name}",
-                        "prefect.resource.lineage-group": depends_node_prefect_config.get(
-                            "lineage_group", "global"
-                        ),
-                        "prefect.resource.role": depends_manifest_node.resource_type,
-                        "prefect.resource.name": depends_manifest_node.name,
-                    }
-                )
+                if depends_node_prefect_config.get("emit_lineage_events", True):
+                    upstream_manifest_nodes.append(
+                        {
+                            "prefect.resource.id": f"{adapter_type}://{depends_relation_name}",
+                            "prefect.resource.lineage-group": depends_node_prefect_config.get(
+                                "lineage_group", "global"
+                            ),
+                            "prefect.resource.role": depends_manifest_node.resource_type,
+                            "prefect.resource.name": depends_manifest_node.name,
+                        }
+                    )
 
         node_prefect_config: dict[str, Any] = manifest_node.config.meta.get(
             "prefect", {}
