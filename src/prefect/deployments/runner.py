@@ -537,6 +537,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         job_variables = job_variables or {}
@@ -631,6 +632,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -686,6 +688,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
@@ -792,6 +795,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
@@ -913,6 +917,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
