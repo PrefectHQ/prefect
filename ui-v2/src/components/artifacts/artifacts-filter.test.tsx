@@ -39,7 +39,7 @@ describe("Artifacts Filter", () => {
 
 		expect(findByText(`${defaultCount} artifacts`)).toBeTruthy();
 		expect(findByTestId("search-input")).toBeTruthy();
-		expect(findByTestId("type-select")).toBeTruthy();
+		expect(findByText("All Types")).toBeTruthy();
 	});
 
 	it("changes artifact name filter", async () => {

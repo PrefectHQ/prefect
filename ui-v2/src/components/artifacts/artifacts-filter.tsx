@@ -78,6 +78,7 @@ export const ArtifactsFilterComponent = ({
 				<SearchInput
 					data-testid="search-input"
 					value={searchInputValue}
+					placeholder="Search artifacts"
 					onChange={(e) => setSearchInput(e.target.value)}
 				/>
 
