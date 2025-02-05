@@ -4,6 +4,7 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
+from dbt.artifacts.schemas.catalog import CatalogArtifact
 from dbt.artifacts.schemas.results import RunStatus, TestStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunnerResult
@@ -449,6 +450,389 @@ class TestPrefectDbtRunnerInvoke:
         result = await runner.ainvoke(["run"])
         assert result.success is False
 
+    @pytest.mark.parametrize(
+        "command,expected_type,requires_manifest",
+        [
+            (["run"], RunExecutionResult, True),
+            (["test"], RunExecutionResult, True),
+            (["seed"], RunExecutionResult, True),
+            (["snapshot"], RunExecutionResult, True),
+            (["build"], RunExecutionResult, True),
+            (["compile"], RunExecutionResult, True),
+            (["run-operation"], RunExecutionResult, True),
+            (["parse"], Manifest, False),
+            (["docs", "generate"], CatalogArtifact, True),
+            (["list"], list, True),
+            (["ls"], list, True),
+            (["debug"], bool, False),
+            (["clean"], None, False),
+            (["deps"], None, False),
+            (["init"], None, False),
+            (["source"], None, True),
+        ],
+    )
+    def test_invoke_command_return_types(
+        self, mock_dbt_runner, settings, command, expected_type, requires_manifest
+    ):
+        """Test that different dbt commands return the expected result types."""
+        runner = PrefectDbtRunner(settings=settings)
+
+        # Mock parse result if needed
+        parse_result = Mock(spec=dbtRunnerResult)
+        parse_result.success = True
+        manifest = Mock(spec=Manifest)  # Create the manifest
+        manifest.metadata = Mock()  # Add required metadata
+        manifest.metadata.adapter_type = "postgres"
+        parse_result.result = manifest  # Set the actual manifest
+
+        # Mock command result
+        command_result = Mock(spec=dbtRunnerResult)
+        command_result.success = True
+        command_result.exception = None
+
+        # Set appropriate result based on command
+        if expected_type is None:
+            command_result.result = None
+        elif expected_type is bool:
+            command_result.result = True
+        elif expected_type is list:
+            command_result.result = ["item1", "item2"]
+        else:
+            command_result.result = Mock(spec=expected_type)
+
+        def side_effect(args, **kwargs):
+            if args == ["parse"]:
+                return parse_result
+            return command_result
+
+        mock_dbt_runner.invoke.side_effect = side_effect
+
+        result = runner.invoke(command)
+
+        assert result.success
+        if expected_type is None:
+            assert result.result is None
+        elif expected_type is bool:
+            assert isinstance(result.result, bool)
+        elif expected_type is list:
+            assert isinstance(result.result, list)
+            assert all(isinstance(item, str) for item in result.result)
+        else:
+            assert isinstance(result.result, expected_type)
+
+        # Verify call count and order
+        if requires_manifest:
+            assert mock_dbt_runner.invoke.call_count == 2
+            assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
+            assert mock_dbt_runner.invoke.call_args_list[1].args[0] == command
+        else:
+            mock_dbt_runner.invoke.assert_called_once()
+            assert mock_dbt_runner.invoke.call_args.args[0] == command
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "command,expected_type,requires_manifest",
+        [
+            (["run"], RunExecutionResult, True),
+            (["test"], RunExecutionResult, True),
+            (["seed"], RunExecutionResult, True),
+            (["snapshot"], RunExecutionResult, True),
+            (["build"], RunExecutionResult, True),
+            (["compile"], RunExecutionResult, True),
+            (["run-operation"], RunExecutionResult, True),
+            (["parse"], Manifest, False),
+            (["docs", "generate"], CatalogArtifact, True),
+            (["list"], list, True),
+            (["ls"], list, True),
+            (["debug"], bool, False),
+            (["clean"], None, False),
+            (["deps"], None, False),
+            (["init"], None, False),
+            (["source"], None, True),
+        ],
+    )
+    async def test_ainvoke_command_return_types(
+        self, mock_dbt_runner, settings, command, expected_type, requires_manifest
+    ):
+        """Test that different dbt commands return the expected result types when called asynchronously."""
+        runner = PrefectDbtRunner(settings=settings)
+
+        # Mock parse result if needed
+        parse_result = Mock(spec=dbtRunnerResult)
+        parse_result.success = True
+        parse_result.result = Mock(spec=Manifest)
+
+        # Mock command result
+        command_result = Mock(spec=dbtRunnerResult)
+        command_result.success = True
+        command_result.exception = None
+
+        # Set appropriate result based on command
+        if expected_type is None:
+            command_result.result = None
+        elif expected_type is bool:
+            command_result.result = True
+        elif expected_type is list:
+            command_result.result = ["item1", "item2"]
+        else:
+            command_result.result = Mock(spec=expected_type)
+
+        def side_effect(args, **kwargs):
+            if args == ["parse"]:
+                return parse_result
+            return command_result
+
+        mock_dbt_runner.invoke.side_effect = side_effect
+
+        result = await runner.ainvoke(command)
+
+        assert result.success
+        if expected_type is None:
+            assert result.result is None
+        elif expected_type is bool:
+            assert isinstance(result.result, bool)
+        elif expected_type is list:
+            assert isinstance(result.result, list)
+            assert all(isinstance(item, str) for item in result.result)
+        else:
+            assert isinstance(result.result, expected_type)
+
+        # Verify call count and order
+        if requires_manifest:
+            assert mock_dbt_runner.invoke.call_count == 2
+            assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
+            assert mock_dbt_runner.invoke.call_args_list[1].args[0] == command
+        else:
+            mock_dbt_runner.invoke.assert_called_once()
+            assert mock_dbt_runner.invoke.call_args.args[0] == command
+
+    def test_invoke_with_manifest_requiring_commands(self, mock_dbt_runner, settings):
+        """Test that commands requiring manifest trigger parse if manifest not provided."""
+        runner = PrefectDbtRunner(settings=settings)
+
+        # Mock parse result
+        parse_result = Mock(spec=dbtRunnerResult)
+        parse_result.success = True
+        parse_result.result = Mock(spec=Manifest)
+
+        # Mock run result
+        run_result = Mock(spec=dbtRunnerResult)
+        run_result.success = True
+        run_result.result = Mock(spec=RunExecutionResult)
+
+        def side_effect(args, **kwargs):
+            if args == ["parse"]:
+                return parse_result
+            return run_result
+
+        mock_dbt_runner.invoke.side_effect = side_effect
+
+        # Test with command that requires manifest
+        runner.invoke(["run"])
+        assert mock_dbt_runner.invoke.call_count == 2
+        assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
+        assert mock_dbt_runner.invoke.call_args_list[1].args[0] == ["run"]
+
+        # Reset mock
+        mock_dbt_runner.invoke.reset_mock()
+        mock_dbt_runner.invoke.side_effect = side_effect
+
+        # Test with command that doesn't require manifest
+        runner.invoke(["clean"])
+        assert mock_dbt_runner.invoke.call_count == 1
+        assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["clean"]
+
+    def test_invoke_with_preloaded_manifest(self, mock_dbt_runner, settings):
+        """Test that commands don't trigger parse when manifest is preloaded."""
+        manifest = Mock(spec=Manifest)
+        runner = PrefectDbtRunner(settings=settings, manifest=manifest)
+
+        # Mock run result
+        run_result = Mock(spec=dbtRunnerResult)
+        run_result.success = True
+        run_result.result = Mock(spec=RunExecutionResult)
+        mock_dbt_runner.invoke.return_value = run_result
+
+        # Test with command that normally requires manifest
+        runner.invoke(["run"])
+
+        # Should not call parse since manifest was preloaded
+        mock_dbt_runner.invoke.assert_called_once()
+        assert mock_dbt_runner.invoke.call_args.args[0] == ["run"]
+
+    def test_invoke_debug_command(self, mock_dbt_runner, settings):
+        """Test the dbt debug command which has unique behavior."""
+        runner = PrefectDbtRunner(settings=settings)
+
+        # Mock debug result
+        debug_result = Mock(spec=dbtRunnerResult)
+        debug_result.success = True
+        # debug command doesn't return a specific result type
+        debug_result.result = None
+        mock_dbt_runner.invoke.return_value = debug_result
+
+        result = runner.invoke(["debug"])
+
+        assert result.success
+        assert result.result is None
+        mock_dbt_runner.invoke.assert_called_once_with(
+            ["debug"],
+            project_dir=settings.project_dir,
+            profiles_dir=ANY,
+            log_level=ANY,
+        )
+
+    @pytest.mark.parametrize(
+        "command,expected_type",
+        [
+            (["run"], RunExecutionResult),
+            (["test"], RunExecutionResult),
+            (["seed"], RunExecutionResult),
+            (["snapshot"], RunExecutionResult),
+            (["build"], RunExecutionResult),
+            (["compile"], RunExecutionResult),
+            (["run-operation"], RunExecutionResult),
+            (["parse"], Manifest),
+            (["docs", "generate"], CatalogArtifact),
+            (["list"], list),
+            (["ls"], list),
+            (["debug"], bool),
+            (["clean"], type(None)),
+            (["deps"], type(None)),
+            (["init"], type(None)),
+            (["source"], type(None)),
+        ],
+    )
+    def test_failure_result_types(
+        self, mock_dbt_runner, settings, command, expected_type
+    ):
+        """Test that failed commands return the expected result types."""
+        runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+
+        # Mock parse result if needed for manifest loading
+        parse_result = Mock(spec=dbtRunnerResult)
+        parse_result.success = True
+        manifest = Mock(spec=Manifest)
+        manifest.metadata = Mock()
+        manifest.metadata.adapter_type = "postgres"
+        parse_result.result = manifest
+
+        # Mock failed command result
+        command_result = Mock(spec=dbtRunnerResult)
+        command_result.success = False
+        command_result.exception = None
+
+        # Set appropriate result based on command
+        if expected_type is type(None):
+            command_result.result = None
+        elif expected_type is bool:
+            command_result.result = False
+        elif expected_type is list:
+            command_result.result = []
+        else:
+            command_result.result = Mock(spec=expected_type)
+            if expected_type == RunExecutionResult:
+                # Add failed results for RunExecutionResult
+                failed_node = Mock()
+                failed_node.status = RunStatus.Error
+                failed_node.node = Mock()
+                failed_node.node.resource_type = NodeType.Model
+                failed_node.node.name = "failed_model"
+                failed_node.message = "Test failure"
+                command_result.result.results = [failed_node]
+
+        def side_effect(args, **kwargs):
+            if args == ["parse"] and command != [
+                "parse"
+            ]:  # Only return successful parse when loading manifest
+                return parse_result
+            return command_result
+
+        mock_dbt_runner.invoke.side_effect = side_effect
+
+        result = runner.invoke(command)
+
+        assert not result.success
+        if expected_type is type(None):
+            assert result.result is None
+        else:
+            assert isinstance(result.result, expected_type)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "command,expected_type",
+        [
+            (["run"], RunExecutionResult),
+            (["test"], RunExecutionResult),
+            (["seed"], RunExecutionResult),
+            (["snapshot"], RunExecutionResult),
+            (["build"], RunExecutionResult),
+            (["compile"], RunExecutionResult),
+            (["run-operation"], RunExecutionResult),
+            (["parse"], Manifest),
+            (["docs", "generate"], CatalogArtifact),
+            (["list"], list),
+            (["ls"], list),
+            (["debug"], bool),
+            (["clean"], type(None)),
+            (["deps"], type(None)),
+            (["init"], type(None)),
+            (["source"], type(None)),
+        ],
+    )
+    async def test_failure_result_types_async(
+        self, mock_dbt_runner, settings, command, expected_type
+    ):
+        """Test that failed commands return the expected result types when called asynchronously."""
+        runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+
+        # Mock parse result if needed for manifest loading
+        parse_result = Mock(spec=dbtRunnerResult)
+        parse_result.success = True
+        manifest = Mock(spec=Manifest)
+        parse_result.result = manifest
+
+        # Mock failed command result
+        command_result = Mock(spec=dbtRunnerResult)
+        command_result.success = False
+        command_result.exception = None
+
+        # Set appropriate result based on command
+        if expected_type is type(None):
+            command_result.result = None
+        elif expected_type is bool:
+            command_result.result = False
+        elif expected_type is list:
+            command_result.result = []
+        else:
+            command_result.result = Mock(spec=expected_type)
+            if expected_type == RunExecutionResult:
+                # Add failed results for RunExecutionResult
+                failed_node = Mock()
+                failed_node.status = RunStatus.Error
+                failed_node.node = Mock()
+                failed_node.node.resource_type = NodeType.Model
+                failed_node.node.name = "failed_model"
+                failed_node.message = "Test failure"
+                command_result.result.results = [failed_node]
+
+        def side_effect(args, **kwargs):
+            if args == ["parse"] and command != [
+                "parse"
+            ]:  # Only return successful parse when loading manifest
+                return parse_result
+            return command_result
+
+        mock_dbt_runner.invoke.side_effect = side_effect
+
+        result = await runner.ainvoke(command)
+
+        assert not result.success
+        if expected_type is type(None):
+            assert result.result is None
+        else:
+            assert isinstance(result.result, expected_type)
+
 
 class TestPrefectDbtRunnerLogging:
     def test_logging_callback(self, mock_dbt_runner, settings, caplog):
@@ -627,12 +1011,12 @@ class TestPrefectDbtRunnerEvents:
             # Check upstream resources
             upstream_resources = lineage_call.kwargs["upstream_resources"]
             assert len(upstream_resources) == 2  # One from depends_on, one from meta
-            # assert {
-            #     "prefect.resource.id": "postgres://schema/upstream_table",
-            #     "prefect.resource.lineage-group": "global",
-            #     "prefect.resource.role": NodeType.Model,
-            #     "prefect.resource.name": "upstream"
-            # } in upstream_resources
+            assert {
+                "prefect.resource.id": "postgres://schema/upstream_table",
+                "prefect.resource.lineage-group": "global",
+                "prefect.resource.role": NodeType.Model,
+                "prefect.resource.name": "upstream",
+            } in upstream_resources
             assert {
                 "prefect.resource.id": "s3://bucket/path",
                 "prefect.resource.lineage-group": "global",

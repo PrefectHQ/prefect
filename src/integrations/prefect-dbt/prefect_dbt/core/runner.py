@@ -34,7 +34,20 @@ FAILURE_STATUSES = [
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 
-REQUIRES_MANIFEST = ["build", "run", "run-operation", "seed", "snapshot", "test"]
+REQUIRES_MANIFEST = [
+    "build",
+    "compile",
+    "docs",
+    "list",
+    "ls",
+    "run",
+    "run-operation",
+    "seed",
+    "show",
+    "snapshot",
+    "source",
+    "test",
+]
 NODE_TYPES_TO_EMIT_LINEAGE = [
     NodeType.Model,
     NodeType.Seed,
@@ -343,7 +356,7 @@ class PrefectDbtRunner:
         async with aresolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
-            needs_manifest = any(arg in args for arg in REQUIRES_MANIFEST)
+            needs_manifest = any(arg in REQUIRES_MANIFEST for arg in args)
             if self.manifest is None and "parse" not in args and needs_manifest:
                 self.parse()
 
@@ -358,8 +371,6 @@ class PrefectDbtRunner:
                     f"Failed to invoke dbt command '{''.join(args)}': {res.exception}"
                 )
             elif not res.success and self.raise_on_failure:
-                print(type(res.result))
-
                 assert isinstance(res.result, RunExecutionResult), (
                     "Expected run execution result from failed dbt invoke"
                 )
@@ -407,7 +418,7 @@ class PrefectDbtRunner:
         with resolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
-            needs_manifest = any(arg in args for arg in REQUIRES_MANIFEST)
+            needs_manifest = any(arg in REQUIRES_MANIFEST for arg in args)
             if self.manifest is None and "parse" not in args and needs_manifest:
                 self.parse()
 
