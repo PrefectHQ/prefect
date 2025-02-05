@@ -868,7 +868,10 @@
                         }
                     ],
                     "default": null,
-                    "description": "The base URL path to serve the API under, e.g., /v2/api",
+                    "description": "The base URL path to serve the API under.",
+                    "examples": [
+                        "/v2/api"
+                    ],
                     "supported_environment_variables": [
                         "PREFECT_SERVER_API_BASE_PATH"
                     ],
