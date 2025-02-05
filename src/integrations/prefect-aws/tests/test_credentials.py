@@ -80,7 +80,6 @@ def test_get_client_cached(credentials, client_type):
     assert _get_client_cached.cache_info().hits == 2
 
 
-
 @pytest.mark.parametrize("client_type", [member.value for member in ClientType])
 def test_aws_credentials_region_properly_passed_to_client(client_type):
     """
