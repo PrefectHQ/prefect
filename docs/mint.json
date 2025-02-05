@@ -742,6 +742,14 @@
   ],
   "redirects": [
     {
+      "source": "/reference",
+      "destination": "https://reference.prefect.io"
+    },
+    {
+      "source": "/reference/:slug*",
+      "destination": "https://reference.prefect.io/:slug*"
+    },
+    {
       "destination": "/v3/getting-started/:slug*",
       "source": "/getting-started/:slug*"
     },
