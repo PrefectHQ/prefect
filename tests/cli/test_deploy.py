@@ -2365,6 +2365,9 @@ class TestSchedules:
         deploy_config["deployments"][0]["name"] = "test-name"
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
+        deploy_config["deployments"][0]["schedule"]["parameters"] = {
+            "number": 42,
+        }
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2383,6 +2386,7 @@ class TestSchedules:
         schedule = deployment.schedules[0].schedule
         assert schedule.cron == "0 4 * * *"
         assert schedule.timezone == "America/Chicago"
+        assert deployment.schedules[0].parameters == {"number": 42}
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deployment_yaml_cron_schedule_timezone_cli(
@@ -2449,6 +2453,9 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["interval"] = 42
         deploy_config["deployments"][0]["schedule"]["anchor_date"] = "2040-02-02"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
+        deploy_config["deployments"][0]["schedule"]["parameters"] = {
+            "number": 42,
+        }
 
         with prefect_yaml.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2469,6 +2476,7 @@ class TestSchedules:
         assert schedule.interval == timedelta(seconds=42)
         assert schedule.anchor_date == pendulum.parse("2040-02-02")
         assert schedule.timezone == "America/Chicago"
+        assert deployment.schedules[0].parameters == {"number": 42}
 
     @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
@@ -2504,6 +2512,9 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["rrule"] = (
             "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
+        deploy_config["deployments"][0]["schedule"]["parameters"] = {
+            "number": 42,
+        }
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2511,9 +2522,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --rrule"
-                " 'DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17'"
-                f" --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n test-name  --pool {work_pool.name}"
             ),
             expected_code=0,
         )
@@ -2526,6 +2535,7 @@ class TestSchedules:
             schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
+        assert deployment.schedules[0].parameters == {"number": 42}
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_command(
