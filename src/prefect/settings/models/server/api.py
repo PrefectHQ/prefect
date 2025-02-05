@@ -33,7 +33,8 @@ class ServerAPISettings(PrefectBaseSettings):
 
     base_path: Optional[str] = Field(
         default=None,
-        description="The base URL path to serve the API under, e.g., /v2/api",
+        description="The base URL path to serve the API under.",
+        examples=["/v2/api"],
     )
 
     default_limit: int = Field(
