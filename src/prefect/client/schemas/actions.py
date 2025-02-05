@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -92,6 +92,20 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
+    )
+
+    @field_validator("active", mode="wrap")
+    @classmethod
+    def validate_active(cls, v: Any, handler: Callable[[Any], Any]) -> bool:
+        try:
+            return handler(v)
+        except Exception:
+            raise ValueError(
+                f"active must be able to be parsed as a boolean, got {v!r} of type {type(v)}"
+            )
 
     @field_validator("max_scheduled_runs")
     @classmethod
@@ -112,6 +126,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")

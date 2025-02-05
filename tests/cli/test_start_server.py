@@ -131,9 +131,9 @@ class TestBackgroundServer:
             expected_code=0,
         )
 
-        assert not (
-            PREFECT_HOME.value() / "server.pid"
-        ).exists(), "Server PID file exists"
+        assert not (PREFECT_HOME.value() / "server.pid").exists(), (
+            "Server PID file exists"
+        )
 
     def test_start_duplicate_background_server(
         self, unused_tcp_port_factory: Callable[[], int]
@@ -220,9 +220,9 @@ class TestBackgroundServer:
             expected_code=0,
         )
 
-        assert not (
-            PREFECT_HOME.value() / "server.pid"
-        ).exists(), "Server PID file exists"
+        assert not (PREFECT_HOME.value() / "server.pid").exists(), (
+            "Server PID file exists"
+        )
 
 
 @pytest.mark.service("process")
@@ -237,9 +237,9 @@ class TestUvicornSignalForwarding:
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
 
-            assert (
-                exit_code == 0
-            ), "After one sigint, the process should exit successfully"
+            assert exit_code == 0, (
+                "After one sigint, the process should exit successfully"
+            )
 
             server_process.out.seek(0)
             out = server_process.out.read().decode()
@@ -259,9 +259,9 @@ class TestUvicornSignalForwarding:
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
 
-            assert (
-                exit_code == -signal.SIGTERM
-            ), "After a sigterm, the server process should indicate it was terminated"
+            assert exit_code == -signal.SIGTERM, (
+                "After a sigterm, the server process should indicate it was terminated"
+            )
 
             server_process.out.seek(0)
             out = server_process.out.read().decode()
@@ -281,9 +281,9 @@ class TestUvicornSignalForwarding:
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
 
-            assert (
-                exit_code == 0
-            ), "After a ctrl-break, the process should exit successfully"
+            assert exit_code == 0, (
+                "After a ctrl-break, the process should exit successfully"
+            )
 
             server_process.out.seek(0)
             out = server_process.out.read().decode()
@@ -322,7 +322,7 @@ class TestPrestartCheck:
             )
             yield path
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture
     def stop_server(self):
         yield
         invoke_and_assert(
@@ -334,6 +334,7 @@ class TestPrestartCheck:
             expected_code=0,
         )
 
+    @pytest.mark.usefixtures("stop_server")
     def test_switch_to_local_profile_by_default(self):
         invoke_and_assert(
             command=[
@@ -348,6 +349,7 @@ class TestPrestartCheck:
         profiles = load_profiles()
         assert profiles.active_name == "local"
 
+    @pytest.mark.usefixtures("stop_server")
     def test_choose_when_multiple_profiles_have_same_api_url(self):
         save_profiles(
             profiles=ProfilesCollection(
@@ -378,3 +380,19 @@ class TestPrestartCheck:
 
         profiles = load_profiles()
         assert profiles.active_name == "local"
+
+    def test_start_invalid_host(self):
+        """Test that providing an invalid host returns a clear error message.
+
+        this is a regression test for https://github.com/PrefectHQ/prefect/issues/16950
+        """
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--host",
+                "foo",
+            ],
+            expected_output_contains="Invalid host 'foo'. Please specify a valid hostname or IP address.",
+            expected_code=1,
+        )

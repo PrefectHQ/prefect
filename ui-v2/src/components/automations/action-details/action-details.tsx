@@ -17,13 +17,6 @@ import { Icon, IconId } from "@/components/ui/icons";
 import { JsonInput } from "@/components/ui/json-input";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
-import {
-	createFakeAutomation,
-	createFakeBlockDocument,
-	createFakeDeployment,
-	createFakeWorkPool,
-	createFakeWorkQueue,
-} from "@/mocks";
 import { capitalize } from "@/utils";
 import { Link } from "@tanstack/react-router";
 
@@ -53,14 +46,40 @@ type AutomationAction = Automation["actions"][number];
 
 type ActionDetailsProps = {
 	action: AutomationAction;
+	automationsMap: Map<string, Automation>;
+	blockDocumentsMap: Map<string, BlockDocument>;
+	deploymentsMap: Map<string, Deployment>;
+	workPoolsMap: Map<string, WorkPool>;
+	workQueuesMap: Map<string, WorkQueue>;
 };
-export const ActionDetails = ({ action }: ActionDetailsProps) => (
+export const ActionDetails = ({
+	action,
+	automationsMap,
+	blockDocumentsMap,
+	deploymentsMap,
+	workPoolsMap,
+	workQueuesMap,
+}: ActionDetailsProps) => (
 	<Card className="p-4">
-		<ActionDetailsType action={action} />
+		<ActionDetailsType
+			action={action}
+			automationsMap={automationsMap}
+			blockDocumentsMap={blockDocumentsMap}
+			deploymentsMap={deploymentsMap}
+			workPoolsMap={workPoolsMap}
+			workQueuesMap={workQueuesMap}
+		/>
 	</Card>
 );
 
-export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
+const ActionDetailsType = ({
+	action,
+	automationsMap,
+	blockDocumentsMap,
+	deploymentsMap,
+	workPoolsMap,
+	workQueuesMap,
+}: ActionDetailsProps) => {
 	const label = ACTION_TYPE_TO_STRING[action.type];
 	switch (action.type) {
 		// Non-inferrable Actions
@@ -72,68 +91,78 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 			return <NoninferredAction label={label} />;
 		// Inferable actions
 		case "run-deployment":
-			return action.deployment_id && action.source == "selected" ? (
-				<DeploymentActionDetails
-					label={label}
-					deployment={createFakeDeployment()}
-					parameters={action.parameters}
-					job_variables={action.job_variables}
-				/>
-			) : (
-				<InferredAction label={label} />
-			);
+			if (action.deployment_id && action.source == "selected") {
+				const deployment = deploymentsMap.get(action.deployment_id);
+				if (!deployment) {
+					return <Typography>Deployment not found</Typography>;
+				}
+				return (
+					<DeploymentActionDetails
+						label={label}
+						deployment={deployment}
+						parameters={action.parameters}
+						job_variables={action.job_variables}
+					/>
+				);
+			}
+			return <InferredAction label={label} />;
 		case "pause-deployment":
 		case "resume-deployment":
-			return action.deployment_id && action.source == "selected" ? (
-				// TODO: Pass a real deployment from API
-				<DeploymentActionDetails
-					label={label}
-					deployment={createFakeDeployment()}
-				/>
-			) : (
-				<InferredAction label={label} />
-			);
+			if (action.deployment_id && action.source == "selected") {
+				const deployment = deploymentsMap.get(action.deployment_id);
+				if (!deployment) {
+					return <Typography>Deployment not found</Typography>;
+				}
+				return (
+					<DeploymentActionDetails label={label} deployment={deployment} />
+				);
+			}
+			return <InferredAction label={label} />;
 		case "pause-work-queue":
 		case "resume-work-queue":
-			return action.work_queue_id && action.source == "selected" ? (
-				// TODO: Pass a real work queue from API
-				<WorkQueueActionDetails
-					label={label}
-					workQueue={createFakeWorkQueue()}
-				/>
-			) : (
-				<InferredAction label={label} />
-			);
+			if (action.work_queue_id && action.source == "selected") {
+				const workQueue = workQueuesMap.get(action.work_queue_id);
+				if (!workQueue) {
+					return <Typography>Work queue not found</Typography>;
+				}
+				return <WorkQueueActionDetails label={label} workQueue={workQueue} />;
+			}
+			return <InferredAction label={label} />;
 		case "pause-automation":
 		case "resume-automation":
-			return action.automation_id && action.source == "selected" ? (
-				// TODO: Pass a real automation from API
-				<AutomationActionDetails
-					label={label}
-					automation={createFakeAutomation()}
-				/>
-			) : (
-				<InferredAction label={label} />
-			);
+			if (action.automation_id && action.source == "selected") {
+				const automation = automationsMap.get(action.automation_id);
+				if (!automation) {
+					return <Typography>Automation not found</Typography>;
+				}
+				return (
+					<AutomationActionDetails label={label} automation={automation} />
+				);
+			}
+			return <InferredAction label={label} />;
 		case "pause-work-pool":
 		case "resume-work-pool":
-			return action.work_pool_id && action.source == "selected" ? (
-				// TODO: Pass a real work pool from API
-				<WorkPoolActionDetails label={label} workPool={createFakeWorkPool()} />
-			) : (
-				<InferredAction label={label} />
-			);
+			if (action.work_pool_id && action.source == "selected") {
+				const workPool = workPoolsMap.get(action.work_pool_id);
+				if (!workPool) {
+					return <Typography>Workpool not found</Typography>;
+				}
+				return <WorkPoolActionDetails label={label} workPool={workPool} />;
+			}
+			return <InferredAction label={label} />;
 		// Other actions
-		case "send-notification":
-			// TODO: Pass a real block document from API
+		case "send-notification": {
+			const blockDocument = blockDocumentsMap.get(action.block_document_id);
+			if (!blockDocument) {
+				return <Typography>Block document not found</Typography>;
+			}
 			return (
 				<BlockDocumentActionDetails
 					label={label}
-					blockDocument={createFakeBlockDocument({
-						block_type_name: "Mattermost Webhook",
-					})}
+					blockDocument={blockDocument}
 				/>
 			);
+		}
 		case "change-flow-run-state":
 			return (
 				<ChangeFlowRunStateActionDetails

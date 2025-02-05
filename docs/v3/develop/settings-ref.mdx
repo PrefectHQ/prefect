@@ -1527,6 +1527,21 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
 
 ---
+## ServerServicesEventLoggerSettings
+Settings for controlling the event logger service
+### `enabled`
+Whether or not to start the event logger service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.services.event_logger.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED`, `PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED`
+
+---
 ## ServerServicesEventPersisterSettings
 Settings for controlling the event persister service
 ### `enabled`
@@ -1564,6 +1579,18 @@ The maximum number of seconds between flushes of the event persister.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`, `PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`
+
+### `batch_size_delete`
+The number of expired events and event resources the event persister will attempt to delete in one batch.
+
+**Type**: `integer`
+
+**Default**: `10000`
+
+**TOML dotted key path**: `server.services.event_persister.batch_size_delete`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE`
 
 ---
 ## ServerServicesFlowRunNotificationsSettings
@@ -1890,6 +1917,12 @@ Settings for controlling server services
 **Type**: [ServerServicesEventPersisterSettings](#serverserviceseventpersistersettings)
 
 **TOML dotted key path**: `server.services.event_persister`
+
+### `event_logger`
+
+**Type**: [ServerServicesEventLoggerSettings](#serverserviceseventloggersettings)
+
+**TOML dotted key path**: `server.services.event_logger`
 
 ### `flow_run_notifications`
 

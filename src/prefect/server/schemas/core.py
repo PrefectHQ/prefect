@@ -1,6 +1,7 @@
 """
 Full schemas of Prefect REST API objects.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -555,6 +556,9 @@ class DeploymentSchedule(ORMBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="A dictionary of parameter value overrides."
     )
 
     @field_validator("max_scheduled_runs")

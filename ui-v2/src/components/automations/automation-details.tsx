@@ -1,35 +1,32 @@
 import { type Automation } from "@/api/automations";
+import { useGetAutomationActionResources } from "@/api/automations/use-get-automation-action-resources";
 import { ActionDetails } from "@/components/automations/action-details";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 type AutomationDetailsProps = {
-	data: Automation;
+	automation: Automation;
 };
 
-export const AutomationDetails = ({ data }: AutomationDetailsProps) => (
-	<div className="flex flex-col gap-4">
-		<AutomationDescription data={data} />
-		<AutomationTrigger data={data} />
-		<AutomationActions data={data} />
-	</div>
-);
-
-const AutomationDescription = ({ data }: AutomationDetailsProps) => {
+export const AutomationDescription = ({
+	automation,
+}: AutomationDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-1">
 			<Typography className="text-muted-foreground" variant="bodySmall">
 				Description
 			</Typography>
 			<Typography className="text-muted-foreground">
-				{data.description || "None"}
+				{automation.description || "None"}
 			</Typography>
 		</div>
 	);
 };
 
-const AutomationTrigger = ({ data }: AutomationDetailsProps) => {
-	const { trigger } = data;
+export const AutomationTrigger = ({ automation }: AutomationDetailsProps) => {
+	const { trigger } = automation;
 	return (
 		<div className="flex flex-col gap-1">
 			<Typography>Trigger</Typography>
@@ -40,17 +37,40 @@ const AutomationTrigger = ({ data }: AutomationDetailsProps) => {
 	);
 };
 
-const AutomationActions = ({ data }: AutomationDetailsProps) => {
-	const { actions } = data;
+export const AutomationActions = ({ automation }: AutomationDetailsProps) => {
+	const { data: resources, loading } =
+		useGetAutomationActionResources(automation);
+
+	const {
+		automationsMap,
+		blockDocumentsMap,
+		deploymentsMap,
+		workPoolsMap,
+		workQueuesMap,
+	} = resources;
+
 	return (
 		<div className="flex flex-col gap-1">
-			<Typography>{pluralize(actions.length, "Action")}</Typography>
+			<Typography>{pluralize(automation.actions.length, "Action")}</Typography>
 			<ul className="flex flex-col gap-2">
-				{actions.map((action, i) => (
-					<li key={i}>
-						<ActionDetails action={action} />
-					</li>
-				))}
+				{loading
+					? Array.from({ length: automation.actions.length }, (_, i) => (
+							<Card className="p-4" key={i}>
+								<Skeleton className="p-2 h-2 w-full" />
+							</Card>
+						))
+					: automation.actions.map((action, i) => (
+							<li key={i}>
+								<ActionDetails
+									action={action}
+									automationsMap={automationsMap}
+									blockDocumentsMap={blockDocumentsMap}
+									deploymentsMap={deploymentsMap}
+									workPoolsMap={workPoolsMap}
+									workQueuesMap={workQueuesMap}
+								/>
+							</li>
+						))}
 			</ul>
 		</div>
 	);

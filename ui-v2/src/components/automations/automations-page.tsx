@@ -8,8 +8,12 @@ import {
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useSuspenseQuery } from "@tanstack/react-query";
-
-import { AutomationDetails } from "./automation-details";
+import { Typography } from "../ui/typography";
+import {
+	AutomationActions,
+	AutomationDescription,
+	AutomationTrigger,
+} from "./automation-details";
 import { AutomationEnableToggle } from "./automation-enable-toggle";
 import { AutomationsActionsMenu } from "./automations-actions-menu";
 import { AutomationsEmptyState } from "./automations-empty-state";
@@ -29,19 +33,25 @@ export const AutomationsPage = () => {
 				{data.length === 0 ? (
 					<AutomationsEmptyState />
 				) : (
-					<ul className="flex flex-col gap-2">
-						{data.map((automation) => (
-							<li
-								key={automation.id}
-								aria-label={`automation item ${automation.name}`}
-							>
-								<AutomationCardDetails
-									data={automation}
-									onDelete={() => handleDelete(automation)}
-								/>
-							</li>
-						))}
-					</ul>
+					<div className="flex flex-col gap-4">
+						<Typography variant="bodySmall" className="text-muted-foreground">
+							{data.length}{" "}
+							{`${data.length === 1 ? "automation" : "automations"}`}
+						</Typography>
+						<ul className="flex flex-col gap-2">
+							{data.map((automation) => (
+								<li
+									key={automation.id}
+									aria-label={`automation item ${automation.name}`}
+								>
+									<AutomationCardDetails
+										automation={automation}
+										onDelete={() => handleDelete(automation)}
+									/>
+								</li>
+							))}
+						</ul>
+					</div>
 				)}
 			</div>
 			<DeleteConfirmationDialog {...dialogState} />
@@ -50,42 +60,48 @@ export const AutomationsPage = () => {
 };
 
 type AutomationCardDetailsProps = {
-	data: Automation;
+	automation: Automation;
 	onDelete: () => void;
 };
 const AutomationCardDetails = ({
-	data,
+	automation,
 	onDelete,
 }: AutomationCardDetailsProps) => {
 	return (
 		<Card className="p-4 pt-5 flex flex-col gap-6">
 			<div className="flex items-center justify-between">
-				<NavHeader data={data} />
+				<NavHeader automation={automation} />
 				<div className="flex items-center gap-2">
-					<AutomationEnableToggle data={data} />
-					<AutomationsActionsMenu id={data.id} onDelete={onDelete} />
+					<AutomationEnableToggle automation={automation} />
+					<AutomationsActionsMenu id={automation.id} onDelete={onDelete} />
 				</div>
 			</div>
-			<AutomationDetails data={data} />
+			<div className="flex flex-col gap-4">
+				{automation.description && (
+					<AutomationDescription automation={automation} />
+				)}
+				<AutomationTrigger automation={automation} />
+				<AutomationActions automation={automation} />
+			</div>
 		</Card>
 	);
 };
 
 type NavHeaderProps = {
-	data: Automation;
+	automation: Automation;
 };
 
-const NavHeader = ({ data }: NavHeaderProps) => {
+const NavHeader = ({ automation }: NavHeaderProps) => {
 	return (
 		<Breadcrumb>
 			<BreadcrumbList>
 				<BreadcrumbItem className="text-xl">
 					<BreadcrumbLink
 						to="/automations/automation/$id"
-						params={{ id: data.id }}
+						params={{ id: automation.id }}
 						className="text-lg"
 					>
-						{data.name}
+						{automation.name}
 					</BreadcrumbLink>
 				</BreadcrumbItem>
 			</BreadcrumbList>

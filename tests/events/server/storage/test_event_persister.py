@@ -1,6 +1,6 @@
 import asyncio
 from datetime import timedelta
-from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence
+from typing import AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
 
 import pytest
@@ -9,16 +9,15 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.services import event_persister
+from prefect.server.events.services.event_persister import batch_delete
 from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
 from prefect.types import DateTime
-
-if TYPE_CHECKING:
-    from prefect.server.database.orm_models import ORMEventResource
 
 
 @db_injector
@@ -34,13 +33,12 @@ async def get_event(db: PrefectDBInterface, id: UUID) -> Optional[ReceivedEvent]
 
 
 async def get_resources(
-    session: AsyncSession, id: UUID, db: PrefectDBInterface
+    session: AsyncSession, event_id_filter: Optional[UUID], db: PrefectDBInterface
 ) -> Sequence["ORMEventResource"]:
-    result = await session.execute(
-        sa.select(db.EventResource)
-        .where(db.EventResource.event_id == id)
-        .order_by(db.EventResource.resource_id)
-    )
+    query = sa.select(db.EventResource).order_by(db.EventResource.resource_id)
+    if event_id_filter:
+        query = query.where(db.EventResource.event_id == event_id_filter)
+    result = await session.execute(query)
     return result.scalars().all()
 
 
@@ -295,40 +293,67 @@ async def test_flushes_messages_periodically(
 
 
 async def test_trims_messages_periodically(
-    event: ReceivedEvent,
-    session: AsyncSession,
+    event: ReceivedEvent, session: AsyncSession, db: PrefectDBInterface
 ):
-    await write_events(
-        session,
-        [
-            event.model_copy(
-                update={
-                    "id": uuid4(),
-                    "occurred": DateTime.now("UTC") - timedelta(days=i),
-                }
-            )
-            for i in range(10)
-        ],
+    inserted_timestamps = []
+    # Create entries with slightly different insert times. Since the event_resources are filtered based on the
+    # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
+    for _ in range(3):
+        timestamp = DateTime.now("UTC")
+        await write_events(
+            session, [event.model_copy(update={"id": uuid4(), "occurred": timestamp})]
+        )
+        await session.commit()  # Each commit ensures a new transaction timestamp for PostgreSQL's now() function
+        inserted_timestamps.append(timestamp)
+        await asyncio.sleep(0.6)  # The whole insert should be 600ms * 3 = about 1.8s
+
+    # Half the entries are older than this, half are younger
+    cutoff_date = inserted_timestamps[int(len(inserted_timestamps) / 2)] - timedelta(
+        milliseconds=300
     )
-    await session.commit()
 
-    five_days_ago = DateTime.now("UTC") - timedelta(days=5)
+    initial_events, event_count, _ = await query_events(session, filter=EventFilter())
+    assert event_count == 3
+    assert len(initial_events) == 3
+    assert any(event.occurred < cutoff_date for event in initial_events)
+    assert any(event.occurred >= cutoff_date for event in initial_events)
 
-    initial_events, total, _ = await query_events(session, filter=EventFilter())
-    assert total == 10
-    assert len(initial_events) == 10
-    assert any(event.occurred < five_days_ago for event in initial_events)
-    assert any(event.occurred >= five_days_ago for event in initial_events)
+    initial_resources = list(await get_resources(session, None, db))
+    assert len(initial_resources) == 12
+    assert any(resource.occurred < cutoff_date for resource in initial_resources)
+    assert any(resource.occurred >= cutoff_date for resource in initial_resources)
 
-    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: timedelta(days=5)}):
+    # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
+    retention_period = DateTime.now("UTC") - cutoff_date
+    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
         async with event_persister.create_handler(
             flush_every=timedelta(seconds=0.001),
             trim_every=timedelta(seconds=0.001),
         ):
             await asyncio.sleep(0.1)  # this is 100x the time necessary
 
-    remaining_events, total, _ = await query_events(session, filter=EventFilter())
-    assert total == 5
-    assert len(remaining_events) == 5
+    remaining_events, event_count, _ = await query_events(session, filter=EventFilter())
+    assert event_count == 2
+    assert len(remaining_events) == 2
+    assert all(event.occurred >= cutoff_date for event in remaining_events)
 
-    assert all(event.occurred >= five_days_ago for event in remaining_events)
+    remaining_resources = await get_resources(session, None, db)
+    assert len(remaining_resources) == 8
+    assert all(resource.occurred >= cutoff_date for resource in remaining_resources)
+
+
+async def test_batch_delete(
+    event: ReceivedEvent, session: AsyncSession, db: PrefectDBInterface
+):
+    await write_events(
+        session, [event.model_copy(update={"id": uuid4()}) for _ in range(10)]
+    )
+
+    number_deleted = await batch_delete(
+        session, db.Event, db.Event.occurred <= DateTime.now("UTC"), batch_size=3
+    )
+
+    assert number_deleted == 10
+    queried_events, event_count, _ = await query_events(session, filter=EventFilter())
+    assert event_count == 0
+    assert len(queried_events) == 0

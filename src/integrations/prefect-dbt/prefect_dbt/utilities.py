@@ -1,6 +1,7 @@
 """
 Utility functions for prefect-dbt
 """
+
 import os
 from typing import Any, Dict, Optional
 

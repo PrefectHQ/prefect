@@ -50,6 +50,7 @@ export const queryKeyFactory = {
  */
 export const buildFilterWorkQueuesQuery = (
 	filter: WorkQueuesFilter = { offset: 0 },
+	{ enabled = true }: { enabled?: boolean } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -62,4 +63,5 @@ export const buildFilterWorkQueuesQuery = (
 			}
 			return res.data;
 		},
+		enabled,
 	});

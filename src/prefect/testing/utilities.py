@@ -18,6 +18,7 @@ import prefect.settings
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
+from prefect.client.schemas.filters import FlowFilter, FlowFilterName
 from prefect.client.utilities import inject_client
 from prefect.logging.handlers import APILogWorker
 from prefect.results import (
@@ -44,7 +45,7 @@ def exceptions_equal(a: Exception, b: Exception) -> bool:
     """
     if a == b:
         return True
-    return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
+    return type(a) is type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
 # AsyncMock has a new import path in Python 3.9+
@@ -181,12 +182,18 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         test_server.stop()
 
 
-async def get_most_recent_flow_run(client: "PrefectClient | None" = None) -> "FlowRun":
+async def get_most_recent_flow_run(
+    client: "PrefectClient | None" = None, flow_name: str | None = None
+) -> "FlowRun":
     if client is None:
         client = get_client()
 
     flow_runs = await client.read_flow_runs(
-        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
+        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC,
+        limit=1,
+        flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        if flow_name
+        else None,
     )
 
     return flow_runs[0]
@@ -195,9 +202,9 @@ async def get_most_recent_flow_run(client: "PrefectClient | None" = None) -> "Fl
 def assert_blocks_equal(
     found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any
 ) -> None:
-    assert isinstance(
-        found, type(expected)
-    ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+    assert isinstance(found, type(expected)), (
+        f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+    )
 
     if exclude_private:
         exclude = set(kwargs.pop("exclude", set()))

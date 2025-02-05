@@ -72,6 +72,7 @@ class PrefectBaseModel(BaseModel):
 
     _reset_fields: ClassVar[set[str]] = set()
 
+    # TODO: investigate why removing this fails composite trigger tests?
     model_config: ClassVar[ConfigDict] = ConfigDict(
         ser_json_timedelta="float",
         extra=(
@@ -84,7 +85,7 @@ class PrefectBaseModel(BaseModel):
     )
 
     def __eq__(self, other: Any) -> bool:
-        """Equaltiy operator that ignores the resettable fields of the PrefectBaseModel.
+        """Equality operator that ignores the resettable fields of the PrefectBaseModel.
 
         NOTE: this equality operator will only be applied if the PrefectBaseModel is
         the left-hand operand. This is a limitation of Python.

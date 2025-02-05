@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import warnings
 from collections.abc import Callable, Mapping
@@ -15,7 +17,6 @@ from typing import (
 from uuid import UUID, uuid4
 
 import orjson
-import pendulum
 from pydantic import (
     ConfigDict,
     Discriminator,
@@ -58,6 +59,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._datetime import DateTime
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
@@ -66,17 +68,13 @@ if TYPE_CHECKING:
     from prefect.client.schemas.actions import StateCreate
     from prefect.results import ResultRecordMetadata
 
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
-
 
 R = TypeVar("R", default=Any)
 
 
-DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
-DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
-FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
+DEFAULT_BLOCK_SCHEMA_VERSION: Literal["non-versioned"] = "non-versioned"
+DEFAULT_AGENT_WORK_POOL_NAME: Literal["default-agent-pool"] = "default-agent-pool"
+FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS: list[str] = [
     "flow_run_notification_policy_id",
     "flow_id",
     "flow_name",
@@ -105,7 +103,7 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
-TERMINAL_STATES = {
+TERMINAL_STATES: set[StateType] = {
     StateType.COMPLETED,
     StateType.CANCELLED,
     StateType.FAILED,
@@ -223,8 +221,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: Literal[True] = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> R:
-        ...
+    ) -> R: ...
 
     @overload
     def result(
@@ -232,8 +229,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: Literal[False] = False,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> Union[R, Exception]:
-        ...
+    ) -> Union[R, Exception]: ...
 
     @overload
     def result(
@@ -241,8 +237,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: bool = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> Union[R, Exception]:
-        ...
+    ) -> Union[R, Exception]: ...
 
     @deprecated.deprecated_parameter(
         "fetch",
@@ -374,7 +369,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.DateTime.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
         return self
 
     @model_validator(mode="after")
@@ -1099,6 +1094,10 @@ class DeploymentSchedule(ObjectBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
+    )
 
 
 class Deployment(ObjectBaseModel):
@@ -1374,7 +1373,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: Optional[pendulum.DateTime] = None
+        self, late_runs_count: int, last_polled: DateTime | None = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1396,7 +1395,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or DateTime.now("UTC").diff(last_polled).in_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False
