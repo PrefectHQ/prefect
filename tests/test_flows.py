@@ -28,7 +28,11 @@ import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
-from prefect.client.schemas.objects import ConcurrencyLimitConfig, Worker, WorkerStatus
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    Worker,
+    WorkerStatus,
+)
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -57,6 +61,7 @@ from prefect.flows import (
 from prefect.logging import get_run_logger
 from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
+from prefect.schedules import Cron, Interval, RRule, Schedule
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
@@ -4003,9 +4008,7 @@ class TestFlowToDeployment:
             with warnings.catch_warnings():
                 # `schedule` parameter is deprecated and will raise a warning
                 warnings.filterwarnings("ignore", category=DeprecationWarning)
-                expected_message = (
-                    "Only one of interval, cron, rrule, or schedules can be provided."
-                )
+                expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
                 with pytest.raises(ValueError, match=expected_message):
                     self.flow.to_deployment(__file__, **kwargs)
 
@@ -4176,9 +4179,7 @@ class TestFlowToDeployment:
             with warnings.catch_warnings():
                 # `schedule` parameter is deprecated and will raise a warning
                 warnings.filterwarnings("ignore", category=DeprecationWarning)
-                expected_message = (
-                    "Only one of interval, cron, rrule, or schedules can be provided."
-                )
+                expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
                 with pytest.raises(ValueError, match=expected_message):
                     await self.flow.ato_deployment(__file__, **kwargs)
 
@@ -4356,6 +4357,34 @@ class TestFlowServe:
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
+    def test_serve_creates_deployment_with_schedules_with_parameters(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        @flow
+        def add_two(number: int):
+            return number + 2
+
+        add_two.serve(
+            "test",
+            schedules=[
+                Interval(
+                    3600,
+                    parameters={"number": 42},
+                ),
+                Cron("* * * * *", parameters={"number": 42}),
+                RRule("FREQ=MINUTELY", parameters={"number": 42}),
+            ],
+        )
+
+        deployment = sync_prefect_client.read_deployment_by_name(name="add-two/test")
+
+        assert deployment is not None
+        assert len(deployment.schedules) == 3
+
+        all_parameters = [schedule.parameters for schedule in deployment.schedules]
+
+        assert all(parameters == {"number": 42} for parameters in all_parameters)
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -4374,9 +4403,7 @@ class TestFlowServe:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = (
-                "Only one of interval, cron, rrule, or schedules can be provided."
-            )
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
                 self.flow.serve(__file__, **kwargs)
 
@@ -4752,6 +4779,11 @@ class TestFlowDeploy:
             push=False,
             enforce_parameter_schema=True,
             paused=True,
+            schedule=Schedule(
+                interval=3600,
+                anchor_date=datetime.datetime(2025, 1, 1),
+                parameters={"number": 42},
+            ),
         )
 
         mock_deploy.assert_called_once_with(
@@ -4765,6 +4797,11 @@ class TestFlowDeploy:
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
                 paused=True,
+                schedule=Schedule(
+                    interval=3600,
+                    anchor_date=datetime.datetime(2025, 1, 1),
+                    parameters={"number": 42},
+                ),
             ),
             work_pool_name=work_pool.name,
             image=image,
