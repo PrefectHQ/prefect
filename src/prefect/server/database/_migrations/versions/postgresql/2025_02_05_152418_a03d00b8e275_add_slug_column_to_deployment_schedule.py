@@ -5,14 +5,13 @@ Revises: c163acd7e8e3
 Create Date: 2025-02-05 15:24:18.360147
 
 """
-from alembic import op
-import sqlalchemy as sa
-import prefect
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'a03d00b8e275'
-down_revision = 'c163acd7e8e3'
+revision = "a03d00b8e275"
+down_revision = "c163acd7e8e3"
 branch_labels = None
 depends_on = None
 

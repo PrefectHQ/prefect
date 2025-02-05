@@ -5,18 +5,15 @@ Revises: 67f886da208e
 Create Date: 2025-02-05 15:24:31.503016
 
 """
-from alembic import op
-import sqlalchemy as sa
-import prefect
 
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '07ecde74d74d'
-down_revision = '67f886da208e'
+revision = "07ecde74d74d"
+down_revision = "67f886da208e"
 branch_labels = None
 depends_on = None
-
-
 
 
 def upgrade():
