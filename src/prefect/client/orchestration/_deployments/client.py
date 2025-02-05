@@ -320,6 +320,7 @@ class DeploymentClient(BaseClient):
         }
 
         response = self.request("POST", "/deployments/filter", json=body)
+        breakpoint()
         return DeploymentResponse.model_validate_list(response.json())
 
     def delete_deployment(
