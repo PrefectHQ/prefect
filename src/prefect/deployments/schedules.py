@@ -34,6 +34,8 @@ def normalize_to_deployment_schedule_create(
         for obj in schedules:
             if is_schedule_type(obj):
                 normalized.append(create_deployment_schedule_create(obj))
+            elif isinstance(obj, Schedule):
+                normalized.append(create_deployment_schedule_create(obj))
             elif isinstance(obj, dict):
                 normalized.append(create_deployment_schedule_create(**obj))
             elif isinstance(obj, DeploymentScheduleCreate):
