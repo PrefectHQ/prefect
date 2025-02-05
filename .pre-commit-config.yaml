@@ -74,7 +74,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run lint",
+            ". $NVM_DIR/nvm.sh && cd ui-v2 && nvm use && npm i --no-upgrade --silent --no-progress && npm run lint",
           ]
         files: |
           (?x)^(
@@ -89,7 +89,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run format",
+            ". $NVM_DIR/nvm.sh && cd ui-v2 && nvm use && npm i --no-upgrade --silent --no-progress && npm run format",
           ]
         files: |
           (?x)^(
@@ -104,7 +104,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run service-sync",
+            ". $NVM_DIR/nvm.sh && cd ui-v2 && nvm use && npm i --no-upgrade --silent --no-progress && npm run service-sync",
           ]
         files: |
           (?x)^(
