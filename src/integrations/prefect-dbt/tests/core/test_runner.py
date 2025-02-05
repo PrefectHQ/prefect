@@ -567,11 +567,6 @@ class TestPrefectDbtRunnerEvents:
         upstream_node.resource_type = NodeType.Model
         runner.manifest.nodes["model.test.upstream"] = upstream_node
 
-        # Add debug prints
-        print("\nDebug - Upstream node attributes:")
-        print(f"name: {upstream_node.name}")
-        print(f"unique_id: {upstream_node.unique_id}")
-
         # Create a mock NodeFinished event
         event = Mock()
         event.info.name = "NodeFinished"
@@ -607,11 +602,6 @@ class TestPrefectDbtRunnerEvents:
 
             # Call the callback
             callback(event)
-
-            # Add debug print for lineage call
-            lineage_call = mock_emit_lineage.call_args
-            print("\nDebug - Upstream resources in lineage call:")
-            print(lineage_call.kwargs["upstream_resources"])
 
             # Verify node event was emitted
             assert mock_emit.call_count == 1

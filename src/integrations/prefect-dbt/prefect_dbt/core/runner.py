@@ -25,7 +25,7 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_dbt.core.profiles import aresolve_profiles_yml, resolve_profiles_yml
 from prefect_dbt.core.settings import PrefectDbtSettings
 
-FAILURE_STATUS = [
+FAILURE_STATUSES = [
     RunStatus.Error,
     TestStatus.Error,
     TestStatus.Fail,
@@ -102,14 +102,6 @@ class PrefectDbtRunner:
         for depends_on_node in self._get_manifest_depends_on_nodes(manifest_node):
             depends_manifest_node = self.manifest.nodes.get(depends_on_node)
             if depends_manifest_node is not None:
-                print("\nDebug - In implementation:")  # Add debug print
-                print(
-                    f"depends_manifest_node.name: {depends_manifest_node.name}"
-                )  # Add debug print
-                print(
-                    f"depends_manifest_node.unique_id: {depends_manifest_node.unique_id}"
-                )  # Add debug print
-
                 depends_node_prefect_config: dict[str, dict[str, Any]] = (
                     depends_manifest_node.config.meta.get("prefect", {})
                 )
@@ -379,7 +371,7 @@ class PrefectDbtRunner:
                         message=result.message,
                     )
                     for result in res.result.results
-                    if result.status in FAILURE_STATUS
+                    if result.status in FAILURE_STATUSES
                 ]
                 raise ValueError(
                     f"Failures detected during invocation of dbt command '{''.join(args)}':\n{os.linesep.join(failure_results)}"
@@ -440,7 +432,7 @@ class PrefectDbtRunner:
                         message=result.message,
                     )
                     for result in res.result.results
-                    if result.status in FAILURE_STATUS
+                    if result.status in FAILURE_STATUSES
                 ]
                 raise ValueError(
                     f"Failures detected during invocation of dbt command '{''.join(args)}':\n{os.linesep.join(failure_results)}"
