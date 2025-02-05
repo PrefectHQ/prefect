@@ -742,20 +742,20 @@
   ],
   "redirects": [
     {
-      "source": "/reference",
-      "destination": "https://reference.prefect.io"
+      "destination": "https://reference.prefect.io",
+      "source": "/reference"
     },
     {
-      "source": "/reference/:slug*",
-      "destination": "https://reference.prefect.io/:slug*"
+      "destination": "https://reference.prefect.io/:slug*",
+      "source": "/reference/:slug*"
     },
     {
-      "source": "v3/reference",
-      "destination": "https://reference.prefect.io"
+      "destination": "https://reference.prefect.io",
+      "source": "/v3/reference"
     },
     {
-      "source": "v3/reference/:slug*",
-      "destination": "https://reference.prefect.io/:slug*"
+      "destination": "https://reference.prefect.io/:slug*",
+      "source": "/v3/reference/:slug*"
     },
     {
       "destination": "/v3/getting-started/:slug*",
@@ -816,6 +816,14 @@
     {
       "destination": "/v3/develop/settings-and-profiles",
       "source": "/v3/manage/settings-and-profiles"
+    },
+    {
+      "destination": "https://reference.prefect.io",
+      "source": "/latest/reference"
+    },
+    {
+      "destination": "https://reference.prefect.io/:slug*",
+      "source": "/latest/reference/:slug*"
     },
     {
       "destination": "/v3",
