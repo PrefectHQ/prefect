@@ -18,7 +18,7 @@ const Header = () => (
 	<div className="flex items-center gap-2">
 		<Breadcrumb>
 			<BreadcrumbList>
-				<BreadcrumbItem className="text-xl font-semibold">
+				<BreadcrumbItem className="text-xl font-bold text-black">
 					Artifacts
 				</BreadcrumbItem>
 			</BreadcrumbList>

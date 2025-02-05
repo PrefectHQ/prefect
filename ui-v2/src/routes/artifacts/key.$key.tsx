@@ -1,4 +1,5 @@
 import { ArtifactsFilter, buildListArtifactsQuery } from "@/api/artifacts";
+import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
@@ -18,10 +19,10 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 		console.log("we made it");
 		const { key } = params;
 
-		const artifactsList = await context.queryClient.ensureQueryData(
+		const artifacts = await context.queryClient.ensureQueryData(
 			buildListArtifactsQuery(buildFilterBody(key)),
 		);
-		return { artifactsList };
+		return { artifacts };
 	},
 	wrapInSuspense: true,
 });
@@ -29,14 +30,14 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 function RouteComponent() {
 	const { key } = Route.useParams();
 
-	const { artifactsList } = Route.useLoaderData();
+	const { artifacts } = Route.useLoaderData();
 
 	return (
 		<div>
-			<p>{key}</p>
-			{artifactsList.map((artifact) => (
-				<div key={artifact.id}>{artifact.updated}</div>
-			))}
+			<ArtifactsKeyPage
+				artifactKey={key} // can't use "key" as it is a reserved word
+				artifacts={artifacts}
+			/>
 		</div>
 	);
 }
