@@ -92,6 +92,22 @@ def Cron(
 
     Returns:
         A cron schedule.
+
+    Examples:
+        Create a cron schedule that runs every day at 12:00 AM UTC:
+        ```python
+        from prefect.schedules import Cron
+
+        Cron("0 0 * * *")
+        ```
+
+        Create a cron schedule that runs every Monday at 8:00 AM in the America/New_York timezone:
+        ```python
+        from prefect.schedules import Cron
+
+        Cron("0 8 * * 1", timezone="America/New_York")
+        ```
+
     """
     if parameters is None:
         parameters = {}
@@ -116,7 +132,8 @@ def Interval(
     Creates an interval schedule.
 
     Args:
-        interval: The interval to use for the schedule.
+        interval: The interval to use for the schedule. If an integer is provided,
+            it will be interpreted as seconds.
         anchor_date: The anchor date to use for the schedule.
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
         active: Whether or not the schedule is active.
@@ -124,6 +141,25 @@ def Interval(
 
     Returns:
         An interval schedule.
+
+    Examples:
+        Create an interval schedule that runs every hour:
+        ```python
+        from datetime import timedelta
+
+        from prefect.schedules import Interval
+
+        Interval(timedelta(hours=1))
+        ```
+
+        Create an interval schedule that runs every 60 seconds starting at a specific date:
+        ```python
+        from datetime import datetime
+
+        from prefect.schedules import Interval
+
+        Interval(60, anchor_date=datetime(2024, 1, 1))
+        ```
     """
     if isinstance(interval, (float, int)):
         interval = datetime.timedelta(seconds=interval)
@@ -158,6 +194,21 @@ def RRule(
 
     Returns:
         An RRule schedule.
+
+    Examples:
+        Create an RRule schedule that runs every day at 12:00 AM UTC:
+        ```python
+        from prefect.schedules import RRule
+
+        RRule("RRULE:FREQ=DAILY;INTERVAL=1")
+        ```
+
+        Create an RRule schedule that runs every 2nd friday of the month in the America/Chicago timezone:
+        ```python
+        from prefect.schedules import RRule
+
+        RRule("RRULE:FREQ=MONTHLY;INTERVAL=1;BYDAY=2FR", timezone="America/Chicago")
+        ```
     """
     if parameters is None:
         parameters = {}

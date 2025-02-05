@@ -28,7 +28,6 @@ import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     Worker,
@@ -62,7 +61,7 @@ from prefect.flows import (
 from prefect.logging import get_run_logger
 from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
-from prefect.schedules import Schedule
+from prefect.schedules import Cron, Interval, RRule, Schedule
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
@@ -4009,9 +4008,7 @@ class TestFlowToDeployment:
             with warnings.catch_warnings():
                 # `schedule` parameter is deprecated and will raise a warning
                 warnings.filterwarnings("ignore", category=DeprecationWarning)
-                expected_message = (
-                    "Only one of interval, cron, rrule, or schedules can be provided."
-                )
+                expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
                 with pytest.raises(ValueError, match=expected_message):
                     self.flow.to_deployment(__file__, **kwargs)
 
@@ -4182,9 +4179,7 @@ class TestFlowToDeployment:
             with warnings.catch_warnings():
                 # `schedule` parameter is deprecated and will raise a warning
                 warnings.filterwarnings("ignore", category=DeprecationWarning)
-                expected_message = (
-                    "Only one of interval, cron, rrule, or schedules can be provided."
-                )
+                expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
                 with pytest.raises(ValueError, match=expected_message):
                     await self.flow.ato_deployment(__file__, **kwargs)
 
@@ -4372,16 +4367,12 @@ class TestFlowServe:
         add_two.serve(
             "test",
             schedules=[
-                DeploymentScheduleCreate(
-                    schedule=IntervalSchedule(interval=3600), parameters={"number": 42}
-                ),
-                DeploymentScheduleCreate(
-                    schedule=CronSchedule(cron="* * * * *"), parameters={"number": 42}
-                ),
-                DeploymentScheduleCreate(
-                    schedule=RRuleSchedule(rrule="FREQ=MINUTELY"),
+                Interval(
+                    3600,
                     parameters={"number": 42},
                 ),
+                Cron("* * * * *", parameters={"number": 42}),
+                RRule("FREQ=MINUTELY", parameters={"number": 42}),
             ],
         )
 
@@ -4412,9 +4403,7 @@ class TestFlowServe:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = (
-                "Only one of interval, cron, rrule, or schedules can be provided."
-            )
+            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             with pytest.raises(ValueError, match=expected_message):
                 self.flow.serve(__file__, **kwargs)
 
