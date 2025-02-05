@@ -306,7 +306,7 @@ class Runner:
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set the created deployment as paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this flow.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs of this flow to allow.

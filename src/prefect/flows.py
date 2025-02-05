@@ -694,7 +694,7 @@ class Flow(Generic[P, R]):
             rrule: An rrule schedule of when to execute runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
             concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
@@ -828,7 +828,7 @@ class Flow(Generic[P, R]):
             rrule: An rrule schedule of when to execute runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
             concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
@@ -992,7 +992,7 @@ class Flow(Generic[P, R]):
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             global_limit: The maximum number of concurrent runs allowed across all served flow instances associated with the same deployment.
@@ -1387,7 +1387,7 @@ class Flow(Generic[P, R]):
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of runs that can be executed concurrently.

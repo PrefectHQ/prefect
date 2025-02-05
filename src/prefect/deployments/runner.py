@@ -511,7 +511,7 @@ class RunnerDeployment(BaseModel):
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set this deployment as paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs this deployment will allow.
@@ -765,9 +765,9 @@ class RunnerDeployment(BaseModel):
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not the deployment is paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -886,9 +886,9 @@ class RunnerDeployment(BaseModel):
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not the deployment is paused.
             schedule: A schedule object defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
-                Used to define additional scheduling options like `timezone` or `parameters`.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
