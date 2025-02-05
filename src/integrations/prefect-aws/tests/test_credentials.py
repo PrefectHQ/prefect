@@ -80,6 +80,18 @@ def test_get_client_cached(credentials, client_type):
     assert _get_client_cached.cache_info().hits == 2
 
 
+
+@pytest.mark.parametrize("client_type", [member.value for member in ClientType])
+def test_aws_credentials_region_properly_passed_to_client(client_type):
+    """
+    Test to ensure that region_name is properly passed to the client.
+    """
+    region_name = "mock-region-us-east-1"
+    credentials = AwsCredentials(region_name=region_name)
+    client = credentials.get_client(client_type)
+    assert client.meta.region_name == region_name
+
+
 @pytest.mark.parametrize("client_type", [member.value for member in ClientType])
 def test_aws_credentials_change_causes_cache_miss(client_type):
     """
