@@ -29,7 +29,8 @@ class BaseClient:
     ) -> "Response":
         if path_params:
             path = path.format(**path_params)  # type: ignore
-        return self._client.request(method, path, params=params, **kwargs)
+        request = self._client.build_request(method, path, params=params, **kwargs)
+        return self._client.send(request)
 
 
 class BaseAsyncClient:
@@ -48,4 +49,5 @@ class BaseAsyncClient:
     ) -> "Response":
         if path_params:
             path = path.format(**path_params)  # type: ignore
-        return await self._client.request(method, path, params=params, **kwargs)
+        request = self._client.build_request(method, path, params=params, **kwargs)
+        return await self._client.send(request)
