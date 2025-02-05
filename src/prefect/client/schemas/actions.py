@@ -170,8 +170,8 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
-    parameters: dict[str, Any] = Field(
-        default_factory=dict,
+    parameters: Optional[dict[str, Any]] = Field(
+        default=None,
         description="Parameter overrides for the schedule.",
     )
 
