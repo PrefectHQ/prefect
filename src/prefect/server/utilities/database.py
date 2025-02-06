@@ -14,11 +14,11 @@ import re
 import uuid
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Optional,
     Type,
-    TypeVar,
     Union,
     overload,
 )
@@ -41,12 +41,43 @@ from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.operators import OperatorType
 from sqlalchemy.sql.visitors import replacement_traverse
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
-from typing_extensions import TypeAlias
+from typing_extensions import (
+    Concatenate,
+    ParamSpec,
+    TypeAlias,
+    TypeVar,
+)
 
-T = TypeVar("T")
+P = ParamSpec("P")
+R = TypeVar("R", infer_variance=True)
+T = TypeVar("T", infer_variance=True)
+
 _SQLExpressionOrLiteral: TypeAlias = Union[sa.SQLColumnExpression[T], T]
+_Function = Callable[P, R]
+_Method = Callable[Concatenate[T, P], R]
+_DBFunction: TypeAlias = Callable[Concatenate["PrefectDBInterface", P], R]
+_DBMethod: TypeAlias = Callable[Concatenate[T, "PrefectDBInterface", P], R]
 
 CAMEL_TO_SNAKE: re.Pattern[str] = re.compile(r"(?<!^)(?=[A-Z])")
+
+if TYPE_CHECKING:
+    from prefect.server.database.interface import PrefectDBInterface
+
+
+@overload
+def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]: ...
+
+
+@overload
+def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]: ...
+
+
+def db_injector(
+    func: Union[_DBMethod[T, P, R], _DBFunction[P, R]],
+) -> Union[_Method[T, P, R], _Function[P, R]]:
+    from prefect.server.database import db_injector
+
+    return db_injector(func)
 
 
 class GenerateUUID(functions.FunctionElement[uuid.UUID]):

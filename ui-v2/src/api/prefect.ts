@@ -4573,11 +4573,6 @@ export interface components {
              */
             scheduled_before?: string;
             /**
-             * Agent Id
-             * @description An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue.
-             */
-            agent_id?: string | null;
-            /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
              */
@@ -5650,6 +5645,11 @@ export interface components {
              * @description A dictionary of parameter value overrides.
              */
             parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique slug for the schedule.
+             */
+            slug?: string | null;
         };
         /** DeploymentScheduleCreate */
         DeploymentScheduleCreate: {
@@ -5674,6 +5674,11 @@ export interface components {
              * @description A dictionary of parameter value overrides.
              */
             parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique slug for the schedule.
+             */
+            slug?: string | null;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -5697,6 +5702,11 @@ export interface components {
              * @description A dictionary of parameter value overrides.
              */
             parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique slug for the schedule.
+             */
+            slug?: string | null;
         };
         /**
          * DeploymentSort

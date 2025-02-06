@@ -114,7 +114,7 @@ class RunnerDeployment(BaseModel):
         description: An optional description of the deployment; defaults to the flow's
             description
         tags: An optional list of tags to associate with this deployment; note that tags
-            are used only for organizational purposes. For delegating work to agents,
+            are used only for organizational purposes. For delegating work to workers,
             see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         parameters: A dictionary of parameter values to pass to runs created from this
