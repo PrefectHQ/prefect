@@ -73,7 +73,7 @@ to compute the task's cache key.
 to compute the cache key.
 - `NO_CACHE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether.
 
-These policies can be set using the `cache_policy` keyword on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task):
+These policies can be set using the `cache_policy` keyword on the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task):
 
 ```python
 from prefect import task
@@ -113,7 +113,7 @@ Prefect allows you to configure task caching behavior in numerous ways.
 ### Cache expiration
 
 All cache keys can optionally be given an _expiration_ through the `cache_expiration` keyword on 
-the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 This keyword accepts a `datetime.timedelta` specifying a duration for which the cached value should be
 considered valid.
 
@@ -171,7 +171,7 @@ custom logic.
 if your task has the signature `fn(x, y, z)` then the dictionary will have keys "x", "y", and "z" with corresponding values that can be used to compute your cache key.
 
 This function can then be specified using the `cache_key_fn` argument on 
-the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 For example:
 
