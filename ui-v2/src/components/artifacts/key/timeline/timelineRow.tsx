@@ -1,6 +1,6 @@
 import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Typography } from "@/components/ui/typography";
-import { formatDateToTimeDescription } from "@/lib/utils";
+import { formatDate } from "@/utils/date";
 import { ArtifactTimelineCard } from "./timelineCard";
 
 export interface TimelineRowProps {
@@ -8,9 +8,9 @@ export interface TimelineRowProps {
 }
 
 export const TimelineRow = ({ artifact }: TimelineRowProps) => {
-	const [date, time] = formatDateToTimeDescription(
-		artifact.created ?? "",
-	).split(" at ");
+	const [date, time] = formatDate(artifact.created ?? "", "dateTime").split(
+		" at ",
+	);
 	return (
 		<div data-testid={`timeline-row-${artifact.id}`} className="flex">
 			<div

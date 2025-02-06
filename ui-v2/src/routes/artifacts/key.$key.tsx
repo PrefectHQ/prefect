@@ -1,12 +1,7 @@
-import {
-	Artifact,
-	ArtifactWithFlowRunAndTaskRun,
-	ArtifactsFilter,
-	buildListArtifactsQuery,
-} from "@/api/artifacts";
-import { buildListFlowRunsQuery } from "@/api/flow-runs";
-import { buildListTaskRunsQuery } from "@/api/task-runs";
+import { ArtifactsFilter, buildListArtifactsQuery } from "@/api/artifacts";
+import { useFilterArtifactsFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
 import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
@@ -30,58 +25,7 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 			buildListArtifactsQuery(buildFilterBody(key)),
 		);
 
-		const flowRunIds = artifacts.map(
-			(artifact) => artifact.flow_run_id as string,
-		);
-		const taskRunIds = artifacts.map(
-			(artifact) => artifact.task_run_id as string,
-		);
-
-		// Prefetch flow runs
-		const flowRuns = await context.queryClient.ensureQueryData(
-			buildListFlowRunsQuery({
-				flow_runs: {
-					operator: "and_",
-					id: {
-						any_: flowRunIds,
-					},
-				},
-				sort: "ID_DESC",
-				offset: 0,
-			}),
-		);
-
-		// Prefetch task runs
-		const taskRuns = await context.queryClient.ensureQueryData(
-			buildListTaskRunsQuery({
-				task_runs: {
-					operator: "and_",
-					id: {
-						any_: taskRunIds,
-					},
-				},
-				sort: "ID_DESC",
-				offset: 0,
-			}),
-		);
-
-		const artifactsWithMetadata: ArtifactWithFlowRunAndTaskRun[] =
-			artifacts.map((artifact: Artifact) => {
-				const flowRun = flowRuns.find(
-					(flowRun) => flowRun.id === artifact.flow_run_id,
-				);
-				const taskRun = taskRuns.find(
-					(taskRun) => taskRun.id === artifact.task_run_id,
-				);
-
-				return {
-					...artifact,
-					flow_run: flowRun,
-					task_run: taskRun,
-				};
-			});
-
-		return { artifacts: artifactsWithMetadata };
+		return { artifacts };
 	},
 	wrapInSuspense: true,
 });
@@ -89,13 +33,18 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 function RouteComponent() {
 	const { key } = Route.useParams();
 
-	const { artifacts } = Route.useLoaderData();
+	const { data: artifacts } = useSuspenseQuery(
+		buildListArtifactsQuery(buildFilterBody(key)),
+	);
 
+	const artifactWithMetadata = useFilterArtifactsFlowTaskRuns(
+		buildFilterBody(key),
+	);
 	return (
 		<div>
 			<ArtifactsKeyPage
 				artifactKey={key} // can't use "key" as it is a reserved word
-				artifacts={artifacts}
+				artifacts={artifactWithMetadata ?? artifacts}
 			/>
 		</div>
 	);
