@@ -44,8 +44,6 @@ def upgrade():
 
 def downgrade():
     with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
-        batch_op.drop_index(
-            "ix_deployment_schedule__deployment_id__slug", if_exists=True
-        )
-        batch_op.drop_index("ix_deployment_schedule__slug", if_exists=True)
+        batch_op.drop_index("ix_deployment_schedule__deployment_id__slug")
+        batch_op.drop_index("ix_deployment_schedule__slug")
         batch_op.drop_column("slug")
