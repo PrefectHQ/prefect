@@ -5,6 +5,8 @@ import {
 } from "@/api/artifacts";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import { filterType } from "@/components/artifacts/types";
+import useDebounceCallback from "@/hooks/use-debounce-callback";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
@@ -61,14 +63,10 @@ export const Route = createFileRoute("/artifacts/")({
 	component: RouteComponent,
 	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: async ({ deps, context }) => {
-		const artifactsCount = await context.queryClient.ensureQueryData(
-			buildCountArtifactsQuery(deps),
-		);
-
-		// Get list of artifacts
-		const artifactsList = await context.queryClient.ensureQueryData(
-			buildListArtifactsQuery(deps),
-		);
+		const [artifactsCount, artifactsList] = await Promise.all([
+			context.queryClient.ensureQueryData(buildCountArtifactsQuery(deps)),
+			context.queryClient.ensureQueryData(buildListArtifactsQuery(deps)),
+		]);
 
 		return { artifactsCount, artifactsList };
 	},
@@ -87,29 +85,40 @@ const useFilter = () => {
 		[search.type, search.name],
 	);
 
-	const onFilterChange = useCallback(
-		(newFilters: filterType[]) => {
-			void navigate({
-				to: ".",
-				search: () =>
-					newFilters
-						.filter((filter) => filter.value)
-						.reduce((prev, curr) => {
-							return { ...prev, [curr.id]: curr.value };
-						}, {}),
-				replace: true,
-			});
-		},
-		[navigate],
+	const onFilterChange = useDebounceCallback(
+		useCallback(
+			(newFilters: filterType[]) => {
+				if (!newFilters) return;
+				void navigate({
+					to: ".",
+					search: () =>
+						newFilters
+							.filter((filter) => filter.value)
+							.reduce((prev, curr) => {
+								return { ...prev, [curr.id]: curr.value };
+							}, {}),
+					replace: true,
+				});
+			},
+			[navigate],
+		),
+		400,
 	);
 
 	return { filters, onFilterChange };
 };
 
 function RouteComponent() {
+	const search = Route.useSearch();
 	const { filters, onFilterChange } = useFilter();
 
-	const { artifactsCount, artifactsList } = Route.useLoaderData();
+	const [{ data: artifactsCount }, { data: artifactsList }] =
+		useSuspenseQueries({
+			queries: [
+				buildCountArtifactsQuery(buildFilterBody(search)),
+				buildListArtifactsQuery(buildFilterBody(search)),
+			],
+		});
 
 	return (
 		<ArtifactsPage

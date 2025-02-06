@@ -6,8 +6,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import useDebounce from "@/hooks/use-debounce";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { pluralize } from "@/utils";
+import { useCallback, useMemo } from "react";
 import { Typography } from "../ui/typography";
 import { filterType } from "./types";
 
@@ -23,19 +23,13 @@ const artifactTypeOptions = [
 	{ value: "progress", label: "Progress" },
 	{ value: "image", label: "Image" },
 	{ value: "table", label: "Table" },
-];
+] as const;
 
 export const ArtifactsFilterComponent = ({
 	filters,
 	onFilterChange,
 	totalCount,
 }: ArtifactsFilterProps) => {
-	const [searchInputValue, setSearchInput] = useState(
-		filters.find((val) => val.id == "name")?.value ?? "",
-	);
-
-	const debouncedSearchInputValue = useDebounce(searchInputValue, 500);
-
 	const changeArtifactName = useCallback(
 		(value: string) => {
 			onFilterChange([
@@ -56,12 +50,13 @@ export const ArtifactsFilterComponent = ({
 		[filters, onFilterChange],
 	);
 
-	useEffect(() => {
-		changeArtifactName(debouncedSearchInputValue);
-	}, [debouncedSearchInputValue, changeArtifactName]);
-
 	const typeValue = useMemo(
-		() => filters.find((val) => val.id == "type")?.value ?? undefined,
+		() => filters.find((val) => val.id == "type")?.value,
+		[filters],
+	);
+
+	const nameValue = useMemo(
+		() => filters.find((val) => val.id == "name")?.value,
 		[filters],
 	);
 	return (
@@ -71,15 +66,15 @@ export const ArtifactsFilterComponent = ({
 		>
 			<div>
 				<Typography variant="body" className="text-sm text-muted-foreground">
-					{totalCount} artifacts
+					{totalCount} {pluralize(totalCount, "artifact")}
 				</Typography>
 			</div>
 			<div className="flex gap-4">
 				<SearchInput
 					data-testid="search-input"
-					value={searchInputValue}
+					defaultValue={nameValue}
 					placeholder="Search artifacts"
-					onChange={(e) => setSearchInput(e.target.value)}
+					onChange={(e) => changeArtifactName(e.target.value)}
 				/>
 
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
@@ -87,7 +82,6 @@ export const ArtifactsFilterComponent = ({
 						data-testid="type-select"
 						value={typeValue}
 						onValueChange={changeArtifactType}
-						defaultValue="undefined"
 					>
 						<SelectTrigger aria-label="Artifact type">
 							<SelectValue placeholder="Type" />
