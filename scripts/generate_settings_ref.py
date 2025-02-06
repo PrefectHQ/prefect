@@ -51,61 +51,53 @@ def process_property_constraints(prop_info: dict[Any, Any]) -> list[str]:
     return constraints
 
 
+def normalize_path_value(value: Any) -> Any:
+    """Normalize path-like strings to use forward slashes."""
+    if isinstance(value, str) and ("\\" in value or "/" in value):
+        return value.replace("\\", "/")
+    return value
+
+
 def generate_property_docs(
     prop_name: str, prop_info: dict[Any, Any], level: int = 3, parent_path: str = ""
 ) -> str:
     """Generate documentation for a single property."""
-    docs: list[str] = []
-    header = "#" * level
-    docs.append(f"{header} `{prop_name}`")
+    docs = []
+    heading = "#" * level
 
-    # Description
-    if "description" in prop_info:
-        docs.append(f"{prop_info['description']}")
+    # Get the full path for this property
+    full_path = f"{parent_path}.{prop_name}" if parent_path else prop_name
 
-    # Type information
-    if "$ref" in prop_info:
-        ref_name = prop_info["$ref"].split("/")[-1]
-        docs.append(f"\n**Type**: [{ref_name}](#{ref_name.lower()})")
-    elif "type" in prop_info:
-        prop_type = prop_info["type"]
-        docs.append(f"\n**Type**: `{prop_type}`")
-    elif "anyOf" in prop_info:
-        # Handle complex type constraints
-        types: list[str] = []
-        for type_info in prop_info["anyOf"]:
-            if "type" in type_info:
-                if type_info["type"] == "null":
-                    types.append("None")
-                else:
-                    types.append(type_info["type"])
-        if types:
-            docs.append(f"\n**Type**: `{' | '.join(types)}`")
-        else:
-            docs.append("\n**Type**: `any`")
+    # Get the property description
+    description = prop_info.get("description", "No description provided.")
+
+    # Get the property type
+    prop_type = prop_info.get("type", "any")
+    if prop_type == "array":
+        items = prop_info.get("items", {})
+        item_type = items.get("type", "any")
+        prop_type = f"array of {item_type}s"
+
+    # Get the default value if present
+    default = prop_info.get("default")
+    if default is not None:
+        default = normalize_path_value(default)
+        default_str = f"\n- Default: `{default}`"
     else:
-        docs.append("\n**Type**: `any`")
+        default_str = ""
 
-    # Default value
-    if "default" in prop_info:
-        docs.append(f"\n**Default**: `{prop_info['default']}`")
-
-    # Constraints
+    # Get any constraints
     constraints = process_property_constraints(prop_info)
-    if constraints:
-        docs.append("\n**Constraints**:")
-        for constraint in constraints:
-            docs.append(f"- {constraint}")
+    constraints_str = "\n- " + "\n- ".join(constraints) if constraints else ""
 
-    # Access path
-    access_path = f"{parent_path}.{prop_name}" if parent_path else prop_name
-    docs.append(f"\n**TOML dotted key path**: `{access_path}`")
+    # Build the property documentation
+    docs.append(f"{heading} {prop_name}")
+    docs.append(f"**Type:** `{prop_type}`")
+    docs.append(f"**Environment Variable:** `PREFECT_{full_path.upper()}`")
+    docs.append(description + default_str + constraints_str)
+    docs.append("")  # Add a blank line after each property
 
-    if supported_env_vars := prop_info.get("supported_environment_variables"):
-        docs.append("\n**Supported environment variables**:")
-        docs.append(", ".join(f"`{env_var}`" for env_var in supported_env_vars))
-
-    return "\n".join(docs) + "\n"
+    return "\n".join(docs)
 
 
 def generate_model_docs(

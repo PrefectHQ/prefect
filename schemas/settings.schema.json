@@ -2272,7 +2272,7 @@
     "description": "Settings for Prefect using Pydantic settings.\n\nSee https://docs.pydantic.dev/latest/concepts/pydantic_settings",
     "properties": {
         "home": {
-            "default": "~\\.prefect",
+            "default": "~/.prefect",
             "description": "The path to the Prefect home directory. Defaults to ~/.prefect",
             "format": "path",
             "supported_environment_variables": [
