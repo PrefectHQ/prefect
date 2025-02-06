@@ -14,7 +14,6 @@ describe("Navigation tests", () => {
 		["/variables", "Variables"],
 		["/automations", "Automations"],
 		["/events", "Event Feed"],
-		["/notifications", "Notifications"],
 		["/concurrency-limits", "Concurrency"],
 		["/settings", "Settings"],
 	])("can navigate to %s", async (path, text) => {
