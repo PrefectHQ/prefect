@@ -17,41 +17,35 @@ depends_on = None
 
 
 def upgrade():
-    with op.get_context().autocommit_block():
-        op.add_column(
-            "deployment_schedule",
+    op.execute("PRAGMA foreign_keys=OFF")
+
+    with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
+        batch_op.add_column(
             sa.Column("slug", sa.String, nullable=True),
         )
-
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_deployment_schedule__slug
-            ON deployment_schedule(slug)
-            """
+        batch_op.create_index(
+            "ix_deployment_schedule__slug",
+            ["slug"],
+            unique=False,
+            if_not_exists=True,
         )
 
-        op.execute(
-            """
-            CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS
-            ix_deployment_schedule__deployment_id__slug
-            ON deployment_schedule(deployment_id, slug)
-            WHERE slug IS NOT NULL;
-            """
-        )
+    op.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        ix_deployment_schedule__deployment_id__slug
+        ON deployment_schedule(deployment_id, slug)
+        WHERE slug IS NOT NULL;
+        """
+    )
+
+    op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade():
-    with op.get_context().autocommit_block():
-        op.execute(
-            """
-            DROP INDEX CONCURRENTLY IF EXISTS ix_deployment_schedule__deployment_id__slug
-            """
+    with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
+        batch_op.drop_index(
+            "ix_deployment_schedule__deployment_id__slug", if_exists=True
         )
-
-        op.execute(
-            """
-            DROP INDEX CONCURRENTLY IF EXISTS ix_deployment_schedule__slug
-            """
-        )
-
-        op.drop_column("deployment_schedule", "slug")
+        batch_op.drop_index("ix_deployment_schedule__slug", if_exists=True)
+        batch_op.drop_column("deployment_schedule", "slug")

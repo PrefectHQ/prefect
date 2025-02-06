@@ -5650,6 +5650,11 @@ export interface components {
              * @description A dictionary of parameter value overrides.
              */
             parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique slug for the schedule.
+             */
+            slug?: string | null;
         };
         /** DeploymentScheduleCreate */
         DeploymentScheduleCreate: {
@@ -5674,6 +5679,11 @@ export interface components {
              * @description A dictionary of parameter value overrides.
              */
             parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique slug for the schedule.
+             */
+            slug?: string | null;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {

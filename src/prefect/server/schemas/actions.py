@@ -114,6 +114,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="A dictionary of parameter value overrides."
     )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique slug for the schedule.",
+    )
 
     @field_validator("max_scheduled_runs")
     @classmethod
