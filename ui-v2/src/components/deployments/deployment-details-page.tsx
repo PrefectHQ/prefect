@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
+import { DeploymentFlowLink } from "./deployment-flow-link";
 
 type DeploymentDetailsPageProps = {
 	id: string;
@@ -16,7 +17,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 			<div className="flex align-middle justify-between">
 				<div className="flex flex-col gap-2">
 					<DeploymentDetailsHeader deployment={data} />
-					<div className="border border-red-400">{"<FlowLink />"}</div>
+					<DeploymentFlowLink flowId={data.flow_id} />
 				</div>
 				<div className="flex align-middle gap-2">
 					<div className="border border-red-400">{"<RunButton />"}</div>
