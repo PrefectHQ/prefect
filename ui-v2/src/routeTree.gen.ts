@@ -13,7 +13,6 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as VariablesImport } from './routes/variables'
 import { Route as SettingsImport } from './routes/settings'
-import { Route as NotificationsImport } from './routes/notifications'
 import { Route as EventsImport } from './routes/events'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as BlocksImport } from './routes/blocks'
@@ -50,12 +49,6 @@ const VariablesRoute = VariablesImport.update({
 const SettingsRoute = SettingsImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const NotificationsRoute = NotificationsImport.update({
-  id: '/notifications',
-  path: '/notifications',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -237,13 +230,6 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsImport
-      parentRoute: typeof rootRoute
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsImport
       parentRoute: typeof rootRoute
     }
     '/settings': {
@@ -454,7 +440,6 @@ export interface FileRoutesByFullPath {
   '/blocks': typeof BlocksRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
-  '/notifications': typeof NotificationsRoute
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -483,7 +468,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
-  '/notifications': typeof NotificationsRoute
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -514,7 +498,6 @@ export interface FileRoutesById {
   '/blocks': typeof BlocksRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
-  '/notifications': typeof NotificationsRoute
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -546,7 +529,6 @@ export interface FileRouteTypes {
     | '/blocks'
     | '/dashboard'
     | '/events'
-    | '/notifications'
     | '/settings'
     | '/variables'
     | '/automations/create'
@@ -574,7 +556,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/events'
-    | '/notifications'
     | '/settings'
     | '/variables'
     | '/automations/create'
@@ -603,7 +584,6 @@ export interface FileRouteTypes {
     | '/blocks'
     | '/dashboard'
     | '/events'
-    | '/notifications'
     | '/settings'
     | '/variables'
     | '/automations/create'
@@ -634,7 +614,6 @@ export interface RootRouteChildren {
   BlocksRoute: typeof BlocksRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EventsRoute: typeof EventsRoute
-  NotificationsRoute: typeof NotificationsRoute
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   AutomationsCreateRoute: typeof AutomationsCreateRoute
@@ -659,7 +638,6 @@ const rootRouteChildren: RootRouteChildren = {
   BlocksRoute: BlocksRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EventsRoute: EventsRoute,
-  NotificationsRoute: NotificationsRoute,
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   AutomationsCreateRoute: AutomationsCreateRoute,
@@ -695,7 +673,6 @@ export const routeTree = rootRoute
         "/blocks",
         "/dashboard",
         "/events",
-        "/notifications",
         "/settings",
         "/variables",
         "/automations/create",
@@ -731,9 +708,6 @@ export const routeTree = rootRoute
     },
     "/events": {
       "filePath": "events.tsx"
-    },
-    "/notifications": {
-      "filePath": "notifications.tsx"
     },
     "/settings": {
       "filePath": "settings.tsx"
