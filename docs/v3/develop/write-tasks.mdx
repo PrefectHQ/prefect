@@ -286,10 +286,10 @@ if __name__ == "__main__":
 ```
 
 Now you're fetching the data you need, but the requests happen sequentially.
-Tasks expose a [`submit`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
+Tasks expose a [`submit`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
 the execution from sequential to concurrent.
 In this example, you also need to use the 
-[`result`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture.result) 
+[`result`](https://reference.prefect.io/prefect/futures/#prefect.futures.PrefectFuture.result) 
 method to unpack a list of return values:
 
 ```python 
@@ -341,7 +341,7 @@ Average open issues per user 💌 : 2.27
 
 ## Task configuration
 
-Tasks allow for customization through optional arguments that can be provided to the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+Tasks allow for customization through optional arguments that can be provided to the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 | Argument              | Description                                                                                                                                                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -356,7 +356,7 @@ Tasks allow for customization through optional arguments that can be provided to
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
 | `log_prints`|An optional boolean indicating whether to log print statements. |
 
-See all possible options in the [Python SDK docs](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+See all possible options in the [Python SDK docs](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 For example, provide optional `name` and `description` arguments to a task:
 
@@ -458,7 +458,7 @@ Tags are useful to:
 - Filter task runs by tag in the UI and through the [Prefect REST API](/v3/api-ref/rest-api/#filtering).
 - Set [concurrency limits](#task-run-concurrency-limits) on task runs by tag.
 
-You may specify tags as a keyword argument on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+You may specify tags as a keyword argument on the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 ```python 
 @task(name="hello-task", tags=["test"])
@@ -466,7 +466,7 @@ def my_task():
     print("Hello, I'm a task")
 ```
 
-Alternatively, specify tags when the task is called rather than in its definition with a [`tags` context manager](https://prefect-python-sdk-docs.netlify.app/prefect/context/#prefect.context.tags), .
+Alternatively, specify tags when the task is called rather than in its definition with a [`tags` context manager](https://reference.prefect.io/prefect/context/#prefect.context.tags), .
 
 ```python 
 from prefect import flow, task
@@ -618,7 +618,7 @@ if __name__ == "__main__":
 ```
 
 Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. 
-Prefect includes an [`exponential_backoff`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. 
+Prefect includes an [`exponential_backoff`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. 
 The following flow will wait for 10, 20, then 40 seconds before each retry.
 
 ```python
