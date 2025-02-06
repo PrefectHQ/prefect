@@ -11932,6 +11932,7 @@
             "BlockSchemaCreate": {
                 "properties": {
                     "fields": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -15304,6 +15305,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
@@ -16215,6 +16217,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
