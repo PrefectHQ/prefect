@@ -2694,6 +2694,20 @@ class TestLoadFlowFromEntrypoint:
         with pytest.raises(ScriptError):
             load_flow_from_entrypoint(f"{fpath}:dog", use_placeholder_flow=False)
 
+    def test_load_flow_from_entrypoint_not_a_flow(self, tmp_path):
+        flow_code = """
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+        assert flow.log_prints is True
+        assert flow.fn() == "woof!"
+
 
 class TestFlowRunName:
     async def test_invalid_runtime_run_name(self):
