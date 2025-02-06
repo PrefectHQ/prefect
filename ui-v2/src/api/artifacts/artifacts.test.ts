@@ -8,9 +8,9 @@ import { createFakeArtifact } from "@/mocks";
 
 import {
 	type Artifact,
-	buidListArtifactsQuery,
 	buildCountArtifactsQuery,
 	buildGetArtifactQuery,
+	buildListArtifactsQuery,
 } from "./index";
 
 describe("artifacts queries and mutations", () => {
@@ -52,7 +52,7 @@ describe("artifacts queries and mutations", () => {
 
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
-			() => useSuspenseQuery(buidListArtifactsQuery(filter)),
+			() => useSuspenseQuery(buildListArtifactsQuery(filter)),
 			{ wrapper: createWrapper() },
 		);
 
