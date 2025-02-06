@@ -3,6 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
+import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
+
 /**
  * Schema for validating URL search parameters for the Deployment Details page
  * @property {"Runs" | "Upcoming" | "Parameters" | "Configuration" | "Description"} tab used designate which tab view to display
@@ -24,5 +26,6 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 });
 
 function RouteComponent() {
-	return "🚧🚧 Pardon our dust! 🚧🚧";
+	const { id } = Route.useParams();
+	return <DeploymentDetailsPage id={id} />;
 }
