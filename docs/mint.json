@@ -753,6 +753,22 @@
   ],
   "redirects": [
     {
+      "destination": "/v3/api-ref/index",
+      "source": "/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/reference/:slug*"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/v3/reference/:slug*"
+    },
+    {
       "destination": "/v3/getting-started/:slug*",
       "source": "/getting-started/:slug*"
     },
@@ -811,6 +827,14 @@
     {
       "destination": "/v3/develop/settings-and-profiles",
       "source": "/v3/manage/settings-and-profiles"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/latest/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/latest/reference/:slug*"
     },
     {
       "destination": "/v3",

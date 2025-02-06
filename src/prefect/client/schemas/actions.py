@@ -22,7 +22,14 @@ from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
 )
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import (
+    SCHEDULE_TYPES,
+    CronSchedule,
+    IntervalSchedule,
+    NoSchedule,
+    RRuleSchedule,
+)
+from prefect.schedules import Schedule
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
@@ -92,6 +99,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
+    )
 
     @field_validator("active", mode="wrap")
     @classmethod
@@ -110,6 +121,42 @@ class DeploymentScheduleCreate(ActionBaseModel):
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
 
+    @classmethod
+    def from_schedule(cls, schedule: Schedule) -> "DeploymentScheduleCreate":
+        if schedule.interval is not None:
+            return cls(
+                schedule=IntervalSchedule(
+                    interval=schedule.interval,
+                    timezone=schedule.timezone,
+                    anchor_date=schedule.anchor_date,
+                ),
+                parameters=schedule.parameters,
+                active=schedule.active,
+            )
+        elif schedule.cron is not None:
+            return cls(
+                schedule=CronSchedule(
+                    cron=schedule.cron,
+                    timezone=schedule.timezone,
+                    day_or=schedule.day_or,
+                ),
+                parameters=schedule.parameters,
+                active=schedule.active,
+            )
+        elif schedule.rrule is not None:
+            return cls(
+                schedule=RRuleSchedule(
+                    rrule=schedule.rrule,
+                    timezone=schedule.timezone,
+                ),
+                parameters=schedule.parameters,
+                active=schedule.active,
+            )
+        else:
+            return cls(
+                schedule=NoSchedule(),
+            )
+
 
 class DeploymentScheduleUpdate(ActionBaseModel):
     schedule: Optional[SCHEDULE_TYPES] = Field(
@@ -122,6 +169,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+    parameters: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Parameter overrides for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")

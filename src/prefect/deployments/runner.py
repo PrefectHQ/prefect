@@ -77,6 +77,7 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.runner.storage import RunnerStorage
+from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -113,7 +114,7 @@ class RunnerDeployment(BaseModel):
         description: An optional description of the deployment; defaults to the flow's
             description
         tags: An optional list of tags to associate with this deployment; note that tags
-            are used only for organizational purposes. For delegating work to agents,
+            are used only for organizational purposes. For delegating work to workers,
             see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         parameters: A dictionary of parameter values to pass to runs created from this
@@ -390,7 +391,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
+        schedule: Union[SCHEDULE_TYPES, Schedule, None] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
     ) -> Union[List[DeploymentScheduleCreate], "FlexibleScheduleList"]:
         """
@@ -422,7 +423,6 @@ class RunnerDeployment(BaseModel):
               this list is returned as-is, bypassing other schedule construction
               logic.
         """
-
         num_schedules = sum(
             1
             for entry in (interval, cron, rrule, schedule, schedules)
@@ -430,7 +430,7 @@ class RunnerDeployment(BaseModel):
         )
         if num_schedules > 1:
             raise ValueError(
-                "Only one of interval, cron, rrule, or schedules can be provided."
+                "Only one of interval, cron, rrule, schedule, or schedules can be provided."
             )
         elif num_schedules == 0:
             return []
@@ -483,6 +483,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -508,6 +509,8 @@ class RunnerDeployment(BaseModel):
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set this deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs this deployment will allow.
@@ -533,6 +536,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         job_variables = job_variables or {}
@@ -627,6 +631,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -682,6 +687,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
@@ -730,6 +736,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -758,6 +765,11 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not the deployment is paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -782,6 +794,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
@@ -845,6 +858,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -873,6 +887,11 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not the deployment is paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -897,6 +916,7 @@ class RunnerDeployment(BaseModel):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            schedule=schedule,
         )
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
