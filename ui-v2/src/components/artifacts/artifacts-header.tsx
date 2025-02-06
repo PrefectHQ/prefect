@@ -15,7 +15,7 @@ export const ArtifactsHeader = () => {
 };
 
 const Header = () => (
-	<div className="flex items-center gap-2">
+	<div className="flex items-center ">
 		<Breadcrumb>
 			<BreadcrumbList>
 				<BreadcrumbItem className="text-xl font-semibold">

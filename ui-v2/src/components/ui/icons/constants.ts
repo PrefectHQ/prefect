@@ -1,4 +1,5 @@
 import {
+	AlignJustify,
 	AlignVerticalJustifyStart,
 	Ban,
 	Bot,
@@ -16,6 +17,7 @@ import {
 	Clock,
 	Cpu,
 	ExternalLink,
+	LayoutGrid,
 	Loader2,
 	Moon,
 	MoreHorizontal,
@@ -35,6 +37,7 @@ import {
 } from "lucide-react";
 
 export const ICONS = {
+	AlignJustify,
 	AlignVerticalJustifyStart,
 	Ban,
 	Bot,
@@ -52,6 +55,7 @@ export const ICONS = {
 	Clock,
 	Cpu,
 	ExternalLink,
+	LayoutGrid,
 	Loader2,
 	Moon,
 	MoreHorizontal,
