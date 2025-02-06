@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { Deployment } from "./index";
 import {
 	buildCountDeploymentsQuery,
+	buildDeploymentDetailsQuery,
 	buildFilterDeploymentsQuery,
 	buildPaginateDeploymentsQuery,
 	queryKeyFactory,
@@ -38,6 +39,14 @@ describe("deployments api", () => {
 		server.use(
 			http.post(buildApiUrl("/deployments/filter"), () => {
 				return HttpResponse.json(deployments);
+			}),
+		);
+	};
+
+	const mockGetDeploymentAPI = (deployment: Deployment) => {
+		server.use(
+			http.get(buildApiUrl("/deployments/:id"), () => {
+				return HttpResponse.json(deployment);
 			}),
 		);
 	};
@@ -145,6 +154,23 @@ describe("deployments api", () => {
 			await waitFor(() => {
 				expect(result.current.data).toBe(1);
 			});
+		});
+	});
+
+	describe("buildDeploymentDetailsQuery", () => {
+		it("fetches deployment details", async () => {
+			const queryClient = new QueryClient();
+
+			const mockResponse = createFakeDeployment({ id: "my-id" });
+			mockGetDeploymentAPI(mockResponse);
+
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildDeploymentDetailsQuery("my-id")),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockResponse);
 		});
 	});
 
