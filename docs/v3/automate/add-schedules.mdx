@@ -74,13 +74,11 @@ from myproject.flows import my_flow
 
 my_flow.serve(
   name="flowing",
-  schedules=[
-    Interval(
-      timedelta(minutes=10),
-      anchor_date=datetime(2026, 1, 1, 0, 0),
-      timezone="America/Chicago"
-    )
-  ]
+  schedule=Interval(
+    timedelta(minutes=10),
+    anchor_date=datetime(2026, 1, 1, 0, 0),
+    timezone="America/Chicago"
+  )
 )
 ```
 
@@ -301,7 +299,7 @@ Instead of creating independent deployments with different default parameters an
 Whether using `.serve` or `.deploy`, you can pass `parameters` to your deployment `schedules`:
 
 ```python send_email_flow.py {13,17-20}
-from prefect import flow, parameter
+from prefect import flow
 from prefect.schedules import Cron
 
 @flow
@@ -312,11 +310,11 @@ send_email.serve(
   name="my-flow",
   schedules=[
     Cron(
-      cron="0 8 * * *",
+      "0 8 * * *",
       parameters={"to": "jim.halpert@dundermiflin.com"}
     ),
     Cron(
-      cron="5 8 * * *",
+      "5 8 * * *",
       parameters={
         "to": "dwight.schrute@dundermiflin.com",
         "message": "Stop goofing off! You're assistant _to_ the regional manager!"
@@ -333,7 +331,7 @@ This deployment will schedule runs that:
 - Send "Stop goofing off! You're assistant _to_ the regional manager!" to Dwight at 8:05 AM every day
 
 <Tip>
-Use the same pattern for any schedule type in `prefect.schedules`, e.g. `Interval` and `RRule`.
+Use the same pattern to bind parameters to schedules for any schedule type in `prefect.schedules`, whether providing one schedule via the `schedule` kwarg or multiple schedules via `schedules`.
 </Tip>
 
 ### Schedule parameters in `prefect.yaml`
