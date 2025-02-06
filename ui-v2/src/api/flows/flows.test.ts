@@ -5,7 +5,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { buildListFlowsQuery } from ".";
+import { buildFLowDetailsQuery, buildListFlowsQuery } from ".";
 
 type Flow = components["schemas"]["Flow"];
 
@@ -14,6 +14,14 @@ describe("flows api", () => {
 		server.use(
 			http.post(buildApiUrl("/flows/filter"), () => {
 				return HttpResponse.json(flows);
+			}),
+		);
+	};
+
+	const mockFetchFlowAPI = (flow: Flow) => {
+		server.use(
+			http.get(buildApiUrl("/flows/:id"), () => {
+				return HttpResponse.json(flow);
 			}),
 		);
 	};
@@ -54,6 +62,23 @@ describe("flows api", () => {
 
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual([flow]);
+		});
+	});
+
+	describe("buildFLowDetailsQuery", () => {
+		it("fetches flow details from the API", async () => {
+			const flow = createFakeFlow();
+			mockFetchFlowAPI(flow);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildFLowDetailsQuery(flow.id)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			expect(result.current.data).toEqual(flow);
 		});
 	});
 });
