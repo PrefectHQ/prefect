@@ -60,7 +60,7 @@ export const queryKeyFactory = {
  * });
  * ```
  */
-export const buidListArtifactsQuery = (
+export const buildListArtifactsQuery = (
 	filter: ArtifactsFilter = {
 		offset: 0,
 		sort: "ID_DESC",
