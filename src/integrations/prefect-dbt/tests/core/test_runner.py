@@ -990,7 +990,7 @@ class TestPrefectDbtRunnerEvents:
             # Verify node event was emitted
             assert mock_emit.call_count == 1
             node_event_call = mock_emit.call_args_list[0]
-            assert node_event_call.kwargs["event"] == "dbt Node Finished"
+            assert node_event_call.kwargs["event"] == "example success"
             assert node_event_call.kwargs["resource"] == {
                 "prefect.resource.id": "dbt.model.test.example",
                 "prefect.resource.name": "example",
@@ -1076,7 +1076,6 @@ class TestPrefectDbtRunnerEvents:
 
         # Create a mock node in the manifest
         node = Mock()
-        node.unique_id = "model.test.example"
         node.name = "example"
         node.relation_name = '"schema"."example_table"'
         node.depends_on_nodes = []
@@ -1148,6 +1147,7 @@ class TestPrefectDbtRunnerEvents:
         runner.manifest.metadata.adapter_type = "postgres"
 
         node = Mock()
+        node.name = "example"
         node.relation_name = '"schema"."table"'
         node.depends_on_nodes = []
         node.config.meta = {"prefect": {"emit_lineage_events": False}}
@@ -1173,7 +1173,7 @@ class TestPrefectDbtRunnerEvents:
 
             callback(event)
             assert mock_emit.call_count == 1  # Only node event should be emitted
-            assert mock_emit.call_args.kwargs["event"] == "dbt Node Finished"
+            assert mock_emit.call_args.kwargs["event"] == "example success"
 
     def test_events_callback_with_all_events_disabled(self, mock_dbt_runner, settings):
         runner = PrefectDbtRunner(settings=settings)
