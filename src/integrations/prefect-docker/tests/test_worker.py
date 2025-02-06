@@ -11,12 +11,13 @@ from docker import DockerClient
 from docker.models.containers import Container
 from exceptiongroup import ExceptionGroup
 from prefect_docker.credentials import DockerRegistryCredentials
+from prefect_docker.types import VolumeStr
 from prefect_docker.worker import (
     CONTAINER_LABELS,
     DockerWorker,
     DockerWorkerJobConfiguration,
-    assert_volume_str,
 )
+from pydantic import TypeAdapter, ValidationError
 
 import prefect.main  # noqa
 from prefect.client.schemas import FlowRun
@@ -266,42 +267,40 @@ async def test_uses_volumes_setting(
     assert "c:d" in call_volumes
 
 
-def test_assert_volume_str_valid_cases():
-    # Anonymous volume (container-only path) should be accepted
-    assert assert_volume_str("/data") == "/data"
-    assert assert_volume_str("/container/path") == "/container/path"
-    # Named volume and bind mount examples (existing valid formats)
-    assert assert_volume_str("myvol:/data") == "myvol:/data"
-    assert assert_volume_str("/host/path:/data") == "/host/path:/data"
-    # Volume with options
-    assert assert_volume_str("cache_vol:/cache:ro") == "cache_vol:/cache:ro"
-    assert assert_volume_str("/srv/logs:/var/log:rw,z") == "/srv/logs:/var/log:rw,z"
+@pytest.mark.parametrize(
+    "volume_str",
+    [
+        "a:b",
+        "/host/path:/container/path",
+        "named_volume:/app/data",
+        "/home/user:/home/docker:ro",
+        "/home/user:/home/docker:rw",
+        "C:\\path\\on\\windows:/path/in/container",
+        "\\\\host\\share:/path/in/container",
+        "/data",  # anonymous volume
+    ],
+)
+def test_valid_volume_strings(volume_str: str):
+    assert TypeAdapter(VolumeStr).validate_python(volume_str) == volume_str
 
 
-def test_assert_volume_str_invalid_cases():
-    # Empty or whitespace-only strings should raise an error
-    for invalid in ["", " ", "\t"]:
-        with pytest.raises(ValueError):
-            assert_volume_str(invalid)
-    # Missing container path after colon
-    for invalid in ["volumename:", "/host/path:"]:
-        with pytest.raises(ValueError):
-            assert_volume_str(invalid)
-    # Missing host/volume name before colon
-    with pytest.raises(ValueError):
-        assert_volume_str(":/container/path")
-    # Container path must be absolute (start with '/')
-    with pytest.raises(ValueError):
-        assert_volume_str("name:container/path")  # no leading '/' in container path
-    # Host path must be absolute if provided (no relative paths)
-    with pytest.raises(ValueError):
-        assert_volume_str("relative/dir:/container")
-    # Trailing colon without options is invalid
-    with pytest.raises(ValueError):
-        assert_volume_str("/data:")
-    # Malformed string with multiple colons (missing segments)
-    with pytest.raises(ValueError):
-        assert_volume_str("dbdata::ro")
+@pytest.mark.parametrize(
+    "volume_str",
+    [
+        "invalid_volume",
+        ":missing_host",
+        "missing_container:",
+        "/double:/colon:/path",
+        "/path:/path:invalid_mode",
+        ":/:",
+        " : : ",
+        "/host:/container:rw:extra",
+        "",  # empty string
+    ],
+)
+def test_invalid_volume_strings(volume_str: str):
+    with pytest.raises(ValidationError, match="Invalid volume"):
+        TypeAdapter(VolumeStr).validate_python(volume_str)
 
 
 async def test_uses_privileged_setting(

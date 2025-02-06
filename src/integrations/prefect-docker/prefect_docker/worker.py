@@ -28,9 +28,9 @@ import docker.errors
 import packaging.version
 from docker import DockerClient
 from docker.models.containers import Container
-from pydantic import AfterValidator, Field
+from pydantic import Field
 from slugify import slugify
-from typing_extensions import Annotated, Literal
+from typing_extensions import Literal
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
@@ -47,6 +47,7 @@ from prefect.utilities.dockerutils import (
 )
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
+from prefect_docker.types import VolumeStr
 
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
@@ -59,62 +60,6 @@ class ImagePullPolicy(enum.Enum):
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
     NEVER = "Never"
-
-
-def assert_volume_str(volume: str) -> str:
-    """
-    Validate a Docker volume string and return it if valid.
-    Allowed formats:
-      - '/container/path' (anonymous volume, container path only)
-      - 'volume_name:/container/path'
-      - '/host/abs/path:/container/path'
-    Each of the above may include an options suffix, e.g. '...:ro' or '...:rw,z'.
-    """
-    if not isinstance(volume, str):
-        raise ValueError("Volume specification must be a string")
-    vol = volume.strip()
-    if vol == "":
-        raise ValueError("Volume specification cannot be empty")
-    # Pattern allows either:
-    # 1) container-only path, OR
-    # 2) host (or volume name) + ':' + container path + optional ':' + options
-    pattern = re.compile(
-        r"^(?:"
-        + r"(?P<container_only>/[^:]+)"  # 1) just container path (anonymous volume)
-        + r"|"
-        + r"(?P<host>(?:[A-Za-z]:)?[^:]+):(?P<container_path>/[^:]+)(?::(?P<options>.+))?"  # 2) host/name:container[:options]
-        + r")$"
-    )
-    match = pattern.match(vol)
-    if not match:
-        raise ValueError(f"Invalid volume specification: {volume}")
-    # If only a container path was provided (anonymous volume), return it
-    if match.group("container_only"):
-        return vol  # e.g. "/container/path"
-    # Otherwise, extract host (or volume name), container path, and options
-    host_part = match.group("host")
-    options = match.group("options")
-    # Determine if host_part is a path or a volume name
-    is_windows_path = re.match(r"^[A-Za-z]:", host_part) is not None
-    is_unix_path = host_part.startswith("/")
-    if is_unix_path or is_windows_path:
-        # It's a host path (bind mount). It should be absolute (starts with "/" or "C:\...").
-        # (Regex ensures the path is non-empty; e.g., "C:\path" or "/path" are fine.)
-        pass  # no additional checks for host path format here
-    else:
-        # It's a volume name (named volume). It must not contain path separators.
-        if "/" in host_part or "\\" in host_part:
-            raise ValueError(f"Invalid volume name: {host_part}")
-    # If options are provided, ensure they are non-empty and contain no whitespace
-    if options is not None:
-        if options.strip() == "":
-            raise ValueError("Volume options cannot be empty")
-        if any(c.isspace() for c in options):
-            raise ValueError("Volume options cannot contain whitespace")
-    return vol
-
-
-VolumeStr = Annotated[str, AfterValidator(assert_volume_str)]
 
 
 class DockerWorkerJobConfiguration(BaseJobConfiguration):
