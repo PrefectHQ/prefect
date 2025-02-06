@@ -14,17 +14,29 @@ const VARIANTS_TO_ELEMENT_MAP = {
 } as const;
 
 type Variant = "h1" | "h2" | "h3" | "h4" | "bodyLarge" | "body" | "bodySmall";
+type FontFamily = "sans" | "serif" | "mono";
 
 type TypographyProps = {
 	className?: string;
 	variant?: Variant;
+	fontFamily?: FontFamily;
 	children: React.ReactNode;
 };
 
 export const Typography = forwardRef<HTMLDivElement, TypographyProps>(
-	({ className, variant = "body", ...props }, ref) => {
+	({ className, variant = "body", fontFamily = "sans", ...props }, ref) => {
 		return createElement(VARIANTS_TO_ELEMENT_MAP[variant], {
-			className: cn(typographyVariants({ variant }), className),
+			className: cn(
+				typographyVariants({
+					variant,
+					className: cn({
+						"font-sans": fontFamily === "sans",
+						"font-serif": fontFamily === "serif",
+						"font-mono": fontFamily === "mono",
+					}),
+				}),
+				className,
+			),
 			ref,
 			...props,
 		});
