@@ -5739,7 +5739,7 @@ export interface components {
              * Schedules
              * @description A list of schedules for the deployment.
              */
-            schedules?: components["schemas"]["DeploymentScheduleCreate"][];
+            schedules?: components["schemas"]["DeploymentScheduleUpdate"][];
             /**
              * Concurrency Limit
              * @description The deployment's concurrency limit.

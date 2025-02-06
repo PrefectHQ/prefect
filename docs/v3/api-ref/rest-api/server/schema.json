@@ -16631,7 +16631,7 @@
                     },
                     "schedules": {
                         "items": {
-                            "$ref": "#/components/schemas/DeploymentScheduleCreate"
+                            "$ref": "#/components/schemas/DeploymentScheduleUpdate"
                         },
                         "type": "array",
                         "title": "Schedules",
