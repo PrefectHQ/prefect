@@ -62,7 +62,7 @@ jobs:
           cache-dependency-path: "**/package-lock.json"
 
       - name: Install mintlify-scrape
-        run: npm install -g @mintlify/scraping@4.0.110
+        run: npm install -g @mintlify/scraping@4.0.112
 
       - name: Run pre-commit
         run: |
