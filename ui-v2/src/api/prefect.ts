@@ -3625,7 +3625,9 @@ export interface components {
              * Fields
              * @description The block schema's field schema
              */
-            fields?: Record<string, never>;
+            fields?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Type Id
              * @description A block type ID
@@ -5228,9 +5230,11 @@ export interface components {
             enforce_parameter_schema: boolean;
             /**
              * Parameter Openapi Schema
-             * @description The parameter schema of the flow, including defaults.
+             * @description The parameter schema of the flow, including defaults. here3?
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
@@ -5559,9 +5563,11 @@ export interface components {
             last_polled?: string | null;
             /**
              * Parameter Openapi Schema
-             * @description The parameter schema of the flow, including defaults.
+             * @description The parameter schema of the flow, including defaults. here6
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Path
              * @description The path to the working directory for the workflow, relative to remote storage or an absolute path.
