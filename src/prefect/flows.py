@@ -2072,10 +2072,7 @@ def load_flow_from_entrypoint(
             raise
 
     if not isinstance(flow, Flow):  # pyright: ignore[reportUnnecessaryIsInstance]
-        raise MissingFlowError(
-            f"Function with name {func_name!r} is not a flow. Make sure that it is "
-            "decorated with '@flow'."
-        )
+        return Flow(flow, log_prints=True)
 
     return flow
 
