@@ -66,7 +66,7 @@ from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import StateCreate
-    from prefect.results import ResultRecordMetadata
+    from prefect.result_records import ResultRecordMetadata
 
 
 R = TypeVar("R", default=Any)

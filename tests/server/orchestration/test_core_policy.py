@@ -10,7 +10,7 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.results import ResultRecordMetadata
+from prefect.result_records import ResultRecordMetadata
 from prefect.server import schemas
 from prefect.server.database import orm_models as orm
 from prefect.server.exceptions import ObjectNotFoundError

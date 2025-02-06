@@ -74,7 +74,7 @@ def hydrated_context(
     # environment where the models are not available.
     # TODO: Remove this once we have fixed our circular imports and we don't need to rebuild models any more.
     from prefect.flows import Flow
-    from prefect.results import ResultRecordMetadata
+    from prefect.result_records import ResultRecordMetadata
     from prefect.tasks import Task
 
     _types: dict[str, Any] = dict(

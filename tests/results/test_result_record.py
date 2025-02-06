@@ -2,7 +2,8 @@ import pytest
 from pydantic import ValidationError
 
 from prefect.filesystems import NullFileSystem
-from prefect.results import ResultRecord, ResultRecordMetadata, ResultStore
+from prefect.result_records import ResultRecord, ResultRecordMetadata
+from prefect.results import ResultStore
 from prefect.serializers import JSONSerializer
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
 
