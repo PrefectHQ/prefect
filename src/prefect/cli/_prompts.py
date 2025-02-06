@@ -23,6 +23,7 @@ from typing import (
 
 import anyio
 import readchar
+from pydantic_core import from_json
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -392,6 +393,20 @@ class CronTimezonePrompt(PromptBase[str]):
             raise InvalidResponse(self.validate_error_message)
 
 
+class ScheduleParametersPrompt(PromptBase[dict[str, Any]]):
+    response_type: type[dict[str, Any]] = dict[str, Any]
+    validate_error_message = "[prompt.invalid]Please enter a valid JSON object"
+
+    def process_response(self, value: str) -> dict[str, Any]:
+        try:
+            json_value = from_json(value)
+            if isinstance(json_value, str):
+                raise InvalidResponse(self.validate_error_message)
+            return json_value
+        except ValueError:
+            raise InvalidResponse(self.validate_error_message)
+
+
 def prompt_cron_schedule(console: Console) -> CronSchedule:
     """
     Prompt the user for a cron string and timezone.
@@ -490,6 +505,25 @@ def prompt_schedule_type(console: Console) -> str:
     return selection["type"]
 
 
+# Schedule parameters prompting utilities
+
+
+def prompt_schedule_parameters(console: Console) -> dict[str, Any]:
+    """
+    Prompt the user to enter schedule parameters.
+    """
+    if confirm(
+        "Would you like to configure default parameters for this schedule?",
+        default=False,
+        console=console,
+    ):
+        return ScheduleParametersPrompt.ask(
+            "[bold][green]?[/] Enter schedule parameters as a JSON string",
+            console=console,
+        )
+    return {}
+
+
 def prompt_schedules(console: Console) -> list[DeploymentScheduleCreate]:
     """
     Prompt the user to configure schedules for a deployment.
@@ -515,8 +549,14 @@ def prompt_schedules(console: Console) -> list[DeploymentScheduleCreate]:
                 "Would you like to activate this schedule?", default=True
             )
 
+            parameters = prompt_schedule_parameters(console)
+
             schedules.append(
-                DeploymentScheduleCreate(schedule=schedule, active=is_schedule_active)
+                DeploymentScheduleCreate(
+                    schedule=schedule,
+                    active=is_schedule_active,
+                    parameters=parameters,
+                )
             )
 
             add_schedule = confirm(

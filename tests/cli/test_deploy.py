@@ -2874,6 +2874,96 @@ class TestSchedules:
         )
         assert len(deployment.schedules) == 0
 
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_with_schedule_parameters(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                # Select interval schedule
+                + readchar.key.ENTER
+                # Accept default interval
+                + readchar.key.ENTER
+                # Accept schedule being active
+                + readchar.key.ENTER
+                # Opt into providing schedule parameters
+                + "y"
+                + readchar.key.ENTER
+                # Enter schedule parameter value as a JSON string
+                + '{"question": "ultimate", "answer": 42}'
+                + readchar.key.ENTER
+                # Decline adding another schedule
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[0].parameters == {
+            "question": "ultimate",
+            "answer": 42,
+        }
+
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_with_schedule_parameters_with_invalid_json_on_first_attempt(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+            ),
+            user_input=(
+                # Confirm schedule creation
+                readchar.key.ENTER
+                # Select interval schedule
+                + readchar.key.ENTER
+                # Accept default interval
+                + readchar.key.ENTER
+                # Accept schedule being active
+                + readchar.key.ENTER
+                # Opt into providing schedule parameters
+                + "y"
+                + readchar.key.ENTER
+                # Enter a valid JSON string that's not an object
+                + "not a valid json object"
+                + readchar.key.ENTER
+                # Enter schedule parameter value as a JSON string
+                + '{"question": "ultimate", "answer": 42}'
+                + readchar.key.ENTER
+                # Decline adding another schedule
+                + readchar.key.ENTER
+                # Decline save
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_code=0,
+            expected_output_contains=[
+                "Please enter a valid JSON object",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[0].parameters == {
+            "question": "ultimate",
+            "answer": 42,
+        }
+
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_inactive_schedule(
         self, work_pool: WorkPool, prefect_client: PrefectClient

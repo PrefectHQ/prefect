@@ -196,7 +196,7 @@ def initialize_project(
 
     project_name = name or dir_name
 
-    files = []
+    files: list[str] = []
     if create_default_ignore_file("."):
         files.append(".prefectignore")
     if create_default_prefect_yaml(".", name=project_name, contents=configuration):
@@ -236,6 +236,7 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = deployment_schedule.schedule.model_dump()
 
             schedule_config["active"] = deployment_schedule.active
+            schedule_config["parameters"] = deployment_schedule.parameters
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
@@ -290,7 +291,6 @@ def _save_deployment_to_prefect_file(
         - deployment: a dictionary containing a deployment configuration
     """
     deployment = _format_deployment_for_saving_to_prefect_file(deployment)
-
     current_directory_name = os.path.basename(os.getcwd())
     if not prefect_file.exists():
         create_default_prefect_yaml(

@@ -928,9 +928,8 @@ def _construct_schedules(
             _schedule_config_to_deployment_schedule(schedule_config)
             for schedule_config in apply_values(schedule_configs, step_outputs)
         ]
-    elif schedule_configs is NotSet:
-        if is_interactive():
-            schedules = prompt_schedules(app.console)
+    elif schedule_configs is NotSet and is_interactive():
+        schedules = prompt_schedules(app.console)
 
     return schedules
 
