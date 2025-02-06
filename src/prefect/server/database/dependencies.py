@@ -38,8 +38,8 @@ from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
     from prefect.server.database.interface import PrefectDBInterface
-    from prefect.server.database.query_components import BaseQueryComponents
     from prefect.server.database.orm_models import BaseORMConfiguration
+    from prefect.server.database.query_components import BaseQueryComponents
 
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
@@ -74,6 +74,10 @@ def provide_database_interface() -> "PrefectDBInterface":
     based on the dialect of the connection URL.
     """
     from prefect.server.database.interface import PrefectDBInterface
+    from prefect.server.database.orm_models import (
+        AioSqliteORMConfiguration,
+        AsyncPostgresORMConfiguration,
+    )
     from prefect.server.database.query_components import (
         AioSqliteQueryComponents,
         AsyncPostgresQueryComponents,
