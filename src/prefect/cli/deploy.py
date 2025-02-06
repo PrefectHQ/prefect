@@ -243,7 +243,7 @@ async def deploy(
         "--tag",
         help=(
             "One or more optional tags to apply to the deployment. Note: tags are used"
-            " only for organizational purposes. For delegating work to agents, use the"
+            " only for organizational purposes. For delegating work to workers, use the"
             " --work-queue flag."
         ),
     ),

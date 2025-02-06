@@ -875,25 +875,6 @@ class TestGetRunsInWorkQueue:
         )
         assert ui_updated_work_queue.last_polled == updated_work_queue.last_polled
 
-    async def test_read_work_queue_runs_updates_agent_last_activity_time(
-        self,
-        client,
-        work_queue,
-        session,
-    ):
-        now = pendulum.now("UTC")
-        fake_agent_id = uuid4()
-        response = await client.post(
-            f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(agent_id=str(fake_agent_id)),
-        )
-        assert response.status_code == status.HTTP_200_OK
-
-        agent = await models.agents.read_agent(session=session, agent_id=fake_agent_id)
-        assert agent.id == fake_agent_id
-        assert agent.work_queue_id == work_queue.id
-        assert agent.last_activity_time >= now
-
     async def test_read_work_queue_runs_associated_deployments_return_status_of_ready(
         self,
         client,
@@ -931,7 +912,6 @@ class TestGetRunsInWorkQueue:
         # Trigger a polling operation
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(agent_id=str(uuid.uuid4())),
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -962,7 +942,6 @@ class TestGetRunsInWorkQueue:
         # Trigger a polling operation
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(agent_id=str(uuid.uuid4())),
         )
         assert response.status_code == status.HTTP_200_OK
 

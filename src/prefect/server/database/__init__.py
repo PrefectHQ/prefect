@@ -5,6 +5,7 @@ from prefect.server.database.dependencies import (
 )
 from prefect.server.database.interface import PrefectDBInterface
 
+
 __all__ = [
     "PrefectDBInterface",
     "db_injector",
