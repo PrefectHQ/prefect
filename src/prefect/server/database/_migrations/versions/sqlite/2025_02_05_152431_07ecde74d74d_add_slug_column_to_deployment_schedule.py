@@ -48,4 +48,4 @@ def downgrade():
             "ix_deployment_schedule__deployment_id__slug", if_exists=True
         )
         batch_op.drop_index("ix_deployment_schedule__slug", if_exists=True)
-        batch_op.drop_column("deployment_schedule", "slug")
+        batch_op.drop_column("slug")
