@@ -3,12 +3,15 @@ Schemas for sorting Prefect REST API objects.
 """
 
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 
-from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.utilities.database import db_injector
 from prefect.utilities.collections import AutoEnum
+
+if TYPE_CHECKING:
+    from prefect.server.database import PrefectDBInterface
 
 # TODO: Consider moving the `as_sql_sort` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
@@ -29,7 +32,7 @@ class FlowRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort flow runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "ID_DESC": [db.FlowRun.id.desc()],
@@ -67,7 +70,7 @@ class TaskRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "ID_DESC": [db.TaskRun.id.desc()],
@@ -90,7 +93,7 @@ class LogSort(AutoEnum):
     TIMESTAMP_DESC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "TIMESTAMP_ASC": [db.Log.timestamp.asc()],
@@ -108,7 +111,7 @@ class FlowSort(AutoEnum):
     NAME_DESC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "CREATED_DESC": [db.Flow.created.desc()],
@@ -128,7 +131,7 @@ class DeploymentSort(AutoEnum):
     NAME_DESC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "CREATED_DESC": [db.Deployment.created.desc()],
@@ -149,7 +152,7 @@ class ArtifactSort(AutoEnum):
     KEY_ASC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "CREATED_DESC": [db.Artifact.created.desc()],
@@ -171,7 +174,7 @@ class ArtifactCollectionSort(AutoEnum):
     KEY_ASC = AutoEnum.auto()
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "CREATED_DESC": [db.ArtifactCollection.created.desc()],
@@ -192,7 +195,7 @@ class VariableSort(AutoEnum):
     NAME_ASC = "NAME_ASC"
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "CREATED_DESC": [db.Variable.created.desc()],
@@ -211,7 +214,7 @@ class BlockDocumentSort(AutoEnum):
     BLOCK_TYPE_AND_NAME_ASC = "BLOCK_TYPE_AND_NAME_ASC"
 
     @db_injector
-    def as_sql_sort(self, db: PrefectDBInterface) -> Iterable[sa.ColumnElement[Any]]:
+    def as_sql_sort(self, db: "PrefectDBInterface") -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "NAME_DESC": [db.BlockDocument.name.desc()],

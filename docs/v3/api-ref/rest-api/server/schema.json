@@ -14097,19 +14097,6 @@
                         "title": "Scheduled Before",
                         "description": "Only flow runs scheduled to start before this time will be returned."
                     },
-                    "agent_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Agent Id",
-                        "description": "An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue."
-                    },
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
