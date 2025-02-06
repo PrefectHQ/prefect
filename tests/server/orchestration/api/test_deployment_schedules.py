@@ -259,9 +259,9 @@ class TestUpdateDeploymentSchedule:
         )
         response = await client.patch(
             url,
-            json=schemas.actions.DeploymentScheduleUpdate(active=False).model_dump(
-                exclude_unset=True
-            ),
+            json=schemas.actions.DeploymentScheduleUpdate(
+                active=False, slug="new-slug"
+            ).model_dump(exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -277,6 +277,7 @@ class TestUpdateDeploymentSchedule:
         )
 
         assert the_schedule.active is False
+        assert the_schedule.slug == "new-slug"
 
     async def test_404_non_existent_deployment(
         self,
