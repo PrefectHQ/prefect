@@ -1,23 +1,37 @@
-import pytest
-from prefect_gcp.models.cloud_run_v2 import JobV2
-from googleapiclient.errors import HttpError
-from prefect_gcp.workers.cloud_run_v2 import CloudRunWorkerV2, CloudRunWorkerJobV2Configuration
-from prefect.logging.loggers import PrefectLogAdapter
-import google.auth
-from prefect_gcp.credentials import GcpCredentials
 import logging
 from unittest.mock import MagicMock
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception, RetryError
+
+import google.auth
+import pytest
+from googleapiclient.errors import HttpError
+from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.models.cloud_run_v2 import JobV2
+from prefect_gcp.workers.cloud_run_v2 import (
+    CloudRunWorkerJobV2Configuration,
+)
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+from prefect.logging.loggers import PrefectLogAdapter
 
 
 def create_mock_response(status, reason="Error"):
     """Helper function to create mock responses with proper attributes."""
-    return type('MockResp', (), {'status': status, 'reason': reason})()
+    return type("MockResp", (), {"status": status, "reason": reason})()
 
 
 def is_transient_http_error(exc):
     """Check if an HTTP error is transient (e.g., 503 Service Unavailable)."""
-    return isinstance(exc, HttpError) and hasattr(exc, "resp") and exc.resp.status in {500, 503}
+    return (
+        isinstance(exc, HttpError)
+        and hasattr(exc, "resp")
+        and exc.resp.status in {500, 503}
+    )
 
 
 def get_test_job_body():
@@ -212,6 +226,7 @@ def remove_server_url_from_env(env):
 @pytest.fixture
 def mock_google_auth(monkeypatch):
     """Mock Google Auth to avoid actual authentication."""
+
     class MockCredentials:
         def __init__(self):
             self.quota_project_id = "test-project"
@@ -229,33 +244,38 @@ def mock_google_auth(monkeypatch):
 @pytest.fixture
 def mock_gcp_creds(monkeypatch):
     """Mock GCP credentials to avoid actual authentication."""
+
     def mock_init(self, *args, **kwargs):
         super(GcpCredentials, self).__init__(*args, **kwargs)
         self.project = "test-project"
         self.service_account_info = None
         self.service_account_info_file = None
-    
+
     def mock_call(self):
         return None
-    
+
     def mock_get_credentials(self):
         creds = MagicMock()
         creds.quota_project_id = "test-project"
         creds.project_id = "test-project"
         return creds
-    
+
     monkeypatch.setattr(GcpCredentials, "__init__", mock_init)
     monkeypatch.setattr(GcpCredentials, "__call__", mock_call)
-    monkeypatch.setattr(GcpCredentials, "get_credentials_from_service_account", mock_get_credentials)
-    
+    monkeypatch.setattr(
+        GcpCredentials, "get_credentials_from_service_account", mock_get_credentials
+    )
+
     return GcpCredentials()
 
 
 @pytest.fixture
 def mock_job_v2_create(monkeypatch):
     """Fixture to mock JobV2.create"""
+
     def mock_create(*args, **kwargs):
         return None
+
     monkeypatch.setattr("prefect_gcp.models.cloud_run_v2.JobV2.create", mock_create)
     return mock_create
 
@@ -282,22 +302,24 @@ def create_job_with_retries(cr_client, configuration, logger):
     )
 
 
-def test_create_job_with_retries_success(monkeypatch, mock_job_v2_create, mock_google_auth, mock_gcp_creds, mock_logger):
+def test_create_job_with_retries_success(
+    monkeypatch, mock_job_v2_create, mock_google_auth, mock_gcp_creds, mock_logger
+):
     """Test that job creation succeeds after transient errors."""
-    worker = CloudRunWorkerV2(work_pool_name="test-pool")
     configuration = CloudRunWorkerJobV2Configuration(
         name="test-job-name",
         job_name="test-job",
         project="test-project",
         region="test-region",
-        job_body=get_test_job_body()
+        job_body=get_test_job_body(),
     )
-    
-    mock_client = type('MockClient', (), {})()
-    logger = PrefectLogAdapter(mock_logger)
+
+    mock_client = type("MockClient", (), {})()
+    logger = PrefectLogAdapter(mock_logger, extra={})
 
     # Set up mock to fail with 503 twice then succeed
     call_count = 0
+
     def mock_create(*args, **kwargs):
         nonlocal call_count
         call_count += 1
@@ -315,19 +337,20 @@ def test_create_job_with_retries_success(monkeypatch, mock_job_v2_create, mock_g
     assert call_count == 3
 
 
-def test_create_job_with_retries_non_retryable_error(monkeypatch, mock_job_v2_create, mock_google_auth, mock_gcp_creds, mock_logger):
+def test_create_job_with_retries_non_retryable_error(
+    monkeypatch, mock_job_v2_create, mock_google_auth, mock_gcp_creds, mock_logger
+):
     """Test that job creation fails immediately for non-retryable errors."""
-    worker = CloudRunWorkerV2(work_pool_name="test-pool")
     configuration = CloudRunWorkerJobV2Configuration(
         name="test-job-name",
         job_name="test-job",
         project="test-project",
         region="test-region",
-        job_body=get_test_job_body()
+        job_body=get_test_job_body(),
     )
-    
-    mock_client = type('MockClient', (), {})()
-    logger = PrefectLogAdapter(mock_logger)
+
+    mock_client = type("MockClient", (), {})()
+    logger = PrefectLogAdapter(mock_logger, extra={})
 
     # Set up mock to fail with 400
     def mock_create(*args, **kwargs):
@@ -344,22 +367,24 @@ def test_create_job_with_retries_non_retryable_error(monkeypatch, mock_job_v2_cr
     assert exc_info.value.resp.status == 400
 
 
-def test_create_job_with_retries_max_attempts(monkeypatch, mock_job_v2_create, mock_google_auth, mock_gcp_creds, mock_logger):
+def test_create_job_with_retries_max_attempts(
+    monkeypatch, mock_job_v2_create, mock_google_auth, mock_gcp_creds, mock_logger
+):
     """Test that job creation fails after max retry attempts."""
-    worker = CloudRunWorkerV2(work_pool_name="test-pool")
     configuration = CloudRunWorkerJobV2Configuration(
         name="test-job-name",
         job_name="test-job",
         project="test-project",
         region="test-region",
-        job_body=get_test_job_body()
+        job_body=get_test_job_body(),
     )
-    
-    mock_client = type('MockClient', (), {})()
-    logger = PrefectLogAdapter(mock_logger)
+
+    mock_client = type("MockClient", (), {})()
+    logger = PrefectLogAdapter(mock_logger, extra={})
 
     # Set up mock to always fail with 503
     call_count = 0
+
     def mock_create(*args, **kwargs):
         nonlocal call_count
         call_count += 1
@@ -384,10 +409,18 @@ def test_is_transient_http_error():
     mock_resp_400 = create_mock_response(400, "Bad Request")
     mock_resp_404 = create_mock_response(404, "Not Found")
 
-    assert is_transient_http_error(HttpError(resp=mock_resp_500, content=b"Server Error"))
-    assert is_transient_http_error(HttpError(resp=mock_resp_503, content=b"Service Unavailable"))
+    assert is_transient_http_error(
+        HttpError(resp=mock_resp_500, content=b"Server Error")
+    )
+    assert is_transient_http_error(
+        HttpError(resp=mock_resp_503, content=b"Service Unavailable")
+    )
 
     # Test non-transient errors
-    assert not is_transient_http_error(HttpError(resp=mock_resp_400, content=b"Bad Request"))
-    assert not is_transient_http_error(HttpError(resp=mock_resp_404, content=b"Not Found"))
+    assert not is_transient_http_error(
+        HttpError(resp=mock_resp_400, content=b"Bad Request")
+    )
+    assert not is_transient_http_error(
+        HttpError(resp=mock_resp_404, content=b"Not Found")
+    )
     assert not is_transient_http_error(Exception("Not an HttpError"))

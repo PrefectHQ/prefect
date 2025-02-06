@@ -18,7 +18,7 @@ class TestForFileRegister(Block):
     message: str
 """
 TEST_BLOCK_CODE_BAD_SYNTAX = """\
-from prefect.blocks.core import Bloc
+from prefect.blocks.core import Block
 
 class TestForFileRegister(Block):
     message: str

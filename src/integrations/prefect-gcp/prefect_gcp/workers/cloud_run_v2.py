@@ -13,6 +13,7 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -26,10 +27,6 @@ from prefect.workers.base import (
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
 from prefect_gcp.utilities import slugify_name
-
-
-
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
@@ -554,10 +551,14 @@ class CloudRunWorkerV2(BaseWorker):
         )
 
 
-
 def is_transient_http_error(exc):
     """Check if an HTTP error is transient (e.g., 503 Service Unavailable)."""
-    return isinstance(exc, HttpError) and hasattr(exc, "resp") and exc.resp.status in {500, 503}
+    return (
+        isinstance(exc, HttpError)
+        and hasattr(exc, "resp")
+        and exc.resp.status in {500, 503}
+    )
+
 
 @retry(
     retry=retry_if_exception(is_transient_http_error),
@@ -567,27 +568,28 @@ def is_transient_http_error(exc):
 def create_job_with_retries(cr_client, configuration, logger):
     """
     Attempts to create the Cloud Run Job with retry logic.
-    
+
     Args:
         cr_client: The Cloud Run client
         configuration: The job configuration
         logger: Logger instance for logging attempts
-        
+
     Returns:
         The created job
-        
+
     Raises:
         HttpError: If job creation fails after all retries
     """
     logger.info(f"Attempting to create Cloud Run JobV2 {configuration.job_name}")
-    
-    JobV2.create(
+
+    return JobV2.create(
         cr_client=cr_client,
         project=configuration.project,
         location=configuration.region,
         job_id=configuration.job_name,
         body=configuration.job_body,
     )
+
 
 def _create_job_and_wait_for_registration(
     self,
@@ -607,13 +609,11 @@ def _create_job_and_wait_for_registration(
         logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
 
         # Use the retry-wrapped function
-        _create_job_with_retries(cr_client, configuration, logger)
-        
+        create_job_with_retries(cr_client, configuration, logger)
+
     except HttpError as exc:
-        self._create_job_error(
-            exc=exc,
-            configuration=configuration,
-        )
+        logger.error(f"Failed to create Cloud Run JobV2 {configuration.job_name}")
+        raise exc
 
     try:
         self._wait_for_job_creation(
@@ -679,7 +679,6 @@ def _create_job_and_wait_for_registration(
             )
 
             time.sleep(poll_interval)
-
 
     @staticmethod
     def _create_job_error(
