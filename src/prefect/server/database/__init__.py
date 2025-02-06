@@ -3,7 +3,9 @@ from prefect.server.database.dependencies import (
     inject_db,
     provide_database_interface,
 )
-from prefect.server.database.interface import PrefectDBInterface
+# from prefect.server.database.interface import PrefectDBInterface
+
+PrefectDBInterface = None
 
 __all__ = [
     "PrefectDBInterface",
