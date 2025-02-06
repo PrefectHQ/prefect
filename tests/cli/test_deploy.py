@@ -2900,8 +2900,8 @@ class TestSchedules:
                 + readchar.key.ENTER
                 # Decline adding another schedule
                 + readchar.key.ENTER
-                # Decline save
-                + "n"
+                # Accept saving
+                + "y"
                 + readchar.key.ENTER
             ),
             expected_code=0,
@@ -2912,6 +2912,19 @@ class TestSchedules:
         )
         assert deployment.schedules[0].active is True
         assert deployment.schedules[0].parameters == {
+            "question": "ultimate",
+            "answer": 42,
+        }
+
+        with open("prefect.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deployment_config = next(
+            (d for d in deploy_config["deployments"] if d["name"] == "test-name"),
+            None,
+        )
+        assert deployment_config is not None
+        assert deployment_config["schedules"][0]["parameters"] == {
             "question": "ultimate",
             "answer": 42,
         }
