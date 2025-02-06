@@ -128,15 +128,6 @@ export function AppSidebar() {
 							</Link>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Link to="/notifications">
-								{({ isActive }) => (
-									<SidebarMenuButton asChild isActive={isActive}>
-										<span>Notifications</span>
-									</SidebarMenuButton>
-								)}
-							</Link>
-						</SidebarMenuItem>
-						<SidebarMenuItem>
 							<Link to="/concurrency-limits">
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>

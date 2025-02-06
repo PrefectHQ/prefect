@@ -227,7 +227,7 @@ To deploy a flow with a schedule, you can use one of the following options:
     ```python schedules.py
     from datetime import datetime, timedelta
     from prefect import flow
-    from prefect.client.schemas.schedules import IntervalSchedule
+    from prefect.schedules import Interval
 
 
     @flow(log_prints=True)
@@ -244,8 +244,8 @@ To deploy a flow with a schedule, you can use one of the following options:
             # Run every 10 minutes starting from January 1, 2023
             # at 00:00 Central Time
             schedules=[
-                IntervalSchedule(
-                    interval=timedelta(minutes=10),
+                Interval(
+                    timedelta(minutes=10),
                     anchor_date=datetime(2023, 1, 1, 0, 0),
                     timezone="America/Chicago"
                 )

@@ -34,6 +34,8 @@ export type DeploymentsPaginationFilter =
  * list-filter		=>   ['deployments', 'list', 'filter', { ...filter }]
  * counts			=>   ['deployments', 'counts']
  * count			=>   ['deployments', 'counts', { ...filter }]
+ * details			=>   ['deployments', 'details']
+ * detail			=>   ['deployments', 'details', id]
  * ```
  */
 export const queryKeyFactory = {
@@ -48,6 +50,8 @@ export const queryKeyFactory = {
 	counts: () => [...queryKeyFactory.all(), "counts"] as const,
 	count: (filter: DeploymentsFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 // ----------------------------
@@ -140,14 +144,14 @@ export const buildFilterDeploymentsQuery = (
  *
  * @example
  * ```ts
- * const query = buildCountDeploymentsQuery({
+ * const query = useQuery(buildCountDeploymentsQuery({
  *   offset: 0,
  *   limit: 10,
  *   sort: "NAME_ASC",
  *   deployments: {
  *     name: { like_: "my-deployment" }
  *   }
- * });
+ * }));
  * ```
  */
 export const buildCountDeploymentsQuery = (
@@ -160,6 +164,32 @@ export const buildCountDeploymentsQuery = (
 				body: filter,
 			});
 			return res.data ?? 0;
+		},
+	});
+
+/**
+ * Builds a query configuration for getting a deployment details
+ *
+ * @param id - deployment's id
+ *
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useSuspenseQuery(buildDeploymentDetailsQuery(deployment.id));
+ * ```
+ */
+export const buildDeploymentDetailsQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/deployments/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
 		},
 	});
 

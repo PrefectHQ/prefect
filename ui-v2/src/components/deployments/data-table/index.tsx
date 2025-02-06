@@ -1,13 +1,8 @@
-import {
-	type DeploymentWithFlow,
-	useDeleteDeployment,
-} from "@/api/deployments";
+import { type DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
+import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import {
-	DeleteConfirmationDialog,
-	useDeleteConfirmationDialog,
-} from "@/components/ui/delete-confirmation-dialog";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
@@ -22,8 +17,8 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
-import { useToast } from "@/hooks/use-toast";
 import { pluralize } from "@/utils";
+import { Link } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
 	OnChangeFn,
@@ -37,7 +32,7 @@ import {
 import { useCallback } from "react";
 import { ActionsCell, ActivityCell } from "./cells";
 
-type DeploymentsDataTableProps = {
+export type DeploymentsDataTableProps = {
 	deployments: DeploymentWithFlow[];
 	currentDeploymentsCount: number;
 	pageCount: number;
@@ -73,19 +68,24 @@ const createColumns = ({
 		header: "Deployment",
 		cell: ({ row }) => (
 			<div className="flex flex-col">
-				<span
-					className="text-sm font-medium truncate"
-					title={row.original.name}
-				>
-					{row.original.name}
-				</span>
-				{row.original.flow && (
-					<span className="text-xs text-muted-foreground flex items-center gap-1">
-						<Icon id="Workflow" size={12} />
-						<span className="truncate" title={row.original.flow.name}>
-							{row.original.flow.name}
-						</span>
+				<Link to="/deployments/deployment/$id" params={{ id: row.original.id }}>
+					<span
+						className="text-sm font-medium truncate"
+						title={row.original.name}
+					>
+						{row.original.name}
 					</span>
+				</Link>
+
+				{row.original.flow && (
+					<Link to="/flows/flow/$id" params={{ id: row.original.flow_id }}>
+						<span className="text-xs text-muted-foreground flex items-center gap-1">
+							<Icon id="Workflow" size={12} />
+							<span className="truncate" title={row.original.flow.name}>
+								{row.original.flow.name}
+							</span>
+						</span>
+					</Link>
 				)}
 			</div>
 		),
@@ -161,9 +161,7 @@ export const DeploymentsDataTable = ({
 	onDuplicate,
 }: DeploymentsDataTableProps) => {
 	const [deleteConfirmationDialogState, confirmDelete] =
-		useDeleteConfirmationDialog();
-	const { deleteDeployment } = useDeleteDeployment();
-	const { toast } = useToast();
+		useDeleteDeploymentConfirmationDialog();
 
 	const nameSearchValue = (columnFilters.find(
 		(filter) => filter.id === "flowOrDeploymentName",
@@ -218,19 +216,7 @@ export const DeploymentsDataTable = ({
 				const name = deployment.flow?.name
 					? `${deployment.flow?.name}/${deployment.name}`
 					: deployment.name;
-				confirmDelete({
-					title: "Delete Deployment",
-					description: `Are you sure you want to delete ${name}? This action cannot be undone.`,
-					onConfirm: () => {
-						deleteDeployment(deployment.id, {
-							onSuccess: () => {
-								toast({
-									title: "Deployment deleted",
-								});
-							},
-						});
-					},
-				});
+				confirmDelete({ ...deployment, name });
 			},
 			onDuplicate,
 		}),
