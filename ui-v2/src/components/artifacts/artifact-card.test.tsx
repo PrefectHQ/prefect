@@ -26,7 +26,7 @@ describe("Artifacts Card", () => {
 		});
 
 		expect(getByText("Last Updated")).toBeTruthy();
-		expect(getByText("Sep 1st, 2021 at 5:00 AM")).toBeTruthy();
+		expect(getByText("Sep 1st, 2021 at 12:00 PM")).toBeTruthy();
 	});
 
 	it("renders artifact card with key", () => {
