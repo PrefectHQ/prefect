@@ -15,9 +15,7 @@ import httpx
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
-from prefect._internal.compatibility import deprecated
-from prefect.client.schemas import State as State
-from prefect.client.schemas import StateDetails, StateType
+from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
@@ -37,6 +35,7 @@ from prefect.utilities.collections import ensure_iterable
 if TYPE_CHECKING:
     import logging
 
+    from prefect.client.schemas.actions import StateCreate
     from prefect.results import (
         R,
         ResultStore,
@@ -45,17 +44,37 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger("states")
 
 
-@deprecated.deprecated_parameter(
-    "fetch",
-    when=lambda fetch: fetch is not True,
-    start_date="Oct 2024",
-    end_date="Jan 2025",
-    help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
-)
+def to_state_create(state: State) -> "StateCreate":
+    """
+    Convert the state to a `StateCreate` type which can be used to set the state of
+    a run in the API.
+
+    This method will drop this state's `data` if it is not a result type. Only
+    results should be sent to the API. Other data is only available locally.
+    """
+    from prefect.client.schemas.actions import StateCreate
+    from prefect.results import (
+        ResultRecord,
+        should_persist_result,
+    )
+
+    if isinstance(state.data, ResultRecord) and should_persist_result():
+        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
+    else:
+        data = None
+
+    return StateCreate(
+        type=state.type,
+        name=state.name,
+        message=state.message,
+        data=data,
+        state_details=state.state_details,
+    )
+
+
 def get_state_result(
     state: "State[R]",
     raise_on_failure: bool = True,
-    fetch: bool = True,
     retry_result_failure: bool = True,
 ) -> "R":
     """
@@ -64,13 +83,12 @@ def get_state_result(
     See `State.result()`
     """
 
-    if not fetch and in_async_main_thread():
+    if in_async_main_thread():
         warnings.warn(
             (
                 "State.result() was called from an async context but not awaited. "
                 "This method will be updated to return a coroutine by default in "
-                "the future. Pass `fetch=True` and `await` the call to get rid of "
-                "this warning."
+                "the future."
             ),
             DeprecationWarning,
             stacklevel=2,

@@ -65,7 +65,6 @@ from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.actions import StateCreate
     from prefect.result_records import ResultRecordMetadata
 
 
@@ -326,33 +325,6 @@ class State(ObjectBaseModel, Generic[R]):
             raise_on_failure=raise_on_failure,
             fetch=fetch,
             retry_result_failure=retry_result_failure,
-        )
-
-    def to_state_create(self) -> "StateCreate":
-        """
-        Convert this state to a `StateCreate` type which can be used to set the state of
-        a run in the API.
-
-        This method will drop this state's `data` if it is not a result type. Only
-        results should be sent to the API. Other data is only available locally.
-        """
-        from prefect.client.schemas.actions import StateCreate
-        from prefect.results import (
-            ResultRecord,
-            should_persist_result,
-        )
-
-        if isinstance(self.data, ResultRecord) and should_persist_result():
-            data = self.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
-        else:
-            data = None
-
-        return StateCreate(
-            type=self.type,
-            name=self.name,
-            message=self.message,
-            data=data,
-            state_details=self.state_details,
         )
 
     @model_validator(mode="after")
