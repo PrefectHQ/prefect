@@ -6,15 +6,7 @@ import {
 	createRouter,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import {
-	afterEach,
-	beforeAll,
-	beforeEach,
-	describe,
-	expect,
-	it,
-	vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FlowRunActivityBarChart } from "./index";
 
 const mockFlowRun = {
@@ -39,16 +31,6 @@ const mockFlowRun = {
 };
 
 const mockEnrichedFlowRuns = [mockFlowRun];
-
-beforeAll(() => {
-	class ResizeObserverMock {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
-	}
-
-	global.ResizeObserver = ResizeObserverMock;
-});
 
 describe("FlowRunActivityBarChart", () => {
 	const defaultProps = {

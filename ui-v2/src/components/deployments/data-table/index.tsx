@@ -24,6 +24,7 @@ import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
 import { useToast } from "@/hooks/use-toast";
 import { pluralize } from "@/utils";
+import { Link } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
 	OnChangeFn,
@@ -37,7 +38,7 @@ import {
 import { useCallback } from "react";
 import { ActionsCell, ActivityCell } from "./cells";
 
-type DeploymentsDataTableProps = {
+export type DeploymentsDataTableProps = {
 	deployments: DeploymentWithFlow[];
 	currentDeploymentsCount: number;
 	pageCount: number;
@@ -73,19 +74,24 @@ const createColumns = ({
 		header: "Deployment",
 		cell: ({ row }) => (
 			<div className="flex flex-col">
-				<span
-					className="text-sm font-medium truncate"
-					title={row.original.name}
-				>
-					{row.original.name}
-				</span>
-				{row.original.flow && (
-					<span className="text-xs text-muted-foreground flex items-center gap-1">
-						<Icon id="Workflow" size={12} />
-						<span className="truncate" title={row.original.flow.name}>
-							{row.original.flow.name}
-						</span>
+				<Link to="/deployments/deployment/$id" params={{ id: row.original.id }}>
+					<span
+						className="text-sm font-medium truncate"
+						title={row.original.name}
+					>
+						{row.original.name}
 					</span>
+				</Link>
+
+				{row.original.flow && (
+					<Link to="/flows/flow/$id" params={{ id: row.original.flow_id }}>
+						<span className="text-xs text-muted-foreground flex items-center gap-1">
+							<Icon id="Workflow" size={12} />
+							<span className="truncate" title={row.original.flow.name}>
+								{row.original.flow.name}
+							</span>
+						</span>
+					</Link>
 				)}
 			</div>
 		),
