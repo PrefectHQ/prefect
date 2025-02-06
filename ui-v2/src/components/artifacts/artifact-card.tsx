@@ -36,7 +36,7 @@ export const ArtifactCard = ({ artifact }: ArtifactsCardProps) => {
 			<hr className="my-2" />
 			{artifact.description ? (
 				<div className="text-muted-foreground">
-					<Markdown>{artifact.description ?? ""}</Markdown>
+					<Markdown>{artifact.description}</Markdown>
 				</div>
 			) : (
 				<Typography
