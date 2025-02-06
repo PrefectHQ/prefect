@@ -5230,7 +5230,7 @@ export interface components {
             enforce_parameter_schema: boolean;
             /**
              * Parameter Openapi Schema
-             * @description The parameter schema of the flow, including defaults. here3?
+             * @description The parameter schema of the flow, including defaults.
              */
             parameter_openapi_schema?: {
                 [key: string]: unknown;
@@ -5563,7 +5563,7 @@ export interface components {
             last_polled?: string | null;
             /**
              * Parameter Openapi Schema
-             * @description The parameter schema of the flow, including defaults. here6
+             * @description The parameter schema of the flow, including defaults.
              */
             parameter_openapi_schema?: {
                 [key: string]: unknown;
