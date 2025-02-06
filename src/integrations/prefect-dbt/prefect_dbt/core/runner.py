@@ -200,7 +200,7 @@ class PrefectDbtRunner:
         node_status = node_info.get("node_status") if node_info else None
 
         emit_event(
-            event="dbt Node Finished",
+            event=f"{manifest_node.name} {node_status}",
             resource={
                 "prefect.resource.id": f"dbt.{manifest_node.unique_id}",
                 "prefect.resource.name": manifest_node.name,
