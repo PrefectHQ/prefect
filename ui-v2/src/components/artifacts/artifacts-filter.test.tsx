@@ -2,7 +2,8 @@ import { createFakeArtifact } from "@/mocks";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
+import { describe } from "vitest";
 import { ArtifactsFilterComponent } from "./artifacts-filter";
 
 describe("Artifacts Filter", () => {
