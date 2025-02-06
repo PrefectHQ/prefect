@@ -34,10 +34,6 @@ from pydantic import (
 from typing_extensions import ParamSpec, Self
 
 import prefect
-from prefect._experimental.lineage import (
-    emit_result_read_event,
-    emit_result_write_event,
-)
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.core import Block
 from prefect.exceptions import (
@@ -554,6 +550,8 @@ class ResultStore(BaseModel):
             A result record.
         """
 
+        from prefect._experimental.lineage import emit_result_read_event
+
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
 
@@ -742,6 +740,8 @@ class ResultStore(BaseModel):
         assert result_record.metadata.storage_key is not None, (
             "Storage key is required on result record"
         )
+
+        from prefect._experimental.lineage import emit_result_write_event
 
         key = result_record.metadata.storage_key
         if result_record.metadata.storage_block_id is None:
