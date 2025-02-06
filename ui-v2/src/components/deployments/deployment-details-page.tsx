@@ -4,6 +4,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
 import { DeploymentFlowLink } from "./deployment-flow-link";
+import { DeploymentMetadata } from "./deployment-metadata";
 
 type DeploymentDetailsPageProps = {
 	id: string;
@@ -32,9 +33,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 					<div className="border border-red-400">{"<SchedulesSection />"}</div>
 					<div className="border border-red-400">{"<TriggerSection />"}</div>
 					<hr />
-					<div className="border border-red-400">{"<StatusSection />"}</div>
-					<hr />
-					<div className="border border-red-400">{"<IDsSection />"}</div>
+					<DeploymentMetadata deployment={data} />
 				</div>
 			</div>
 		</div>

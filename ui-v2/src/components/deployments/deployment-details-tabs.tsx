@@ -39,7 +39,7 @@ const TAB_OPTIONS = [
 		),
 	},
 	{
-		value: "Upcoming",
+		value: "Parameters",
 		LinkComponent: () => (
 			<Link to="." search={{ tab: "Parameters" }}>
 				<TabsTrigger value="Parameters">Parameters</TabsTrigger>
