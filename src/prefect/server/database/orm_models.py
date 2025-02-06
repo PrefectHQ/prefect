@@ -787,6 +787,7 @@ class DeploymentSchedule(Base):
     parameters: Mapped[dict[str, Any]] = mapped_column(
         JSON, server_default="{}", default=dict, nullable=False
     )
+    slug: Mapped[Optional[str]] = mapped_column(sa.String, nullable=True)
 
 
 class Deployment(Base):

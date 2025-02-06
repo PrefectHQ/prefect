@@ -110,11 +110,13 @@ class TestCreateDeploymentSchedules:
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=timedelta(days=1)
                     ),
+                    slug="test-schedule-1",
                 ).model_dump(mode="json"),
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=timedelta(days=2)
                     ),
+                    slug="test-schedule-2",
                 ).model_dump(mode="json"),
             ],
         )
@@ -128,6 +130,45 @@ class TestCreateDeploymentSchedules:
         )
         assert len(created) == 2
         assert {s.id for s in schedules} == {s.id for s in created}
+
+        # asserting on base response for the purposes of isolating server changes from client
+        schedule_slugs = {ds["slug"] for ds in response.json()}
+        assert schedule_slugs == {"test-schedule-1", "test-schedule-2"}
+
+    async def test_schedule_slug_must_be_unique_within_deployment(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment,
+    ):
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            await session.commit()
+
+        url = schedules_url(deployment.id)
+
+        response = await client.post(
+            url,
+            json=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=timedelta(days=1)
+                    ),
+                    slug="test-schedule-1",
+                ).model_dump(mode="json"),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=timedelta(days=2)
+                    ),
+                    slug="test-schedule-1",
+                ).model_dump(mode="json"),
+            ],
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
 
     async def test_404_non_existent_deployment(
         self,
@@ -218,9 +259,9 @@ class TestUpdateDeploymentSchedule:
         )
         response = await client.patch(
             url,
-            json=schemas.actions.DeploymentScheduleUpdate(active=False).model_dump(
-                exclude_unset=True
-            ),
+            json=schemas.actions.DeploymentScheduleUpdate(
+                active=False, slug="new-slug"
+            ).model_dump(exclude_unset=True),
         )
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -236,6 +277,7 @@ class TestUpdateDeploymentSchedule:
         )
 
         assert the_schedule.active is False
+        assert the_schedule.slug == "new-slug"
 
     async def test_404_non_existent_deployment(
         self,

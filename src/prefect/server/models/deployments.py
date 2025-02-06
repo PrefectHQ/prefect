@@ -739,6 +739,12 @@ async def _generate_scheduled_flow_runs(
                     "state_name": "Scheduled",
                     "next_scheduled_start_time": date,
                     "expected_start_time": date,
+                    "created_by": {
+                        "id": deployment_schedule.id,
+                        "display_value": deployment_schedule.slug
+                        or deployment_schedule.schedule.__class__.__name__,
+                        "type": "SCHEDULE",
+                    },
                 }
             )
 

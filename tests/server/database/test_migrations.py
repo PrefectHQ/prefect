@@ -690,10 +690,11 @@ async def test_migrate_variables_to_json(db):
     else:
         revisions = ("20fbd53b3cef", "2ac65f1758c2")
 
+    session = await db.session()
+
     try:
         await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
 
-        session = await db.session()
         async with session:
             # clear the variables table
             await session.execute(sa.text("DELETE FROM variable;"))

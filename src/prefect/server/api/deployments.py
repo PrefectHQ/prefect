@@ -8,6 +8,7 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import pendulum
+import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from starlette.background import BackgroundTasks
 
@@ -794,12 +795,19 @@ async def create_deployment_schedules(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
 
-        created = await models.deployments.create_deployment_schedules(
-            session=session,
-            deployment_id=deployment.id,
-            schedules=schedules,
-        )
-
+        try:
+            created = await models.deployments.create_deployment_schedules(
+                session=session,
+                deployment_id=deployment.id,
+                schedules=schedules,
+            )
+        except sa.exc.IntegrityError as e:
+            if "duplicate key value violates unique constraint" in str(e):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail="Schedule slugs must be unique within a deployment.",
+                )
+            raise
         return created
 
 
