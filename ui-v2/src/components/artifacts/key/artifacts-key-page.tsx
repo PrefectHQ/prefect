@@ -1,9 +1,10 @@
-import { Artifact } from "@/api/artifacts";
+import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { ArtifactsKeyHeader } from "./artifacts-key-header";
+import { TimelineContainer } from "./timeline/timelineContainer";
 
 interface ArtifactsKeyPageProps {
 	artifactKey: string;
-	artifacts: Artifact[];
+	artifacts: ArtifactWithFlowRunAndTaskRun[];
 }
 
 export const ArtifactsKeyPage = ({
@@ -16,10 +17,7 @@ export const ArtifactsKeyPage = ({
 				artifactKey={artifactKey}
 				pageHeader={artifacts[0]?.description ?? undefined}
 			/>
-			<p>{artifactKey}</p>
-			{artifacts.map((artifact) => (
-				<div key={artifact.id}>{artifact.updated}</div>
-			))}
+			<TimelineContainer artifacts={artifacts} />
 		</div>
 	);
 };

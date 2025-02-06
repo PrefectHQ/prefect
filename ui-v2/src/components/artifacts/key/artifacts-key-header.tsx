@@ -70,7 +70,7 @@ const Header = ({ artifactKey }: ArtifactsKeyHeaderProps) => (
 		<Breadcrumb>
 			<BreadcrumbList>
 				<Link to={"/artifacts"}>
-					<BreadcrumbItem className="text-xl font-bold text-blue-700">
+					<BreadcrumbItem className="text-xl font-bold text-blue-700 hover:underline">
 						Artifacts
 					</BreadcrumbItem>
 				</Link>

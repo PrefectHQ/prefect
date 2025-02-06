@@ -6,7 +6,7 @@ import Markdown from "react-markdown";
 import { Card } from "../ui/card";
 import { Typography } from "../ui/typography";
 
-interface ArtifactsCardProps {
+export interface ArtifactsCardProps {
 	artifact: Artifact;
 }
 
