@@ -16,8 +16,7 @@ from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
 from prefect._internal.compatibility import deprecated
-from prefect.client.schemas import State as State
-from prefect.client.schemas import StateDetails, StateType
+from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
@@ -37,12 +36,41 @@ from prefect.utilities.collections import ensure_iterable
 if TYPE_CHECKING:
     import logging
 
+    from prefect.client.schemas.actions import StateCreate
     from prefect.results import (
         R,
         ResultStore,
     )
 
 logger: "logging.Logger" = get_logger("states")
+
+
+def to_state_create(state: State) -> "StateCreate":
+    """
+    Convert the state to a `StateCreate` type which can be used to set the state of
+    a run in the API.
+
+    This method will drop this state's `data` if it is not a result type. Only
+    results should be sent to the API. Other data is only available locally.
+    """
+    from prefect.client.schemas.actions import StateCreate
+    from prefect.results import (
+        ResultRecord,
+        should_persist_result,
+    )
+
+    if isinstance(state.data, ResultRecord) and should_persist_result():
+        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
+    else:
+        data = None
+
+    return StateCreate(
+        type=state.type,
+        name=state.name,
+        message=state.message,
+        data=data,
+        state_details=state.state_details,
+    )
 
 
 @deprecated.deprecated_parameter(

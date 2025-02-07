@@ -550,7 +550,7 @@ class DeploymentClient(BaseClient):
         """
         from prefect.client.schemas.actions import DeploymentFlowRunCreate
         from prefect.client.schemas.objects import FlowRun
-        from prefect.states import Scheduled
+        from prefect.states import Scheduled, to_state_create
 
         parameters = parameters or {}
         context = context or {}
@@ -561,7 +561,7 @@ class DeploymentClient(BaseClient):
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
-            state=state.to_state_create(),
+            state=to_state_create(state),
             tags=list(tags),
             name=name,
             idempotency_key=idempotency_key,
@@ -1095,7 +1095,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         """
         from prefect.client.schemas.actions import DeploymentFlowRunCreate
         from prefect.client.schemas.objects import FlowRun
-        from prefect.states import Scheduled
+        from prefect.states import Scheduled, to_state_create
 
         parameters = parameters or {}
         context = context or {}
@@ -1106,7 +1106,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
-            state=state.to_state_create(),
+            state=to_state_create(state),
             tags=list(tags),
             name=name,
             idempotency_key=idempotency_key,
