@@ -2331,6 +2331,66 @@ class TestProjectDeploy:
         )
         assert not deployment.enforce_parameter_schema
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_update_does_not_override_enforce_parameter_schema(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        # Create a deployment with enforce_parameter_schema set to False
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "enforce_parameter_schema": False,
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
+
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
