@@ -295,6 +295,10 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The parameter schema of the flow, including defaults.",
+    )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",

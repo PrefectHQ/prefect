@@ -5753,6 +5753,11 @@ export interface components {
              */
             parameters?: Record<string, never> | null;
             /**
+             * Parameter Openapi Schema
+             * @description The parameter schema of the flow, including defaults.
+             */
+            parameter_openapi_schema?: Record<string, never> | null;
+            /**
              * Tags
              * @description A list of deployment tags.
              */

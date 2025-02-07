@@ -19,6 +19,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.utilities.callables import parameter_schema
 
 
 def assert_status_events(deployment_name: str, events: List[str]):
@@ -1529,6 +1530,105 @@ class TestUpdateDeployment:
             "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
             in response.text
         )
+
+    async def test_update_deployment_enforces_new_parameter_schema(
+        self,
+        flow,
+        client,
+    ):
+        def hello(num: int):
+            pass
+
+        def byebye(num: dict):
+            pass
+
+        schema = parameter_schema(hello).model_dump_for_openapi()
+        new_schema = parameter_schema(byebye).model_dump_for_openapi()
+
+        data = DeploymentCreate(  # type: ignore
+            name="test-patch",
+            flow_id=flow.id,
+            enforce_parameter_schema=True,
+            parameters={"num": 42},
+            parameter_openapi_schema=schema,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        ## Providing parameters
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {"num": "foobar"}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 'foobar' is not of type 'integer'"
+            in response.text
+        )
+
+        ## Providing a new incompatible schema
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameter_openapi_schema": new_schema},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 42 is not of type 'object'"
+            in response.text
+        )
+
+        ## Providing both
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameter_openapi_schema": new_schema, "parameters": {"num": 11}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 11 is not of type 'object'"
+            in response.text
+        )
+
+    async def test_update_deployment_allows_the_clearing_of_parameters_when_provided(
+        self,
+        flow,
+        client,
+        session,
+    ):
+        def hello(num: int):
+            pass
+
+        schema = parameter_schema(hello).model_dump_for_openapi()
+
+        data = DeploymentCreate(  # type: ignore
+            name="test-patch-2",
+            flow_id=flow.id,
+            enforce_parameter_schema=True,
+            parameters={"num": 42},
+            parameter_openapi_schema=schema,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {}},
+        )
+        assert response.status_code == 204
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert deployment.parameters == {}
 
     async def test_update_deployment_does_not_enforce_parameter_schema_by_default(
         self,
