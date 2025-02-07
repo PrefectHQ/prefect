@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Body, Depends, HTTPException, status
 
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.responses import SchemaValuesValidationResponse
-from prefect.server.schemas.utils import DynamicObject
 from prefect.server.utilities.server import APIRouter
 from prefect.utilities.schema_tools.hydration import HydrationContext, hydrate
 from prefect.utilities.schema_tools.validation import (
@@ -26,8 +25,15 @@ logger: "logging.Logger" = get_logger("server.api.ui.schemas")
 
 @router.post("/validate")
 async def validate_obj(
-    json_schema: DynamicObject = Body(..., embed=True, alias="schema"),
-    values: DynamicObject = Body(..., embed=True),
+    json_schema: dict[str, Any] = Body(
+        ...,
+        embed=True,
+        alias="schema",
+        json_schema_extra={"additionalProperties": True},
+    ),
+    values: dict[str, Any] = Body(
+        ..., embed=True, json_schema_extra={"additionalProperties": True}
+    ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> SchemaValuesValidationResponse:
     schema = preprocess_schema(json_schema)
