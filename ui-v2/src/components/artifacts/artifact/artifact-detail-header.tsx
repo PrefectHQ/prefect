@@ -102,9 +102,9 @@ export const ArtifactDetailHeader = ({
 							{artifact.description}
 						</Markdown>
 					</Typography>
-					<hr />
 				</div>
 			)}
+			<hr />
 		</>
 	);
 };

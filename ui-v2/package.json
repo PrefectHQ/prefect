@@ -56,6 +56,7 @@
 		"lucide-react": "^0.474.0",
 		"openapi-fetch": "^0.13.4",
 		"react": "19.0.0",
+		"react-code-blocks": "^0.1.6",
 		"react-day-picker": "^9.5.1",
 		"react-dom": "19.0.0",
 		"react-hook-form": "^7.54.2",
