@@ -3,9 +3,9 @@ import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 import { ArtifactTimelineCard } from "./timelineCard";
 
-export interface TimelineRowProps {
+export type TimelineRowProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
-}
+};
 
 export const TimelineRow = ({ artifact }: TimelineRowProps) => {
 	const [date, time] = formatDate(artifact.created ?? "", "dateTime").split(

@@ -6,9 +6,9 @@ import Markdown from "react-markdown";
 import { Card } from "../ui/card";
 import { Typography } from "../ui/typography";
 
-export interface ArtifactsCardProps {
+export type ArtifactsCardProps = {
 	artifact: Artifact;
-}
+};
 
 export const ArtifactCard = ({ artifact }: ArtifactsCardProps) => {
 	const date = useMemo(() => {

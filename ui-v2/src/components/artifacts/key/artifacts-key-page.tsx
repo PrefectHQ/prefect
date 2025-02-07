@@ -2,10 +2,10 @@ import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { ArtifactsKeyHeader } from "./artifacts-key-header";
 import { TimelineContainer } from "./timeline/timelineContainer";
 
-interface ArtifactsKeyPageProps {
+type ArtifactsKeyPageProps = {
 	artifactKey: string;
 	artifacts: ArtifactWithFlowRunAndTaskRun[];
-}
+};
 
 export const ArtifactsKeyPage = ({
 	artifactKey,

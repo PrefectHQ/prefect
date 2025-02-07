@@ -19,10 +19,10 @@ import { useCallback } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-interface ArtifactsKeyHeaderProps {
+type ArtifactsKeyHeaderProps = {
 	artifactKey: string;
 	pageHeader?: string;
-}
+};
 
 export const ArtifactsKeyHeader = ({
 	artifactKey,

@@ -11,11 +11,11 @@ import { useCallback, useMemo } from "react";
 import { Typography } from "../ui/typography";
 import { filterType } from "./types";
 
-interface ArtifactsFilterProps {
+type ArtifactsFilterProps = {
 	filters: filterType[];
 	onFilterChange: (newFilters: filterType[]) => void;
 	totalCount: number;
-}
+};
 
 const artifactTypeOptions = [
 	{ value: "all", label: "All Types" },

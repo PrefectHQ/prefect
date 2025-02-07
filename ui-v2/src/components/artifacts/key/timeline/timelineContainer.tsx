@@ -2,9 +2,9 @@ import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Typography } from "@/components/ui/typography";
 import { TimelineRow } from "./timelineRow";
 
-export interface TimelineContainerProps {
+export type TimelineContainerProps = {
 	artifacts: ArtifactWithFlowRunAndTaskRun[];
-}
+};
 
 export const TimelineContainer = ({ artifacts }: TimelineContainerProps) => {
 	return (

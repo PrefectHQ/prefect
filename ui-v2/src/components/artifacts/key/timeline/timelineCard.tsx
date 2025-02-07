@@ -4,9 +4,9 @@ import { Typography } from "@/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
-export interface ArtifactTimelineCardProps {
+export type ArtifactTimelineCardProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
-}
+};
 
 export const ArtifactTimelineCard = ({
 	artifact,
