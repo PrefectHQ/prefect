@@ -1,16 +1,10 @@
-from warnings import warn
+import warnings
 
-from prefect._internal.compatibility.deprecated import generate_deprecation_message
-
-warn(
-    generate_deprecation_message(
-        name="prefect_dbt.cli",
-        start_date="Feb 2025",
-        end_date="Jul 2025",
-        help="Please use the PrefectDbtRunner class in prefect_dbt.core instead.",
-    ),
-    DeprecationWarning,
-    stacklevel=2,
+warnings.warn(
+    "prefect_dbt.cli is deprecated and will be removed in a future release. "
+    "Please use prefect_dbt.core instead.",
+    UserWarning,
+    stacklevel=1,
 )
 
 from .credentials import DbtCliProfile  # noqa
@@ -36,3 +30,15 @@ try:
     from .configs.postgres import PostgresTargetConfigs  # noqa
 except MissingExtrasRequireError:
     pass
+
+# Re-export all imports to maintain the public API
+__all__ = [
+    "DbtCliProfile",
+    "DbtCoreOperation",
+    "TargetConfigs",
+    "GlobalConfigs",
+    "MissingExtrasRequireError",
+    "SnowflakeTargetConfigs",
+    "BigQueryTargetConfigs",
+    "PostgresTargetConfigs",
+]
