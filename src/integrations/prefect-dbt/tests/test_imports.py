@@ -48,11 +48,11 @@ def test_lazy_import_database_configs():
 
 
 def test_invalid_attribute():
-    """Test that accessing an invalid attribute raises AttributeError."""
-    with pytest.raises(AttributeError) as exc_info:
+    """Test that accessing an invalid attribute raises ImportError."""
+    with pytest.raises(ImportError) as exc_info:
         from prefect_dbt import NonExistentAttribute  # noqa: F401
 
-    assert "module 'prefect_dbt' has no attribute 'NonExistentAttribute'" in str(
+    assert "cannot import name 'NonExistentAttribute' from 'prefect_dbt'" in str(
         exc_info.value
     )
 
