@@ -5799,8 +5799,6 @@ export interface components {
              * @description Whether or not the deployment should enforce the parameter schema.
              */
             enforce_parameter_schema?: boolean | null;
-            /** Pull Steps */
-            pull_steps?: Record<string, never>[] | null;
         };
         /**
          * DoNothing
