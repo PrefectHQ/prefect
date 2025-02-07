@@ -1930,6 +1930,7 @@ class TestDeploy:
                 schedule=Interval(
                     3600,
                     parameters={"number": 42},
+                    slug="test-slug",
                 ),
             ),
             await (
@@ -1941,6 +1942,7 @@ class TestDeploy:
                 schedule=Interval(
                     3600,
                     parameters={"number": 42},
+                    slug="test-slug",
                 ),
             ),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1971,6 +1973,7 @@ class TestDeploy:
             seconds=3600
         )
         assert deployment_1.schedules[0].parameters == {"number": 42}
+        assert deployment_1.schedules[0].slug == "test-slug"
 
         deployment_2 = await prefect_client.read_deployment_by_name(
             "test-flow/test_runner"
@@ -1983,6 +1986,7 @@ class TestDeploy:
             seconds=3600
         )
         assert deployment_2.schedules[0].parameters == {"number": 42}
+        assert deployment_2.schedules[0].slug == "test-slug"
 
         console_output = capsys.readouterr().out
         assert "prefect worker start --pool" in console_output

@@ -37,6 +37,7 @@ class Schedule:
             the weekday.
         active: Whether or not the schedule is active.
         parameters: A dictionary containing parameter overrides for the schedule.
+        slug: A unique identifier for the schedule.
     """
 
     interval: datetime.timedelta | None = None
@@ -49,6 +50,7 @@ class Schedule:
     day_or: bool = False
     active: bool = True
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
+    slug: str | None = None
 
     def __post_init__(self) -> None:
         defined_fields = [
@@ -74,6 +76,7 @@ def Cron(
     day_or: bool = False,
     active: bool = True,
     parameters: dict[str, Any] | None = None,
+    slug: str | None = None,
 ) -> Schedule:
     """
     Creates a cron schedule.
@@ -89,6 +92,7 @@ def Cron(
             the weekday.
         active: Whether or not the schedule is active.
         parameters: A dictionary containing parameter overrides for the schedule.
+        slug: A unique identifier for the schedule.
 
     Returns:
         A cron schedule.
@@ -117,6 +121,7 @@ def Cron(
         day_or=day_or,
         active=active,
         parameters=parameters,
+        slug=slug,
     )
 
 
@@ -127,6 +132,7 @@ def Interval(
     timezone: str | None = None,
     active: bool = True,
     parameters: dict[str, Any] | None = None,
+    slug: str | None = None,
 ) -> Schedule:
     """
     Creates an interval schedule.
@@ -138,6 +144,7 @@ def Interval(
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
         active: Whether or not the schedule is active.
         parameters: A dictionary containing parameter overrides for the schedule.
+        slug: A unique identifier for the schedule.
 
     Returns:
         An interval schedule.
@@ -173,6 +180,7 @@ def Interval(
         timezone=timezone,
         active=active,
         parameters=parameters,
+        slug=slug,
     )
 
 
@@ -182,6 +190,7 @@ def RRule(
     timezone: str | None = None,
     active: bool = True,
     parameters: dict[str, Any] | None = None,
+    slug: str | None = None,
 ) -> Schedule:
     """
     Creates an RRule schedule.
@@ -191,6 +200,7 @@ def RRule(
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
         active: Whether or not the schedule is active.
         parameters: A dictionary containing parameter overrides for the schedule.
+        slug: A unique identifier for the schedule.
 
     Returns:
         An RRule schedule.
@@ -217,4 +227,5 @@ def RRule(
         timezone=timezone,
         active=active,
         parameters=parameters,
+        slug=slug,
     )
