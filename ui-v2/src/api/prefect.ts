@@ -4715,10 +4715,8 @@ export interface components {
         };
         /** Body_validate_obj_ui_schemas_validate_post */
         Body_validate_obj_ui_schemas_validate_post: {
-            /** Json Schema */
-            json_schema: Record<string, never>;
-            /** Values */
-            values: Record<string, never>;
+            json_schema: components["schemas"]["DynamicObject"];
+            values: components["schemas"]["DynamicObject"];
         };
         /** Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post */
         Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post: {
@@ -5800,6 +5798,10 @@ export interface components {
              * @constant
              */
             type: "do-nothing";
+        };
+        /** DynamicObject */
+        DynamicObject: {
+            [key: string]: unknown;
         };
         /** Edge */
         Edge: {
