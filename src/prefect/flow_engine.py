@@ -345,7 +345,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         # the State was Prefect-created.
         # TODO: Remove the need to get the result from a State except in cases where the return value
         # is a State object.
-        _result = self.state.result(raise_on_failure=raise_on_failure)  # type: ignore
+        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):
@@ -912,7 +912,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         # the State was Prefect-created.
         # TODO: Remove the need to get the result from a State except in cases where the return value
         # is a State object.
-        _result = self.state.result(raise_on_failure=raise_on_failure)  # type: ignore
+        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):

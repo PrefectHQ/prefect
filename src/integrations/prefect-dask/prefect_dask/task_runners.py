@@ -140,7 +140,9 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
             else:
                 return future_result
 
-        _result = self._final_state.result(raise_on_failure=raise_on_failure)
+        _result = self._final_state.result(
+            raise_on_failure=raise_on_failure, fetch=True
+        )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):

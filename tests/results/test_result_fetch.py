@@ -61,6 +61,16 @@ async def test_async_result_warnings_are_not_raised_by_engine():
     assert await my_flow() == 6
 
 
+async def test_async_result_returns_coroutine_with_opt_in():
+    @flow
+    async def foo():
+        return 1
+
+    state = await foo(return_state=True)
+    coro = state.result(fetch=True)
+    assert await coro == 1
+
+
 async def test_async_result_returns_coroutine_with_setting():
     @flow
     async def foo():
