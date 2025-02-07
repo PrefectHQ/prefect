@@ -1,6 +1,7 @@
 import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { useMemo } from "react";
 import { ArtifactDetailHeader } from "./artifact-detail-header";
+import { ArtifactDataDisplay } from "./artifact-raw-data-display";
 import { DetailImage } from "./detail-image";
 import { DetailMarkdown } from "./detail-markdown";
 import { DetailProgress } from "./detail-progress";
@@ -30,6 +31,7 @@ export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
 		<div>
 			<ArtifactDetailHeader artifact={artifact} />
 			{mapArtifactHoc}
+			<ArtifactDataDisplay artifact={artifact} />
 		</div>
 	);
 };
