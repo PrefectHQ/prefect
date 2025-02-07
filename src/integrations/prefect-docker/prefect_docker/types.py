@@ -6,7 +6,7 @@ from pydantic import AfterValidator
 
 def assert_volume_str(volume: str) -> str:
     """
-    Validate a Docker volume string and return it if valid.
+    Validate a Docker volume string and raise `ValueError` if invalid.
     """
     if not isinstance(volume, str):  # type: ignore[reportUnnecessaryIsInstance]
         raise ValueError("Invalid volume specification: must be a string")
