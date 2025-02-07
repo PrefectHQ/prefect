@@ -57,9 +57,9 @@ from prefect.exceptions import (
 )
 from prefect.flows import (
     Flow,
-    convert_to_flow,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    load_function_and_convert_to_flow,
 )
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import (
@@ -134,7 +134,7 @@ def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
         try:
             flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
         except MissingFlowError:
-            flow = convert_to_flow(entrypoint)
+            flow = load_function_and_convert_to_flow(entrypoint)
     else:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
