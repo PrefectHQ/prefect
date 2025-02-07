@@ -316,6 +316,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Overrides for the flow's infrastructure configuration.",
     )
+    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
     entrypoint: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)

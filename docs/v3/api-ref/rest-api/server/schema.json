@@ -16752,6 +16752,20 @@
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
                     },
+                    "pull_steps": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Pull Steps"
+                    },
                     "entrypoint": {
                         "anyOf": [
                             {

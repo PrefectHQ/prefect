@@ -5786,6 +5786,8 @@ export interface components {
              * @description Overrides for the flow's infrastructure configuration.
              */
             job_variables?: Record<string, never> | null;
+            /** Pull Steps */
+            pull_steps?: Record<string, never>[] | null;
             /** Entrypoint */
             entrypoint?: string | null;
             /** Storage Document Id */
