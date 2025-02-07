@@ -49,12 +49,18 @@ from prefect.context import (
 )
 from prefect.exceptions import (
     Abort,
+    MissingFlowError,
     Pause,
     PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
+from prefect.flows import (
+    Flow,
+    convert_to_flow,
+    load_flow_from_entrypoint,
+    load_flow_from_flow_run,
+)
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -125,7 +131,10 @@ def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
 
     if entrypoint:
         # we should not accept a placeholder flow at runtime
-        flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        try:
+            flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        except MissingFlowError:
+            flow = convert_to_flow(entrypoint)
     else:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
