@@ -192,15 +192,19 @@ async def update_deployment(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
 
+        # Checking how we should handle schedule updates
+        # If not all existing schedules have slugs then we'll fall back to the existing logic where are schedules are recreated to match the request.
+        # If the existing schedules have slugs, but not all provided schedules have slugs, then we'll return a 422 to avoid accidentally blowing away schedules.
+        # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
         schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
         schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
-        all_provided_schedules_have_slugs = deployment.schedules and all(
+        all_provided_have_slugs = deployment.schedules and all(
             schedule.slug is not None for schedule in deployment.schedules
         )
-        all_existing_schedules_have_slugs = existing_deployment.schedules and all(
+        all_existing_have_slugs = existing_deployment.schedules and all(
             schedule.slug is not None for schedule in existing_deployment.schedules
         )
-        if all_provided_schedules_have_slugs and all_existing_schedules_have_slugs:
+        if all_provided_have_slugs and all_existing_have_slugs:
             current_slugs = [
                 schedule.slug for schedule in existing_deployment.schedules
             ]
@@ -217,9 +221,7 @@ async def update_deployment(
                     )
             # Clear schedules to handle their update/creation separately
             deployment.schedules = None
-        elif (
-            not all_provided_schedules_have_slugs and all_existing_schedules_have_slugs
-        ):
+        elif not all_provided_have_slugs and all_existing_have_slugs:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Please provide a slug for each schedule in your request to ensure schedules are updated correctly.",
