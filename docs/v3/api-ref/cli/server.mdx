@@ -1,0 +1,536 @@
+---
+title: " "
+sidebarTitle: prefect server
+---
+
+# `prefect server`
+
+
+
+```command
+prefect server [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Start a Prefect server instance and interact with the database
+</Info>
+
+
+
+
+
+
+
+
+## `prefect server start`
+
+
+
+```command
+prefect server start [OPTIONS]
+```
+
+
+
+<Info>
+Start a Prefect server instance
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--host">
+    
+</ResponseField>
+
+<ResponseField name="--port">
+    
+</ResponseField>
+
+<ResponseField name="--keep-alive-timeout">
+    
+</ResponseField>
+
+<ResponseField name="--log-level">
+    
+</ResponseField>
+
+<ResponseField name="--scheduler">
+    
+</ResponseField>
+
+<ResponseField name="--analytics-on">
+    
+</ResponseField>
+
+<ResponseField name="--late-runs">
+    
+</ResponseField>
+
+<ResponseField name="--ui">
+    
+</ResponseField>
+
+<ResponseField name="--no-services">
+    Only run the webserver API and UI
+</ResponseField>
+
+<ResponseField name="--background">
+    Run the server in the background
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect server stop`
+
+
+
+```command
+prefect server stop [OPTIONS]
+```
+
+
+
+<Info>
+Stop a Prefect server instance running in the background
+</Info>
+
+
+
+
+
+
+
+
+## `prefect server database`
+
+
+
+```command
+prefect server database [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Interact with the database.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect server database reset`
+
+
+
+```command
+prefect server database reset [OPTIONS]
+```
+
+
+
+<Info>
+Drop and recreate all Prefect database tables
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--yes">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect server database upgrade`
+
+
+
+```command
+prefect server database upgrade [OPTIONS]
+```
+
+
+
+<Info>
+Upgrade the Prefect database
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--yes">
+    
+</ResponseField>
+
+<ResponseField name="-r">
+    The revision to pass to \`alembic upgrade\`. If not provided, runs all migrations.
+</ResponseField>
+
+<ResponseField name="--dry-run">
+    Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect server database downgrade`
+
+
+
+```command
+prefect server database downgrade [OPTIONS]
+```
+
+
+
+<Info>
+Downgrade the Prefect database
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--yes">
+    
+</ResponseField>
+
+<ResponseField name="-r">
+    The revision to pass to \`alembic downgrade\`. If not provided, downgrades to the most recent revision. Use 'base' to run all migrations.
+</ResponseField>
+
+<ResponseField name="--dry-run">
+    Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect server database revision`
+
+
+
+```command
+prefect server database revision [OPTIONS]
+```
+
+
+
+<Info>
+Create a new migration for the Prefect database
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--message">
+    A message to describe the migration.
+</ResponseField>
+
+<ResponseField name="--autogenerate">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect server database stamp`
+
+
+
+```command
+prefect server database stamp [OPTIONS] REVISION
+```
+
+
+
+<Info>
+Stamp the revision table with the given revision; don't run any migrations
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="REVISION" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect server services`
+
+
+
+```command
+prefect server services [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Interact with server loop services.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect server services manager`
+
+
+
+```command
+prefect server services manager [OPTIONS]
+```
+
+
+
+<Info>
+This is an internal entrypoint used by \`prefect server services start --background\`.
+Users do not call this directly.
+
+We do everything in sync so that the child won't exit until the user kills it.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect server services list-services`
+
+
+
+```command
+prefect server services list-services [OPTIONS]
+```
+
+
+
+<Info>
+List all available services and their status.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect server services ls`
+
+
+
+```command
+prefect server services ls [OPTIONS]
+```
+
+
+
+<Info>
+List all available services and their status.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect server services start-services`
+
+
+
+```command
+prefect server services start-services [OPTIONS]
+```
+
+
+
+<Info>
+Start all enabled Prefect services in one process.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--background">
+    Run the services in the background
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect server services start`
+
+
+
+```command
+prefect server services start [OPTIONS]
+```
+
+
+
+<Info>
+Start all enabled Prefect services in one process.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--background">
+    Run the services in the background
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect server services stop-services`
+
+
+
+```command
+prefect server services stop-services [OPTIONS]
+```
+
+
+
+<Info>
+Stop any background Prefect services that were started.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect server services stop`
+
+
+
+```command
+prefect server services stop [OPTIONS]
+```
+
+
+
+<Info>
+Stop any background Prefect services that were started.
+</Info>
+
+
+
+
+

@@ -1,0 +1,73 @@
+---
+title: " "
+sidebarTitle: prefect event
+---
+
+# `prefect event`
+
+
+
+```command
+prefect event [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Stream events.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect event stream`
+
+
+
+```command
+prefect event stream [OPTIONS]
+```
+
+
+
+<Info>
+Subscribes to the event stream of a workspace, printing each event
+as it is received. By default, events are printed as JSON, but can be
+printed as text by passing \`--format text\`.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--format">
+    Output format (json or text)
+</ResponseField>
+
+<ResponseField name="--output-file">
+    File to write events to
+</ResponseField>
+
+<ResponseField name="--account">
+    Stream events for entire account, including audit logs
+</ResponseField>
+
+<ResponseField name="--run-once">
+    Stream only one event
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

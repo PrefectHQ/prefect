@@ -1,0 +1,435 @@
+---
+title: " "
+sidebarTitle: prefect blocks
+---
+
+# `prefect blocks`
+
+
+
+```command
+prefect blocks [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage blocks.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect blocks register`
+
+
+
+```command
+prefect blocks register [OPTIONS]
+```
+
+
+
+<Info>
+Register blocks types within a module or file.
+
+This makes the blocks available for configuration via the UI.
+If a block type has already been registered, its registration will be updated to
+match the block's current definition.
+
+
+Examples:
+    
+    Register block types in a Python module:
+    \$ prefect block register -m prefect_aws.credentials
+    
+    Register block types in a .py file:
+    \$ prefect block register -f my_blocks.py
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--module">
+    Python module containing block types to be registered
+</ResponseField>
+
+<ResponseField name="--file">
+    Path to .py file containing block types to be registered
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect blocks ls`
+
+
+
+```command
+prefect blocks ls [OPTIONS]
+```
+
+
+
+<Info>
+View all configured blocks.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect blocks delete`
+
+
+
+```command
+prefect blocks delete [OPTIONS] [SLUG]
+```
+
+
+
+<Info>
+Delete a configured block.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SLUG" type="string">
+    A block slug. Formatted as '&lt;BLOCK_TYPE_SLUG&gt;/&lt;BLOCK_NAME&gt;'
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    A block id.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect blocks create`
+
+
+
+```command
+prefect blocks create [OPTIONS] BLOCK_TYPE_SLUG
+```
+
+
+
+<Info>
+Generate a link to the Prefect UI to create a block.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="BLOCK_TYPE_SLUG" type="string" required>
+    A block type slug. View available types with: prefect block type ls  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect blocks inspect`
+
+
+
+```command
+prefect blocks inspect [OPTIONS] [SLUG]
+```
+
+
+
+<Info>
+Displays details about a configured block.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SLUG" type="string">
+    A Block slug: &lt;BLOCK_TYPE_SLUG&gt;/&lt;BLOCK_NAME&gt;
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    A Block id to search for if no slug is given
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect blocks types`
+
+
+
+```command
+prefect blocks types [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Inspect and delete block types.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect blocks types ls`
+
+
+
+```command
+prefect blocks types ls [OPTIONS]
+```
+
+
+
+<Info>
+List all block types.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect blocks types inspect`
+
+
+
+```command
+prefect blocks types inspect [OPTIONS] SLUG
+```
+
+
+
+<Info>
+Display details about a block type.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SLUG" type="string" required>
+    A block type slug  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+### `prefect blocks types delete`
+
+
+
+```command
+prefect blocks types delete [OPTIONS] SLUG
+```
+
+
+
+<Info>
+Delete an unprotected Block Type.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SLUG" type="string" required>
+    A Block type slug  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect blocks type`
+
+
+
+```command
+prefect blocks type [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Inspect and delete block types.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect blocks type ls`
+
+
+
+```command
+prefect blocks type ls [OPTIONS]
+```
+
+
+
+<Info>
+List all block types.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect blocks type inspect`
+
+
+
+```command
+prefect blocks type inspect [OPTIONS] SLUG
+```
+
+
+
+<Info>
+Display details about a block type.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SLUG" type="string" required>
+    A block type slug  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+### `prefect blocks type delete`
+
+
+
+```command
+prefect blocks type delete [OPTIONS] SLUG
+```
+
+
+
+<Info>
+Delete an unprotected Block Type.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SLUG" type="string" required>
+    A Block type slug  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>

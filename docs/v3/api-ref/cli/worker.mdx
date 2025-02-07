@@ -1,0 +1,95 @@
+---
+title: " "
+sidebarTitle: prefect worker
+---
+
+# `prefect worker`
+
+
+
+```command
+prefect worker [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Start and interact with workers.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect worker start`
+
+
+
+```command
+prefect worker start [OPTIONS]
+```
+
+
+
+<Info>
+Start a worker process to poll a work pool for flow runs.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-n">
+    The name to give to the started worker. If not provided, a unique name will be generated.
+</ResponseField>
+
+<ResponseField name="-p">
+    The work pool the started worker should poll.
+</ResponseField>
+
+<ResponseField name="-q">
+    One or more work queue names for the worker to pull from. If not provided, the worker will pull from all work queues in the work pool.
+</ResponseField>
+
+<ResponseField name="-t">
+    The type of worker to start. If not provided, the worker type will be inferred from the work pool.
+</ResponseField>
+
+<ResponseField name="--prefetch-seconds">
+    Number of seconds to look into the future for scheduled flow runs.
+</ResponseField>
+
+<ResponseField name="--run-once">
+    Only run worker polling once. By default, the worker runs forever.
+</ResponseField>
+
+<ResponseField name="-l">
+    Maximum number of flow runs to start simultaneously.
+</ResponseField>
+
+<ResponseField name="--with-healthcheck">
+    Start a healthcheck server for the worker.
+</ResponseField>
+
+<ResponseField name="--install-policy">
+    Install policy to use workers from Prefect integration packages.
+</ResponseField>
+
+<ResponseField name="--base-job-template">
+    The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. If the work pool already exists, this will be ignored.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
