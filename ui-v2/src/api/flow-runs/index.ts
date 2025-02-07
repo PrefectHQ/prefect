@@ -1,4 +1,8 @@
-import { queryOptions } from "@tanstack/react-query";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { Deployment } from "../deployments";
 import { Flow } from "../flows";
 import { components } from "../prefect";
@@ -67,4 +71,61 @@ export const buildListFlowRunsQuery = (
 		staleTime: 1000,
 		refetchInterval,
 	});
+};
+
+// ----- ✍🏼 Mutations 🗄️
+// ----------------------------
+
+type MutateCreateFlowRun = {
+	id: string;
+} & components["schemas"]["DeploymentFlowRunCreate"];
+/**
+ * Hook for creating a new flow run from an automation
+ *
+ * @returns Mutation object for creating a flow run with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createDeploymentFlowRun, isLoading } = useDeploymentCreateFlowRun();
+ *
+ * createDeploymentFlowRun({ deploymentId, ...body }, {
+ *   onSuccess: () => {
+ *     // Handle successful creation
+ *     console.log('Flow run created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create flow run:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeploymentCreateFlowRun = () => {
+	const queryClient = useQueryClient();
+	const { mutate: createDeploymentFlowRun, ...rest } = useMutation({
+		mutationFn: async ({ id, ...body }: MutateCreateFlowRun) => {
+			const res = await getQueryService().POST(
+				"/deployments/{id}/create_flow_run",
+				{
+					body,
+					params: { path: { id } },
+				},
+			);
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onSuccess: () => {
+			// After a successful creation, invalidate only list queries to refetch
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return {
+		createDeploymentFlowRun,
+		...rest,
+	};
 };
