@@ -46,7 +46,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.results import ResultRecordMetadata
+    from prefect._result_records import ResultRecordMetadata
 
 R = TypeVar("R")
 
@@ -103,6 +103,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default_factory=dict,
         description="Parameter overrides for the schedule.",
     )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
+    )
 
     @field_validator("active", mode="wrap")
     @classmethod
@@ -132,6 +136,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                 ),
                 parameters=schedule.parameters,
                 active=schedule.active,
+                slug=schedule.slug,
             )
         elif schedule.cron is not None:
             return cls(
@@ -142,6 +147,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                 ),
                 parameters=schedule.parameters,
                 active=schedule.active,
+                slug=schedule.slug,
             )
         elif schedule.rrule is not None:
             return cls(
@@ -151,6 +157,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                 ),
                 parameters=schedule.parameters,
                 active=schedule.active,
+                slug=schedule.slug,
             )
         else:
             return cls(
@@ -173,6 +180,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     parameters: Optional[dict[str, Any]] = Field(
         default=None,
         description="Parameter overrides for the schedule.",
+    )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")

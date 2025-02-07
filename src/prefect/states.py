@@ -16,8 +16,7 @@ from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
 from prefect._internal.compatibility import deprecated
-from prefect.client.schemas import State as State
-from prefect.client.schemas import StateDetails, StateType
+from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
@@ -37,12 +36,41 @@ from prefect.utilities.collections import ensure_iterable
 if TYPE_CHECKING:
     import logging
 
+    from prefect.client.schemas.actions import StateCreate
     from prefect.results import (
         R,
         ResultStore,
     )
 
 logger: "logging.Logger" = get_logger("states")
+
+
+def to_state_create(state: State) -> "StateCreate":
+    """
+    Convert the state to a `StateCreate` type which can be used to set the state of
+    a run in the API.
+
+    This method will drop this state's `data` if it is not a result type. Only
+    results should be sent to the API. Other data is only available locally.
+    """
+    from prefect.client.schemas.actions import StateCreate
+    from prefect.results import (
+        ResultRecord,
+        should_persist_result,
+    )
+
+    if isinstance(state.data, ResultRecord) and should_persist_result():
+        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
+    else:
+        data = None
+
+    return StateCreate(
+        type=state.type,
+        name=state.name,
+        message=state.message,
+        data=data,
+        state_details=state.state_details,
+    )
 
 
 @deprecated.deprecated_parameter(
@@ -97,10 +125,10 @@ async def _get_state_result_data_with_retries(
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
-    from prefect.results import (
-        ResultRecord,
+    from prefect._result_records import (
         ResultRecordMetadata,
     )
+    from prefect.results import ResultStore
 
     if retry_result_failure is False:
         max_attempts = 1
@@ -110,7 +138,7 @@ async def _get_state_result_data_with_retries(
     for i in range(1, max_attempts + 1):
         try:
             if isinstance(state.data, ResultRecordMetadata):
-                record = await ResultRecord._from_metadata(state.data)
+                record = await ResultStore._from_metadata(state.data)
                 return record.result
             else:
                 return await state.data.get()
@@ -462,10 +490,11 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect.results import (
+    from prefect._result_records import (
         ResultRecord,
         ResultRecordMetadata,
     )
+    from prefect.results import ResultStore
 
     if state.is_failed():
         wrapper = FailedRun
@@ -482,7 +511,7 @@ async def get_state_exception(state: State) -> BaseException:
     if isinstance(state.data, ResultRecord):
         result = state.data.result
     elif isinstance(state.data, ResultRecordMetadata):
-        record = await ResultRecord._from_metadata(state.data)
+        record = await ResultStore._from_metadata(state.data)
         result = record.result
     elif state.data is None:
         result = None
