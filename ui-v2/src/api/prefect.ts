@@ -3625,7 +3625,9 @@ export interface components {
              * Fields
              * @description The block schema's field schema
              */
-            fields?: Record<string, never>;
+            fields?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Type Id
              * @description A block type ID
@@ -4714,9 +4716,13 @@ export interface components {
         /** Body_validate_obj_ui_schemas_validate_post */
         Body_validate_obj_ui_schemas_validate_post: {
             /** Json Schema */
-            json_schema: Record<string, never>;
+            json_schema: {
+                [key: string]: unknown;
+            };
             /** Values */
-            values: Record<string, never>;
+            values: {
+                [key: string]: unknown;
+            };
         };
         /** Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post */
         Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post: {
@@ -5230,7 +5236,9 @@ export interface components {
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
@@ -5561,7 +5569,9 @@ export interface components {
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Path
              * @description The path to the working directory for the workflow, relative to remote storage or an absolute path.
@@ -8054,6 +8064,27 @@ export interface components {
              * @description A JSON-compatible value for the filter.
              */
             value: unknown;
+        };
+        /** SchemaValueIndexError */
+        SchemaValueIndexError: {
+            /** Index */
+            index: number;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuePropertyError */
+        SchemaValuePropertyError: {
+            /** Property */
+            property: string;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuesValidationResponse */
+        SchemaValuesValidationResponse: {
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            /** Valid */
+            valid: boolean;
         };
         /**
          * SendNotification
@@ -15441,7 +15472,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["SchemaValuesValidationResponse"];
                 };
             };
             /** @description Validation Error */

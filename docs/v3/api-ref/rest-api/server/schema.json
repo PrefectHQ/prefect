@@ -9356,8 +9356,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "title": "Response Validate Obj Ui Schemas Validate Post"
+                                    "$ref": "#/components/schemas/SchemaValuesValidationResponse"
                                 }
                             }
                         }
@@ -11875,6 +11874,7 @@
                         "description": "The block schema's unique checksum"
                     },
                     "fields": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -14328,10 +14328,12 @@
             "Body_validate_obj_ui_schemas_validate_post": {
                 "properties": {
                     "json_schema": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Json Schema"
                     },
                     "values": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Values"
                     }
@@ -15304,6 +15306,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
@@ -16215,6 +16218,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
@@ -21668,6 +21672,99 @@
                 ],
                 "title": "SavedSearchFilter",
                 "description": "A filter for a saved search model. Intended for use by the Prefect UI."
+            },
+            "SchemaValueIndexError": {
+                "properties": {
+                    "index": {
+                        "type": "integer",
+                        "title": "Index"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "errors"
+                ],
+                "title": "SchemaValueIndexError"
+            },
+            "SchemaValuePropertyError": {
+                "properties": {
+                    "property": {
+                        "type": "string",
+                        "title": "Property"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "property",
+                    "errors"
+                ],
+                "title": "SchemaValuePropertyError"
+            },
+            "SchemaValuesValidationResponse": {
+                "properties": {
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    },
+                    "valid": {
+                        "type": "boolean",
+                        "title": "Valid"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "errors",
+                    "valid"
+                ],
+                "title": "SchemaValuesValidationResponse"
             },
             "SendNotification": {
                 "properties": {
