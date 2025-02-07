@@ -11,14 +11,15 @@ from docker import DockerClient
 from docker.models.containers import Container
 from exceptiongroup import ExceptionGroup
 from prefect_docker.credentials import DockerRegistryCredentials
+from prefect_docker.types import VolumeStr
 from prefect_docker.worker import (
     CONTAINER_LABELS,
     DockerWorker,
     DockerWorkerJobConfiguration,
-    VolumeStr,
 )
 from pydantic import TypeAdapter, ValidationError
 
+import prefect.main  # noqa
 from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
 from prefect.settings import (
@@ -35,12 +36,12 @@ FAKE_BASE_URL = "my-url"
 
 
 @pytest.fixture(autouse=True)
-def bypass_api_check(monkeypatch):
+def bypass_api_check(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PREFECT_DOCKER_TEST_MODE", True)
 
 
 @pytest.fixture
-def mock_docker_client(monkeypatch):
+def mock_docker_client(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock(name="DockerClient", spec=docker.DockerClient)
     mock.version.return_value = {"Version": "20.10"}
 
@@ -276,9 +277,10 @@ async def test_uses_volumes_setting(
         "/home/user:/home/docker:rw",
         "C:\\path\\on\\windows:/path/in/container",
         "\\\\host\\share:/path/in/container",
+        "/data",  # anonymous volume
     ],
 )
-def test_valid_volume_strings(volume_str):
+def test_valid_volume_strings(volume_str: str):
     assert TypeAdapter(VolumeStr).validate_python(volume_str) == volume_str
 
 
@@ -296,7 +298,7 @@ def test_valid_volume_strings(volume_str):
         "",  # empty string
     ],
 )
-def test_invalid_volume_strings(volume_str):
+def test_invalid_volume_strings(volume_str: str):
     with pytest.raises(ValidationError, match="Invalid volume"):
         TypeAdapter(VolumeStr).validate_python(volume_str)
 

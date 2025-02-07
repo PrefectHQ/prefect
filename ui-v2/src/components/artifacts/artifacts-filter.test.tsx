@@ -2,7 +2,8 @@ import { createFakeArtifact } from "@/mocks";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
+import { describe } from "vitest";
 import { ArtifactsFilterComponent } from "./artifacts-filter";
 
 describe("Artifacts Filter", () => {
@@ -31,6 +32,8 @@ describe("Artifacts Filter", () => {
 				filters={defaultFilters}
 				onFilterChange={onFilterChange}
 				totalCount={defaultCount}
+				setDisplayMode={vi.fn()}
+				displayMode="grid"
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -49,6 +52,8 @@ describe("Artifacts Filter", () => {
 				filters={defaultFilters}
 				onFilterChange={onFilterChange}
 				totalCount={defaultCount}
+				setDisplayMode={vi.fn()}
+				displayMode="grid"
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -74,6 +79,8 @@ describe("Artifacts Filter", () => {
 				filters={defaultFilters}
 				onFilterChange={onFilterChange}
 				totalCount={defaultCount}
+				setDisplayMode={vi.fn()}
+				displayMode="grid"
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -87,5 +94,24 @@ describe("Artifacts Filter", () => {
 			{ id: "name", label: "Name", value: "" },
 			{ id: "type", label: "Type", value: "markdown" },
 		]);
+	});
+
+	it("changes display mode", () => {
+		const setDisplayMode = vi.fn();
+		const { getByTestId } = render(
+			<ArtifactsFilterComponent
+				filters={defaultFilters}
+				onFilterChange={vi.fn()}
+				totalCount={defaultCount}
+				setDisplayMode={setDisplayMode}
+				displayMode="grid"
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		fireEvent.click(getByTestId("list-layout"));
+		expect(setDisplayMode).toHaveBeenCalledWith("list");
 	});
 });
