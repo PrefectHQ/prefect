@@ -216,7 +216,7 @@ async def update_deployment(
                         detail="Unable to create new deployment schedules without a schedule configuration.",
                     )
             # Clear schedules to handle their update/creation separately
-            del deployment.schedules
+            deployment.schedules = None
         elif (
             not all_provided_schedules_have_slugs and all_existing_schedules_have_slugs
         ):
@@ -309,8 +309,9 @@ async def update_deployment(
                 schedules=[
                     schemas.actions.DeploymentScheduleCreate(
                         schedule=schedule.schedule,  # type: ignore We will raise above if schedule is not provided
-                        active=schedule.active or True,
+                        active=schedule.active if schedule.active is not None else True,
                         slug=schedule.slug,
+                        parameters=schedule.parameters,
                     )
                     for schedule in schedules_to_create
                 ],

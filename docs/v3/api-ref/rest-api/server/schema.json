@@ -16502,7 +16502,7 @@
                             }
                         ],
                         "title": "Slug",
-                        "description": "A unique slug for the schedule."
+                        "description": "A unique identifier for the schedule."
                     }
                 },
                 "additionalProperties": false,
@@ -16572,7 +16572,7 @@
                             }
                         ],
                         "title": "Slug",
-                        "description": "A unique slug for the schedule."
+                        "description": "A unique identifier for the schedule."
                     }
                 },
                 "additionalProperties": false,

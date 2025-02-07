@@ -157,6 +157,7 @@ async def create_deployment(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
                     parameters=schedule.parameters,
+                    slug=schedule.slug,
                 )
                 for schedule in schedules
             ],
@@ -274,6 +275,8 @@ async def update_deployment(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
+                    parameters=schedule.parameters,
+                    slug=schedule.slug,
                 )
                 for schedule in schedules
             ],
@@ -979,10 +982,14 @@ async def update_deployment_schedule(
         )
     elif deployment_schedule_slug:
         result = await session.execute(
-            sa.update(db.DeploymentSchedule).where(
-                db.DeploymentSchedule.slug == deployment_schedule_slug,
-                db.DeploymentSchedule.deployment_id == deployment_id,
+            sa.update(db.DeploymentSchedule)
+            .where(
+                sa.and_(
+                    db.DeploymentSchedule.slug == deployment_schedule_slug,
+                    db.DeploymentSchedule.deployment_id == deployment_id,
+                )
             )
+            .values(**schedule.model_dump(exclude_none=True))
         )
     else:
         raise ValueError(

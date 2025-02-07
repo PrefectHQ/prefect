@@ -5676,7 +5676,7 @@ export interface components {
             parameters?: Record<string, never>;
             /**
              * Slug
-             * @description A unique slug for the schedule.
+             * @description A unique identifier for the schedule.
              */
             slug?: string | null;
         };
@@ -5704,7 +5704,7 @@ export interface components {
             parameters?: Record<string, never>;
             /**
              * Slug
-             * @description A unique slug for the schedule.
+             * @description A unique identifier for the schedule.
              */
             slug?: string | null;
         };

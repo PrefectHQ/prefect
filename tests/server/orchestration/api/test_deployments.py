@@ -2026,7 +2026,6 @@ class TestUpdateDeployment:
         update_data = schemas.actions.DeploymentUpdate(
             schedules=[
                 schemas.actions.DeploymentScheduleUpdate(
-                    schedule=schedule1,
                     active=False,
                     slug="test-schedule-1",
                 ),
@@ -2045,7 +2044,7 @@ class TestUpdateDeployment:
         assert response.status_code == 204
 
         response = await client.get(
-            f"//deployments/{deployment_id}",
+            f"/deployments/{deployment_id}",
         )
         assert response.status_code == 200
         assert len(response.json()["schedules"]) == 2
