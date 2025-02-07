@@ -269,7 +269,6 @@ class RunnerDeployment(BaseModel):
     async def _create(
         self, work_pool_name: Optional[str] = None, image: Optional[str] = None
     ) -> UUID:
-
         work_pool_name = work_pool_name or self.work_pool_name
 
         if image and not work_pool_name:
@@ -387,11 +386,18 @@ class RunnerDeployment(BaseModel):
 
         async with get_client() as client:
             try:
-                deployment_id = await client.read_deployment_by_name(self.full_name)
+                deployment = await client.read_deployment_by_name(self.full_name)
             except ObjectNotFound:
                 return await self._create(work_pool_name, image)
-            return await client.update_deployment(deployment_id, deployment=DeploymentUpdate(**self.model_dump(mode="json", exclude_unset=True)))
-
+            if TYPE_CHECKING:
+                assert deployment is not None
+            await client.update_deployment(
+                deployment.id,
+                deployment=DeploymentUpdate(
+                    **self.model_dump(mode="json", exclude_unset=True)
+                ),
+            )
+            return deployment.id
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):
