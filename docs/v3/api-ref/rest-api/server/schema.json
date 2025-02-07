@@ -9356,8 +9356,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "title": "Response Validate Obj Ui Schemas Validate Post"
+                                    "$ref": "#/components/schemas/SchemaValuesValidationResponse"
                                 }
                             }
                         }
@@ -11875,6 +11874,7 @@
                         "description": "The block schema's unique checksum"
                     },
                     "fields": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -11932,7 +11932,6 @@
             "BlockSchemaCreate": {
                 "properties": {
                     "fields": {
-                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -21659,6 +21658,99 @@
                 ],
                 "title": "SavedSearchFilter",
                 "description": "A filter for a saved search model. Intended for use by the Prefect UI."
+            },
+            "SchemaValueIndexError": {
+                "properties": {
+                    "index": {
+                        "type": "integer",
+                        "title": "Index"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "errors"
+                ],
+                "title": "SchemaValueIndexError"
+            },
+            "SchemaValuePropertyError": {
+                "properties": {
+                    "property": {
+                        "type": "string",
+                        "title": "Property"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "property",
+                    "errors"
+                ],
+                "title": "SchemaValuePropertyError"
+            },
+            "SchemaValuesValidationResponse": {
+                "properties": {
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    },
+                    "valid": {
+                        "type": "boolean",
+                        "title": "Valid"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "errors",
+                    "valid"
+                ],
+                "title": "SchemaValuesValidationResponse"
             },
             "SendNotification": {
                 "properties": {
