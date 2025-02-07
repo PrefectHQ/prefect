@@ -28,9 +28,9 @@ import docker.errors
 import packaging.version
 from docker import DockerClient
 from docker.models.containers import Container
-from pydantic import AfterValidator, Field
+from pydantic import Field
 from slugify import slugify
-from typing_extensions import Annotated, Literal
+from typing_extensions import Literal
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
@@ -47,6 +47,7 @@ from prefect.utilities.dockerutils import (
 )
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
+from prefect_docker.types import VolumeStr
 
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
@@ -59,34 +60,6 @@ class ImagePullPolicy(enum.Enum):
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
     NEVER = "Never"
-
-
-def assert_volume_str(v: str) -> str:
-    """Assert that a string is a valid Docker volume string."""
-    if not isinstance(v, str):
-        raise ValueError("Volume must be a string")
-
-    # Regex pattern for valid Docker volume strings, including Windows paths
-    pattern = r"^([a-zA-Z]:\\|/)?[^:]+:(/)?[^:]+(:ro|:rw)?$"
-
-    match = re.match(pattern, v)
-    if not match:
-        raise ValueError(f"Invalid volume string: {v!r}")
-
-    _, _, mode = match.groups()
-
-    # Check for empty parts
-    if ":" not in v or v.startswith(":") or v.endswith(":"):
-        raise ValueError(f"Volume string contains empty part: {v!r}")
-
-    # If there's a mode, it must be 'ro' or 'rw'
-    if mode and mode not in (":ro", ":rw"):
-        raise ValueError(f"Invalid volume mode: {mode!r}. Must be ':ro' or ':rw'")
-
-    return v
-
-
-VolumeStr = Annotated[str, AfterValidator(assert_volume_str)]
 
 
 class DockerWorkerJobConfiguration(BaseJobConfiguration):
