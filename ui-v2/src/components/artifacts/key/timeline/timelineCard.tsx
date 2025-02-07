@@ -20,9 +20,14 @@ export const ArtifactTimelineCard = ({
 			data-testid={`timeline-card-${artifact.id}`}
 			className="flex flex-col p-4 m-2 transition-transform hover:translate-x-2 flex-grow"
 		>
-			<Typography variant="body" className="font-bold text-blue-700">
-				{artifactTitle}
-			</Typography>
+			<Link to="/artifacts/artifact/$id" params={{ id: artifact.id ?? "" }}>
+				<Typography
+					variant="body"
+					className="font-bold text-blue-700 hover:underline"
+				>
+					{artifactTitle}
+				</Typography>
+			</Link>
 			{artifact.flow_run && (
 				<Typography variant="bodySmall">
 					Flow run:{" "}

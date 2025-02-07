@@ -73,7 +73,6 @@ export const useGetArtifactFlowTaskRuns = (artifactId: string) => {
 
 	const flowRunId = artifact?.flow_run_id;
 	const taskRunId = artifact?.task_run_id;
-
 	const { flowRuns, taskRuns } = useQueries({
 		queries: [
 			buildListFlowRunsQuery({
@@ -107,8 +106,8 @@ export const useGetArtifactFlowTaskRuns = (artifactId: string) => {
 	});
 
 	return {
-		artifact,
-		flowRun: flowRuns?.[0],
-		taskRun: taskRuns?.[0],
+		...artifact,
+		flow_run: flowRuns?.[0],
+		task_run: taskRuns?.[0],
 	} as ArtifactWithFlowRunAndTaskRun;
 };
