@@ -6,12 +6,12 @@ import { ArtifactsFilterComponent } from "./artifacts-filter";
 import { ArtifactsHeader } from "./artifacts-header";
 import { filterType } from "./types";
 
-interface ArtifactsPageProps {
+export type ArtifactsPageProps = {
 	filters: filterType[];
 	onFilterChange: (newFilters: filterType[]) => void;
 	artifactsCount: number;
 	artifactsList: Artifact[];
-}
+};
 
 export const ArtifactsPage = ({
 	filters,

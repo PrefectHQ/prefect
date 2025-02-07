@@ -13,13 +13,13 @@ import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { Typography } from "../ui/typography";
 import { filterType } from "./types";
 
-interface ArtifactsFilterProps {
+type ArtifactsFilterProps = {
 	filters: filterType[];
 	onFilterChange: (newFilters: filterType[]) => void;
 	totalCount: number;
 	setDisplayMode: (mode: string) => void;
 	displayMode: string;
-}
+};
 
 const artifactTypeOptions = [
 	{ value: "all", label: "All Types" },

@@ -58,7 +58,7 @@ export default useDebounceCallback;
 
 // Example usage with strict types:
 
-// interface SearchProps {
+// type SearchProps {
 //   onSearch: (term: string) => Promise<void>;
 // }
 
