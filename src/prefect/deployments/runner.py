@@ -348,7 +348,7 @@ class RunnerDeployment(BaseModel):
             return deployment_id
 
     async def _update(self, deployment_id: UUID, client: PrefectClient):
-        parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+        parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
         await client.update_deployment(
@@ -359,7 +359,7 @@ class RunnerDeployment(BaseModel):
                     mode="json",
                     exclude_unset=True,
                     exclude={"storage", "name", "flow_name", "triggers"},
-                )
+                ),
             ),
         )
 
