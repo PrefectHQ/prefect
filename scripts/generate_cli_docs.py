@@ -1,10 +1,12 @@
+"""Generate CLI documentation."""  # noqa: INP001
+
 from __future__ import annotations
 
 import inspect
 import logging
-import os
 import warnings
-from typing import List, Optional, TypedDict
+from pathlib import Path
+from typing import TypedDict
 
 import click
 import typer
@@ -20,64 +22,72 @@ logging.getLogger("griffe.docstrings.google").setLevel(logging.ERROR)
 
 
 class ArgumentDict(TypedDict):
+    """A dictionary representing a command argument."""
+
     name: str
     help: str
 
 
 class CommandSummaryDict(TypedDict):
+    """A dictionary representing a command summary."""
+
     name: str
     help: str
 
 
 class BuildDocsContext(TypedDict):
+    """A dictionary representing a command context."""
+
     indent: int
     command_name: str
     title: str
-    help: List[DocstringSection]
-    usage_pieces: List[str]
-    args: List[ArgumentDict]
+    help: list[DocstringSection]
+    usage_pieces: list[str]
+    args: list[ArgumentDict]
     # Storing "option" params. If you don't need them typed as click.Option,
     # "Parameter" is enough to capture both options/arguments in general.
-    opts: List[Parameter]
-    examples: List[str]
-    epilog: Optional[str]
-    commands: List[CommandSummaryDict]
-    subcommands: List[BuildDocsContext]
+    opts: list[Parameter]
+    examples: list[str]
+    epilog: str | None
+    commands: list[CommandSummaryDict]
+    subcommands: list[BuildDocsContext]
 
 
-def get_help_text(docstring_object: str) -> List[DocstringSection]:
-    """
-    Get help text sections from a docstring.
+def get_help_text(docstring_object: str) -> list[DocstringSection]:
+    """Get help text sections from a docstring.
 
     Args:
         docstring_object: The docstring to parse.
 
     Returns:
-        List of docstring text sections.
+        list of docstring text sections.
+
     """
     return [
         section
         for section in Docstring(inspect.cleandoc(docstring_object), lineno=1).parse(
-            "google", warnings=False
+            "google",
+            warnings=False,
         )
         if section.kind == "text"
     ]
 
 
 def get_examples(docstring_object: str) -> list[str]:
-    """
-    Get example strings from a docstring.
+    """Get example strings from a docstring.
 
     Args:
         docstring_object: The docstring to parse.
 
     Returns:
-        List of example strings.
+        list of example strings.
+
     """
     return [
         text
         for section in Docstring(inspect.cleandoc(docstring_object), lineno=1).parse(
-            "google", warnings=False
+            "google",
+            warnings=False,
         )
         if isinstance(section, DocstringSectionExamples)
         for _, text in section.value
@@ -92,6 +102,19 @@ def build_docs_context(
     name: str = "",
     call_prefix: str = "",
 ) -> BuildDocsContext:
+    """Build a command context for documentation generation.
+
+    Args:
+        obj: The Click command object to document
+        ctx: The Click context
+        indent: Indentation level for nested commands
+        name: Override name for the command
+        call_prefix: Prefix to add to command name
+
+    Returns:
+        A BuildDocsContext object
+
+    """
     # Command name can be empty, so ensure we always end up with a string
     if call_prefix:
         command_name = f"{call_prefix} {obj.name or ''}".strip()
@@ -99,10 +122,10 @@ def build_docs_context(
         command_name = name if name else (obj.name or "")
 
     title: str = f"`{command_name}`" if command_name else "CLI"
-    usage_pieces: List[str] = obj.collect_usage_pieces(ctx)
+    usage_pieces: list[str] = obj.collect_usage_pieces(ctx)
 
-    args_list: List[ArgumentDict] = []
-    opts_list: List[Parameter] = []
+    args_list: list[ArgumentDict] = []
+    opts_list: list[Parameter] = []
 
     # Collect arguments vs. options (skip the built-in help option)
     for param in obj.get_params(ctx):
@@ -118,20 +141,20 @@ def build_docs_context(
             elif getattr(param, "param_type_name", "") == "option":
                 opts_list.append(param)
 
-    commands_list: List[CommandSummaryDict] = []
-    subcommands: List[BuildDocsContext] = []
+    commands_list: list[CommandSummaryDict] = []
+    subcommands: list[BuildDocsContext] = []
 
     # Only MultiCommand objects have subcommands
     if isinstance(obj, MultiCommand):
-        all_commands: List[str] = obj.list_commands(ctx)
+        all_commands: list[str] = obj.list_commands(ctx)
         # Filter out help commands and blocked commands
         blocked_commands = {"help", "--help", "deploy", "cloud"}
-        filtered_commands: List[str] = [
+        filtered_commands: list[str] = [
             cmd for cmd in all_commands if cmd not in blocked_commands
         ]
         for command in filtered_commands:
             command_obj = obj.get_command(ctx, command)
-            assert command_obj, f"Command {command} not found in {obj.name}"
+            assert command_obj, f"Command {command} not found in {obj.name}"  # noqa: S101
             # Prepare a short "summary" for listing
             cmd_name = command_obj.name or ""
             cmd_help = command_obj.get_short_help_str()
@@ -140,7 +163,7 @@ def build_docs_context(
         # Recursively build docs for each subcommand
         for command in filtered_commands:
             command_obj = obj.get_command(ctx, command)
-            assert command_obj
+            assert command_obj  # noqa: S101
             sub_ctx = build_docs_context(
                 obj=command_obj,
                 ctx=ctx,
@@ -166,12 +189,12 @@ def build_docs_context(
 
 
 def escape_mdx(text: str) -> str:
-    """
-    Escape characters that commonly break MDX (Mintlify).
+    """Escape characters that commonly break MDX (Mintlify).
+
     - Replace angle brackets < >
     - Replace curly braces { }
     - Escape backticks, pipes, and arrow functions
-    - Escape dollar signs to avoid template interpolation
+    - Escape dollar signs to avoid template interpolation.
     """
     import re
 
@@ -197,23 +220,25 @@ def escape_mdx(text: str) -> str:
     text = text.replace("$", "\\$")
 
     # Escape ! at start of lines
-    text = re.sub(r"(?m)^!", "\\!", text)
+    return re.sub(r"(?m)^!", "\\!", text)
 
     # Example: you can expand with more custom rules here, if needed
-    return text
 
 
 def write_command_docs(
-    command_context: BuildDocsContext, env: Environment, output_dir: str
+    command_context: BuildDocsContext,
+    env: Environment,
+    output_dir: str,
 ) -> None:
-    """
-    Render a single command (and do *not* recurse in the template).
+    """Render a single command (and do *not* recurse in the template).
+
     Then recurse here in Python for each subcommand.
 
     Args:
         command_context: Context containing command documentation
         env: Jinja environment for rendering templates
         output_dir: Directory to write output files
+
     """
     # 1. Render the Jinja template for this command only
     template = env.get_template("docs_template.jinja")
@@ -226,11 +251,11 @@ def write_command_docs(
         command_name_clean = "cli_root"  # fallback if top-level name is empty
 
     filename = f"{command_name_clean}.mdx"
-    filepath = os.path.join(output_dir, filename)
+    filepath = Path(output_dir) / filename
 
     # 3. Write out to disk
-    os.makedirs(output_dir, exist_ok=True)
-    with open(filepath, mode="w", encoding="utf-8") as f:
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    with Path.open(filepath, mode="w", encoding="utf-8") as f:
         f.write(rendered)
 
     # 4. Recursively render subcommands in the same manner
@@ -239,11 +264,10 @@ def write_command_docs(
 
 
 def render_command_and_subcommands(
-    cmd_context: BuildDocsContext, env: Environment
+    cmd_context: BuildDocsContext,
+    env: Environment,
 ) -> str:
-    """
-    Render the given command (no recursion in the template),
-    then recurse *in Python* to render/append all subcommands.
+    """Render the given command then recurse in Python to render/append all subcommands.
 
     Args:
         cmd_context: Context containing command documentation
@@ -251,6 +275,7 @@ def render_command_and_subcommands(
 
     Returns:
         Rendered documentation string
+
     """
     # 1) Render the "cmd_context" itself:
     template = env.get_template("docs_template.jinja")
@@ -267,30 +292,26 @@ def render_command_and_subcommands(
 def write_subcommand_docs(
     top_level_sub: BuildDocsContext, env: Environment, output_dir: str
 ) -> None:
-    """
-    Renders one *top-level* subcommand context and all nested subcommands
-    into a single MDX file.
+    """Render one *top-level* and all nested subcommands into a single MDX file.
 
     Args:
         top_level_sub: Context containing top-level command documentation
         env: Jinja environment for rendering templates
         output_dir: Directory to write output files
+
     """
     content = render_command_and_subcommands(top_level_sub, env)
 
     # "command_name" might be something like "prefect artifact"
     # so let's extract the last token for the filename:
     name_parts = top_level_sub["command_name"].split()
-    if name_parts:
-        file_stub = name_parts[-1]  # e.g. "artifact"
-    else:
-        file_stub = "cli-root"
+    file_stub = name_parts[-1] if name_parts else "cli-root"  # e.g. "artifact"
 
     filename = f"{file_stub}.mdx"
-    file_path = os.path.join(output_dir, filename)
-    os.makedirs(output_dir, exist_ok=True)
+    file_path = Path(output_dir) / filename
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    with open(file_path, "w", encoding="utf-8") as f:
+    with Path.open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
 
 
@@ -301,11 +322,8 @@ def get_docs_for_click(
     indent: int = 0,
     name: str = "",
     call_prefix: str = "",
-    title: Optional[str] = None,
 ) -> str:
-    """
-    Build the top-level docs context, then generate
-    one MDX file per top-level subcommand.
+    """Build the top-level docs context & generate one MDX file per subcommand.
 
     Args:
         obj: The Click command object to document
@@ -317,6 +335,7 @@ def get_docs_for_click(
 
     Returns:
         Empty string (files are written to disk)
+
     """
     docs_context = build_docs_context(
         obj=obj,
@@ -325,11 +344,12 @@ def get_docs_for_click(
         name=name,
         call_prefix=call_prefix,
     )
-    if title is not None:
-        docs_context["title"] = title
 
     # Create the Jinja environment
-    env = Environment(loader=FileSystemLoader("./scripts/templates"))
+    env = Environment(
+        loader=FileSystemLoader("./scripts/templates"),
+        autoescape=True,
+    )
     env.filters["escape_mdx"] = escape_mdx
 
     # Where to store the generated MDX files
