@@ -334,25 +334,7 @@ class RunnerDeployment(BaseModel):
                     f"Error while applying deployment: {str(exc)}"
                 ) from exc
 
-            try:
-                # The triggers defined in the deployment spec are, essentially,
-                # anonymous and attempting truly sync them with cloud is not
-                # feasible. Instead, we remove all automations that are owned
-                # by the deployment, meaning that they were created via this
-                # mechanism below, and then recreate them.
-                await client.delete_resource_owned_automations(
-                    f"prefect.deployment.{deployment_id}"
-                )
-            except PrefectHTTPStatusError as e:
-                if e.response.status_code == 404:
-                    # This Prefect server does not support automations, so we can safely
-                    # ignore this 404 and move on.
-                    return deployment_id
-                raise e
-
-            for trigger in self.triggers:
-                trigger.set_deployment_id(deployment_id)
-                await client.create_automation(trigger.as_automation())
+            await self._create_triggers(deployment_id, client)
 
             # We plan to support SLA configuration on the Prefect Server in the future.
             # For now, we only support it on Prefect Cloud.
@@ -364,6 +346,56 @@ class RunnerDeployment(BaseModel):
                 await self._create_slas(deployment_id, client)
 
             return deployment_id
+
+    async def _update(self, deployment_id: UUID, client: PrefectClient):
+        parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+            exclude_unset=True
+        )
+        await client.update_deployment(
+            deployment_id,
+            deployment=DeploymentUpdate(
+                parameter_openapi_schema=parameter_openapi_schema,
+                **self.model_dump(
+                    mode="json",
+                    exclude_unset=True,
+                    exclude={"storage", "name", "flow_name", "triggers"},
+                )
+            ),
+        )
+
+        await self._create_triggers(deployment_id, client)
+
+        # We plan to support SLA configuration on the Prefect Server in the future.
+        # For now, we only support it on Prefect Cloud.
+
+        # If we're provided with an empty list, we will call the apply endpoint
+        # to remove existing SLAs for the deployment. If the argument is not provided,
+        # we will not call the endpoint.
+        if self._sla or self._sla == []:
+            await self._create_slas(deployment_id, client)
+
+        return deployment_id
+
+    async def _create_triggers(self, deployment_id: UUID, client: PrefectClient):
+        try:
+            # The triggers defined in the deployment spec are, essentially,
+            # anonymous and attempting truly sync them with cloud is not
+            # feasible. Instead, we remove all automations that are owned
+            # by the deployment, meaning that they were created via this
+            # mechanism below, and then recreate them.
+            await client.delete_resource_owned_automations(
+                f"prefect.deployment.{deployment_id}"
+            )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                # This Prefect server does not support automations, so we can safely
+                # ignore this 404 and move on.
+                return deployment_id
+            raise e
+
+        for trigger in self.triggers:
+            trigger.set_deployment_id(deployment_id)
+            await client.create_automation(trigger.as_automation())
 
     @sync_compatible
     async def apply(
@@ -388,22 +420,8 @@ class RunnerDeployment(BaseModel):
                 deployment = await client.read_deployment_by_name(self.full_name)
             except ObjectNotFound:
                 return await self._create(work_pool_name, image)
-
-            parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
-                exclude_unset=True
-            )
-            await client.update_deployment(
-                deployment.id,
-                deployment=DeploymentUpdate(
-                    parameter_openapi_schema=parameter_openapi_schema,
-                    **self.model_dump(
-                        mode="json",
-                        exclude_unset=True,
-                        exclude={"storage", "name", "flow_name", "triggers"},
-                    )
-                ),
-            )
-            return deployment.id
+            else:
+                return await self._update(deployment.id, client)
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):

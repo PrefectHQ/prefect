@@ -794,9 +794,9 @@ async def _run_single_deploy(
 
     await _create_deployment_triggers(client, deployment_id, triggers)
 
-    # We want to ensure that if a user passes an empty list of SLAs, we call the
-    # apply endpoint to remove existing SLAs for the deployment.
-    # If the argument is not provided, we will not call the endpoint.
+    # # We want to ensure that if a user passes an empty list of SLAs, we call the
+    # # apply endpoint to remove existing SLAs for the deployment.
+    # # If the argument is not provided, we will not call the endpoint.
     sla_specs = _gather_deployment_sla_definitions(
         options.get("sla"), deploy_config.get("sla")
     )
