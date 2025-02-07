@@ -45,7 +45,7 @@ def upgrade():
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
     with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
-        batch_op.drop_index("ix_deployment_schedule__deployment_id__slug")
+        batch_op.drop_index(batch_op.f("ix_deployment_schedule__deployment_id__slug"))
         batch_op.drop_index("ix_deployment_schedule__slug")
         batch_op.drop_column("slug")
     op.execute("PRAGMA foreign_keys=ON")
