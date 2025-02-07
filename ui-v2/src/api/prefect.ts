@@ -3625,7 +3625,9 @@ export interface components {
              * Fields
              * @description The block schema's field schema
              */
-            fields?: Record<string, never>;
+            fields?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Type Id
              * @description A block type ID
@@ -4714,9 +4716,13 @@ export interface components {
         /** Body_validate_obj_ui_schemas_validate_post */
         Body_validate_obj_ui_schemas_validate_post: {
             /** Json Schema */
-            json_schema: Record<string, never>;
+            json_schema: {
+                [key: string]: unknown;
+            };
             /** Values */
-            values: Record<string, never>;
+            values: {
+                [key: string]: unknown;
+            };
         };
         /** Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post */
         Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post: {
@@ -5230,7 +5236,9 @@ export interface components {
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
@@ -5561,7 +5569,9 @@ export interface components {
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Path
              * @description The path to the working directory for the workflow, relative to remote storage or an absolute path.
@@ -5676,7 +5686,7 @@ export interface components {
             parameters?: Record<string, never>;
             /**
              * Slug
-             * @description A unique slug for the schedule.
+             * @description A unique identifier for the schedule.
              */
             slug?: string | null;
         };
@@ -5704,7 +5714,7 @@ export interface components {
             parameters?: Record<string, never>;
             /**
              * Slug
-             * @description A unique slug for the schedule.
+             * @description A unique identifier for the schedule.
              */
             slug?: string | null;
         };
@@ -5739,7 +5749,7 @@ export interface components {
              * Schedules
              * @description A list of schedules for the deployment.
              */
-            schedules?: components["schemas"]["DeploymentScheduleCreate"][];
+            schedules?: components["schemas"]["DeploymentScheduleUpdate"][];
             /**
              * Concurrency Limit
              * @description The deployment's concurrency limit.
@@ -5752,6 +5762,11 @@ export interface components {
              * @description Parameters for flow runs scheduled by the deployment.
              */
             parameters?: Record<string, never> | null;
+            /**
+             * Parameter Openapi Schema
+             * @description The parameter schema of the flow, including defaults.
+             */
+            parameter_openapi_schema?: Record<string, never> | null;
             /**
              * Tags
              * @description A list of deployment tags.
@@ -5771,6 +5786,8 @@ export interface components {
              * @description Overrides for the flow's infrastructure configuration.
              */
             job_variables?: Record<string, never> | null;
+            /** Pull Steps */
+            pull_steps?: Record<string, never>[] | null;
             /** Entrypoint */
             entrypoint?: string | null;
             /** Storage Document Id */
@@ -8049,6 +8066,27 @@ export interface components {
              * @description A JSON-compatible value for the filter.
              */
             value: unknown;
+        };
+        /** SchemaValueIndexError */
+        SchemaValueIndexError: {
+            /** Index */
+            index: number;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuePropertyError */
+        SchemaValuePropertyError: {
+            /** Property */
+            property: string;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuesValidationResponse */
+        SchemaValuesValidationResponse: {
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            /** Valid */
+            valid: boolean;
         };
         /**
          * SendNotification
@@ -15436,7 +15474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["SchemaValuesValidationResponse"];
                 };
             };
             /** @description Validation Error */
