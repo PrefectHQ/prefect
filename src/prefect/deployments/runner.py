@@ -233,7 +233,7 @@ class RunnerDeployment(BaseModel):
 
     @property
     def full_name(self) -> str:
-        return f"{self.name}/{self.flow_name}"
+        return f"{self.flow_name}/{self.name}"
 
     @field_validator("name", mode="before")
     @classmethod
