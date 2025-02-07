@@ -1,6 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DynamicObject(BaseModel):
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
