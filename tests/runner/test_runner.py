@@ -426,6 +426,44 @@ class TestRunner:
         assert deployment_2.name == "test_runner"
         assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
+    async def test_add_flow_to_runner_always_updates_openapi_schema(self, prefect_client: PrefectClient):
+        """Runner.add should create a deployment for the flow passed to it"""
+        runner = Runner()
+
+        @flow
+        def one(num: int):
+            pass
+
+        deployment_id = await runner.add_flow(one, name="test-openapi")
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test-openapi"
+        assert deployment.description == 'None'
+        assert set(deployment.parameter_openapi_schema['properties'].keys()) == {'num'}
+
+        @flow(name="one")
+        def two(num: int):
+            "description now"
+            pass
+
+        deployment_id = await runner.add_flow(two, name="test-openapi")
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test-openapi"
+        assert deployment.description == "description now"
+        assert set(deployment.parameter_openapi_schema['properties'].keys()) == {'num'}
+
+        @flow(name="one")
+        def three(name: str):
+            pass
+
+        deployment_id = await runner.add_flow(three, name="test-openapi")
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test-openapi"
+        assert deployment.description is None
+        assert set(deployment.parameter_openapi_schema['properties'].keys()) == {'name'}
+
     @pytest.mark.parametrize(
         "kwargs",
         [
