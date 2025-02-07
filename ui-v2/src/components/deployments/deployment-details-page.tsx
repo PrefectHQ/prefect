@@ -7,6 +7,7 @@ import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
 import { DeploymentFlowLink } from "./deployment-flow-link";
 import { DeploymentMetadata } from "./deployment-metadata";
+import { RunFlowButton } from "./run-flow-button";
 import { useDeleteDeploymentConfirmationDialog } from "./use-delete-deployment-confirmation-dialog";
 
 type DeploymentDetailsPageProps = {
@@ -27,7 +28,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 						<DeploymentFlowLink flowId={data.flow_id} />
 					</div>
 					<div className="flex align-middle gap-2">
-						<div className="border border-red-400">{"<RunButton />"}</div>
+						<RunFlowButton deployment={data} />
 						<DeploymentActionMenu
 							id={id}
 							onDelete={() => confirmDelete(data, { shouldNavigate: true })}
