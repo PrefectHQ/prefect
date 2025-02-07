@@ -35,6 +35,7 @@ import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/dep
 import { Route as ConcurrencyLimitsConcurrencyLimitIdImport } from './routes/concurrency-limits/concurrency-limit.$id'
 import { Route as BlocksBlockIdImport } from './routes/blocks/block.$id'
 import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
+import { Route as DeploymentsDeploymentIdRunImport } from './routes/deployments/deployment_.$id.run'
 import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
 import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
@@ -187,6 +188,14 @@ const AutomationsAutomationIdRoute = AutomationsAutomationIdImport.update({
   path: '/automations/automation/$id',
   getParentRoute: () => rootRoute,
 } as any)
+
+const DeploymentsDeploymentIdRunRoute = DeploymentsDeploymentIdRunImport.update(
+  {
+    id: '/deployments/deployment_/$id/run',
+    path: '/deployments/deployment/$id/run',
+    getParentRoute: () => rootRoute,
+  } as any,
+)
 
 const DeploymentsDeploymentIdEditRoute =
   DeploymentsDeploymentIdEditImport.update({
@@ -409,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeploymentsDeploymentIdEditImport
       parentRoute: typeof rootRoute
     }
+    '/deployments/deployment_/$id/run': {
+      id: '/deployments/deployment_/$id/run'
+      path: '/deployments/deployment/$id/run'
+      fullPath: '/deployments/deployment/$id/run'
+      preLoaderRoute: typeof DeploymentsDeploymentIdRunImport
+      parentRoute: typeof rootRoute
+    }
     '/work-pools/work-pool/$workPoolName/queue/$workQueueName': {
       id: '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
       path: '/queue/$workQueueName'
@@ -493,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
+  '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -523,6 +540,7 @@ export interface FileRoutesByTo {
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
+  '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -555,6 +573,7 @@ export interface FileRoutesById {
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
   '/deployments/deployment_/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment_/$id/edit': typeof DeploymentsDeploymentIdEditRoute
+  '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -588,6 +607,7 @@ export interface FileRouteTypes {
     | '/automations/automation/$id/edit'
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
+    | '/deployments/deployment/$id/run'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -617,6 +637,7 @@ export interface FileRouteTypes {
     | '/automations/automation/$id/edit'
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
+    | '/deployments/deployment/$id/run'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   id:
     | '__root__'
@@ -647,6 +668,7 @@ export interface FileRouteTypes {
     | '/automations/automation/$id/edit'
     | '/deployments/deployment_/$id/duplicate'
     | '/deployments/deployment_/$id/edit'
+    | '/deployments/deployment_/$id/run'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesById: FileRoutesById
 }
@@ -675,6 +697,7 @@ export interface RootRouteChildren {
   WorkPoolsWorkPoolWorkPoolNameRoute: typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
   DeploymentsDeploymentIdDuplicateRoute: typeof DeploymentsDeploymentIdDuplicateRoute
   DeploymentsDeploymentIdEditRoute: typeof DeploymentsDeploymentIdEditRoute
+  DeploymentsDeploymentIdRunRoute: typeof DeploymentsDeploymentIdRunRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -703,6 +726,7 @@ const rootRouteChildren: RootRouteChildren = {
     WorkPoolsWorkPoolWorkPoolNameRouteWithChildren,
   DeploymentsDeploymentIdDuplicateRoute: DeploymentsDeploymentIdDuplicateRoute,
   DeploymentsDeploymentIdEditRoute: DeploymentsDeploymentIdEditRoute,
+  DeploymentsDeploymentIdRunRoute: DeploymentsDeploymentIdRunRoute,
 }
 
 export const routeTree = rootRoute
@@ -737,7 +761,8 @@ export const routeTree = rootRoute
         "/runs/task-run/$id",
         "/work-pools/work-pool/$workPoolName",
         "/deployments/deployment_/$id/duplicate",
-        "/deployments/deployment_/$id/edit"
+        "/deployments/deployment_/$id/edit",
+        "/deployments/deployment_/$id/run"
       ]
     },
     "/": {
@@ -835,6 +860,9 @@ export const routeTree = rootRoute
     },
     "/deployments/deployment_/$id/edit": {
       "filePath": "deployments/deployment_.$id.edit.tsx"
+    },
+    "/deployments/deployment_/$id/run": {
+      "filePath": "deployments/deployment_.$id.run.tsx"
     },
     "/work-pools/work-pool/$workPoolName/queue/$workQueueName": {
       "filePath": "work-pools/work-pool.$workPoolName.queue.$workQueueName.tsx",
