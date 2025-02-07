@@ -16,7 +16,7 @@ from griffe import (
     DocstringSection,
     DocstringSectionExamples,
 )
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 logging.getLogger("griffe.docstrings.google").setLevel(logging.ERROR)
 
@@ -348,7 +348,7 @@ def get_docs_for_click(
     # Create the Jinja environment
     env = Environment(
         loader=FileSystemLoader("./scripts/templates"),
-        autoescape=True,
+        autoescape=select_autoescape(["html", "xml"]),
     )
     env.filters["escape_mdx"] = escape_mdx
 
