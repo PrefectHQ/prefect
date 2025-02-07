@@ -136,6 +136,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                 ),
                 parameters=schedule.parameters,
                 active=schedule.active,
+                slug=schedule.slug,
             )
         elif schedule.cron is not None:
             return cls(
@@ -146,6 +147,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                 ),
                 parameters=schedule.parameters,
                 active=schedule.active,
+                slug=schedule.slug,
             )
         elif schedule.rrule is not None:
             return cls(
@@ -155,6 +157,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
                 ),
                 parameters=schedule.parameters,
                 active=schedule.active,
+                slug=schedule.slug,
             )
         else:
             return cls(
