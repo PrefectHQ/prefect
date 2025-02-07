@@ -10,6 +10,7 @@ import {
 	type Automation,
 	buildGetAutomationQuery,
 	buildListAutomationsQuery,
+	buildListAutomationsRelatedQuery,
 	queryKeyFactory,
 	useCreateAutomation,
 	useDeleteAutomation,
@@ -38,6 +39,16 @@ describe("automations queries and mutations", () => {
 		);
 	};
 
+	const mockFetchListRelatedAutomationsAPI = (
+		automations: Array<Automation>,
+	) => {
+		server.use(
+			http.get(buildApiUrl("/automations/related-to/:resource_id"), () => {
+				return HttpResponse.json(automations);
+			}),
+		);
+	};
+
 	const filter = { sort: "CREATED_DESC", offset: 0 } as const;
 
 	it("is stores automation list data", async () => {
@@ -48,6 +59,25 @@ describe("automations queries and mutations", () => {
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
 			() => useSuspenseQuery(buildListAutomationsQuery(filter)),
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("is stores automation list data based on resource id relation", async () => {
+		// ------------ Mock API requests when cache is empty
+		const mockList = seedAutomationsData();
+		mockFetchListRelatedAutomationsAPI(mockList);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(
+			() =>
+				useSuspenseQuery(
+					buildListAutomationsRelatedQuery("prefect.deployment.1234"),
+				),
 			{ wrapper: createWrapper() },
 		);
 
@@ -85,7 +115,7 @@ describe("automations queries and mutations", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			queryKeyFactory.list(filter),
+			queryKeyFactory.filter(filter),
 			seedAutomationsData(),
 		);
 
@@ -129,7 +159,7 @@ describe("automations queries and mutations", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			queryKeyFactory.list(filter),
+			queryKeyFactory.filter(filter),
 			seedAutomationsData(),
 		);
 
@@ -185,7 +215,7 @@ describe("automations queries and mutations", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			queryKeyFactory.list(filter),
+			queryKeyFactory.filter(filter),
 			seedAutomationsData(),
 		);
 

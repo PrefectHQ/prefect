@@ -5,6 +5,10 @@ export const buildApiUrl = (path: string) => {
 };
 
 const automationsHandlers = [
+	http.get(buildApiUrl("/automations/related-to/:resource_id"), () => {
+		return HttpResponse.json([]);
+	}),
+
 	http.post(buildApiUrl("/automations/filter"), () => {
 		return HttpResponse.json([]);
 	}),
