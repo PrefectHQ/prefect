@@ -1,0 +1,181 @@
+---
+title: " "
+sidebarTitle: prefect config
+---
+
+# `prefect config`
+
+
+
+```command
+prefect config [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+View and set Prefect profiles.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect config set`
+
+
+
+```command
+prefect config set [OPTIONS] SETTINGS...
+```
+
+
+
+<Info>
+Change the value for a setting by setting the value in the current profile.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SETTINGS..." type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect config validate`
+
+
+
+```command
+prefect config validate [OPTIONS]
+```
+
+
+
+<Info>
+Read and validate the current profile.
+
+Deprecated settings will be automatically converted to new names unless both are
+set.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect config unset`
+
+
+
+```command
+prefect config unset [OPTIONS] SETTING_NAMES...
+```
+
+
+
+<Info>
+Restore the default value for a setting.
+
+Removes the setting from the current profile.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SETTING_NAMES..." type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--yes">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect config view`
+
+
+
+```command
+prefect config view [OPTIONS]
+```
+
+
+
+<Info>
+Display the current settings.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--show-defaults">
+    Toggle display of default settings.
+
+--show-defaults displays all settings,
+even if they are not changed from the
+default values.
+
+--hide-defaults displays only settings
+that are changed from default values.
+</ResponseField>
+
+<ResponseField name="--show-sources">
+    Toggle display of the source of a value for
+a setting.
+
+The value for a setting can come from the
+current profile, environment variables, or
+the defaults.
+</ResponseField>
+
+<ResponseField name="--show-secrets">
+    Toggle display of secrets setting values.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

@@ -1,0 +1,281 @@
+---
+title: " "
+sidebarTitle: prefect flow-runs
+---
+
+# `prefect flow-runs`
+
+
+
+```command
+prefect flow-runs [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Interact with flow runs.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect flow-runs inspect`
+
+
+
+```command
+prefect flow-runs inspect [OPTIONS] ID
+```
+
+
+
+<Info>
+View details about a flow run.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect flow-runs ls`
+
+
+
+```command
+prefect flow-runs ls [OPTIONS]
+```
+
+
+
+<Info>
+View recent flow runs or flow runs for specific flows.
+
+Arguments:
+
+    flow_name: Name of the flow
+
+    limit: Maximum number of flow runs to list. Defaults to 15.
+
+    state: Name of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
+
+    state_type: Type of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'CRASHED', and 'PAUSED'.
+
+Examples:
+
+\$ prefect flow-runs ls --state Running
+
+\$ prefect flow-runs ls --state Running --state late
+
+\$ prefect flow-runs ls --state-type RUNNING
+
+\$ prefect flow-runs ls --state-type RUNNING --state-type FAILED
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--flow-name">
+    Name of the flow
+</ResponseField>
+
+<ResponseField name="--limit">
+    Maximum number of flow runs to list
+</ResponseField>
+
+<ResponseField name="--state">
+    Name of the flow run's state
+</ResponseField>
+
+<ResponseField name="--state-type">
+    Type of the flow run's state
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect flow-runs delete`
+
+
+
+```command
+prefect flow-runs delete [OPTIONS] ID
+```
+
+
+
+<Info>
+Delete a flow run by ID.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect flow-runs cancel`
+
+
+
+```command
+prefect flow-runs cancel [OPTIONS] ID
+```
+
+
+
+<Info>
+Cancel a flow run by ID.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect flow-runs logs`
+
+
+
+```command
+prefect flow-runs logs [OPTIONS] ID
+```
+
+
+
+<Info>
+View logs for a flow run.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--head">
+    Show the first 20 logs instead of all logs.
+</ResponseField>
+
+<ResponseField name="--num-logs">
+    Number of logs to show when using the --head or --tail flag. If None, defaults to 20.
+</ResponseField>
+
+<ResponseField name="--reverse">
+    Reverse the logs order to print the most recent logs first
+</ResponseField>
+
+<ResponseField name="--tail">
+    Show the last 20 logs instead of all logs.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect flow-runs execute`
+
+
+
+```command
+prefect flow-runs execute [OPTIONS] [ID]
+```
+
+
+
+<Info>
+
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="ID" type="string">
+    ID of the flow run to execute
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
