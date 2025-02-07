@@ -192,6 +192,7 @@ class DeploymentCreate(ActionBaseModel):
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
+        json_schema_extra={"additionalProperties": True},
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,

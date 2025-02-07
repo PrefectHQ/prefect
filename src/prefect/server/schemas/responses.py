@@ -402,6 +402,7 @@ class DeploymentResponse(ORMBaseModel):
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
+        json_schema_extra={"additionalProperties": True},
     )
     path: Optional[str] = Field(
         default=None,
@@ -586,3 +587,21 @@ class DeploymentPaginationResponse(BaseModel):
     limit: int
     pages: int
     page: int
+
+
+class SchemaValuePropertyError(BaseModel):
+    property: str
+    errors: List["SchemaValueError"]
+
+
+class SchemaValueIndexError(BaseModel):
+    index: int
+    errors: List["SchemaValueError"]
+
+
+SchemaValueError = Union[str, SchemaValuePropertyError, SchemaValueIndexError]
+
+
+class SchemaValuesValidationResponse(BaseModel):
+    errors: List[SchemaValueError]
+    valid: bool
