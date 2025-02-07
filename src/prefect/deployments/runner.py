@@ -57,7 +57,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -230,6 +230,10 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
+    @property
+    def full_name(self) -> str:
+        return f"{self.name}/{self.flow_name}"
+
     @field_validator("name", mode="before")
     @classmethod
     def validate_name(cls, value: str) -> str:
@@ -256,23 +260,9 @@ class RunnerDeployment(BaseModel):
     def reconcile_schedules(cls, values):
         return reconcile_schedules_runner(values)
 
-    @sync_compatible
-    async def apply(
+    async def _create(
         self, work_pool_name: Optional[str] = None, image: Optional[str] = None
     ) -> UUID:
-        """
-        Registers this deployment with the API and returns the deployment's ID.
-
-        Args:
-            work_pool_name: The name of the work pool to use for this
-                deployment.
-            image: The registry, name, and tag of the Docker image to
-                use for this deployment. Only used when the deployment is
-                deployed to a work pool.
-
-        Returns:
-            The ID of the created deployment.
-        """
 
         work_pool_name = work_pool_name or self.work_pool_name
 
@@ -370,6 +360,32 @@ class RunnerDeployment(BaseModel):
                 await self._create_slas(deployment_id, client)
 
             return deployment_id
+
+    @sync_compatible
+    async def apply(
+        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+    ) -> UUID:
+        """
+        Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            work_pool_name: The name of the work pool to use for this
+                deployment.
+            image: The registry, name, and tag of the Docker image to
+                use for this deployment. Only used when the deployment is
+                deployed to a work pool.
+
+        Returns:
+            The ID of the created deployment.
+        """
+
+        async with get_client() as client:
+            try:
+                deployment_id = await client.read_deployment_by_name(self.full_name)
+            except ObjectNotFound:
+                return await self._create(work_pool_name, image)
+            return await client.update_deployment(deployment_id, deployment=DeploymentUpdate(**self.model_dump(mode="json", exclude_unset=True)))
+
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):
