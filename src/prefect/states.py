@@ -125,7 +125,7 @@ async def _get_state_result_data_with_retries(
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
-    from prefect.result_records import (
+    from prefect._result_records import (
         ResultRecordMetadata,
     )
     from prefect.results import ResultStore
@@ -490,7 +490,7 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect.result_records import (
+    from prefect._result_records import (
         ResultRecord,
         ResultRecordMetadata,
     )

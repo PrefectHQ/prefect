@@ -49,8 +49,8 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.result_records import ResultRecordMetadata
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,

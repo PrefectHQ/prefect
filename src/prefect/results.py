@@ -32,6 +32,7 @@ from typing_extensions import ParamSpec, Self
 
 import prefect
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
 from prefect.exceptions import (
     ConfigurationError,
@@ -44,7 +45,6 @@ from prefect.filesystems import (
 )
 from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
-from prefect.result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.serializers import Serializer
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime

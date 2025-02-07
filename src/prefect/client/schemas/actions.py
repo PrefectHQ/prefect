@@ -46,7 +46,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.result_records import ResultRecordMetadata
+    from prefect._result_records import ResultRecordMetadata
 
 R = TypeVar("R")
 
