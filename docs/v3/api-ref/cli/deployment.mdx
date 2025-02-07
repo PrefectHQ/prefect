@@ -3,13 +3,12 @@ title: " "
 sidebarTitle: prefect deployment
 ---
 
-
-# `prefect main deployment`
+# `prefect deployment`
 
 
 
 ```command
-prefect main deployment [OPTIONS] COMMAND [ARGS]...
+prefect deployment [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -25,12 +24,12 @@ Manage deployments.
 
 
 
-## `prefect main deployment inspect`
+## `prefect deployment inspect`
 
 
 
 ```command
-prefect main deployment inspect [OPTIONS] NAME
+prefect deployment inspect [OPTIONS] NAME
 ```
 
 
@@ -96,12 +95,12 @@ Example:
 
 
 
-## `prefect main deployment ls`
+## `prefect deployment ls`
 
 
 
 ```command
-prefect main deployment ls [OPTIONS]
+prefect deployment ls [OPTIONS]
 ```
 
 
@@ -136,12 +135,12 @@ View all deployments or deployments for specific flows.
 
 
 
-## `prefect main deployment run`
+## `prefect deployment run`
 
 
 
 ```command
-prefect main deployment run [OPTIONS] [NAME]
+prefect deployment run [OPTIONS] [NAME]
 ```
 
 
@@ -218,12 +217,12 @@ To watch the flow run until it reaches a terminal state, use the \`--watch\` fla
 
 
 
-## `prefect main deployment delete`
+## `prefect deployment delete`
 
 
 
 ```command
-prefect main deployment delete [OPTIONS] [NAME]
+prefect deployment delete [OPTIONS] [NAME]
 ```
 
 
@@ -266,12 +265,12 @@ Examples:
 
 
 
-## `prefect main deployment schedule`
+## `prefect deployment schedule`
 
 
 
 ```command
-prefect main deployment schedule [OPTIONS] COMMAND [ARGS]...
+prefect deployment schedule [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -287,12 +286,12 @@ Manage deployment schedules.
 
 
 
-### `prefect main deployment schedule create`
+### `prefect deployment schedule create`
 
 
 
 ```command
-prefect main deployment schedule create [OPTIONS] NAME
+prefect deployment schedule create [OPTIONS] NAME
 ```
 
 
@@ -361,12 +360,12 @@ Create a schedule for a given deployment.
 
 
 
-### `prefect main deployment schedule delete`
+### `prefect deployment schedule delete`
 
 
 
 ```command
-prefect main deployment schedule delete [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+prefect deployment schedule delete [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
 ```
 
 
@@ -406,12 +405,12 @@ Delete a deployment schedule.
 
 
 
-### `prefect main deployment schedule pause`
+### `prefect deployment schedule pause`
 
 
 
 ```command
-prefect main deployment schedule pause [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+prefect deployment schedule pause [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
 ```
 
 
@@ -443,12 +442,12 @@ Pause a deployment schedule.
 
 
 
-### `prefect main deployment schedule resume`
+### `prefect deployment schedule resume`
 
 
 
 ```command
-prefect main deployment schedule resume [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+prefect deployment schedule resume [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
 ```
 
 
@@ -480,12 +479,12 @@ Resume a deployment schedule.
 
 
 
-### `prefect main deployment schedule ls`
+### `prefect deployment schedule ls`
 
 
 
 ```command
-prefect main deployment schedule ls [OPTIONS] DEPLOYMENT_NAME
+prefect deployment schedule ls [OPTIONS] DEPLOYMENT_NAME
 ```
 
 
@@ -514,12 +513,12 @@ View all schedules for a deployment.
 
 
 
-### `prefect main deployment schedule clear`
+### `prefect deployment schedule clear`
 
 
 
 ```command
-prefect main deployment schedule clear [OPTIONS] DEPLOYMENT_NAME
+prefect deployment schedule clear [OPTIONS] DEPLOYMENT_NAME
 ```
 
 

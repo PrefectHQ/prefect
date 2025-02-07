@@ -3,13 +3,12 @@ title: " "
 sidebarTitle: prefect server
 ---
 
-
-# `prefect main server`
+# `prefect server`
 
 
 
 ```command
-prefect main server [OPTIONS] COMMAND [ARGS]...
+prefect server [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -25,12 +24,12 @@ Start a Prefect server instance and interact with the database
 
 
 
-## `prefect main server start`
+## `prefect server start`
 
 
 
 ```command
-prefect main server start [OPTIONS]
+prefect server start [OPTIONS]
 ```
 
 
@@ -97,12 +96,12 @@ Start a Prefect server instance
 
 
 
-## `prefect main server stop`
+## `prefect server stop`
 
 
 
 ```command
-prefect main server stop [OPTIONS]
+prefect server stop [OPTIONS]
 ```
 
 
@@ -118,12 +117,12 @@ Stop a Prefect server instance running in the background
 
 
 
-## `prefect main server database`
+## `prefect server database`
 
 
 
 ```command
-prefect main server database [OPTIONS] COMMAND [ARGS]...
+prefect server database [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -139,12 +138,12 @@ Interact with the database.
 
 
 
-### `prefect main server database reset`
+### `prefect server database reset`
 
 
 
 ```command
-prefect main server database reset [OPTIONS]
+prefect server database reset [OPTIONS]
 ```
 
 
@@ -175,12 +174,12 @@ Drop and recreate all Prefect database tables
 
 
 
-### `prefect main server database upgrade`
+### `prefect server database upgrade`
 
 
 
 ```command
-prefect main server database upgrade [OPTIONS]
+prefect server database upgrade [OPTIONS]
 ```
 
 
@@ -219,12 +218,12 @@ Upgrade the Prefect database
 
 
 
-### `prefect main server database downgrade`
+### `prefect server database downgrade`
 
 
 
 ```command
-prefect main server database downgrade [OPTIONS]
+prefect server database downgrade [OPTIONS]
 ```
 
 
@@ -263,12 +262,12 @@ Downgrade the Prefect database
 
 
 
-### `prefect main server database revision`
+### `prefect server database revision`
 
 
 
 ```command
-prefect main server database revision [OPTIONS]
+prefect server database revision [OPTIONS]
 ```
 
 
@@ -303,12 +302,12 @@ Create a new migration for the Prefect database
 
 
 
-### `prefect main server database stamp`
+### `prefect server database stamp`
 
 
 
 ```command
-prefect main server database stamp [OPTIONS] REVISION
+prefect server database stamp [OPTIONS] REVISION
 ```
 
 
@@ -337,12 +336,12 @@ Stamp the revision table with the given revision; don't run any migrations
 
 
 
-## `prefect main server services`
+## `prefect server services`
 
 
 
 ```command
-prefect main server services [OPTIONS] COMMAND [ARGS]...
+prefect server services [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -358,12 +357,12 @@ Interact with server loop services.
 
 
 
-### `prefect main server services manager`
+### `prefect server services manager`
 
 
 
 ```command
-prefect main server services manager [OPTIONS]
+prefect server services manager [OPTIONS]
 ```
 
 
@@ -382,12 +381,12 @@ We do everything in sync so that the child won't exit until the user kills it.
 
 
 
-### `prefect main server services list-services`
+### `prefect server services list-services`
 
 
 
 ```command
-prefect main server services list-services [OPTIONS]
+prefect server services list-services [OPTIONS]
 ```
 
 
@@ -403,12 +402,12 @@ List all available services and their status.
 
 
 
-### `prefect main server services ls`
+### `prefect server services ls`
 
 
 
 ```command
-prefect main server services ls [OPTIONS]
+prefect server services ls [OPTIONS]
 ```
 
 
@@ -424,12 +423,12 @@ List all available services and their status.
 
 
 
-### `prefect main server services start-services`
+### `prefect server services start-services`
 
 
 
 ```command
-prefect main server services start-services [OPTIONS]
+prefect server services start-services [OPTIONS]
 ```
 
 
@@ -460,12 +459,12 @@ Start all enabled Prefect services in one process.
 
 
 
-### `prefect main server services start`
+### `prefect server services start`
 
 
 
 ```command
-prefect main server services start [OPTIONS]
+prefect server services start [OPTIONS]
 ```
 
 
@@ -496,12 +495,12 @@ Start all enabled Prefect services in one process.
 
 
 
-### `prefect main server services stop-services`
+### `prefect server services stop-services`
 
 
 
 ```command
-prefect main server services stop-services [OPTIONS]
+prefect server services stop-services [OPTIONS]
 ```
 
 
@@ -517,12 +516,12 @@ Stop any background Prefect services that were started.
 
 
 
-### `prefect main server services stop`
+### `prefect server services stop`
 
 
 
 ```command
-prefect main server services stop [OPTIONS]
+prefect server services stop [OPTIONS]
 ```
 
 
