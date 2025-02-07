@@ -116,7 +116,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
     )
     slug: Optional[str] = Field(
         default=None,
-        description="A unique slug for the schedule.",
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -146,7 +146,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
     slug: Optional[str] = Field(
         default=None,
-        description="A unique slug for the schedule.",
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -282,7 +282,7 @@ class DeploymentUpdate(ActionBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: List[DeploymentScheduleUpdate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
