@@ -364,6 +364,31 @@ class ResultStore(BaseModel):
             return None
         return getattr(self.result_storage, "_block_document_id", None)
 
+    @classmethod
+    async def _from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":
+        """
+        Create a result record from metadata.
+
+        Will use the result record metadata to fetch data via a result store.
+
+        Args:
+            metadata: The metadata to create the result record from.
+
+        Returns:
+            ResultRecord: The result record.
+        """
+        if metadata.storage_block_id is None:
+            storage_block = None
+        else:
+            storage_block = await aresolve_result_storage(metadata.storage_block_id)
+        store = cls(result_storage=storage_block, serializer=metadata.serializer)
+        if metadata.storage_key is None:
+            raise ValueError(
+                "storage_key is required to hydrate a result record from metadata"
+            )
+        result = await store.aread(metadata.storage_key)
+        return result
+
     @sync_compatible
     async def update_for_flow(self, flow: "Flow[..., Any]") -> Self:
         """
