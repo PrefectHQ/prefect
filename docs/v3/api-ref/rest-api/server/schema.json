@@ -16812,6 +16812,20 @@
                         ],
                         "title": "Enforce Parameter Schema",
                         "description": "Whether or not the deployment should enforce the parameter schema."
+                    },
+                    "pull_steps": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Pull Steps"
                     }
                 },
                 "additionalProperties": false,

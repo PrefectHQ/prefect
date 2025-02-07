@@ -27,7 +27,7 @@ from prefect.cli.deploy import (
     _initialize_deployment_triggers,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
-from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.actions import DeploymentScheduleCreate, WorkPoolCreate
 from prefect.client.schemas.objects import Worker, WorkerStatus, WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -2912,6 +2912,78 @@ class TestSchedules:
         assert deployment_schedule.active is False
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_does_not_activate_schedule_outside_of_yaml(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # Create a deployment with a schedule that is not active
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 4 * * *",
+                "timezone": "America/Chicago",
+                "active": False,
+                "slug": "test-yaml-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        deployment_schedule = deployment.schedules[0]
+        assert deployment_schedule.active is False
+        assert deployment_schedule.schedule.cron == "0 4 * * *"
+        assert deployment_schedule.schedule.timezone == "America/Chicago"
+
+        # Create another schedule outside of the yaml
+        # Using the https client directly because the PrefectClient does not support
+        # creating schedules with slugs
+        await prefect_client._client.post(
+            f"/deployments/{deployment.id}/schedules",
+            json=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"),
+                    active=False,
+                    slug="test-client-slug",
+                ).model_dump(mode="json"),
+            ],
+        )
+
+        deploy_config["deployments"][0]["schedules"][0]["active"] = True
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert len(deployment.schedules) == 2
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].active is False
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(

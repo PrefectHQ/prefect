@@ -45,7 +45,7 @@ from prefect.cli._utilities import (
 from prefect.cli.root import app, is_interactive
 from prefect.client.base import ServerType
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
 from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
@@ -732,27 +732,82 @@ async def _run_single_deploy(
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
 
-    deployment_id = await client.create_deployment(
-        flow_id=flow_id,
-        name=deploy_config.get("name"),
-        work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
-        work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
-        version=deploy_config.get("version"),
-        schedules=deploy_config.get("schedules"),
-        paused=deploy_config.get("paused"),
-        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", True),
-        parameter_openapi_schema=deploy_config.get(
-            "parameter_openapi_schema"
-        ).model_dump_for_openapi(),
-        parameters=deploy_config.get("parameters"),
-        description=deploy_config.get("description"),
-        tags=deploy_config.get("tags", []),
-        concurrency_limit=deploy_config.get("concurrency_limit"),
-        concurrency_options=deploy_config.get("concurrency_options"),
-        entrypoint=deploy_config.get("entrypoint"),
-        pull_steps=pull_steps,
-        job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
-    )
+    try:
+        existing_deployment = await client.read_deployment_by_name(
+            name=f"{deploy_config.get('flow_name')}/{deploy_config.get('name')}"
+        )
+    except ObjectNotFound:
+        existing_deployment = None
+
+    if existing_deployment:
+        deployment_id = existing_deployment.id
+        update = DeploymentUpdate(pull_steps=pull_steps)
+        if (
+            get_from_dict(deploy_config, "work_pool.work_queue_name", NotSet)
+            is not NotSet
+        ):
+            update.work_pool_name = get_from_dict(deploy_config, "work_pool.name")
+        if get_from_dict(deploy_config, "work_pool.name", NotSet) is not NotSet:
+            update.work_queue_name = get_from_dict(
+                deploy_config, "work_pool.work_queue_name"
+            )
+        if deploy_config.get("version", NotSet) is not NotSet:
+            update.version = deploy_config.get("version")
+        if deploy_config.get("schedules", NotSet) is not NotSet:
+            update.schedules = deploy_config.get("schedules")
+        if deploy_config.get("paused", NotSet) is not NotSet:
+            update.paused = deploy_config.get("paused")
+        if deploy_config.get("enforce_parameter_schema", NotSet) is not NotSet:
+            update.enforce_parameter_schema = deploy_config.get(
+                "enforce_parameter_schema"
+            )
+        if deploy_config.get("parameter_openapi_schema", NotSet) is not NotSet:
+            update.parameter_openapi_schema = deploy_config.get(
+                "parameter_openapi_schema"
+            ).model_dump_for_openapi()
+        if deploy_config.get("parameters", NotSet) is not NotSet:
+            update.parameters = deploy_config.get("parameters")
+        if deploy_config.get("description", NotSet) is not NotSet:
+            update.description = deploy_config.get("description")
+        if deploy_config.get("tags", NotSet) is not NotSet:
+            update.tags = deploy_config.get("tags")
+        if deploy_config.get("concurrency_limit", NotSet) is not NotSet:
+            update.concurrency_limit = deploy_config.get("concurrency_limit")
+        if deploy_config.get("concurrency_options", NotSet) is not NotSet:
+            update.concurrency_options = deploy_config.get("concurrency_options")
+        if deploy_config.get("entrypoint", NotSet) is not NotSet:
+            update.entrypoint = deploy_config.get("entrypoint")
+        if (
+            get_from_dict(deploy_config, "work_pool.job_variables", NotSet)
+            is not NotSet
+        ):
+            update.job_variables = deploy_config.get("job_variables")
+
+        await client.update_deployment(deployment_id=deployment_id, deployment=update)
+    else:
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=deploy_config.get("name"),
+            work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
+            work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
+            version=deploy_config.get("version"),
+            schedules=deploy_config.get("schedules"),
+            paused=deploy_config.get("paused"),
+            enforce_parameter_schema=deploy_config.get(
+                "enforce_parameter_schema", True
+            ),
+            parameter_openapi_schema=deploy_config.get(
+                "parameter_openapi_schema"
+            ).model_dump_for_openapi(),
+            parameters=deploy_config.get("parameters"),
+            description=deploy_config.get("description"),
+            tags=deploy_config.get("tags", []),
+            concurrency_limit=deploy_config.get("concurrency_limit"),
+            concurrency_options=deploy_config.get("concurrency_options"),
+            entrypoint=deploy_config.get("entrypoint"),
+            pull_steps=pull_steps,
+            job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
+        )
 
     await _create_deployment_triggers(client, deployment_id, triggers)
 
