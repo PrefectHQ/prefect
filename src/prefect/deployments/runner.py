@@ -84,6 +84,7 @@ from prefect.settings import (
 )
 from prefect.types import ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
@@ -249,6 +250,11 @@ class RunnerDeployment(BaseModel):
             if trigger.name is None:
                 trigger.name = f"{self.name}__automation_{i}"
         return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def exclude_notset_values(cls, values):
+        return {name: value for name, value in values.items() if value != NotSet}
 
     @model_validator(mode="before")
     @classmethod
