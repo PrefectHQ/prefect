@@ -320,9 +320,14 @@ class RunnerDeployment(BaseModel):
                 if image:
                     create_payload["job_variables"]["image"] = image
                 create_payload["path"] = None if self.storage else self._path
-                create_payload["pull_steps"] = (
-                    [self.storage.to_pull_step()] if self.storage else []
-                )
+                if self.storage:
+                    pull_steps = self.storage.to_pull_step()
+                    if isinstance(pull_steps, list):
+                        create_payload["pull_steps"] = pull_steps
+                    else:
+                        create_payload["pull_steps"] = [pull_steps]
+                else:
+                    create_payload["pull_steps"] = []
 
             try:
                 deployment_id = await client.create_deployment(**create_payload)
@@ -389,12 +394,14 @@ class RunnerDeployment(BaseModel):
                 deployment = await client.read_deployment_by_name(self.full_name)
             except ObjectNotFound:
                 return await self._create(work_pool_name, image)
-            if TYPE_CHECKING:
-                assert deployment is not None
             await client.update_deployment(
                 deployment.id,
                 deployment=DeploymentUpdate(
-                    **self.model_dump(mode="json", exclude_unset=True)
+                    **self.model_dump(
+                        mode="json",
+                        exclude_unset=True,
+                        exclude={"storage", "name", "flow_name", "triggers"},
+                    )
                 ),
             )
             return deployment.id

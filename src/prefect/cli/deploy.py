@@ -64,7 +64,6 @@ from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.flows import load_flow_from_entrypoint
-from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -92,7 +91,7 @@ DeploymentTriggerAdapter: TypeAdapter[DeploymentTriggerTypes] = TypeAdapter(
 SlaAdapter: TypeAdapter[SlaTypes] = TypeAdapter(SlaTypes)
 
 
-class _PullStepStorage(RunnerStorage):
+class _PullStepStorage:
     """
     A shim storage class that allows passing pull steps to a `RunnerDeployment`.
     """
@@ -119,7 +118,7 @@ class _PullStepStorage(RunnerStorage):
         return self.pull_steps
 
     def __eq__(self, other: Any) -> bool:
-        return self.pull_steps == other.pull_steps
+        return self.pull_steps == getattr(other, "pull_steps", None)
 
 
 @app.command()
@@ -766,23 +765,21 @@ async def _run_single_deploy(
     deployment = RunnerDeployment(
         name=deploy_config["name"],
         flow_name=deploy_config.get("flow_name"),
-        entrypoint=deploy_config.get("entrypoint", NotSet),
-        work_pool_name=get_from_dict(deploy_config, "work_pool.name", NotSet),
-        work_queue_name=get_from_dict(
-            deploy_config, "work_pool.work_queue_name", NotSet
-        ),
-        parameters=deploy_config.get("parameters", NotSet),
-        description=deploy_config.get("description", NotSet),
-        version=deploy_config.get("version", NotSet),
-        tags=deploy_config.get("tags", NotSet),
-        concurrency_limit=deploy_config.get("concurrency_limit", NotSet),
-        concurrency_options=deploy_config.get("concurrency_options", NotSet),
-        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", NotSet),
-        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema", NotSet),
-        schedules=deploy_config.get("schedules", NotSet),
-        paused=deploy_config.get("paused", NotSet),
+        entrypoint=deploy_config.get("entrypoint"),
+        work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
+        work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
+        parameters=deploy_config.get("parameters"),
+        description=deploy_config.get("description"),
+        version=deploy_config.get("version"),
+        tags=deploy_config.get("tags"),
+        concurrency_limit=deploy_config.get("concurrency_limit"),
+        concurrency_options=deploy_config.get("concurrency_options"),
+        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", True),
+        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema"),
+        schedules=deploy_config.get("schedules"),
+        paused=deploy_config.get("paused"),
         storage=_PullStepStorage(pull_steps),
-        job_variables=get_from_dict(deploy_config, "work_pool.job_variables", NotSet),
+        job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
 
     apply_coro = deployment.apply()

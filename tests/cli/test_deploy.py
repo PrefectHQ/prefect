@@ -2982,8 +2982,11 @@ class TestSchedules:
         )
 
         assert len(deployment.schedules) == 2
-        assert deployment.schedules[0].active is True
-        assert deployment.schedules[1].active is False
+        expected_slug_active = {("test-yaml-slug", True), ("test-client-slug", False)}
+        actual_slug_active = {
+            (schedule.slug, schedule.active) for schedule in deployment.schedules
+        }
+        assert actual_slug_active == expected_slug_active
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(
