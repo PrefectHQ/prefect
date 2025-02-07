@@ -4403,9 +4403,14 @@ class TestFlowServe:
                 Interval(
                     3600,
                     parameters={"number": 42},
+                    slug="test-interval-schedule",
                 ),
-                Cron("* * * * *", parameters={"number": 42}),
-                RRule("FREQ=MINUTELY", parameters={"number": 42}),
+                Cron("* * * * *", parameters={"number": 42}, slug="test-cron-schedule"),
+                RRule(
+                    "FREQ=MINUTELY",
+                    parameters={"number": 42},
+                    slug="test-rrule-schedule",
+                ),
             ],
         )
 
@@ -4418,6 +4423,14 @@ class TestFlowServe:
 
         assert all(parameters == {"number": 42} for parameters in all_parameters)
 
+        expected_slugs = {
+            "test-interval-schedule",
+            "test-cron-schedule",
+            "test-rrule-schedule",
+        }
+        actual_slugs = {schedule.slug for schedule in deployment.schedules}
+        assert actual_slugs == expected_slugs
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -4427,6 +4440,14 @@ class TestFlowServe:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
+                    {
+                        "schedules": [
+                            Interval(3600, slug="test-interval-schedule"),
+                            Cron("* * * * *", slug="test-cron-schedule"),
+                            RRule("FREQ=MINUTELY", slug="test-rrule-schedule"),
+                        ]
+                    },
+                    {"schedule": Interval(3600, slug="test-interval-schedule")},
                 ],
                 2,
             )

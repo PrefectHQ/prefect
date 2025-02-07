@@ -116,7 +116,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
     )
     slug: Optional[str] = Field(
         default=None,
-        description="A unique slug for the schedule.",
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -146,7 +146,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
     slug: Optional[str] = Field(
         default=None,
-        description="A unique slug for the schedule.",
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -192,6 +192,7 @@ class DeploymentCreate(ActionBaseModel):
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
+        json_schema_extra={"additionalProperties": True},
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -281,7 +282,7 @@ class DeploymentUpdate(ActionBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: List[DeploymentScheduleUpdate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -294,6 +295,10 @@ class DeploymentUpdate(ActionBaseModel):
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
+    )
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The parameter schema of the flow, including defaults.",
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -311,6 +316,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Overrides for the flow's infrastructure configuration.",
     )
+    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
     entrypoint: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)

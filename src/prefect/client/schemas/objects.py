@@ -49,6 +49,7 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
@@ -63,11 +64,6 @@ from prefect.types._datetime import DateTime
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
-
-if TYPE_CHECKING:
-    from prefect.client.schemas.actions import StateCreate
-    from prefect.results import ResultRecordMetadata
-
 
 R = TypeVar("R", default=Any)
 
@@ -326,33 +322,6 @@ class State(ObjectBaseModel, Generic[R]):
             raise_on_failure=raise_on_failure,
             fetch=fetch,
             retry_result_failure=retry_result_failure,
-        )
-
-    def to_state_create(self) -> "StateCreate":
-        """
-        Convert this state to a `StateCreate` type which can be used to set the state of
-        a run in the API.
-
-        This method will drop this state's `data` if it is not a result type. Only
-        results should be sent to the API. Other data is only available locally.
-        """
-        from prefect.client.schemas.actions import StateCreate
-        from prefect.results import (
-            ResultRecord,
-            should_persist_result,
-        )
-
-        if isinstance(self.data, ResultRecord) and should_persist_result():
-            data = self.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
-        else:
-            data = None
-
-        return StateCreate(
-            type=self.type,
-            name=self.name,
-            message=self.message,
-            data=data,
-            state_details=self.state_details,
         )
 
     @model_validator(mode="after")
@@ -1097,6 +1066,10 @@ class DeploymentSchedule(ObjectBaseModel):
     parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameter overrides for the schedule.",
+    )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
     )
 
 

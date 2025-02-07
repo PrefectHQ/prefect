@@ -1,11 +1,15 @@
 import type { components } from "@/api/prefect";
 import { createFakeFlowRun } from "@/mocks";
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { buildListFlowRunsQuery } from ".";
+import {
+	buildListFlowRunsQuery,
+	queryKeyFactory,
+	useDeploymentCreateFlowRun,
+} from ".";
 
 type FlowRun = components["schemas"]["FlowRun"];
 
@@ -14,6 +18,13 @@ describe("flow runs api", () => {
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), () => {
 				return HttpResponse.json(flowRuns);
+			}),
+		);
+	};
+	const mockCreateDeploymentFlowRunAPI = (flowRun: FlowRun) => {
+		server.use(
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				return HttpResponse.json(flowRun);
 			}),
 		);
 	};
@@ -70,6 +81,56 @@ describe("flow runs api", () => {
 			);
 
 			expect(refetchInterval).toBe(customRefetchInterval);
+		});
+	});
+	describe("useDeploymentCreateFlowRun", () => {
+		it("invalidates cache and fetches updated value", async () => {
+			const FILTER = {
+				sort: "ID_DESC",
+				offset: 0,
+			} as const;
+			const queryClient = new QueryClient();
+			const EXISTING_CACHE = [createFakeFlowRun(), createFakeFlowRun()];
+			const MOCK_NEW_DATA_ID = "2";
+			const NEW_FLOW_RUN_DATA = createFakeFlowRun({ id: MOCK_NEW_DATA_ID });
+
+			// ------------ Mock API requests after queries are invalidated
+			const mockData = [NEW_FLOW_RUN_DATA, ...EXISTING_CACHE];
+			mockCreateDeploymentFlowRunAPI(NEW_FLOW_RUN_DATA);
+			mockFetchFlowRunsAPI(mockData);
+
+			// ------------ Initialize cache
+			queryClient.setQueryData(queryKeyFactory.list(FILTER), EXISTING_CACHE);
+
+			// ------------ Initialize hooks to test
+			const { result: useDeploymentCreateFlowRunResult } = renderHook(
+				useDeploymentCreateFlowRun,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useListFlowRunsResult } = renderHook(
+				() => useSuspenseQuery(buildListFlowRunsQuery(FILTER)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			// ------------ Invoke mutation
+			act(() =>
+				useDeploymentCreateFlowRunResult.current.createDeploymentFlowRun({
+					id: MOCK_NEW_DATA_ID,
+				}),
+			);
+
+			// ------------ Assert
+			await waitFor(() =>
+				expect(useDeploymentCreateFlowRunResult.current.isSuccess).toBe(true),
+			);
+
+			expect(useListFlowRunsResult.current.data).toHaveLength(3);
+
+			const newFlowRun = useListFlowRunsResult.current.data?.find(
+				(flowRun) => flowRun.id === MOCK_NEW_DATA_ID,
+			);
+			expect(newFlowRun).toMatchObject(NEW_FLOW_RUN_DATA);
 		});
 	});
 });
