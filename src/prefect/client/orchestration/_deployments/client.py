@@ -165,7 +165,7 @@ class DeploymentClient(BaseClient):
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
-            json=deployment.model_dump(mode="json", exclude_unset=True, exclude={"name", "flow_name"}),
+            json=deployment.model_dump(mode="json", exclude_unset=True, exclude={"name", "flow_name", "triggers"}),
         )
 
     def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> "UUID":
@@ -708,7 +708,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
-            json=deployment.model_dump(mode="json", exclude_unset=True),
+            json=deployment.model_dump(mode="json", exclude_unset=True, exclude={"name", "flow_name", "triggers"}),
         )
 
     async def _create_deployment_from_schema(
