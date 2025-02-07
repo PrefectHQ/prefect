@@ -388,9 +388,14 @@ class RunnerDeployment(BaseModel):
                 deployment = await client.read_deployment_by_name(self.full_name)
             except ObjectNotFound:
                 return await self._create(work_pool_name, image)
+
+            parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                exclude_unset=True
+            )
             await client.update_deployment(
                 deployment.id,
                 deployment=DeploymentUpdate(
+                    parameter_openapi_schema=parameter_openapi_schema,
                     **self.model_dump(
                         mode="json",
                         exclude_unset=True,
