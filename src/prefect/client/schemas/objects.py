@@ -1098,6 +1098,10 @@ class DeploymentSchedule(ObjectBaseModel):
         default_factory=dict,
         description="Parameter overrides for the schedule.",
     )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
+    )
 
 
 class Deployment(ObjectBaseModel):
