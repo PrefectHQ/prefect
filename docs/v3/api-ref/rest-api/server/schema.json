@@ -14328,12 +14328,10 @@
             "Body_validate_obj_ui_schemas_validate_post": {
                 "properties": {
                     "json_schema": {
-                        "type": "object",
-                        "title": "Json Schema"
+                        "$ref": "#/components/schemas/DynamicObject"
                     },
                     "values": {
-                        "type": "object",
-                        "title": "Values"
+                        "$ref": "#/components/schemas/DynamicObject"
                     }
                 },
                 "type": "object",
@@ -16803,6 +16801,12 @@
                 "type": "object",
                 "title": "DoNothing",
                 "description": "Do nothing when an Automation is triggered"
+            },
+            "DynamicObject": {
+                "properties": {},
+                "additionalProperties": true,
+                "type": "object",
+                "title": "DynamicObject"
             },
             "Edge": {
                 "properties": {
