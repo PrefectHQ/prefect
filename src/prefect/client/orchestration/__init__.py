@@ -808,7 +808,7 @@ class PrefectClient(
                 retry_delay=retry_delay,
                 retry_jitter_factor=task.retry_jitter_factor,
             ),
-            state=state.to_state_create(),
+            state=prefect.states.to_state_create(state),
             task_inputs=task_inputs or {},
         )
         content = task_run_data.model_dump_json(exclude={"id"} if id is None else None)
@@ -919,7 +919,7 @@ class PrefectClient(
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
-        state_create = state.to_state_create()
+        state_create = prefect.states.to_state_create(state)
         state_create.state_details.task_run_id = task_run_id
         response = await self._client.post(
             f"/task_runs/{task_run_id}/set_state",
@@ -1586,7 +1586,7 @@ class SyncPrefectClient(
                 retry_delay=retry_delay,
                 retry_jitter_factor=task.retry_jitter_factor,
             ),
-            state=state.to_state_create(),
+            state=prefect.states.to_state_create(state),
             task_inputs=task_inputs or {},
         )
 
@@ -1680,7 +1680,7 @@ class SyncPrefectClient(
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
-        state_create = state.to_state_create()
+        state_create = prefect.states.to_state_create(state)
         state_create.state_details.task_run_id = task_run_id
         response = self._client.post(
             f"/task_runs/{task_run_id}/set_state",
