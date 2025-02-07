@@ -1818,6 +1818,35 @@ class TestUpdateDeployment:
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.json()["parameters"] == {"x": value}
 
+    async def test_update_deployment_can_update_pull_steps(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        update_data = DeploymentUpdate(pull_steps=[{"test": "foobar"}]).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["pull_steps"] == [dict(test="foobar")]
+
+        # Now remove the pull_steps
+        update_data = DeploymentUpdate(pull_steps=[]).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["pull_steps"] == []
+
     async def test_update_deployment_can_remove_schedules(
         self,
         client,
