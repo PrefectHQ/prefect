@@ -1,0 +1,247 @@
+---
+title: " "
+sidebarTitle: prefect main profiles
+---
+
+
+# `prefect main profiles`
+
+
+
+```command
+prefect main profiles [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Select and manage Prefect profiles.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect main profiles ls`
+
+
+
+```command
+prefect main profiles ls [OPTIONS]
+```
+
+
+
+<Info>
+List profile names.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect main profiles create`
+
+
+
+```command
+prefect main profiles create [OPTIONS] NAME
+```
+
+
+
+<Info>
+Create a new profile.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--from">
+    Copy an existing profile.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect main profiles use`
+
+
+
+```command
+prefect main profiles use [OPTIONS] NAME
+```
+
+
+
+<Info>
+Set the given profile to active.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main profiles delete`
+
+
+
+```command
+prefect main profiles delete [OPTIONS] NAME
+```
+
+
+
+<Info>
+Delete the given profile.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main profiles rename`
+
+
+
+```command
+prefect main profiles rename [OPTIONS] NAME NEW_NAME
+```
+
+
+
+<Info>
+Change the name of a profile.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+<ResponseField name="NEW_NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main profiles inspect`
+
+
+
+```command
+prefect main profiles inspect [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Display settings from a given profile; defaults to active.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    Name of profile to inspect; defaults to active profile.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main profiles populate-defaults`
+
+
+
+```command
+prefect main profiles populate-defaults [OPTIONS]
+```
+
+
+
+<Info>
+Populate the profiles configuration with default base profiles, preserving existing user profiles.
+</Info>
+
+
+
+
+

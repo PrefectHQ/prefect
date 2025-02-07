@@ -724,6 +724,36 @@
             }
           ],
           "version": "v3"
+        },
+        {
+          "group": "CLI Reference",
+          
+          "pages": [
+            "v3/api-ref/cli/artifact",
+            "v3/api-ref/cli/automation",
+            "v3/api-ref/cli/block",
+            "v3/api-ref/cli/concurrency-limit",
+            "v3/api-ref/cli/config",
+            "v3/api-ref/cli/dashboard",
+            "v3/api-ref/cli/deployment",
+            "v3/api-ref/cli/dev",
+            "v3/api-ref/cli/event",
+            "v3/api-ref/cli/flow-run",
+            "v3/api-ref/cli/flow",
+            "v3/api-ref/cli/global-concurrency-limit",
+            "v3/api-ref/cli/init",
+            "v3/api-ref/cli/profile",
+            "v3/api-ref/cli/profiles",
+            "v3/api-ref/cli/server",
+            "v3/api-ref/cli/shell",
+            "v3/api-ref/cli/task-run",
+            "v3/api-ref/cli/task",
+            "v3/api-ref/cli/variable",
+            "v3/api-ref/cli/version",
+            "v3/api-ref/cli/work-pool",
+            "v3/api-ref/cli/work-queue",
+            "v3/api-ref/cli/worker"
+          ]
         }
       ],
       "version": "v3"

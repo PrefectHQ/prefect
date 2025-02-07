@@ -1,0 +1,247 @@
+---
+title: " "
+sidebarTitle: prefect main variable
+---
+
+
+# `prefect main variable`
+
+
+
+```command
+prefect main variable [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage variables.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect main variable ls`
+
+
+
+```command
+prefect main variable ls [OPTIONS]
+```
+
+
+
+<Info>
+List variables.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--limit">
+    The maximum number of variables to return.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect main variable inspect`
+
+
+
+```command
+prefect main variable inspect [OPTIONS] NAME
+```
+
+
+
+<Info>
+View details about a variable.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main variable get`
+
+
+
+```command
+prefect main variable get [OPTIONS] NAME
+```
+
+
+
+<Info>
+Get a variable's value.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main variable set`
+
+
+
+```command
+prefect main variable set [OPTIONS] NAME VALUE
+```
+
+
+
+<Info>
+Set a variable.
+
+If the variable already exists, use \`--overwrite\` to update it.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+<ResponseField name="VALUE" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--overwrite">
+    Overwrite the variable if it already exists.
+</ResponseField>
+
+<ResponseField name="--tag">
+    Tag to associate with the variable.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect main variable unset`
+
+
+
+```command
+prefect main variable unset [OPTIONS] NAME
+```
+
+
+
+<Info>
+Unset a variable.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect main variable delete`
+
+
+
+```command
+prefect main variable delete [OPTIONS] NAME
+```
+
+
+
+<Info>
+Unset a variable.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
