@@ -3,6 +3,8 @@ Functions for interacting with deployment ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from __future__ import annotations
+
 import datetime
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
@@ -155,6 +157,7 @@ async def create_deployment(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
                     parameters=schedule.parameters,
+                    slug=schedule.slug,
                 )
                 for schedule in schedules
             ],
@@ -272,6 +275,8 @@ async def update_deployment(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
+                    parameters=schedule.parameters,
+                    slug=schedule.slug,
                 )
                 for schedule in schedules
             ],
@@ -952,8 +957,9 @@ async def update_deployment_schedule(
     db: PrefectDBInterface,
     session: AsyncSession,
     deployment_id: UUID,
-    deployment_schedule_id: UUID,
     schedule: schemas.actions.DeploymentScheduleUpdate,
+    deployment_schedule_id: UUID | None = None,
+    deployment_schedule_slug: str | None = None,
 ) -> bool:
     """
     Updates a deployment's schedules.
@@ -963,17 +969,32 @@ async def update_deployment_schedule(
         deployment_schedule_id: a deployment schedule id
         schedule: a deployment schedule update action
     """
-
-    result = await session.execute(
-        sa.update(db.DeploymentSchedule)
-        .where(
-            sa.and_(
-                db.DeploymentSchedule.id == deployment_schedule_id,
-                db.DeploymentSchedule.deployment_id == deployment_id,
+    if deployment_schedule_id:
+        result = await session.execute(
+            sa.update(db.DeploymentSchedule)
+            .where(
+                sa.and_(
+                    db.DeploymentSchedule.id == deployment_schedule_id,
+                    db.DeploymentSchedule.deployment_id == deployment_id,
+                )
             )
+            .values(**schedule.model_dump(exclude_none=True))
         )
-        .values(**schedule.model_dump(exclude_none=True))
-    )
+    elif deployment_schedule_slug:
+        result = await session.execute(
+            sa.update(db.DeploymentSchedule)
+            .where(
+                sa.and_(
+                    db.DeploymentSchedule.slug == deployment_schedule_slug,
+                    db.DeploymentSchedule.deployment_id == deployment_id,
+                )
+            )
+            .values(**schedule.model_dump(exclude_none=True))
+        )
+    else:
+        raise ValueError(
+            "Either deployment_schedule_id or deployment_schedule_slug must be provided"
+        )
 
     return result.rowcount > 0
 
