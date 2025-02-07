@@ -24,7 +24,6 @@ export const TimelineRow = ({ artifact }: TimelineRowProps) => {
 			</div>
 			<div className="w-10 flex flex-col">
 				<div className="w-5 h-full border-r border-gray-200">
-					{/* <div style={{ width: "15px", height: "15px", borderRadius: '50%', backgroundColor: 'gray', margin: '20px calc(50% + 2px)' }}> */}
 					<div
 						className="w-4 h-4 rounded-full bg-white my-5 mx-auto border-2"
 						style={{ margin: "20px calc(50% + 2px)" }}
