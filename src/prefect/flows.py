@@ -2097,7 +2097,7 @@ def load_function_and_convert_to_flow(entrypoint: str) -> Flow[P, Any]:
             f"Function with name {func_name!r} not found in {path!r}. "
         ) from exc
 
-    if not isinstance(func, Flow):
+    if isinstance(func, Flow):
         return func
     else:
         return Flow(func, log_prints=True)
