@@ -1518,6 +1518,8 @@ def run_flow(
             ret_val = run_flow_async(**kwargs)
         else:
             ret_val = run_flow_sync(**kwargs)
+    except (Abort, Pause):
+        raise
     except:
         if error_logger:
             error_logger.error(
@@ -1597,20 +1599,18 @@ def run_flow_in_subprocess(
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
                     asyncio.run(maybe_coro)
-            except Abort as abort_signal:
-                abort_signal: Abort
+            except Abort:
                 if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator: {abort_signal}"
+                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator."
                 else:
-                    msg = f"Execution aborted by orchestrator: {abort_signal}"
+                    msg = "Execution aborted by orchestrator."
                 engine_logger.info(msg)
                 exit(0)
-            except Pause as pause_signal:
-                pause_signal: Pause
+            except Pause:
                 if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' is paused: {pause_signal}"
+                    msg = f"Execution of flow run '{flow_run.id}' is paused."
                 else:
-                    msg = f"Execution is paused: {pause_signal}"
+                    msg = "Execution is paused."
                 engine_logger.info(msg)
                 exit(0)
             except Exception:
