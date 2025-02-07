@@ -49,6 +49,7 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.result_records import ResultRecordMetadata
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
@@ -62,10 +63,6 @@ from prefect.types._datetime import DateTime
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
-
-if TYPE_CHECKING:
-    from prefect.result_records import ResultRecordMetadata
-
 
 R = TypeVar("R", default=Any)
 
