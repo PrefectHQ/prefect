@@ -97,10 +97,10 @@ async def _get_state_result_data_with_retries(
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
-    from prefect.results import (
-        ResultRecord,
+    from prefect._result_records import (
         ResultRecordMetadata,
     )
+    from prefect.results import ResultStore
 
     if retry_result_failure is False:
         max_attempts = 1
@@ -110,7 +110,7 @@ async def _get_state_result_data_with_retries(
     for i in range(1, max_attempts + 1):
         try:
             if isinstance(state.data, ResultRecordMetadata):
-                record = await ResultRecord._from_metadata(state.data)
+                record = await ResultStore._from_metadata(state.data)
                 return record.result
             else:
                 return await state.data.get()
@@ -462,10 +462,11 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect.results import (
+    from prefect._result_records import (
         ResultRecord,
         ResultRecordMetadata,
     )
+    from prefect.results import ResultStore
 
     if state.is_failed():
         wrapper = FailedRun
@@ -482,7 +483,7 @@ async def get_state_exception(state: State) -> BaseException:
     if isinstance(state.data, ResultRecord):
         result = state.data.result
     elif isinstance(state.data, ResultRecordMetadata):
-        record = await ResultRecord._from_metadata(state.data)
+        record = await ResultStore._from_metadata(state.data)
         result = record.result
     elif state.data is None:
         result = None

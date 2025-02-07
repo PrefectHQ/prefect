@@ -892,7 +892,9 @@ class TestResultStoreEmitsEvents:
         filesystem = LocalFileSystem(basepath=tmp_path)
         result_store = ResultStore(result_storage=filesystem)
 
-        with mock.patch("prefect.results.emit_result_write_event") as mock_emit:
+        with mock.patch(
+            "prefect._experimental.lineage.emit_result_write_event"
+        ) as mock_emit:
             await result_store.awrite(key="test", obj="test")
             resolved_key_path = result_store._resolved_key_path("test")
             mock_emit.assert_called_once_with(result_store, resolved_key_path)
@@ -906,7 +908,9 @@ class TestResultStoreEmitsEvents:
         # without the store's in-memory cache.
         other_result_store = ResultStore(result_storage=filesystem)
 
-        with mock.patch("prefect.results.emit_result_read_event") as mock_emit:
+        with mock.patch(
+            "prefect._experimental.lineage.emit_result_read_event"
+        ) as mock_emit:
             await other_result_store.aread(key="test")
             resolved_key_path = other_result_store._resolved_key_path("test")
             mock_emit.assert_called_once_with(other_result_store, resolved_key_path)
@@ -919,7 +923,9 @@ class TestResultStoreEmitsEvents:
         )
         await result_store.awrite(key="test", obj="test")
 
-        with mock.patch("prefect.results.emit_result_read_event") as mock_emit:
+        with mock.patch(
+            "prefect._experimental.lineage.emit_result_read_event"
+        ) as mock_emit:
             await result_store.aread(key="test")  # cached read
             resolved_key_path = result_store._resolved_key_path("test")
             mock_emit.assert_called_once_with(
