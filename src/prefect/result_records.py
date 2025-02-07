@@ -158,37 +158,6 @@ class ResultRecord(BaseModel, Generic[R]):
                 value["metadata"]["prefect_version"] = value.pop("prefect_version")
         return value
 
-    @classmethod
-    async def _from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":
-        """
-        Create a result record from metadata.
-
-        Will use the result record metadata to fetch data via a result store.
-
-        Args:
-            metadata: The metadata to create the result record from.
-
-        Returns:
-            ResultRecord: The result record.
-        """
-        # TODO: remove uses of this method; I dont think objects should have classmethods
-        # that elevate them richer versions of themselves
-        from prefect.results import ResultStore, aresolve_result_storage
-
-        if metadata.storage_block_id is None:
-            storage_block = None
-        else:
-            storage_block = await aresolve_result_storage(metadata.storage_block_id)
-        store = ResultStore(
-            result_storage=storage_block, serializer=metadata.serializer
-        )
-        if metadata.storage_key is None:
-            raise ValueError(
-                "storage_key is required to hydrate a result record from metadata"
-            )
-        result = await store.aread(metadata.storage_key)
-        return result
-
     def serialize_metadata(self) -> bytes:
         return self.metadata.dump_bytes()
 

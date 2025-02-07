@@ -38,7 +38,7 @@ class TestResultRecord:
         result_record = store.create_result_record("The results are in...", "the-key")
         await store.apersist_result_record(result_record)
 
-        loaded = await ResultRecord._from_metadata(result_record.metadata)
+        loaded = await ResultStore._from_metadata(result_record.metadata)
         assert loaded.result == "The results are in..."
 
     async def test_from_metadata_with_raw_result(self):
@@ -49,7 +49,7 @@ class TestResultRecord:
         result_record = store.create_result_record("The results are in...", "the-key")
         await store.apersist_result_record(result_record)
 
-        loaded = await ResultRecord._from_metadata(result_record.metadata)
+        loaded = await ResultStore._from_metadata(result_record.metadata)
         assert loaded.result == "The results are in..."
 
         # assert that the raw result was persisted without metadata
