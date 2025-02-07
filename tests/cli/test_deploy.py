@@ -2368,6 +2368,7 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
+        deploy_config["deployments"][0]["schedule"]["slug"] = "test-slug"
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2387,6 +2388,7 @@ class TestSchedules:
         assert schedule.cron == "0 4 * * *"
         assert schedule.timezone == "America/Chicago"
         assert deployment.schedules[0].parameters == {"number": 42}
+        assert deployment.schedules[0].slug == "test-slug"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deployment_yaml_cron_schedule_timezone_cli(
@@ -2456,6 +2458,7 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
+        deploy_config["deployments"][0]["schedule"]["slug"] = "test-slug"
 
         with prefect_yaml.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2477,6 +2480,7 @@ class TestSchedules:
         assert schedule.anchor_date == pendulum.parse("2040-02-02")
         assert schedule.timezone == "America/Chicago"
         assert deployment.schedules[0].parameters == {"number": 42}
+        assert deployment.schedules[0].slug == "test-slug"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
@@ -2515,6 +2519,7 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
+        deploy_config["deployments"][0]["schedule"]["slug"] = "test-slug"
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2536,6 +2541,7 @@ class TestSchedules:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
         assert deployment.schedules[0].parameters == {"number": 42}
+        assert deployment.schedules[0].slug == "test-slug"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_command(

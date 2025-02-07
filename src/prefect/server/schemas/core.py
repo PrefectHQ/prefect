@@ -741,7 +741,9 @@ class BlockSchema(ORMBaseModel):
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
     fields: Dict[str, Any] = Field(
-        default_factory=dict, description="The block schema's field schema"
+        default_factory=dict,
+        description="The block schema's field schema",
+        json_schema_extra={"additionalProperties": True},
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
