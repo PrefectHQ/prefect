@@ -1,0 +1,156 @@
+---
+title: " "
+sidebarTitle: prefect shell
+---
+
+# `prefect shell`
+
+
+
+```command
+prefect shell [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Serve and watch shell commands as Prefect flows.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect shell watch`
+
+
+
+```command
+prefect shell watch [OPTIONS] COMMAND
+```
+
+
+
+<Info>
+Executes a shell command and observes it as Prefect flow.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="COMMAND" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--log-output">
+    Log the output of the command to Prefect logs.
+</ResponseField>
+
+<ResponseField name="--flow-run-name">
+    Name of the flow run.
+</ResponseField>
+
+<ResponseField name="--flow-name">
+    Name of the flow.
+</ResponseField>
+
+<ResponseField name="--stream-stdout">
+    Stream the output of the command.
+</ResponseField>
+
+<ResponseField name="--tag">
+    Optional tags for the flow run.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect shell serve`
+
+
+
+```command
+prefect shell serve [OPTIONS] COMMAND
+```
+
+
+
+<Info>
+Creates and serves a Prefect deployment that runs a specified shell command according to a cron schedule or ad hoc.
+
+This function allows users to integrate shell command execution into Prefect workflows seamlessly. It provides options for
+scheduled execution via cron expressions, flow and deployment naming for better management, and the application of tags for
+easier categorization and filtering within the Prefect UI. Additionally, it supports streaming command output to Prefect logs,
+setting concurrency limits to control flow execution, and optionally running the deployment once for ad-hoc tasks.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="COMMAND" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--flow-name">
+    Name of the flow
+</ResponseField>
+
+<ResponseField name="--deployment-name">
+    Name of the deployment
+</ResponseField>
+
+<ResponseField name="--tag">
+    Tag for the deployment (can be provided multiple times)
+</ResponseField>
+
+<ResponseField name="--stream-stdout">
+    Stream the output of the command
+</ResponseField>
+
+<ResponseField name="--cron-schedule">
+    Cron schedule for the flow
+</ResponseField>
+
+<ResponseField name="--timezone">
+    Timezone for the schedule
+</ResponseField>
+
+<ResponseField name="--concurrency-limit">
+    The maximum number of flow runs that can execute at the same time
+</ResponseField>
+
+<ResponseField name="--run-once">
+    Run the agent loop once, instead of forever.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

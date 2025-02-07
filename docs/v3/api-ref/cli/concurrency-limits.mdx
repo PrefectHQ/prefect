@@ -1,0 +1,206 @@
+---
+title: " "
+sidebarTitle: prefect concurrency-limits
+---
+
+# `prefect concurrency-limits`
+
+
+
+```command
+prefect concurrency-limits [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage task-level concurrency limits.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect concurrency-limits create`
+
+
+
+```command
+prefect concurrency-limits create [OPTIONS] TAG CONCURRENCY_LIMIT
+```
+
+
+
+<Info>
+Create a concurrency limit against a tag.
+
+This limit controls how many task runs with that tag may simultaneously be in a
+Running state.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="TAG" type="string" required>
+    \[required]
+</ResponseField>
+<ResponseField name="CONCURRENCY_LIMIT" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect concurrency-limits inspect`
+
+
+
+```command
+prefect concurrency-limits inspect [OPTIONS] TAG
+```
+
+
+
+<Info>
+View details about a concurrency limit. \`active_slots\` shows a list of TaskRun IDs
+which are currently using a concurrency slot.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="TAG" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect concurrency-limits ls`
+
+
+
+```command
+prefect concurrency-limits ls [OPTIONS]
+```
+
+
+
+<Info>
+View all concurrency limits.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--limit">
+    
+</ResponseField>
+
+<ResponseField name="--offset">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect concurrency-limits reset`
+
+
+
+```command
+prefect concurrency-limits reset [OPTIONS] TAG
+```
+
+
+
+<Info>
+Resets the concurrency limit slots set on the specified tag.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="TAG" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect concurrency-limits delete`
+
+
+
+```command
+prefect concurrency-limits delete [OPTIONS] TAG
+```
+
+
+
+<Info>
+Delete the concurrency limit set on the specified tag.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="TAG" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>

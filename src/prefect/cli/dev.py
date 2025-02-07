@@ -78,12 +78,8 @@ def build_docs(schema_path: Optional[str] = None):
     app.console.print(f"OpenAPI schema written to {path_to_schema}")
 
 
-BUILD_UI_HELP = f"""
-Installs dependencies and builds UI locally.
-
-The built UI will be located at {prefect.__development_base_path__ / "ui"}
-
-Requires npm.
+BUILD_UI_HELP = """
+Installs dependencies and builds UI locally. Requires npm.
 """
 
 

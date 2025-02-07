@@ -1,0 +1,326 @@
+---
+title: " "
+sidebarTitle: prefect global-concurrency-limit
+---
+
+# `prefect global-concurrency-limit`
+
+
+
+```command
+prefect global-concurrency-limit [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage global concurrency limits.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect global-concurrency-limit ls`
+
+
+
+```command
+prefect global-concurrency-limit ls [OPTIONS]
+```
+
+
+
+<Info>
+List all global concurrency limits.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect global-concurrency-limit inspect`
+
+
+
+```command
+prefect global-concurrency-limit inspect [OPTIONS] NAME
+```
+
+
+
+<Info>
+Inspect a global concurrency limit.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the global concurrency limit to inspect.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Output format for the command.
+</ResponseField>
+
+<ResponseField name="--file">
+    Path to .json file to write the global concurrency limit output to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect global-concurrency-limit delete`
+
+
+
+```command
+prefect global-concurrency-limit delete [OPTIONS] NAME
+```
+
+
+
+<Info>
+Delete a global concurrency limit.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the global concurrency limit to delete.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect global-concurrency-limit enable`
+
+
+
+```command
+prefect global-concurrency-limit enable [OPTIONS] NAME
+```
+
+
+
+<Info>
+Enable a global concurrency limit.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the global concurrency limit to enable.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect global-concurrency-limit disable`
+
+
+
+```command
+prefect global-concurrency-limit disable [OPTIONS] NAME
+```
+
+
+
+<Info>
+Disable a global concurrency limit.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the global concurrency limit to disable.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect global-concurrency-limit update`
+
+
+
+```command
+prefect global-concurrency-limit update [OPTIONS] NAME
+```
+
+
+
+<Info>
+Update a global concurrency limit.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the global concurrency limit to update.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--enable">
+    Enable the global concurrency limit.
+</ResponseField>
+
+<ResponseField name="--disable">
+    Disable the global concurrency limit.
+</ResponseField>
+
+<ResponseField name="--limit">
+    The limit of the global concurrency limit.
+</ResponseField>
+
+<ResponseField name="--active-slots">
+    The number of active slots.
+</ResponseField>
+
+<ResponseField name="--slot-decay-per-second">
+    The slot decay per second.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect global-concurrency-limit create`
+
+
+
+```command
+prefect global-concurrency-limit create [OPTIONS] NAME
+```
+
+
+
+<Info>
+Create a global concurrency limit.
+
+Arguments:
+
+    name (str): The name of the global concurrency limit to create.
+
+    limit (int): The limit of the global concurrency limit.
+
+    disable (Optional[bool]): Create an inactive global concurrency limit.
+
+    active_slots (Optional[int]): The number of active slots.
+
+    slot_decay_per_second (Optional[float]): The slot decay per second.
+
+Examples:
+
+    \$ prefect global-concurrency-limit create my-gcl --limit 10
+
+    \$ prefect gcl create my-gcl --limit 5 --active-slots 3
+
+    \$ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
+
+    \$ prefect gcl create my-gcl --limit 5 --inactive
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the global concurrency limit to create.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--limit">
+    The limit of the global concurrency limit.
+</ResponseField>
+
+<ResponseField name="--disable">
+    Create an inactive global concurrency limit.
+</ResponseField>
+
+<ResponseField name="--active-slots">
+    The number of active slots.
+</ResponseField>
+
+<ResponseField name="--slot-decay-per-second">
+    The slot decay per second.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
