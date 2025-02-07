@@ -61,7 +61,7 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    def to_pull_step(self) -> dict[str, Any]:
+    def to_pull_step(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
