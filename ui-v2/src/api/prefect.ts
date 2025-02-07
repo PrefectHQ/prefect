@@ -8056,6 +8056,27 @@ export interface components {
              */
             value: unknown;
         };
+        /** SchemaValueIndexError */
+        SchemaValueIndexError: {
+            /** Index */
+            index: number;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuePropertyError */
+        SchemaValuePropertyError: {
+            /** Property */
+            property: string;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuesValidationResponse */
+        SchemaValuesValidationResponse: {
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            /** Valid */
+            valid: boolean;
+        };
         /**
          * SendNotification
          * @description Send a notification when an Automation is triggered
@@ -15442,7 +15463,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["SchemaValuesValidationResponse"];
                 };
             };
             /** @description Validation Error */

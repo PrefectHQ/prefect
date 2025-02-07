@@ -587,3 +587,21 @@ class DeploymentPaginationResponse(BaseModel):
     limit: int
     pages: int
     page: int
+
+
+class SchemaValuePropertyError(BaseModel):
+    property: str
+    errors: List["SchemaValueError"]
+
+
+class SchemaValueIndexError(BaseModel):
+    index: int
+    errors: List["SchemaValueError"]
+
+
+SchemaValueError = Union[str, SchemaValuePropertyError, SchemaValueIndexError]
+
+
+class SchemaValuesValidationResponse(BaseModel):
+    errors: List[SchemaValueError]
+    valid: bool
