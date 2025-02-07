@@ -1453,7 +1453,7 @@ class TestProjectDeploy:
         contents["deployments"][0]["name"] = "test-name"
         contents["deployments"][0]["version"] = "{{ input }}"
         contents["deployments"][0]["tags"] = "{{ output2 }}"
-        contents["deployments"][0]["description"] = "{{ output1 }}"
+        contents["deployments"][0]["description"] = "{{ output3 }}"
 
         # save it back
         with prefect_file.open(mode="w") as f:
@@ -1488,7 +1488,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == work_pool.name
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
-        assert deployment.description == "1"
+        assert deployment.description == "This one is actually a string"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_env_var_values(
