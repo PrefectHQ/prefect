@@ -290,7 +290,9 @@ def render_command_and_subcommands(
 
 
 def write_subcommand_docs(
-    top_level_sub: BuildDocsContext, env: Environment, output_dir: str
+    top_level_sub: BuildDocsContext,
+    env: Environment,
+    output_dir: str,
 ) -> None:
     """Render one *top-level* and all nested subcommands into a single MDX file.
 
