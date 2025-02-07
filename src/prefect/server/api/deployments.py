@@ -230,8 +230,13 @@ async def update_deployment(
             else existing_deployment.enforce_parameter_schema
         )
         if enforce_parameter_schema:
-            # ensure that the new parameters conform to the existing schema
-            if not isinstance(existing_deployment.parameter_openapi_schema, dict):
+            # ensure that the new parameters conform to the proposed schema
+            if deployment.parameter_openapi_schema:
+                openapi_schema = deployment.parameter_openapi_schema
+            else:
+                openapi_schema = existing_deployment.parameter_openapi_schema
+
+            if not isinstance(openapi_schema, dict):
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
                     detail=(
@@ -243,7 +248,7 @@ async def update_deployment(
             try:
                 validate(
                     parameters,
-                    existing_deployment.parameter_openapi_schema,
+                    openapi_schema,
                     raise_on_error=True,
                     ignore_required=True,
                 )

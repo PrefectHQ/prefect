@@ -16673,6 +16673,18 @@
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
                     },
+                    "parameter_openapi_schema": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameter Openapi Schema",
+                        "description": "The parameter schema of the flow, including defaults."
+                    },
                     "tags": {
                         "items": {
                             "type": "string"
