@@ -1,0 +1,327 @@
+---
+title: " "
+sidebarTitle: prefect dev
+---
+
+# `prefect dev`
+
+
+
+```command
+prefect dev [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Internal Prefect development.
+
+Note that many of these commands require extra dependencies (such as npm and MkDocs)
+to function properly.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect dev build-docs`
+
+
+
+```command
+prefect dev build-docs [OPTIONS]
+```
+
+
+
+<Info>
+Builds REST API reference documentation for static display.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--schema-path">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect dev build-ui`
+
+
+
+```command
+prefect dev build-ui [OPTIONS]
+```
+
+
+
+<Info>
+Installs dependencies and builds UI locally. Requires npm.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--no-install">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect dev ui`
+
+
+
+```command
+prefect dev ui [OPTIONS]
+```
+
+
+
+<Info>
+Starts a hot-reloading development UI.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect dev api`
+
+
+
+```command
+prefect dev api [OPTIONS]
+```
+
+
+
+<Info>
+Starts a hot-reloading development API.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--host">
+    
+</ResponseField>
+
+<ResponseField name="--port">
+    
+</ResponseField>
+
+<ResponseField name="--log-level">
+    
+</ResponseField>
+
+<ResponseField name="--services">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect dev start`
+
+
+
+```command
+prefect dev start [OPTIONS]
+```
+
+
+
+<Info>
+Starts a hot-reloading development server with API, UI, and agent processes.
+
+Each service has an individual command if you wish to start them separately.
+Each service can be excluded here as well.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--no-api">
+    
+</ResponseField>
+
+<ResponseField name="--no-ui">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect dev build-image`
+
+
+
+```command
+prefect dev build-image [OPTIONS]
+```
+
+
+
+<Info>
+Build a docker image for development.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--arch">
+    The architecture to build the container for. Defaults to the architecture of the host Python. [default: arm64]
+</ResponseField>
+
+<ResponseField name="--python-version">
+    The Python version to build the container for. Defaults to the version of the host Python. [default: 3.12]
+</ResponseField>
+
+<ResponseField name="--flavor">
+    An alternative flavor to build, for example 'conda'. Defaults to the standard Python base image
+</ResponseField>
+
+<ResponseField name="--dry-run">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect dev container`
+
+
+
+```command
+prefect dev container [OPTIONS]
+```
+
+
+
+<Info>
+Run a docker container with local code mounted and installed.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--bg">
+    
+</ResponseField>
+
+<ResponseField name="--name">
+    
+</ResponseField>
+
+<ResponseField name="--api">
+    
+</ResponseField>
+
+<ResponseField name="--tag">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect dev kubernetes-manifest`
+
+
+
+```command
+prefect dev kubernetes-manifest [OPTIONS]
+```
+
+
+
+<Info>
+Generates a Kubernetes manifest for development.
+</Info>
+
+
+
+
+
