@@ -1560,6 +1560,7 @@ class TestUpdateDeployment:
         assert response.status_code == 201
         deployment_id = response.json()["id"]
 
+        ## Providing parameters
         response = await client.patch(
             f"/deployments/{deployment_id}",
             json={"parameters": {"num": "foobar"}},
@@ -1570,6 +1571,7 @@ class TestUpdateDeployment:
             in response.text
         )
 
+        ## Providing a new incompatible schema
         response = await client.patch(
             f"/deployments/{deployment_id}",
             json={"parameter_openapi_schema": new_schema},
@@ -1577,6 +1579,17 @@ class TestUpdateDeployment:
         assert response.status_code == 409
         assert (
             "Validation failed for field 'num'. Failure reason: 42 is not of type 'object'"
+            in response.text
+        )
+
+        ## Providing both
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameter_openapi_schema": new_schema, "parameters": {"num": 11}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 11 is not of type 'object'"
             in response.text
         )
 
