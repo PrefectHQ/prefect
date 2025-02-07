@@ -18,7 +18,6 @@ const buildFilterBody = (key: string): ArtifactsFilter => ({
 export const Route = createFileRoute("/artifacts/key/$key")({
 	component: RouteComponent,
 	loader: async ({ context, params }) => {
-		console.log("we made it");
 		const { key } = params;
 
 		const artifacts = await context.queryClient.ensureQueryData(
