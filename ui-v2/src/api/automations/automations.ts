@@ -13,20 +13,27 @@ export type AutomationsFilter =
 /**
  * ```
  *  🏗️ Automations queries construction 👷
- *  all   =>   ['automations'] // key to match ['automationss', ...
- *  list  =>   ['automations', 'list'] // key to match ['automations, 'list', ...
- *             ['automations', 'list', { ...filter1 }]
- *             ['automations', 'list', { ...filter2 }]
- *  details => ['automations', 'details'] // key to match ['automations', 'details', ...
- *             ['automations', 'details', id1]
- *             ['automations', 'details', id2]
+ *  all   =>   	['automations'] // key to match ['automations', ...
+ *  list  =>   	['automations', 'list'] // key to match ['automations, 'list', ...
+ *  filters => 	['automations', 'list', 'filter'] // key to match ['automations, 'list', 'filters'...
+ *             	['automations', 'list', 'filter', { ...filter2 }]
+ *             	['automations', 'list', 'filter', { ...filter2 }]
+ * 	relates =>	['automations', 'list', 'relates'] // keys to match 'list', 'relates'
+ *				['automations', 'list', 'relates', relatedResourceId]
+ *  details => 	['automations', 'details'] // key to match ['automations', 'details', ...
+ *             	['automations', 'details', id1]
+ *             	['automations', 'details', id2]
  * ```
  * */
 export const queryKeyFactory = {
 	all: () => ["automations"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
-	list: (filter: AutomationsFilter) =>
-		[...queryKeyFactory.lists(), filter] as const,
+	filters: () => [...queryKeyFactory.lists(), "filter"] as const,
+	filter: (filter: AutomationsFilter) =>
+		[...queryKeyFactory.filters(), filter] as const,
+	relates: () => [...queryKeyFactory.lists(), "relates"] as const,
+	relate: (resourceId: string) =>
+		[...queryKeyFactory.relates(), resourceId] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
@@ -37,7 +44,7 @@ export const buildListAutomationsQuery = (
 	filter: AutomationsFilter = { sort: "CREATED_DESC", offset: 0 },
 ) =>
 	queryOptions({
-		queryKey: queryKeyFactory.list(filter),
+		queryKey: queryKeyFactory.filter(filter),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/automations/filter", {
 				body: filter,
@@ -60,6 +67,22 @@ export const buildGetAutomationQuery = (id: string) =>
 				throw new Error("'data' expected");
 			}
 			return res.data;
+		},
+	});
+
+// nb: update resource_id string template
+type PrefectResources = "prefect.deployment.";
+export const buildListAutomationsRelatedQuery = (
+	resource_id: `${PrefectResources}${string}`,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.relate(resource_id),
+		queryFn: async () => {
+			const res = await getQueryService().GET(
+				"/automations/related-to/{resource_id}",
+				{ params: { path: { resource_id } } },
+			);
+			return res.data ?? [];
 		},
 	});
 
