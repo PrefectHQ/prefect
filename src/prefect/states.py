@@ -15,6 +15,7 @@ import httpx
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
+from prefect._internal.compatibility import deprecated
 from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
@@ -72,9 +73,17 @@ def to_state_create(state: State) -> "StateCreate":
     )
 
 
+@deprecated.deprecated_parameter(
+    "fetch",
+    when=lambda fetch: fetch is not True,
+    start_date="Oct 2024",
+    end_date="Jan 2025",
+    help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+)
 def get_state_result(
     state: "State[R]",
     raise_on_failure: bool = True,
+    fetch: bool = True,
     retry_result_failure: bool = True,
 ) -> "R":
     """
@@ -83,12 +92,13 @@ def get_state_result(
     See `State.result()`
     """
 
-    if in_async_main_thread():
+    if not fetch and in_async_main_thread():
         warnings.warn(
             (
                 "State.result() was called from an async context but not awaited. "
                 "This method will be updated to return a coroutine by default in "
-                "the future."
+                "the future. Pass `fetch=True` and `await` the call to get rid of "
+                "this warning."
             ),
             DeprecationWarning,
             stacklevel=2,
