@@ -1,5 +1,4 @@
 from . import _version
-import warnings
 
 from .core import PrefectDbtSettings, PrefectDbtRunner
 from .cloud import DbtCloudCredentials, DbtCloudJob
