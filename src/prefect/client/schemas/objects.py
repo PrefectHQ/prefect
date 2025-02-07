@@ -32,7 +32,6 @@ from pydantic import (
 )
 from typing_extensions import Literal, Self, TypeVar
 
-from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -218,7 +217,6 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: Literal[True] = ...,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> R: ...
 
@@ -226,7 +224,6 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
@@ -234,21 +231,12 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: bool = ...,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
-    @deprecated.deprecated_parameter(
-        "fetch",
-        when=lambda fetch: fetch is not True,
-        start_date="Oct 2024",
-        end_date="Jan 2025",
-        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
-    )
     def result(
         self,
         raise_on_failure: bool = True,
-        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -256,13 +244,7 @@ class State(ObjectBaseModel, Generic[R]):
 
         Args:
             raise_on_failure: a boolean specifying whether to raise an exception
-                if the state is of type `FAILED` and the underlying data is an exception. When flow
-                was run in a different memory space (using `run_deployment`), this will only raise
-                if `fetch` is `True`.
-            fetch: a boolean specifying whether to resolve references to persisted
-                results into data. For synchronous users, this defaults to `True`.
-                For asynchronous users, this defaults to `False` for backwards
-                compatibility.
+                if the state is of type `FAILED` and the underlying data is an exception.
             retry_result_failure: a boolean specifying whether to retry on failures to
                 load the result from result storage
 
@@ -323,7 +305,6 @@ class State(ObjectBaseModel, Generic[R]):
         return get_state_result(
             self,
             raise_on_failure=raise_on_failure,
-            fetch=fetch,
             retry_result_failure=retry_result_failure,
         )
 
