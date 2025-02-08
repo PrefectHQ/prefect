@@ -24,16 +24,26 @@ RUN apt-get update && \
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install a newer npm to avoid esbuild errors
-RUN npm install -g npm@8
+# Configure npm and build environment for faster installs and builds
+ENV npm_config_cache=/opt/ui/.npm \
+    NODE_OPTIONS="--max-old-space-size=2048" \
+    # Optimize for CI environment
+    CI=true \
+    # Vite specific optimizations
+    VITE_DISABLE_HMR=true \
+    VITE_BUILD_WATCH=false \
+    # Disable browser opening
+    BROWSER=none
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/opt/ui/.npm \
+    npm ci --prefer-offline --no-audit --no-fund
 
-# Build static UI files
+# Build static UI files with optimizations
 COPY ./ui .
-RUN npm run build
+RUN npm install -g npm@8
+RUN npm run build -- --mode production --minify esbuild
 
 
 # Build the Python distributable.
@@ -83,6 +93,8 @@ ENV LANG=C.UTF-8
 
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
+ENV UV_USE_WHEELS=1
+ENV UV_CACHE_DIR=/root/.cache/uv
 
 LABEL maintainer="help@prefect.io" \
     io.prefect.python-version=${PYTHON_VERSION} \
@@ -107,7 +119,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /uvx /bin/
 RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
     --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=requirements-otel.txt,target=/tmp/requirements-otel.txt \
-    --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,target=${UV_CACHE_DIR} \
     uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt -r /tmp/requirements-otel.txt
 
 # Install prefect from the sdist
