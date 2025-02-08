@@ -421,6 +421,10 @@ class RunnerDeployment(BaseModel):
             except ObjectNotFound:
                 return await self._create(work_pool_name, image)
             else:
+                if image:
+                    self.job_variables["image"] = image
+                if work_pool_name:
+                    self.work_pool_name = work_pool_name
                 return await self._update(deployment.id, client)
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
