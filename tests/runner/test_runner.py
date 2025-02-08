@@ -39,6 +39,8 @@ from prefect.deployments.runner import (
 )
 from prefect.docker.docker_image import DockerImage
 from prefect.events.clients import AssertingEventsClient
+from prefect.events.schemas.automations import Posture
+from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.worker import EventsWorker
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
@@ -2648,6 +2650,93 @@ class TestDeploy:
             assert (
                 "Looks like you're deploying to a process work pool." in console_output
             )
+
+    async def test_deploy_with_triggers(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__,
+                triggers=[
+                    DeploymentEventTrigger(
+                        name="test-trigger",
+                        enabled=True,
+                        posture=Posture.Reactive,
+                        match={"prefect.resource.id": "prefect.flow-run.*"},
+                        expect=["prefect.flow-run.Completed"],
+                    )
+                ],
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+        triggers = await prefect_client._client.get(
+            f"/automations/related-to/prefect.deployment.{deployment_ids[0]}"
+        )
+        assert len(triggers.json()) == 1
+        assert triggers.json()[0]["name"] == "test-trigger"
+
+    async def test_deploy_with_triggers_and_update(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__,
+                triggers=[
+                    DeploymentEventTrigger(
+                        name="test-trigger",
+                        enabled=True,
+                        posture=Posture.Reactive,
+                        match={"prefect.resource.id": "prefect.flow-run.*"},
+                        expect=["prefect.flow-run.Completed"],
+                    )
+                ],
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+        triggers = await prefect_client._client.get(
+            f"/automations/related-to/prefect.deployment.{deployment_ids[0]}"
+        )
+        assert len(triggers.json()) == 1
+        assert triggers.json()[0]["name"] == "test-trigger"
+        assert triggers.json()[0]["enabled"]
+
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__,
+                triggers=[
+                    DeploymentEventTrigger(
+                        name="test-trigger-2",
+                        enabled=False,
+                        posture=Posture.Reactive,
+                        match={"prefect.resource.id": "prefect.flow-run.*"},
+                        expect=["prefect.flow-run.Completed"],
+                    )
+                ],
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+        triggers = await prefect_client._client.get(
+            f"/automations/related-to/prefect.deployment.{deployment_ids[0]}"
+        )
+        assert len(triggers.json()) == 1
+        assert triggers.json()[0]["name"] == "test-trigger-2"
+        assert not triggers.json()[0]["enabled"]
 
 
 class TestDockerImage:
