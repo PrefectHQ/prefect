@@ -326,6 +326,7 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
     model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
