@@ -4,6 +4,7 @@ import type { DeploymentDetailsTabOptions } from "@/routes/deployments/deploymen
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { type JSX } from "react";
 
+import { DeploymentConfiguration } from "./deployment-configuration";
 import { DeploymentDescription } from "./deployment-description";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
@@ -71,7 +72,7 @@ export const DeploymentDetailsTabs = ({
 			),
 			ViewComponent: () => (
 				<TabsContent value="Configuration">
-					<div className="border border-red-400">{"<ConfigurationView />"}</div>
+					<DeploymentConfiguration deployment={deployment} />
 				</TabsContent>
 			),
 		},
