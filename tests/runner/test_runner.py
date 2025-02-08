@@ -1612,7 +1612,9 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
-    async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
+    async def test_apply_with_work_pool(
+        self, prefect_client: PrefectClient, work_pool, process_work_pool
+    ):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1,
             __file__,
@@ -1630,6 +1632,57 @@ class TestRunnerDeployment:
             "image": "my-repo/my-image:latest",
         }
         assert deployment.work_queue_name == "default"
+
+        # should result in the same deployment ID
+        deployment2 = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            interval=3600,
+        )
+
+        deployment_id = await deployment2.apply(work_pool_name=process_work_pool.name)
+        deployment2 = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment2.work_pool_name == process_work_pool.name
+
+        # this may look weird with a process pool but update's job isn't to enforce that schema
+        assert deployment2.job_variables == {
+            "image": "my-repo/my-image:latest",
+        }
+        assert deployment2.work_queue_name == "default"
+
+    async def test_apply_with_image(self, prefect_client: PrefectClient, work_pool):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            "test-image",
+        )
+
+        deployment_id = await deployment.apply(
+            work_pool_name=work_pool.name, image="my-repo/my-image:latest"
+        )
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.job_variables == {
+            "image": "my-repo/my-image:latest",
+        }
+        assert deployment.work_queue_name == "default"
+
+        # should result in the same deployment ID
+        deployment2 = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            "test-image",
+        )
+
+        deployment_id = await deployment2.apply(image="my-other-repo/my-image:latest")
+        deployment2 = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment2.work_pool_name == work_pool.name
+        assert deployment2.job_variables == {
+            "image": "my-other-repo/my-image:latest",
+        }
+        assert deployment2.work_queue_name == "default"
 
     async def test_apply_paused(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(
