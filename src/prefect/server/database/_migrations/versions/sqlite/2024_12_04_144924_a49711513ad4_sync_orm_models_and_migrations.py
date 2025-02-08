@@ -75,6 +75,7 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
         batch_op.drop_index(
             "ix_flow_run__scheduler_deployment_id_auto_scheduled_next_schedu",
@@ -125,3 +126,4 @@ def downgrade():
             "ix_artifact__key_created_desc", ["key", "created"], unique=False
         )
         batch_op.drop_index(batch_op.f("ix_artifact_collection__updated"))
+    op.execute("PRAGMA foreign_keys=ON")

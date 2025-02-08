@@ -19,16 +19,19 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        "deployment_schedule",
-        sa.Column(
-            "parameters",
-            prefect.server.utilities.database.JSON,
-            server_default="{}",
-            nullable=False,
-        ),
-    )
+    with op.alter_table("deployment_schedule", schema=None) as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "parameters",
+                prefect.server.utilities.database.JSON,
+                server_default="{}",
+                nullable=False,
+            ),
+        )
 
 
 def downgrade():
-    op.drop_column("deployment_schedule", "parameters")
+    op.execute("PRAGMA foreign_keys=OFF")
+    with op.alter_table("deployment_schedule", schema=None) as batch_op:
+        batch_op.drop_column("deployment_schedule", "parameters")
+    op.execute("PRAGMA foreign_keys=ON")
