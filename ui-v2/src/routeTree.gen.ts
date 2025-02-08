@@ -38,6 +38,7 @@ import { Route as AutomationsAutomationIdImport } from './routes/automations/aut
 import { Route as ArtifactsKeyKeyImport } from './routes/artifacts/key.$key'
 import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
+import { Route as ArtifactsArtifactIdImport } from './routes/artifacts/artifact.$id'
 import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameImport } from './routes/work-pools/work-pool.$workPoolName.queue.$workQueueName'
 
@@ -208,6 +209,12 @@ const DeploymentsDeploymentIdDuplicateRoute =
     getParentRoute: () => rootRoute,
   } as any)
 
+const ArtifactsArtifactIdRoute = ArtifactsArtifactIdImport.update({
+  id: '/artifacts/artifact/$id',
+  path: '/artifacts/artifact/$id',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const AutomationsAutomationIdEditRoute =
   AutomationsAutomationIdEditImport.update({
     id: '/edit',
@@ -338,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsIndexImport
       parentRoute: typeof rootRoute
     }
+    '/artifacts/artifact/$id': {
+      id: '/artifacts/artifact/$id'
+      path: '/artifacts/artifact/$id'
+      fullPath: '/artifacts/artifact/$id'
+      preLoaderRoute: typeof ArtifactsArtifactIdImport
+      parentRoute: typeof rootRoute
+    }
     '/artifacts/key/$key': {
       id: '/artifacts/key/$key'
       path: '/artifacts/key/$key'
@@ -454,9 +468,9 @@ interface AutomationsAutomationIdRouteChildren {
 }
 
 const AutomationsAutomationIdRouteChildren: AutomationsAutomationIdRouteChildren =
-  {
-    AutomationsAutomationIdEditRoute: AutomationsAutomationIdEditRoute,
-  }
+{
+  AutomationsAutomationIdEditRoute: AutomationsAutomationIdEditRoute,
+}
 
 const AutomationsAutomationIdRouteWithChildren =
   AutomationsAutomationIdRoute._addFileChildren(
@@ -468,10 +482,10 @@ interface WorkPoolsWorkPoolWorkPoolNameRouteChildren {
 }
 
 const WorkPoolsWorkPoolWorkPoolNameRouteChildren: WorkPoolsWorkPoolWorkPoolNameRouteChildren =
-  {
-    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute:
-      WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute,
-  }
+{
+  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute:
+    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute,
+}
 
 const WorkPoolsWorkPoolWorkPoolNameRouteWithChildren =
   WorkPoolsWorkPoolWorkPoolNameRoute._addFileChildren(
@@ -495,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
+  '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
@@ -526,6 +541,7 @@ export interface FileRoutesByTo {
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
+  '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
@@ -559,6 +575,7 @@ export interface FileRoutesById {
   '/flows/': typeof FlowsIndexRoute
   '/runs/': typeof RunsIndexRoute
   '/work-pools/': typeof WorkPoolsIndexRoute
+  '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
@@ -577,96 +594,99 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/blocks'
-    | '/dashboard'
-    | '/events'
-    | '/settings'
-    | '/variables'
-    | '/automations/create'
-    | '/blocks/catalog'
-    | '/artifacts'
-    | '/automations'
-    | '/blocks/'
-    | '/concurrency-limits'
-    | '/deployments'
-    | '/flows'
-    | '/runs'
-    | '/work-pools'
-    | '/artifacts/key/$key'
-    | '/automations/automation/$id'
-    | '/blocks/block/$id'
-    | '/concurrency-limits/concurrency-limit/$id'
-    | '/deployments/deployment/$id'
-    | '/flows/flow/$id'
-    | '/runs/flow-run/$id'
-    | '/runs/task-run/$id'
-    | '/work-pools/work-pool/$workPoolName'
-    | '/automations/automation/$id/edit'
-    | '/deployments/deployment/$id/duplicate'
-    | '/deployments/deployment/$id/edit'
-    | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
+  | '/'
+  | '/blocks'
+  | '/dashboard'
+  | '/events'
+  | '/settings'
+  | '/variables'
+  | '/automations/create'
+  | '/blocks/catalog'
+  | '/artifacts'
+  | '/automations'
+  | '/blocks/'
+  | '/concurrency-limits'
+  | '/deployments'
+  | '/flows'
+  | '/runs'
+  | '/work-pools'
+  | '/artifacts/artifact/$id'
+  | '/artifacts/key/$key'
+  | '/automations/automation/$id'
+  | '/blocks/block/$id'
+  | '/concurrency-limits/concurrency-limit/$id'
+  | '/deployments/deployment/$id'
+  | '/flows/flow/$id'
+  | '/runs/flow-run/$id'
+  | '/runs/task-run/$id'
+  | '/work-pools/work-pool/$workPoolName'
+  | '/automations/automation/$id/edit'
+  | '/deployments/deployment/$id/duplicate'
+  | '/deployments/deployment/$id/edit'
+  | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/dashboard'
-    | '/events'
-    | '/settings'
-    | '/variables'
-    | '/automations/create'
-    | '/blocks/catalog'
-    | '/artifacts'
-    | '/automations'
-    | '/blocks'
-    | '/concurrency-limits'
-    | '/deployments'
-    | '/flows'
-    | '/runs'
-    | '/work-pools'
-    | '/artifacts/key/$key'
-    | '/automations/automation/$id'
-    | '/blocks/block/$id'
-    | '/concurrency-limits/concurrency-limit/$id'
-    | '/deployments/deployment/$id'
-    | '/flows/flow/$id'
-    | '/runs/flow-run/$id'
-    | '/runs/task-run/$id'
-    | '/work-pools/work-pool/$workPoolName'
-    | '/automations/automation/$id/edit'
-    | '/deployments/deployment/$id/duplicate'
-    | '/deployments/deployment/$id/edit'
-    | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
+  | '/'
+  | '/dashboard'
+  | '/events'
+  | '/settings'
+  | '/variables'
+  | '/automations/create'
+  | '/blocks/catalog'
+  | '/artifacts'
+  | '/automations'
+  | '/blocks'
+  | '/concurrency-limits'
+  | '/deployments'
+  | '/flows'
+  | '/runs'
+  | '/work-pools'
+  | '/artifacts/artifact/$id'
+  | '/artifacts/key/$key'
+  | '/automations/automation/$id'
+  | '/blocks/block/$id'
+  | '/concurrency-limits/concurrency-limit/$id'
+  | '/deployments/deployment/$id'
+  | '/flows/flow/$id'
+  | '/runs/flow-run/$id'
+  | '/runs/task-run/$id'
+  | '/work-pools/work-pool/$workPoolName'
+  | '/automations/automation/$id/edit'
+  | '/deployments/deployment/$id/duplicate'
+  | '/deployments/deployment/$id/edit'
+  | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   id:
-    | '__root__'
-    | '/'
-    | '/blocks'
-    | '/dashboard'
-    | '/events'
-    | '/settings'
-    | '/variables'
-    | '/automations/create'
-    | '/blocks/catalog'
-    | '/artifacts/'
-    | '/automations/'
-    | '/blocks/'
-    | '/concurrency-limits/'
-    | '/deployments/'
-    | '/flows/'
-    | '/runs/'
-    | '/work-pools/'
-    | '/artifacts/key/$key'
-    | '/automations/automation/$id'
-    | '/blocks/block/$id'
-    | '/concurrency-limits/concurrency-limit/$id'
-    | '/deployments/deployment/$id'
-    | '/flows/flow/$id'
-    | '/runs/flow-run/$id'
-    | '/runs/task-run/$id'
-    | '/work-pools/work-pool/$workPoolName'
-    | '/automations/automation/$id/edit'
-    | '/deployments/deployment_/$id/duplicate'
-    | '/deployments/deployment_/$id/edit'
-    | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
+  | '__root__'
+  | '/'
+  | '/blocks'
+  | '/dashboard'
+  | '/events'
+  | '/settings'
+  | '/variables'
+  | '/automations/create'
+  | '/blocks/catalog'
+  | '/artifacts/'
+  | '/automations/'
+  | '/blocks/'
+  | '/concurrency-limits/'
+  | '/deployments/'
+  | '/flows/'
+  | '/runs/'
+  | '/work-pools/'
+  | '/artifacts/artifact/$id'
+  | '/artifacts/key/$key'
+  | '/automations/automation/$id'
+  | '/blocks/block/$id'
+  | '/concurrency-limits/concurrency-limit/$id'
+  | '/deployments/deployment/$id'
+  | '/flows/flow/$id'
+  | '/runs/flow-run/$id'
+  | '/runs/task-run/$id'
+  | '/work-pools/work-pool/$workPoolName'
+  | '/automations/automation/$id/edit'
+  | '/deployments/deployment_/$id/duplicate'
+  | '/deployments/deployment_/$id/edit'
+  | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesById: FileRoutesById
 }
 
@@ -685,6 +705,7 @@ export interface RootRouteChildren {
   FlowsIndexRoute: typeof FlowsIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
   WorkPoolsIndexRoute: typeof WorkPoolsIndexRoute
+  ArtifactsArtifactIdRoute: typeof ArtifactsArtifactIdRoute
   ArtifactsKeyKeyRoute: typeof ArtifactsKeyKeyRoute
   AutomationsAutomationIdRoute: typeof AutomationsAutomationIdRouteWithChildren
   ConcurrencyLimitsConcurrencyLimitIdRoute: typeof ConcurrencyLimitsConcurrencyLimitIdRoute
@@ -712,6 +733,7 @@ const rootRouteChildren: RootRouteChildren = {
   FlowsIndexRoute: FlowsIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
   WorkPoolsIndexRoute: WorkPoolsIndexRoute,
+  ArtifactsArtifactIdRoute: ArtifactsArtifactIdRoute,
   ArtifactsKeyKeyRoute: ArtifactsKeyKeyRoute,
   AutomationsAutomationIdRoute: AutomationsAutomationIdRouteWithChildren,
   ConcurrencyLimitsConcurrencyLimitIdRoute:
@@ -750,6 +772,7 @@ export const routeTree = rootRoute
         "/flows/",
         "/runs/",
         "/work-pools/",
+        "/artifacts/artifact/$id",
         "/artifacts/key/$key",
         "/automations/automation/$id",
         "/concurrency-limits/concurrency-limit/$id",
@@ -816,6 +839,9 @@ export const routeTree = rootRoute
     },
     "/work-pools/": {
       "filePath": "work-pools/index.tsx"
+    },
+    "/artifacts/artifact/$id": {
+      "filePath": "artifacts/artifact.$id.tsx"
     },
     "/artifacts/key/$key": {
       "filePath": "artifacts/key.$key.tsx"
