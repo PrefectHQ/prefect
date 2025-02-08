@@ -3,7 +3,7 @@ import shlex
 import sys
 from copy import deepcopy
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from anyio import run_process
 from rich.console import Console
@@ -72,13 +72,24 @@ class CoiledPushProvisioner:
             coiled = importlib.import_module("coiled")
             progress.advance(task)
 
-    async def _get_coiled_token(self) -> str:
+    async def _get_coiled_creds(self) -> Tuple[str, Optional[str]]:
         """
         Gets a Coiled API token from the current Coiled configuration.
         """
         import dask.config
 
-        return dask.config.get("coiled.token", "")
+        token = dask.config.get("coiled.token", "")
+        workspace = None
+
+        if token:
+            # this will validate the token, and then determine what workspace to use based on both
+            # - locally configured `coiled.workspace` (in dask config file)
+            # - default workspace (in Coiled database)
+            # Local config takes precedence.
+            async with coiled.Cloud() as cloud:
+                workspace = cloud.default_workspace
+
+        return token, workspace
 
     async def _create_new_coiled_token(self):
         """
@@ -90,6 +101,7 @@ class CoiledPushProvisioner:
         self,
         block_document_name: str,
         coiled_token: str,
+        coiled_workspace: Optional[str],
         client: "PrefectClient",
     ) -> BlockDocument:
         """
@@ -127,6 +139,7 @@ class CoiledPushProvisioner:
                 name=block_document_name,
                 data={
                     "api_token": coiled_token,
+                    "workspace": coiled_workspace,
                 },
                 block_type_id=credentials_block_type.id,
                 block_schema_id=credentials_block_schema.id,
@@ -204,8 +217,8 @@ class CoiledPushProvisioner:
                     " or you can use the Prefect UI to create your Coiled push work pool."
                 )
 
-            # Get the current Coiled API token
-            coiled_api_token = await self._get_coiled_token()
+            # Get the current Coiled API token and workspace
+            coiled_api_token, workspace = await self._get_coiled_creds()
             if not coiled_api_token:
                 # Create a new token one wasn't found
                 if self.console.is_interactive and Confirm.ask(
@@ -214,7 +227,7 @@ class CoiledPushProvisioner:
                     default=True,
                 ):
                     await self._create_new_coiled_token()
-                    coiled_api_token = await self._get_coiled_token()
+                    coiled_api_token, workspace = await self._get_coiled_creds()
                 else:
                     raise RuntimeError(
                         "Coiled credentials not found. Please create a new token by"
@@ -232,7 +245,8 @@ class CoiledPushProvisioner:
                 progress.start()
                 block_doc = await self._create_coiled_credentials_block(
                     credentials_block_name,
-                    coiled_api_token,
+                    coiled_token=coiled_api_token,
+                    coiled_workspace=workspace,
                     client=client,
                 )
                 progress.advance(task)
