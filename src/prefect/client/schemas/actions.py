@@ -326,6 +326,8 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(default_factory=dict)
+    pull_steps: Optional[list[dict[str, Any]]] = Field(default=None)
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """Check that the combination of base_job_template defaults
