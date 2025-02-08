@@ -198,8 +198,8 @@ async def update_deployment(
         # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
         schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
         schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
-        all_provided_have_slugs = deployment.schedules and all(
-            schedule.slug is not None for schedule in deployment.schedules
+        all_provided_have_slugs = all(
+            schedule.slug is not None for schedule in deployment.schedules or []
         )
         all_existing_have_slugs = existing_deployment.schedules and all(
             schedule.slug is not None for schedule in existing_deployment.schedules

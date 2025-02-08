@@ -106,7 +106,8 @@ KeyValueLabels = Annotated[
 
 
 ListOfNonEmptyStrings = Annotated[
-    List[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
+    List[str],
+    BeforeValidator(lambda x: [str(s) for s in x if str(s).strip()]),
 ]
 
 
