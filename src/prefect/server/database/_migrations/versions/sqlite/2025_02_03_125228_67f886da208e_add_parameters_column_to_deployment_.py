@@ -19,7 +19,7 @@ depends_on = None
 
 
 def upgrade():
-    with op.alter_table("deployment_schedule", schema=None) as batch_op:
+    with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
                 "parameters",
@@ -32,6 +32,6 @@ def upgrade():
 
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
-    with op.alter_table("deployment_schedule", schema=None) as batch_op:
+    with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
         batch_op.drop_column("deployment_schedule", "parameters")
     op.execute("PRAGMA foreign_keys=ON")
