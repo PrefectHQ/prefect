@@ -14,7 +14,7 @@ ARG NODE_VERSION=18.18.0
 ARG EXTRA_PIP_PACKAGES=""
 
 # Build the UI distributable.
-FROM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
@@ -23,9 +23,6 @@ RUN apt-get update && \
     # Required for arm64 builds
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install a newer npm to avoid esbuild errors
-RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
