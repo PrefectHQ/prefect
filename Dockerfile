@@ -14,7 +14,7 @@ ARG NODE_VERSION=18.18.0
 ARG EXTRA_PIP_PACKAGES=""
 
 # Build the UI distributable.
-FROM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
