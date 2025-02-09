@@ -24,9 +24,6 @@ RUN apt-get update && \
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install a newer npm to avoid esbuild errors
-RUN npm install -g npm@8
-
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
 RUN npm ci
