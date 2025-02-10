@@ -774,12 +774,13 @@ async def _run_single_deploy(
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         concurrency_options=deploy_config.get("concurrency_options"),
-        parameter_openapi_schema=deploy_config.get("parameter_openapi_schema"),
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
         storage=_PullStepStorage(pull_steps),
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
+
+    deployment._parameter_openapi_schema = deploy_config["parameter_openapi_schema"]
 
     if deploy_config.get("enforce_parameter_schema") is not None:
         deployment.enforce_parameter_schema = deploy_config.get(
