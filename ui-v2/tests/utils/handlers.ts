@@ -47,6 +47,10 @@ const deploymentsHandlers = [
 	http.patch(buildApiUrl("/deployments/:id/schedules/:schedule_id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
+
+	http.delete(buildApiUrl("/deployments/:id/schedules/:schedule_id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const flowHandlers = [
