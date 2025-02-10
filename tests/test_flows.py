@@ -56,6 +56,7 @@ from prefect.flows import (
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    load_function_and_convert_to_flow,
     safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
@@ -2693,6 +2694,48 @@ class TestLoadFlowFromEntrypoint:
         # Test with use_placeholder_flow=False
         with pytest.raises(ScriptError):
             load_flow_from_entrypoint(f"{fpath}:dog", use_placeholder_flow=False)
+
+
+class TestLoadFunctionAndConvertToFlow:
+    def test_func_is_a_flow(self, tmp_path):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_function_and_convert_to_flow(f"{fpath}:dog")
+        assert flow.fn() == "woof!"
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+
+    def test_func_is_not_a_flow(self, tmp_path):
+        flow_code = """
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_function_and_convert_to_flow(f"{fpath}:dog")
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+        assert flow.log_prints is True
+        assert flow.fn() == "woof!"
+
+    def test_func_not_found(self, tmp_path):
+        flow_code = ""
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        with pytest.raises(
+            RuntimeError, match=f"Function with name 'dog' not found in '{fpath}'."
+        ):
+            load_function_and_convert_to_flow(f"{fpath}:dog")
 
 
 class TestFlowRunName:
