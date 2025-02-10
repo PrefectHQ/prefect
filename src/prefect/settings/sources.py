@@ -319,6 +319,10 @@ def _get_profiles_path() -> Path:
         "pyproject.toml", ["tool", "prefect", "profiles_path"]
     ):
         return Path(pyproject_path)
+
+    if os.environ.get("PREFECT_HOME"):
+        return Path(os.environ["PREFECT_HOME"]) / "profiles.toml"
+
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
