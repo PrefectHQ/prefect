@@ -5,12 +5,11 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 from typing_extensions import Self
 
-from prefect.types import DateTime
+from prefect.types._datetime import DateTime
 
 if TYPE_CHECKING:
     from pydantic.main import IncEx
@@ -108,9 +107,9 @@ class PrefectBaseModel(BaseModel):
                 value = str(value)
             elif isinstance(value, datetime.datetime):
                 value = (
-                    pendulum.instance(value).isoformat()
+                    value.isoformat()
                     if name == "timestamp"
-                    else pendulum.instance(value).diff_for_humans()
+                    else DateTime.instance(value).diff_for_humans()
                 )
 
             yield name, value, field.get_default()

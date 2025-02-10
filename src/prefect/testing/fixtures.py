@@ -10,7 +10,6 @@ from uuid import UUID
 
 import anyio
 import httpx
-import pendulum
 import pytest
 from starlette.status import WS_1008_POLICY_VIOLATION
 from websockets.exceptions import ConnectionClosed
@@ -34,6 +33,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import DateTime
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
 
@@ -192,7 +192,7 @@ def mock_anyio_sleep(
     Provides "assert_sleeps_for" context manager which asserts a sleep time occurred
     within the context while using the actual runtime of the context as a tolerance.
     """
-    original_now = pendulum.now
+    original_now = DateTime.now
     original_sleep = anyio.sleep
     time_shift = 0.0
 
@@ -202,7 +202,7 @@ def mock_anyio_sleep(
         # Preserve yield effects of sleep
         await original_sleep(0)
 
-    def latest_now(*args: Any) -> pendulum.DateTime:
+    def latest_now(*args: Any) -> DateTime:
         # Fast-forwards the time by the total sleep time
         return original_now(*args).add(
             # Ensure we retain float precision
@@ -210,7 +210,7 @@ def mock_anyio_sleep(
             microseconds=int((time_shift - int(time_shift)) * 1000000),
         )
 
-    monkeypatch.setattr("pendulum.now", latest_now)
+    monkeypatch.setattr("prefect.types._datetime.DateTime.now", latest_now)
 
     sleep = AsyncMock(side_effect=callback)
     monkeypatch.setattr("anyio.sleep", sleep)

@@ -11,11 +11,11 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 from urllib.parse import urlsplit
 
-import pendulum
 from packaging.version import Version
 from typing_extensions import Self
 
 import prefect
+from prefect.types._datetime import DateTime
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
 
@@ -428,7 +428,7 @@ def push_image(
     """
 
     if not tag:
-        tag = slugify(pendulum.now("utc").isoformat())
+        tag = slugify(DateTime.now("utc").isoformat())
 
     _, registry, _, _, _ = urlsplit(registry_url)
     repository = f"{registry}/{name}"
