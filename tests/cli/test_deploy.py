@@ -2363,6 +2363,8 @@ class TestProjectDeploy:
             "An important name/test-name"
         )
         assert not deployment.enforce_parameter_schema
+        assert deployment.parameter_openapi_schema
+        parameter_openapi_schema = deployment.parameter_openapi_schema
 
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2390,6 +2392,7 @@ class TestProjectDeploy:
             "An important name/test-name"
         )
         assert not deployment.enforce_parameter_schema
+        assert deployment.parameter_openapi_schema == parameter_openapi_schema
 
 
 class TestSchedules:
