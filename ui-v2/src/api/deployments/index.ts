@@ -236,3 +236,52 @@ export const useDeleteDeployment = () => {
 
 	return { deleteDeployment, ...rest };
 };
+
+type UpdateDeploymentSchedule = {
+	deployment_id: string;
+	schedule_id: string;
+} & components["schemas"]["DeploymentScheduleUpdate"];
+
+/**
+ * Hook for update a deployment's schedule
+ *
+ * @returns Mutation object for updating a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { updateDeploymentSchedule } = useUpdateDeploymentSchedule();
+ *
+ * // Delete a deployment by id
+ * deleteDeployment({deployment_id, schedule_id, ...body}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule updated successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to update deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useUpdateDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: updateDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({
+			deployment_id,
+			schedule_id,
+			...body
+		}: UpdateDeploymentSchedule) =>
+			getQueryService().PATCH("/deployments/{id}/schedules/{schedule_id}", {
+				body,
+				params: { path: { schedule_id, id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+
+	return { updateDeploymentSchedule, ...rest };
+};
