@@ -2727,6 +2727,16 @@ class TestLoadFunctionAndConvertToFlow:
         assert flow.log_prints is True
         assert flow.fn() == "woof!"
 
+    def test_func_not_found(self, tmp_path):
+        flow_code = ""
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        with pytest.raises(
+            RuntimeError, match=f"Function with name 'dog' not found in '{fpath}'."
+        ):
+            load_function_and_convert_to_flow(f"{fpath}:dog")
+
 
 class TestFlowRunName:
     async def test_invalid_runtime_run_name(self):

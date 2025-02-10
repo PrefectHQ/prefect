@@ -2093,8 +2093,8 @@ def load_function_and_convert_to_flow(entrypoint: str) -> Flow[P, Any]:
     try:
         func = import_object(entrypoint)  # pyright: ignore[reportRedeclaration]
     except AttributeError as exc:
-        raise MissingFlowError(
-            f"Function with name {func_name!r} not found in {path!r}. "
+        raise RuntimeError(
+            f"Function with name {func_name!r} not found in {path!r}."
         ) from exc
 
     if isinstance(func, Flow):
