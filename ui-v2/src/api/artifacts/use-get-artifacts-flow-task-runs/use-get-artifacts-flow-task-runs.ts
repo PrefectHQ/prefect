@@ -1,4 +1,6 @@
 import { buildListFlowRunsQuery } from "@/api/flow-runs";
+import { useReadArtifactArtifactsIdGet } from "@/api/generated/artifacts/artifacts";
+import { Artifact } from "@/api/models";
 import { buildListTaskRunsQuery } from "@/api/task-runs";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
@@ -69,7 +71,10 @@ export const useFilterArtifactsFlowTaskRuns = (filter: ArtifactsFilter) => {
 };
 
 export const useGetArtifactFlowTaskRuns = (artifactId: string) => {
-	const { data: artifact } = useQuery(buildGetArtifactQuery(artifactId));
+	// const { data: artifact } = useQuery(buildGetArtifactQuery(artifactId));
+
+	const { data: artifactResponse } = useReadArtifactArtifactsIdGet(artifactId);
+	const artifact = artifactResponse?.data as Artifact;
 
 	const flowRunId = artifact?.flow_run_id;
 	const taskRunId = artifact?.task_run_id;

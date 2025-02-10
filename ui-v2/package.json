@@ -55,6 +55,7 @@
 		"humanize-duration": "^3.32.1",
 		"lucide-react": "^0.474.0",
 		"openapi-fetch": "^0.13.4",
+		"orval": "^7.5.0",
 		"react": "19.0.0",
 		"react-code-blocks": "^0.1.6",
 		"react-day-picker": "^9.5.1",
