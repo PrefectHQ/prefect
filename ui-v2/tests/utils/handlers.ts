@@ -40,6 +40,10 @@ const deploymentsHandlers = [
 		return HttpResponse.json({ status: 204 });
 	}),
 
+	http.post(buildApiUrl("/deployments/:id/schedules"), () => {
+		return HttpResponse.json({ status: 201 });
+	}),
+
 	http.patch(buildApiUrl("/deployments/:id/schedules/:schedule_id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
