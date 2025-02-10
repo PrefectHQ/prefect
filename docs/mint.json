@@ -231,7 +231,8 @@
                 "v3/manage/cloud/manage-users/configure-sso",
                 "v3/manage/cloud/manage-users/audit-logs",
                 "v3/manage/cloud/manage-users/object-access-control-lists",
-                "v3/manage/cloud/manage-users/secure-access-by-ip-address"
+                "v3/manage/cloud/manage-users/secure-access-by-ip-address",
+                "v3/manage/cloud/manage-users/secure-access-by-private-link"
               ],
               "version": "v3"
             },
