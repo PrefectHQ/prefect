@@ -27,7 +27,7 @@ With Private DNS and the accepted connection, connectivity can be validated thro
 curl -i https://api-internal.private.prefect.cloud/api/health
 ```
 
-To configure the Prefect client, and/or workers to use the endpoint, `PREFECT_API_URL` and `PREFECT_CLOUD_API_URL` should be set to the endpoint provided by Prefect.
+To configure Prefect clients and/or workers to use the endpoint, `PREFECT_API_URL` and `PREFECT_CLOUD_API_URL` should be set to the endpoint provided by Prefect.
 
 ```bash
 prefect config set PREFECT_API_URL=https://api-internal.private.prefect.cloud/api/accounts/<account-id>/workspaces/<workspace-id>
