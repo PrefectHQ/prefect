@@ -210,7 +210,7 @@ def mock_anyio_sleep(
             microseconds=int((time_shift - int(time_shift)) * 1000000),
         )
 
-    monkeypatch.setattr("prefect.types._datetime.DateTime.now", latest_now)
+    monkeypatch.setattr("prefect.types._datetime.now", latest_now)
 
     sleep = AsyncMock(side_effect=callback)
     monkeypatch.setattr("anyio.sleep", sleep)

@@ -28,7 +28,7 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.types._datetime import DateTime, Duration
+from prefect.types._datetime import DateTime, Duration, now
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
@@ -660,7 +660,7 @@ def Scheduled(
     """
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = DateTime.now("UTC")
+        scheduled_time = now()
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -761,7 +761,7 @@ def Paused(
         state_details.pause_timeout = (
             DateTime.instance(pause_expiration_time)
             if pause_expiration_time
-            else DateTime.now("UTC") + Duration(seconds=timeout_seconds or 0)
+            else now() + Duration(seconds=timeout_seconds or 0)
         )
 
     state_details.pause_reschedule = reschedule

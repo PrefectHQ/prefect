@@ -30,7 +30,7 @@ async def deployment_name(
 @pytest.fixture
 def frozen_now(monkeypatch: pytest.MonkeyPatch) -> Generator[DateTime, None, None]:
     now = DateTime.now("UTC")
-    monkeypatch.setattr("prefect.types._datetime.DateTime.now", lambda *_: now)  # type: ignore
+    monkeypatch.setattr("prefect.types._datetime.now", lambda *_: now)  # type: ignore
     yield now
 
 

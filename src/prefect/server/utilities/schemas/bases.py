@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 from typing_extensions import Self
 
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, human_friendly_diff
 
 if TYPE_CHECKING:
     from pydantic.main import IncEx
@@ -109,7 +109,7 @@ class PrefectBaseModel(BaseModel):
                 value = (
                     value.isoformat()
                     if name == "timestamp"
-                    else DateTime.instance(value).diff_for_humans()
+                    else human_friendly_diff(value)
                 )
 
             yield name, value, field.get_default()
