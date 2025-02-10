@@ -2080,6 +2080,29 @@ def load_flow_from_entrypoint(
     return flow
 
 
+def load_function_and_convert_to_flow(entrypoint: str) -> Flow[P, Any]:
+    """
+    Loads a function from an entrypoint and converts it to a flow if it is not already a flow.
+    """
+
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+    try:
+        func = import_object(entrypoint)  # pyright: ignore[reportRedeclaration]
+    except AttributeError as exc:
+        raise RuntimeError(
+            f"Function with name {func_name!r} not found in {path!r}."
+        ) from exc
+
+    if isinstance(func, Flow):
+        return func
+    else:
+        return Flow(func, log_prints=True)
+
+
 def serve(
     *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,

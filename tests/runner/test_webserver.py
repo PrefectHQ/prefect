@@ -184,11 +184,11 @@ class TestWebserverFlowRoutes:
                 assert isinstance(FlowRun.model_validate(response.json()), FlowRun)
                 mock_run.assert_called()
 
-    @pytest.mark.parametrize("flow_name", ["a_missing_flow", "a_non_flow_function"])
+    @pytest.mark.parametrize("flow_name", ["a_missing_flow"])
     @pytest.mark.parametrize(
         "flow_file", [__file__, "/not/a/path.py", "not/a/python/file.txt"]
     )
-    async def test_non_flow_raises_a_404(
+    async def test_missing_flow_raises_a_404(
         self,
         runner: Runner,
         flow_file: str,
