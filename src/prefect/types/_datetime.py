@@ -11,10 +11,12 @@ from pendulum.time import Time as PendulumTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic_extra_types.pendulum_dt import Date as PydanticDate
 from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
+from pydantic_extra_types.pendulum_dt import Duration as PydanticDuration
 from typing_extensions import TypeAlias
 
 DateTime: TypeAlias = PydanticDateTime
 Date: TypeAlias = PydanticDate
+Duration: TypeAlias = PydanticDuration
 
 
 def parse_datetime(
