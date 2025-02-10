@@ -3,9 +3,13 @@ import { useGetArtifactFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-fl
 import { ArtifactDetailPage } from "@/components/artifacts/artifact/artifact-detail-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 
 export const Route = createFileRoute("/artifacts/artifact/$id")({
 	component: RouteComponent,
+	params: z.object({
+		id: z.string(),
+	}),
 	loader: async ({ context, params }) => {
 		const { id } = params;
 
@@ -15,6 +19,7 @@ export const Route = createFileRoute("/artifacts/artifact/$id")({
 
 		return { artifact };
 	},
+	wrapInSuspense: true,
 });
 
 function RouteComponent() {
@@ -23,11 +28,6 @@ function RouteComponent() {
 	const { data: artifact } = useSuspenseQuery(buildGetArtifactQuery(id));
 
 	const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
-
-	console.log("w/ metadata", artifactWithMetadata);
-	if (!artifact) {
-		return null;
-	}
 
 	return <ArtifactDetailPage artifact={artifactWithMetadata ?? artifact} />;
 }

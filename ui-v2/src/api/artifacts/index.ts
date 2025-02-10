@@ -2,7 +2,9 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { components } from "../prefect";
 import { getQueryService } from "../service";
 
-export type Artifact = components["schemas"]["Artifact"];
+export type Artifact = components["schemas"]["Artifact"] & {
+	data: string | number; // override data to be a string
+};
 export type ArtifactWithFlowRunAndTaskRun = Artifact & {
 	flow_run?: components["schemas"]["FlowRun"];
 	task_run?: components["schemas"]["TaskRun"];
