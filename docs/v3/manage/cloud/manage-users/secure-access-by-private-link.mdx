@@ -1,0 +1,36 @@
+---
+title: Secure access over PrivateLink
+description: Manage network access to Prefect Cloud accounts over PrivateLink.
+---
+
+PrivateLink is an available upgrade to certain Enterprise plans.  
+PrivateLink enables account administrators to restrict access to Prefect Cloud APIs and the UI at the network level, by routing all network traffic through AWS and GCP.  
+Traffic between your network and Prefect Cloud is encrypted, and does not traverse the public internet.  
+
+To learn more, please contact your account manager or the Prefect team at sales@prefect.io.
+
+Your Prefect team will provide the service endpoint to register.
+Once registered, the following information is required to accept the connection on Prefects side:
+
+- AWS Account Number for each AWS registering
+- AWS VPC IDs for each registering endpoint
+- Source Region for each VPC (`us-east-1`, `us-east-2` etc.)
+- VPC Endpoint ID for each registered/pending endpoint
+
+Prefect will match your pending connection to the information provided, and once approved accept the connection.
+
+Once accepted, customers should enable "Modify Private DNS" to ensure the VPCs can resolve the Prefect service endpoint.
+
+With Private DNS and the accepted connection, connectivity can be validated through curl:
+
+```bash
+curl -i https://api-internal.private.prefect.cloud/api/health
+```
+
+To configure the Prefect client, and/or workers to use the endpoint, `PREFECT_API_URL` and `PREFECT_CLOUD_API_URL` should be set to the endpoint provided by Prefect.
+
+```bash
+prefect config set PREFECT_API_URL=https://api-internal.private.prefect.cloud/api/accounts/<account-id>/workspaces/<workspace-id>
+prefect config set PREFECT_CLOUD_API_URL=https://api-internal.private.prefect.cloud/api
+```
+
