@@ -108,7 +108,19 @@ if __name__ == "__main__":
 
 ### prefect-dbt 0.7.0 and later
 
+<Info>
+During the prerelease phase of `prefect-dbt==0.7.0`, use the `--pre` flag to install the latest release candidate.
+
+```bash
+pip install prefect-dbt --pre
+```
+</Info>
+
 Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and additional features.
+
+<Tip>
+The `PrefectDbtRunner` is inspired by the `DbtRunner` from dbt Core, and its `invoke` method accepts the same arguments. Refer to the [`DbtRunner` documentation](https://docs.getdbt.com/reference/programmatic-invocations/dbt-runner) for more information on how to call `invoke`.
+</Tip>
 
 Basic usage:
 
@@ -280,7 +292,11 @@ This enables you to set up alerting for specific node states through Prefect's a
 }
 ```
 
-#### Resources and Lineage
+#### Resources and lineage
+
+<Info>
+Resources in Prefect Cloud are currently experienmental. Enable them by setting the `PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED` environment variable to `true` wherever flow runs are executed.
+</Info>
 
 The `PrefectDbtRunner` automatically emits lineage events describing the relationships between the resources in your dbt project.
 Resources can be viewed in Prefect Cloud on the flow run page. Clicking "View graph" will display a lineage graph with nodes directly upstream and downstream of the selected resource.
