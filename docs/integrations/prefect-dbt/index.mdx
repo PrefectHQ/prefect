@@ -140,8 +140,8 @@ if __name__ == "__main__":
 
 #### dbt settings
 
-The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings`, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
-If no environment variables are set, dbt's established defaults are used.
+The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
+If no environment variables are set, dbt's defaults are used.
 
 Provide a `PrefectDbtSettings` instance to `PrefectDbtRunner` to customize dbt settings or override environment variables.
 
@@ -166,11 +166,11 @@ if __name__ == "__main__":
 
 #### `profiles.yml` templating
 
-The `PrefectDbtRunner` supports templating in your `profiles.yml` file, allowing you to reference Prefect blocks and variables that will be resolved at runtime.
+The `PrefectDbtRunner` class supports templating in your `profiles.yml` file, allowing you to reference Prefect blocks and variables that will be resolved at runtime.
 This enables you to store sensitive credentials securely using Prefect blocks, and configure different targets based on the Prefect workspace.
 
-For example, a Prefect variable called `target` can have a different value in development and production workspaces - `"dev"` and `"prod"`, respectively.
-This allows you to use the same `profiles.yml` file for both environments, automatically referencing Snowflake blocks when running in production.
+For example, a Prefect variable called `target` can have a different value in development (`dev`) and production (`prod`) workspaces.
+This allows you to use the same `profiles.yml` file to automatically reference a local DuckDB instance in development and a Snowflake instance in production.
 
 ```yaml
 example:
@@ -195,12 +195,12 @@ example:
 
 #### Logging
 
-The `PrefectDbtRunner` maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
-It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside a flow or task.
+The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
+It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
 
 #### Failure handling
 
-The `PrefectDbtRunner` raises exceptions with standardized messages containing detailed information about the failure.
+The `PrefectDbtRunner` class raises exceptions with standardized messages containing detailed information about the failure.
 
 ```
 Failures detected during invocation of dbt command 'build':
@@ -227,7 +227,7 @@ if __name__ == "__main__":
 
 #### Events
 
-The `PrefectDbtRunner` automatically emits prefect events for completed dbt nodes with status information.
+The `PrefectDbtRunner` automatically emits Prefect events for completed dbt nodes with status information.
 
 An event for a skipped model may look like this, for example:
 
@@ -269,7 +269,8 @@ An event for a skipped model may look like this, for example:
 ```
 
 These events contain both the `node_info` and `run_result` for processed nodes in your dbt project, as well as the final status of the node's execution in the primary resource.
-This enables you to set up alerting for specific node states through Prefect's automations system. To be notified when this model is skipped, the following automation trigger could be set up:
+This enables you to set up alerting for specific node states through Prefect's automations system.
+To be notified when this model is skipped, the following automation trigger could be set up:
 
 ```json
 {
@@ -298,8 +299,9 @@ This enables you to set up alerting for specific node states through Prefect's a
 Resources in Prefect Cloud are currently experienmental. Enable them by setting the `PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED` environment variable to `true` wherever flow runs are executed.
 </Info>
 
-The `PrefectDbtRunner` automatically emits lineage events describing the relationships between the resources in your dbt project.
-Resources can be viewed in Prefect Cloud on the flow run page. Clicking "View graph" will display a lineage graph with nodes directly upstream and downstream of the selected resource.
+The `PrefectDbtRunner` class automatically emits lineage events describing the relationships between the resources in your dbt project.
+Resources can be viewed in Prefect Cloud on the flow run page.
+Click "View graph" to display a lineage graph with nodes directly upstream and downstream of the selected resource.
 
 When running in Prefect Cloud, the lineage graph for executed nodes will be visible on the flow run page, showing upstream and downstream dependencies.
 
@@ -325,7 +327,7 @@ prefect:
   emit_lineage_events: False  # Disable lineage events
 ```
 
-### prefect-dbt < 0.7.0
+### prefect-dbt 0.6.6 and earlier
 
 `prefect-dbt` supports a couple of ways to run dbt Core commands.
 A `DbtCoreOperation` block will run the commands as shell commands, while other tasks use dbt's [Programmatic Invocation](#programmatic-invocation).
