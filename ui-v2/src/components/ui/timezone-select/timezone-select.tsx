@@ -38,7 +38,7 @@ const TIMEZONES = Intl.supportedValuesOf("timeZone")
 const ALL_TIMEZONES = [...SUGGESTED_TIMEZONES, ...TIMEZONES];
 
 type TimezoneSelectProps = {
-	selectedValue: string | undefined;
+	selectedValue: string | undefined | null;
 	onSelect: (value: string) => void;
 };
 
