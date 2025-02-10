@@ -6,6 +6,7 @@ import { type JSX } from "react";
 
 import { DeploymentConfiguration } from "./deployment-configuration";
 import { DeploymentDescription } from "./deployment-description";
+import { DeploymentParametersTable } from "./deployment-parameters-table";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -59,7 +60,7 @@ export const DeploymentDetailsTabs = ({
 			),
 			ViewComponent: () => (
 				<TabsContent value="Parameters">
-					<div className="border border-red-400">{"<ParametersView />"}</div>
+					<DeploymentParametersTable deployment={deployment} />
 				</TabsContent>
 			),
 		},
