@@ -38,7 +38,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				</div>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<div className="flex flex-col gap-5">
-						<DeploymentDetailsTabs />
+						<DeploymentDetailsTabs deployment={data} />
 					</div>
 					<div className="flex flex-col gap-3">
 						<div className="border border-red-400">
