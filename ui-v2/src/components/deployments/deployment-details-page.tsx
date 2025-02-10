@@ -7,6 +7,7 @@ import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
 import { DeploymentFlowLink } from "./deployment-flow-link";
 import { DeploymentMetadata } from "./deployment-metadata";
+import { DeploymentTriggers } from "./deployment-triggers";
 import { useDeleteDeploymentConfirmationDialog } from "./use-delete-deployment-confirmation-dialog";
 
 type DeploymentDetailsPageProps = {
@@ -42,7 +43,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 						<div className="border border-red-400">
 							{"<SchedulesSection />"}
 						</div>
-						<div className="border border-red-400">{"<TriggerSection />"}</div>
+						<DeploymentTriggers deployment={data} />
 						<hr />
 						<DeploymentMetadata deployment={data} />
 					</div>
