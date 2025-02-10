@@ -170,10 +170,10 @@ class Timestamp(TypeDecorator[DateTime]):
         self,
         value: Optional[Union[datetime.datetime, DateTime]],
         dialect: sa.Dialect,
-    ) -> Optional[Union[datetime.datetime, DateTime]]:
+    ) -> Optional[DateTime]:
         # retrieve timestamps in their native timezone (or UTC)
         if value is not None:
-            return value.astimezone(datetime.timezone.utc)
+            return DateTime.instance(value).in_timezone("UTC")
 
 
 class UUID(TypeDecorator[uuid.UUID]):
