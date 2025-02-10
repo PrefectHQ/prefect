@@ -37,6 +37,14 @@ def local_timezone() -> Timezone | FixedTimezone:
     return pendulum.tz.local_timezone()
 
 
+def get_timezones() -> tuple[str, ...]:
+    return pendulum.tz.timezones()
+
+
+def pendulum_instance(v: DateTime) -> DateTime:
+    return DateTime.instance(pendulum.instance(v))
+
+
 def from_format(
     value: str,
     fmt: str,

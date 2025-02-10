@@ -3,15 +3,14 @@ Utilities for creating and working with Prefect REST API schemas.
 """
 
 import datetime
-from typing import Any, ClassVar, Optional, TypeVar, cast
+from typing import Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field
 from rich.repr import RichReprResult
 from typing_extensions import Self
 
-from prefect.types import DateTime
+from prefect.types._datetime import DateTime, pendulum_instance
 from prefect.utilities.generics import validate_list
 
 T = TypeVar("T")
@@ -73,11 +72,9 @@ class PrefectBaseModel(BaseModel):
                 and name == "timestamp"
                 and value
             ):
-                value = cast(pendulum.DateTime, pendulum.instance(value)).isoformat()
+                value = pendulum_instance(value).isoformat()
             elif isinstance(field.annotation, datetime.datetime) and value:
-                value = cast(
-                    pendulum.DateTime, pendulum.instance(value)
-                ).diff_for_humans()
+                value = pendulum_instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
 

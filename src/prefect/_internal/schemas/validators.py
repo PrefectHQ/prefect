@@ -19,9 +19,8 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 from uuid import UUID
 
 import jsonschema
-import pendulum
-import pendulum.tz
 
+from prefect.types._datetime import DateTime, get_timezones, pendulum_instance
 from prefect.utilities.collections import isiterable
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
@@ -253,8 +252,8 @@ def reconcile_paused_deployment(values: MM) -> MM:
     return values
 
 
-def default_anchor_date(v: pendulum.DateTime) -> pendulum.DateTime:
-    return pendulum.instance(v)
+def default_anchor_date(v: DateTime) -> DateTime:
+    return pendulum_instance(v)
 
 
 @overload
@@ -271,7 +270,7 @@ def default_timezone(
     v: Optional[str], values: Optional[Mapping[str, Any]] = None
 ) -> Optional[str]:
     values = values or {}
-    timezones = pendulum.tz.timezones()
+    timezones = get_timezones()
 
     if v is not None:
         if v and v not in timezones:
@@ -283,7 +282,7 @@ def default_timezone(
 
     # anchor schedules
     elif "anchor_date" in values:
-        anchor_date: pendulum.DateTime = values["anchor_date"]
+        anchor_date: DateTime = values["anchor_date"]
         tz = "UTC" if anchor_date.tz is None else anchor_date.tz.name
         # sometimes anchor dates have "timezones" that are UTC offsets
         # like "-04:00". This happens when parsing ISO8601 strings.
