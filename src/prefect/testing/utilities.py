@@ -281,7 +281,13 @@ async def assert_uses_result_storage(
 
 
 def a_test_step(**kwargs: Any) -> dict[str, Any]:
-    kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
+    kwargs.update(
+        {
+            "output1": 1,
+            "output2": ["b", 2, 3],
+            "output3": "This one is actually a string",
+        }
+    )
     return kwargs
 
 
