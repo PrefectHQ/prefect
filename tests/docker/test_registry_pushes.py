@@ -30,9 +30,9 @@ def contexts() -> Path:
 
 @pytest.fixture(scope="module")
 def frozen_now():
-    now = DateTime.now("UTC")
-    with mock.patch("prefect.types._datetime.now", return_value=now):
-        yield now
+    frozen_now = DateTime.now("UTC")
+    with mock.patch("prefect.types._datetime.DateTime.now", return_value=frozen_now):
+        yield frozen_now
 
 
 @pytest.fixture(scope="module")
