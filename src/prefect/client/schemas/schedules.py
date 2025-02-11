@@ -30,7 +30,7 @@ def is_valid_timezone(v: str) -> bool:
     Validate that the provided timezone is a valid IANA timezone.
 
     Unfortunately this list is slightly different from the list of valid
-    timezones in pendulum that we use for cron and interval timezone validation.
+    timezones we use for cron and interval timezone validation.
     """
     from prefect._internal.pytz import HAS_PYTZ
 
@@ -309,7 +309,7 @@ class RRuleSchedule(PrefectBaseModel):
         Validate that the provided timezone is a valid IANA timezone.
 
         Unfortunately this list is slightly different from the list of valid
-        timezones in pendulum that we use for cron and interval timezone validation.
+        timezones we use for cron and interval timezone validation.
         """
         if v is None:
             return "UTC"
