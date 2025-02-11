@@ -1,8 +1,9 @@
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense } from "react";
 
-import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
@@ -22,9 +23,6 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 		buildDeploymentDetailsQuery(id),
 	);
 
-	const { data: automations } = useSuspenseQuery(
-		buildListAutomationsRelatedQuery(`prefect.deployment.${id}`),
-	);
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
 
@@ -34,7 +32,9 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				<div className="flex align-middle justify-between">
 					<div className="flex flex-col gap-2">
 						<DeploymentDetailsHeader deployment={deployment} />
-						<DeploymentFlowLink flowId={deployment.flow_id} />
+						<Suspense fallback={<LoadingSkeleton numSkeletons={1} />}>
+							<DeploymentFlowLink flowId={deployment.flow_id} />
+						</Suspense>
 					</div>
 					<div className="flex align-middle gap-2">
 						<RunFlowButton deployment={deployment} />
@@ -52,10 +52,11 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 					</div>
 					<div className="flex flex-col gap-3">
 						<DeploymentSchedules deployment={deployment} />
-						<DeploymentTriggers
-							automations={automations}
-							deployment={deployment}
-						/>
+
+						<Suspense fallback={<LoadingSkeleton numSkeletons={2} />}>
+							<DeploymentTriggers deployment={deployment} />
+						</Suspense>
+
 						<hr />
 						<DeploymentMetadata deployment={deployment} />
 					</div>
@@ -65,3 +66,16 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 		</>
 	);
 };
+
+type LoadingSkeletonProps = {
+	numSkeletons?: number;
+};
+const LoadingSkeleton = ({ numSkeletons = 1 }: LoadingSkeletonProps) => (
+	<ul className="flex flex-col gap-1">
+		{Array.from({ length: numSkeletons }).map((_, i) => (
+			<li key={i}>
+				<Skeleton className="h-4 w-full" />
+			</li>
+		))}
+	</ul>
+);

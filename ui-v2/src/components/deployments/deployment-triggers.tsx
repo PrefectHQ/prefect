@@ -1,18 +1,20 @@
 import type { Automation } from "@/api/automations";
+import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import type { Deployment } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 type DeploymentTriggersProps = {
-	automations: Array<Automation>;
 	deployment: Deployment;
 };
 
-export const DeploymentTriggers = ({
-	automations,
-	deployment,
-}: DeploymentTriggersProps) => {
+export const DeploymentTriggers = ({ deployment }: DeploymentTriggersProps) => {
+	const { data: automations } = useSuspenseQuery(
+		buildListAutomationsRelatedQuery(`prefect.deployment.${deployment.id}`),
+	);
+
 	return (
 		<div className="flex flex-col gap-1">
 			<div className="text-sm text-muted-foreground">Triggers</div>
