@@ -10,14 +10,21 @@ from pendulum.datetime import DateTime as PendulumDateTime
 from pendulum.duration import Duration as PendulumDuration
 from pendulum.time import Time as PendulumTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
-from pydantic_extra_types.pendulum_dt import Date as PydanticDate
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
-from pydantic_extra_types.pendulum_dt import Duration as PydanticDuration
+from pydantic_extra_types.pendulum_dt import (
+    Date as PydanticDate,
+)
+from pydantic_extra_types.pendulum_dt import (
+    DateTime as PydanticDateTime,
+)
+from pydantic_extra_types.pendulum_dt import (
+    Duration as PydanticDuration,
+)
 from typing_extensions import TypeAlias
 
 DateTime: TypeAlias = PydanticDateTime
 Date: TypeAlias = PydanticDate
 Duration: TypeAlias = PydanticDuration
+UTC: pendulum.tz.Timezone = pendulum.tz.UTC
 
 
 def parse_datetime(
@@ -51,10 +58,14 @@ def create_datetime_instance(v: datetime.datetime) -> DateTime:
 def from_format(
     value: str,
     fmt: str,
-    tz: str | Timezone = pendulum.tz.UTC,
+    tz: str | Timezone = UTC,
     locale: str | None = None,
 ) -> DateTime:
     return DateTime.instance(pendulum.from_format(value, fmt, tz, locale))
+
+
+def from_timestamp(ts: float, tz: str | pendulum.tz.Timezone = UTC) -> DateTime:
+    return DateTime.instance(pendulum.from_timestamp(ts, tz))
 
 
 def human_friendly_diff(dt: DateTime | datetime.datetime) -> str:
@@ -64,5 +75,9 @@ def human_friendly_diff(dt: DateTime | datetime.datetime) -> str:
         return DateTime.instance(dt).diff_for_humans()
 
 
-def now(tz: str | Timezone = pendulum.tz.UTC) -> DateTime:
+def now(tz: str | Timezone = UTC) -> DateTime:
     return DateTime.now(tz)
+
+
+def add_years(dt: DateTime, years: int) -> DateTime:
+    return dt.add(years=years)
