@@ -8,8 +8,6 @@ import {
 import { DocsLink } from "@/components/ui/docs-link";
 import { Typography } from "@/components/ui/typography";
 import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 export type ArtifactDetailHeaderProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
@@ -92,19 +90,6 @@ export const ArtifactDetailHeader = ({
 				{header}
 				<DocsLink id="artifacts-guide" label="Documentation" />
 			</div>
-			{artifact.description && (
-				<div className="">
-					<Typography variant="h2" className="my-4 font-bold">
-						<Markdown
-							remarkPlugins={[remarkGfm]}
-							className={"prose lg:prose-xl"}
-						>
-							{artifact.description}
-						</Markdown>
-					</Typography>
-				</div>
-			)}
-			<hr />
 		</>
 	);
 };
