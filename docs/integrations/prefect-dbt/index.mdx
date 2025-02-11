@@ -111,9 +111,17 @@ if __name__ == "__main__":
 <Info>
 During the prerelease phase of `prefect-dbt==0.7.0`, use the `--pre` flag to install the latest release candidate.
 
-```bash
-pip install -U --pre prefect-dbt 
+<CodeGroup>
+
+```bash pip
+pip install -U --pre prefect-dbt
 ```
+
+```bash uv
+uv pip install -U --pre prefect-dbt
+```
+
+</CodeGroup>
 </Info>
 
 Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and additional features.
