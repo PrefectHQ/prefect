@@ -2,6 +2,7 @@ import abc
 import asyncio
 import os
 import ssl
+from datetime import timedelta
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -21,7 +22,6 @@ from urllib.request import proxy_bypass
 from uuid import UUID
 
 import orjson
-import pendulum
 from cachetools import TTLCache
 from prometheus_client import Counter
 from python_socks.async_.asyncio import Proxy
@@ -44,6 +44,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.types._datetime import add_years, now
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -653,8 +654,8 @@ class PrefectEventSubscriber:
         from prefect.events.filters import EventOccurredFilter
 
         self._filter.occurred = EventOccurredFilter(
-            since=pendulum.now("UTC").subtract(minutes=1),
-            until=pendulum.now("UTC").add(years=1),
+            since=now("UTC") - timedelta(minutes=1),
+            until=add_years(now("UTC"), 1),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
