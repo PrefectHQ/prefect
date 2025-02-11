@@ -70,3 +70,7 @@ def human_friendly_diff(dt: DateTime | datetime.datetime) -> str:
 
 def now(tz: str | Timezone = pendulum.tz.UTC) -> DateTime:
     return DateTime.now(tz)
+
+
+def add_years(dt: DateTime, years: int) -> DateTime:
+    return dt.add(years=years)
