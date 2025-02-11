@@ -57,6 +57,10 @@ def from_format(
     return DateTime.instance(pendulum.from_format(value, fmt, tz, locale))
 
 
+def from_timestamp(ts: float, tz: str | Timezone = pendulum.tz.UTC) -> DateTime:
+    return DateTime.instance(pendulum.from_timestamp(ts, tz))
+
+
 def human_friendly_diff(dt: DateTime | datetime.datetime) -> str:
     if isinstance(dt, DateTime):
         return dt.diff_for_humans()
