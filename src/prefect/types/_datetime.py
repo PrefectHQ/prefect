@@ -24,7 +24,7 @@ from typing_extensions import TypeAlias
 DateTime: TypeAlias = PydanticDateTime
 Date: TypeAlias = PydanticDate
 Duration: TypeAlias = PydanticDuration
-UTC: Timezone = pendulum.tz.UTC
+UTC: pendulum.tz.Timezone = pendulum.tz.UTC
 
 
 def parse_datetime(
@@ -64,7 +64,7 @@ def from_format(
     return DateTime.instance(pendulum.from_format(value, fmt, tz, locale))
 
 
-def from_timestamp(ts: float, tz: str | Timezone = UTC) -> DateTime:
+def from_timestamp(ts: float, tz: str | pendulum.tz.Timezone = UTC) -> DateTime:
     return DateTime.instance(pendulum.from_timestamp(ts, tz))
 
 
@@ -75,7 +75,7 @@ def human_friendly_diff(dt: DateTime | datetime.datetime) -> str:
         return DateTime.instance(dt).diff_for_humans()
 
 
-def now(tz: Timezone = UTC) -> DateTime:
+def now(tz: str | Timezone = UTC) -> DateTime:
     return DateTime.now(tz)
 
 

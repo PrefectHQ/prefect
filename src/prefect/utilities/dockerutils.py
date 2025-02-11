@@ -428,7 +428,7 @@ def push_image(
     """
 
     if not tag:
-        tag = slugify(now("utc").isoformat())
+        tag = slugify(now("UTC").isoformat())
 
     _, registry, _, _, _ = urlsplit(registry_url)
     repository = f"{registry}/{name}"
