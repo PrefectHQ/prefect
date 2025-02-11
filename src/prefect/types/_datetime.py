@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
 import pendulum
@@ -11,10 +12,12 @@ from pendulum.time import Time as PendulumTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic_extra_types.pendulum_dt import Date as PydanticDate
 from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
+from pydantic_extra_types.pendulum_dt import Duration as PydanticDuration
 from typing_extensions import TypeAlias
 
 DateTime: TypeAlias = PydanticDateTime
 Date: TypeAlias = PydanticDate
+Duration: TypeAlias = PydanticDuration
 
 
 def parse_datetime(
@@ -35,6 +38,14 @@ def format_diff(
 
 def local_timezone() -> Timezone | FixedTimezone:
     return pendulum.tz.local_timezone()
+
+
+def get_timezones() -> tuple[str, ...]:
+    return pendulum.tz.timezones()
+
+
+def create_datetime_instance(v: datetime.datetime) -> DateTime:
+    return DateTime.instance(v)
 
 
 def from_format(
