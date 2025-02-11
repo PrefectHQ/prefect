@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Optional, TypeVar, Union
 from uuid import UUID
 
-import pendulum
+from prefect.types._datetime import now
 
 from ._asyncio import acquire_concurrency_slots, release_concurrency_slots
 from ._events import (
@@ -59,13 +59,13 @@ def concurrency(
     )
     assert not asyncio.iscoroutine(result)
     limits = result
-    acquisition_time = pendulum.now("UTC")
+    acquisition_time = now("UTC")
     emitted_events = emit_concurrency_acquisition_events(limits, task_run_id)
 
     try:
         yield
     finally:
-        occupancy_period = pendulum.now("UTC") - acquisition_time
+        occupancy_period = now("UTC") - acquisition_time
         release_concurrency_slots(
             names, task_run_id, occupancy_period.total_seconds(), **force
         )
