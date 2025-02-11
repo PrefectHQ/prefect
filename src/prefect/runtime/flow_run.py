@@ -23,13 +23,14 @@ Available attributes:
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
-from prefect.types._datetime import DateTime, now, parse_datetime
+from prefect.types._datetime import DateTime, Timezone, now, parse_datetime
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, TaskRun
@@ -52,6 +53,12 @@ __all__ = [
 ]
 
 
+def _parse_datetime_UTC(dt: str) -> DateTime:
+    pendulum_dt = parse_datetime(dt, tz=Timezone("UTC"), strict=False)
+    assert isinstance(pendulum_dt, datetime)
+    return DateTime.instance(pendulum_dt)
+
+
 type_cast: dict[
     type[bool] | type[int] | type[float] | type[str] | type[None] | type[DateTime],
     Callable[[Any], Any],
@@ -60,7 +67,7 @@ type_cast: dict[
     int: int,
     float: float,
     str: str,
-    DateTime: parse_datetime,
+    DateTime: _parse_datetime_UTC,
     # for optional defined attributes, when real value is NoneType, use str
     type(None): str,
 }
