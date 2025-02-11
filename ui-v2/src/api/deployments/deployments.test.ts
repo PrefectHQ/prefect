@@ -13,6 +13,7 @@ import {
 	queryKeyFactory,
 	useCreateDeploymentSchedule,
 	useDeleteDeployment,
+	useDeleteDeploymentSchedule,
 	useUpdateDeploymentSchedule,
 } from "./index";
 
@@ -329,6 +330,65 @@ describe("deployments api", () => {
 			expect(
 				useListDeploymentsResult.current.data?.results[0].schedules,
 			).toEqual([MOCK_UPDATED_SCHEDULE]);
+		});
+	});
+
+	describe("useDeleteDeploymentSchedule", () => {
+		const MOCK_DEPLOYMENT_ID = "deployment-id";
+		const MOCK_SCHEDULE_ID = "schedule-id";
+		const MOCK_SCHEDULE = {
+			id: MOCK_SCHEDULE_ID,
+			created: "2024-01-01T00:00:00.000Z",
+			updated: "2024-01-01T00:00:00.000Z",
+			deployment_id: "deployment-id",
+			schedule: {
+				interval: 3600.0,
+				anchor_date: "2024-01-01T00:00:00.000Z",
+				timezone: "UTC",
+			},
+			active: false,
+			max_scheduled_runs: null,
+		};
+		const MOCK_DEPLYOMENT = createFakeDeployment({
+			id: MOCK_DEPLOYMENT_ID,
+			schedules: [MOCK_SCHEDULE],
+		});
+		const MOCK_UPDATED_DEPLOYMENT = {
+			...MOCK_DEPLYOMENT,
+			schedules: [],
+		};
+
+		it("invalidates cache and fetches updated value", async () => {
+			const queryClient = new QueryClient();
+			// Original cached value
+			queryClient.setQueryData(queryKeyFactory.all(), [MOCK_DEPLYOMENT]);
+
+			// Updated fetch and cached value
+			mockFetchDeploymentsAPI([MOCK_UPDATED_DEPLOYMENT]);
+
+			const { result: useListDeploymentsResult } = renderHook(
+				() => useQuery(buildPaginateDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useDeleteDeploymentScheduleResult } = renderHook(
+				useDeleteDeploymentSchedule,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useDeleteDeploymentScheduleResult.current.deleteDeploymentSchedule({
+					deployment_id: MOCK_DEPLOYMENT_ID,
+					schedule_id: MOCK_SCHEDULE_ID,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useDeleteDeploymentScheduleResult.current.isSuccess).toBe(true),
+			);
+			expect(
+				useListDeploymentsResult.current.data?.results[0].schedules,
+			).toHaveLength(0);
 		});
 	});
 });
