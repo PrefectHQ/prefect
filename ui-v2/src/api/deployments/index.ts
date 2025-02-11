@@ -237,6 +237,49 @@ export const useDeleteDeployment = () => {
 	return { deleteDeployment, ...rest };
 };
 
+type UseCreateDeploymentSchedule = {
+	deployment_id: string;
+} & components["schemas"]["DeploymentScheduleCreate"];
+/**
+ * Hook for create a deployment's schedule
+ *
+ * @returns Mutation object for creating a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createDeploymentSchedule } = useCreateDeploymentSchedule();
+ *
+ * // create a deployment schedule
+ * createDeploymentSchedule({deployment_id, ...schedule}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useCreateDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: createDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({ deployment_id, ...schedule }: UseCreateDeploymentSchedule) =>
+			getQueryService().POST("/deployments/{id}/schedules", {
+				body: [schedule],
+				params: { path: { id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+
+	return { createDeploymentSchedule, ...rest };
+};
+
 type UpdateDeploymentSchedule = {
 	deployment_id: string;
 	schedule_id: string;
