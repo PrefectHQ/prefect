@@ -1,6 +1,6 @@
 import { buildFLowDetailsQuery } from "@/api/flows";
 import { Icon } from "@/components/ui/icons";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 type DeploymentFlowLinkProps = {
@@ -8,18 +8,18 @@ type DeploymentFlowLinkProps = {
 };
 
 export const DeploymentFlowLink = ({ flowId }: DeploymentFlowLinkProps) => {
-	const { data } = useQuery(buildFLowDetailsQuery(flowId));
+	const { data: flow } = useSuspenseQuery(buildFLowDetailsQuery(flowId));
 
 	return (
 		<div className="flex items-center gap-1 text-sm">
 			Flow
 			<Link
 				to="/flows/flow/$id"
-				params={{ id: flowId }}
+				params={{ id: flow.id }}
 				className="flex items-center gap-1"
 			>
 				<Icon id="Workflow" className="h-4 w-4" />
-				{data?.name}
+				{flow.name}
 			</Link>
 		</div>
 	);
