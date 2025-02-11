@@ -1,11 +1,10 @@
 from pathlib import Path
 from typing import Any, Optional
 
-from pendulum import now as pendulum_now
-
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
 )
+from prefect.types._datetime import now
 from prefect.utilities.dockerutils import (
     PushError,
     build_image,
@@ -54,7 +53,7 @@ class DockerImage:
         # join the namespace and repository to create the full image name
         # ignore namespace if it is None
         self.name: str = "/".join(filter(None, [namespace, repository]))
-        self.tag: str = tag or image_tag or slugify(pendulum_now("utc").isoformat())
+        self.tag: str = tag or image_tag or slugify(now("UTC").isoformat())
         self.dockerfile: str = dockerfile
         self.build_kwargs: dict[str, Any] = build_kwargs
 
