@@ -2,6 +2,7 @@ import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
+import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
@@ -17,7 +18,13 @@ type DeploymentDetailsPageProps = {
 };
 
 export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
-	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
+	const { data: deployment } = useSuspenseQuery(
+		buildDeploymentDetailsQuery(id),
+	);
+
+	const { data: automations } = useSuspenseQuery(
+		buildListAutomationsRelatedQuery(`prefect.deployment.${id}`),
+	);
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
 
@@ -26,26 +33,31 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 			<div className="flex flex-col gap-4">
 				<div className="flex align-middle justify-between">
 					<div className="flex flex-col gap-2">
-						<DeploymentDetailsHeader deployment={data} />
-						<DeploymentFlowLink flowId={data.flow_id} />
+						<DeploymentDetailsHeader deployment={deployment} />
+						<DeploymentFlowLink flowId={deployment.flow_id} />
 					</div>
 					<div className="flex align-middle gap-2">
-						<RunFlowButton deployment={data} />
+						<RunFlowButton deployment={deployment} />
 						<DeploymentActionMenu
 							id={id}
-							onDelete={() => confirmDelete(data, { shouldNavigate: true })}
+							onDelete={() =>
+								confirmDelete(deployment, { shouldNavigate: true })
+							}
 						/>
 					</div>
 				</div>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<div className="flex flex-col gap-5">
-						<DeploymentDetailsTabs deployment={data} />
+						<DeploymentDetailsTabs deployment={deployment} />
 					</div>
 					<div className="flex flex-col gap-3">
-						<DeploymentSchedules deployment={data} />
-						<DeploymentTriggers deployment={data} />
+						<DeploymentSchedules deployment={deployment} />
+						<DeploymentTriggers
+							automations={automations}
+							deployment={deployment}
+						/>
 						<hr />
-						<DeploymentMetadata deployment={data} />
+						<DeploymentMetadata deployment={deployment} />
 					</div>
 				</div>
 			</div>

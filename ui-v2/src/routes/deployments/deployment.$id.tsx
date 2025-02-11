@@ -1,9 +1,9 @@
+import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-
-import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page
@@ -21,7 +21,14 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
 	loader: ({ context, params }) =>
-		context.queryClient.ensureQueryData(buildDeploymentDetailsQuery(params.id)),
+		Promise.all([
+			context.queryClient.ensureQueryData(
+				buildDeploymentDetailsQuery(params.id),
+			),
+			context.queryClient.ensureQueryData(
+				buildListAutomationsRelatedQuery(`prefect.deployment.${params.id}`),
+			),
+		]),
 	wrapInSuspense: true,
 });
 
