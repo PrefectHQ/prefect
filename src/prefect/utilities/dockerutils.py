@@ -15,7 +15,7 @@ from packaging.version import Version
 from typing_extensions import Self
 
 import prefect
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
 
@@ -428,7 +428,7 @@ def push_image(
     """
 
     if not tag:
-        tag = slugify(DateTime.now("utc").isoformat())
+        tag = slugify(now("utc").isoformat())
 
     _, registry, _, _, _ = urlsplit(registry_url)
     repository = f"{registry}/{name}"
