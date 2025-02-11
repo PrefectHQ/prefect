@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     except Abort:
         engine_logger.info(
-            "Engine execution of flow run '{flow_run_id}' aborted by orchestrator."
+            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator."
         )
         exit(0)
     except Pause:
