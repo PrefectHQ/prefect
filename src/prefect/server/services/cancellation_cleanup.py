@@ -89,7 +89,6 @@ class CancellationCleanup(LoopService):
             # - state_type: for state validation
             # - parent_task_run_id: for parent task run checks
             # - deployment_id: for determining cancellation state type
-            # Note: state is a relationship and must be loaded separately
             subflow_query = (
                 sa.select(db.FlowRun)
                 .options(
@@ -99,7 +98,6 @@ class CancellationCleanup(LoopService):
                         db.FlowRun.parent_task_run_id,
                         db.FlowRun.deployment_id,
                     ),
-                    sa.orm.selectinload(db.FlowRun.state),
                 )
                 .where(
                     or_(
