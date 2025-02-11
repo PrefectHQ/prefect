@@ -16,40 +16,69 @@ For example, you can run flows on Vertex AI or Cloud Run, read and write data to
 Install `prefect-gcp` as an extra of `prefect`. 
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-```bash
-pip install "prefect[gcp]"
-```
+<CodeGroup>
 
-Upgrade to the latest versions of `prefect` and `prefect-gcp`:
-
-```bash
+```bash pip
 pip install -U "prefect[gcp]"
 ```
+
+```bash uv
+uv pip install -U "prefect[gcp]"
+```
+
+</CodeGroup>
+
 
 If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#install-extras).
 
 #### Install extras
 To install `prefect-gcp` with all additional capabilities, run the install command above and then run the following command:
 
-```bash
-pip install "prefect-gcp[all_extras]"
+<CodeGroup>
+
+```bash pip
+pip install -U "prefect-gcp[all_extras]"
 ```
+
+```bash uv
+uv pip install -U "prefect-gcp[all_extras]"
+```
+
+</CodeGroup>
+
 
 Or, install extras individually:
+<CodeGroup>
 
-```bash
+```bash pip
 # Use Cloud Storage
-pip install "prefect-gcp[cloud_storage]"
+pip install -U "prefect-gcp[cloud_storage]"
 
 # Use BigQuery
-pip install "prefect-gcp[bigquery]"
+pip install -U "prefect-gcp[bigquery]"
 
 # Use Secret Manager
-pip install "prefect-gcp[secret_manager]"
+pip install -U "prefect-gcp[secret_manager]"
 
 # Use Vertex AI
-pip install "prefect-gcp[aiplatform]"
+pip install -U "prefect-gcp[aiplatform]"
 ```
+
+```bash uv
+# Use Cloud Storage
+uv pip install -U "prefect-gcp[cloud_storage]"
+
+# Use BigQuery
+uv pip install -U "prefect-gcp[bigquery]"
+
+# Use Secret Manager
+uv pip install -U "prefect-gcp[secret_manager]"
+
+# Use Vertex AI
+uv pip install -U "prefect-gcp[aiplatform]"
+```
+
+</CodeGroup>
 
 ### Register newly installed block types
 
