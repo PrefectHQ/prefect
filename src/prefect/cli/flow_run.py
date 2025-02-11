@@ -8,7 +8,6 @@ from typing import List, Optional
 from uuid import UUID
 
 import httpx
-import pendulum
 import typer
 from rich.markup import escape
 from rich.pretty import Pretty
@@ -27,6 +26,7 @@ from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner import Runner
 from prefect.states import State
+from prefect.types._datetime import create_datetime_instance
 
 flow_run_app: PrefectTyper = PrefectTyper(
     name="flow-run", help="Interact with flow runs."
@@ -172,7 +172,7 @@ async def ls(
             str(flow.name),
             str(flow_run.name),
             str(flow_run.state.type.value),
-            pendulum.instance(timestamp).diff_for_humans(),
+            create_datetime_instance(timestamp).diff_for_humans(),
         )
 
     app.console.print(table)
