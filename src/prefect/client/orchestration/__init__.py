@@ -130,7 +130,7 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TESTING_UNIT_TEST_MODE,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     from prefect.tasks import Task as TaskObject
@@ -608,7 +608,7 @@ class PrefectClient(
             List[FlowRun]: a list of FlowRun objects read from the queue
         """
         if scheduled_before is None:
-            scheduled_before = DateTime.now("UTC")
+            scheduled_before = now("UTC")
 
         try:
             response = await self._client.post(
