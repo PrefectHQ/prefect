@@ -8,7 +8,7 @@ import pendulum
 import pytest
 from dateutil import rrule
 from packaging import version
-from pendulum import datetime, now
+from pendulum import datetime
 from pydantic import ValidationError
 
 from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
@@ -18,6 +18,7 @@ from prefect.server.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.types._datetime import DateTime, now
 
 dt = pendulum.datetime(2020, 1, 1)
 RRDaily = "FREQ=DAILY"
@@ -37,21 +38,21 @@ class TestCreateIntervalSchedule:
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
     def test_default_anchor(self):
-        mock_now = pendulum.datetime(
+        mock_now = DateTime(
             year=2022,
             month=1,
             day=1,
             hour=1,
             minute=1,
         )
-        with mock.patch("pendulum.now", return_value=mock_now):
+        with mock.patch("prefect.types._datetime.DateTime.now", return_value=mock_now):
             clock = IntervalSchedule(interval=timedelta(days=1))
         assert clock.anchor_date == mock_now
         assert clock.timezone == "UTC"
 
     def test_default_timezone_from_anchor_date(self):
         clock = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.now("America/New_York")
+            interval=timedelta(days=1), anchor_date=now("America/New_York")
         )
         assert clock.timezone == "America/New_York"
 
