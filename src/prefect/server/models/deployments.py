@@ -155,7 +155,7 @@ async def create_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active,  # type: ignore[call-arg]
+                    active=schedule.active,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
@@ -274,11 +274,12 @@ async def update_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active,  # type: ignore[call-arg]
+                    active=schedule.active if schedule.active is not None else True,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
                 for schedule in schedules
+                if schedule.schedule is not None
             ],
         )
 
