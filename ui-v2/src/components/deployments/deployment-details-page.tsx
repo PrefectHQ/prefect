@@ -1,6 +1,8 @@
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
@@ -17,7 +19,10 @@ type DeploymentDetailsPageProps = {
 };
 
 export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
-	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
+	const { data: deployment } = useSuspenseQuery(
+		buildDeploymentDetailsQuery(id),
+	);
+
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
 
@@ -26,26 +31,34 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 			<div className="flex flex-col gap-4">
 				<div className="flex align-middle justify-between">
 					<div className="flex flex-col gap-2">
-						<DeploymentDetailsHeader deployment={data} />
-						<DeploymentFlowLink flowId={data.flow_id} />
+						<DeploymentDetailsHeader deployment={deployment} />
+						<Suspense fallback={<LoadingSkeleton numSkeletons={1} />}>
+							<DeploymentFlowLink flowId={deployment.flow_id} />
+						</Suspense>
 					</div>
 					<div className="flex align-middle gap-2">
-						<RunFlowButton deployment={data} />
+						<RunFlowButton deployment={deployment} />
 						<DeploymentActionMenu
 							id={id}
-							onDelete={() => confirmDelete(data, { shouldNavigate: true })}
+							onDelete={() =>
+								confirmDelete(deployment, { shouldNavigate: true })
+							}
 						/>
 					</div>
 				</div>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<div className="flex flex-col gap-5">
-						<DeploymentDetailsTabs deployment={data} />
+						<DeploymentDetailsTabs deployment={deployment} />
 					</div>
 					<div className="flex flex-col gap-3">
-						<DeploymentSchedules deployment={data} />
-						<DeploymentTriggers deployment={data} />
+						<DeploymentSchedules deployment={deployment} />
+
+						<Suspense fallback={<LoadingSkeleton numSkeletons={2} />}>
+							<DeploymentTriggers deployment={deployment} />
+						</Suspense>
+
 						<hr />
-						<DeploymentMetadata deployment={data} />
+						<DeploymentMetadata deployment={deployment} />
 					</div>
 				</div>
 			</div>
@@ -53,3 +66,16 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 		</>
 	);
 };
+
+type LoadingSkeletonProps = {
+	numSkeletons?: number;
+};
+const LoadingSkeleton = ({ numSkeletons = 1 }: LoadingSkeletonProps) => (
+	<ul className="flex flex-col gap-1">
+		{Array.from({ length: numSkeletons }).map((_, i) => (
+			<li key={i}>
+				<Skeleton className="h-4 w-full" />
+			</li>
+		))}
+	</ul>
+);
