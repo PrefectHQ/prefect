@@ -3,10 +3,10 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 """
 
 import asyncio
+import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
@@ -18,6 +18,7 @@ from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
@@ -64,7 +65,7 @@ class CancellationCleanup(LoopService):
                 .where(
                     db.FlowRun.state_type == states.StateType.CANCELLED,
                     db.FlowRun.end_time.is_not(None),
-                    db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
+                    db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
                 )
                 .limit(self.batch_size)
             )
