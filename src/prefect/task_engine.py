@@ -79,7 +79,7 @@ from prefect.states import (
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
-from prefect.types._datetime import DateTime, PendulumDuration
+from prefect.types._datetime import DateTime, Duration
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -437,7 +437,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += PendulumDuration(microseconds=1)
+            new_state.timestamp += Duration(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
@@ -970,7 +970,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += PendulumDuration(microseconds=1)
+            new_state.timestamp += Duration(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
