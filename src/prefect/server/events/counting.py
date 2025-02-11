@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import datetime
 import math
 from datetime import timedelta
 from typing import TYPE_CHECKING, Generator
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.sql.selectable import Select
 
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.types import DateTime
+from prefect.types._datetime import Duration, end_of_period, now
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 # The earliest possible event.occurred date in any Prefect environment is
 # 2024-04-04, so we use the Monday before that as our pivot date.
-PIVOT_DATETIME = pendulum.DateTime(2024, 4, 1, tzinfo=pendulum.timezone("UTC"))
+PIVOT_DATETIME = DateTime(2024, 4, 1, tzinfo=datetime.timezone.utc)
 
 
 class InvalidEventCountParameters(ValueError):
@@ -36,17 +37,17 @@ class TimeUnit(AutoEnum):
     minute = AutoEnum.auto()
     second = AutoEnum.auto()
 
-    def as_timedelta(self, interval: float) -> pendulum.Duration:
+    def as_timedelta(self, interval: float) -> Duration:
         if self == self.week:
-            return pendulum.Duration(days=7 * interval)
+            return Duration(days=7 * interval)
         elif self == self.day:
-            return pendulum.Duration(days=1 * interval)
+            return Duration(days=1 * interval)
         elif self == self.hour:
-            return pendulum.Duration(hours=1 * interval)
+            return Duration(hours=1 * interval)
         elif self == self.minute:
-            return pendulum.Duration(minutes=1 * interval)
+            return Duration(minutes=1 * interval)
         elif self == self.second:
-            return pendulum.Duration(seconds=1 * interval)
+            return Duration(seconds=1 * interval)
         else:
             raise NotImplementedError()
 
@@ -75,7 +76,7 @@ class TimeUnit(AutoEnum):
         start_datetime: DateTime,
         end_datetime: DateTime,
         interval: float,
-    ) -> Generator[int | tuple[pendulum.DateTime, pendulum.DateTime], None, None]:
+    ) -> Generator[int | tuple[DateTime, DateTime], None, None]:
         """Divide the given range of dates into evenly-sized spans of interval units"""
         self.validate_buckets(start_datetime, end_datetime, interval)
 
@@ -88,8 +89,8 @@ class TimeUnit(AutoEnum):
         start_in_utc = start_datetime.in_timezone("UTC")
         end_in_utc = end_datetime.in_timezone("UTC")
 
-        if end_in_utc > pendulum.now("UTC"):
-            end_in_utc = pendulum.now("UTC").end_of(self.value)
+        if end_in_utc > now("UTC"):
+            end_in_utc = end_of_period(now("UTC"), self.value)
 
         first_span_index = math.floor((start_in_utc - PIVOT_DATETIME) / delta)
 
