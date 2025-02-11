@@ -1,9 +1,10 @@
+import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { buildFLowDetailsQuery } from "@/api/flows";
+import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-
-import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page
@@ -20,8 +21,18 @@ export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 export const Route = createFileRoute("/deployments/deployment/$id")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
-	loader: ({ context, params }) =>
-		context.queryClient.ensureQueryData(buildDeploymentDetailsQuery(params.id)),
+	loader: async ({ params, context: { queryClient } }) => {
+		// ----- Critical data
+		const res = await queryClient.ensureQueryData(
+			buildDeploymentDetailsQuery(params.id),
+		);
+
+		// ----- Deferred data
+		void queryClient.prefetchQuery(
+			buildListAutomationsRelatedQuery(`prefect.deployment.${params.id}`),
+		);
+		void queryClient.prefetchQuery(buildFLowDetailsQuery(res.flow_id));
+	},
 	wrapInSuspense: true,
 });
 
