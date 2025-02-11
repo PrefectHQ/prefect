@@ -83,8 +83,24 @@ class CancellationCleanup(LoopService):
     async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None:
         high_water_mark = UUID(int=0)
         while True:
+            # Performance optimization: Load only required columns while maintaining ORM functionality
+            # Required columns:
+            # - id: for high water mark tracking
+            # - state_type: for state validation
+            # - parent_task_run_id: for parent task run checks
+            # - deployment_id: for determining cancellation state type
+            # Note: state is a relationship and must be loaded separately
             subflow_query = (
                 sa.select(db.FlowRun)
+                .options(
+                    sa.orm.load_only(
+                        db.FlowRun.id,
+                        db.FlowRun.state_type,
+                        db.FlowRun.parent_task_run_id,
+                        db.FlowRun.deployment_id,
+                    ),
+                    sa.orm.selectinload(db.FlowRun.state),
+                )
                 .where(
                     or_(
                         db.FlowRun.state_type == states.StateType.PENDING,
