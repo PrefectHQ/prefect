@@ -1,12 +1,9 @@
-import { buildGetArtifactQuery } from "@/api/artifacts";
-import { useGetArtifactFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
-import {
-	getReadArtifactArtifactsIdGetQueryOptions,
-	useReadArtifactArtifactsIdGetSuspense,
-} from "@/api/generated/artifacts/artifacts";
+import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { ArtifactDetailPage } from "@/components/artifacts/artifact/artifact-detail-page";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { ensureUseArtifactsServiceGetArtifactsByIdData } from "@/openapi/queries/ensureQueryData";
+import { useArtifactsServiceGetArtifactsByIdSuspense, useFlowRunsServiceGetFlowRunsByIdSuspense, useTaskRunsServiceGetTaskRunsByIdSuspense } from "@/openapi/queries/suspense";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { z } from "zod";
 
 export const Route = createFileRoute("/artifacts/artifact/$id")({
@@ -15,27 +12,30 @@ export const Route = createFileRoute("/artifacts/artifact/$id")({
 		id: z.string(),
 	}),
 	loader: async ({ context, params }) => {
-		const { id } = params;
 
-		// const artifact = await context.queryClient.ensureQueryData(
-		// 	buildGetArtifactQuery(id),
-		// );
+		await ensureUseArtifactsServiceGetArtifactsByIdData(context.queryClient, params);
 
-		const artifact = await context.queryClient.ensureQueryData(
-			getReadArtifactArtifactsIdGetQueryOptions(id),
-		);
-
-		return { artifact };
 	},
 	wrapInSuspense: true,
 });
 
 function RouteComponent() {
-	const { id } = Route.useParams();
+	const params = Route.useParams();
 
-	const { data: artifact } = useReadArtifactArtifactsIdGetSuspense(id);
+	const { data: artifact } = useArtifactsServiceGetArtifactsByIdSuspense(params);
 
-	const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
+	const { data: flowRun } = useFlowRunsServiceGetFlowRunsByIdSuspense({ id: artifact.flow_run_id ?? "" });
+	const { data: taskRun } = useTaskRunsServiceGetTaskRunsByIdSuspense({ id: artifact.task_run_id ?? "" });
 
-	return <ArtifactDetailPage artifact={artifactWithMetadata ?? artifact} />;
+	const artifactWithMetadata = useMemo(() => {
+		return {
+			...artifact,
+			flow_run: flowRun,
+			task_run: taskRun,
+		}
+	}, [artifact, flowRun, taskRun]);
+	// const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
+
+	return <ArtifactDetailPage artifact={(artifact as ArtifactWithFlowRunAndTaskRun) ?? artifactWithMetadata} />;
 }
+
