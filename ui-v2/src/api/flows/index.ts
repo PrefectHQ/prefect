@@ -1,6 +1,11 @@
 import { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 
 export type Flow = components["schemas"]["Flow"];
 export type FlowsFilter =
@@ -93,3 +98,68 @@ export const buildFLowDetailsQuery = (id: string) =>
 			return res.data;
 		},
 	});
+
+/**
+ * Builds a query configuration for counting filtered flows
+ * @param filter - Filter parameters for the flows query
+ * @returns Query configuration object with:
+ *  - queryKey: Unique key for caching
+ * - queryFn: Function to fetch the filtered flows
+ * - staleTime: Time in ms before data is considered stale
+ * @example
+ * ```ts
+ * const query = buildCountFlowsFilteredQuery({
+ *  flows: {
+ *   operator: "and_",
+ *  name: { like_: "my-flow" }
+ * }
+ * });
+ * const { data } = await queryClient.fetchQuery(query);
+ * ```
+ * */
+export const buildCountFlowsFilteredQuery = (filter: FlowsFilter) =>
+	queryOptions({
+		queryKey: queryKeyFactory.list(filter),
+		queryFn: async () => {
+			const result = await getQueryService().POST("/flows/count", {
+				body: filter,
+			});
+			return result.data ?? 0;
+		},
+	});
+
+/**
+ * Hook for deleting a flow
+ *
+ * @returns Mutation object for deleting a flow with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteDeploymentSchedule } = useDeleteDeploymentSchedule();
+ *
+ * deleteDeploymentSchedule({deployment_id, schedule_id, ...body}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule deleted successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to delete deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteFlowById = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteFlow, ...rest } = useMutation({
+		mutationFn: (id: string) =>
+			getQueryService().DELETE("/flows/{id}", {
+				params: { path: { id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
+	});
+
+	return { deleteFlow, ...rest };
+};
