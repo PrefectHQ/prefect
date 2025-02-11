@@ -7,6 +7,7 @@ import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
 import { DeploymentFlowLink } from "./deployment-flow-link";
 import { DeploymentMetadata } from "./deployment-metadata";
+import { DeploymentSchedules } from "./deployment-schedules/deployment-schedules";
 import { DeploymentTriggers } from "./deployment-triggers";
 import { RunFlowButton } from "./run-flow-button";
 import { useDeleteDeploymentConfirmationDialog } from "./use-delete-deployment-confirmation-dialog";
@@ -41,9 +42,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 						<DeploymentDetailsTabs deployment={data} />
 					</div>
 					<div className="flex flex-col gap-3">
-						<div className="border border-red-400">
-							{"<SchedulesSection />"}
-						</div>
+						<DeploymentSchedules deployment={data} />
 						<DeploymentTriggers deployment={data} />
 						<hr />
 						<DeploymentMetadata deployment={data} />
