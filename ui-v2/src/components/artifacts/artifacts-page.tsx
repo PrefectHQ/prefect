@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { ArtifactCard } from "./artifact-card";
 import { ArtifactsFilterComponent } from "./artifacts-filter";
 import { ArtifactsHeader } from "./artifacts-header";
+import { ArtifactsEmptyState } from "./empty-state";
 import { filterType } from "./types";
 
 export type ArtifactsPageProps = {
@@ -29,6 +30,19 @@ export const ArtifactsPage = ({
 			? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4"
 			: "grid-cols-1";
 	}, [displayMode]);
+
+	const artifactsListFiltered = useMemo(
+		() =>
+			// reduced vs set to preserve sort order
+			artifactsList.reduce((acc, artifact) => {
+				if (!acc.find((a) => a.key === artifact.key)) {
+					acc.push(artifact);
+				}
+				return acc;
+			}, [] as Artifact[]),
+		[artifactsList],
+	);
+
 	return (
 		<div className="flex flex-col gap-4">
 			<ArtifactsHeader />
@@ -40,11 +54,15 @@ export const ArtifactsPage = ({
 				displayMode={displayMode}
 			/>
 
-			<div className={gridClass}>
-				{artifactsList.map((artifact) => (
-					<ArtifactCard key={artifact.id} artifact={artifact} />
-				))}
-			</div>
+			{artifactsListFiltered.length === 0 ? (
+				<ArtifactsEmptyState />
+			) : (
+				<div className={gridClass}>
+					{artifactsListFiltered.map((artifact) => (
+						<ArtifactCard key={artifact.id} artifact={artifact} />
+					))}
+				</div>
+			)}
 		</div>
 	);
 };
