@@ -11,7 +11,7 @@ from uuid import UUID
 import certifi
 import httpcore
 import httpx
-import pendulum
+
 import pydantic
 from asgi_lifespan import LifespanManager
 from packaging import version
@@ -130,6 +130,7 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TESTING_UNIT_TEST_MODE,
 )
+from prefect.types._datetime import DateTime
 
 if TYPE_CHECKING:
     from prefect.tasks import Task as TaskObject
@@ -607,7 +608,7 @@ class PrefectClient(
             List[FlowRun]: a list of FlowRun objects read from the queue
         """
         if scheduled_before is None:
-            scheduled_before = pendulum.now("UTC")
+            scheduled_before = DateTime.now("UTC")
 
         try:
             response = await self._client.post(
