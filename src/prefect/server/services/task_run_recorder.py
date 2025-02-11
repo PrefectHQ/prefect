@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, NoReturn, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +28,7 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging.memory import log_metrics_periodically
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -54,7 +54,7 @@ async def _insert_task_run(
     await session.execute(
         db.queries.insert(db.TaskRun)
         .values(
-            created=pendulum.now("UTC"),
+            created=now("UTC"),
             **task_run_attributes,
         )
         .on_conflict_do_update(
@@ -62,7 +62,7 @@ async def _insert_task_run(
                 "id",
             ],
             set_={
-                "updated": pendulum.now("UTC"),
+                "updated": now("UTC"),
                 **task_run_attributes,
             },
             where=db.TaskRun.state_timestamp < task_run.state.timestamp,
@@ -79,7 +79,7 @@ async def _insert_task_run_state(
     await session.execute(
         db.queries.insert(db.TaskRunState)
         .values(
-            created=pendulum.now("UTC"),
+            created=now("UTC"),
             task_run_id=task_run.id,
             **task_run.state.model_dump(),
         )
@@ -241,7 +241,7 @@ class TaskRunRecorder(RunInAllServers, Service):
     def started_event(self, value: asyncio.Event) -> None:
         self._started_event = value
 
-    async def start(self) -> None:
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "TaskRunRecorder already started"
         self.consumer: Consumer = create_consumer("events")
 

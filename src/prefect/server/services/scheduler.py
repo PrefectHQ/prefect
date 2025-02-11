@@ -9,7 +9,6 @@ import datetime
 from typing import Any, Sequence
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 
 import prefect.server.models as models
@@ -28,6 +27,7 @@ from prefect.settings import (
 )
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 from prefect.utilities.collections import batched_iterable
 
 
@@ -137,7 +137,7 @@ class Scheduler(LoopService):
                 - fewer than `min_runs` auto-scheduled runs
                 - OR the max scheduled time is less than `max_scheduled_time` in the future
         """
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         query = (
             sa.select(db.Deployment.id)
             .select_from(db.Deployment)
@@ -152,7 +152,7 @@ class Scheduler(LoopService):
                 sa.and_(
                     db.Deployment.id == db.FlowRun.deployment_id,
                     db.FlowRun.state_type == StateType.SCHEDULED,
-                    db.FlowRun.next_scheduled_start_time >= now,
+                    db.FlowRun.next_scheduled_start_time >= right_now,
                     db.FlowRun.auto_scheduled.is_(True),
                 ),
                 isouter=True,
@@ -180,7 +180,7 @@ class Scheduler(LoopService):
                 sa.or_(
                     sa.func.count(db.FlowRun.next_scheduled_start_time) < self.min_runs,
                     sa.func.max(db.FlowRun.next_scheduled_start_time)
-                    < now + self.min_scheduled_time,
+                    < right_now + self.min_scheduled_time,
                 )
             )
             .order_by(db.Deployment.id)
@@ -195,15 +195,15 @@ class Scheduler(LoopService):
     ) -> list[dict[str, Any]]:
         runs_to_insert: list[dict[str, Any]] = []
         for deployment_id in deployment_ids:
-            now = pendulum.now("UTC")
+            right_now = now("UTC")
             # guard against erroneously configured schedules
             try:
                 runs_to_insert.extend(
                     await self._generate_scheduled_flow_runs(
                         session=session,
                         deployment_id=deployment_id,
-                        start_time=now,
-                        end_time=now + self.max_scheduled_time,
+                        start_time=right_now,
+                        end_time=right_now + self.max_scheduled_time,
                         min_time=self.min_scheduled_time,
                         min_runs=self.min_runs,
                         max_runs=self.max_runs,
@@ -340,7 +340,7 @@ class RecentDeploymentsScheduler(Scheduler):
                     # second to run). Scheduling is idempotent so picking up schedules
                     # multiple times is not a concern.
                     db.Deployment.updated
-                    >= pendulum.now("UTC").subtract(seconds=self.loop_seconds + 1),
+                    >= now("UTC").subtract(seconds=self.loop_seconds + 1),
                     (
                         # Only include deployments that have at least one
                         # active schedule.
