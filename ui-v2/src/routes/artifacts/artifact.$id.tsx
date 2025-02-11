@@ -24,10 +24,5 @@ function RouteComponent() {
 
 	const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
 
-	console.log("w/ metadata", artifactWithMetadata);
-	if (!artifact) {
-		return null;
-	}
-
 	return <ArtifactDetailPage artifact={artifactWithMetadata ?? artifact} />;
 }
