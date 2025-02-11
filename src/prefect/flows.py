@@ -2360,11 +2360,17 @@ async def load_flow_from_flow_run(
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
-    flow = await run_sync_in_worker_thread(
-        load_flow_from_entrypoint,
-        str(import_path),
-        use_placeholder_flow=use_placeholder_flow,
-    )
+    try:
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint,
+            str(import_path),
+            use_placeholder_flow=use_placeholder_flow,
+        )
+    except MissingFlowError:
+        flow = await run_sync_in_worker_thread(
+            load_function_and_convert_to_flow,
+            str(import_path),
+        )
 
     return flow
 
