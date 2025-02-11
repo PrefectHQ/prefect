@@ -43,7 +43,7 @@ def get_timezones() -> tuple[str, ...]:
     return pendulum.tz.timezones()
 
 
-def pendulum_instance(v: DateTime) -> DateTime:
+def create_datetime_instance(v: DateTime) -> DateTime:
     return DateTime.instance(pendulum.instance(v))
 
 

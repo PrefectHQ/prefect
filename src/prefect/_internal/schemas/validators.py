@@ -20,7 +20,7 @@ from uuid import UUID
 
 import jsonschema
 
-from prefect.types._datetime import DateTime, get_timezones, pendulum_instance
+from prefect.types._datetime import DateTime, create_datetime_instance, get_timezones
 from prefect.utilities.collections import isiterable
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.importtools import from_qualified_name
@@ -253,7 +253,7 @@ def reconcile_paused_deployment(values: MM) -> MM:
 
 
 def default_anchor_date(v: DateTime) -> DateTime:
-    return pendulum_instance(v)
+    return create_datetime_instance(v)
 
 
 @overload

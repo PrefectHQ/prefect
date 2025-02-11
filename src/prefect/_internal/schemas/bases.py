@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from rich.repr import RichReprResult
 from typing_extensions import Self
 
-from prefect.types._datetime import DateTime, pendulum_instance
+from prefect.types._datetime import DateTime, create_datetime_instance
 from prefect.utilities.generics import validate_list
 
 T = TypeVar("T")
@@ -72,9 +72,9 @@ class PrefectBaseModel(BaseModel):
                 and name == "timestamp"
                 and value
             ):
-                value = pendulum_instance(value).isoformat()
+                value = create_datetime_instance(value).isoformat()
             elif isinstance(field.annotation, datetime.datetime) and value:
-                value = pendulum_instance(value).diff_for_humans()
+                value = create_datetime_instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
 
