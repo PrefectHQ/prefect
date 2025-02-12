@@ -487,10 +487,8 @@ class TestFlowRetryingRule:
         session,
         initialize_orchestration,
         monkeypatch,
+        frozen_time,
     ):
-        now = pendulum.now("UTC")
-        monkeypatch.setattr("pendulum.now", lambda *args: now)
-
         failed_task_runs = [
             mock.Mock(id="task_run_001"),
             mock.Mock(id="task_run_002"),

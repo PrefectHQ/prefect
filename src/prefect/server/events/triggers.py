@@ -17,11 +17,11 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, TypeAlias
 
+import prefect.types._datetime
 from prefect._internal.retries import retry_async_fn
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
@@ -75,7 +75,7 @@ async def evaluate(
     session: AsyncSession,
     trigger: EventTrigger,
     bucket: "ORMAutomationBucket",
-    now: pendulum.DateTime,
+    now: prefect.types._datetime.DateTime,
     triggering_event: Optional[ReceivedEvent],
 ) -> "ORMAutomationBucket | None":
     """Evaluates an Automation, either triggered by a specific event or proactively
@@ -178,7 +178,7 @@ async def evaluate(
         firing = Firing(
             trigger=trigger,
             trigger_states={TriggerState.Triggered},
-            triggered=pendulum.now("UTC"),
+            triggered=prefect.types._datetime.now("UTC"),
             triggering_labels={
                 label: value
                 for label, value in zip(sorted(trigger.for_each), bucket.bucketing_key)
@@ -237,7 +237,7 @@ async def evaluate(
         if trigger.within == timedelta(seconds=0):
             return None
 
-        start = pendulum.instance(max(bucket.end, now))
+        start = prefect.types._datetime.create_datetime_instance(max(bucket.end, now))
         end = start + trigger.within
 
         # If we're processing a reactive trigger and leaving the function with a count
@@ -305,7 +305,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
             Firing(
                 trigger=trigger,
                 trigger_states={TriggerState.Triggered},
-                triggered=pendulum.now("UTC"),
+                triggered=prefect.types._datetime.now("UTC"),
                 triggering_firings=[firing],
             ),
         )
@@ -355,7 +355,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
             Firing(
                 trigger=trigger,
                 trigger_states={TriggerState.Triggered},
-                triggered=pendulum.now("UTC"),
+                triggered=prefect.types._datetime.now("UTC"),
                 triggering_firings=firings,
             ),
         )
@@ -428,7 +428,7 @@ async def update_events_clock(event: ReceivedEvent) -> None:
     async with _events_clock_lock():
         # we want the offset to be negative to represent that we are always
         # processing events behind realtime...
-        now = pendulum.now("UTC").float_timestamp
+        now = prefect.types._datetime.now("UTC").float_timestamp
         event_timestamp = event.occurred.float_timestamp
         offset = event_timestamp - now
 
@@ -458,7 +458,7 @@ async def get_events_clock_offset() -> float:
         if _events_clock is None or _events_clock_updated is None:
             return 0.0
 
-        now: float = pendulum.now("UTC").float_timestamp
+        now: float = prefect.types._datetime.now("UTC").float_timestamp
         offset = (_events_clock - now) + (now - _events_clock_updated)
 
     return offset
@@ -590,7 +590,7 @@ async def get_lost_followers() -> List[ReceivedEvent]:
     return await causal_ordering().get_lost_followers()
 
 
-async def periodic_evaluation(now: pendulum.DateTime) -> None:
+async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
@@ -619,7 +619,7 @@ async def evaluate_periodically(periodic_granularity: timedelta) -> None:
     )
     while True:
         try:
-            await periodic_evaluation(pendulum.now("UTC"))
+            await periodic_evaluation(prefect.types._datetime.now("UTC"))
         except Exception:
             logger.exception("Error running periodic evaluation")
         finally:
@@ -630,7 +630,7 @@ async def evaluate_periodically(periodic_granularity: timedelta) -> None:
 # account and workspace
 automations_by_id: Dict[UUID, Automation] = {}
 triggers: Dict[TriggerID, EventTrigger] = {}
-next_proactive_runs: Dict[TriggerID, pendulum.DateTime] = {}
+next_proactive_runs: Dict[TriggerID, prefect.types._datetime.DateTime] = {}
 
 # This lock governs any changes to the set of loaded automations; any routine that will
 # add/remove automations must be holding this lock when it does so.  It's best to use
@@ -827,7 +827,7 @@ async def increment_bucket(
             set_=dict(
                 count=db.AutomationBucket.count + count,
                 last_operation="increment_bucket[update]",
-                updated=pendulum.now("UTC"),
+                updated=prefect.types._datetime.now("UTC"),
                 **additional_updates,
             ),
         )
@@ -852,10 +852,10 @@ async def start_new_bucket(
     session: AsyncSession,
     trigger: EventTrigger,
     bucketing_key: Tuple[str, ...],
-    start: pendulum.DateTime,
-    end: pendulum.DateTime,
+    start: prefect.types._datetime.DateTime,
+    end: prefect.types._datetime.DateTime,
     count: int,
-    triggered_at: Optional[pendulum.DateTime] = None,
+    triggered_at: Optional[prefect.types._datetime.DateTime] = None,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count,
     returning the new bucket"""
@@ -884,7 +884,7 @@ async def start_new_bucket(
                 end=end,
                 count=count,
                 last_operation="start_new_bucket[update]",
-                updated=pendulum.now("UTC"),
+                updated=prefect.types._datetime.now("UTC"),
                 triggered_at=triggered_at,
             ),
         )
@@ -909,8 +909,8 @@ async def ensure_bucket(
     session: AsyncSession,
     trigger: EventTrigger,
     bucketing_key: Tuple[str, ...],
-    start: pendulum.DateTime,
-    end: pendulum.DateTime,
+    start: prefect.types._datetime.DateTime,
+    end: prefect.types._datetime.DateTime,
     last_event: Optional[ReceivedEvent],
     initial_count: int = 0,
 ) -> "ORMAutomationBucket":
@@ -972,7 +972,9 @@ async def remove_bucket(
 
 @db_injector
 async def sweep_closed_buckets(
-    db: PrefectDBInterface, session: AsyncSession, older_than: pendulum.DateTime
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    older_than: prefect.types._datetime.DateTime,
 ) -> None:
     await session.execute(
         sa.delete(db.AutomationBucket).where(db.AutomationBucket.end <= older_than)
@@ -1046,8 +1048,8 @@ async def consumer(
 
 
 async def proactive_evaluation(
-    trigger: EventTrigger, as_of: pendulum.DateTime
-) -> pendulum.DateTime:
+    trigger: EventTrigger, as_of: prefect.types._datetime.DateTime
+) -> prefect.types._datetime.DateTime:
     """The core proactive evaluation operation for a single Automation"""
     assert isinstance(trigger, EventTrigger), repr(trigger)
     automation = trigger.automation
@@ -1088,7 +1090,9 @@ async def proactive_evaluation(
                     session, trigger, bucket, as_of, triggering_event=None
                 )
                 if next_bucket and as_of < next_bucket.end < run_again_at:
-                    run_again_at = pendulum.instance(next_bucket.end)
+                    run_again_at = prefect.types._datetime.create_datetime_instance(
+                        next_bucket.end
+                    )
 
             return run_again_at
         finally:
@@ -1100,12 +1104,16 @@ async def evaluate_proactive_triggers() -> None:
         if trigger.posture != Posture.Proactive:
             continue
 
-        next_run = next_proactive_runs.get(trigger.id, pendulum.now("UTC"))
-        if next_run > pendulum.now("UTC"):
+        next_run = next_proactive_runs.get(
+            trigger.id, prefect.types._datetime.now("UTC")
+        )
+        if next_run > prefect.types._datetime.now("UTC"):
             continue
 
         try:
-            run_again_at = await proactive_evaluation(trigger, pendulum.now("UTC"))
+            run_again_at = await proactive_evaluation(
+                trigger, prefect.types._datetime.now("UTC")
+            )
             logger.debug(
                 "Automation %s trigger %s will run again at %s",
                 trigger.automation.id,

@@ -15,7 +15,6 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +26,7 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
+from prefect.types._datetime import DateTime, now
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -187,7 +187,7 @@ async def update_work_pool(
     work_pool: schemas.actions.WorkPoolUpdate,
     emit_status_change: Optional[
         Callable[
-            [UUID, pendulum.DateTime, orm_models.WorkPool, orm_models.WorkPool],
+            [UUID, DateTime, orm_models.WorkPool, orm_models.WorkPool],
             Awaitable[None],
         ]
     ] = None,
@@ -240,7 +240,7 @@ async def update_work_pool(
 
     if "status" in update_data:
         update_data["last_status_event_id"] = uuid4()
-        update_data["last_transitioned_status_at"] = pendulum.now("UTC")
+        update_data["last_transitioned_status_at"] = now("UTC")
 
     update_stmt = (
         sa.update(db.WorkPool)
@@ -739,7 +739,7 @@ async def worker_heartbeat(
         bool: whether or not the worker was updated
 
     """
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
     # Values that won't change between heart beats
     base_values = dict(
         work_pool_id=work_pool_id,
@@ -747,7 +747,7 @@ async def worker_heartbeat(
     )
     # Values that can and will change between heartbeats
     update_values = dict(
-        last_heartbeat_time=now,
+        last_heartbeat_time=right_now,
         status=schemas.statuses.WorkerStatus.ONLINE,
     )
     if heartbeat_interval_seconds is not None:
@@ -800,7 +800,7 @@ async def delete_worker(
 
 async def emit_work_pool_status_event(
     event_id: UUID,
-    occurred: pendulum.DateTime,
+    occurred: DateTime,
     pre_update_work_pool: Optional[orm_models.WorkPool],
     work_pool: orm_models.WorkPool,
 ) -> None:

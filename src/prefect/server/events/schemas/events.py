@@ -15,7 +15,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 from pydantic import (
     AfterValidator,
     AnyHttpUrl,
@@ -35,6 +34,7 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -175,7 +175,7 @@ class Event(PrefectBaseModel):
 
         return value
 
-    def receive(self, received: Optional[pendulum.DateTime] = None) -> "ReceivedEvent":
+    def receive(self, received: Optional[DateTime] = None) -> "ReceivedEvent":
         kwargs = self.model_dump()
         if received is not None:
             kwargs["received"] = received
@@ -203,14 +203,14 @@ class ReceivedEvent(Event):
     )
 
     received: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
 
     def as_database_row(self) -> dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
-        row["recorded"] = pendulum.now("UTC")
+        row["recorded"] = now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]
         return row
 

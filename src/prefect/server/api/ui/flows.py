@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field, field_validator
@@ -16,6 +15,7 @@ from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import create_datetime_instance
 
 if TYPE_CHECKING:
     import logging
@@ -37,11 +37,9 @@ class SimpleNextFlowRun(PrefectBaseModel):
 
     @field_validator("next_scheduled_start_time", mode="before")
     @classmethod
-    def validate_next_scheduled_start_time(
-        cls, v: pendulum.DateTime | datetime
-    ) -> pendulum.DateTime:
+    def validate_next_scheduled_start_time(cls, v: DateTime | datetime) -> DateTime:
         if isinstance(v, datetime):
-            return pendulum.instance(v)
+            return create_datetime_instance(v)
         return v
 
 

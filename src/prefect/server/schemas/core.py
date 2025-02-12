@@ -8,7 +8,6 @@ import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-import pendulum
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -53,6 +52,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._datetime import now
 from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
@@ -1024,7 +1024,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or (now("UTC") - last_polled).total_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

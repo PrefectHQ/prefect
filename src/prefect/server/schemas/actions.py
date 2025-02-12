@@ -9,7 +9,6 @@ from copy import deepcopy
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 import prefect.server.schemas as schemas
@@ -41,6 +40,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._datetime import now
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
@@ -412,7 +412,7 @@ class StateCreate(ActionBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = now("utc")
 
         return self
 

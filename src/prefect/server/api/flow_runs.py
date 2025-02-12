@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 import orjson
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     Body,
@@ -48,6 +47,7 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities import schema_tools
 
 if TYPE_CHECKING:
@@ -86,7 +86,7 @@ async def create_flow_run(
     if not flow_run_object.state:
         flow_run_object.state = schemas.states.Pending()
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
@@ -94,7 +94,7 @@ async def create_flow_run(
             flow_run=flow_run_object,
             orchestration_parameters=orchestration_parameters,
         )
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
 
         return schemas.responses.FlowRunResponse.model_validate(
@@ -371,7 +371,7 @@ async def resume_flow_run(
     """
     Resume a paused flow run.
     """
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
@@ -459,7 +459,7 @@ async def resume_flow_run(
                 session=session,
                 flow_run_id=flow_run_id,
                 state=schemas.states.Scheduled(
-                    name="Resuming", scheduled_time=pendulum.now("UTC")
+                    name="Resuming", scheduled_time=now("UTC")
                 ),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
@@ -490,7 +490,10 @@ async def resume_flow_run(
             )
 
         # set the 201 if a new state was created
-        if orchestration_result.state and orchestration_result.state.timestamp >= now:
+        if (
+            orchestration_result.state
+            and orchestration_result.state.timestamp >= right_now
+        ):
             response.status_code = status.HTTP_201_CREATED
         else:
             response.status_code = status.HTTP_200_OK
@@ -585,7 +588,7 @@ async def set_flow_run_state(
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     # create the state
     async with db.session_context(
@@ -602,7 +605,7 @@ async def set_flow_run_state(
         )
 
     # set the 201 if a new state was created
-    if orchestration_result.state and orchestration_result.state.timestamp >= now:
+    if orchestration_result.state and orchestration_result.state.timestamp >= right_now:
         response.status_code = status.HTTP_201_CREATED
     else:
         response.status_code = status.HTTP_200_OK

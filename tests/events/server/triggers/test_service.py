@@ -22,6 +22,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 async def test_acting_publishes_an_action_message_from_a_reactive_event(
@@ -463,10 +464,10 @@ async def test_event_clock_avoids_the_future(
 async def test_offset_is_resilient_to_low_volume(
     reset_events_clock: None, monkeypatch: pytest.MonkeyPatch
 ):
-    base_time = pendulum.now("UTC")
+    base_time = now("UTC")
 
     mock_now = mock.Mock()
-    monkeypatch.setattr("pendulum.now", mock_now)
+    monkeypatch.setattr("prefect.types._datetime.DateTime.now", mock_now)
 
     mock_now.return_value = base_time
 
