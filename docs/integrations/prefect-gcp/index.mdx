@@ -116,7 +116,7 @@ service_account_info = {
 
 GcpCredentials(
     service_account_info=service_account_info
-).save("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+).save("CREDENTIALS-BLOCK-NAME")
 ```
 This credential block can be used to create other `prefect_gcp` blocks.
 
@@ -137,13 +137,13 @@ Be sure to [install](#install-extras) `prefect-gcp` with the BigQuery extra.
 ```python
 from prefect_gcp.bigquery import GcpCredentials, BigQueryWarehouse
 
-gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
 
 bigquery_block = BigQueryWarehouse(
     gcp_credentials = gcp_credentials,
     fetch_size = 1  # Optional: specify a default number of rows to fetch when calling fetch_many
 )
-bigquery_block.save("BIGQUERY-BLOCK-NAME-PLACEHOLDER")
+bigquery_block.save("BIGQUERY-BLOCK-NAME")
 ```
 
 ### Secret Manager
@@ -151,7 +151,7 @@ Manage secrets in Google Cloud Platform's Secret Manager.
 
 ```python
 from prefect_gcp import GcpCredentials, GcpSecret
-gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
 
 gcp_secret = GcpSecret(
     secret_name = "your-secret-name",
@@ -159,7 +159,7 @@ gcp_secret = GcpSecret(
     gcp_credentials = gcp_credentials
 )
 
-gcp_secret.save("SECRET-BLOCK-NAME-PLACEHOLDER")
+gcp_secret.save("SECRET-BLOCK-NAME")
 ```
 
 ### Cloud Storage
@@ -168,10 +168,10 @@ Create a block to interact with a GCS bucket.
 from prefect_gcp import GcpCredentials, GcsBucket
 
 gcs_bucket = GcsBucket(
-    bucket="BUCKET-NAME-PLACEHOLDER",
-    gcp_credentials=GcpCredentials.load("BIGQUERY-BLOCK-NAME-PLACEHOLDER")
+    bucket="BUCKET-NAME",
+    gcp_credentials=GcpCredentials.load("BIGQUERY-BLOCK-NAME")
 )
-gcs_bucket.save("GCS-BLOCK-NAME-PLACEHOLDER")
+gcs_bucket.save("GCS-BLOCK-NAME")
 
 ```
 
@@ -197,7 +197,7 @@ from prefect_gcp.bigquery import GcpCredentials, BigQueryWarehouse
 @flow
 def bigquery_flow():
     all_rows = []
-    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
 
     client = gcp_credentials.get_bigquery_client()
     client.create_dataset("test_example", exists_ok=True)
@@ -246,9 +246,9 @@ def cloud_storage_flow():
     file_path = Path("test-example.txt")
     file_path.write_text("Hello, Prefect!")
 
-    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
     gcs_bucket = GcsBucket(
-        bucket="BUCKET-NAME-PLACEHOLDER",
+        bucket="BUCKET-NAME",
         gcp_credentials=gcp_credentials
     )
 
@@ -284,7 +284,7 @@ from prefect_gcp import GcpCredentials, GcpSecret
 
 @flow
 def secret_manager_flow():
-    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME-PLACEHOLDER")
+    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
     gcp_secret = GcpSecret(secret_name="test-example", gcp_credentials=gcp_credentials)
     gcp_secret.write_secret(secret_data=b"Hello, Prefect!")
     secret_data = gcp_secret.read_secret()
@@ -304,4 +304,4 @@ For assistance using GCP, consult the [Google Cloud documentation](https://cloud
 GCP can also authenticate without storing credentials in a block.
 See [Access third-party secrets](/v3/develop/secrets) for an example that uses AWS Secrets Manager and Snowflake.
 
-Refer to the `prefect-gcp` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-gcp` library.
+Refer to the `prefect-gcp` [SDK documentation](https://reference.prefect.io/prefect_gcp/) to explore all of the capabilities of the `prefect-gcp` library.
