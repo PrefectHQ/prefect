@@ -115,8 +115,12 @@ jobs:
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
           enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install the project
         run: uv sync --compile-bytecode --no-editable
@@ -209,8 +213,12 @@ jobs:
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
           enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Get image tag
         id: get_image_tag
@@ -328,8 +336,12 @@ jobs:
     - name: Install uv and set the python version
       uses: astral-sh/setup-uv@v5
       with:
-        python-version: "3.12"
         enable-cache: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
 
     - name: Install the project
       run: uv sync --compile-bytecode --no-editable
