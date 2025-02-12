@@ -239,6 +239,7 @@ ignore_errors = true
 
 [tool.hatch.version]
 source = "vcs"
+tag-pattern = "(\\d+\\.\\d+\\.\\*+)$"
 raw-options = { git_describe_command = 'git describe --dirty --tags --long --match "[0-9]*.[0-9]*.[0-9]*"' }
 
 [tool.hatch.build.hooks.vcs]
