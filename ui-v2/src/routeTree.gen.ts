@@ -36,6 +36,7 @@ import { Route as ConcurrencyLimitsConcurrencyLimitIdImport } from './routes/con
 import { Route as BlocksBlockIdImport } from './routes/blocks/block.$id'
 import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
 import { Route as ArtifactsKeyKeyImport } from './routes/artifacts/key.$key'
+import { Route as ArtifactsArtifactIdImport } from './routes/artifacts/artifact.$id'
 import { Route as DeploymentsDeploymentIdRunImport } from './routes/deployments/deployment_.$id.run'
 import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
@@ -196,6 +197,12 @@ const ArtifactsKeyKeyRoute = ArtifactsKeyKeyImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const ArtifactsArtifactIdRoute = ArtifactsArtifactIdImport.update({
+  id: '/artifacts/artifact/$id',
+  path: '/artifacts/artifact/$id',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const DeploymentsDeploymentIdRunRoute = DeploymentsDeploymentIdRunImport.update(
   {
     id: '/deployments/deployment_/$id/run',
@@ -346,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/work-pools'
       fullPath: '/work-pools'
       preLoaderRoute: typeof WorkPoolsIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/artifacts/artifact/$id': {
+      id: '/artifacts/artifact/$id'
+      path: '/artifacts/artifact/$id'
+      fullPath: '/artifacts/artifact/$id'
+      preLoaderRoute: typeof ArtifactsArtifactIdImport
       parentRoute: typeof rootRoute
     }
     '/artifacts/key/$key': {
@@ -512,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
+  '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
@@ -544,6 +559,7 @@ export interface FileRoutesByTo {
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
+  '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
@@ -578,6 +594,7 @@ export interface FileRoutesById {
   '/flows/': typeof FlowsIndexRoute
   '/runs/': typeof RunsIndexRoute
   '/work-pools/': typeof WorkPoolsIndexRoute
+  '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
@@ -613,6 +630,7 @@ export interface FileRouteTypes {
     | '/flows'
     | '/runs'
     | '/work-pools'
+    | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
     | '/blocks/block/$id'
@@ -644,6 +662,7 @@ export interface FileRouteTypes {
     | '/flows'
     | '/runs'
     | '/work-pools'
+    | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
     | '/blocks/block/$id'
@@ -676,6 +695,7 @@ export interface FileRouteTypes {
     | '/flows/'
     | '/runs/'
     | '/work-pools/'
+    | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
     | '/blocks/block/$id'
@@ -708,6 +728,7 @@ export interface RootRouteChildren {
   FlowsIndexRoute: typeof FlowsIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
   WorkPoolsIndexRoute: typeof WorkPoolsIndexRoute
+  ArtifactsArtifactIdRoute: typeof ArtifactsArtifactIdRoute
   ArtifactsKeyKeyRoute: typeof ArtifactsKeyKeyRoute
   AutomationsAutomationIdRoute: typeof AutomationsAutomationIdRouteWithChildren
   ConcurrencyLimitsConcurrencyLimitIdRoute: typeof ConcurrencyLimitsConcurrencyLimitIdRoute
@@ -736,6 +757,7 @@ const rootRouteChildren: RootRouteChildren = {
   FlowsIndexRoute: FlowsIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
   WorkPoolsIndexRoute: WorkPoolsIndexRoute,
+  ArtifactsArtifactIdRoute: ArtifactsArtifactIdRoute,
   ArtifactsKeyKeyRoute: ArtifactsKeyKeyRoute,
   AutomationsAutomationIdRoute: AutomationsAutomationIdRouteWithChildren,
   ConcurrencyLimitsConcurrencyLimitIdRoute:
@@ -775,6 +797,7 @@ export const routeTree = rootRoute
         "/flows/",
         "/runs/",
         "/work-pools/",
+        "/artifacts/artifact/$id",
         "/artifacts/key/$key",
         "/automations/automation/$id",
         "/concurrency-limits/concurrency-limit/$id",
@@ -842,6 +865,9 @@ export const routeTree = rootRoute
     },
     "/work-pools/": {
       "filePath": "work-pools/index.tsx"
+    },
+    "/artifacts/artifact/$id": {
+      "filePath": "artifacts/artifact.$id.tsx"
     },
     "/artifacts/key/$key": {
       "filePath": "artifacts/key.$key.tsx"
