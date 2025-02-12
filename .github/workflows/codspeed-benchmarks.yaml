@@ -44,7 +44,7 @@ jobs:
           enable-cache: true
           
       - name: Install the project
-        run:  uv sync --group benchmark --compile-bytecode
+        run:  uv sync --group benchmark --compile-bytecode --no-editable
 
       - name: Start server
         run: |
