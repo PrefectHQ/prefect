@@ -7,6 +7,8 @@ __pycache__/
 build/
 dist/
 sdist/
+uv.lock
+# We likely ought to eventually include uv.lock
 
 # Test artifacts
 .benchmarks/
