@@ -66,7 +66,7 @@ jobs:
 
       - name: Start server
         run: |
-          PREFECT_HOME=$(pwd) prefect server start&
+          PREFECT_HOME=$(pwd) uv run prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command
@@ -93,7 +93,7 @@ jobs:
           sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
 
           PREFECT_API_URL="http://127.0.0.1:4200/api" \
-          python -m benches \
+          uv run python -m benches \
           --ignore=benches/bench_import.py \
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \
