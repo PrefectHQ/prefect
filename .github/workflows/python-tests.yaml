@@ -119,7 +119,7 @@ jobs:
           enable-cache: true
 
       - name: Install the project
-        run: uv sync --extra dev
+        run: uv sync --extra dev --compile-bytecode
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -251,7 +251,7 @@ jobs:
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install the project
-        run: uv sync --dev --extra otel
+        run: uv sync --extra dev --compile-bytecode
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
