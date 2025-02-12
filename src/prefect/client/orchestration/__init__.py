@@ -150,16 +150,27 @@ T = TypeVar("T")
 
 @overload
 def get_client(
-    *,
-    httpx_settings: Optional[dict[str, Any]] = ...,
-    sync_client: Literal[False] = False,
+    httpx_settings: Optional[dict[str, Any]],
+    sync_client: Literal[False],
 ) -> "PrefectClient": ...
 
 
 @overload
+def get_client(*, httpx_settings: Optional[dict[str, Any]]) -> "PrefectClient": ...
+
+
+@overload
+def get_client(*, sync_client: Literal[False] = False) -> "PrefectClient": ...
+
+
+@overload
 def get_client(
-    *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
+    httpx_settings: Optional[dict[str, Any]], sync_client: Literal[True]
 ) -> "SyncPrefectClient": ...
+
+
+@overload
+def get_client(*, sync_client: Literal[True]) -> "SyncPrefectClient": ...
 
 
 def get_client(
