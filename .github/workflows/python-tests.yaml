@@ -331,6 +331,9 @@ jobs:
         python-version: "3.12"
         enable-cache: true
 
+    - name: Install the project
+      run: uv sync --extra dev --compile-bytecode
+
     - name: Run tests
       run: |
          uv run pytest tests/typesafety --disable-docker-image-builds
