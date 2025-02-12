@@ -141,7 +141,6 @@ dev = [
     "pyright>=1.1.390",
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.3",
-    "pytest-benchmark>=5.1.0",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
@@ -171,6 +170,11 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0"
+]
+
+benchmark = [
+    "pytest-benchmark>=5.1.0",
+    "pytest-codspeed>=2.2.1",
 ]
 
 [tool.hatch.build.targets.sdist]
