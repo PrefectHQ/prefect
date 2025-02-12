@@ -81,6 +81,7 @@ FROM ${BASE_IMAGE} AS final
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
+ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
@@ -103,16 +104,11 @@ RUN apt-get update && \
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
 
-# Install dependencies from pyproject.toml
-COPY pyproject.toml .
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install ".[client,otel]"
-
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during installation
-ARG PREFECT_EXTRAS=[redis]
+ARG PREFECT_EXTRAS=[redis,client,otel]
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
