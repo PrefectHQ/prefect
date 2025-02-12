@@ -1,0 +1,119 @@
+import type { Meta, StoryFn } from "@storybook/react";
+import { SchemaObject } from "openapi-typescript";
+import { useState } from "react";
+import { SchemaForm } from "./schema-form";
+import { PrefectKind } from "./types/prefect-kind";
+
+const schema: SchemaObject = {
+	type: "object",
+	properties: {
+		none: {
+			type: "null",
+			title: "None",
+		},
+		string: {
+			type: "string",
+			title: "String",
+		},
+		string_enum: {
+			type: "string",
+			title: "String Enum",
+			enum: ["foo", "bar", "baz"],
+		},
+		integer: {
+			type: "integer",
+			title: "Integer",
+		},
+		integer_enum: {
+			type: "integer",
+			title: "Integer Enum",
+			enum: [1, 2, 3],
+		},
+		number: {
+			type: "number",
+			title: "Number",
+		},
+		number_enum: {
+			type: "number",
+			title: "Number Enum",
+			enum: [1.5, 2.5, 3.5, 4],
+		},
+		boolean: {
+			type: "boolean",
+			title: "Boolean",
+		},
+		boolean_enum: {
+			type: "boolean",
+			title: "Boolean Enum",
+			enum: [true, false],
+		},
+		array_string_enum: {
+			type: "array",
+			title: "Array of strings",
+			items: {
+				type: "string",
+				enum: ["tag1", "tag2", "tag3"],
+			},
+		},
+		array_integer_enum: {
+			type: "array",
+			title: "Array of integers",
+			items: {
+				type: "integer",
+				enum: [1, 2, 3],
+			},
+		},
+		array_number_enum: {
+			type: "array",
+			title: "Array of numbers",
+			items: {
+				type: "number",
+				enum: [1.5, 2.5, 3.5],
+			},
+		},
+		array_boolean_enum: {
+			type: "array",
+			title: "Array of booleans",
+			items: {
+				type: "boolean",
+				enum: [true, false],
+			},
+		},
+	},
+	required: ["name"],
+};
+
+const kinds: PrefectKind[] = ["none", "json", "jinja", "workspace_variable"];
+
+const meta = {
+	title: "Components/SchemaForm",
+	component: SchemaForm,
+	parameters: {
+		layout: "centered",
+	},
+} satisfies Meta<typeof SchemaForm>;
+
+export default meta;
+
+export const Default: StoryFn<typeof SchemaForm> = () => {
+	const [values, setValues] = useState<Record<string, unknown>>({
+		name: "John Doe",
+		age: 30,
+	});
+
+	const errors = {};
+
+	return (
+		<div className="flex gap-4">
+			<SchemaForm
+				values={values}
+				schema={schema}
+				kinds={kinds}
+				errors={errors}
+				onValuesChange={setValues}
+			/>
+
+			<pre>{JSON.stringify(values, null, 2)}</pre>
+		</div>
+	);
+};
