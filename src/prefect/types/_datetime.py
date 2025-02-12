@@ -81,3 +81,45 @@ def now(tz: str | Timezone = UTC) -> DateTime:
 
 def add_years(dt: DateTime, years: int) -> DateTime:
     return dt.add(years=years)
+
+
+def end_of_period(dt: DateTime, period: str) -> DateTime:
+    """
+    Returns the end of the specified unit of time.
+
+    Args:
+        dt: The datetime to get the end of.
+        period: The period to get the end of.
+                Valid values: 'second', 'minute', 'hour', 'day',
+                'week', 'month', 'quarter', 'year'
+
+    Returns:
+        DateTime: A new DateTime representing the end of the specified unit.
+
+    Raises:
+        ValueError: If an invalid unit is specified.
+    """
+    return dt.end_of(period)
+
+
+def start_of_period(dt: DateTime, period: str) -> DateTime:
+    """
+    Returns the start of the specified unit of time.
+
+    Args:
+        dt: The datetime to get the start of.
+        period: The period to get the start of.
+                Valid values: 'second', 'minute', 'hour', 'day',
+                'week', 'month', 'quarter', 'year'
+
+    Returns:
+        DateTime: A new DateTime representing the start of the specified unit.
+
+    Raises:
+        ValueError: If an invalid unit is specified.
+    """
+    return dt.start_of(period)
+
+
+def earliest_possible_datetime() -> DateTime:
+    return DateTime.instance(datetime.datetime.min)
