@@ -1,4 +1,3 @@
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { SchemaFormInputArray } from "./schema-form-input-array";
 import { SchemaFormInputBoolean } from "./schema-form-input-boolean";
 import { SchemaFormInputInteger } from "./schema-form-input-integer";
@@ -14,7 +13,7 @@ export type SchemaFormInputProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
 	errors: unknown;
-	property: SchemaObject | ReferenceObject | PrefectSchemaObject;
+	property: PrefectSchemaObject;
 };
 
 export function SchemaFormInput({
@@ -31,7 +30,15 @@ export function SchemaFormInput({
 		throw new Error("not implemented");
 	}
 
-	if ("$ref" in property) {
+	if ("anyOf" in property) {
+		throw new Error("not implemented");
+	}
+
+	if ("allOf" in property) {
+		throw new Error("not implemented");
+	}
+
+	if ("oneOf" in property) {
 		throw new Error("not implemented");
 	}
 
@@ -117,5 +124,11 @@ export function SchemaFormInput({
 		throw new Error("not implemented");
 	}
 
-	throw new Error(`Schema type not implemented: ${String(property.type satisfies never)}`);
+	if (property.type === undefined) {
+		throw new Error("Schema type not implemented");
+	}
+
+	throw new Error(
+		`Schema type not implemented: ${String(property.type satisfies never)}`,
+	);
 }

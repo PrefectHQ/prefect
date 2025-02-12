@@ -11,11 +11,19 @@ export type PrefectObjectSubtype = {
 	};
 };
 
-export type BlockDocumentSubtype = {
-	blockTypeSlug: string;
+export type WithBlockDocumentSlug = {
+	blockTypeSlug?: string;
 };
 
-export type PrefectSchemaObject = BlockDocumentSubtype;
+export type WithDefinitions = {
+	definitions?: {
+		[name: string]: SchemaObject;
+	};
+};
+
+export type PrefectSchemaObject = SchemaObject &
+	WithBlockDocumentSlug &
+	WithDefinitions;
 
 export type WithPrimitiveEnum = { enum: PrimitivePropertyType[] };
 

@@ -1,10 +1,10 @@
 import type { Meta, StoryFn } from "@storybook/react";
-import { SchemaObject } from "openapi-typescript";
 import { useState } from "react";
 import { SchemaForm } from "./schema-form";
 import { PrefectKind } from "./types/prefect-kind";
+import { PrefectSchemaObject } from "./types/schemas";
 
-const schema: SchemaObject = {
+const schema: PrefectSchemaObject = {
 	type: "object",
 	properties: {
 		none: {
@@ -14,11 +14,17 @@ const schema: SchemaObject = {
 		string: {
 			type: "string",
 			title: "String",
+			description: "This is a description",
+		},
+		string_required: {
+			type: "string",
+			title: "String Required",
 		},
 		string_enum: {
 			type: "string",
 			title: "String Enum",
 			enum: ["foo", "bar", "baz"],
+			description: "This is a description",
 		},
 		integer: {
 			type: "integer",
@@ -79,8 +85,34 @@ const schema: SchemaObject = {
 				enum: [true, false],
 			},
 		},
+		object: {
+			type: "object",
+			title: "Object",
+			properties: {
+				foo: {
+					type: "string",
+					title: "Foo",
+				},
+			},
+			required: ["foo"],
+		},
+		reference: {
+			title: "User Reference",
+			$ref: "#/definitions/user",
+		},
 	},
-	required: ["name"],
+	definitions: {
+		user: {
+			type: "object",
+			properties: {
+				name: {
+					type: "string",
+					title: "Name",
+				},
+			},
+		},
+	},
+	required: ["string_required"],
 };
 
 const kinds: PrefectKind[] = ["none", "json", "jinja", "workspace_variable"];
