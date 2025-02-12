@@ -30,7 +30,7 @@ curl -i https://api-internal.private.prefect.cloud/api/health
 To configure Prefect clients and workers to use the endpoint, `PREFECT_API_URL` and `PREFECT_CLOUD_API_URL` should be set to the endpoint provided by Prefect.
 
 ```bash
-prefect config set PREFECT_API_URL=https://api-internal.private.prefect.cloud/api/accounts/<account-id>/workspaces/<workspace-id>
+prefect config set PREFECT_API_URL=https://api-internal.private.prefect.cloud/api/accounts/<ACCOUNT_ID>/workspaces/<WORKSPACE_ID>
 prefect config set PREFECT_CLOUD_API_URL=https://api-internal.private.prefect.cloud/api
 ```
 
