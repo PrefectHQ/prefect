@@ -101,14 +101,12 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
 
-# Install dependencies using a temporary mount for requirements files
-RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
-    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
-    --mount=type=bind,source=requirements-otel.txt,target=/tmp/requirements-otel.txt \
-    --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt -r /tmp/requirements-otel.txt
+# Install dependencies from pyproject.toml
+COPY pyproject.toml .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install ".[client,otel]"
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
