@@ -6,7 +6,6 @@ import datetime
 from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Literal, Self
 
@@ -19,6 +18,7 @@ from prefect.server.schemas.core import (
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
 from prefect.types import DateTime, KeyValueLabelsField
+from prefect.types._datetime import create_datetime_instance
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
@@ -142,7 +142,7 @@ class HistoryResponse(PrefectBaseModel):
         for field in d.keys():
             val = values.get(field)
             if isinstance(val, datetime.datetime):
-                d[field] = pendulum.instance(values[field])
+                d[field] = create_datetime_instance(values[field])
             else:
                 d[field] = val
 

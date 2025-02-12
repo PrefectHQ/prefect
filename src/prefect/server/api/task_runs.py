@@ -7,7 +7,6 @@ import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
-import pendulum
 from fastapi import (
     Body,
     Depends,
@@ -33,6 +32,7 @@ from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -67,7 +67,7 @@ async def create_task_run(
     if not task_run.state:
         task_run.state = schemas.states.Pending()
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.task_runs.create_task_run(
@@ -76,7 +76,7 @@ async def create_task_run(
             orchestration_parameters=orchestration_parameters,
         )
 
-    if model.created >= now:
+    if model.created >= right_now:
         response.status_code = status.HTTP_201_CREATED
 
     new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.model_validate(model)
@@ -250,7 +250,7 @@ async def set_task_run_state(
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     # create the state
     async with db.session_context(
@@ -268,7 +268,7 @@ async def set_task_run_state(
         )
 
     # set the 201 if a new state was created
-    if orchestration_result.state and orchestration_result.state.timestamp >= now:
+    if orchestration_result.state and orchestration_result.state.timestamp >= right_now:
         response.status_code = status.HTTP_201_CREATED
     else:
         response.status_code = status.HTTP_200_OK

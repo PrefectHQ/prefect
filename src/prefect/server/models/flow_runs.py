@@ -21,7 +21,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,6 +48,7 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
 from prefect.types import KeyValueLabels
+from prefect.types._datetime import DateTime, earliest_possible_datetime, now
 
 if TYPE_CHECKING:
     import logging
@@ -77,7 +77,7 @@ async def create_flow_run(
     Returns:
         orm_models.FlowRun: the newly-created flow run
     """
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
     # model: Union[orm_models.FlowRun, None] = None
 
     flow_run.labels = await with_system_labels_for_flow_run(
@@ -94,7 +94,7 @@ async def create_flow_run(
             },
             exclude_unset=True,
         ),
-        created=now,
+        created=right_now,
     )
 
     # if no idempotency key was provided, create the run directly
@@ -134,7 +134,7 @@ async def create_flow_run(
 
     # if the flow run was created in this function call then we need to set the
     # state. If it was created idempotently, the created time won't match.
-    if model.created == now and flow_run.state:
+    if model.created == right_now and flow_run.state:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=model.id,
@@ -603,7 +603,7 @@ async def read_flow_run_graph(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
-    since: pendulum.DateTime = pendulum.DateTime.min,
+    since: DateTime = earliest_possible_datetime(),
 ) -> Graph:
     """Given a flow run, return the graph of it's task and subflow runs. If a `since`
     datetime is provided, only return items that may have changed since that time."""

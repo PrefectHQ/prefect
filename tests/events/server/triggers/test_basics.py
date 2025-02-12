@@ -833,7 +833,9 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
 
     # A proactive evaluation happening before the timeout should not process these
     # events
-    with mock.patch("prefect.server.events.triggers.pendulum.now") as the_future:
+    with mock.patch(
+        "prefect.server.events.triggers.prefect.types._datetime.now"
+    ) as the_future:
         the_future.return_value = base_date + timedelta(minutes=10)
         await triggers.periodic_evaluation(base_date + timedelta(minutes=10))
 
@@ -842,7 +844,9 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
     # Only after a later proactive evaluation are these processed; use a mock for
     # pendulum.now because the age calculation for the TTLCache of recently seen events
     # is based on the current wall-clock time
-    with mock.patch("prefect.server.events.triggers.pendulum.now") as the_future:
+    with mock.patch(
+        "prefect.server.events.triggers.prefect.types._datetime.now"
+    ) as the_future:
         the_future.return_value = base_date + timedelta(minutes=20)
         await triggers.periodic_evaluation(base_date + timedelta(minutes=20))
 

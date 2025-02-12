@@ -32,7 +32,6 @@ from uuid import UUID, uuid4
 
 import jinja2
 import orjson
-import pendulum
 from cachetools import TTLCache
 from httpx import Response
 from pydantic import (
@@ -82,6 +81,7 @@ from prefect.server.utilities.user_templates import (
     validate_user_template,
 )
 from prefect.types import StrictVariableValue
+from prefect.types._datetime import DateTime, now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -168,7 +168,7 @@ class Action(PrefectBaseModel, abc.ABC):
             )
             await events.emit(
                 Event(
-                    occurred=pendulum.now("UTC"),
+                    occurred=now("UTC"),
                     event="prefect.automation.action.failed",
                     resource=resource,
                     related=self._resulting_related_resources,
@@ -226,7 +226,7 @@ class Action(PrefectBaseModel, abc.ABC):
             )
             await events.emit(
                 Event(
-                    occurred=pendulum.now("UTC"),
+                    occurred=now("UTC"),
                     event="prefect.automation.action.executed",
                     resource=Resource(
                         {
@@ -458,9 +458,9 @@ class JinjaTemplateAction(ExternalDataAction):
 
             if resource and all(field in resource for field in state_fields):
                 try:
-                    timestamp = pendulum.parse(resource["prefect.state-timestamp"])
+                    timestamp = parse_datetime(resource["prefect.state-timestamp"])
                     if TYPE_CHECKING:
-                        assert isinstance(timestamp, pendulum.DateTime)
+                        assert isinstance(timestamp, DateTime)
                     object.state = State(
                         message=resource["prefect.state-message"],
                         name=resource["prefect.state-name"],

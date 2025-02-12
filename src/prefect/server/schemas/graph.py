@@ -1,15 +1,9 @@
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple
+from typing import Any, List, Literal, Optional, Tuple
 from uuid import UUID
-
-import pendulum
 
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.schemas import PrefectBaseModel
-
-if TYPE_CHECKING:
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
+from prefect.types._datetime import DateTime
 
 
 class GraphState(PrefectBaseModel):

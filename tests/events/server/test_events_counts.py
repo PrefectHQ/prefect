@@ -1,6 +1,6 @@
 import math
 from datetime import timedelta
-from typing import AsyncGenerator, Dict, List, Tuple, cast
+from typing import AsyncGenerator, Dict, List, Tuple
 from uuid import uuid4
 
 import pendulum
@@ -26,7 +26,7 @@ from prefect.types import Date, DateTime
 @pytest.fixture(scope="module")
 def known_dates() -> Tuple[Date, ...]:
     dates = [Date.today().subtract(days=days_ago) for days_ago in [5, 4, 3, 2, 1]]
-    return cast(Tuple[Date, ...], tuple(dates))
+    return tuple(dates)
 
 
 @pytest.fixture(scope="module")

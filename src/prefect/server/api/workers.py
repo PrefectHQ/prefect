@@ -5,7 +5,6 @@ Routes for interacting with work queue objects.
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     BackgroundTasks,
@@ -31,6 +30,7 @@ from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkQueue
@@ -179,7 +179,7 @@ async def create_work_pool(
 
             await emit_work_pool_status_event(
                 event_id=uuid4(),
-                occurred=pendulum.now("UTC"),
+                occurred=now("UTC"),
                 pre_update_work_pool=None,
                 work_pool=model,
             )

@@ -17,7 +17,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +37,7 @@ from prefect.server.orchestration.policies import (
 )
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -69,7 +69,7 @@ async def create_task_run(
         orm_models.TaskRun: the newly-created or existing task run
     """
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
     model: Union[orm_models.TaskRun, None]
 
     task_run.labels = await with_system_labels_for_task_run(
@@ -81,7 +81,7 @@ async def create_task_run(
         insert_stmt = (
             db.queries.insert(db.TaskRun)
             .values(
-                created=now,
+                created=right_now,
                 **task_run.model_dump_for_orm(
                     exclude={"state", "created"}, exclude_unset=True
                 ),
@@ -126,7 +126,7 @@ async def create_task_run(
 
         if model is None:
             model = db.TaskRun(
-                created=now,
+                created=right_now,
                 **task_run.model_dump_for_orm(
                     exclude={"state", "created"}, exclude_unset=True
                 ),
@@ -135,7 +135,7 @@ async def create_task_run(
             session.add(model)
             await session.flush()
 
-    if model.created == now and task_run.state:
+    if model.created == right_now and task_run.state:
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=model.id,
