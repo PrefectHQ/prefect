@@ -252,15 +252,6 @@ raw-options = { git_describe_command = 'git describe --dirty --tags --long --mat
 [tool.hatch.build.hooks.vcs]
 version-file = "src/prefect/_version.py"
 
-[tool.vermin]
-make_paths_absolute = false
-backports = ["typing_extensions"]
-format = "parsable"
-eval_annotations = true
-only_show_violations = true
-targets = ["3.9-"]
-exclusion_regex = "^src/prefect/_vendor/.*$|^src/prefect/utilities/compat\\.py$|^tests/workers/test_process_worker.py$|^tests/test_background_tasks.py$|^src/integrations/.*/tests/.*$"
-
 [tool.ruff]
 src = ["src"]
 extend-select = ["I"]
