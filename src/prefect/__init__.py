@@ -6,7 +6,8 @@ import sys
 from . import _version
 import importlib
 import pathlib
-from typing import TYPE_CHECKING, Any, Optional, TypedDict, cast
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 
 if TYPE_CHECKING:
     from importlib.machinery import ModuleSpec
@@ -41,7 +42,26 @@ if TYPE_CHECKING:
         date: Optional[str]
 
 
-__version_info__: "VersionInfo" = cast("VersionInfo", _version.get_versions())
+version_str = _version.__version__
+is_dev = ".dev" in version_str
+has_git_hash = "+g" in version_str
+
+# Try to extract date in YYYYMMDD format from version string
+date = None
+if has_git_hash:
+    parts = version_str.split(".")
+    if len(parts[-1]) == 8 and parts[-1].isdigit():  # YYYYMMDD format
+        date = parts[-1]
+    else:
+        date = datetime.now().strftime("%Y%m%d")
+
+__version_info__: "VersionInfo" = {
+    "version": version_str,
+    "full-revisionid": version_str.split("+")[-1].split(".")[0] if has_git_hash else "",
+    "dirty": is_dev,  # Development versions are considered dirty
+    "error": None if has_git_hash else "no git hash available",
+    "date": date,
+}
 __version__ = __version_info__["version"]
 
 # The absolute path to this module

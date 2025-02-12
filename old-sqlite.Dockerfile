@@ -44,7 +44,6 @@ RUN wget https://www.sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_VERSION}
     && cd .. \
     && rm -rf sqlite-autoconf-${SQLITE_VERSION}*
 
-# Install uv for faster pip operations
 ENV UV_SYSTEM_PYTHON=1
 
 # Set library path to use our compiled SQLite
@@ -56,9 +55,6 @@ WORKDIR /app
 COPY --from=python-builder /opt/prefect/dist/prefect.tar.gz ./dist/
 
 # Install requirements and Prefect
-COPY pyproject.toml ./
-RUN uv pip compile -o requirements.txt pyproject.toml
-RUN uv pip install -r requirements.txt
 RUN uv pip install ./dist/prefect.tar.gz
 
 

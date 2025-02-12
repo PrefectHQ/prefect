@@ -92,42 +92,42 @@ client = [
 ]
 
 dev = [
-    "cairosvg",
+    "cairosvg>=2.7.1",
     "codespell>=2.2.6",
-    "ipython",
-    "jinja2",
+    "ipython>=8.32.0;python_version>='3.10'",
+    "jinja2>=1.2",
     "moto>=5",
-    "numpy",
-    "pillow",
-    "pre-commit",
-    "pluggy>=1.4.0",
-    "pytest>=8.3",
-    "pytest-asyncio>=0.24",
-    "pytest-benchmark",
-    "pytest-cov",
-    "pytest-env",
-    "pytest-flakefinder",
+    "numpy>=2.2.2;python_version>='3.10'",
+    "pillow>=11.1.0",
+    "pre-commit>=4.1.0",
+    "pluggy>=1.5.0",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "pytest-benchmark>=5.1.0",
+    "pytest-cov>=6.0",
+    "pytest-env>=1.1.5",
+    "pytest-flakefinder>=1.1.0",
     "pytest-mypy-plugins>=3.2.0",
-    "pytest-timeout",
+    "pytest-timeout>=2.3.1",
     "pytest-xdist>=3.6.1",
-    "pyyaml",
-    "redis>=5.0.1",
-    "setuptools",
-    "uv>=0.4.5",
-    "vale",
-    "virtualenv",
-    "watchfiles",
-    "respx",
+    "pyyaml>=6.0.1",
+    "redis>=5.2.1",
+    "setuptools>=65.6.3",
+    "uv>=0.5.30",
+    "vale>=3.9.5",
+    "virtualenv>=20.29.2",
+    "watchfiles>=1.0.4",
+    "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.9.5",
-    "mypy==1.14.1",
+    "ruff==0.9.6",
+    "mypy==1.15.0",
     "vermin==1.6.0",
-    "types-cachetools",
-    "types-PyYAML",
-    "mkdocs",
-    "mkdocs-material",
-    "mkdocstrings[python]",
-    "mkdocs-gen-files",
+    "types-cachetools>=5.3.1",
+    "types-PyYAML>=6.0.12",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.4",
+    "mkdocstrings[python]>=0.28.0",
+    "mkdocs-gen-files>=0.5.0",
 ]
 otel = [
     "opentelemetry-distro>=0.48b0,<1.0.0",
@@ -238,12 +238,11 @@ omit = ["src/prefect/server/database/migrations/versions/*"]
 ignore_errors = true
 
 [tool.hatch.version]
+source = "vcs"
 raw-options = { git_describe_command = 'git describe --dirty --tags --long --match "[0-9]*.[0-9]*.[0-9]*"' }
 
-source = "vcs"
-tag-pattern = "(\\d+\\.\\d+\\.\\d+)$"
-# [tool.hatch.build.hooks.vcs]
-# version-file = "_version.py"
+[tool.hatch.build.hooks.vcs]
+version-file = "src/prefect/_version.py"
 
 [tool.vermin]
 make_paths_absolute = false

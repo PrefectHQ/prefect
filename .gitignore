@@ -8,6 +8,7 @@ build/
 dist/
 sdist/
 uv.lock
+
 # We likely ought to eventually include uv.lock
 
 # Test artifacts
@@ -76,6 +77,7 @@ prefect.yaml
 libcairo.2.dylib
 
 # setuptools-scm generated files
+src/prefect/_version.py
 src/integrations/*/**/_version.py
 *.log
 
