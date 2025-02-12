@@ -60,7 +60,7 @@ jobs:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
           run: >
-            pytest 
+            uv run pytest 
             benches/bench_import.py 
             benches/bench_tasks.py 
             benches/bench_flows.py::bench_flow_decorator
