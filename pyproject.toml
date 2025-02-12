@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=65.6.3", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect"
@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
 requires-python = ">=3.9"
-license = "Apache-2.0"
+license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
     "Natural Language :: English",
@@ -192,12 +192,10 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
+    "versioneer>=0.20.0",
 ]
 
 benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
-
-[tool.hatch.build.targets.sdist]
-include = ["src/prefect", "README.md", "LICENSE", "pyproject.toml"]
 
 
 [tool.pytest.ini_options]
@@ -267,14 +265,6 @@ exclude_lines = ["@(abc.)?abstractmethod", "if TYPE_CHECKING:"]
 omit = ["src/prefect/server/database/migrations/versions/*"]
 ignore_errors = true
 
-[tool.hatch.version]
-source = "vcs"
-tag-pattern = "(?P<version>\\d+\\.\\d+\\.\\d+)(?:\\.dev\\d+)?$"
-raw-options = { git_describe_command = 'git describe --dirty --tags --long --match "[0-9]*.[0-9]*.[0-9]*"' }
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/prefect/_version.py"
-
 [tool.ruff]
 src = ["src"]
 extend-select = ["I"]
@@ -309,3 +299,11 @@ prefect-shell = { path = "src/integrations/prefect-shell" }
 prefect-slack = { path = "src/integrations/prefect-slack" }
 prefect-sqlalchemy = { path = "src/integrations/prefect-sqlalchemy" }
 prefect-snowflake = { path = "src/integrations/prefect-snowflake" }
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "src/prefect/_version.py"
+versionfile_build = "prefect/_version.py"
+tag_prefix = ""
+parentdir_prefix = "prefect-"
