@@ -44,7 +44,7 @@ jobs:
           enable-cache: true
           
       - name: Install the project
-        run:  uv sync --extra dev --compile-bytecode
+        run:  uv sync --dev --compile-bytecode
 
       - name: Start server
         run: |
