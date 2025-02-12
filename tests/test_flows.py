@@ -45,6 +45,7 @@ from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
+    MissingFlowError,
     ParameterTypeError,
     ReservedArgumentError,
     ScriptError,
@@ -4967,6 +4968,41 @@ class TestLoadFlowFromFlowRun:
         load_flow_from_entrypoint.assert_called_once_with(
             "my.module.pretend_flow", use_placeholder_flow=True
         )
+
+    async def test_load_flow_from_non_flow_func(
+        self, prefect_client: "PrefectClient", monkeypatch
+    ):
+        def not_quite_a_flow():
+            pass
+
+        _load_flow_from_entrypoint = mock.Mock(side_effect=MissingFlowError)
+        monkeypatch.setattr(
+            "prefect.flows.load_flow_from_entrypoint",
+            _load_flow_from_entrypoint,
+        )
+
+        _import_object = mock.Mock(return_value=not_quite_a_flow)
+        monkeypatch.setattr(
+            "prefect.flows.import_object",
+            _import_object,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(not_quite_a_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my_file.py:not_quite_a_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run)
+
+        assert isinstance(result, Flow)
+        assert result.fn == not_quite_a_flow
 
 
 class TestTransactions:

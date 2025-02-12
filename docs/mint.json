@@ -286,7 +286,6 @@
           "group": "Dask",
           "pages": [
             "integrations/prefect-dask/index",
-            "integrations/prefect-dask/usage_guide",
             "integrations/prefect-dask/sdk"
           ]
         },

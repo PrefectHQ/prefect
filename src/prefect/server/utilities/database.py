@@ -23,7 +23,6 @@ from typing import (
     overload,
 )
 
-import pendulum
 import pydantic
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
@@ -47,6 +46,8 @@ from typing_extensions import (
     TypeAlias,
     TypeVar,
 )
+
+from prefect.types._datetime import DateTime
 
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
@@ -128,7 +129,7 @@ def generate_uuid_sqlite(
     """
 
 
-class Timestamp(TypeDecorator[pendulum.DateTime]):
+class Timestamp(TypeDecorator[DateTime]):
     """TypeDecorator that ensures that timestamps have a timezone.
 
     For SQLite, all timestamps are converted to UTC (since they are stored
@@ -152,27 +153,27 @@ class Timestamp(TypeDecorator[pendulum.DateTime]):
 
     def process_bind_param(
         self,
-        value: Optional[pendulum.DateTime],
+        value: Optional[DateTime],
         dialect: sa.Dialect,
-    ) -> Optional[pendulum.DateTime]:
+    ) -> Optional[DateTime]:
         if value is None:
             return None
         else:
             if value.tzinfo is None:
                 raise ValueError("Timestamps must have a timezone.")
             elif dialect.name == "sqlite":
-                return pendulum.instance(value).in_timezone("UTC")
+                return DateTime.instance(value).in_timezone("UTC")
             else:
                 return value
 
     def process_result_value(
         self,
-        value: Optional[Union[datetime.datetime, pendulum.DateTime]],
+        value: Optional[Union[datetime.datetime, DateTime]],
         dialect: sa.Dialect,
-    ) -> Optional[pendulum.DateTime]:
+    ) -> Optional[DateTime]:
         # retrieve timestamps in their native timezone (or UTC)
         if value is not None:
-            return pendulum.instance(value).in_timezone("UTC")
+            return DateTime.instance(value).in_timezone("UTC")
 
 
 class UUID(TypeDecorator[uuid.UUID]):
@@ -341,7 +342,7 @@ def bindparams_from_clause(
 # Platform-independent datetime and timedelta arithmetic functions
 
 
-class date_add(functions.GenericFunction[pendulum.DateTime]):
+class date_add(functions.GenericFunction[DateTime]):
     """Platform-independent way to add a timestamp and an interval"""
 
     type: Timestamp = Timestamp()

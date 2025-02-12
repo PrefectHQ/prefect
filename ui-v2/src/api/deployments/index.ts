@@ -237,13 +237,56 @@ export const useDeleteDeployment = () => {
 	return { deleteDeployment, ...rest };
 };
 
+type UseCreateDeploymentSchedule = {
+	deployment_id: string;
+} & components["schemas"]["DeploymentScheduleCreate"];
+/**
+ * Hook for create a deployment's schedule
+ *
+ * @returns Mutation object for creating a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createDeploymentSchedule } = useCreateDeploymentSchedule();
+ *
+ * // create a deployment schedule
+ * createDeploymentSchedule({deployment_id, ...schedule}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useCreateDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: createDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({ deployment_id, ...schedule }: UseCreateDeploymentSchedule) =>
+			getQueryService().POST("/deployments/{id}/schedules", {
+				body: [schedule],
+				params: { path: { id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+
+	return { createDeploymentSchedule, ...rest };
+};
+
 type UpdateDeploymentSchedule = {
 	deployment_id: string;
 	schedule_id: string;
 } & components["schemas"]["DeploymentScheduleUpdate"];
 
 /**
- * Hook for update a deployment's schedule
+ * Hook for updating a deployment's schedule
  *
  * @returns Mutation object for updating a deployment's schedule with loading/error states and trigger function
  *
@@ -251,8 +294,7 @@ type UpdateDeploymentSchedule = {
  * ```ts
  * const { updateDeploymentSchedule } = useUpdateDeploymentSchedule();
  *
- * // Delete a deployment by id
- * deleteDeployment({deployment_id, schedule_id, ...body}, {
+ * updateDeploymentSchedule({deployment_id, schedule_id, ...body}, {
  *   onSuccess: () => {
  *     // Handle successful update
  *     console.log('Deployment schedule updated successfully');
@@ -278,10 +320,48 @@ export const useUpdateDeploymentSchedule = () => {
 				params: { path: { schedule_id, id: deployment_id } },
 			}),
 		onSettled: () =>
-			queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.all(),
-			}),
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
 	});
 
 	return { updateDeploymentSchedule, ...rest };
+};
+
+type DeleteDeploymentSchedule = {
+	deployment_id: string;
+	schedule_id: string;
+};
+/**
+ * Hook for deleting a deployment's schedule
+ *
+ * @returns Mutation object for deleting a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteDeploymentSchedule } = useDeleteDeploymentSchedule();
+ *
+ * deleteDeploymentSchedule({deployment_id, schedule_id, ...body}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule deleted successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to delete deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({ deployment_id, schedule_id }: DeleteDeploymentSchedule) =>
+			getQueryService().DELETE("/deployments/{id}/schedules/{schedule_id}", {
+				params: { path: { schedule_id, id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
+	});
+
+	return { deleteDeploymentSchedule, ...rest };
 };

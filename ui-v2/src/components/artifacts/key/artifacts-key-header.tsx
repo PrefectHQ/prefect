@@ -54,7 +54,10 @@ export const ArtifactsKeyHeader = ({
 			{pageHeader && (
 				<div className="">
 					<Typography variant="h2" className="my-4 font-bold">
-						<Markdown remarkPlugins={[remarkGfm]} className={"revert-tailwind"}>
+						<Markdown
+							remarkPlugins={[remarkGfm]}
+							className={"prose lg:prose-xl"}
+						>
 							{pageHeader}
 						</Markdown>
 					</Typography>
