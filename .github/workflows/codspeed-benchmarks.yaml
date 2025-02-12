@@ -6,7 +6,7 @@ env:
 on:
   pull_request:
     paths:
-      - .github/workflows/benchmarks.yaml
+      - .github/workflows/codspeed-benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - requirements.txt
