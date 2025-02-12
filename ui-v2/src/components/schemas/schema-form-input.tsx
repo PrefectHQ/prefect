@@ -117,8 +117,5 @@ export function SchemaFormInput({
 		throw new Error("not implemented");
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const exhaustive: never = property.type;
-
-	throw new Error(`Schema type not implemented: ${String(property.type)}`);
+	throw new Error(`Schema type not implemented: ${String(property.type satisfies never)}`);
 }

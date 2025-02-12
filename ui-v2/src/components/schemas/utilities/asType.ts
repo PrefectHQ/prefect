@@ -77,7 +77,6 @@ export function asArray(
 				)
 				.filter((value) => value !== undefined);
 		default:
-			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-			throw new Error(`Invalid array type: ${type}`);
+			throw new Error(`Invalid array type: ${String(type)}`);
 	}
 }
