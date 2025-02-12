@@ -3,7 +3,7 @@ title: prefect-gcp
 ---
 
 `prefect-gcp` helps you leverage the capabilities of Google Cloud Platform (GCP) in your workflows.
-For example, you can run flow on Vertex AI or Cloud Run, read and write data to BigQuery and Cloud Storage, retrieve secrets with Secret Manager.
+For example, you can run flows on Vertex AI or Cloud Run, read and write data to BigQuery and Cloud Storage, and retrieve secrets with Secret Manager.
 
 ## Getting started
 
@@ -13,26 +13,72 @@ For example, you can run flow on Vertex AI or Cloud Run, read and write data to 
 
 ### Install `prefect-gcp`
 
-The following command will install a version of `prefect-gcp` compatible with your installed version of `prefect`. 
+Install `prefect-gcp` as an extra of `prefect`. 
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-```bash
-pip install "prefect[gcp]"
-```
+<CodeGroup>
 
-Upgrade to the latest versions of `prefect` and `prefect-gcp`:
-
-```bash
+```bash pip
 pip install -U "prefect[gcp]"
 ```
 
-If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#additional-installation-options).
+```bash uv
+uv pip install -U "prefect[gcp]"
+```
 
+</CodeGroup>
+
+
+If using BigQuery, Cloud Storage, Secret Manager, or Vertex AI, see [additional installation options](#install-extras).
+
+#### Install extras
 To install `prefect-gcp` with all additional capabilities, run the install command above and then run the following command:
 
-```bash
-pip install "prefect-gcp[all_extras]"
+<CodeGroup>
+
+```bash pip
+pip install -U "prefect-gcp[all_extras]"
 ```
+
+```bash uv
+uv pip install -U "prefect-gcp[all_extras]"
+```
+
+</CodeGroup>
+
+
+Or, install extras individually:
+<CodeGroup>
+
+```bash pip
+# Use Cloud Storage
+pip install -U "prefect-gcp[cloud_storage]"
+
+# Use BigQuery
+pip install -U "prefect-gcp[bigquery]"
+
+# Use Secret Manager
+pip install -U "prefect-gcp[secret_manager]"
+
+# Use Vertex AI
+pip install -U "prefect-gcp[aiplatform]"
+```
+
+```bash uv
+# Use Cloud Storage
+uv pip install -U "prefect-gcp[cloud_storage]"
+
+# Use BigQuery
+uv pip install -U "prefect-gcp[bigquery]"
+
+# Use Secret Manager
+uv pip install -U "prefect-gcp[secret_manager]"
+
+# Use Vertex AI
+uv pip install -U "prefect-gcp[aiplatform]"
+```
+
+</CodeGroup>
 
 ### Register newly installed block types
 
@@ -41,8 +87,9 @@ Register the block types in the module to make them available for use.
 ```bash
 prefect block register -m prefect_gcp
 ```
+## Blocks setup
 
-## Authenticate using a GCP Credentials block
+### Credentials
 
 Authenticate with a service account to use `prefect-gcp` services.
 
@@ -69,8 +116,9 @@ service_account_info = {
 
 GcpCredentials(
     service_account_info=service_account_info
-).save("BLOCK-NAME-PLACEHOLDER")
+).save("CREDENTIALS-BLOCK-NAME")
 ```
+This credential block can be used to create other `prefect_gcp` blocks.
 
 <Warning> 
 **`service_account_info` vs `service_account_file`**
@@ -80,24 +128,67 @@ The advantage of using `service_account_info`, instead of `service_account_file`
 If `service_account_file` is used, the provided path *must be available* in the container executing the flow.
 </Warning>
 
-Alternatively, GCP can authenticate without storing credentials in a block.
-See the [Third-party Secrets docs](/v3/develop/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
+### BigQuery
+
+Read data from and write to Google BigQuery within your Prefect flows.
+
+Be sure to [install](#install-extras) `prefect-gcp` with the BigQuery extra.
+
+```python
+from prefect_gcp.bigquery import GcpCredentials, BigQueryWarehouse
+
+gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
+
+bigquery_block = BigQueryWarehouse(
+    gcp_credentials = gcp_credentials,
+    fetch_size = 1  # Optional: specify a default number of rows to fetch when calling fetch_many
+)
+bigquery_block.save("BIGQUERY-BLOCK-NAME")
+```
+
+### Secret Manager
+Manage secrets in Google Cloud Platform's Secret Manager.
+
+```python
+from prefect_gcp import GcpCredentials, GcpSecret
+gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
+
+gcp_secret = GcpSecret(
+    secret_name = "your-secret-name",
+    secret_version = "latest",
+    gcp_credentials = gcp_credentials
+)
+
+gcp_secret.save("SECRET-BLOCK-NAME")
+```
+
+### Cloud Storage
+Create a block to interact with a GCS bucket.
+```python
+from prefect_gcp import GcpCredentials, GcsBucket
+
+gcs_bucket = GcsBucket(
+    bucket="BUCKET-NAME",
+    gcp_credentials=GcpCredentials.load("BIGQUERY-BLOCK-NAME")
+)
+gcs_bucket.save("GCS-BLOCK-NAME")
+
+```
 
 ## Run flows on Google Cloud Run or Vertex AI
 
 Run flows on [Google Cloud Run](https://cloud.google.com/run) or [Vertex AI](https://cloud.google.com/vertex-ai) to dynamically scale your infrastructure.
 
-See the [Google Cloud Run Worker Guide](integrations/prefect-gcp/gcp-worker-guide/) for a walkthrough of using Google Cloud Run to run workflows with a hybrid work pool.
+Prefect Cloud offers [Google Cloud Run push work pools](/v3/deploy/infrastructure-examples/serverless). Push work pools submit runs directly to Google Cloud Run, instead of requiring a worker to actively poll for flow runs to execute.
 
-If you're using Prefect Cloud, [Google Cloud Run push work pools](/v3/deploy/infrastructure-examples/serverless) provide all the benefits of Google Cloud Run along with a quick setup and no worker needed.
+See the [Google Cloud Run Worker Guide](integrations/prefect-gcp/gcp-worker-guide/) for a walkthrough of using Google Cloud Run in a hybrid work pool.
 
-### Use Prefect with Google BigQuery
 
-Read data from and write to Google BigQuery within your Prefect flows.
+## Examples
 
-Be sure to [install](#installation) `prefect-gcp` with the BigQuery extra.
+### Interact with BigQuery
 
-This code creates a new dataset in BigQuery, define a table, insert rows, and fetch data from the table:
+This code creates a new dataset in BigQuery, defines a table, insert rows, and fetches data from the table:
 
 ```python
 from prefect import flow
@@ -106,7 +197,7 @@ from prefect_gcp.bigquery import GcpCredentials, BigQueryWarehouse
 @flow
 def bigquery_flow():
     all_rows = []
-    gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
+    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
 
     client = gcp_credentials.get_bigquery_client()
     client.create_dataset("test_example", exists_ok=True)
@@ -137,11 +228,9 @@ if __name__ == "__main__":
     bigquery_flow()
 ```
 
-## Use Prefect with Google Cloud Storage
+### Use Prefect with Google Cloud Storage
 
 Interact with Google Cloud Storage.
-
-Be sure to [install](#install-prefect-gcp) `prefect-gcp` with the Cloud Storage extra.
 
 The code below uses `prefect_gcp` to upload a file to a Google Cloud Storage bucket and download the same file under a different filename.
 
@@ -157,9 +246,9 @@ def cloud_storage_flow():
     file_path = Path("test-example.txt")
     file_path.write_text("Hello, Prefect!")
 
-    gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
+    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
     gcs_bucket = GcsBucket(
-        bucket="BUCKET-NAME-PLACEHOLDER",
+        bucket="BUCKET-NAME",
         gcp_credentials=gcp_credentials
     )
 
@@ -180,7 +269,7 @@ if __name__ == "__main__":
 `GcsBucket` supports uploading and downloading entire directories.
 </Info>
 
-## Save secrets with Google Secret Manager
+### Save secrets with Google Secret Manager
 
 Read and write secrets with Google Secret Manager.
 
@@ -195,7 +284,7 @@ from prefect_gcp import GcpCredentials, GcpSecret
 
 @flow
 def secret_manager_flow():
-    gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
+    gcp_credentials = GcpCredentials.load("CREDENTIALS-BLOCK-NAME")
     gcp_secret = GcpSecret(secret_name="test-example", gcp_credentials=gcp_credentials)
     gcp_secret.write_secret(secret_data=b"Hello, Prefect!")
     secret_data = gcp_secret.read_secret()
@@ -207,74 +296,12 @@ if __name__ == "__main__":
     secret_manager_flow()
 ```
 
-## Access Google credentials or clients from GcpCredentials
-
-You can instantiate a Google Cloud client, such as `bigquery.Client`.
-
-Note that a `GcpCredentials` object is NOT a valid input to the underlying BigQuery client - use the `get_credentials_from_service_account` method to access and pass a `google.auth.Credentials` object.
-
-```python
-import google.cloud.bigquery
-from prefect import flow
-from prefect_gcp import GcpCredentials
-
-
-@flow
-def create_bigquery_client():
-    gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
-    google_auth_credentials = gcp_credentials.get_credentials_from_service_account()
-    bigquery_client = bigquery.Client(credentials=google_auth_credentials)
-```
-
-To access the underlying client, use the `get_client` method from `GcpCredentials`.
-
-```python
-from prefect import flow
-from prefect_gcp import GcpCredentials
-
-
-@flow
-def create_bigquery_client():
-    gcp_credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
-    bigquery_client = gcp_credentials.get_client("bigquery")
-```
 
 ## Resources
 
 For assistance using GCP, consult the [Google Cloud documentation](https://cloud.google.com/docs).
 
-Refer to the `prefect-gcp` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-gcp` library.
+GCP can also authenticate without storing credentials in a block.
+See [Access third-party secrets](/v3/develop/secrets) for an example that uses AWS Secrets Manager and Snowflake.
 
-### Additional installation options
-
-First install the main library compatible with your `prefect` version:
-
-```bash
-pip install "prefect[gcp]"
-```
-
-Then install the additional capabilities you need.
-
-#### To use Cloud Storage
-
-```bash
-pip install "prefect-gcp[cloud_storage]"
-```
-
-#### To use BigQuery
-
-```bash
-pip install "prefect-gcp[bigquery]"
-```
-
-#### To use Secret Manager
-
-```bash
-pip install "prefect-gcp[secret_manager]"
-```
-
-### To use Vertex AI
-
-```bash
-pip install "prefect-gcp[aiplatform]"
-```
+Refer to the `prefect-gcp` [SDK documentation](https://reference.prefect.io/prefect_gcp/) to explore all of the capabilities of the `prefect-gcp` library.
