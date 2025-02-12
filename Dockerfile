@@ -46,6 +46,9 @@ RUN apt-get update && \
     git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install UV from official image - pin to specific version for build caching
+COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
+
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
 
@@ -53,8 +56,8 @@ COPY . ./
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
-RUN rm -rf dist && python setup.py sdist
-RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
+RUN rm -rf dist && uv build --sdist --out-dir dist
+RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
