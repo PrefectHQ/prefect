@@ -14,10 +14,12 @@ import { useDeleteSchedule } from "./use-delete-schedule";
 
 type ScheduleActionMenuProps = {
 	deploymentSchedule: DeploymentSchedule;
+	onEditSchedule: (scheduleId: string) => void;
 };
 
 export const ScheduleActionMenu = ({
 	deploymentSchedule,
+	onEditSchedule,
 }: ScheduleActionMenuProps) => {
 	const { toast } = useToast();
 	const [dialogState, confirmDelete] = useDeleteSchedule();
@@ -26,9 +28,8 @@ export const ScheduleActionMenu = ({
 		toast({ title: "ID copied" });
 	};
 
-	const handleEdit = () => {};
-
 	const handleDelete = () => confirmDelete(deploymentSchedule);
+	const handleEdit = () => onEditSchedule(deploymentSchedule.id);
 
 	return (
 		<>

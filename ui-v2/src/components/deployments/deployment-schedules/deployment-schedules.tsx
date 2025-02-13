@@ -5,11 +5,15 @@ import { useMemo } from "react";
 import { DeploymentScheduleItem } from "./deployment-schedule-item";
 
 type DeploymentSchedulesProps = {
+	onAddSchedule: () => void;
+	onEditSchedule: (scheduleId: string) => void;
 	deployment: Deployment;
 };
 
 export const DeploymentSchedules = ({
 	deployment,
+	onAddSchedule,
+	onEditSchedule,
 }: DeploymentSchedulesProps) => {
 	// nb: Need to sort by created, because API re-arranges order per last update
 	const deploymentSchedulesSorted = useMemo(() => {
@@ -35,10 +39,11 @@ export const DeploymentSchedules = ({
 					<DeploymentScheduleItem
 						key={schedule.id}
 						deploymentSchedule={schedule}
+						onEditSchedule={onEditSchedule}
 					/>
 				))}
 				<div>
-					<Button size="sm">
+					<Button size="sm" onClick={onAddSchedule}>
 						<Icon id="Plus" className="mr-2 h-4 w-4" /> Schedule
 					</Button>
 				</div>

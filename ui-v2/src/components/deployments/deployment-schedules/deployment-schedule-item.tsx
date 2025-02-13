@@ -8,17 +8,22 @@ import type { DeploymentSchedule } from "./types";
 
 type DeploymentScheduleItemProps = {
 	deploymentSchedule: DeploymentSchedule;
+	onEditSchedule: (scheduleId: string) => void;
 };
 
 export const DeploymentScheduleItem = ({
 	deploymentSchedule,
+	onEditSchedule,
 }: DeploymentScheduleItemProps) => {
 	return (
 		<Card className="p-3 flex items-center justify-between">
 			<Typography>{getScheduleTitle(deploymentSchedule)}</Typography>
 			<div className="flex items-center gap-2">
 				<ScheduleToggleSwitch deploymentSchedule={deploymentSchedule} />
-				<ScheduleActionMenu deploymentSchedule={deploymentSchedule} />
+				<ScheduleActionMenu
+					deploymentSchedule={deploymentSchedule}
+					onEditSchedule={onEditSchedule}
+				/>
 			</div>
 		</Card>
 	);
