@@ -1,5 +1,5 @@
 import { SchemaObject, StringSubtype } from "openapi-typescript";
-import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { SchemaFormInputStringFormatDate } from "./schema-form-input-string-format-date";
 import { SchemaFormInputStringFormatDateTime } from "./schema-form-input-string-format-datetime";
@@ -19,13 +19,17 @@ export function SchemaFormInputString({
 	errors,
 	property,
 }: SchemaFormInputStringProps) {
+	function handleChange(value: string | undefined) {
+		onValueChange(value || undefined);
+	}
+
 	if (isWithPrimitiveEnum(property)) {
 		return (
 			<SchemaFormInputEnum
 				multiple={false}
 				value={value}
 				property={property}
-				onValueChange={onValueChange}
+				onValueChange={handleChange}
 				errors={errors}
 			/>
 		);
@@ -35,7 +39,7 @@ export function SchemaFormInputString({
 		return (
 			<SchemaFormInputStringFormatDate
 				value={value}
-				onValueChange={onValueChange}
+				onValueChange={handleChange}
 				errors={errors}
 			/>
 		);
@@ -45,7 +49,7 @@ export function SchemaFormInputString({
 		return (
 			<SchemaFormInputStringFormatDateTime
 				value={value}
-				onValueChange={onValueChange}
+				onValueChange={handleChange}
 				errors={errors}
 			/>
 		);
@@ -55,17 +59,18 @@ export function SchemaFormInputString({
 		return (
 			<SchemaFormInputStringFormatJson
 				value={value}
-				onValueChange={onValueChange}
+				onValueChange={handleChange}
 				errors={errors}
 			/>
 		);
 	}
 
 	return (
-		<Input
-			type="text"
+		<Textarea
 			value={value ?? ""}
-			onChange={(e) => onValueChange(e.target.value)}
+			rows={1}
+			className="min-h-min"
+			onChange={(e) => handleChange(e.target.value)}
 		/>
 	);
 }
