@@ -206,7 +206,7 @@ source = "versioningit"
 match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
 
 [tool.versioningit.write]
-file = "src/prefect/_version.py"
+method = { module = "write", value = "write_build_info", module-dir = "hatch"}
 
 [tool.versioningit.format]
 distance = "{base_version}+{distance}.{vcs}{rev}"
@@ -215,6 +215,9 @@ distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 
 [tool.hatch.build]
 artifacts = ["src/prefect/_version.py"]
+
+[tool.hatch.build.targets.sdist.hooks.custom]
+path="hatch/build_info.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]

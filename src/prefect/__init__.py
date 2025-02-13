@@ -4,6 +4,7 @@
 
 import sys
 from . import _version
+from . import _build_info
 import importlib
 import pathlib
 from typing import TYPE_CHECKING, Any, Optional, TypedDict, cast
@@ -41,8 +42,17 @@ if TYPE_CHECKING:
         date: Optional[str]
 
 
-__version_info__: "VersionInfo" = cast("VersionInfo", _version.get_versions())
-__version__ = __version_info__["version"]
+__version__ = _version.__version__
+__version_info__: "VersionInfo" = cast(
+    "VersionInfo",
+    {
+        "version": __version__,
+        "date": _build_info.__build_date__,
+        "full-revisionid": _build_info.__git_commit__,
+        "error": None,
+        "dirty": False,
+    },
+)
 
 # The absolute path to this module
 __module_path__: pathlib.Path = pathlib.Path(__file__).parent
