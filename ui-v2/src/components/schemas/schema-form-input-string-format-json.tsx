@@ -11,8 +11,7 @@ export function SchemaFormInputStringFormatJson({
 	onValueChange,
 	errors,
 }: SchemaFormInputStringFormatJsonProps) {
-
-  function handleChange(value: string | undefined) {
+	function handleChange(value: string | undefined) {
 		onValueChange(value || undefined);
 	}
 

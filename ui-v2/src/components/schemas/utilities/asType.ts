@@ -25,6 +25,12 @@ export function asObject(value: unknown): Record<string, unknown> | undefined {
 	return undefined;
 }
 
+export function asPrimitive(value: unknown): PrimitiveProperty | undefined {
+	return (
+		asType(value, String) ?? asType(value, Number) ?? asType(value, Boolean)
+	);
+}
+
 export function asArray(value: unknown): unknown[] | undefined;
 export function asArray(
 	value: unknown,

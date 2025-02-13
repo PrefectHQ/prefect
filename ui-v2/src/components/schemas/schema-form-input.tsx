@@ -5,6 +5,7 @@ import { SchemaFormInputNull } from "./schema-form-input-null";
 import { SchemaFormInputNumber } from "./schema-form-input-number";
 import { SchemaFormInputObject } from "./schema-form-input-object";
 import { SchemaFormInputString } from "./schema-form-input-string";
+import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
 import { PrefectSchemaObject } from "./types/schemas";
 import { asArray, asObject, asType } from "./utilities/asType";
@@ -125,7 +126,14 @@ export function SchemaFormInput({
 	}
 
 	if (property.type === undefined) {
-		throw new Error("Schema type not implemented");
+		return (
+			<SchemaFormInputUnknown
+				value={value}
+				onValueChange={onValueChange}
+				property={property}
+				errors={errors}
+			/>
+		);
 	}
 
 	throw new Error(
