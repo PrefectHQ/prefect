@@ -42,14 +42,14 @@ if TYPE_CHECKING:
         date: Optional[str]
 
 
-version_str = _version.__version__
-is_dev = ".dev" in version_str
-has_git_hash = "+g" in version_str
+version_str: str = _version.__version__
+is_dev: bool = ".dev" in version_str
+has_git_hash: bool = "+g" in version_str
 
 # Try to extract date in YYYYMMDD format from version string
-date = None
+date: Optional[str] = None
 if has_git_hash:
-    parts = version_str.split(".")
+    parts: list[str] = version_str.split(".")
     if len(parts[-1]) == 8 and parts[-1].isdigit():  # YYYYMMDD format
         date = parts[-1]
     else:
