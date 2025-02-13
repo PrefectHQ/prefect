@@ -8,13 +8,8 @@
   },
   "anchors": [
     {
-      "icon": "github",
-      "name": "GitHub",
-      "url": "https://github.com/PrefectHQ/prefect"
-    },
-    {
       "icon": "slack",
-      "name": "Community",
+      "name": "Join our Community",
       "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
     },
     {
