@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
@@ -169,7 +169,8 @@ dev = [
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
-    "opentelemetry-test-utils>=0.48b0,<1.0.0"
+    "opentelemetry-test-utils>=0.48b0,<1.0.0",
+    "versioningit>=3.1.2",
 ]
 
 benchmark = [
@@ -177,8 +178,25 @@ benchmark = [
     "pytest-codspeed>=2.2.1",
 ]
 
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["[0-9]*.[0-9]*.[0-9]*"]
+
+[tool.versioningit.write]
+file = "src/prefect/_version.py"
+
+[tool.versioningit.format]
+distance = "{base_version}+{distance}.{vcs}{rev}"
+dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+
+[tool.hatch.build]
+artifacts = ["src/prefect/_version.py"]
+
 [tool.hatch.build.targets.sdist]
-include = ["src/prefect", "README.md", "LICENSE", "pyproject.toml"]
+include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 
 [tool.pytest.ini_options]
@@ -247,14 +265,6 @@ branch = true
 exclude_lines = ["@(abc.)?abstractmethod", "if TYPE_CHECKING:"]
 omit = ["src/prefect/server/database/migrations/versions/*"]
 ignore_errors = true
-
-[tool.hatch.version]
-source = "vcs"
-tag-pattern = "(?P<version>\\d+\\.\\d+\\.\\d+)(?:\\.dev\\d+)?$"
-raw-options = { git_describe_command = 'git describe --dirty --tags --long --match "[0-9]*.[0-9]*.[0-9]*"' }
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/prefect/_version.py"
 
 [tool.ruff]
 src = ["src"]
