@@ -1,4 +1,4 @@
-import type { DeploymentSchedule } from "@/components/deployments/deployment-schedules/types";
+import type { DeploymentSchedule } from "@/api/deployments";
 import {
 	Dialog,
 	DialogContent,
@@ -7,23 +7,43 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { CronScheduleForm } from "./cron-schedule-form";
 import { RRuleScheduleForm } from "./rrule-schedule-form";
 
 type ScheduleTypes = "interval" | "cron" | "rrule";
 
 type DeploymentScheduleDialogProps = {
+	deploymentId: string;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 	scheduleToEdit?: DeploymentSchedule;
+	onSubmit: () => void;
 };
 
 export const DeploymentScheduleDialog = ({
+	deploymentId,
 	onOpenChange,
 	open,
 	scheduleToEdit,
+	onSubmit,
 }: DeploymentScheduleDialogProps) => {
 	const [scheduleTab, setScheduleTab] = useState<ScheduleTypes>("interval");
+
+	// sync tab with scheduleToEdit
+	useEffect(() => {
+		if (!scheduleToEdit) {
+			return;
+		}
+		const { schedule } = scheduleToEdit;
+		if ("interval" in schedule) {
+			setScheduleTab("interval");
+		} else if ("cron" in schedule) {
+			setScheduleTab("cron");
+		} else {
+			setScheduleTab("rrule");
+		}
+	}, [scheduleToEdit]);
 
 	const SCHEDULE_TAB_OPTIONS = [
 		{
@@ -34,7 +54,13 @@ export const DeploymentScheduleDialog = ({
 		{
 			value: "cron",
 			label: "Cron",
-			Component: () => <div>TODO: Cron Form</div>,
+			Component: () => (
+				<CronScheduleForm
+					deployment_id={deploymentId}
+					onSubmit={onSubmit}
+					scheduleToEdit={scheduleToEdit}
+				/>
+			),
 		},
 		{ value: "rrule", label: "RRule", Component: () => <RRuleScheduleForm /> },
 	] as const;

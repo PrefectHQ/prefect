@@ -1,3 +1,4 @@
+import type { DeploymentSchedule } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import {
@@ -9,7 +10,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { useToast } from "@/hooks/use-toast";
-import { DeploymentSchedule } from "./types";
 import { useDeleteSchedule } from "./use-delete-schedule";
 
 type ScheduleActionMenuProps = {

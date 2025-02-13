@@ -11,6 +11,7 @@ export type Deployment = components["schemas"]["DeploymentResponse"];
 export type DeploymentWithFlow = Deployment & {
 	flow?: components["schemas"]["Flow"];
 };
+export type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
 export type DeploymentsFilter =
 	components["schemas"]["Body_read_deployments_deployments_filter_post"];
 export type DeploymentsPaginationFilter =
