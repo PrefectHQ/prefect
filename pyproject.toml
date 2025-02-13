@@ -203,7 +203,7 @@ benchmark = [
 source = "versioningit"
 
 [tool.versioningit.vcs]
-match = ["[0-9]*.[0-9]*.[0-9]*"]
+match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
 
 [tool.versioningit.write]
 file = "src/prefect/_version.py"
