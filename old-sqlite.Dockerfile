@@ -22,7 +22,6 @@ RUN uv build --sdist --wheel --out-dir dist && \
 
 # Final image
 FROM python:3.9-slim
-COPY --from=python-builder /bin/uv /bin/uv
 
 # Accept SQLite version as build argument
 ARG SQLITE_VERSION="3310100"
@@ -40,7 +39,6 @@ RUN wget https://www.sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_VERSION}
     && ./configure \
     && make \
     && make install \
-    && ldconfig \
     && cd .. \
     && rm -rf sqlite-autoconf-${SQLITE_VERSION}*
 
@@ -51,10 +49,15 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 WORKDIR /app
 
-# Copy the built distributable
+# Copy UV and built artifacts
+COPY --from=python-builder /bin/uv /bin/uv
 COPY --from=python-builder /opt/prefect/dist/prefect.tar.gz ./dist/
+COPY pyproject.toml ./
+COPY .git ./
+COPY README.md ./
 
 # Install requirements and Prefect
+RUN uv pip install .
 RUN uv pip install ./dist/prefect.tar.gz
 
 
