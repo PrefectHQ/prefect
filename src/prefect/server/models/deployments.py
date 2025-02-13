@@ -734,7 +734,11 @@ async def _generate_scheduled_flow_runs(
                     "work_queue_id": deployment.work_queue_id,
                     "parameters": parameters,
                     "infrastructure_document_id": deployment.infrastructure_document_id,
-                    "idempotency_key": f"scheduled {deployment.id} {date}",
+                    "idempotency_key": (
+                        f"scheduled {deployment.id} {deployment_schedule.slug or deployment_schedule.id} {date}"
+                        if deployment_schedule.parameters
+                        else f"scheduled {deployment.id} {date}"
+                    ),
                     "tags": tags,
                     "auto_scheduled": auto_scheduled,
                     "state": schemas.states.Scheduled(
