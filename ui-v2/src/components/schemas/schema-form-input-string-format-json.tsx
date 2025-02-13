@@ -11,9 +11,13 @@ export function SchemaFormInputStringFormatJson({
 	onValueChange,
 	errors,
 }: SchemaFormInputStringFormatJsonProps) {
-	function handleChange(value: string | undefined) {
-		onValueChange(value || undefined);
-	}
+	// the JsonInput's types for onChange are probably wrong but this makes it work
+	const onChange: React.FormEventHandler<HTMLDivElement> &
+		((value: string) => void) = (value) => {
+		if (typeof value === "string" || value === undefined) {
+			onValueChange(value || undefined);
+		}
+	};
 
-	return <JsonInput value={value} onChange={handleChange} />;
+	return <JsonInput value={value} onChange={onChange} />;
 }
