@@ -112,9 +112,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         id: setup_python
@@ -133,6 +130,7 @@ jobs:
 
       - name: Install packages
         run: |
+          pip install --upgrade uv
           uv export --no-group benchmark | uv pip install --upgrade --system --requirements=-
 
       - name: Start database container
@@ -368,6 +366,9 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
 
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       id: setup_python
@@ -386,8 +387,7 @@ jobs:
 
     - name: Install packages
       run: |
-        python -m pip install -U uv
-        uv pip install --upgrade --system -e .[dev]
+        uv export --no-group benchmark | uv pip install --upgrade --system --requirements=-
 
     - name: Run tests
       run: |
