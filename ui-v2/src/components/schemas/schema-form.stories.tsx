@@ -26,6 +26,11 @@ const schema: PrefectSchemaObject = {
 			enum: ["foo", "bar", "baz"],
 			description: "This is a description",
 		},
+		string_format_date: {
+			type: "string",
+			title: "String Format Date",
+			format: "date",
+		},
 		integer: {
 			type: "integer",
 			title: "Integer",

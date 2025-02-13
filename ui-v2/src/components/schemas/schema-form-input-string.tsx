@@ -2,6 +2,7 @@ import { SchemaObject, StringSubtype } from "openapi-typescript";
 import { Input } from "../ui/input";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
+import { SchemaFormInputStringFormatDate } from "./schema-form-input-string-format-date";
 
 export type SchemaFormInputStringProps = {
 	value: string | undefined;
@@ -28,8 +29,12 @@ export function SchemaFormInputString({
 		);
 	}
 
-	if (property.format) {
-		throw new Error("not implemented");
+	if (property.format === "date") {
+		return <SchemaFormInputStringFormatDate value={value} onValueChange={onValueChange} errors={errors} />
+	}
+	
+	if (property.format === "date-time") {
+		throw new Error("date-time format not implemented");
 	}
 
 	return (
