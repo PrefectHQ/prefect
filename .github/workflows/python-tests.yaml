@@ -116,11 +116,11 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Set UV_PROJECT_ENVIRONMENT
+        run: |
+          echo "UV_PROJECT_ENVIRONMENT=$(python -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))')" >> $GITHUB_ENV
 
       - name: Install the project
         run: uv sync --compile-bytecode --no-editable
