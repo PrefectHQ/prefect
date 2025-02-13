@@ -34,20 +34,21 @@ describe("CronScheduleForm", () => {
 		await user.click(screen.getByLabelText(/active/i));
 		await user.clear(screen.getByLabelText(/value/i));
 		await user.type(screen.getByLabelText(/value/i), "* * * * 1/2");
-		await user.click(screen.getByLabelText(/day or/i));
+		screen.logTestingPlaygroundURL();
+
+		await user.click(screen.getByRole("switch", { name: /day or/i }));
 		await user.click(
 			screen.getByRole("combobox", { name: /select timezone/i }),
 		);
 		await user.click(screen.getByRole("option", { name: /africa \/ asmera/i }));
 		await user.click(screen.getByRole("button", { name: /save/i }));
 
-		screen.logTestingPlaygroundURL();
-
 		// ------------ Assert
 
 		expect(screen.getByLabelText(/active/i)).not.toBeChecked();
 		expect(screen.getByLabelText(/value/i)).toHaveValue("* * * * 1/2");
-		expect(screen.getByLabelText(/day or/i)).not.toBeChecked();
+
+		expect(screen.getByRole("switch", { name: /day or/i })).not.toBeChecked();
 	});
 
 	it("is able to edit a new cron schedule", () => {
@@ -78,6 +79,6 @@ describe("CronScheduleForm", () => {
 
 		expect(screen.getByLabelText(/active/i)).toBeChecked();
 		expect(screen.getByLabelText(/value/i)).toHaveValue("* * * * 1/2");
-		expect(screen.getByLabelText(/day or/i)).toBeChecked();
+		expect(screen.getByRole("switch", { name: /day or/i })).toBeChecked();
 	});
 });
