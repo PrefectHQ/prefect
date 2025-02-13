@@ -3,6 +3,7 @@ import { Input } from "../ui/input";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { SchemaFormInputStringFormatDate } from "./schema-form-input-string-format-date";
+import { SchemaFormInputStringFormatDateTime } from "./schema-form-input-string-format-datetime";
 
 export type SchemaFormInputStringProps = {
 	value: string | undefined;
@@ -34,7 +35,7 @@ export function SchemaFormInputString({
 	}
 	
 	if (property.format === "date-time") {
-		throw new Error("date-time format not implemented");
+		return <SchemaFormInputStringFormatDateTime value={value} onValueChange={onValueChange} errors={errors} />
 	}
 
 	return (
