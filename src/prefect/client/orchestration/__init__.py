@@ -149,7 +149,7 @@ T = TypeVar("T")
 
 
 @overload
-def get_client(
+def get_client(  # type: ignore # TODO
     *,
     httpx_settings: Optional[dict[str, Any]] = ...,
     sync_client: Literal[False] = False,
