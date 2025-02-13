@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
 requires-python = ">=3.9"
-license = "Apache-2.0"
+license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
     "Natural Language :: English",
@@ -95,8 +95,30 @@ otel = [
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
-    "opentelemetry-test-utils>=0.48b0,<1.0.0"
+    "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
+
+markdown-docs = [
+    "pytest-markdown-docs>=0.6.0",
+    "prefect[aws]",
+    "prefect[azure]",
+    "prefect[bitbucket]",
+    "prefect[dask]",
+    "prefect[databricks]",
+    # "prefect[dbt]",
+    "prefect[email]",
+    "prefect[gcp]",
+    "prefect[github]",
+    "prefect[gitlab]",
+    "prefect[kubernetes]",
+    "prefect[ray]",
+    "prefect[shell]",
+    "prefect[slack]",
+    "prefect[snowflake]",
+    "prefect[sqlalchemy]",
+]
+
+
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.0"]
 azure = ["prefect-azure>=0.4.0"]
@@ -170,7 +192,6 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
-    "versioningit>=3.1.2",
 ]
 
 benchmark = [
@@ -197,7 +218,6 @@ artifacts = ["src/prefect/_version.py"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
-
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -300,3 +320,11 @@ prefect-shell = { path = "src/integrations/prefect-shell" }
 prefect-slack = { path = "src/integrations/prefect-slack" }
 prefect-sqlalchemy = { path = "src/integrations/prefect-sqlalchemy" }
 prefect-snowflake = { path = "src/integrations/prefect-snowflake" }
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "src/prefect/_version.py"
+versionfile_build = "prefect/_version.py"
+tag_prefix = ""
+parentdir_prefix = "prefect-"
