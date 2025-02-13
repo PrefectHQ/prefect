@@ -15,17 +15,15 @@ import { DeploymentTriggers } from "./deployment-triggers";
 import { RunFlowButton } from "./run-flow-button";
 import { useDeleteDeploymentConfirmationDialog } from "./use-delete-deployment-confirmation-dialog";
 
-type Dialogs = "create" | "edit";
-
 type DeploymentDetailsPageProps = {
 	id: string;
 };
 
 export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
-	const [showScheduleDialog, setShowScheduleDialog] = useState<Dialogs | null>(
-		null,
-	);
-	const [scheduleIdToEdit, setScheduleIdToEdit] = useState("");
+	const [showScheduleDialog, setShowScheduleDialog] = useState({
+		open: false,
+		scheduleIdToEdit: "",
+	});
 
 	const { data: deployment } = useSuspenseQuery(
 		buildDeploymentDetailsQuery(id),
@@ -35,20 +33,20 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 		useDeleteDeploymentConfirmationDialog();
 
 	const scheduleToEdit = useMemo(() => {
-		if (!deployment.schedules) {
+		if (!deployment.schedules || !showScheduleDialog.scheduleIdToEdit) {
 			return undefined;
 		}
 		return deployment.schedules.find(
-			(schedule) => schedule.id === scheduleIdToEdit,
+			(schedule) => schedule.id === showScheduleDialog.scheduleIdToEdit,
 		);
-	}, [deployment.schedules, scheduleIdToEdit]);
+	}, [deployment.schedules, showScheduleDialog.scheduleIdToEdit]);
 
-	const handleAddSchedule = () => setShowScheduleDialog("create");
-	const handleEditSchedule = (scheduleId: string) => {
-		setScheduleIdToEdit(scheduleId);
-		setShowScheduleDialog("edit");
-	};
-	const closeDialog = () => setShowScheduleDialog(null);
+	const handleAddSchedule = () =>
+		setShowScheduleDialog({ open: true, scheduleIdToEdit: "" });
+	const handleEditSchedule = (scheduleId: string) =>
+		setShowScheduleDialog({ open: true, scheduleIdToEdit: scheduleId });
+	const closeDialog = () =>
+		setShowScheduleDialog({ open: false, scheduleIdToEdit: "" });
 	const handleOpenChange = (open: boolean) => {
 		// nb: Only need to handle when closing the dialog
 		if (!open) {
@@ -97,16 +95,13 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				</div>
 			</div>
 			<DeploymentScheduleDialog
-				open={showScheduleDialog === "create"}
+				deploymentId={id}
+				open={showScheduleDialog.open}
 				onOpenChange={handleOpenChange}
+				scheduleToEdit={scheduleToEdit}
+				onSubmit={closeDialog}
 			/>
-			{scheduleToEdit && (
-				<DeploymentScheduleDialog
-					open={showScheduleDialog === "edit"}
-					onOpenChange={handleOpenChange}
-					scheduleToEdit={scheduleToEdit}
-				/>
-			)}
+
 			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
 		</>
 	);

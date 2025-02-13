@@ -1,7 +1,7 @@
+import type { DeploymentSchedule } from "@/api/deployments";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { getScheduleTitle } from "./get-schedule-title";
-import { DeploymentSchedule } from "./types";
 
 describe("getScheduleTitle()", () => {
 	const baseDeploymentSchedule = {
