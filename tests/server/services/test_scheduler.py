@@ -262,7 +262,8 @@ async def test_create_parametrized_schedules_with_slugs(
 
         # One run should use the slug in its idempotency key
         assert any(
-            f"scheduled {deployment.id} my-schedule {date}" == r.idempotency_key
+            f"scheduled {deployment.id} {schedule_with_slug.id} {date}"
+            == r.idempotency_key
             for r in date_runs
         )
         # One run should use the ID in its idempotency key
