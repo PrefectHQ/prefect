@@ -32,6 +32,14 @@ export function SchemaFormInputInteger({
 		);
 	}
 
+	function handleChange(value: string) {
+		if(value === '') {
+			onValueChange(undefined);
+		} else {
+			onValueChange(Number(value));
+		}
+	}
+
 	return (
 		<Input
 			type="number"
@@ -39,7 +47,7 @@ export function SchemaFormInputInteger({
 			max={property.maximum}
 			value={value ?? ""}
 			step="1"
-			onChange={(e) => onValueChange(Number(e.target.value))}
+			onChange={(e) => handleChange(e.target.value)}
 		/>
 	);
 }

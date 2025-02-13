@@ -28,13 +28,21 @@ export function SchemaFormInputNumber({
 		);
 	}
 
+	function handleChange(value: string) {
+		if(value === '') {
+			onValueChange(undefined);
+		} else {
+			onValueChange(Number(value));
+		}
+	}
+
 	return (
 		<Input
 			type="number"
 			min={property.minimum}
 			max={property.maximum}
 			value={value ?? ""}
-			onChange={(e) => onValueChange(Number(e.target.value))}
+			onChange={(e) => handleChange(e.target.value)}
 		/>
 	);
 }

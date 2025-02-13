@@ -36,6 +36,11 @@ const schema: PrefectSchemaObject = {
 			title: "String Format DateTime",
 			format: "date-time",
 		},
+		string_format_json: {
+			type: "string",
+			title: "String Format JSON",
+			format: "json-string",
+		},
 		integer: {
 			type: "integer",
 			title: "Integer",

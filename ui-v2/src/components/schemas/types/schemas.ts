@@ -25,7 +25,9 @@ export type PrefectSchemaObject = SchemaObject &
 	WithBlockDocumentSlug &
 	WithDefinitions;
 
-export type WithPrimitiveEnum = { enum: PrimitivePropertyType[] };
+export type WithPrimitiveEnum = {
+	enum: PrimitivePropertyType[]
+};
 
 export function isWithPrimitiveEnum<T extends SchemaObject>(
 	property: T,
