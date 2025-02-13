@@ -1,10 +1,10 @@
+import type { DeploymentSchedule } from "@/api/deployments";
 import { Card } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 
 import { getScheduleTitle } from "./get-schedule-title";
 import { ScheduleActionMenu } from "./schedule-action-menu";
 import { ScheduleToggleSwitch } from "./schedule-toggle-switch";
-import type { DeploymentSchedule } from "./types";
 
 type DeploymentScheduleItemProps = {
 	deploymentSchedule: DeploymentSchedule;

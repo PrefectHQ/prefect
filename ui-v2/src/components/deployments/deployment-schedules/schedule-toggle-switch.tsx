@@ -1,8 +1,8 @@
 import { useUpdateDeploymentSchedule } from "@/api/deployments";
+import type { DeploymentSchedule } from "@/api/deployments";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { getScheduleTitle } from "./get-schedule-title";
-import { DeploymentSchedule } from "./types";
 
 type ScheduleToggleSwitchProps = {
 	deploymentSchedule: DeploymentSchedule;
