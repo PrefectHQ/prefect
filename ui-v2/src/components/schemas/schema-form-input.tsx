@@ -4,6 +4,8 @@ import { SchemaFormInputInteger } from "./schema-form-input-integer";
 import { SchemaFormInputNull } from "./schema-form-input-null";
 import { SchemaFormInputNumber } from "./schema-form-input-number";
 import { SchemaFormInputObject } from "./schema-form-input-object";
+import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind-json";
+import { SchemaFormInputPrefectKindNone } from "./schema-form-input-prefect-kind-none";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
@@ -24,6 +26,35 @@ export function SchemaFormInput({
 	errors,
 }: SchemaFormInputProps) {
 	if (isPrefectKindValue(value)) {
+		if (isPrefectKindValue(value, "json")) {
+			return (
+				<SchemaFormInputPrefectKindJson
+					value={value}
+					onValueChange={onValueChange}
+					errors={errors}
+				/>
+			);
+		}
+
+		if (isPrefectKindValue(value, "workspace_variable")) {
+			throw new Error("not implemented");
+		}
+
+		if (isPrefectKindValue(value, "jinja")) {
+			throw new Error("not implemented");
+		}
+
+		if (isPrefectKindValue(value, "none")) {
+			return (
+				<SchemaFormInputPrefectKindNone
+					value={value}
+					onValueChange={onValueChange}
+					errors={errors}
+					property={property}
+				/>
+			);
+		}
+
 		throw new Error("not implemented");
 	}
 

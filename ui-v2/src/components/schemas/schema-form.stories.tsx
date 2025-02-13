@@ -115,6 +115,14 @@ const schema: PrefectSchemaObject = {
 			title: "User Reference",
 			$ref: "#/definitions/user",
 		},
+		preject_kind_json: {
+			type: "object",
+			title: "Prefect Kind JSON",
+		},
+		preject_kind_none: {
+			type: "string",
+			title: "Prefect Kind None",
+		},
 	},
 	definitions: {
 		user: {
@@ -146,6 +154,16 @@ export const Default: StoryFn<typeof SchemaForm> = () => {
 	const [values, setValues] = useState<Record<string, unknown>>({
 		name: "John Doe",
 		age: 30,
+		preject_kind_json: {
+			__prefect_kind: "json",
+			value: JSON.stringify({
+				foo: "bar",
+			}),
+		},
+		preject_kind_none: {
+			__prefect_kind: "none",
+			value: "hello",
+		},
 	});
 
 	const errors = {};
