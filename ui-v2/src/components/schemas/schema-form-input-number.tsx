@@ -29,7 +29,7 @@ export function SchemaFormInputNumber({
 	}
 
 	function handleChange(value: string) {
-		if(value === '') {
+		if (value === "") {
 			onValueChange(undefined);
 		} else {
 			onValueChange(Number(value));

@@ -1,59 +1,61 @@
-import { format, parse, startOfToday } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { useState } from "react"
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format, parse, startOfToday } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { useState } from "react";
 
 type SchemaFormInputStringFormatDateProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
 	errors: unknown;
-}
+};
 
-const dateFormat = 'yyyy-MM-dd'
+const dateFormat = "yyyy-MM-dd";
 
 export function SchemaFormInputStringFormatDate({
 	value,
 	onValueChange,
 	errors,
 }: SchemaFormInputStringFormatDateProps) {
-  const initialDate = value ? parse(value, dateFormat, startOfToday()) : undefined;
+	const initialDate = value
+		? parse(value, dateFormat, startOfToday())
+		: undefined;
 	const [date, setDate] = useState<Date | undefined>(initialDate);
 
-  function handleDateChange(date: Date | undefined) {
-    setDate(date);
-    onValueChange(date ? format(date, dateFormat) : undefined);
-  }
+	function handleDateChange(date: Date | undefined) {
+		setDate(date);
+		onValueChange(date ? format(date, dateFormat) : undefined);
+	}
 
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-[280px] justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>Pick a date</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={handleDateChange}
-          required={true}
-          autoFocus
-        />
-      </PopoverContent>
-    </Popover>
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<Button
+					variant={"outline"}
+					className={cn(
+						"w-[280px] justify-start text-left font-normal",
+						!date && "text-muted-foreground",
+					)}
+				>
+					<CalendarIcon className="mr-2 h-4 w-4" />
+					{date ? format(date, "PPP") : <span>Pick a date</span>}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-0">
+				<Calendar
+					mode="single"
+					selected={date}
+					onSelect={handleDateChange}
+					required={true}
+					autoFocus
+				/>
+			</PopoverContent>
+		</Popover>
 	);
 }

@@ -26,7 +26,7 @@ export type PrefectSchemaObject = SchemaObject &
 	WithDefinitions;
 
 export type WithPrimitiveEnum = {
-	enum: PrimitivePropertyType[]
+	enum: PrimitivePropertyType[];
 };
 
 export function isWithPrimitiveEnum<T extends SchemaObject>(

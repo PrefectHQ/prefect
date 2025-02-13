@@ -13,8 +13,8 @@ export function SchemaFormInputStringFormatJson({
 }: SchemaFormInputStringFormatJsonProps) {
 
   function handleChange(value: string | undefined) {
-    onValueChange(value || undefined);
-  }
+		onValueChange(value || undefined);
+	}
 
 	return <JsonInput value={value} onChange={handleChange} />;
 }
