@@ -10,9 +10,15 @@ if [ -z ${TMPDIR+x} ];
     else echo "Using workspace at $TMPDIR";
 fi
 
-# init the workspace
-cp -rf ./ $TMPDIR
-cd $TMPDIR/src/prefect
+# init the workspace with only client files first
+mkdir -p $TMPDIR/client_build
+cp -rf client/* $TMPDIR/client_build/
+
+# create local src directory and copy parent src
+mkdir -p $TMPDIR/client_build/src
+cp -rf src/prefect $TMPDIR/client_build/src/
+
+cd $TMPDIR/client_build/src/prefect
 
 # delete the files we don't need
 rm -rf cli/
@@ -32,10 +38,7 @@ rm -rf server/services
 rm -rf testing
 rm -rf server/utilities
 
-# replace old build files with client build files
-cd $TMPDIR
-cp client/setup.py .
-cp client/README.md .
+cd $TMPDIR/client_build
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
@@ -46,16 +49,19 @@ if [ -z ${CI} ];
             "PREFECT_API_URL must be set and valid for a Prefect Cloud account.";
             exit 1;
         fi
-        python -m venv venv;
-        source venv/bin/activate;
-        pip install wheel;
-        python setup.py sdist bdist_wheel;
-        pip install dist/*.tar.gz;
-        python client/client_flow.py;
+        uv build --sdist --wheel;
+        uv pip install dist/*.tar.gz;
+        uv run client/client_flow.py;
         echo "Build and smoke test completed successfully. Final results:";
         echo "$(du -sh $VIRTUAL_ENV)";
         deactivate;
     else echo "Skipping local build";
+fi
+
+# Copy dist files back to original location if they exist
+if [ -d "$TMPDIR/client_build/dist" ]; then
+    mkdir -p $CWD/dist
+    cp -rf $TMPDIR/client_build/dist/* $CWD/dist/
 fi
 
 cd $CWD
