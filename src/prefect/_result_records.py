@@ -144,8 +144,8 @@ class ResultRecord(BaseModel, Generic[R]):
 
     @model_validator(mode="before")
     @classmethod
-    def coerce_old_format(cls, value: dict[str, Any] | Any) -> dict[str, Any]:
-        if isinstance(value, dict):
+    def coerce_old_format(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(value, dict):  # type: ignore[reportUnnecessaryIsInstance]
             if "data" in value:
                 value["result"] = value.pop("data")
             if "metadata" not in value:
@@ -232,4 +232,4 @@ class ResultRecord(BaseModel, Generic[R]):
     def __eq__(self, other: Any | "ResultRecord[Any]") -> bool:
         if not isinstance(other, ResultRecord):
             return False
-        return self.metadata == other.metadata and self.result == other.result
+        return self.metadata == other.metadata and self.result == other.result  # type: ignore[reportUnknownVariableType]
