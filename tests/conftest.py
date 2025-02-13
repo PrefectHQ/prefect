@@ -73,6 +73,7 @@ from prefect.utilities.dispatch import get_registry_for_type
 
 from prefect.testing.cli import *
 from prefect.testing.fixtures import *
+from prefect.types._datetime import DateTime, now
 
 from .fixtures.api import *
 from .fixtures.client import *
@@ -140,7 +141,6 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/_internal",
     "tests/server/orchestration/test_rules.py",
     "tests/test_flows.py",
-    "tests/runner/test_runner.py",
 ]
 
 
@@ -542,8 +542,8 @@ def disable_csrf_protection():
 
 
 @pytest.fixture
-def start_of_test() -> pendulum.DateTime:
-    return pendulum.now("UTC")
+def start_of_test() -> DateTime:
+    return now("UTC")
 
 
 @pytest.fixture(autouse=True)

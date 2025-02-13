@@ -62,18 +62,13 @@ if __name__ == "__main__":
         else:
             run_flow(flow, flow_run=flow_run, error_logger=run_logger)
 
-    except Abort as abort_signal:
-        abort_signal: Abort
+    except Abort:
         engine_logger.info(
-            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
-            f" {abort_signal}"
+            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator."
         )
         exit(0)
-    except Pause as pause_signal:
-        pause_signal: Pause
-        engine_logger.info(
-            f"Engine execution of flow run '{flow_run_id}' is paused: {pause_signal}"
-        )
+    except Pause:
+        engine_logger.info(f"Engine execution of flow run '{flow_run_id}' is paused.")
         exit(0)
     except Exception:
         engine_logger.error(

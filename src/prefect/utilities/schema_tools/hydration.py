@@ -8,11 +8,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Self, TypeAlias, TypeIs
 
-from prefect.server.utilities.user_templates import (
-    TemplateSecurityError,
-    render_user_template_sync,
-    validate_user_template,
-)
 from prefect.types import StrictVariableValue
 
 
@@ -229,6 +224,12 @@ def json_handler(obj: dict[str, Any], ctx: HydrationContext):
 
 @handler("jinja")
 def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
+    from prefect.server.utilities.user_templates import (
+        TemplateSecurityError,
+        render_user_template_sync,
+        validate_user_template,
+    )
+
     if "template" in obj:
         if isinstance(obj["template"], dict):
             dehydrated_jinja = _hydrate(obj["template"], ctx)

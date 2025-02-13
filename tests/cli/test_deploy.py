@@ -27,7 +27,7 @@ from prefect.cli.deploy import (
     _initialize_deployment_triggers,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
-from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.actions import DeploymentScheduleCreate, WorkPoolCreate
 from prefect.client.schemas.objects import Worker, WorkerStatus, WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -1453,7 +1453,7 @@ class TestProjectDeploy:
         contents["deployments"][0]["name"] = "test-name"
         contents["deployments"][0]["version"] = "{{ input }}"
         contents["deployments"][0]["tags"] = "{{ output2 }}"
-        contents["deployments"][0]["description"] = "{{ output1 }}"
+        contents["deployments"][0]["description"] = "{{ output3 }}"
 
         # save it back
         with prefect_file.open(mode="w") as f:
@@ -1488,7 +1488,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == work_pool.name
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
-        assert deployment.description == "1"
+        assert deployment.description == "This one is actually a string"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_env_var_values(
@@ -2331,6 +2331,69 @@ class TestProjectDeploy:
         )
         assert not deployment.enforce_parameter_schema
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_update_does_not_override_enforce_parameter_schema(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        # Create a deployment with enforce_parameter_schema set to False
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "enforce_parameter_schema": False,
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
+        assert deployment.parameter_openapi_schema
+        parameter_openapi_schema = deployment.parameter_openapi_schema
+
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
+        assert deployment.parameter_openapi_schema == parameter_openapi_schema
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
@@ -2368,6 +2431,7 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
+        deploy_config["deployments"][0]["schedule"]["slug"] = "test-slug"
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2387,6 +2451,7 @@ class TestSchedules:
         assert schedule.cron == "0 4 * * *"
         assert schedule.timezone == "America/Chicago"
         assert deployment.schedules[0].parameters == {"number": 42}
+        assert deployment.schedules[0].slug == "test-slug"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deployment_yaml_cron_schedule_timezone_cli(
@@ -2456,6 +2521,7 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
+        deploy_config["deployments"][0]["schedule"]["slug"] = "test-slug"
 
         with prefect_yaml.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2477,6 +2543,7 @@ class TestSchedules:
         assert schedule.anchor_date == pendulum.parse("2040-02-02")
         assert schedule.timezone == "America/Chicago"
         assert deployment.schedules[0].parameters == {"number": 42}
+        assert deployment.schedules[0].slug == "test-slug"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
@@ -2515,6 +2582,7 @@ class TestSchedules:
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
+        deploy_config["deployments"][0]["schedule"]["slug"] = "test-slug"
 
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(deploy_config, f)
@@ -2536,6 +2604,7 @@ class TestSchedules:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
         assert deployment.schedules[0].parameters == {"number": 42}
+        assert deployment.schedules[0].slug == "test-slug"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_command(
@@ -2906,6 +2975,81 @@ class TestSchedules:
         assert deployment_schedule.active is False
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_does_not_activate_schedule_outside_of_yaml(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # Create a deployment with a schedule that is not active
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 4 * * *",
+                "timezone": "America/Chicago",
+                "active": False,
+                "slug": "test-yaml-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        deployment_schedule = deployment.schedules[0]
+        assert deployment_schedule.active is False
+        assert deployment_schedule.schedule.cron == "0 4 * * *"
+        assert deployment_schedule.schedule.timezone == "America/Chicago"
+
+        # Create another schedule outside of the yaml
+        # Using the https client directly because the PrefectClient does not support
+        # creating schedules with slugs
+        await prefect_client._client.post(
+            f"/deployments/{deployment.id}/schedules",
+            json=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="0 4 * * *"),
+                    active=False,
+                    slug="test-client-slug",
+                ).model_dump(mode="json"),
+            ],
+        )
+
+        deploy_config["deployments"][0]["schedules"][0]["active"] = True
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert len(deployment.schedules) == 2
+        expected_slug_active = {("test-yaml-slug", True), ("test-client-slug", False)}
+        actual_slug_active = {
+            (schedule.slug, schedule.active) for schedule in deployment.schedules
+        }
+        assert actual_slug_active == expected_slug_active
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(

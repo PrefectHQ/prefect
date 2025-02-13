@@ -7,10 +7,14 @@ import { describe, expect, it } from "vitest";
 import type { Deployment } from "./index";
 import {
 	buildCountDeploymentsQuery,
+	buildDeploymentDetailsQuery,
 	buildFilterDeploymentsQuery,
 	buildPaginateDeploymentsQuery,
 	queryKeyFactory,
+	useCreateDeploymentSchedule,
 	useDeleteDeployment,
+	useDeleteDeploymentSchedule,
+	useUpdateDeploymentSchedule,
 } from "./index";
 
 describe("deployments api", () => {
@@ -38,6 +42,14 @@ describe("deployments api", () => {
 		server.use(
 			http.post(buildApiUrl("/deployments/filter"), () => {
 				return HttpResponse.json(deployments);
+			}),
+		);
+	};
+
+	const mockGetDeploymentAPI = (deployment: Deployment) => {
+		server.use(
+			http.get(buildApiUrl("/deployments/:id"), () => {
+				return HttpResponse.json(deployment);
 			}),
 		);
 	};
@@ -148,6 +160,23 @@ describe("deployments api", () => {
 		});
 	});
 
+	describe("buildDeploymentDetailsQuery", () => {
+		it("fetches deployment details", async () => {
+			const queryClient = new QueryClient();
+
+			const mockResponse = createFakeDeployment({ id: "my-id" });
+			mockGetDeploymentAPI(mockResponse);
+
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildDeploymentDetailsQuery("my-id")),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockResponse);
+		});
+	});
+
 	describe("useDeleteDeployment", () => {
 		it("invalidates cache and fetches updated value", async () => {
 			const mockDeployment = createFakeDeployment();
@@ -175,6 +204,191 @@ describe("deployments api", () => {
 				expect(useDeleteDeploymentResult.current.isSuccess).toBe(true),
 			);
 			expect(useListDeploymentsResult.current.data?.results).toHaveLength(0);
+		});
+	});
+
+	describe("useCreateDeploymentSchedule", () => {
+		const MOCK_DEPLOYMENT_ID = "deployment-id";
+		const MOCK_SCHEDULE_ID = "schedule-id";
+		const MOCK_SCHEDULE = {
+			id: MOCK_SCHEDULE_ID,
+			created: "2024-01-01T00:00:00.000Z",
+			updated: "2024-01-01T00:00:00.000Z",
+			deployment_id: "deployment-id",
+			schedule: {
+				interval: 3600.0,
+				anchor_date: "2024-01-01T00:00:00.000Z",
+				timezone: "UTC",
+			},
+			active: false,
+			max_scheduled_runs: null,
+		};
+		const MOCK_DEPLYOMENT = createFakeDeployment({
+			id: MOCK_DEPLOYMENT_ID,
+			schedules: [],
+		});
+		const MOCK_UPDATED_DEPLOYMENT = {
+			...MOCK_DEPLYOMENT,
+			schedules: [MOCK_SCHEDULE],
+		};
+
+		it("invalidates cache and fetches updated value", async () => {
+			const queryClient = new QueryClient();
+			// Original cached value
+			queryClient.setQueryData(queryKeyFactory.all(), [MOCK_DEPLYOMENT]);
+
+			// Updated fetch and cached value
+			mockFetchDeploymentsAPI([MOCK_UPDATED_DEPLOYMENT]);
+
+			const { result: useListDeploymentsResult } = renderHook(
+				() => useQuery(buildPaginateDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useCreateDeploymentScheduleResult } = renderHook(
+				useCreateDeploymentSchedule,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useCreateDeploymentScheduleResult.current.createDeploymentSchedule({
+					deployment_id: MOCK_DEPLOYMENT_ID,
+					schedule: {
+						interval: 3600.0,
+						anchor_date: "2024-01-01T00:00:00.000Z",
+						timezone: "UTC",
+					},
+					active: false,
+					max_scheduled_runs: null,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useCreateDeploymentScheduleResult.current.isSuccess).toBe(true),
+			);
+			expect(
+				useListDeploymentsResult.current.data?.results[0].schedules,
+			).toEqual([MOCK_SCHEDULE]);
+		});
+	});
+
+	describe("useUpdateDeploymentSchedule", () => {
+		const MOCK_DEPLOYMENT_ID = "deployment-id";
+		const MOCK_SCHEDULE_ID = "schedule-id";
+		const MOCK_SCHEDULE = {
+			id: MOCK_SCHEDULE_ID,
+			created: "2024-01-01T00:00:00.000Z",
+			updated: "2024-01-01T00:00:00.000Z",
+			deployment_id: "deployment-id",
+			schedule: {
+				interval: 3600.0,
+				anchor_date: "2024-01-01T00:00:00.000Z",
+				timezone: "UTC",
+			},
+			active: false,
+			max_scheduled_runs: null,
+		};
+		const MOCK_UPDATED_SCHEDULE = { ...MOCK_SCHEDULE, active: true };
+		const MOCK_DEPLYOMENT = createFakeDeployment({
+			id: MOCK_DEPLOYMENT_ID,
+			schedules: [MOCK_SCHEDULE],
+		});
+		const MOCK_UPDATED_DEPLOYMENT = {
+			...MOCK_DEPLYOMENT,
+			schedules: [MOCK_UPDATED_SCHEDULE],
+		};
+
+		it("invalidates cache and fetches updated value", async () => {
+			const queryClient = new QueryClient();
+			// Original cached value
+			queryClient.setQueryData(queryKeyFactory.all(), [MOCK_DEPLYOMENT]);
+
+			// Updated fetch and cached value
+			mockFetchDeploymentsAPI([MOCK_UPDATED_DEPLOYMENT]);
+
+			const { result: useListDeploymentsResult } = renderHook(
+				() => useQuery(buildPaginateDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useUpdateDeploymentScheduleResult } = renderHook(
+				useUpdateDeploymentSchedule,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useUpdateDeploymentScheduleResult.current.updateDeploymentSchedule({
+					deployment_id: MOCK_DEPLOYMENT_ID,
+					schedule_id: MOCK_SCHEDULE_ID,
+					active: true,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useUpdateDeploymentScheduleResult.current.isSuccess).toBe(true),
+			);
+			expect(
+				useListDeploymentsResult.current.data?.results[0].schedules,
+			).toEqual([MOCK_UPDATED_SCHEDULE]);
+		});
+	});
+
+	describe("useDeleteDeploymentSchedule", () => {
+		const MOCK_DEPLOYMENT_ID = "deployment-id";
+		const MOCK_SCHEDULE_ID = "schedule-id";
+		const MOCK_SCHEDULE = {
+			id: MOCK_SCHEDULE_ID,
+			created: "2024-01-01T00:00:00.000Z",
+			updated: "2024-01-01T00:00:00.000Z",
+			deployment_id: "deployment-id",
+			schedule: {
+				interval: 3600.0,
+				anchor_date: "2024-01-01T00:00:00.000Z",
+				timezone: "UTC",
+			},
+			active: false,
+			max_scheduled_runs: null,
+		};
+		const MOCK_DEPLYOMENT = createFakeDeployment({
+			id: MOCK_DEPLOYMENT_ID,
+			schedules: [MOCK_SCHEDULE],
+		});
+		const MOCK_UPDATED_DEPLOYMENT = {
+			...MOCK_DEPLYOMENT,
+			schedules: [],
+		};
+
+		it("invalidates cache and fetches updated value", async () => {
+			const queryClient = new QueryClient();
+			// Original cached value
+			queryClient.setQueryData(queryKeyFactory.all(), [MOCK_DEPLYOMENT]);
+
+			// Updated fetch and cached value
+			mockFetchDeploymentsAPI([MOCK_UPDATED_DEPLOYMENT]);
+
+			const { result: useListDeploymentsResult } = renderHook(
+				() => useQuery(buildPaginateDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useDeleteDeploymentScheduleResult } = renderHook(
+				useDeleteDeploymentSchedule,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useDeleteDeploymentScheduleResult.current.deleteDeploymentSchedule({
+					deployment_id: MOCK_DEPLOYMENT_ID,
+					schedule_id: MOCK_SCHEDULE_ID,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useDeleteDeploymentScheduleResult.current.isSuccess).toBe(true),
+			);
+			expect(
+				useListDeploymentsResult.current.data?.results[0].schedules,
+			).toHaveLength(0);
 		});
 	});
 });

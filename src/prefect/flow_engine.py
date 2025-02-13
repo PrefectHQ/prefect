@@ -49,12 +49,18 @@ from prefect.context import (
 )
 from prefect.exceptions import (
     Abort,
+    MissingFlowError,
     Pause,
     PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
+from prefect.flows import (
+    Flow,
+    load_flow_from_entrypoint,
+    load_flow_from_flow_run,
+    load_function_and_convert_to_flow,
+)
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -125,7 +131,10 @@ def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
 
     if entrypoint:
         # we should not accept a placeholder flow at runtime
-        flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        try:
+            flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        except MissingFlowError:
+            flow = load_function_and_convert_to_flow(entrypoint)
     else:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
@@ -1518,6 +1527,8 @@ def run_flow(
             ret_val = run_flow_async(**kwargs)
         else:
             ret_val = run_flow_sync(**kwargs)
+    except (Abort, Pause):
+        raise
     except:
         if error_logger:
             error_logger.error(
@@ -1597,20 +1608,18 @@ def run_flow_in_subprocess(
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
                     asyncio.run(maybe_coro)
-            except Abort as abort_signal:
-                abort_signal: Abort
+            except Abort:
                 if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator: {abort_signal}"
+                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator."
                 else:
-                    msg = f"Execution aborted by orchestrator: {abort_signal}"
+                    msg = "Execution aborted by orchestrator."
                 engine_logger.info(msg)
                 exit(0)
-            except Pause as pause_signal:
-                pause_signal: Pause
+            except Pause:
                 if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' is paused: {pause_signal}"
+                    msg = f"Execution of flow run '{flow_run.id}' is paused."
                 else:
-                    msg = f"Execution is paused: {pause_signal}"
+                    msg = "Execution is paused."
                 engine_logger.info(msg)
                 exit(0)
             except Exception:

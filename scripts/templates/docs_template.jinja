@@ -1,0 +1,59 @@
+{%- macro render_command(cmd) -%}
+{%- if cmd.indent == 1 -%}
+---
+title: " "
+sidebarTitle: {{cmd.title.lower().replace('`', '`prefect ', 1).replace('`', '')}}
+---
+{% endif %}
+{{ '#' * (cmd.indent) }} {{ cmd.title.lower().replace('`', '`prefect ', 1) }}
+
+
+
+{% if cmd.usage_pieces and cmd.command_name %}```command
+prefect {{ cmd.command_name | escape_mdx }} {{ cmd.usage_pieces | join(' ') | escape_mdx }}
+```
+
+{% elif cmd.usage_pieces %}
+```command
+prefect {{ cmd.usage_pieces | join(' ') | escape_mdx }}
+```
+{% endif %}
+
+{%- if cmd.help %}
+{% for section in cmd.help %}
+<Info>
+{{ section.value | escape_mdx }}
+</Info>
+{% endfor %}
+{% endif %}
+
+{% set filtered_opts = cmd.opts | selectattr("opts[0]", "ne", "--help") | list %}
+
+{% if filtered_opts or cmd.args %}
+<AccordionGroup>
+
+{% if cmd.args %}
+<Accordion title="Arguments" defaultOpen>
+{%- for arg in cmd.args %}
+<ResponseField name="{{ arg.name.replace('[', '').replace(']', '') }}" type="string"{% if '[required]' in arg.help %} required{% endif %}>
+    {{ arg.help | escape_mdx }}
+</ResponseField>
+{%- endfor %}
+</Accordion>
+{% endif %}
+
+{% if filtered_opts %}
+<Accordion title="Options" defaultOpen>
+{% for opt in filtered_opts %}
+<ResponseField name="{{ opt.opts[0] }}">
+    {{ opt.help | escape_mdx }}
+</ResponseField>
+{% endfor %}
+</Accordion>
+{% endif %}
+</AccordionGroup>
+{% endif %}
+
+{%- endmacro -%}
+
+{{ render_command(command) }}

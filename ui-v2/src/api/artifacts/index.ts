@@ -3,6 +3,10 @@ import { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type Artifact = components["schemas"]["Artifact"];
+export type ArtifactWithFlowRunAndTaskRun = Artifact & {
+	flow_run?: components["schemas"]["FlowRun"];
+	task_run?: components["schemas"]["TaskRun"];
+};
 
 export type ArtifactsFilter =
 	components["schemas"]["Body_read_artifacts_artifacts_filter_post"];
@@ -60,7 +64,7 @@ export const queryKeyFactory = {
  * });
  * ```
  */
-export const buidListArtifactsQuery = (
+export const buildListArtifactsQuery = (
 	filter: ArtifactsFilter = {
 		offset: 0,
 		sort: "ID_DESC",

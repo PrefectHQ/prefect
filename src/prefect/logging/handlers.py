@@ -8,9 +8,8 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Dict, List, TextIO, Type
+from typing import TYPE_CHECKING, Any, Dict, TextIO, Type
 
-import pendulum
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme
@@ -35,6 +34,7 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
+from prefect.types._datetime import from_timestamp
 
 if sys.version_info >= (3, 12):
     StreamHandler = logging.StreamHandler[TextIO]
@@ -47,7 +47,7 @@ else:
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     @property
-    def _max_batch_size(self):
+    def _max_batch_size(self) -> int:
         return max(
             PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
             - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
@@ -55,10 +55,10 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
         )
 
     @property
-    def _min_interval(self):
+    def _min_interval(self) -> float | None:
         return PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
 
-    async def _handle_batch(self, items: List):
+    async def _handle_batch(self, items: list[dict[str, Any]]):
         try:
             await self._client.create_logs(items)
         except Exception as e:
@@ -229,9 +229,7 @@ class APILogHandler(logging.Handler):
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=pendulum.from_timestamp(
-                getattr(record, "created", None) or time.time()
-            ),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),
             message=self.format(record),
         ).model_dump(mode="json")
 
@@ -272,9 +270,7 @@ class WorkerAPILogHandler(APILogHandler):
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=pendulum.from_timestamp(
-                getattr(record, "created", None) or time.time()
-            ),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),
             message=self.format(record),
         ).model_dump(mode="json")
 

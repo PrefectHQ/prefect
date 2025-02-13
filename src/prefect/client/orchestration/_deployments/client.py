@@ -165,7 +165,11 @@ class DeploymentClient(BaseClient):
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
-            json=deployment.model_dump(mode="json", exclude_unset=True),
+            json=deployment.model_dump(
+                mode="json",
+                exclude_unset=True,
+                exclude={"name", "flow_name", "triggers"},
+            ),
         )
 
     def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> "UUID":
@@ -550,7 +554,7 @@ class DeploymentClient(BaseClient):
         """
         from prefect.client.schemas.actions import DeploymentFlowRunCreate
         from prefect.client.schemas.objects import FlowRun
-        from prefect.states import Scheduled
+        from prefect.states import Scheduled, to_state_create
 
         parameters = parameters or {}
         context = context or {}
@@ -561,7 +565,7 @@ class DeploymentClient(BaseClient):
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
-            state=state.to_state_create(),
+            state=to_state_create(state),
             tags=list(tags),
             name=name,
             idempotency_key=idempotency_key,
@@ -708,7 +712,11 @@ class DeploymentAsyncClient(BaseAsyncClient):
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
-            json=deployment.model_dump(mode="json", exclude_unset=True),
+            json=deployment.model_dump(
+                mode="json",
+                exclude_unset=True,
+                exclude={"name", "flow_name", "triggers"},
+            ),
         )
 
     async def _create_deployment_from_schema(
@@ -1095,7 +1103,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         """
         from prefect.client.schemas.actions import DeploymentFlowRunCreate
         from prefect.client.schemas.objects import FlowRun
-        from prefect.states import Scheduled
+        from prefect.states import Scheduled, to_state_create
 
         parameters = parameters or {}
         context = context or {}
@@ -1106,7 +1114,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
-            state=state.to_state_create(),
+            state=to_state_create(state),
             tags=list(tags),
             name=name,
             idempotency_key=idempotency_key,

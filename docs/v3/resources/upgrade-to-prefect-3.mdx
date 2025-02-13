@@ -287,7 +287,7 @@ my_flow.serve(
 ```python Prefect 3.0 {11}
 from datetime import timedelta
 from prefect import flow
-from prefect.client.schemas.schedules import IntervalSchedule
+from prefect.schedules import Interval
 
 @flow
 def my_flow():
@@ -295,7 +295,7 @@ def my_flow():
 
 my_flow.serve(
     name="my-flow",
-    schedules=[IntervalSchedule(interval=timedelta(minutes=1))]
+    schedules=[Interval(timedelta(minutes=1))]
 )
 ```
 </CodeGroup>

@@ -9356,8 +9356,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "title": "Response Validate Obj Ui Schemas Validate Post"
+                                    "$ref": "#/components/schemas/SchemaValuesValidationResponse"
                                 }
                             }
                         }
@@ -11875,6 +11874,7 @@
                         "description": "The block schema's unique checksum"
                     },
                     "fields": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -14097,19 +14097,6 @@
                         "title": "Scheduled Before",
                         "description": "Only flow runs scheduled to start before this time will be returned."
                     },
-                    "agent_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Agent Id",
-                        "description": "An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue."
-                    },
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
@@ -14341,10 +14328,12 @@
             "Body_validate_obj_ui_schemas_validate_post": {
                 "properties": {
                     "json_schema": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Json Schema"
                     },
                     "values": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Values"
                     }
@@ -15317,6 +15306,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
@@ -16228,6 +16218,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
@@ -16515,7 +16506,7 @@
                             }
                         ],
                         "title": "Slug",
-                        "description": "A unique slug for the schedule."
+                        "description": "A unique identifier for the schedule."
                     }
                 },
                 "additionalProperties": false,
@@ -16585,7 +16576,7 @@
                             }
                         ],
                         "title": "Slug",
-                        "description": "A unique slug for the schedule."
+                        "description": "A unique identifier for the schedule."
                     }
                 },
                 "additionalProperties": false,
@@ -16644,7 +16635,7 @@
                     },
                     "schedules": {
                         "items": {
-                            "$ref": "#/components/schemas/DeploymentScheduleCreate"
+                            "$ref": "#/components/schemas/DeploymentScheduleUpdate"
                         },
                         "type": "array",
                         "title": "Schedules",
@@ -16685,6 +16676,18 @@
                         ],
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
+                    },
+                    "parameter_openapi_schema": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameter Openapi Schema",
+                        "description": "The parameter schema of the flow, including defaults."
                     },
                     "tags": {
                         "items": {
@@ -16748,6 +16751,20 @@
                         ],
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
+                    },
+                    "pull_steps": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Pull Steps"
                     },
                     "entrypoint": {
                         "anyOf": [
@@ -21669,6 +21686,99 @@
                 ],
                 "title": "SavedSearchFilter",
                 "description": "A filter for a saved search model. Intended for use by the Prefect UI."
+            },
+            "SchemaValueIndexError": {
+                "properties": {
+                    "index": {
+                        "type": "integer",
+                        "title": "Index"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "errors"
+                ],
+                "title": "SchemaValueIndexError"
+            },
+            "SchemaValuePropertyError": {
+                "properties": {
+                    "property": {
+                        "type": "string",
+                        "title": "Property"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "property",
+                    "errors"
+                ],
+                "title": "SchemaValuePropertyError"
+            },
+            "SchemaValuesValidationResponse": {
+                "properties": {
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    },
+                    "valid": {
+                        "type": "boolean",
+                        "title": "Valid"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "errors",
+                    "valid"
+                ],
+                "title": "SchemaValuesValidationResponse"
             },
             "SendNotification": {
                 "properties": {

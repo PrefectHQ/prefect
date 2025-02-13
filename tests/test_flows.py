@@ -45,6 +45,7 @@ from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
+    MissingFlowError,
     ParameterTypeError,
     ReservedArgumentError,
     ScriptError,
@@ -56,6 +57,7 @@ from prefect.flows import (
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    load_function_and_convert_to_flow,
     safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
@@ -2695,6 +2697,48 @@ class TestLoadFlowFromEntrypoint:
             load_flow_from_entrypoint(f"{fpath}:dog", use_placeholder_flow=False)
 
 
+class TestLoadFunctionAndConvertToFlow:
+    def test_func_is_a_flow(self, tmp_path):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_function_and_convert_to_flow(f"{fpath}:dog")
+        assert flow.fn() == "woof!"
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+
+    def test_func_is_not_a_flow(self, tmp_path):
+        flow_code = """
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_function_and_convert_to_flow(f"{fpath}:dog")
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+        assert flow.log_prints is True
+        assert flow.fn() == "woof!"
+
+    def test_func_not_found(self, tmp_path):
+        flow_code = ""
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        with pytest.raises(
+            RuntimeError, match=f"Function with name 'dog' not found in '{fpath}'."
+        ):
+            load_function_and_convert_to_flow(f"{fpath}:dog")
+
+
 class TestFlowRunName:
     async def test_invalid_runtime_run_name(self):
         class InvalidFlowRunNameArg:
@@ -4370,9 +4414,14 @@ class TestFlowServe:
                 Interval(
                     3600,
                     parameters={"number": 42},
+                    slug="test-interval-schedule",
                 ),
-                Cron("* * * * *", parameters={"number": 42}),
-                RRule("FREQ=MINUTELY", parameters={"number": 42}),
+                Cron("* * * * *", parameters={"number": 42}, slug="test-cron-schedule"),
+                RRule(
+                    "FREQ=MINUTELY",
+                    parameters={"number": 42},
+                    slug="test-rrule-schedule",
+                ),
             ],
         )
 
@@ -4385,6 +4434,14 @@ class TestFlowServe:
 
         assert all(parameters == {"number": 42} for parameters in all_parameters)
 
+        expected_slugs = {
+            "test-interval-schedule",
+            "test-cron-schedule",
+            "test-rrule-schedule",
+        }
+        actual_slugs = {schedule.slug for schedule in deployment.schedules}
+        assert actual_slugs == expected_slugs
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -4394,6 +4451,14 @@ class TestFlowServe:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
+                    {
+                        "schedules": [
+                            Interval(3600, slug="test-interval-schedule"),
+                            Cron("* * * * *", slug="test-cron-schedule"),
+                            RRule("FREQ=MINUTELY", slug="test-rrule-schedule"),
+                        ]
+                    },
+                    {"schedule": Interval(3600, slug="test-interval-schedule")},
                 ],
                 2,
             )
@@ -4903,6 +4968,41 @@ class TestLoadFlowFromFlowRun:
         load_flow_from_entrypoint.assert_called_once_with(
             "my.module.pretend_flow", use_placeholder_flow=True
         )
+
+    async def test_load_flow_from_non_flow_func(
+        self, prefect_client: "PrefectClient", monkeypatch
+    ):
+        def not_quite_a_flow():
+            pass
+
+        _load_flow_from_entrypoint = mock.Mock(side_effect=MissingFlowError)
+        monkeypatch.setattr(
+            "prefect.flows.load_flow_from_entrypoint",
+            _load_flow_from_entrypoint,
+        )
+
+        _import_object = mock.Mock(return_value=not_quite_a_flow)
+        monkeypatch.setattr(
+            "prefect.flows.import_object",
+            _import_object,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(not_quite_a_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my_file.py:not_quite_a_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run)
+
+        assert isinstance(result, Flow)
+        assert result.fn == not_quite_a_flow
 
 
 class TestTransactions:

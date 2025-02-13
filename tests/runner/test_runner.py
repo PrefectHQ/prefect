@@ -39,6 +39,8 @@ from prefect.deployments.runner import (
 )
 from prefect.docker.docker_image import DockerImage
 from prefect.events.clients import AssertingEventsClient
+from prefect.events.schemas.automations import Posture
+from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.worker import EventsWorker
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
@@ -425,6 +427,46 @@ class TestRunner:
         assert deployment_2 is not None
         assert deployment_2.name == "test_runner"
         assert deployment_2.schedules[0].schedule.cron == "* * * * *"
+
+    async def test_add_flow_to_runner_always_updates_openapi_schema(
+        self, prefect_client: PrefectClient
+    ):
+        """Runner.add should create a deployment for the flow passed to it"""
+        runner = Runner()
+
+        @flow
+        def one(num: int):
+            pass
+
+        deployment_id = await runner.add_flow(one, name="test-openapi")
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test-openapi"
+        assert deployment.description == "None"
+        assert set(deployment.parameter_openapi_schema["properties"].keys()) == {"num"}
+
+        @flow(name="one")
+        def two(num: int):
+            "description now"
+            pass
+
+        deployment_id = await runner.add_flow(two, name="test-openapi")
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test-openapi"
+        assert deployment.description == "description now"
+        assert set(deployment.parameter_openapi_schema["properties"].keys()) == {"num"}
+
+        @flow(name="one")
+        def three(name: str):
+            pass
+
+        deployment_id = await runner.add_flow(three, name="test-openapi")
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.name == "test-openapi"
+        assert deployment.description is None
+        assert set(deployment.parameter_openapi_schema["properties"].keys()) == {"name"}
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -1572,7 +1614,9 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
-    async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
+    async def test_apply_with_work_pool(
+        self, prefect_client: PrefectClient, work_pool, process_work_pool
+    ):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1,
             __file__,
@@ -1590,6 +1634,57 @@ class TestRunnerDeployment:
             "image": "my-repo/my-image:latest",
         }
         assert deployment.work_queue_name == "default"
+
+        # should result in the same deployment ID
+        deployment2 = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            interval=3600,
+        )
+
+        deployment_id = await deployment2.apply(work_pool_name=process_work_pool.name)
+        deployment2 = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment2.work_pool_name == process_work_pool.name
+
+        # this may look weird with a process pool but update's job isn't to enforce that schema
+        assert deployment2.job_variables == {
+            "image": "my-repo/my-image:latest",
+        }
+        assert deployment2.work_queue_name == "default"
+
+    async def test_apply_with_image(self, prefect_client: PrefectClient, work_pool):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            "test-image",
+        )
+
+        deployment_id = await deployment.apply(
+            work_pool_name=work_pool.name, image="my-repo/my-image:latest"
+        )
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.job_variables == {
+            "image": "my-repo/my-image:latest",
+        }
+        assert deployment.work_queue_name == "default"
+
+        # should result in the same deployment ID
+        deployment2 = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            "test-image",
+        )
+
+        deployment_id = await deployment2.apply(image="my-other-repo/my-image:latest")
+        deployment2 = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment2.work_pool_name == work_pool.name
+        assert deployment2.job_variables == {
+            "image": "my-other-repo/my-image:latest",
+        }
+        assert deployment2.work_queue_name == "default"
 
     async def test_apply_paused(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(
@@ -1930,6 +2025,7 @@ class TestDeploy:
                 schedule=Interval(
                     3600,
                     parameters={"number": 42},
+                    slug="test-slug",
                 ),
             ),
             await (
@@ -1941,6 +2037,7 @@ class TestDeploy:
                 schedule=Interval(
                     3600,
                     parameters={"number": 42},
+                    slug="test-slug",
                 ),
             ),
             work_pool_name=work_pool_with_image_variable.name,
@@ -1971,6 +2068,7 @@ class TestDeploy:
             seconds=3600
         )
         assert deployment_1.schedules[0].parameters == {"number": 42}
+        assert deployment_1.schedules[0].slug == "test-slug"
 
         deployment_2 = await prefect_client.read_deployment_by_name(
             "test-flow/test_runner"
@@ -1983,6 +2081,7 @@ class TestDeploy:
             seconds=3600
         )
         assert deployment_2.schedules[0].parameters == {"number": 42}
+        assert deployment_2.schedules[0].slug == "test-slug"
 
         console_output = capsys.readouterr().out
         assert "prefect worker start --pool" in console_output
@@ -2604,6 +2703,93 @@ class TestDeploy:
             assert (
                 "Looks like you're deploying to a process work pool." in console_output
             )
+
+    async def test_deploy_with_triggers(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__,
+                triggers=[
+                    DeploymentEventTrigger(
+                        name="test-trigger",
+                        enabled=True,
+                        posture=Posture.Reactive,
+                        match={"prefect.resource.id": "prefect.flow-run.*"},
+                        expect=["prefect.flow-run.Completed"],
+                    )
+                ],
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+        triggers = await prefect_client._client.get(
+            f"/automations/related-to/prefect.deployment.{deployment_ids[0]}"
+        )
+        assert len(triggers.json()) == 1
+        assert triggers.json()[0]["name"] == "test-trigger"
+
+    async def test_deploy_with_triggers_and_update(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+    ):
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__,
+                triggers=[
+                    DeploymentEventTrigger(
+                        name="test-trigger",
+                        enabled=True,
+                        posture=Posture.Reactive,
+                        match={"prefect.resource.id": "prefect.flow-run.*"},
+                        expect=["prefect.flow-run.Completed"],
+                    )
+                ],
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+        triggers = await prefect_client._client.get(
+            f"/automations/related-to/prefect.deployment.{deployment_ids[0]}"
+        )
+        assert len(triggers.json()) == 1
+        assert triggers.json()[0]["name"] == "test-trigger"
+        assert triggers.json()[0]["enabled"]
+
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(
+                __file__,
+                triggers=[
+                    DeploymentEventTrigger(
+                        name="test-trigger-2",
+                        enabled=False,
+                        posture=Posture.Reactive,
+                        match={"prefect.resource.id": "prefect.flow-run.*"},
+                        expect=["prefect.flow-run.Completed"],
+                    )
+                ],
+            ),
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-registry/test-image",
+        )
+        assert len(deployment_ids) == 1
+        triggers = await prefect_client._client.get(
+            f"/automations/related-to/prefect.deployment.{deployment_ids[0]}"
+        )
+        assert len(triggers.json()) == 1
+        assert triggers.json()[0]["name"] == "test-trigger-2"
+        assert not triggers.json()[0]["enabled"]
 
 
 class TestDockerImage:
