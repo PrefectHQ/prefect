@@ -1,5 +1,7 @@
 name: Publish Python package
 
+# comment
+
 on:
   release:
     types: [released, prereleased]
