@@ -3,7 +3,6 @@
 # Setup version and path constants
 
 import sys
-from . import _version
 from . import _build_info
 import importlib
 import pathlib
@@ -42,7 +41,7 @@ if TYPE_CHECKING:
         date: Optional[str]
 
 
-__version__ = _version.__version__
+__version__ = _build_info.__version__
 __version_info__: "VersionInfo" = cast(
     "VersionInfo",
     {
@@ -50,7 +49,7 @@ __version_info__: "VersionInfo" = cast(
         "date": _build_info.__build_date__,
         "full-revisionid": _build_info.__git_commit__,
         "error": None,
-        "dirty": False,
+        "dirty": _build_info.__dirty__,
     },
 )
 
@@ -66,7 +65,7 @@ __ui_static_subpath__: pathlib.Path = __module_path__ / "server" / "ui_build"
 # The absolute path to the built UI within the Python module
 __ui_static_path__: pathlib.Path = __module_path__ / "server" / "ui"
 
-del _version, pathlib
+del _build_info, pathlib
 
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
