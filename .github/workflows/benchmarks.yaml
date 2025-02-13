@@ -39,15 +39,11 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
+          python-version: "3.12"
           enable-cache: true
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Install the project
-        run:  uv sync --group benchmark --compile-bytecode --no-editable
+        run:  uv sync --group benchmark --compile-bytecode
 
       - name: Prepare benchmark comparisons
         # Note: We use a "cache" instead of artifacts because artifacts are not available

@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +14,7 @@ from prefect.server.events.schemas.automations import (
     AutomationUpdate,
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -297,7 +297,7 @@ async def relate_automation_to_resource(
                     db.AutomationRelatedResource.automation_owned_by_resource,
                     sa.true() if owned_by_resource else sa.false(),
                 ),
-                updated=pendulum.now("UTC"),
+                updated=now("UTC"),
             ),
         )
     )

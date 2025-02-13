@@ -5,7 +5,6 @@ Routes for interacting with flow objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 from fastapi import Depends, HTTPException, Path, Response, status
 from fastapi.param_functions import Body
 
@@ -15,6 +14,7 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.responses import FlowPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types._datetime import now
 
 router: PrefectRouter = PrefectRouter(prefix="/flows", tags=["Flows"])
 
@@ -31,12 +31,12 @@ async def create_flow(
     # hydrate the input model into a full flow model
     flow = schemas.core.Flow(**flow.model_dump())
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flows.create_flow(session=session, flow=flow)
 
-    if model.created >= now:
+    if model.created >= right_now:
         response.status_code = status.HTTP_201_CREATED
     return model
 
