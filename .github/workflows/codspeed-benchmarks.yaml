@@ -6,7 +6,7 @@ env:
 on:
   pull_request:
     paths:
-      - .github/workflows/benchmarks.yaml
+      - .github/workflows/codspeed-benchmarks.yaml
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - requirements.txt
@@ -44,7 +44,7 @@ jobs:
           enable-cache: true
           
       - name: Install the project
-        run:  uv sync --extra dev --compile-bytecode
+        run:  uv sync --group benchmark --compile-bytecode
 
       - name: Start server
         run: |
@@ -60,7 +60,7 @@ jobs:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
           run: >
-            pytest 
+            uv run pytest 
             benches/bench_import.py 
             benches/bench_tasks.py 
             benches/bench_flows.py::bench_flow_decorator
