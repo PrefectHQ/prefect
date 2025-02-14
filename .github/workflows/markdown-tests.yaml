@@ -77,17 +77,14 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
-          use-cache: true
-
+          enable-cache: true
 
       - name: Install packages
-        run: |
-          uv pip install --system '.[markdown-docs,dev]'
-          uv pip uninstall pytest-benchmark
+        run: uv sync --group markdown-docs
 
       - name: Start server
         run: |
-          PREFECT_HOME=$(pwd) prefect server start&
+          PREFECT_HOME=$(pwd) uv run prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run tests
