@@ -85,11 +85,11 @@ You can use either EC2 or Fargate as the capacity provider. Fargate simplifies i
 
 import { TF } from "/snippets/resource-management/terraform.mdx"
 import { HELM } from "/snippets/resource-management/helm.mdx"
-import { worker } from "/snippets/resource-management/vars.mdx"
+import { workers } from "/snippets/resource-management/vars.mdx"
 import { work_pools } from "/snippets/resource-management/vars.mdx"
 
 <Tip>
-<HELM name="Prefect workers" href={worker.helm} />
+<HELM name="Prefect workers" href={workers.helm} />
 
 <TF name="work pools" href={work_pools.tf} />
 </Tip>

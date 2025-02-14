@@ -23,13 +23,14 @@ export const variables = {
     tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/variable",
 }
 
-export const automation = {
+export const automations = {
     cli: "https://docs.prefect.io/v3/api-ref/cli/automation",
     api: "https://app.prefect.cloud/api/docs#tag/Automations",
     tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/automation",
 }
 
 export const events = {
+    cli: "https://docs.prefect.io/v3/api-ref/cli/event",
     api: "https://app.prefect.cloud/api/docs#tag/Events",
     tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/automation",
 }
@@ -39,6 +40,24 @@ export const webhooks = {
     tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/webhook",
 }
 
-export const worker = {
+export const blocks = {
+    cli: "https://docs.prefect.io/v3/api-ref/cli/block",
+    api: "https://app.prefect.cloud/api/docs#tag/Blocks",
+    tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/block",
+}
+
+export const global_concurrency = {
+    cli: "https://docs.prefect.io/v3/api-ref/cli/global-concurrency-limit",
+    api: "https://app.prefect.cloud/api/docs#tag/Concurrency-Limits-V2",
+    tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/global_concurrency_limit",
+}
+
+export const task_run_concurrency = {
+    cli: "https://docs.prefect.io/v3/api-ref/cli/concurrency-limit",
+    api: "https://app.prefect.cloud/api/docs#tag/Concurrency-Limits",
+    tf: "https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/task_run_concurrency_limit",
+}
+
+export const workers = {
     helm: "https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server",
 }
