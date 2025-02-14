@@ -81,18 +81,17 @@ export const CronScheduleForm = ({
 	useEffect(() => {
 		if (scheduleToEdit) {
 			const { active, schedule } = scheduleToEdit;
-			if (!("cron" in schedule)) {
-				throw new Error("Expecting 'cron'");
+			if ("cron" in schedule) {
+				const { cron, day_or, timezone } = schedule;
+				form.reset({
+					active,
+					schedule: {
+						cron,
+						day_or,
+						timezone: timezone ?? "Etc/UTC",
+					},
+				});
 			}
-			const { cron, day_or, timezone } = schedule;
-			form.reset({
-				active,
-				schedule: {
-					cron,
-					day_or,
-					timezone: timezone ?? "Etc/UTC",
-				},
-			});
 		} else {
 			form.reset(DEFAULT_VALUES);
 		}
