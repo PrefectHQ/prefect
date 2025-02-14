@@ -2,14 +2,10 @@ name: Verify prefect-client build
 
 on:
   pull_request:
-    branches:
-      - main
     paths:
       - client/*
       - src/prefect/**/*.py
-      - requirements.txt
-      - requirements-client.txt
-      - setup.cfg
+      - pyproject.toml
       - .github/workflows/prefect-client.yaml
   push:
     branches:
@@ -17,9 +13,7 @@ on:
     paths:
       - client/*
       - src/prefect/**/*.py
-      - requirements.txt
-      - requirements-client.txt
-      - setup.cfg
+      - pyproject.toml
       - .github/workflows/prefect-client.yaml
   workflow_call:
     inputs:
@@ -43,7 +37,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: actions/setup-python@v5
+        uses: astral-sh/setup-uv@v5
         with:
           use-cache: true
 
