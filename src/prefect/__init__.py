@@ -32,8 +32,6 @@ if TYPE_CHECKING:
 
     __spec__: ModuleSpec
 
-    # Versioneer provides version information as dictionaries
-    # with these keys
     class VersionInfo(TypedDict("_FullRevisionId", {"full-revisionid": str})):
         version: str
         dirty: Optional[bool]

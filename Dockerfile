@@ -34,8 +34,7 @@ RUN npm run build
 
 
 # Build the Python distributable.
-# Without this build step, versioneer cannot infer the version without git
-# see https://github.com/python-versioneer/python-versioneer/issues/215
+# Without this build step, versioningit cannot infer the version without git
 FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
 
 WORKDIR /opt/prefect
