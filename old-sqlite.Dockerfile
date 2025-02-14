@@ -22,6 +22,7 @@ RUN uv build --sdist --wheel --out-dir dist && \
 
 # Final image
 FROM python:3.9-slim
+COPY --from=python-builder /bin/uv /bin/uv
 
 # Accept SQLite version as build argument
 ARG SQLITE_VERSION="3310100"

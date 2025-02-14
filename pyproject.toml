@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=65.6.3"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
 
 [project]
 name = "prefect"
@@ -192,11 +192,33 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
-    "versioneer>=0.20.0",
 ]
 
-benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
+benchmark = [
+    "pytest-benchmark>=5.1.0",
+    "pytest-codspeed>=2.2.1",
+]
 
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
+
+[tool.versioningit.write]
+method = { module = "write_build_info", value = "write_build_info", module-dir = "tools" }
+path = "src/prefect/_build_info.py"
+
+[tool.versioningit.format]
+distance = "{base_version}+{distance}.{vcs}{rev}"
+dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+
+[tool.hatch.build]
+artifacts = ["src/prefect/_build_info.py"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
