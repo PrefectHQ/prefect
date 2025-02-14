@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { useEffect, useState } from "react";
 import { CronScheduleForm } from "./cron-schedule-form";
+import { IntervalScheduleForm } from "./interval-schedule-form";
 import { RRuleScheduleForm } from "./rrule-schedule-form";
 
 type ScheduleTypes = "interval" | "cron" | "rrule";
@@ -49,7 +50,13 @@ export const DeploymentScheduleDialog = ({
 		{
 			value: "interval",
 			label: "Interval",
-			Component: () => <div>TODO: Interval form</div>,
+			Component: () => (
+				<IntervalScheduleForm
+					deployment_id={deploymentId}
+					onSubmit={onSubmit}
+					scheduleToEdit={scheduleToEdit}
+				/>
+			),
 		},
 		{
 			value: "cron",

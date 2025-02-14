@@ -7,15 +7,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import {
-	CronScheduleForm,
-	type CronScheduleFormProps,
-} from "./cron-schedule-form";
+	IntervalScheduleForm,
+	type IntervalScheduleFormProps,
+} from "./interval-schedule-form";
 
-const CronScheduleFormTest = (props: CronScheduleFormProps) => (
+const IntervalScheduleFormTest = (props: IntervalScheduleFormProps) => (
 	<>
 		<Toaster />
 		<Dialog>
-			<CronScheduleForm {...props} />
+			<IntervalScheduleForm {...props} />
 		</Dialog>
 	</>
 );
@@ -23,34 +23,36 @@ const CronScheduleFormTest = (props: CronScheduleFormProps) => (
 describe("CronScheduleForm", () => {
 	beforeAll(mockPointerEvents);
 
-	it("is able to create a new cron schedule", async () => {
+	it("is able to create a new interval schedule", async () => {
 		// Setup
 		const user = userEvent.setup();
-		render(<CronScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
+		render(<IntervalScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
 			wrapper: createWrapper(),
 		});
 
 		// Test
 		await user.click(screen.getByLabelText(/active/i));
 		await user.clear(screen.getByLabelText(/value/i));
-		await user.type(screen.getByLabelText(/value/i), "* * * * 1/2");
-		await user.click(screen.getByLabelText(/day or/i));
+		await user.type(screen.getByLabelText(/value/i), "100");
+
+		await user.click(screen.getByRole("combobox", { name: /interval/i }));
+		await user.click(screen.getByRole("option", { name: /hours/i }));
+
+		screen.logTestingPlaygroundURL();
+
 		await user.click(
 			screen.getByRole("combobox", { name: /select timezone/i }),
 		);
 		await user.click(screen.getByRole("option", { name: /africa \/ asmera/i }));
 		await user.click(screen.getByRole("button", { name: /save/i }));
 
-		screen.logTestingPlaygroundURL();
-
 		// ------------ Assert
 
 		expect(screen.getByLabelText(/active/i)).not.toBeChecked();
-		expect(screen.getByLabelText(/value/i)).toHaveValue("* * * * 1/2");
-		expect(screen.getByLabelText(/day or/i)).not.toBeChecked();
+		expect(screen.getByLabelText(/value/i)).toHaveValue("100");
 	});
 
-	it("is able to edit a cron schedule", () => {
+	it("is able to edit an interval schedule", () => {
 		// Setup
 		const MOCK_SCHEDULE = {
 			active: true,
@@ -59,14 +61,14 @@ describe("CronScheduleForm", () => {
 			id: "123",
 			updated: "0",
 			schedule: {
-				cron: "* * * * 1/2",
-				day_or: true,
+				interval: 3600,
+				anchor_date: new Date().toISOString(),
 				timezone: '"Etc/UTC"',
 			},
 		};
 
 		render(
-			<CronScheduleFormTest
+			<IntervalScheduleFormTest
 				deployment_id="0"
 				onSubmit={vi.fn()}
 				scheduleToEdit={MOCK_SCHEDULE}
@@ -77,7 +79,6 @@ describe("CronScheduleForm", () => {
 		// ------------ Assert
 
 		expect(screen.getByLabelText(/active/i)).toBeChecked();
-		expect(screen.getByLabelText(/value/i)).toHaveValue("* * * * 1/2");
-		expect(screen.getByLabelText(/day or/i)).toBeChecked();
+		expect(screen.getByLabelText(/value/i)).toHaveValue("1");
 	});
 });
