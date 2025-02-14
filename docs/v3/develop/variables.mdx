@@ -47,15 +47,14 @@ To create a new variable:
 
 ### Through the REST API
 
-You can create and delete variables through the REST API. You can also set and get variables through the API 
-with either the variable name or ID.
+import { API } from "/snippets/resource-management/api.mdx"
+import { variables } from "/snippets/resource-management/vars.mdx"
 
-See the [REST reference](https://app.prefect.cloud/api/docs#tag/Variables) for more information.
+<API name="variables" href={variables.api} />
 
 ### Through the CLI
 
 import { CLI } from "/snippets/resource-management/cli.mdx"
-import { variables } from "/snippets/resource-management/vars.mdx"
 
 <CLI name="variables" href={variables.cli} />
 

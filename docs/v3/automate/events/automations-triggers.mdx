@@ -19,6 +19,15 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 - One or more [actions](#actions) carried out by the automation.
 - [Details](#details) about the automation, such as a name and description.
 
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { API } from "/snippets/resource-management/api.mdx"
+import { automation } from "/snippets/resource-management/vars.mdx"
+import { events } from "/snippets/resource-management/vars.mdx"
+
+<TF name="automations" href={automation.tf} />
+<API name="automations" href={automation.api} />
+<API name="events" href={events.api} />
+
 ## Manage automations
 
 The **Automations** page provides an overview of all configured automations for your workspace.
@@ -42,13 +51,6 @@ common conditions, such as:
 - Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
 - Custom event triggers
-
-<Note>
-**Automations API**
-
-The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of
-trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
-</Note>
 
 Importantly, you can configure the triggers not only in reaction to events, but also proactively: in the absence of
 an expected event.
