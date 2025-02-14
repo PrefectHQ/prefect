@@ -112,26 +112,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
+          use-cache: true
           python-version: ${{ matrix.python-version }}
 
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml') }}
-
       - name: Install packages
-        run: |
-          pip install --upgrade uv
-          uv export --no-group benchmark | uv pip install --upgrade --system --requirements=-
+        run: uv sync
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -170,7 +158,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest ${{ matrix.test-type.modules }} \
+          uv run pytest ${{ matrix.test-type.modules }} \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -218,22 +206,12 @@ jobs:
         with:
           driver-opts: image=moby/buildkit:v0.12.5
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
+          use-cache: true
           python-version: ${{ matrix.python-version }}
-
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
-
+        
       - name: Get image tag
         id: get_image_tag
         run: |
@@ -273,9 +251,7 @@ jobs:
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
-        run: |
-          python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+        run: uv sync
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -322,30 +298,13 @@ jobs:
 
       - name: Run tests
         run: |
-          echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest tests --ignore=tests/typesafety \
+          uv run pytest tests --ignore=tests/typesafety \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
           --disable-docker-image-builds \
           --only-service docker \
           --durations 26 \
-
-      - name: Create and Upload failure flag
-        if: ${{ failure() }}
-        id: create_failure_flag
-        run: |
-          sanitized_name="${{ matrix.python-version }}-${{ matrix.database }}"
-          sanitized_name="${sanitized_name//:/-}"
-          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
-          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
-
-      - name: Upload failure flag
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.create_failure_flag.outputs.artifact_name }}
-          path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
@@ -368,28 +327,14 @@ jobs:
 
     - name: Set up uv
       uses: astral-sh/setup-uv@v5
-
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      id: setup_python
       with:
-        python-version: 3.12
-
-    - name: UV Cache
-      # Manually cache the uv cache directory
-      # until setup-python supports it:
-      # https://github.com/actions/setup-python/issues/822
-      uses: actions/cache@v4
-      id: cache-uv
-      with:
-        path: ~/.cache/uv
-        key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+        use-cache: true
+        python-version: "3.12"
 
     - name: Install packages
-      run: |
-        uv export --no-group benchmark | uv pip install --upgrade --system --requirements=-
+      run: uv sync
 
     - name: Run tests
       run: |
-        pytest tests/typesafety \
+        uv run pytest tests/typesafety \
         --disable-docker-image-builds
