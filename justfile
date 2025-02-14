@@ -9,14 +9,9 @@ check-uv:
         exit 1
     fi
 
-# List available commands
-default:
-    @just --list
-
-# Clean up
-clean: check-uv
-    deactivate || true
-    rm -rf .venv
+# Build and serve documentation
+docs: check-uv
+    cd docs && uv run mintlify dev
 
 # Install development dependencies
 install: check-uv
@@ -24,10 +19,7 @@ install: check-uv
     # TODO: commit the uv.lock file
     uv sync --dev
 
-# Start the Prefect server
-server: check-uv
-    uv run prefect server start
-
-# Build and serve documentation
-docs: check-uv
-    cd docs && uv run mintlify dev
+# Clean up environment
+clean: check-uv
+    deactivate || true
+    rm -rf .venv
