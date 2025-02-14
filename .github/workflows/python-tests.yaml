@@ -117,6 +117,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
         run: uv sync
@@ -211,6 +212,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
+          cache-dependency-glob: "pyproject.toml"
         
       - name: Get image tag
         id: get_image_tag
@@ -310,6 +312,11 @@ jobs:
           --only-service docker \
           --durations 26
 
+      - name: Check git diff
+        if: always()
+        run: |
+          git diff --exit-code
+
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
         if: always()
@@ -334,6 +341,7 @@ jobs:
       with:
         enable-cache: true
         python-version: "3.12"
+        cache-dependency-glob: "pyproject.toml"
 
     - name: Install packages
       run: uv sync

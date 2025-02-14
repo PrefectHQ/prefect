@@ -41,6 +41,7 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.9"
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
