@@ -11,8 +11,7 @@ type BasePrefectKindValue<
 export type PrefectKindValue =
 	| PrefectKindNull
 	| PrefectKindJinja
-	| PrefectKindJson
-	| PrefectKindWorkspaceVariable;
+	| PrefectKindJson;
 
 export function isPrefectKindValue<T extends PrefectKind = PrefectKind>(
 	value: unknown,
@@ -65,20 +64,4 @@ export type PrefectKindJinja = BasePrefectKindValue<
 
 export function isPrefectKindJinja(value: unknown): value is PrefectKindJinja {
 	return isPrefectKindValue(value, "jinja") && isString(value.template);
-}
-
-export type PrefectKindWorkspaceVariable = BasePrefectKindValue<
-	"workspace_variable",
-	{
-		variable_name?: string;
-	}
->;
-
-export function isPrefectKindWorkspaceVariable(
-	value: unknown,
-): value is PrefectKindWorkspaceVariable {
-	return (
-		isPrefectKindValue(value, "workspace_variable") &&
-		(isString(value.variable_name) || !isDefined(value.variable_name))
-	);
 }

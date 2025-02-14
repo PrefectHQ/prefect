@@ -36,10 +36,6 @@ export function SchemaFormInput({
 			);
 		}
 
-		if (isPrefectKindValue(value, "workspace_variable")) {
-			throw new Error("not implemented");
-		}
-
 		if (isPrefectKindValue(value, "jinja")) {
 			throw new Error("not implemented");
 		}
@@ -55,22 +51,24 @@ export function SchemaFormInput({
 			);
 		}
 
-		throw new Error("not implemented");
+		// @ts-expect-error This is an exhaustive check. If a prefect kind is not implemented this will get flaggged.
+		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
 	}
 
 	if ("blockTypeSlug" in property) {
 		throw new Error("not implemented");
 	}
 
-	if ("anyOf" in property) {
+	if ("anyOf" in property || "oneOf" in property) {
+		throw new Error("not implemented");
+	}
+
+	// this is the same as an anyOf so we can convert it here and use the same logic component
+	if (Array.isArray(property.type)) {
 		throw new Error("not implemented");
 	}
 
 	if ("allOf" in property) {
-		throw new Error("not implemented");
-	}
-
-	if ("oneOf" in property) {
 		throw new Error("not implemented");
 	}
 
@@ -149,11 +147,6 @@ export function SchemaFormInput({
 				errors={errors}
 			/>
 		);
-	}
-
-	// todo: handle types like ["string", "null"] which we can convert into a union type
-	if (Array.isArray(property.type)) {
-		throw new Error("not implemented");
 	}
 
 	if (property.type === undefined) {
