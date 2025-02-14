@@ -34,7 +34,6 @@ describe("CronScheduleForm", () => {
 		await user.click(screen.getByLabelText(/active/i));
 		await user.clear(screen.getByLabelText(/value/i));
 		await user.type(screen.getByLabelText(/value/i), "* * * * 1/2");
-		screen.logTestingPlaygroundURL();
 
 		await user.click(screen.getByRole("switch", { name: /day or/i }));
 		await user.click(
