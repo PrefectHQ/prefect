@@ -67,6 +67,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
         working-directory: src/integrations/${{ matrix.package }}

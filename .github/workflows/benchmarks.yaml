@@ -41,6 +41,7 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install the project
         run:  uv sync --group benchmark --compile-bytecode
