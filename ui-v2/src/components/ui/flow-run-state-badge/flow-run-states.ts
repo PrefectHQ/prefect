@@ -1,0 +1,20 @@
+export const FLOW_RUN_STATES = [
+	"Scheduled",
+	"Late",
+	"Resuming",
+	"AwaitingRetry",
+	"AwaitingConcurrencySlot",
+	"Pending",
+	"Paused",
+	"Suspended",
+	"Running",
+	"Retrying",
+	"Completed",
+	"Cached",
+	"Cancelled",
+	"Cancelling",
+	"Crashed",
+	"Failed",
+	"TimedOut",
+] as const;
+export type FlowRunStates = (typeof FLOW_RUN_STATES)[number];
