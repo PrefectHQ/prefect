@@ -154,10 +154,10 @@ render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
 dev = [
     "cairosvg>=2.7.1",
     "codespell>=2.2.6",
-    "ipython>=8.32.0;python_version>='3.10'",
+    "ipython",
     "jinja2>=1.2",
     "moto>=5",
-    "numpy>=2.2.2;python_version>='3.10'",
+    "numpy",
     "pillow>=11.1.0",
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
@@ -195,10 +195,7 @@ dev = [
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
 
-benchmark = [
-    "pytest-benchmark>=5.1.0",
-    "pytest-codspeed>=2.2.1",
-]
+benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
 
 [tool.hatch.version]
 source = "versioningit"
