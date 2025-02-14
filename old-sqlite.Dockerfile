@@ -54,11 +54,10 @@ WORKDIR /app
 COPY --from=python-builder /bin/uv /bin/uv
 COPY --from=python-builder /opt/prefect/dist/prefect.tar.gz ./dist/
 COPY pyproject.toml ./
-COPY .git ./
 COPY README.md ./
 
 # Install requirements and Prefect
-RUN uv pip install .
+RUN uv export | uv pip install -r -
 RUN uv pip install ./dist/prefect.tar.gz
 
 
