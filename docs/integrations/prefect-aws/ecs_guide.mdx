@@ -88,11 +88,16 @@ import { HELM } from "/snippets/resource-management/helm.mdx"
 import { workers } from "/snippets/resource-management/vars.mdx"
 import { work_pools } from "/snippets/resource-management/vars.mdx"
 
-<Tip>
 <HELM name="Prefect workers" href={workers.helm} />
 
 <TF name="work pools" href={work_pools.tf} />
+
+{/*
+TODO update link to Example repo when this issue is completed: https://github.com/PrefectHQ/examples/issues/11
+<Tip>
+If you prefer infrastructure as code check out this [Terraform module](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/work_pool) to provision an ECS cluster with a worker.
 </Tip>
+*/}
 
 ## Prerequisites
 
