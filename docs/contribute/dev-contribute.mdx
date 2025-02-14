@@ -21,44 +21,62 @@ For larger changes including all bug fixes, we ask that you first open [an issue
 
 ## Install Prefect for development
 
-Once you have cloned your fork of the repo:
-```bash
-# Clone the repository
-git clone https://github.com/GITHUB-USERNAME/prefect.git
-cd prefect
-```
-you can install [an editable version](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of Prefect for quick iteration.
-We recommend using a virtual environment such as `venv`:
+Once you have cloned your fork of the repo you can install [an editable version](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of Prefect for quick iteration.
 
+
+We recommend using `uv` for dependency management when developing. Refer to the [`uv` docs for installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
+
+To set up a virtual environment and install a development version of `prefect`:
 <CodeGroup>
-```bash using pip and venv
+```bash uv
+uv sync
+```
+```bash pip and venv
 python -m venv .venv
 source .venv/bin/activate
 
 # Installs the package with development dependencies
 pip install -e ".[dev]"
 ```
+</CodeGroup>
 
-```bash using uv
-uv venv --python 3.12
-source .venv/bin/activate
+To verify `prefect` was install correctly:
 
-# Installs the package with development dependencies
-uv pip install -e ".[dev]" -U --force-reinstall
+<CodeGroup>
+```bash uv
+uv run prefect --version
+```
+```bash pip and venv
+prefect --version
 ```
 </CodeGroup>
 
-To ensure your changes comply with our linting policies, you can optionally set up pre-commit hooks to run with every commit:
+To ensure your changes comply with our linting policies, you can optionally set up `pre-commit` hooks to run with every commit:
 
+<CodeGroup>
+```bash uv
+uv run pre-commit install
 ```
+```bash pip and venv
 pre-commit install
 ```
+</CodeGroup>
 
-To manually run the pre-commit hooks against all files, you can run:
 
+To manually run the `pre-commit` hooks against all files, you can run:
+
+<CodeGroup>
+```bash uv
+uv run pre-commit run --all-files
 ```
-pre-commit run --all-files
+```bash pip and venv
+pre-commit irun --all-filesnstall
 ```
+</CodeGroup>
+
+<Tip>
+  If you're using `uv`, you can run commands with the project's dependencies by prefixing the command with `uv run`.
+</Tip>
 
 ## Write tests
 
