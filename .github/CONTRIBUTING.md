@@ -2,4 +2,4 @@
 
 Thanks for considering contributing to Prefect!
 
-To navigate our codebase with confidence, see our [contribution guidelines](/contribute/index).
+To navigate our codebase with confidence, see our [contribution guidelines](/contribute).
