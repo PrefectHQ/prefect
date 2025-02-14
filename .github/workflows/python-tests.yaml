@@ -115,7 +115,7 @@ jobs:
       - name: Set up uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v5
         with:
-          use-cache: true
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
 
       - name: Install packages
@@ -209,7 +209,7 @@ jobs:
       - name: Set up uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v5
         with:
-          use-cache: true
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
         
       - name: Get image tag
@@ -328,7 +328,7 @@ jobs:
     - name: Set up uv
       uses: astral-sh/setup-uv@v5
       with:
-        use-cache: true
+        enable-cache: true
         python-version: "3.12"
 
     - name: Install packages
