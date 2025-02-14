@@ -285,7 +285,7 @@ filterwarnings = [
     "ignore:`PREFECT_API_URL` uses `/account/` but should use `/accounts/`.:UserWarning",
     "ignore:`PREFECT_API_URL` should have `/api` after the base URL.:UserWarning",
     "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
-    "ignore:datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
+    "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
     "ignore::sqlalchemy.exc.SAWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
