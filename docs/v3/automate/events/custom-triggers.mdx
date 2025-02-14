@@ -9,6 +9,13 @@ Each automation has a single trigger that, when fired, causes all of its associa
 trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger
 that combines several underlying triggers.
 
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { API } from "/snippets/resource-management/api.mdx"
+import { events } from "/snippets/resource-management/vars.mdx"
+
+<TF name="events" href={events.tf} />
+<API name="events" href={events.api} />
+
 ### Event triggers
 
 Event triggers are the most common type of trigger. They are intended to react to the presence or absence of an event.
