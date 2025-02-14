@@ -41,7 +41,7 @@ jobs:
           enable-cache: true
 
       - name: Install the project
-        run: uv sync --compile-bytecode
+        run: uv sync --compile-bytecode --no-editable
 
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -72,7 +72,7 @@ jobs:
           enable-cache: true
       
       - name: Install the project
-        run:  uv sync --compile-bytecode
+        run: uv sync --compile-bytecode --no-editable
 
       - name: Run type completeness check
         run: >-

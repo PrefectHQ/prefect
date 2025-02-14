@@ -7,9 +7,12 @@ __pycache__/
 build/
 dist/
 sdist/
+# We likely ought to eventually include uv.lock
 uv.lock
 
-# We likely ought to eventually include uv.lock
+# Build metadata
+src/prefect/_build_info.py
+src/prefect/_version.py
 
 # Test artifacts
 .benchmarks/
