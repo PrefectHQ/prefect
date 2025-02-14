@@ -69,6 +69,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
+        working-directory: src/integrations/${{ matrix.package }}
         run: uv sync --extra dev
 
       - name: Build dev docker image
@@ -90,7 +91,7 @@ jobs:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
-          pytest tests
+          uv run pytest tests
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
@@ -102,4 +103,4 @@ jobs:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
-          pytest tests
+          uv run pytest tests
