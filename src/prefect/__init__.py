@@ -3,7 +3,7 @@
 # Setup version and path constants
 
 import sys
-from . import _version
+from . import _build_info
 import importlib
 import pathlib
 from typing import TYPE_CHECKING, Any, Optional, TypedDict, cast
@@ -24,16 +24,14 @@ if TYPE_CHECKING:
         unmapped,
         serve,
         aserve,
-        deploy,
         pause_flow_run,
         resume_flow_run,
         suspend_flow_run,
     )
+    from prefect.deployments.runner import deploy
 
     __spec__: ModuleSpec
 
-    # Versioneer provides version information as dictionaries
-    # with these keys
     class VersionInfo(TypedDict("_FullRevisionId", {"full-revisionid": str})):
         version: str
         dirty: Optional[bool]
@@ -41,8 +39,17 @@ if TYPE_CHECKING:
         date: Optional[str]
 
 
-__version_info__: "VersionInfo" = cast("VersionInfo", _version.get_versions())
-__version__ = __version_info__["version"]
+__version__ = _build_info.__version__
+__version_info__: "VersionInfo" = cast(
+    "VersionInfo",
+    {
+        "version": __version__,
+        "date": _build_info.__build_date__,
+        "full-revisionid": _build_info.__git_commit__,
+        "error": None,
+        "dirty": _build_info.__dirty__,
+    },
+)
 
 # The absolute path to this module
 __module_path__: pathlib.Path = pathlib.Path(__file__).parent
@@ -56,12 +63,12 @@ __ui_static_subpath__: pathlib.Path = __module_path__ / "server" / "ui_build"
 # The absolute path to the built UI within the Python module
 __ui_static_path__: pathlib.Path = __module_path__ / "server" / "ui"
 
-del _version, pathlib
+del _build_info, pathlib
 
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
     "aserve": (__spec__.parent, ".main"),
-    "deploy": (__spec__.parent, ".main"),
+    "deploy": (__spec__.parent, ".deployments.runner"),
     "flow": (__spec__.parent, ".main"),
     "Flow": (__spec__.parent, ".main"),
     "get_client": (__spec__.parent, ".main"),
