@@ -50,6 +50,7 @@ Tracker = "https://github.com/PrefectHQ/prefect/issues"
 [project.optional-dependencies]
 client = [
     # Client dependencies
+    # If you modify this list, make the same modification in client/pyproject.toml
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<6.0",
@@ -321,11 +322,3 @@ prefect-shell = { path = "src/integrations/prefect-shell" }
 prefect-slack = { path = "src/integrations/prefect-slack" }
 prefect-sqlalchemy = { path = "src/integrations/prefect-sqlalchemy" }
 prefect-snowflake = { path = "src/integrations/prefect-snowflake" }
-
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-versionfile_source = "src/prefect/_version.py"
-versionfile_build = "prefect/_version.py"
-tag_prefix = ""
-parentdir_prefix = "prefect-"
