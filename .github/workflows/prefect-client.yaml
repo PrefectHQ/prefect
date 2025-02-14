@@ -55,7 +55,7 @@ jobs:
         working-directory: ${{ env.TMPDIR }}
 
       - name: Install the built client from the locally built package
-        run: uv pip install --system dist/*.tar.gz
+        run: uv pip install dist/*.tar.gz
         working-directory: ${{ env.TMPDIR }}
 
       - name: Get the version of built `prefect-client`
@@ -66,14 +66,14 @@ jobs:
         id: prefect_client_version
 
       - name: Run the smoke test flow using the built client
-        run: python client/client_flow.py
+        run: uv run python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
           PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
 
       - name: Install prefect from source
-        run: uv pip install --system .
+        run: uv pip install .
 
       - name: Get the version of built `prefect`
         run: |
@@ -89,7 +89,7 @@ jobs:
           fi
 
       - name: Run the smoke test flow again with prefect and prefect-client installed
-        run: python client/client_flow.py
+        run: uv run python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
