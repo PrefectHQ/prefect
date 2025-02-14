@@ -93,3 +93,6 @@ artifacts = ["src/prefect/_build_info.py"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/prefect"]
