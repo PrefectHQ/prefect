@@ -54,11 +54,22 @@ See the [REST reference](https://app.prefect.cloud/api/docs#tag/Variables) for m
 
 ### Through the CLI
 
+import { CLI } from "/snippets/resource-management/cli.mdx"
+import { variables } from "/snippets/resource-management/vars.mdx"
+
+<CLI name="variables" href={variables.cli} />
+
 - `prefect variable set` creates or updates a variable.
 - `prefect variable get` retrieves a variable's value.
 - `prefect variable unset` deletes a variable.
 - `prefect variable ls` lists all variables.
 - `prefect variable inspect` shows a variable's details.
+
+### Through Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="variables" href={variables.tf} />
 
 ## Access variables
 
