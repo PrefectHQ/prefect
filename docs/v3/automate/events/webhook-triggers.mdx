@@ -17,9 +17,12 @@ Set up your webhooks through the Prefect Cloud API, Prefect Cloud UI, or Prefect
 
 ### Through the Prefect Cloud API
 
-Webhooks are managed through the [Webhooks API
-endpoints](https://app.prefect.cloud/api/docs#tag/Webhooks). This is a Prefect
-Cloud-only feature. Authenticate API calls using the standard
+import { API } from "/snippets/resource-management/api.mdx"
+import { webhooks } from "/snippets/resource-management/vars.mdx"
+
+<API name="webhooks" href={webhooks.api} />
+
+This is a Prefect Cloud-only feature. Authenticate API calls using the standard
 [authentication methods](/v3/manage/cloud/connect-to-cloud#manually-configure-prefect-api-settings) you use with Prefect
 Cloud.
 
@@ -73,6 +76,12 @@ Use `rotate` to generate a new, random endpoint if you're concerned your webhook
 ```bash
 prefect cloud webhook rotate <webhook-url-slug>
 ```
+
+### Through Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="webhooks" href={webhooks.tf} />
 
 ## Webhook endpoints
 

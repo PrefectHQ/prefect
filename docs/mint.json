@@ -237,7 +237,8 @@
           ],
           "version": "v3"
         },
-        "v3/manage/self-host"
+        "v3/manage/self-host",
+        "v3/manage/infrastructure-as-code"
       ],
       "version": "v3"
     },
