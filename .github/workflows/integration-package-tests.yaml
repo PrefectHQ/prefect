@@ -69,7 +69,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --extra dev
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'
