@@ -14,7 +14,26 @@ class SettingsGenerateJsonSchema(GenerateJsonSchema):
         json_schema["$id"] = (
             "https://github.com/PrefectHQ/prefect/schemas/settings.schema.json"
         )
+        # Recursively update all default values to use forward slashes
+        self._normalize_path_separators(json_schema)
         return json_schema
+
+    def _normalize_path_separators(self, obj):
+        """Recursively update all string values that look like paths to use forward slashes."""
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if isinstance(value, str) and ("\\" in value or "/" in value):
+                    # Replace backslashes with forward slashes
+                    obj[key] = value.replace("\\", "/")
+                elif isinstance(value, (dict, list)):
+                    self._normalize_path_separators(value)
+        elif isinstance(obj, list):
+            for i, value in enumerate(obj):
+                if isinstance(value, str) and ("\\" in value or "/" in value):
+                    # Replace backslashes with forward slashes
+                    obj[i] = value.replace("\\", "/")
+                elif isinstance(value, (dict, list)):
+                    self._normalize_path_separators(value)
 
 
 def main():
