@@ -31,8 +31,8 @@ def _read_toml_file(path: Path) -> dict[str, Any]:
     """use ttl cache to cache toml files"""
     modified_time = path.stat().st_mtime
     cache_key = f"toml_file:{path}:{modified_time}"
-    if cache_key in _file_cache:
-        return _file_cache[cache_key]
+    if value := _file_cache.get(cache_key):
+        return value
     data = toml.load(path)  # type: ignore
     _file_cache[cache_key] = data
     return data
