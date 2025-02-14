@@ -24,11 +24,11 @@ if TYPE_CHECKING:
         unmapped,
         serve,
         aserve,
-        deploy,
         pause_flow_run,
         resume_flow_run,
         suspend_flow_run,
     )
+    from prefect.deployments.runner import deploy
 
     __spec__: ModuleSpec
 
@@ -70,7 +70,7 @@ del _build_info, pathlib
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
     "aserve": (__spec__.parent, ".main"),
-    "deploy": (__spec__.parent, ".main"),
+    "deploy": (__spec__.parent, ".deployments.runner"),
     "flow": (__spec__.parent, ".main"),
     "Flow": (__spec__.parent, ".main"),
     "get_client": (__spec__.parent, ".main"),
