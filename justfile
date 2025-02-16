@@ -23,3 +23,20 @@ install: check-uv
 clean: check-uv
     deactivate || true
     rm -rf .venv
+
+# TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
+
+# - uses: extractions/setup-just@v2
+#   with:
+#     just-version: 1.5.0  # optional semver specification, otherwise latest
+
+# for example, use just to define/use common lint commands:
+#     lint: check-uv
+#         uvx ruff check . --fix
+
+#     using it in a GHA workflow:
+#         - uses: extractions/setup-just@v2
+#         with:
+#             just-version: 1.5.0  # optional semver specification, otherwise latest
+
+#         - run: just lint
