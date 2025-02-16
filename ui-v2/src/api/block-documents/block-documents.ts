@@ -13,6 +13,7 @@ export type BlockDocumentsFilter =
  *  list  =>   ['"block-documents', 'list'] // key to match ['"block-documents, 'list', ...
  *             ['"block-documents', 'list', { ...filter1 }]
  *             ['"block-documents', 'list', { ...filter2 }]
+ *  delete =>  ['"block-documents', 'delete', blockDocumentId]
  * ```
  * */
 export const queryKeyFactory = {
@@ -20,6 +21,8 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: BlockDocumentsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	delete: (blockDocumentId: string) =>
+		[...queryKeyFactory.all(), "delete", blockDocumentId] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -41,4 +44,14 @@ export const buildFilterBlockDocumentsQuery = (
 			return res.data ?? [];
 		},
 		enabled,
+	});
+
+export const buildDeleteBlockDocumentQuery = (blockDocumentId: string) =>
+	queryOptions({
+		queryFn: async () => {
+			await getQueryService().DELETE("/block_documents/{id}", {
+				params: { path: { id: blockDocumentId } },
+			});
+			return true;
+		},
 	});

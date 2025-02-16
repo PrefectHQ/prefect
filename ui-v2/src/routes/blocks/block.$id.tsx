@@ -5,5 +5,5 @@ export const Route = createFileRoute("/blocks/block/$id")({
 });
 
 function RouteComponent() {
-	return "🚧🚧 Pardon our dust! 🚧🚧";
+	return "🚧🚧 Pardon our duafafst! 🚧🚧";
 }
