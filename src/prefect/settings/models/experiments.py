@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict

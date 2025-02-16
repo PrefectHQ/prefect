@@ -474,9 +474,8 @@ def setup_signal_handlers_worker(
 
 def get_sys_executable() -> str:
     # python executable needs to be quotable on windows
+    executable_path = os.environ["EXECUTABLE_PATH"] if "EXECUTABLE_PATH" in os.environ else sys.executable
     if os.name == "nt":
-        executable_path = f'"{sys.executable}"'
-    else:
-        executable_path = sys.executable
+        executable_path = f'"{executable_path}"'
 
     return executable_path
