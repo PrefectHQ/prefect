@@ -6,7 +6,7 @@ import { sortByPropertyPosition } from "./utilities/sortByPropertyPosition";
 
 export type SchemaFormInputObjectProps = {
 	values: Record<string, unknown> | undefined;
-	onValuesChange: (values: Record<string, unknown>) => void;
+	onValuesChange: (values: Record<string, unknown> | undefined) => void;
 	property: SchemaObject & ObjectSubtype & PrefectObjectSubtype;
 	errors: unknown;
 };
@@ -18,7 +18,18 @@ export function SchemaFormInputObject({
 	errors,
 }: SchemaFormInputObjectProps) {
 	function onPropertyValueChange(key: string, value: unknown) {
-		onValuesChange({ ...values, [key]: value });
+		const newValues = { ...values, [key]: value };
+
+		if (value === undefined) {
+			delete newValues[key];
+		}
+
+		if (Object.keys(newValues).length === 0) {
+			onValuesChange(undefined);
+			return;
+		}
+
+		onValuesChange(newValues);
 	}
 
 	function getPropertyValue(key: string): unknown {

@@ -163,6 +163,22 @@ const schema: PrefectSchemaObject = {
 				},
 			],
 		},
+		all_of: {
+			type: "object",
+			title: "All Of",
+			allOf: [
+				{
+					type: "object",
+					title: "Object",
+					properties: {
+						foo: { type: "string", title: "Foo" },
+					},
+				},
+				{
+					$ref: "#/definitions/user",
+				},
+			],
+		},
 	},
 	definitions: {
 		user: {

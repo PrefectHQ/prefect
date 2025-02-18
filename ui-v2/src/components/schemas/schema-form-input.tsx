@@ -1,3 +1,4 @@
+import { SchemaFormInputAllOf } from "./schema-form-input-all-of";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
 import { SchemaFormInputBoolean } from "./schema-form-input-boolean";
@@ -12,7 +13,11 @@ import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
 import { PrefectSchemaObject } from "./types/schemas";
 import { asArray, asObject, asType } from "./utilities/asType";
-import { isAnyOfObject, isOneOfObject } from "./utilities/guards";
+import {
+	isAllOfObject,
+	isAnyOfObject,
+	isOneOfObject,
+} from "./utilities/guards";
 
 export type SchemaFormInputProps = {
 	value: unknown;
@@ -115,8 +120,16 @@ export function SchemaFormInput({
 		);
 	}
 
-	if ("allOf" in property) {
-		throw new Error("not implemented");
+	if (isAllOfObject(property)) {
+		return (
+			<SchemaFormInputAllOf
+				value={value}
+				onValueChange={onValueChange}
+				errors={errors}
+				property={property}
+				id={id}
+			/>
+		);
 	}
 
 	if (property.type === "string") {

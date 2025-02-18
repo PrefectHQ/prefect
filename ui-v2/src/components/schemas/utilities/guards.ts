@@ -49,3 +49,9 @@ export function isOneOfObject(
 ): property is SchemaObject & { oneOf: (SchemaObject | ReferenceObject)[] } {
 	return "oneOf" in property && isDefined(property.oneOf);
 }
+
+export function isAllOfObject(
+	property: SchemaObject,
+): property is SchemaObject & { allOf: (SchemaObject | ReferenceObject)[] } {
+	return "allOf" in property && isDefined(property.allOf);
+}
