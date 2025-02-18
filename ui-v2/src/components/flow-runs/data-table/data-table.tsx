@@ -20,6 +20,7 @@ import { DeploymentCell } from "./deployment-cell";
 import { DurationCell } from "./duration-cell";
 import { NameCell } from "./name-cell";
 import { ParametersCell } from "./parameters-cell";
+import { StartTimeCell } from "./start-time-cell";
 
 export type FlowRunsDataTableRow = FlowRun & {
 	flow: Flow;
@@ -49,6 +50,11 @@ const createColumns = ({
 				}
 				return <StateBadge type={state.type} name={state.name} />;
 			},
+		}),
+		columnHelper.display({
+			id: "startTime",
+			header: "Start Time",
+			cell: ({ row }) => <StartTimeCell flowRun={row.original} />,
 		}),
 		columnHelper.accessor("parameters", {
 			id: "parameters",
