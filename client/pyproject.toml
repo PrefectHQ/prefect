@@ -84,9 +84,9 @@ method = { module = "write_build_info", value = "write_build_info", module-dir =
 path = "src/prefect/_build_info.py"
 
 [tool.versioningit.format]
-distance = "{base_version}+{distance}.{vcs}{rev}"
-dirty = "{base_version}+{distance}.{vcs}{rev}"
-distance-dirty = "{base_version}+{distance}.{vcs}{rev}"
+distance = "{base_version}"
+dirty = "{base_version}"
+distance-dirty = "{base_version}"
 
 [tool.hatch.build]
 artifacts = ["src/prefect/_build_info.py"]
