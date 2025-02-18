@@ -17,6 +17,7 @@ import { useMemo } from "react";
 
 import { Flow } from "@/api/flows";
 import { DeploymentCell } from "./deployment-cell";
+import { DurationCell } from "./duration-cell";
 import { NameCell } from "./name-cell";
 import { ParametersCell } from "./parameters-cell";
 
@@ -54,6 +55,18 @@ const createColumns = ({
 			header: "Parameters",
 			cell: ParametersCell,
 		}),
+		columnHelper.display({
+			id: "duration",
+			header: "Duration",
+			cell: ({ row }) => {
+				const flowRun = row.original;
+				if (flowRun.state?.type === "SCHEDULED") {
+					return null;
+				}
+				return <DurationCell flowRun={flowRun} />;
+			},
+		}),
+
 		columnHelper.accessor("tags", {
 			id: "tags",
 			header: "Tags",
