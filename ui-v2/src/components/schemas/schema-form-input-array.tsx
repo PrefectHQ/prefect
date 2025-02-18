@@ -1,8 +1,14 @@
-import { ArraySubtype, SchemaObject } from "openapi-typescript";
+import {
+	ArraySubtype,
+	ReferenceObject,
+	SchemaObject,
+} from "openapi-typescript";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
+import { useSchemaFormContext } from "./use-schema-form-context";
 import { asArray } from "./utilities/asType";
-import { isRecord, isReferenceObject } from "./utilities/guards";
+import { isItemsObject, isRecord, isReferenceObject } from "./utilities/guards";
+import { getSchemaDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
 type SchemaFormInputArrayProps = {
 	values: unknown[] | undefined;
@@ -19,20 +25,33 @@ export function SchemaFormInputArray({
 	errors,
 	id,
 }: SchemaFormInputArrayProps) {
-	if ("items" in property && property.items && isRecord(property.items)) {
-		if (isReferenceObject(property.items)) {
-			throw new Error("not implemented");
+	const { schema } = useSchemaFormContext();
+
+	function handleValuesChange(values: unknown[] | undefined) {
+		if (values === undefined || values.length === 0) {
+			onValuesChange(undefined);
+			return;
 		}
 
-		if (isWithPrimitiveEnum(property.items)) {
-			const merged = { ...property, ...property.items };
+		onValuesChange(values);
+	}
+
+	if (isItemsObject(property) && isRecord(property.items)) {
+		let items: SchemaObject | ReferenceObject = property.items;
+
+		if (isReferenceObject(items)) {
+			items = getSchemaDefinition(schema, items.$ref);
+		}
+
+		if (isWithPrimitiveEnum(items)) {
+			const merged = { ...property, ...items };
 
 			return (
 				<SchemaFormInputEnum
 					multiple={true}
 					values={asArray(values, "primitive")}
 					property={merged}
-					onValuesChange={onValuesChange}
+					onValuesChange={handleValuesChange}
 					errors={errors}
 					id={id}
 				/>

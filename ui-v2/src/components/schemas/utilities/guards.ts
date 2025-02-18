@@ -55,3 +55,11 @@ export function isAllOfObject(
 ): property is SchemaObject & { allOf: (SchemaObject | ReferenceObject)[] } {
 	return "allOf" in property && isDefined(property.allOf);
 }
+
+export function isItemsObject(
+	property: SchemaObject,
+): property is SchemaObject & {
+	items: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
+} {
+	return "items" in property && isDefined(property.items);
+}

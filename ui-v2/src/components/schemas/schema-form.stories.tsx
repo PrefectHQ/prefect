@@ -100,6 +100,13 @@ const schema: PrefectSchemaObject = {
 				enum: [true, false],
 			},
 		},
+		array_reference_enum: {
+			type: "array",
+			title: "Array of references",
+			items: {
+				$ref: "#/definitions/type",
+			},
+		},
 		object: {
 			type: "object",
 			title: "Object",
@@ -190,6 +197,11 @@ const schema: PrefectSchemaObject = {
 					title: "Name",
 				},
 			},
+		},
+		type: {
+			type: "string",
+			title: "Type",
+			enum: ["Type1", "Type2", "Type3"],
 		},
 	},
 	required: ["string_required"],
