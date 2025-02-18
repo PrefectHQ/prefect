@@ -58,10 +58,7 @@ export function SchemaFormInputAnyOf({
 			<SchemaFormProperty
 				value={value}
 				property={property.anyOf[selectedIndex]}
-				onValueChange={(value) => {
-					console.log("onValueChange", value);
-					onValueChange(value);
-				}}
+				onValueChange={onValueChange}
 				errors={errors}
 				showLabel={false}
 				// This form property is nested within the anyOf property, so hard coding required to false because the anyOf property itself is what can be required
