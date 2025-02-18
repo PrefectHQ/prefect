@@ -11,6 +11,11 @@ In Prefect Cloud, events power [audit logs](/v3/manage/cloud/manage-users/audit-
 Events enable observability into your data stack through the [event feed in the UI](#events-in-the-cloud-ui) and the 
 configuration of Prefect's reactivity through [automations](/v3/automate/events/automations-triggers/).
 
+import { COMBINED } from "/snippets/resource-management/combined.mdx"
+import { events } from "/snippets/resource-management/vars.mdx"
+
+<COMBINED name="events" hrefTF={events.tf} hrefAPI={events.api} hrefCLI={events.cli} />
+
 ## Event specification
 
 Events adhere to a structured [specification](https://app.prefect.cloud/api/docs#tag/Events).

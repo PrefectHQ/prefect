@@ -367,8 +367,10 @@ def run_inference(samples: Union[list[list[float]], None] = None) -> None:
 
 ## Provision cloud resources
 
+import { home } from "/snippets/resource-management/vars.mdx"
+
 This tutorial uses AWS S3 and EventBridge to store data and emit events, and Prefect webhooks and automations to trigger your flows.
-We'll use Terraform so you don't have to provision these resources manually.
+We'll use <a href={home.tf}>Terraform</a> so you don't have to provision these resources manually.
 
 Set the following environment variables:
 
