@@ -1,11 +1,11 @@
+import { SchemaObject } from "openapi-typescript";
 import { SchemaFormInput } from "./schema-form-input";
 import { PrefectKindNull } from "./types/prefect-kind-value";
-import { PrefectSchemaObject } from "./types/schemas";
 
 type SchemaFormInputPrefectKindNoneProps = {
 	value: PrefectKindNull;
 	onValueChange: (value: PrefectKindNull) => void;
-	property: PrefectSchemaObject;
+	property: SchemaObject;
 	errors: unknown;
 	id: string;
 };

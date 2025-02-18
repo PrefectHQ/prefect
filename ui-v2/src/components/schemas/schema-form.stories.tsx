@@ -107,6 +107,38 @@ const schema: PrefectSchemaObject = {
 				$ref: "#/definitions/type",
 			},
 		},
+		array_items: {
+			type: "array",
+			title: "Array of items",
+			items: {
+				type: "string",
+			},
+			minItems: 2,
+			maxItems: 4,
+		},
+		array_items_with_prefix: {
+			type: "array",
+			title: "Array of items with prefix",
+			prefixItems: [
+				{
+					type: "string",
+					title: "Prefix String",
+					enum: ["tag1", "tag2", "tag3"],
+				},
+				{
+					type: "boolean",
+					title: "Boolean",
+				},
+			],
+		},
+		array_items_with_any_of: {
+			type: "array",
+			title: "Array of items with anyOf",
+			//@ts-expect-error pydantic can create properties without a type
+			items: {
+				anyOf: [{ type: "string" }, { type: "number" }],
+			},
+		},
 		object: {
 			type: "object",
 			title: "Object",
@@ -139,8 +171,8 @@ const schema: PrefectSchemaObject = {
 			title: "Unknown Enum",
 			enum: ["foo", "bar", "baz"],
 		},
+		//@ts-expect-error pydantic can create properties without a type
 		any_of: {
-			type: "object",
 			title: "Any Of",
 			anyOf: [
 				{

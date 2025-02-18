@@ -3,6 +3,7 @@ import {
 	ReferenceObject,
 	SchemaObject,
 } from "openapi-typescript";
+import { SchemaFormInputArrayList } from "./schema-form-input-array-list";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { useSchemaFormContext } from "./use-schema-form-context";
@@ -59,6 +60,12 @@ export function SchemaFormInputArray({
 		}
 	}
 
-	// todo: properties of type "array" with no enum items
-	throw new Error("not implemented");
+	return (
+		<SchemaFormInputArrayList
+			property={property}
+			values={values}
+			onValuesChange={handleValuesChange}
+			errors={errors}
+		/>
+	);
 }

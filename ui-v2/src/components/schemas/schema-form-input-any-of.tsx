@@ -40,13 +40,14 @@ export function SchemaFormInputAnyOf({
 	}
 
 	return (
-		<>
+		<div className="grid grid-cols-1 gap-2">
 			<ToggleGroup
 				size="sm"
 				variant="outline"
 				type="single"
 				value={selectedIndex.toString()}
 				onValueChange={onSelectedIndexChange}
+				className="justify-start"
 			>
 				{property.anyOf.map((option, index) => (
 					<ToggleGroupItem key={index} value={index.toString()}>
@@ -64,6 +65,6 @@ export function SchemaFormInputAnyOf({
 				// This form property is nested within the anyOf property, so hard coding required to false because the anyOf property itself is what can be required
 				required={false}
 			/>
-		</>
+		</div>
 	);
 }

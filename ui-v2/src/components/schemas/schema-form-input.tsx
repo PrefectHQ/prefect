@@ -1,3 +1,4 @@
+import { SchemaObject } from "openapi-typescript";
 import { SchemaFormInputAllOf } from "./schema-form-input-all-of";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
@@ -11,7 +12,6 @@ import { SchemaFormInputPrefectKindNone } from "./schema-form-input-prefect-kind
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
-import { PrefectSchemaObject } from "./types/schemas";
 import { asArray, asObject, asType } from "./utilities/asType";
 import {
 	isAllOfObject,
@@ -23,7 +23,7 @@ export type SchemaFormInputProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
 	errors: unknown;
-	property: PrefectSchemaObject;
+	property: SchemaObject;
 	id: string;
 };
 
