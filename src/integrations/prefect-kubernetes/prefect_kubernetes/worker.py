@@ -1127,7 +1127,6 @@ class KubernetesWorker(BaseWorker):
             ):
                 pod: V1Pod = event["object"]
                 last_pod_name = pod.metadata.name
-                logger.info(f"Job {job_name!r}: Pod {last_pod_name!r} has started.")
                 phase = pod.status.phase
                 if phase != last_phase:
                     logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
