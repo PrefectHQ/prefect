@@ -34,26 +34,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.9.18"
+          python-version: "3.9"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
 
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
-
-      - name: Install packages
-        run: |
-          python -m pip install -U uv pre-commit
-          uv pip install --upgrade --system -e .[dev]
+      - name: Install the project
+        run: uv sync --compile-bytecode --no-editable
 
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -66,7 +55,7 @@ jobs:
 
       - name: Run pre-commit
         run: |
-          pre-commit run --show-diff-on-failure --color=always --all-files
+          uv run pre-commit run --show-diff-on-failure --color=always --all-files
 
   type-checks:
     name: Type Checks
@@ -82,25 +71,17 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-          cache-dependency-glob: "requirements**.txt"
+          cache-dependency-glob: "pyproject.toml"
+      
+      - name: Install the project
+        run: uv sync --compile-bytecode --no-editable
 
       - name: Run type completeness check
         run: >-
-          uv tool run
-          --with-editable .
-          --with-requirements requirements-otel.txt
-          --with-requirements requirements-dev.txt
-          pyright
-          --ignoreexternal
-          --verifytypes prefect
+          uv run pyright --ignoreexternal --verifytypes prefect
 
       - name: Run pyright check
         run: >-
-          uv tool run
-          --with-editable .
-          --with-requirements requirements-otel.txt
-          --with-requirements requirements-dev.txt
-          pyright
-          -p pyrightconfig-ci.json
+          uv run pyright -p pyrightconfig-ci.json
 
 
