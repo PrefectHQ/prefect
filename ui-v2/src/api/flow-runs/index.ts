@@ -9,6 +9,9 @@ import { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type FlowRun = components["schemas"]["FlowRun"];
+export type FlowRunWithFlow = FlowRun & {
+	flow: Flow;
+};
 export type FlowRunWithDeploymentAndFlow = FlowRun & {
 	deployment: Deployment;
 	flow: Flow;
