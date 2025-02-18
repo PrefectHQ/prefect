@@ -38,8 +38,6 @@ describe("CronScheduleForm", () => {
 		await user.click(screen.getByRole("combobox", { name: /interval/i }));
 		await user.click(screen.getByRole("option", { name: /hours/i }));
 
-		screen.logTestingPlaygroundURL();
-
 		await user.click(
 			screen.getByRole("combobox", { name: /select timezone/i }),
 		);

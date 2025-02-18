@@ -37,7 +37,7 @@ const stateBadgeVariants = cva("gap-1", {
 	},
 });
 
-type StateBadgeProps = {
+export type StateBadgeProps = {
 	type: components["schemas"]["StateType"];
 	name?: string | null;
 };
