@@ -64,6 +64,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.to_thread
 from cachetools import LRUCache
 from typing_extensions import Self
 
@@ -91,7 +92,12 @@ from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
+from prefect.flows import (
+    Flow,
+    FlowStateHook,
+    load_flow_from_entrypoint,
+    load_flow_from_flow_run,
+)
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
@@ -554,53 +560,73 @@ class Runner:
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
+        from prefect.flow_engine import run_flow_in_subprocess
+
         async with context:
             if not self._acquire_limit_slot(flow_run_id):
                 return
 
-            async with anyio.create_task_group() as tg:
-                with anyio.CancelScope():
-                    self._submitting_flow_run_ids.add(flow_run_id)
-                    flow_run = await self._client.read_flow_run(flow_run_id)
+            self._submitting_flow_run_ids.add(flow_run_id)
 
-                    pid = await self._runs_task_group.start(
-                        partial(
-                            self._submit_run_and_capture_errors,
-                            flow_run=flow_run,
-                            entrypoint=entrypoint,
-                        ),
+            # Load the flow to run
+            flow_run = await self._client.read_flow_run(flow_run_id)
+            if entrypoint:
+                flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+            else:
+                flow = await load_flow_from_flow_run(
+                    flow_run,
+                    storage_base_path=str(self._tmp_dir),
+                    use_placeholder_flow=False,
+                )
+
+            # Run the flow in a subprocess
+            process = run_flow_in_subprocess(flow=flow, flow_run=flow_run)
+
+            if process.pid is None:
+                raise RuntimeError(
+                    "Failed to start flow run execution. No PID was returned."
+                )
+
+            self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                pid=process.pid, flow_run=flow_run
+            )
+
+            tasks: list[asyncio.Task[Any]] = []
+
+            # Start the tasks that will monitor for cancellation
+            tasks.append(
+                asyncio.create_task(
+                    critical_service_loop(
+                        workload=self._check_for_cancelled_flow_runs,
+                        interval=self.query_seconds,
+                        jitter_range=0.30,
                     )
+                )
+            )
 
-                    self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=pid, flow_run=flow_run
-                    )
-
-                    # We want this loop to stop when the flow run process exits
-                    # so we'll check if the flow run process is still alive on
-                    # each iteration and cancel the task group if it is not.
-                    workload = partial(
-                        self._check_for_cancelled_flow_runs,
-                        should_stop=lambda: not self._flow_run_process_map,
-                        on_stop=tg.cancel_scope.cancel,
-                    )
-
-                    tg.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=workload,
-                            interval=self.query_seconds,
-                            jitter_range=0.3,
+            # Start the task that will emit heartbeats
+            if self.heartbeat_seconds is not None:
+                tasks.append(
+                    asyncio.create_task(
+                        critical_service_loop(
+                            workload=self._emit_flow_run_heartbeats,
+                            interval=self.heartbeat_seconds,
+                            jitter_range=0.30,
                         )
                     )
-                    if self.heartbeat_seconds is not None:
-                        tg.start_soon(
-                            partial(
-                                critical_service_loop,
-                                workload=self._emit_flow_run_heartbeats,
-                                interval=self.heartbeat_seconds,
-                                jitter_range=0.3,
-                            )
-                        )
+                )
+
+            # Wait for the process to exit
+            await anyio.to_thread.run_sync(
+                process.join,
+            )
+
+            # Cancel the tasks that are no longer needed
+            for task in tasks:
+                task.cancel()
+
+            # Wait for the tasks to complete
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def _get_flow_run_logger(self, flow_run: "FlowRun | FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
