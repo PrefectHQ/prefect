@@ -1,3 +1,4 @@
+import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
 import { SchemaFormInputBoolean } from "./schema-form-input-boolean";
 import { SchemaFormInputInteger } from "./schema-form-input-integer";
@@ -11,12 +12,14 @@ import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
 import { PrefectSchemaObject } from "./types/schemas";
 import { asArray, asObject, asType } from "./utilities/asType";
+import { isAnyOfObject, isOneOfObject } from "./utilities/guards";
 
 export type SchemaFormInputProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
 	errors: unknown;
 	property: PrefectSchemaObject;
+	id: string;
 };
 
 export function SchemaFormInput({
@@ -24,6 +27,7 @@ export function SchemaFormInput({
 	onValueChange,
 	property,
 	errors,
+	id,
 }: SchemaFormInputProps) {
 	if (isPrefectKindValue(value)) {
 		if (isPrefectKindValue(value, "json")) {
@@ -59,13 +63,54 @@ export function SchemaFormInput({
 		throw new Error("not implemented");
 	}
 
-	if ("anyOf" in property || "oneOf" in property) {
-		throw new Error("not implemented");
+	if (isAnyOfObject(property)) {
+		return (
+			<SchemaFormInputAnyOf
+				value={value}
+				property={property}
+				onValueChange={onValueChange}
+				errors={errors}
+			/>
+		);
+	}
+
+	// According to the spec, anyOf and oneOf are different. But pydantic always uses anyOf even when it should use oneOf. So we treat them the same.
+	// This block shouldn't ever be hit because we handle anyOf above. But this offers some typesafety and a fallback in case of future changes.
+	// https://swagger.io/docs/specification/v3_0/data-models/oneof-anyof-allof-not/
+	// https://github.com/pydantic/pydantic/issues/4125
+	if (isOneOfObject(property)) {
+		const propertyWithAnyOf = {
+			...property,
+			anyOf: property.oneOf,
+		};
+
+		return (
+			<SchemaFormInputAnyOf
+				value={value}
+				property={propertyWithAnyOf}
+				onValueChange={onValueChange}
+				errors={errors}
+			/>
+		);
 	}
 
 	// this is the same as an anyOf so we can convert it here and use the same logic component
 	if (Array.isArray(property.type)) {
-		throw new Error("not implemented");
+		const propertyWithAnyOf = {
+			...property,
+			anyOf: Object.values(property.type).map((type) => ({
+				type,
+			})),
+		};
+
+		return (
+			<SchemaFormInputAnyOf
+				value={value}
+				property={propertyWithAnyOf}
+				onValueChange={onValueChange}
+				errors={errors}
+			/>
+		);
 	}
 
 	if ("allOf" in property) {

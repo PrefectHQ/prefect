@@ -2,8 +2,6 @@ import { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useMemo } from "react";
 import { SchemaFormProperty } from "./schema-form-property";
 import { PrefectObjectSubtype } from "./types/schemas";
-import { useSchemaFormContext } from "./use-schema-form-context";
-import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 import { sortByPropertyPosition } from "./utilities/sortByPropertyPosition";
 
 export type SchemaFormInputObjectProps = {
@@ -19,8 +17,6 @@ export function SchemaFormInputObject({
 	property,
 	errors,
 }: SchemaFormInputObjectProps) {
-	const { schema } = useSchemaFormContext();
-
 	function onPropertyValueChange(key: string, value: unknown) {
 		onValuesChange({ ...values, [key]: value });
 	}
@@ -34,13 +30,10 @@ export function SchemaFormInputObject({
 	}
 
 	const properties = useMemo(() => {
-		return Object.entries(property.properties ?? {})
-			.sort(([, a], [, b]) => sortByPropertyPosition(a, b))
-			.map(
-				([key, property]) =>
-					[key, mergeSchemaPropertyDefinition(property, schema)] as const,
-			);
-	}, [property.properties, schema]);
+		return Object.entries(property.properties ?? {}).sort(([, a], [, b]) =>
+			sortByPropertyPosition(a, b),
+		);
+	}, [property.properties]);
 
 	return properties.map(([key, subProperty]) => {
 		return (

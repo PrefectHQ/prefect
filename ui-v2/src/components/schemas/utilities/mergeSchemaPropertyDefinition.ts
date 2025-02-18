@@ -4,7 +4,7 @@ import {
 	ReferenceObject,
 	SchemaObject,
 } from "openapi-typescript";
-import { isRecord } from "./guards";
+import { isRecord, isReferenceObject } from "./guards";
 
 type SchemaWithDefinitions = SchemaObject &
 	ObjectSubtype & {
@@ -39,7 +39,7 @@ export function mergeSchemaPropertyDefinition(
 	property: SchemaObject | ReferenceObject,
 	schema: SchemaObject & ObjectSubtype,
 ): SchemaObject {
-	if ("$ref" in property && typeof property.$ref === "string") {
+	if (isReferenceObject(property) && typeof property.$ref === "string") {
 		const { $ref, ...rest } = property;
 
 		return merge({}, getSchemaDefinition(schema, $ref), rest);

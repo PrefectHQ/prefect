@@ -1,49 +1,55 @@
-import { Label } from "@/components/ui/label";
-import { SchemaObject } from "openapi-typescript";
-import { useMemo } from "react";
+import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import { useId, useMemo } from "react";
 import { SchemaFormInput } from "./schema-form-input";
+import { SchemaFormPropertyDescription } from "./schema-form-property-description";
+import { SchemaFormPropertyLabel } from "./schema-form-property-label";
+import { useSchemaFormContext } from "./use-schema-form-context";
+import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
 export type SchemaFormPropertyProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
-	property: SchemaObject;
+	property: SchemaObject | ReferenceObject;
 	required: boolean;
 	errors: unknown;
+	showLabel?: boolean;
+	showDescription?: boolean;
 };
 
 export function SchemaFormProperty({
-	property,
+	property: propertyDefinition,
 	value,
 	onValueChange,
 	required,
 	errors,
+	showLabel = true,
+	showDescription = true,
 }: SchemaFormPropertyProps) {
-	const label = useMemo(() => {
-		const label = property.title ?? "Field";
+	const { schema } = useSchemaFormContext();
+	const id = useId();
 
-		if (required) {
-			return label;
-		}
-
-		return `${label} (Optional)`;
-	}, [property.title, required]);
-
-	const description = useMemo(() => {
-		return property.description?.replace(/\n(?!\n)/g, " ");
-	}, [property.description]);
+	const property = useMemo(() => {
+		return mergeSchemaPropertyDefinition(propertyDefinition, schema);
+	}, [propertyDefinition, schema]);
 
 	return (
 		<div className="flex flex-col gap-2">
-			<Label htmlFor={property.title}>{label}</Label>
+			{showLabel && (
+				<SchemaFormPropertyLabel
+					property={property}
+					required={required}
+					id={id}
+				/>
+			)}
 
-			{/* todo: add markdown support */}
-			{description && <p className="text-sm text-gray-500">{description}</p>}
+			{showDescription && <SchemaFormPropertyDescription property={property} />}
 
 			<SchemaFormInput
 				property={property}
 				value={value}
 				onValueChange={onValueChange}
 				errors={errors}
+				id={id}
 			/>
 		</div>
 	);

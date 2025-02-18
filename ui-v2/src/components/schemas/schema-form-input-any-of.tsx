@@ -1,0 +1,72 @@
+import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import { useRef, useState } from "react";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { SchemaFormProperty } from "./schema-form-property";
+import { useSchemaFormContext } from "./use-schema-form-context";
+import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
+import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
+
+export type SchemaFormInputAnyOfProps = {
+	value: unknown;
+	property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] };
+	onValueChange: (value: unknown) => void;
+	errors: unknown;
+};
+
+export function SchemaFormInputAnyOf({
+	value,
+	property,
+	onValueChange,
+	errors,
+}: SchemaFormInputAnyOfProps) {
+	const { schema } = useSchemaFormContext();
+	const [selectedIndex, setSelectedIndex] = useState(
+		getIndexForAnyOfPropertyValue({ value, property, schema }),
+	);
+	const values = useRef(new Map<number, unknown>());
+
+	function onSelectedIndexChange(newSelectedIndexValue: string) {
+		const newSelectedIndex = parseInt(newSelectedIndexValue);
+
+		if (isNaN(newSelectedIndex)) {
+			throw new Error(`Invalid index: ${newSelectedIndexValue}`);
+		}
+
+		values.current.set(selectedIndex, value);
+
+		setSelectedIndex(newSelectedIndex);
+
+		onValueChange(values.current.get(newSelectedIndex));
+	}
+
+	return (
+		<>
+			<ToggleGroup
+				size="sm"
+				variant="outline"
+				type="single"
+				value={selectedIndex.toString()}
+				onValueChange={onSelectedIndexChange}
+			>
+				{property.anyOf.map((option, index) => (
+					<ToggleGroupItem key={index} value={index.toString()}>
+						{getSchemaObjectLabel(option, schema)}
+					</ToggleGroupItem>
+				))}
+			</ToggleGroup>
+
+			<SchemaFormProperty
+				value={value}
+				property={property.anyOf[selectedIndex]}
+				onValueChange={(value) => {
+					console.log("onValueChange", value);
+					onValueChange(value);
+				}}
+				errors={errors}
+				showLabel={false}
+				// This form property is nested within the anyOf property, so hard coding required to false because the anyOf property itself is what can be required
+				required={false}
+			/>
+		</>
+	);
+}

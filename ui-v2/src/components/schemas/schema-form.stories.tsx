@@ -123,10 +123,42 @@ const schema: PrefectSchemaObject = {
 			type: "string",
 			title: "Prefect Kind None",
 		},
+		preject_kind_any_of: {
+			type: "object",
+			title: "Any Of",
+			anyOf: [
+				{
+					type: "string",
+					title: "String",
+				},
+				{
+					type: "number",
+					title: "Number",
+				},
+				{
+					type: "boolean",
+					title: "Boolean",
+				},
+				{
+					type: "object",
+					title: "Object",
+					required: ["foo"],
+					properties: {
+						foo: { type: "string", title: "Foo" },
+						bar: { type: "number", title: "Bar" },
+						baz: { type: "boolean", title: "Baz" },
+					},
+				},
+				{
+					$ref: "#/definitions/user",
+				},
+			],
+		},
 	},
 	definitions: {
 		user: {
 			type: "object",
+			title: "User",
 			properties: {
 				name: {
 					type: "string",
@@ -164,12 +196,13 @@ export const Default: StoryFn<typeof SchemaForm> = () => {
 			__prefect_kind: "none",
 			value: "hello",
 		},
+		preject_kind_any_of: { name: "Prefect" },
 	});
 
 	const errors = {};
 
 	return (
-		<div className="flex gap-4">
+		<div className="flex gap-4 p-16">
 			<SchemaForm
 				values={values}
 				schema={schema}

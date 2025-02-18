@@ -2,7 +2,7 @@ import { ArraySubtype, SchemaObject } from "openapi-typescript";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { asArray } from "./utilities/asType";
-import { isRecord } from "./utilities/guards";
+import { isRecord, isReferenceObject } from "./utilities/guards";
 
 type SchemaFormInputArrayProps = {
 	values: unknown[] | undefined;
@@ -18,7 +18,7 @@ export function SchemaFormInputArray({
 	errors,
 }: SchemaFormInputArrayProps) {
 	if ("items" in property && property.items && isRecord(property.items)) {
-		if ("$ref" in property.items) {
+		if (isReferenceObject(property.items)) {
 			throw new Error("not implemented");
 		}
 
