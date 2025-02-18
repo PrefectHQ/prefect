@@ -23,12 +23,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: "3.9"
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
+          cache-dependency-glob: "pyproject.toml"
 
       - uses: actions/setup-node@v4
         with:
@@ -37,8 +38,7 @@ jobs:
 
       - name: Install python packages
         run: |
-          python -m pip install --upgrade pip wheel
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          uv sync --only-dev
 
       - name: Build UI
         run: |
@@ -46,7 +46,7 @@ jobs:
 
       - name: Build a binary wheel and a source tarball
         run: |
-          python setup.py sdist bdist_wheel
+          uv build --sdist --wheel --out-dir dist
 
       - name: Publish build artifacts
         uses: actions/upload-artifact@v4
