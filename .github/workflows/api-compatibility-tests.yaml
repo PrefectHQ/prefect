@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Versioneer only generates correct versions with a full fetch
+          # Versioningit only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
           submodules: true
