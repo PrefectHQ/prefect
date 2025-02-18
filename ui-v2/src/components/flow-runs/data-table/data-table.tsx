@@ -18,6 +18,7 @@ import { useMemo } from "react";
 import { Flow } from "@/api/flows";
 import { DeploymentCell } from "./deployment-cell";
 import { NameCell } from "./name-cell";
+import { ParametersCell } from "./parameters-cell";
 
 export type FlowRunsDataTableRow = FlowRun & {
 	flow: Flow;
@@ -47,6 +48,11 @@ const createColumns = ({
 				}
 				return <StateBadge type={state.type} name={state.name} />;
 			},
+		}),
+		columnHelper.accessor("parameters", {
+			id: "parameters",
+			header: "Parameters",
+			cell: ParametersCell,
 		}),
 		columnHelper.accessor("tags", {
 			id: "tags",
