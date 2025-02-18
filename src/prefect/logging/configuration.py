@@ -36,10 +36,17 @@ def load_logging_config(path: Path) -> dict[str, Any]:
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        config = yaml.safe_load(
-            # Substitute settings into the template in format $SETTING / ${SETTING}
-            template.substitute(current_settings.to_environment_variables())
-        )
+        env = current_settings.to_environment_variables()
+        while True:
+            try:
+                config = yaml.safe_load(
+                    # Substitute settings into the template in format $SETTING / ${SETTING}
+                    template.substitute(env)
+                )
+                break
+            except KeyError as e:
+                old_key = str(e).replace("'", "")
+                env.update({old_key: getattr(current_settings, old_key)})
 
     # Load overrides from the environment
     flat_config = dict_to_flatdict(config)
