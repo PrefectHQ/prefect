@@ -74,7 +74,6 @@ from prefect.utilities.dispatch import get_registry_for_type
 
 from prefect.testing.cli import *
 from prefect.testing.fixtures import *
-from prefect.types._datetime import DateTime, now
 
 from .fixtures.api import *
 from .fixtures.client import *
