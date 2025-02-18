@@ -23,6 +23,10 @@ type JsonInputProps = React.ComponentProps<"div"> & {
 	copy?: boolean;
 };
 
+// the JsonInput's types for onChange are probably wrong but this makes it work
+export type JsonInputOnChange = React.FormEventHandler<HTMLDivElement> &
+	((value: string) => void);
+
 export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 	(
 		{
