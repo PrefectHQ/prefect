@@ -9,6 +9,7 @@ type SchemaFormInputArrayProps = {
 	onValuesChange: (values: unknown[] | undefined) => void;
 	property: SchemaObject & ArraySubtype;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputArray({
@@ -16,6 +17,7 @@ export function SchemaFormInputArray({
 	property,
 	onValuesChange,
 	errors,
+	id,
 }: SchemaFormInputArrayProps) {
 	if ("items" in property && property.items && isRecord(property.items)) {
 		if (isReferenceObject(property.items)) {
@@ -32,6 +34,7 @@ export function SchemaFormInputArray({
 					property={merged}
 					onValuesChange={onValuesChange}
 					errors={errors}
+					id={id}
 				/>
 			);
 		}

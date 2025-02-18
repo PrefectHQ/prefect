@@ -8,6 +8,7 @@ type SchemaFormInputNumberProps = {
 	onValueChange: (value: number | undefined) => void;
 	property: SchemaObject & NumberSubtype;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputNumber({
@@ -15,6 +16,7 @@ export function SchemaFormInputNumber({
 	onValueChange,
 	property,
 	errors,
+	id,
 }: SchemaFormInputNumberProps) {
 	if (isWithPrimitiveEnum(property)) {
 		return (
@@ -24,6 +26,7 @@ export function SchemaFormInputNumber({
 				property={property}
 				onValueChange={onValueChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -43,6 +46,7 @@ export function SchemaFormInputNumber({
 			max={property.maximum}
 			value={value ?? ""}
 			onChange={(e) => handleChange(e.target.value)}
+			id={id}
 		/>
 	);
 }

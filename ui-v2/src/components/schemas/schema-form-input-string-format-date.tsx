@@ -14,6 +14,7 @@ type SchemaFormInputStringFormatDateProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
 	errors: unknown;
+	id: string;
 };
 
 const dateFormat = "yyyy-MM-dd";
@@ -22,6 +23,7 @@ export function SchemaFormInputStringFormatDate({
 	value,
 	onValueChange,
 	errors,
+	id,
 }: SchemaFormInputStringFormatDateProps) {
 	const initialDate = value
 		? parse(value, dateFormat, startOfToday())
@@ -42,6 +44,7 @@ export function SchemaFormInputStringFormatDate({
 						"w-[280px] justify-start text-left font-normal",
 						!date && "text-muted-foreground",
 					)}
+					id={id}
 				>
 					<CalendarIcon className="mr-2 h-4 w-4" />
 					{date ? format(date, "PPP") : <span>Pick a date</span>}

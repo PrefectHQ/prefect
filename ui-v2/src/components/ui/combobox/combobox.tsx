@@ -35,10 +35,12 @@ const Combobox = ({ children }: { children: React.ReactNode }) => {
 const ComboboxTrigger = ({
 	"aria-label": ariaLabel,
 	selected = false,
+	id,
 	children,
 }: {
 	"aria-label"?: string;
 	selected?: boolean;
+	id?: string;
 	children: React.ReactNode;
 }) => {
 	const comboboxCtx = use(ComboboxContext);
@@ -58,6 +60,7 @@ const ComboboxTrigger = ({
 					"w-full justify-between",
 					selected && "text-muted-foreground",
 				)}
+				id={id}
 			>
 				{children}
 				<Icon id="ChevronsUpDown" className="h-4 w-4 opacity-50" />

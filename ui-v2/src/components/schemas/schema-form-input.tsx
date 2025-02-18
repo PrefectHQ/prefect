@@ -36,6 +36,7 @@ export function SchemaFormInput({
 					value={value}
 					onValueChange={onValueChange}
 					errors={errors}
+					id={id}
 				/>
 			);
 		}
@@ -51,6 +52,7 @@ export function SchemaFormInput({
 					onValueChange={onValueChange}
 					errors={errors}
 					property={property}
+					id={id}
 				/>
 			);
 		}
@@ -124,6 +126,7 @@ export function SchemaFormInput({
 				onValueChange={onValueChange}
 				property={property}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -135,6 +138,7 @@ export function SchemaFormInput({
 				onValueChange={onValueChange}
 				property={property}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -146,6 +150,7 @@ export function SchemaFormInput({
 				onValueChange={onValueChange}
 				property={property}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -157,6 +162,7 @@ export function SchemaFormInput({
 				onValueChange={onValueChange}
 				property={property}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -179,6 +185,7 @@ export function SchemaFormInput({
 				property={property}
 				onValuesChange={onValueChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -201,6 +208,7 @@ export function SchemaFormInput({
 				onValueChange={onValueChange}
 				property={property}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}

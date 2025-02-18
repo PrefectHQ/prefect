@@ -16,12 +16,14 @@ type SchemaFormInputStringFormatDateTimeProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputStringFormatDateTime({
 	value,
 	onValueChange,
 	errors,
+	id,
 }: SchemaFormInputStringFormatDateTimeProps) {
 	const initialDate = value ? parseISO(value) : undefined;
 	const [date, setDate] = useState<Date | undefined>(initialDate);
@@ -65,6 +67,7 @@ export function SchemaFormInputStringFormatDateTime({
 						"w-full justify-start text-left font-normal",
 						!date && "text-muted-foreground",
 					)}
+					id={id}
 				>
 					<CalendarIcon className="mr-2 h-4 w-4" />
 					{date ? (

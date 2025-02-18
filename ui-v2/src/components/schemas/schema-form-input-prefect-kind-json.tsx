@@ -5,12 +5,14 @@ type SchemaFormInputPrefectKindJsonProps = {
 	value: PrefectKindJson;
 	onValueChange: (value: PrefectKindJson) => void;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputPrefectKindJson({
 	value,
 	onValueChange,
 	errors,
+	id,
 }: SchemaFormInputPrefectKindJsonProps) {
 	const onChange: JsonInputOnChange = (value) => {
 		if (typeof value === "string" || value === undefined) {
@@ -21,5 +23,5 @@ export function SchemaFormInputPrefectKindJson({
 		}
 	};
 
-	return <JsonInput value={value.value} onChange={onChange} />;
+	return <JsonInput value={value.value} onChange={onChange} id={id} />;
 }

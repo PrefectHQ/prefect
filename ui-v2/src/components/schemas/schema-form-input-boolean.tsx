@@ -10,6 +10,7 @@ type SchemaFormInputBooleanProps = {
 	onValueChange: (value: boolean | undefined) => void;
 	property: SchemaObject & BooleanSubtype;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputBoolean({
@@ -17,6 +18,7 @@ export function SchemaFormInputBoolean({
 	onValueChange,
 	property,
 	errors,
+	id,
 }: SchemaFormInputBooleanProps) {
 	function onCheckedChange(checked: CheckedState) {
 		onValueChange(asType(checked, Boolean));
@@ -30,9 +32,10 @@ export function SchemaFormInputBoolean({
 				property={property}
 				onValueChange={onValueChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
 
-	return <Checkbox checked={value} onCheckedChange={onCheckedChange} />;
+	return <Checkbox checked={value} onCheckedChange={onCheckedChange} id={id} />;
 }

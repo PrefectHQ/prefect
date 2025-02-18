@@ -7,6 +7,7 @@ type SchemaFormInputPrefectKindNoneProps = {
 	onValueChange: (value: PrefectKindNull) => void;
 	property: PrefectSchemaObject;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputPrefectKindNone({
@@ -14,6 +15,7 @@ export function SchemaFormInputPrefectKindNone({
 	onValueChange,
 	property,
 	errors,
+	id,
 }: SchemaFormInputPrefectKindNoneProps) {
 	const onChange = (value: unknown) => {
 		onValueChange({
@@ -28,6 +30,7 @@ export function SchemaFormInputPrefectKindNone({
 			onValueChange={onChange}
 			errors={errors}
 			property={property}
+			id={id}
 		/>
 	);
 }

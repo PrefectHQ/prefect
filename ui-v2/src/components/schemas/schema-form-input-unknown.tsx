@@ -8,6 +8,7 @@ export type SchemaFormInputUnknownProps = {
 	onValueChange: (value: unknown) => void;
 	property: SchemaObject & { type: undefined };
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputUnknown({
@@ -15,6 +16,7 @@ export function SchemaFormInputUnknown({
 	onValueChange,
 	property,
 	errors,
+	id,
 }: SchemaFormInputUnknownProps) {
 	if (isWithPrimitiveEnum(property)) {
 		return (
@@ -24,6 +26,7 @@ export function SchemaFormInputUnknown({
 				property={property}
 				onValueChange={onValueChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}

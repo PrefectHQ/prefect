@@ -11,6 +11,7 @@ export type SchemaFormInputStringProps = {
 	onValueChange: (value: string | undefined) => void;
 	property: SchemaObject & StringSubtype;
 	errors: unknown;
+	id: string;
 };
 
 export function SchemaFormInputString({
@@ -18,6 +19,7 @@ export function SchemaFormInputString({
 	onValueChange,
 	errors,
 	property,
+	id,
 }: SchemaFormInputStringProps) {
 	function handleChange(value: string | undefined) {
 		onValueChange(value || undefined);
@@ -31,6 +33,7 @@ export function SchemaFormInputString({
 				property={property}
 				onValueChange={handleChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -41,6 +44,7 @@ export function SchemaFormInputString({
 				value={value}
 				onValueChange={handleChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -51,6 +55,7 @@ export function SchemaFormInputString({
 				value={value}
 				onValueChange={handleChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -61,6 +66,7 @@ export function SchemaFormInputString({
 				value={value}
 				onValueChange={handleChange}
 				errors={errors}
+				id={id}
 			/>
 		);
 	}
@@ -71,6 +77,7 @@ export function SchemaFormInputString({
 			rows={1}
 			className="min-h-min"
 			onChange={(e) => handleChange(e.target.value)}
+			id={id}
 		/>
 	);
 }

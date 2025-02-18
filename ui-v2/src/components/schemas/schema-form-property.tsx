@@ -13,7 +13,6 @@ export type SchemaFormPropertyProps = {
 	required: boolean;
 	errors: unknown;
 	showLabel?: boolean;
-	showDescription?: boolean;
 };
 
 export function SchemaFormProperty({
@@ -23,7 +22,6 @@ export function SchemaFormProperty({
 	required,
 	errors,
 	showLabel = true,
-	showDescription = true,
 }: SchemaFormPropertyProps) {
 	const { schema } = useSchemaFormContext();
 	const id = useId();
@@ -42,7 +40,7 @@ export function SchemaFormProperty({
 				/>
 			)}
 
-			{showDescription && <SchemaFormPropertyDescription property={property} />}
+			<SchemaFormPropertyDescription property={property} />
 
 			<SchemaFormInput
 				property={property}
