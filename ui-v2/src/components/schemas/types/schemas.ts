@@ -1,4 +1,4 @@
-import { SchemaObject } from "openapi-typescript";
+import { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { PrimitivePropertyType, isPrimitivePropertyType } from "./primitives";
 
 export type WithPosition = {
@@ -22,6 +22,7 @@ export type WithDefinitions = {
 };
 
 export type PrefectSchemaObject = SchemaObject &
+	ObjectSubtype &
 	WithBlockDocumentSlug &
 	WithDefinitions;
 

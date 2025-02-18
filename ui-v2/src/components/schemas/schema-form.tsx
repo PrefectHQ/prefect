@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
 	SchemaFormInputObject,
 	SchemaFormInputObjectProps,
@@ -7,22 +8,41 @@ import { SchemaFormContext } from "./use-schema-form-context";
 
 export type SchemaFormProps = SchemaFormContext & {
 	errors: unknown;
-	values: Record<string, unknown> | undefined;
+	values: Record<string, unknown>;
 	onValuesChange: (values: Record<string, unknown>) => void;
 };
 
-export const SchemaForm = (props: SchemaFormProps) => {
+export const SchemaForm = ({
+	schema,
+	kinds,
+	skipDefaultValueInitialization,
+	values,
+	onValuesChange,
+	errors,
+}: SchemaFormProps) => {
 	const context: SchemaFormContext = {
-		schema: props.schema,
-		kinds: props.kinds,
-		skipDefaultValueInitialization: props.skipDefaultValueInitialization,
+		schema,
+		kinds,
+		skipDefaultValueInitialization,
 	};
 
+	const handleValuesChange = useCallback(
+		(values: Record<string, unknown> | undefined) => {
+			if (values === undefined) {
+				onValuesChange({});
+				return;
+			}
+
+			onValuesChange(values);
+		},
+		[onValuesChange],
+	);
+
 	const properties: SchemaFormInputObjectProps = {
-		values: props.values,
-		property: props.schema,
-		onValuesChange: props.onValuesChange,
-		errors: props.errors,
+		values,
+		property: schema,
+		onValuesChange: handleValuesChange,
+		errors,
 	};
 
 	return (

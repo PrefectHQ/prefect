@@ -1,9 +1,9 @@
-import { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { createContext, useContext } from "react";
 import { PrefectKind } from "./types/prefect-kind";
+import { PrefectSchemaObject } from "./types/schemas";
 
 export type SchemaFormContext = {
-	schema: SchemaObject & ObjectSubtype;
+	schema: PrefectSchemaObject;
 	kinds: PrefectKind[];
 	skipDefaultValueInitialization?: boolean;
 };

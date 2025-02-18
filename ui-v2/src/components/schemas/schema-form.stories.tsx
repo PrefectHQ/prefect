@@ -213,7 +213,7 @@ const meta = {
 	title: "Components/SchemaForm",
 	component: SchemaForm,
 	parameters: {
-		layout: "centered",
+		layout: "fullscreen",
 	},
 } satisfies Meta<typeof SchemaForm>;
 
@@ -239,7 +239,7 @@ export const Default: StoryFn<typeof SchemaForm> = () => {
 	const errors = {};
 
 	return (
-		<div className="flex gap-4 p-16">
+		<div className="grid grid-cols-2 gap-4 p-16 w-full">
 			<SchemaForm
 				values={values}
 				schema={schema}
