@@ -31,6 +31,7 @@ export function SchemaFormInputUnknown({
 		);
 	}
 
-	// need to convert to a prefect-kind json automatically
-	throw new Error("Schema type not implemented");
+	onValueChange({
+		__prefect_kind: "json",
+	});
 }

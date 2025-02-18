@@ -123,7 +123,16 @@ const schema: PrefectSchemaObject = {
 			type: "string",
 			title: "Prefect Kind None",
 		},
-		preject_kind_any_of: {
+		//@ts-expect-error pydantic can create properties without a type
+		unknown: {
+			title: "Unknown",
+		},
+		//@ts-expect-error pydantic can create properties without a type
+		unknown_enum: {
+			title: "Unknown Enum",
+			enum: ["foo", "bar", "baz"],
+		},
+		any_of: {
 			type: "object",
 			title: "Any Of",
 			anyOf: [
@@ -196,7 +205,7 @@ export const Default: StoryFn<typeof SchemaForm> = () => {
 			__prefect_kind: "none",
 			value: "hello",
 		},
-		preject_kind_any_of: { name: "Prefect" },
+		any_of: { name: "Prefect" },
 	});
 
 	const errors = {};
