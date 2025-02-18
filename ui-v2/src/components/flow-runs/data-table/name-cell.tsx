@@ -1,17 +1,14 @@
 import {
-	type FlowRunWithDeploymentAndFlow,
-	type FlowRunWithFlow,
-} from "@/api/flow-runs";
-import {
 	Breadcrumb,
 	BreadcrumbItem,
 	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import type { FlowRunsDataTableRow } from "./data-table";
 
 type NameCellProps = {
-	flowRun: FlowRunWithDeploymentAndFlow | FlowRunWithFlow;
+	flowRun: FlowRunsDataTableRow;
 };
 
 export const NameCell = ({ flowRun }: NameCellProps) => {

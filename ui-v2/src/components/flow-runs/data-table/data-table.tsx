@@ -1,5 +1,6 @@
 import type { Deployment } from "@/api/deployments";
 import {
+	FlowRun,
 	type FlowRunWithDeploymentAndFlow,
 	type FlowRunWithFlow,
 } from "@/api/flow-runs";
@@ -14,12 +15,16 @@ import {
 } from "@tanstack/react-table";
 import { useMemo } from "react";
 
+import { Flow } from "@/api/flows";
 import { DeploymentCell } from "./deployment-cell";
 import { NameCell } from "./name-cell";
 
-const columnHelper = createColumnHelper<
-	FlowRunWithDeploymentAndFlow | FlowRunWithFlow
->();
+export type FlowRunsDataTableRow = FlowRun & {
+	flow: Flow;
+	deployment?: Deployment;
+};
+
+const columnHelper = createColumnHelper<FlowRunsDataTableRow>();
 
 const createColumns = ({
 	showDeployment,
@@ -53,11 +58,14 @@ const createColumns = ({
 	];
 	if (showDeployment) {
 		ret.push(
-			columnHelper.accessor("deployment", {
+			columnHelper.display({
 				id: "deployment",
 				header: "Deployment",
-				cell: (props) => {
-					const deployment = props.getValue() as Deployment;
+				cell: ({ row }) => {
+					const { deployment } = row.original;
+					if (!deployment) {
+						return null;
+					}
 					return <DeploymentCell deployment={deployment} />;
 				},
 			}),
