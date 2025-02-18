@@ -1,16 +1,20 @@
 import sys
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import pendulum
 import pytest
 from typer import Exit
 
 from prefect.server import models, schemas
 from prefect.testing.cli import invoke_and_assert
+from prefect.types._datetime import create_datetime_instance, human_friendly_diff
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture(autouse=True)
-def interactive_console(monkeypatch):
+def interactive_console(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect.cli.artifact.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
@@ -29,7 +33,7 @@ def interactive_console(monkeypatch):
 
 
 @pytest.fixture
-async def artifact(session):
+async def artifact(session: "AsyncSession"):
     artifact_schema = schemas.core.Artifact(
         key="voltaic", data={"a": 1}, type="table", description="opens many doors"
     )
@@ -45,7 +49,7 @@ async def artifact(session):
 
 
 @pytest.fixture
-async def artifact_null_field(session):
+async def artifact_null_field(session: "AsyncSession"):
     artifact_schema = schemas.core.Artifact(
         key="voltaic", data=1, metadata_={"description": "opens many doors"}
     )
@@ -61,7 +65,7 @@ async def artifact_null_field(session):
 
 
 @pytest.fixture
-async def artifacts(session):
+async def artifacts(session: "AsyncSession"):
     model1 = await models.artifacts.create_artifact(
         session=session,
         artifact=schemas.core.Artifact(
@@ -98,37 +102,47 @@ def test_listing_artifacts_when_none_exist():
     )
 
 
-def test_listing_artifacts_after_creating_artifacts(artifact):
+def test_listing_artifacts_after_creating_artifacts(
+    artifact: models.artifacts.Artifact,
+):
+    assert artifact.id is not None, "artifact id should not be None"
+    assert artifact.key is not None, "artifact key should not be None"
+    assert artifact.updated is not None, "artifact updated should not be None"
+
     invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=f"""
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
             ┃                                   ID ┃ Key     ┃ Type  ┃ Updated           ┃
             ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-            │ {artifact.id} │ {artifact.key} │ {artifact.type} │ {pendulum.instance(artifact.updated).diff_for_humans()} │
+            │ {artifact.id} │ {artifact.key} │ {artifact.type} │ {human_friendly_diff(create_datetime_instance(artifact.updated))} │
             └──────────────────────────────────────┴─────────┴───────┴───────────────────┘
             """,
     )
 
 
 def test_listing_artifacts_after_creating_artifacts_with_null_fields(
-    artifact_null_field,
+    artifact_null_field: models.artifacts.Artifact,
 ):
     artifact = artifact_null_field
+    assert artifact.id is not None, "artifact id should not be None"
+    assert artifact.key is not None, "artifact key should not be None"
+    assert artifact.updated is not None, "artifact updated should not be None"
+
     invoke_and_assert(
         ["artifact", "ls"],
         expected_output_contains=f"""
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
             ┃                                   ID ┃ Key     ┃ Type ┃ Updated           ┃
             ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-            │ {artifact.id} │ {artifact.key} │      │ {pendulum.instance(artifact.updated).diff_for_humans()} │
+            │ {artifact.id} │ {artifact.key} │      │ {human_friendly_diff(create_datetime_instance(artifact.updated))} │
             └──────────────────────────────────────┴─────────┴──────┴───────────────────┘
             """,
     )
 
 
 def test_listing_artifacts_with_limit(
-    artifacts,
+    artifacts: list[models.artifacts.Artifact],
 ):
     expected_output = artifacts[2].key
     invoke_and_assert(
@@ -138,7 +152,9 @@ def test_listing_artifacts_with_limit(
     )
 
 
-def test_listing_artifacts_lists_only_latest_versions(artifacts):
+def test_listing_artifacts_lists_only_latest_versions(
+    artifacts: list[models.artifacts.Artifact],
+):
     expected_output = (
         f"{artifacts[2].id}",
         f"{artifacts[1].id}",
@@ -152,7 +168,9 @@ def test_listing_artifacts_lists_only_latest_versions(artifacts):
     )
 
 
-def test_listing_artifacts_with_all_set_to_true(artifacts):
+def test_listing_artifacts_with_all_set_to_true(
+    artifacts: list[models.artifacts.Artifact],
+):
     expected_output = (
         f"{artifacts[0].id}",
         f"{artifacts[1].id}",
@@ -166,7 +184,9 @@ def test_listing_artifacts_with_all_set_to_true(artifacts):
     )
 
 
-def test_listing_artifacts_with_all_set_to_false(artifacts):
+def test_listing_artifacts_with_all_set_to_false(
+    artifacts: list[models.artifacts.Artifact],
+):
     expected_output = (
         f"{artifacts[2].id}",
         f"{artifacts[1].id}",
@@ -180,7 +200,9 @@ def test_listing_artifacts_with_all_set_to_false(artifacts):
     )
 
 
-def test_inspecting_artifact_succeeds(artifacts):
+def test_inspecting_artifact_succeeds(
+    artifacts: list[models.artifacts.Artifact],
+):
     """
     We expect to see all versions of the artifact.
     """
@@ -213,7 +235,9 @@ def test_inspecting_artifact_nonexistent_key_raises():
     )
 
 
-def test_inspecting_artifact_with_limit(artifacts):
+def test_inspecting_artifact_with_limit(
+    artifacts: list[models.artifacts.Artifact],
+):
     expected_output = (
         f"{artifacts[1].key}",
         f"{artifacts[1].data}",
@@ -226,7 +250,9 @@ def test_inspecting_artifact_with_limit(artifacts):
     )
 
 
-def test_deleting_artifact_by_key_succeeds(artifacts):
+def test_deleting_artifact_by_key_succeeds(
+    artifacts: list[models.artifacts.Artifact],
+):
     invoke_and_assert(
         ["artifact", "delete", str(artifacts[0].key)],
         prompts_and_responses=[
@@ -247,7 +273,9 @@ def test_deleting_artifact_nonexistent_key_raises():
     )
 
 
-def test_deleting_artifact_by_key_without_confimation_aborts(artifacts):
+def test_deleting_artifact_by_key_without_confimation_aborts(
+    artifacts: list[models.artifacts.Artifact],
+):
     invoke_and_assert(
         ["artifact", "delete", str(artifacts[0].key)],
         user_input="n",
@@ -256,7 +284,9 @@ def test_deleting_artifact_by_key_without_confimation_aborts(artifacts):
     )
 
 
-def test_deleting_artifact_by_id_succeeds(artifacts):
+def test_deleting_artifact_by_id_succeeds(
+    artifacts: list[models.artifacts.Artifact],
+):
     invoke_and_assert(
         ["artifact", "delete", "--id", str(artifacts[0].id)],
         user_input="y",
@@ -275,7 +305,9 @@ def test_deleting_artifact_nonexistent_id_raises():
     )
 
 
-def test_deleting_artifact_by_id_without_confimation_aborts(artifacts):
+def test_deleting_artifact_by_id_without_confimation_aborts(
+    artifacts: list[models.artifacts.Artifact],
+):
     invoke_and_assert(
         ["artifact", "delete", "--id", str(artifacts[0].id)],
         user_input="n",
@@ -284,9 +316,13 @@ def test_deleting_artifact_by_id_without_confimation_aborts(artifacts):
     )
 
 
-def test_deleting_artifact_with_key_and_id_raises(artifacts):
+def test_deleting_artifact_with_key_and_id_raises(
+    artifacts: list[models.artifacts.Artifact],
+):
+    assert artifacts[1].key is not None, "artifact key should not be None"
+    assert artifacts[1].id is not None, "artifact id should not be None"
     invoke_and_assert(
-        ["artifact", "delete", artifacts[1].key, "--id", artifacts[1].id],
+        ["artifact", "delete", artifacts[1].key, "--id", str(artifacts[1].id)],
         expected_output_contains=(
             "Please provide either a key or an artifact_id but not both."
         ),
@@ -294,7 +330,9 @@ def test_deleting_artifact_with_key_and_id_raises(artifacts):
     )
 
 
-def test_deleting_artifact_without_key_or_id_raises(artifacts):
+def test_deleting_artifact_without_key_or_id_raises(
+    artifacts: list[models.artifacts.Artifact],
+):
     invoke_and_assert(
         ["artifact", "delete"],
         expected_output_contains="Please provide a key or an artifact_id.",

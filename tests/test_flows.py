@@ -13,12 +13,11 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Optional
+from typing import Any, List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
-import pendulum
 import pydantic
 import pytest
 import regex as re
@@ -87,6 +86,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import get_transaction, transaction
+from prefect.types._datetime import DateTime, Timezone
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -103,7 +103,7 @@ def mock_sigterm_handler():
         pytest.skip("Can't test signal handlers from a thread")
     mock = MagicMock()
 
-    def handler(*args, **kwargs):
+    def handler(*args: Any, **kwargs: Any):
         mock(*args, **kwargs)
 
     prev_handler = signal.signal(signal.SIGTERM, handler)
@@ -5555,14 +5555,14 @@ class TestSafeLoadFlowFromEntrypoint:
     def test_annotations_and_defaults_rely_on_imports(self, tmp_path: Path):
         source_code = dedent(
             """
-        import pendulum
         import datetime
         from prefect import flow
+        from prefect.types import DateTime
 
         @flow
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = DateTime(2025, 1, 1),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             return x, y, z
@@ -5573,7 +5573,7 @@ class TestSafeLoadFlowFromEntrypoint:
         assert result is not None
         assert result(datetime.datetime(2025, 1, 1)) == (
             datetime.datetime(2025, 1, 1),
-            pendulum.datetime(2025, 1, 1),
+            DateTime(2025, 1, 1, tzinfo=Timezone("UTC")),
             datetime.timedelta(seconds=5),
         )
 

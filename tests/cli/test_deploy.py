@@ -9,11 +9,10 @@ import sys
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 import readchar
 import yaml
@@ -58,14 +57,18 @@ from prefect.settings import (
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import parse_datetime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
+
+if TYPE_CHECKING:
+    from prefect.server.schemas.core import BlockDocument
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture
-def interactive_console(monkeypatch):
+def interactive_console(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect.cli.deploy.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
@@ -84,8 +87,8 @@ def interactive_console(monkeypatch):
 
 
 @pytest.fixture
-def project_dir(tmp_path):
-    with tmpchdir(tmp_path):
+def project_dir(tmp_path: Path):
+    with tmpchdir(str(tmp_path)):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
         prefect_home = tmp_path / ".prefect"
         prefect_home.mkdir(exist_ok=True, mode=0o0700)
@@ -94,8 +97,8 @@ def project_dir(tmp_path):
 
 
 @pytest.fixture
-def project_dir_with_single_deployment_format(tmp_path):
-    with tmpchdir(tmp_path):
+def project_dir_with_single_deployment_format(tmp_path: Path):
+    with tmpchdir(str(tmp_path)):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
         prefect_home = tmp_path / ".prefect"
         prefect_home.mkdir(exist_ok=True, mode=0o0700)
@@ -113,13 +116,13 @@ def project_dir_with_single_deployment_format(tmp_path):
 
 
 @pytest.fixture
-def uninitialized_project_dir(project_dir):
+def uninitialized_project_dir(project_dir: Path):
     Path(project_dir, "prefect.yaml").unlink()
     return project_dir
 
 
 @pytest.fixture
-def uninitialized_project_dir_with_git_no_remote(uninitialized_project_dir):
+def uninitialized_project_dir_with_git_no_remote(uninitialized_project_dir: Path):
     subprocess.run(["git", "init"], cwd=uninitialized_project_dir)
     assert Path(uninitialized_project_dir, ".git").exists()
     return uninitialized_project_dir
@@ -127,7 +130,7 @@ def uninitialized_project_dir_with_git_no_remote(uninitialized_project_dir):
 
 @pytest.fixture
 def uninitialized_project_dir_with_git_with_remote(
-    uninitialized_project_dir_with_git_no_remote,
+    uninitialized_project_dir_with_git_no_remote: Path,
 ):
     subprocess.run(
         ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
@@ -137,7 +140,7 @@ def uninitialized_project_dir_with_git_with_remote(
 
 
 @pytest.fixture
-async def default_agent_pool(prefect_client):
+async def default_agent_pool(prefect_client: PrefectClient) -> WorkPool:
     try:
         return await prefect_client.create_work_pool(
             WorkPoolCreate(name="default-agent-pool", type="prefect-agent")
@@ -169,9 +172,9 @@ async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
 
 
 @pytest.fixture
-async def mock_prompt(monkeypatch):
+async def mock_prompt(monkeypatch: pytest.MonkeyPatch):
     # Mock prompts() where password=True to prevent hanging
-    def new_prompt(message, password=False, **kwargs):
+    def new_prompt(message: str, password: bool = False, **kwargs: Any) -> str:
         if password:
             return "456"
         else:
@@ -182,8 +185,8 @@ async def mock_prompt(monkeypatch):
 
 
 @pytest.fixture
-def mock_provide_password(monkeypatch):
-    def new_prompt(message, password=False, **kwargs):
+def mock_provide_password(monkeypatch: pytest.MonkeyPatch):
+    def new_prompt(message: str, password: bool = False, **kwargs: Any) -> str:
         if password:
             return "my-token"
         else:
@@ -194,7 +197,7 @@ def mock_provide_password(monkeypatch):
 
 
 @pytest.fixture
-def mock_build_docker_image(monkeypatch):
+def mock_build_docker_image(monkeypatch: pytest.MonkeyPatch):
     mock_build = mock.MagicMock()
     mock_build.return_value = {"build-image": {"image": "{{ build-image.image }}"}}
 
@@ -211,7 +214,7 @@ def mock_build_docker_image(monkeypatch):
 
 
 @pytest.fixture
-async def aws_credentials(prefect_client):
+async def aws_credentials(prefect_client: PrefectClient) -> "BlockDocument":
     aws_credentials_type = await prefect_client.create_block_type(
         block_type=BlockTypeCreate(
             name="AWS Credentials",
@@ -256,7 +259,7 @@ class TestProjectDeploy:
 
     @pytest.fixture
     def uninitialized_project_dir_with_git_with_remote(
-        self, uninitialized_project_dir_with_git_no_remote
+        self, uninitialized_project_dir_with_git_no_remote: Path
     ):
         subprocess.run(
             ["git", "remote", "add", "origin", "https://example.com/org/repo.git"],
@@ -264,7 +267,9 @@ class TestProjectDeploy:
         )
         return uninitialized_project_dir_with_git_no_remote
 
-    async def test_project_deploy(self, project_dir, prefect_client: PrefectClient):
+    async def test_project_deploy(
+        self, project_dir: Path, prefect_client: PrefectClient
+    ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
@@ -310,7 +315,11 @@ class TestProjectDeploy:
         assert not deployment.enforce_parameter_schema
 
     async def test_deploy_with_active_workers(
-        self, project_dir, work_pool, prefect_client, monkeypatch
+        self,
+        project_dir: Path,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         mock_read_workers_for_work_pool = AsyncMock(
             return_value=[
@@ -337,7 +346,7 @@ class TestProjectDeploy:
         )
 
     async def test_deploy_with_wrapped_flow_decorator(
-        self, project_dir, work_pool, prefect_client
+        self, project_dir: Path, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -359,7 +368,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == work_pool.name
 
     async def test_deploy_with_missing_imports(
-        self, project_dir, work_pool, prefect_client
+        self, project_dir: Path, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -381,7 +390,7 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == work_pool.name
 
     async def test_project_deploy_with_default_work_pool(
-        self, project_dir, prefect_client
+        self, project_dir: Path, prefect_client: PrefectClient
     ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -411,7 +420,7 @@ class TestProjectDeploy:
         assert deployment.enforce_parameter_schema
 
     async def test_project_deploy_with_no_deployment_file(
-        self, project_dir, prefect_client: PrefectClient
+        self, project_dir: Path, prefect_client: PrefectClient
     ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -436,7 +445,9 @@ class TestProjectDeploy:
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema is True
 
-    async def test_project_deploy_with_no_prefect_yaml(self, project_dir, work_pool):
+    async def test_project_deploy_with_no_prefect_yaml(
+        self, project_dir: Path, work_pool: WorkPool
+    ):
         Path(project_dir, "prefect.yaml").unlink()
 
         await run_sync_in_worker_thread(
@@ -453,8 +464,11 @@ class TestProjectDeploy:
             ],
         )
 
+    @pytest.mark.usefixtures("interactive_console")
     async def test_deploy_does_not_prompt_storage_when_pull_step_exists(
-        self, project_dir, work_pool, interactive_console
+        self,
+        project_dir: Path,
+        work_pool: WorkPool,
     ):
         # write a pull step to the prefect.yaml
         with open("prefect.yaml", "r") as f:
@@ -506,11 +520,11 @@ class TestProjectDeploy:
     @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
     async def test_deploy_with_concurrency_limit_and_options(
         self,
-        project_dir,
+        project_dir: Path,
         prefect_client: PrefectClient,
-        cli_options,
-        expected_limit,
-        expected_strategy,
+        cli_options: str,
+        expected_limit: Optional[int],
+        expected_strategy: Optional[str],
     ):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
@@ -577,7 +591,10 @@ class TestProjectDeploy:
 
     class TestGeneratedPullAction:
         async def test_project_deploy_generates_pull_action(
-            self, work_pool, prefect_client, uninitialized_project_dir
+            self,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+            uninitialized_project_dir: Path,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -601,9 +618,9 @@ class TestProjectDeploy:
 
         async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
             self,
-            work_pool,
-            prefect_client,
-            uninitialized_project_dir_with_git_no_remote,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+            uninitialized_project_dir_with_git_no_remote: Path,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -629,9 +646,9 @@ class TestProjectDeploy:
         @pytest.mark.usefixtures("interactive_console")
         async def test_project_deploy_with_no_prefect_yaml_git_repo_user_rejects(
             self,
-            work_pool,
-            prefect_client,
-            uninitialized_project_dir_with_git_with_remote,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+            uninitialized_project_dir_with_git_with_remote: Path,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -661,7 +678,9 @@ class TestProjectDeploy:
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
         )
         async def test_project_deploy_with_no_prefect_yaml_git_repo(
-            self, work_pool, prefect_client
+            self,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -723,7 +742,9 @@ class TestProjectDeploy:
             "interactive_console", "uninitialized_project_dir_with_git_with_remote"
         )
         async def test_project_deploy_with_no_prefect_yaml_git_repo_user_overrides(
-            self, work_pool, prefect_client
+            self,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -788,8 +809,8 @@ class TestProjectDeploy:
         )
         async def test_project_deploy_with_no_prefect_yaml_git_repo_with_token(
             self,
-            work_pool,
-            prefect_client,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
         ):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
@@ -851,10 +872,10 @@ class TestProjectDeploy:
         @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
         async def test_deploy_with_blob_storage_select_existing_credentials(
             self,
-            work_pool,
-            prefect_client,
-            aws_credentials,
-            monkeypatch,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+            aws_credentials: "BlockDocument",
+            monkeypatch: pytest.MonkeyPatch,
         ):
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
@@ -2505,11 +2526,15 @@ class TestSchedules:
         assert len(deployment.schedules) == 1
         schedule = deployment.schedules[0].schedule
         assert schedule.interval == timedelta(seconds=42)
-        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.anchor_date == parse_datetime("2040-02-02")
         assert schedule.timezone == "America/New_York"
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_interval_schedule_deployment_yaml(self, prefect_client, work_pool):
+    async def test_interval_schedule_deployment_yaml(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
         prefect_yaml = Path("prefect.yaml")
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -2540,7 +2565,7 @@ class TestSchedules:
         assert len(deployment.schedules) == 1
         schedule = deployment.schedules[0].schedule
         assert schedule.interval == timedelta(seconds=42)
-        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.anchor_date == parse_datetime("2040-02-02")
         assert schedule.timezone == "America/Chicago"
         assert deployment.schedules[0].parameters == {"number": 42}
         assert deployment.schedules[0].slug == "test-slug"
@@ -2731,7 +2756,7 @@ class TestSchedules:
             "An important name/test-name"
         )
 
-        schedules = set()
+        schedules: set[str] = set()
         for deployment_schedule in deployment.schedules:
             schedule = deployment_schedule.schedule
             assert isinstance(schedule, CronSchedule)
