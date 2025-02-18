@@ -55,6 +55,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
     PREFECT_UI_SERVE_BASE,
     get_current_settings,
@@ -691,7 +692,10 @@ def create_app(
         name="static",
     )
     app.api_app = api_app
-    app.mount("/api", app=api_app, name="api")
+    if PREFECT_SERVER_API_BASE_PATH:
+        app.mount(PREFECT_SERVER_API_BASE_PATH.value(), app=api_app, name="api")
+    else:
+        app.mount("/api", app=api_app, name="api")
     app.mount("/", app=ui_app, name="ui")
 
     def openapi():
