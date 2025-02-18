@@ -85,7 +85,7 @@ path = "src/prefect/_build_info.py"
 
 [tool.versioningit.format]
 distance = "{base_version}+{distance}.{vcs}{rev}"
-dirty = "{base_version}+{distance}.{vcs}{rev}"
+dirty = "{base_version}"
 distance-dirty = "{base_version}+{distance}.{vcs}{rev}"
 
 [tool.hatch.build]
