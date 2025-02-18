@@ -2,6 +2,7 @@ import {
 	type FlowRunWithDeploymentAndFlow,
 	type FlowRunWithFlow,
 } from "@/api/flow-runs";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
@@ -9,7 +10,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Typography } from "@/components/ui/typography";
 import humanizeDuration from "humanize-duration";
 
 type DurationCellProps = {
@@ -30,12 +30,12 @@ export const DurationCell = ({ flowRun }: DurationCellProps) => {
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<div className="flex items-center">
-						<div className="flex items-center gap-1">
+					<Button variant="ghost">
+						<div className="flex gap-2 items-center text-sm font-mono">
 							<Icon id="Clock" className="h-4 w-4" />
-							<Typography variant="bodySmall">{durationLabel}</Typography>
+							{durationLabel}
 						</div>
-					</div>
+					</Button>
 				</TooltipTrigger>
 				<TooltipContent>{durationTooltip}</TooltipContent>
 			</Tooltip>
