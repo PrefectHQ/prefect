@@ -9,9 +9,7 @@ on:
       - .github/workflows/proxy-test.yaml
       - scripts/proxy-test/*
       - "src/prefect/events/clients.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
+      - pyproject.toml
   push:
     branches:
       - main
@@ -19,9 +17,7 @@ on:
       - .github/workflows/proxy-test.yaml
       - scripts/proxy-test/*
       - "src/prefect/events/clients.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
+      - pyproject.toml
 
 jobs:
   proxy-test:

@@ -5,8 +5,7 @@ on:
     paths:
       - .github/workflows/api-compatibility-tests.yaml
       - "**/*.py"
-      - requirements*.txt
-      - setup.cfg
+      - pyproject.toml
       - compat-tests
   push:
     branches:
