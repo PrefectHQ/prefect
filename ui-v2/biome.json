@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
+		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts", "dist"]
 	},
 	"formatter": {
 		"enabled": true,

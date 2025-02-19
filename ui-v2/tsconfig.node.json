@@ -14,7 +14,12 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
-		"types": ["vite/client"]
+		"paths": {
+			"@/*": ["./src/*"],
+			"@tests/*": ["./tests/*"]
+		},
+		"types": ["vite/client"],
+		"jsx": "react-jsx"
 	},
 	"include": ["vite.config.ts", "tests/**/*.ts"]
 }
