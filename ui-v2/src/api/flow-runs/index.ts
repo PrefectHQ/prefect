@@ -79,6 +79,47 @@ export const buildListFlowRunsQuery = (
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
 
+/**
+ * Hook for deleting a flow run
+ *
+ * @returns Mutation object for deleting a flow run with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteFlowRun, isLoading } = useDeleteFlowRun();
+ *
+ * deleteflowRun(id, {
+ *   onSuccess: () => {
+ *     // Handle successful deletion
+ *     console.log('Flow run deleted successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to delete flow run:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteFlowRun = () => {
+	const queryClient = useQueryClient();
+	const { mutate: deleteFlowRun, ...rest } = useMutation({
+		mutationFn: async (id: string) =>
+			getQueryService().DELETE("/flow_runs/{id}", {
+				params: { path: { id } },
+			}),
+		onSuccess: () => {
+			// After a successful creation, invalidate only list queries to refetch
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return {
+		deleteFlowRun,
+		...rest,
+	};
+};
+
 type MutateCreateFlowRun = {
 	id: string;
 } & components["schemas"]["DeploymentFlowRunCreate"];
