@@ -137,7 +137,7 @@ export const StateFilter = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="justify-between">
+				<Button variant="outline" className="justify-between w-full">
 					<span>{renderSelectedTags()}</span>
 					<Icon id="ChevronDown" className="ml-2 h-4 w-4 flex-shrink-0" />
 				</Button>
