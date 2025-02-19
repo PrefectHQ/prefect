@@ -24,6 +24,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
+import { CheckedState } from "@radix-ui/react-checkbox";
 import { DeploymentCell } from "./deployment-cell";
 import { DurationCell } from "./duration-cell";
 import { NameCell } from "./name-cell";
@@ -48,16 +49,25 @@ const createColumns = ({
 }) => {
 	const ret = [
 		columnHelper.display({
+			size: 40,
 			id: "select",
-			header: ({ table }) => (
-				<Checkbox
-					checked={table.getIsAllPageRowsSelected()}
-					onCheckedChange={(value) =>
-						table.toggleAllPageRowsSelected(Boolean(value))
-					}
-					aria-label="Select all"
-				/>
-			),
+			header: ({ table }) => {
+				let checkedState: CheckedState = false;
+				if (table.getIsAllRowsSelected()) {
+					checkedState = true;
+				} else if (table.getIsSomePageRowsSelected()) {
+					checkedState = "indeterminate";
+				}
+				return (
+					<Checkbox
+						checked={checkedState}
+						onCheckedChange={(value) =>
+							table.toggleAllPageRowsSelected(Boolean(value))
+						}
+						aria-label="Select all"
+					/>
+				);
+			},
 			cell: ({ row }) => (
 				<Checkbox
 					checked={row.getIsSelected()}
@@ -69,6 +79,7 @@ const createColumns = ({
 			enableHiding: false,
 		}),
 		columnHelper.display({
+			size: 200,
 			id: "name",
 			header: "Name",
 			cell: ({ row }) => <NameCell flowRun={row.original} />,
@@ -117,6 +128,7 @@ const createColumns = ({
 	if (showDeployment) {
 		ret.push(
 			columnHelper.display({
+				size: 200,
 				id: "deployment",
 				header: "Deployment",
 				cell: ({ row }) => {
@@ -162,26 +174,26 @@ export const FlowRunsDataTable = ({
 		getPaginationRowModel: getPaginationRowModel(), // TODO: use server-side pagination
 	});
 
-	const numRowsSelected = Object.keys(rowSelection).length;
+	const selectedRows = Object.keys(rowSelection);
 
 	return (
 		<>
 			<div>
 				<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
 					<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
-						{numRowsSelected > 0 ? (
+						{selectedRows.length > 0 ? (
 							<div className="flex items-center gap-1">
 								<Typography
 									variant="bodySmall"
 									className="text-muted-foreground"
 								>
-									{numRowsSelected} selected
+									{selectedRows.length} selected
 								</Typography>
 								<Button
 									aria-label="Delete rows"
 									size="icon"
 									variant="secondary"
-									onClick={() => confirmDelete(Object.keys(rowSelection))}
+									onClick={() => confirmDelete(selectedRows)}
 								>
 									<Icon id="Trash2" className="h-4 w-4" />
 								</Button>
