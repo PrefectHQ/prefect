@@ -18,7 +18,7 @@ depends_on = None
 def upgrade():
     op.execute(
         """
-        DELETE FROM block_type WHERE name = "Debug Print Notification"
+        DELETE FROM block_type WHERE name = 'Debug Print Notification'
         """
     )
 
