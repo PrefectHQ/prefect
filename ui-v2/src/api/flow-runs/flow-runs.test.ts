@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildListFlowRunsQuery,
 	queryKeyFactory,
+	useDeleteFlowRun,
 	useDeploymentCreateFlowRun,
 } from ".";
 
@@ -81,6 +82,56 @@ describe("flow runs api", () => {
 			);
 
 			expect(refetchInterval).toBe(customRefetchInterval);
+		});
+	});
+	describe("useDeleteFlowRun", () => {
+		it("invalidates cache and fetches updated value", async () => {
+			const FILTER = {
+				sort: "ID_DESC",
+				offset: 0,
+			} as const;
+			const queryClient = new QueryClient();
+			const EXISTING_CACHE = [
+				createFakeFlowRun({ id: "0" }),
+				createFakeFlowRun({ id: "1" }),
+			];
+			const MOCK_ID_TO_DELETE = "1";
+
+			// ------------ Mock API requests after queries are invalidated
+			const mockData = EXISTING_CACHE.filter(
+				(data) => data.id !== MOCK_ID_TO_DELETE,
+			);
+			mockFetchFlowRunsAPI(mockData);
+
+			// ------------ Initialize cache
+			queryClient.setQueryData(queryKeyFactory.list(FILTER), EXISTING_CACHE);
+
+			// ------------ Initialize hooks to test
+			const { result: useDeleteFlowRunResult } = renderHook(useDeleteFlowRun, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			const { result: useListFlowRunsResult } = renderHook(
+				() => useSuspenseQuery(buildListFlowRunsQuery(FILTER)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			// ------------ Invoke mutation
+			act(() =>
+				useDeleteFlowRunResult.current.deleteFlowRun(MOCK_ID_TO_DELETE),
+			);
+
+			// ------------ Assert
+			await waitFor(() =>
+				expect(useDeleteFlowRunResult.current.isSuccess).toBe(true),
+			);
+
+			expect(useListFlowRunsResult.current.data).toHaveLength(1);
+
+			const newFlowRun = useListFlowRunsResult.current.data?.find(
+				(flowRun) => flowRun.id === MOCK_ID_TO_DELETE,
+			);
+			expect(newFlowRun).toBeUndefined();
 		});
 	});
 	describe("useDeploymentCreateFlowRun", () => {
