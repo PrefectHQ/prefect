@@ -32,3 +32,25 @@ Your docs should now be available at `http://localhost:3000`.
 See the [Mintlify documentation](https://mintlify.com/docs/development) for more information on how to install Mintlify, build previews, and use Mintlify's features while writing docs.
 
 <Info>All documentation is written in `.mdx` files, which are Markdown files that can contain JavaScript and React components. </Info>
+
+## Considerations
+
+Keep in mind the following when writing documentation.
+
+### External references
+
+Prefect resources can be managed in several ways, including through the CLI, UI, Terraform, Helm, and API.
+
+When documenting a resource, consider including external references that describe how to manage the resource in other ways.
+Snippets are available to provide these references in a consistent format.
+
+For example, the [Deployment documentation](/v3/deploy) includes a snippet for the Terraform provider:
+
+```javascript
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="deployments" href={deployments.tf} />
+```
+
+For more information on how to use snippets, see the [Mintlify documentation](https://mintlify.com/docs/reusable-snippets).
