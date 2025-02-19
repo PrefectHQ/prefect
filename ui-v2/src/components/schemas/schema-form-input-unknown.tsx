@@ -1,4 +1,5 @@
 import { SchemaObject } from "openapi-typescript";
+import { useEffect } from "react";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { asPrimitive } from "./utilities/asType";
@@ -18,6 +19,15 @@ export function SchemaFormInputUnknown({
 	errors,
 	id,
 }: SchemaFormInputUnknownProps) {
+	// if this isn't a simple enum we want to autoamtically switch to json
+	useEffect(() => {
+		if (!isWithPrimitiveEnum(property)) {
+			onValueChange({
+				__prefect_kind: "json",
+			});
+		}
+	}, [property, onValueChange]);
+
 	if (isWithPrimitiveEnum(property)) {
 		return (
 			<SchemaFormInputEnum
@@ -31,7 +41,5 @@ export function SchemaFormInputUnknown({
 		);
 	}
 
-	onValueChange({
-		__prefect_kind: "json",
-	});
+	return null;
 }
