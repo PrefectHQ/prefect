@@ -58,12 +58,14 @@ const FLOW_RUN_STATES_MAP = {
 const MAX_FILTERS_DISPLAYED = 4;
 
 type StateFilterProps = {
+	defaultValue?: Set<FlowRunState>;
 	selectedFilters: Set<FlowRunState> | undefined;
 	onSelectFilter: (filters: Set<FlowRunState>) => void;
 };
 
 export const StateFilter = ({
-	selectedFilters = new Set(),
+	defaultValue,
+	selectedFilters = defaultValue || new Set(),
 	onSelectFilter,
 }: StateFilterProps) => {
 	const [open, setOpen] = useState(false);

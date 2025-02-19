@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
 	TaskRun,
 	TaskRunsFilter,
-	buildGetFlowRusTaskRunsCountQuery,
+	buildGetFlowRunsTaskRunsCountQuery,
 	buildListTaskRunsQuery,
 } from ".";
 
@@ -75,7 +75,7 @@ describe("task runs api", () => {
 		});
 	});
 
-	describe("buildGetFlowRusTaskRunsCountQuery", () => {
+	describe("buildGetFlowRunsTaskRunsCountQuery", () => {
 		const mockGetFlowRunsTaskRunsCountAPI = (
 			response: Record<string, number>,
 		) => {
@@ -93,7 +93,7 @@ describe("task runs api", () => {
 
 			const queryClient = new QueryClient();
 			const { result } = renderHook(
-				() => useSuspenseQuery(buildGetFlowRusTaskRunsCountQuery(mockIds)),
+				() => useSuspenseQuery(buildGetFlowRunsTaskRunsCountQuery(mockIds)),
 				{ wrapper: createWrapper({ queryClient }) },
 			);
 
