@@ -30,6 +30,29 @@ engine_logger: "logging.Logger" = get_logger("engine")
 
 @contextmanager
 def handle_engine_signals(flow_run_id: UUID | None = None):
+    """
+    Handle signals from the orchestrator to abort or pause the flow run or otherwise
+    handle unexpected exceptions.
+
+    This context manager will handle exiting the process depending on the signal received.
+
+    Args:
+        flow_run_id: The ID of the flow run to handle signals for.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.engine import handle_engine_signals
+        from prefect.flow_engine import run_flow
+
+        @flow
+        def my_flow():
+            print("Hello, world!")
+
+        with handle_engine_signals():
+            run_flow(my_flow)
+        ```
+    """
     try:
         yield
     except Abort:
