@@ -5,7 +5,14 @@ import {
 import type { DeploymentSchedule } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { CronInput } from "@/components/ui/cron-input";
-import { DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import {
 	Form,
 	FormControl,
@@ -14,8 +21,10 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
+import { Icon } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
+import { Typography } from "@/components/ui/typography";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import cronParser from "cron-parser";
@@ -81,18 +90,17 @@ export const CronScheduleForm = ({
 	useEffect(() => {
 		if (scheduleToEdit) {
 			const { active, schedule } = scheduleToEdit;
-			if (!("cron" in schedule)) {
-				throw new Error("Expecting 'cron'");
+			if ("cron" in schedule) {
+				const { cron, day_or, timezone } = schedule;
+				form.reset({
+					active,
+					schedule: {
+						cron,
+						day_or,
+						timezone: timezone ?? "Etc/UTC",
+					},
+				});
 			}
-			const { cron, day_or, timezone } = schedule;
-			form.reset({
-				active,
-				schedule: {
-					cron,
-					day_or,
-					timezone: timezone ?? "Etc/UTC",
-				},
-			});
 		} else {
 			form.reset(DEFAULT_VALUES);
 		}
@@ -194,7 +202,9 @@ export const CronScheduleForm = ({
 							name="schedule.day_or"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Day Or</FormLabel>
+									<FormLabel aria-label="Day Or">
+										Day Or <DayOrDialog />
+									</FormLabel>
 									<FormControl>
 										<Switch
 											className="block"
@@ -235,5 +245,27 @@ export const CronScheduleForm = ({
 				</DialogFooter>
 			</form>
 		</Form>
+	);
+};
+
+const DayOrDialog = () => {
+	return (
+		<Dialog>
+			<DialogTrigger asChild>
+				<button className="cursor-help">
+					<Icon id="Info" className="h-4 w-4 inline" />
+				</button>
+			</DialogTrigger>
+			<DialogContent aria-describedby={undefined}>
+				<DialogHeader>
+					<DialogTitle>Day Or</DialogTitle>
+				</DialogHeader>
+				<Typography>
+					When the &quot;Day Or&quot; value is off, this schedule will connect
+					day of the month and day of the week entries using OR logic; when on
+					it will connect them using AND logic.
+				</Typography>
+			</DialogContent>
+		</Dialog>
 	);
 };

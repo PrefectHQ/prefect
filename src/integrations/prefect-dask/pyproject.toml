@@ -33,6 +33,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+  "bokeh",
   "coverage",
   # Dask and its distributed scheduler follow the same release schedule and version,
   # so here we apply the same restrictions as for the distributed package up above in
@@ -83,3 +84,6 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
