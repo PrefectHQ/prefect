@@ -55,6 +55,7 @@ export function SchemaFormInput({
 					value={value}
 					onValueChange={onValueChange}
 					property={property}
+					errors={errors}
 					id={id}
 				/>
 			);

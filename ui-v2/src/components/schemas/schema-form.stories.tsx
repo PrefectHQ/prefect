@@ -285,6 +285,10 @@ export const Default: StoryFn<typeof SchemaForm> = () => {
 				{ property: "name", errors: ["This must be a string"] },
 			],
 		},
+		{
+			property: "array_items",
+			errors: ["max 4", { index: 0, errors: ["This must be a string"] }],
+		},
 	];
 
 	return (

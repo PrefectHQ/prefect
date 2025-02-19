@@ -2,6 +2,7 @@ import merge from "lodash.merge";
 import { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useMemo } from "react";
 import { SchemaFormInput } from "./schema-form-input";
+import { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { isReferenceObject } from "./utilities/guards";
 import { getSchemaDefinition } from "./utilities/mergeSchemaPropertyDefinition";
@@ -10,7 +11,7 @@ export type SchemaFormInputAllOfProps = {
 	property: SchemaObject & { allOf: (SchemaObject | ReferenceObject)[] };
 	value: unknown;
 	onValueChange: (value: unknown) => void;
-	errors: unknown;
+	errors: SchemaFormErrors;
 	id: string;
 };
 

@@ -1,13 +1,19 @@
 import { ArraySubtype, SchemaObject } from "openapi-typescript";
 import { Button } from "../ui/button";
 import { SchemaFormInputArrayItem } from "./schema-form-input-array-item";
+import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
+import {
+	SchemaFormErrors,
+	SchemaValueIndexError,
+	isSchemaValueIndexError,
+} from "./types/errors";
 import { isArray } from "./utilities/guards";
 
 export type SchemaFormInputArrayListProps = {
 	property: SchemaObject & ArraySubtype;
 	values: unknown[] | undefined;
 	onValuesChange: (values: unknown[] | undefined) => void;
-	errors: unknown;
+	errors: SchemaFormErrors;
 };
 
 export function SchemaFormInputArrayList({
@@ -27,6 +33,15 @@ export function SchemaFormInputArrayList({
 		}
 
 		return property.items ?? { type: "string" };
+	}
+
+	function getErrorsForIndex(index: number) {
+		return errors
+			.filter(
+				(error): error is SchemaValueIndexError =>
+					isSchemaValueIndexError(error) && error.index === index,
+			)
+			.flatMap((error) => error.errors);
 	}
 
 	function handleValueChange(index: number, value: unknown) {
@@ -56,13 +71,18 @@ export function SchemaFormInputArrayList({
 
 			{values?.map((value, index) => (
 				<div className="grid grid-cols-[1fr_auto] gap-2" key={index}>
-					<SchemaFormInputArrayItem
-						key={index}
-						items={getPropertyForIndex(index)}
-						value={value}
-						onValueChange={(value: unknown) => handleValueChange(index, value)}
-						errors={errors}
-					/>
+					<div className="grid grid-cols-1 gap-2">
+						<SchemaFormInputArrayItem
+							key={index}
+							items={getPropertyForIndex(index)}
+							value={value}
+							onValueChange={(value: unknown) =>
+								handleValueChange(index, value)
+							}
+							errors={getErrorsForIndex(index)}
+						/>
+						<SchemaFormPropertyErrors errors={getErrorsForIndex(index)} />
+					</div>
 					<Button size="sm" variant="outline" onClick={() => deleteItem(index)}>
 						Delete
 					</Button>

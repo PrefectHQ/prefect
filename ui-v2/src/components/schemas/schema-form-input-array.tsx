@@ -5,6 +5,7 @@ import {
 } from "openapi-typescript";
 import { SchemaFormInputArrayList } from "./schema-form-input-array-list";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
+import { SchemaFormErrors } from "./types/errors";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { asArray } from "./utilities/asType";
@@ -15,7 +16,7 @@ type SchemaFormInputArrayProps = {
 	values: unknown[] | undefined;
 	onValuesChange: (values: unknown[] | undefined) => void;
 	property: SchemaObject & ArraySubtype;
-	errors: unknown;
+	errors: SchemaFormErrors;
 	id: string;
 };
 
