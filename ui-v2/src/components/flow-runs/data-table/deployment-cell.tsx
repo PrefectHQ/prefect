@@ -9,7 +9,7 @@ type DeploymentCellProps = { deployment: Deployment };
 export const DeploymentCell = ({ deployment }: DeploymentCellProps) => {
 	return (
 		<Link
-			className="flex items-center gap-1 min-w-40"
+			className="flex items-center gap-1"
 			to="/deployments/deployment/$id"
 			params={{ id: deployment.id }}
 		>
