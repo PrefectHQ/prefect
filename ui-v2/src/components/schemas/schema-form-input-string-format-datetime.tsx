@@ -15,14 +15,12 @@ import { useState } from "react";
 type SchemaFormInputStringFormatDateTimeProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
-	errors: unknown;
 	id: string;
 };
 
 export function SchemaFormInputStringFormatDateTime({
 	value,
 	onValueChange,
-	errors,
 	id,
 }: SchemaFormInputStringFormatDateTimeProps) {
 	const initialDate = value ? parseISO(value) : undefined;

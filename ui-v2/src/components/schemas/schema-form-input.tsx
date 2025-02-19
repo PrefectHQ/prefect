@@ -11,6 +11,7 @@ import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind
 import { SchemaFormInputPrefectKindNone } from "./schema-form-input-prefect-kind-none";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
+import { SchemaFormErrors } from "./types/errors";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
 import { asArray, asObject, asType } from "./utilities/asType";
 import {
@@ -18,11 +19,10 @@ import {
 	isAnyOfObject,
 	isOneOfObject,
 } from "./utilities/guards";
-
 export type SchemaFormInputProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
-	errors: unknown;
+	errors: SchemaFormErrors;
 	property: SchemaObject;
 	id: string;
 };
@@ -30,8 +30,8 @@ export type SchemaFormInputProps = {
 export function SchemaFormInput({
 	value,
 	onValueChange,
-	property,
 	errors,
+	property,
 	id,
 }: SchemaFormInputProps) {
 	if (isPrefectKindValue(value)) {
@@ -40,7 +40,6 @@ export function SchemaFormInput({
 				<SchemaFormInputPrefectKindJson
 					value={value}
 					onValueChange={onValueChange}
-					errors={errors}
 					id={id}
 				/>
 			);
@@ -55,7 +54,6 @@ export function SchemaFormInput({
 				<SchemaFormInputPrefectKindNone
 					value={value}
 					onValueChange={onValueChange}
-					errors={errors}
 					property={property}
 					id={id}
 				/>
@@ -138,7 +136,6 @@ export function SchemaFormInput({
 				value={asType(value, String)}
 				onValueChange={onValueChange}
 				property={property}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -150,7 +147,6 @@ export function SchemaFormInput({
 				value={asType(value, Number)}
 				onValueChange={onValueChange}
 				property={property}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -162,7 +158,6 @@ export function SchemaFormInput({
 				value={asType(value, Number)}
 				onValueChange={onValueChange}
 				property={property}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -174,7 +169,6 @@ export function SchemaFormInput({
 				value={asType(value, Boolean)}
 				onValueChange={onValueChange}
 				property={property}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -204,14 +198,7 @@ export function SchemaFormInput({
 	}
 
 	if (property.type === "null") {
-		return (
-			<SchemaFormInputNull
-				value={null}
-				onValueChange={onValueChange}
-				property={property}
-				errors={errors}
-			/>
-		);
+		return <SchemaFormInputNull />;
 	}
 
 	if (property.type === undefined) {
@@ -220,7 +207,6 @@ export function SchemaFormInput({
 				value={value}
 				onValueChange={onValueChange}
 				property={property}
-				errors={errors}
 				id={id}
 			/>
 		);

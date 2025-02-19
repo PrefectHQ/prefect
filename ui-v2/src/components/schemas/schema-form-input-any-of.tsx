@@ -2,15 +2,15 @@ import { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { SchemaFormProperty } from "./schema-form-property";
+import { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
-
 export type SchemaFormInputAnyOfProps = {
 	value: unknown;
 	property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] };
 	onValueChange: (value: unknown) => void;
-	errors: unknown;
+	errors: SchemaFormErrors;
 };
 
 export function SchemaFormInputAnyOf({

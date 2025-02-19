@@ -10,14 +10,12 @@ export type SchemaFormInputStringProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
 	property: SchemaObject & StringSubtype;
-	errors: unknown;
 	id: string;
 };
 
 export function SchemaFormInputString({
 	value,
 	onValueChange,
-	errors,
 	property,
 	id,
 }: SchemaFormInputStringProps) {
@@ -32,7 +30,6 @@ export function SchemaFormInputString({
 				value={value}
 				property={property}
 				onValueChange={handleChange}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -43,7 +40,6 @@ export function SchemaFormInputString({
 			<SchemaFormInputStringFormatDate
 				value={value}
 				onValueChange={handleChange}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -54,7 +50,6 @@ export function SchemaFormInputString({
 			<SchemaFormInputStringFormatDateTime
 				value={value}
 				onValueChange={handleChange}
-				errors={errors}
 				id={id}
 			/>
 		);
@@ -65,7 +60,6 @@ export function SchemaFormInputString({
 			<SchemaFormInputStringFormatJson
 				value={value}
 				onValueChange={handleChange}
-				errors={errors}
 				id={id}
 			/>
 		);

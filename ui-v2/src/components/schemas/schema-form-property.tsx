@@ -2,7 +2,15 @@ import { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useId, useMemo } from "react";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
+import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
 import { SchemaFormPropertyLabel } from "./schema-form-property-label";
+import {
+	SchemaFormErrors,
+	SchemaValueIndexError,
+	SchemaValuePropertyError,
+	isSchemaValueIndexError,
+	isSchemaValuePropertyError,
+} from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
@@ -11,7 +19,7 @@ export type SchemaFormPropertyProps = {
 	onValueChange: (value: unknown) => void;
 	property: SchemaObject | ReferenceObject;
 	required: boolean;
-	errors: unknown;
+	errors: SchemaFormErrors;
 	showLabel?: boolean;
 };
 
@@ -30,6 +38,13 @@ export function SchemaFormProperty({
 		return mergeSchemaPropertyDefinition(propertyDefinition, schema);
 	}, [propertyDefinition, schema]);
 
+	const nestedErrors = useMemo(() => {
+		return errors.filter(
+			(error): error is SchemaValuePropertyError | SchemaValueIndexError =>
+				isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
+		);
+	}, [errors]);
+
 	return (
 		<div className="flex flex-col gap-2">
 			{showLabel && (
@@ -46,9 +61,11 @@ export function SchemaFormProperty({
 				property={property}
 				value={value}
 				onValueChange={onValueChange}
-				errors={errors}
+				errors={nestedErrors}
 				id={id}
 			/>
+
+			<SchemaFormPropertyErrors errors={errors} />
 		</div>
 	);
 }

@@ -53,7 +53,6 @@ export function SchemaFormInputArray({
 					values={asArray(values, "primitive")}
 					property={merged}
 					onValuesChange={handleValuesChange}
-					errors={errors}
 					id={id}
 				/>
 			);

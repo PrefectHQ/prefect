@@ -1,6 +1,7 @@
 import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";
 import { SchemaForm } from "./schema-form";
+import { SchemaFormErrors } from "./types/errors";
 import { PrefectKind } from "./types/prefect-kind";
 import { PrefectSchemaObject } from "./types/schemas";
 
@@ -268,7 +269,23 @@ export const Default: StoryFn<typeof SchemaForm> = () => {
 		any_of: { name: "Prefect" },
 	});
 
-	const errors = {};
+	const errors: SchemaFormErrors = [
+		{ property: "string_required", errors: ["This is a required field"] },
+		{
+			property: "object",
+			errors: [
+				{ property: "foo", errors: ["This is a required field"] },
+				{ property: "foo", errors: ["This must be a string"] },
+			],
+		},
+		{
+			property: "any_of",
+			errors: [
+				"This must be a string or a number",
+				{ property: "name", errors: ["This must be a string"] },
+			],
+		},
+	];
 
 	return (
 		<div className="grid grid-cols-2 gap-4 p-16 w-full">

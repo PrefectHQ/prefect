@@ -8,7 +8,6 @@ export type SchemaFormInputUnknownProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
 	property: SchemaObject & { type: undefined };
-	errors: unknown;
 	id: string;
 };
 
@@ -16,7 +15,6 @@ export function SchemaFormInputUnknown({
 	value,
 	onValueChange,
 	property,
-	errors,
 	id,
 }: SchemaFormInputUnknownProps) {
 	// if this isn't a simple enum we want to autoamtically switch to json
@@ -35,7 +33,6 @@ export function SchemaFormInputUnknown({
 				value={asPrimitive(value)}
 				property={property}
 				onValueChange={onValueChange}
-				errors={errors}
 				id={id}
 			/>
 		);

@@ -11,7 +11,6 @@ type SchemaFormInputIntegerProps = {
 	value: number | undefined;
 	onValueChange: (value: number | undefined) => void;
 	property: SchemaObject & (NumberSubtype | IntegerSubtype);
-	errors: unknown;
 	id: string;
 };
 
@@ -19,7 +18,6 @@ export function SchemaFormInputInteger({
 	value,
 	onValueChange,
 	property,
-	errors,
 	id,
 }: SchemaFormInputIntegerProps) {
 	if (isWithPrimitiveEnum(property)) {
@@ -29,7 +27,6 @@ export function SchemaFormInputInteger({
 				value={value}
 				property={property}
 				onValueChange={onValueChange}
-				errors={errors}
 				id={id}
 			/>
 		);

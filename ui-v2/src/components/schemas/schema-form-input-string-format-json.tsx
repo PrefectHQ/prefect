@@ -3,14 +3,12 @@ import { JsonInput } from "../ui/json-input";
 export type SchemaFormInputStringFormatJsonProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
-	errors: unknown;
 	id: string;
 };
 
 export function SchemaFormInputStringFormatJson({
 	value,
 	onValueChange,
-	errors,
 	id,
 }: SchemaFormInputStringFormatJsonProps) {
 	// the JsonInput's types for onChange are probably wrong but this makes it work

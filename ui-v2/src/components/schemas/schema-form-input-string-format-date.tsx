@@ -13,7 +13,6 @@ import { useState } from "react";
 type SchemaFormInputStringFormatDateProps = {
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
-	errors: unknown;
 	id: string;
 };
 
@@ -22,7 +21,6 @@ const dateFormat = "yyyy-MM-dd";
 export function SchemaFormInputStringFormatDate({
 	value,
 	onValueChange,
-	errors,
 	id,
 }: SchemaFormInputStringFormatDateProps) {
 	const initialDate = value

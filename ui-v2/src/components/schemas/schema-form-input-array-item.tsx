@@ -1,6 +1,7 @@
 import { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useId } from "react";
 import { SchemaFormInput } from "./schema-form-input";
+import { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { isArray, isReferenceObject } from "./utilities/guards";
 import { getSchemaDefinition } from "./utilities/mergeSchemaPropertyDefinition";
@@ -9,7 +10,7 @@ export type SchemaFormInputArrayItemProps = {
 	items: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	value: unknown;
 	onValueChange: (value: unknown) => void;
-	errors: unknown;
+	errors: SchemaFormErrors;
 };
 
 export function SchemaFormInputArrayItem({

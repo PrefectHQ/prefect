@@ -26,13 +26,11 @@ type MultipleValueProps<T extends PrimitiveProperty> = {
 
 type SchemaFormInputArrayComboboxProps<T extends PrimitiveProperty> = {
 	property: SchemaObject & WithPrimitiveEnum;
-	errors: unknown;
 	id: string;
 } & (SingleValueProps<T> | MultipleValueProps<T>);
 
 export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 	property,
-	errors,
 	id,
 	...props
 }: SchemaFormInputArrayComboboxProps<T>) {

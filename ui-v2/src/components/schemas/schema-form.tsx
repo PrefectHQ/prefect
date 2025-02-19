@@ -4,10 +4,11 @@ import {
 	SchemaFormInputObjectProps,
 } from "./schema-form-input-object";
 import { SchemaFormProvider } from "./schema-form-provider";
+import { SchemaFormErrors } from "./types/errors";
 import { SchemaFormContext } from "./use-schema-form-context";
 
 export type SchemaFormProps = SchemaFormContext & {
-	errors: unknown;
+	errors: SchemaFormErrors;
 	values: Record<string, unknown>;
 	onValuesChange: (values: Record<string, unknown>) => void;
 };

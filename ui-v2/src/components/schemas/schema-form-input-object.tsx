@@ -1,6 +1,7 @@
 import { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useMemo } from "react";
 import { SchemaFormProperty } from "./schema-form-property";
+import { SchemaFormErrors, isSchemaValuePropertyError } from "./types/errors";
 import { PrefectObjectSubtype } from "./types/schemas";
 import { sortByPropertyPosition } from "./utilities/sortByPropertyPosition";
 
@@ -8,7 +9,7 @@ export type SchemaFormInputObjectProps = {
 	values: Record<string, unknown> | undefined;
 	onValuesChange: (values: Record<string, unknown> | undefined) => void;
 	property: SchemaObject & ObjectSubtype & PrefectObjectSubtype;
-	errors: unknown;
+	errors: SchemaFormErrors;
 };
 
 export function SchemaFormInputObject({
@@ -36,8 +37,11 @@ export function SchemaFormInputObject({
 		return values?.[key];
 	}
 
-	function getPropertyErrors(key: string): unknown {
-		return errors?.[key];
+	function getPropertyErrors(key: string): SchemaFormErrors {
+		return errors
+			.filter(isSchemaValuePropertyError)
+			.filter((error) => error.property === key)
+			.flatMap((error) => error.errors);
 	}
 
 	const properties = useMemo(() => {
