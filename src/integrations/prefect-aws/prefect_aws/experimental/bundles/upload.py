@@ -10,13 +10,14 @@ from pathlib import Path
 import typer
 from botocore.exceptions import ClientError
 
-from prefect_aws.bundles.types import (
+from prefect_aws.credentials import AwsCredentials
+
+from .types import (
     AwsCredentialsBlockName,
     LocalFilepath,
     S3Bucket,
     S3Key,
 )
-from prefect_aws.credentials import AwsCredentials
 
 
 def upload_bundle_to_s3(

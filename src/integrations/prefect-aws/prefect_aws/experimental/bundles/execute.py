@@ -10,9 +10,10 @@ import typer
 from botocore.exceptions import ClientError
 from pydantic_core import from_json
 
-from prefect._experimental.bundles import execute_bundle_in_subprocess
-from prefect_aws.bundles.types import AwsCredentialsBlockName, S3Bucket, S3Key
+from prefect.runner import Runner
 from prefect_aws.credentials import AwsCredentials
+
+from .types import AwsCredentialsBlockName, S3Bucket, S3Key
 
 
 async def download_bundle_from_s3(
@@ -73,7 +74,7 @@ def execute_bundle_from_s3(
     bucket: S3Bucket,
     key: S3Key,
     aws_credentials_block_name: AwsCredentialsBlockName | None = None,
-) -> dict[str, Any]:
+) -> None:
     """
     Downloads a bundle from S3 and executes it.
 
@@ -115,15 +116,8 @@ def execute_bundle_from_s3(
     )
 
     bundle_data = from_json(Path(download_result["local_path"]).read_bytes())
-    spwan_process = execute_bundle_in_subprocess(bundle_data)
 
-    spwan_process.join()
-
-    return {
-        "execution_success": spwan_process.exitcode == 0,
-        "return_code": spwan_process.exitcode,
-        "bundle_path": download_result["local_path"],
-    }
+    asyncio.run(Runner().execute_bundle(bundle_data))
 
 
 if __name__ == "__main__":
