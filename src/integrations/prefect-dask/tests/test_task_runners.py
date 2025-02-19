@@ -502,3 +502,34 @@ class TestDaskTaskRunner:
         a_time, b_time, c_time = test_flow()
 
         assert c_time > a_time and c_time > b_time
+
+    async def test_performance_report_generation(self, tmp_path):
+        report_path = tmp_path / "dask-report.html"
+        task_runner_with_performance_report_path = DaskTaskRunner(
+            performance_report_path=str(report_path)
+        )
+
+        @task
+        def task_a():
+            return "a"
+
+        @task
+        def task_b():
+            return "b"
+
+        @task
+        def task_c(b):
+            return b + "c"
+
+        @flow(version="test", task_runner=task_runner_with_performance_report_path)
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(b)
+            return a, b, c
+
+        test_flow()
+
+        assert report_path.exists()
+        report_content = report_path.read_text()
+        assert "Dask Performance Report" in report_content
