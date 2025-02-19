@@ -1,23 +1,13 @@
-# Ensure uv is available, installing it if needed
+# Check for uv installation
 check-uv:
     #!/usr/bin/env sh
     if ! command -v uv >/dev/null 2>&1; then
-        echo "Installing uv..."
-        if [ "$(uname)" = "Darwin" ] || [ "$(uname)" = "Linux" ]; then
-            curl -LsSf https://astral.sh/uv/install.sh | sh
-        else
-            pip install uv
-        fi
-        # Verify installation succeeded
-        if ! command -v uv >/dev/null 2>&1; then
-            echo "Failed to install uv. Please try installing it manually:"
-            echo "• curl -LsSf https://astral.sh/uv/install.sh | sh  # For macOS/Linux"
-            echo "• pip install uv  # Using pip"
-            echo "For more information, visit: https://github.com/astral-sh/uv"
-            exit 1
-        fi
+        echo "uv is not installed. Please install it using one of these methods:"
+        echo "• curl -LsSf https://astral.sh/uv/install.sh | sh  # For macOS/Linux"
+        echo "• pip install uv  # Using pip"
+        echo "For more information, visit: https://github.com/astral-sh/uv"
+        exit 1
     fi
-
 # Build and serve documentation
 docs: check-uv
     cd docs && uv run mintlify dev
