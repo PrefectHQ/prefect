@@ -351,15 +351,23 @@ class RunnerDeployment(BaseModel):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
+
+        update_payload = self.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"storage", "name", "flow_name", "triggers"},
+        )
+
+        if self.storage:
+            pull_steps = self.storage.to_pull_step()
+            if not isinstance(pull_steps, list):
+                pull_steps = [pull_steps]
+            update_payload["pull_steps"] = pull_steps
+
         await client.update_deployment(
             deployment_id,
             deployment=DeploymentUpdate(
-                parameter_openapi_schema=parameter_openapi_schema,
-                **self.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    exclude={"storage", "name", "flow_name", "triggers"},
-                ),
+                **update_payload, parameter_openapi_schema=parameter_openapi_schema
             ),
         )
 
