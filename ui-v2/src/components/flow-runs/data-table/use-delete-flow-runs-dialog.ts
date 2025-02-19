@@ -29,7 +29,7 @@ export const useDeleteFlowRunsDialog = () => {
 			} else if (numFails === 1) {
 				toast({ title: "Flow run failed to delete" });
 			} else if (numSuccess > 1) {
-				toast({ title: `${numSuccess} flow runs to deleted` });
+				toast({ title: `${numSuccess} flow runs deleted` });
 			} else {
 				toast({ title: "Flow run deleted" });
 			}
@@ -41,7 +41,7 @@ export const useDeleteFlowRunsDialog = () => {
 
 	const handleConfirmDelete = (flowRunIds: Array<string>) =>
 		confirmDelete({
-			title: "Delete Flow runs",
+			title: "Delete Flow Runs",
 			description: "Are you sure you want to delete selected flow runs?",
 			onConfirm: () => {
 				void handleDeletes(flowRunIds);
