@@ -294,7 +294,7 @@ def default_timezone(
 
 
 def validate_cron_string(v: str) -> str:
-    from croniter import croniter
+    from prefect._vendor.croniter import croniter
 
     # croniter allows "random" and "hashed" expressions
     # which we do not support https://github.com/kiorky/croniter
