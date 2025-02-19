@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
-import { routerDecorator } from "@/storybook/utils";
+import {
+	reactQueryDecorator,
+	routerDecorator,
+	toastDecorator,
+} from "@/storybook/utils";
 import { FlowRunsDataTable } from "./data-table";
 
 const MOCK_DATA = Array.from(
@@ -11,7 +15,7 @@ const MOCK_DATA = Array.from(
 
 const meta: Meta<typeof FlowRunsDataTable> = {
 	title: "Components/FlowRuns/DataTable/FlowRunsDataTable",
-	decorators: [routerDecorator],
+	decorators: [routerDecorator, reactQueryDecorator, toastDecorator],
 	args: { flowRuns: MOCK_DATA, flowRunsCount: MOCK_DATA.length },
 	component: FlowRunsDataTable,
 };

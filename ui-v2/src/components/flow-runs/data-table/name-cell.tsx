@@ -13,7 +13,7 @@ type NameCellProps = {
 
 export const NameCell = ({ flowRun }: NameCellProps) => {
 	return (
-		<div className="flex items-center min-w-40">
+		<div className="flex items-center">
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
