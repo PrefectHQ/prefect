@@ -69,6 +69,13 @@ def create_bundle_for_flow_run(
     }
 
 
+def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
+    """
+    Extracts a flow from a bundle.
+    """
+    return _deserialize_bundle_object(bundle["function"])
+
+
 def _extract_and_run_flow(
     bundle: SerializedBundle, env: dict[str, Any] | None = None
 ) -> None:
