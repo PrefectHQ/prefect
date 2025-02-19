@@ -47,6 +47,7 @@ from prefect.context import (
     hydrated_context,
     serialize_context,
 )
+from prefect.engine import handle_engine_signals
 from prefect.exceptions import (
     Abort,
     MissingFlowError,
@@ -1592,8 +1593,6 @@ def run_flow_in_subprocess(
         """
         Wrapper function to update environment variables and settings before running the flow.
         """
-        engine_logger = logging.getLogger("prefect.engine")
-
         os.environ.update(env or {})
         settings_context = get_settings_context()
         # Create a new settings context with a new settings object to pick up the updated
@@ -1602,41 +1601,12 @@ def run_flow_in_subprocess(
             profile=settings_context.profile,
             settings=Settings(),
         ):
-            try:
+            with handle_engine_signals(getattr(flow_run, "id", None)):
                 maybe_coro = run_flow(*args, **kwargs)
                 if asyncio.iscoroutine(maybe_coro):
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
                     asyncio.run(maybe_coro)
-            except Abort:
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator."
-                else:
-                    msg = "Execution aborted by orchestrator."
-                engine_logger.info(msg)
-                exit(0)
-            except Pause:
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' is paused."
-                else:
-                    msg = "Execution is paused."
-                engine_logger.info(msg)
-                exit(0)
-            except Exception:
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' exited with unexpected exception"
-                else:
-                    msg = "Execution exited with unexpected exception"
-                engine_logger.error(msg, exc_info=True)
-                exit(1)
-            except BaseException:
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' interrupted by base exception"
-                else:
-                    msg = "Execution interrupted by base exception"
-                engine_logger.error(msg, exc_info=True)
-                # Let the exit code be determined by the base exception type
-                raise
 
     ctx = multiprocessing.get_context("spawn")
 
