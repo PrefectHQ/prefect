@@ -9,15 +9,6 @@ import { DataTable } from "@/components/ui/data-table";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 
-import {
-	RowSelectionState,
-	createColumnHelper,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { Suspense, useMemo, useState } from "react";
-
 import { Flow } from "@/api/flows";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -26,14 +17,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 import { CheckedState } from "@radix-ui/react-checkbox";
+import {
+	OnChangeFn,
+	PaginationState,
+	RowSelectionState,
+	createColumnHelper,
+	getCoreRowModel,
+	useReactTable,
+} from "@tanstack/react-table";
+import { Suspense, useCallback, useMemo, useState } from "react";
+
 import { DeploymentCell } from "./deployment-cell";
 import { DurationCell } from "./duration-cell";
 import { NameCell } from "./name-cell";
 import { ParametersCell } from "./parameters-cell";
 import { RunNameSearch } from "./run-name-search";
-import { SortFilter } from "./sort-filter";
+import { SortFilter, SortFilters } from "./sort-filter";
 import { StartTimeCell } from "./start-time-cell";
-import { StateFilter } from "./state-filter";
+import { FlowRunState, StateFilter } from "./state-filter";
 import { TasksCell } from "./tasks-cell";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
@@ -163,11 +164,40 @@ const createColumns = ({
 	return ret;
 };
 
+type PaginationProps = {
+	pageCount: number;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
+};
+type SearchProps = {
+	onChange: (value: string) => void;
+	value: string;
+};
+type FilterProps = {
+	defaultValue?: Set<FlowRunState>;
+	value: Set<FlowRunState>;
+	onSelect: (filters: Set<FlowRunState>) => void;
+};
+type SortProps = {
+	defaultValue?: SortFilters;
+	value: SortFilters;
+	onSelect: (sort: SortFilters) => void;
+};
+
 export type FlowRunsDataTableProps = {
+	search?: SearchProps;
+	filter?: FilterProps;
+	sort?: SortProps;
 	flowRunsCount: number;
 	flowRuns: Array<FlowRunWithDeploymentAndFlow | FlowRunWithFlow>;
-};
+} & PaginationProps;
 export const FlowRunsDataTable = ({
+	pageCount,
+	pagination,
+	onPaginationChange,
+	search,
+	sort,
+	filter,
 	flowRunsCount,
 	flowRuns,
 }: FlowRunsDataTableProps) => {
@@ -181,16 +211,32 @@ export const FlowRunsDataTable = ({
 		[flowRuns],
 	);
 
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useReactTable({
 		getRowId: (row) => row.id,
 		onRowSelectionChange: setRowSelection,
-		state: { rowSelection },
+		state: { pagination, rowSelection },
 		data: flowRuns,
 		columns: createColumns({
 			showDeployment,
 		}),
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(), // TODO: use server-side pagination
+		pageCount,
+		manualPagination: true,
+		defaultColumn: { maxSize: 300 },
+		onPaginationChange: handlePaginationChange,
 	});
 
 	const selectedRows = Object.keys(rowSelection);
@@ -223,26 +269,28 @@ export const FlowRunsDataTable = ({
 							</Typography>
 						)}
 					</div>
-					<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
-						<RunNameSearch
-							// TODO
-							placeholder="Search by run name"
-						/>
-					</div>
-					<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
-						<StateFilter
-							// TODO
-							selectedFilters={new Set([])}
-							onSelectFilter={() => {}}
-						/>
-					</div>
-					<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
-						<SortFilter
-							// TODO
-							value={undefined}
-							onSelect={() => {}}
-						/>
-					</div>
+					{search && (
+						<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
+							<RunNameSearch
+								value={search.value}
+								onChange={(e) => search.onChange(e.target.value)}
+								placeholder="Search by run name"
+							/>
+						</div>
+					)}
+					{filter && (
+						<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
+							<StateFilter
+								selectedFilters={filter.value}
+								onSelectFilter={filter.onSelect}
+							/>
+						</div>
+					)}
+					{sort && (
+						<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
+							<SortFilter value={sort.value} onSelect={sort.onSelect} />
+						</div>
+					)}
 				</div>
 
 				<DataTable table={table} />

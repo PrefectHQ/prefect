@@ -2,7 +2,7 @@ import {
 	type FlowRunWithDeploymentAndFlow,
 	type FlowRunWithFlow,
 } from "@/api/flow-runs";
-import { buildGetFlowRusTaskRunsCountQuery } from "@/api/task-runs";
+import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
 
 import { Typography } from "@/components/ui/typography";
@@ -16,7 +16,7 @@ type TasksCellsProp = {
 
 export const TasksCell = ({ flowRun }: TasksCellsProp) => {
 	const { data } = useSuspenseQuery(
-		buildGetFlowRusTaskRunsCountQuery([flowRun.id]),
+		buildGetFlowRunsTaskRunsCountQuery([flowRun.id]),
 	);
 
 	const taskRunsCount = data[flowRun.id];
