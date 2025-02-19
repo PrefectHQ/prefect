@@ -6,20 +6,25 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 
-type SortFilters =
+export type SortFilters =
 	| "START_TIME_ASC"
 	| "START_TIME_DESC"
 	| "NAME_ASC"
 	| "NAME_DESC";
 
 type SortFilterProps = {
+	defaultValue?: SortFilters;
 	onSelect: (filter: SortFilters) => void;
 	value: undefined | SortFilters;
 };
 
-export const SortFilter = ({ value, onSelect }: SortFilterProps) => {
+export const SortFilter = ({
+	defaultValue,
+	value,
+	onSelect,
+}: SortFilterProps) => {
 	return (
-		<Select value={value} onValueChange={onSelect}>
+		<Select defaultValue={defaultValue} value={value} onValueChange={onSelect}>
 			<SelectTrigger aria-label="Flow run sort order">
 				<SelectValue placeholder="Sort by" />
 			</SelectTrigger>

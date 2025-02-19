@@ -10,7 +10,7 @@ import {
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { FlowRunsDataTable, type FlowRunsDataTableProps } from "./data-table";
 
 // Wraps component in test with a Tanstack router provider
@@ -46,6 +46,12 @@ describe("Flow Runs DataTable", () => {
 				<FlowRunsDataTableRouter
 					flowRuns={MOCK_DATA}
 					flowRunsCount={MOCK_DATA.length}
+					pageCount={5}
+					pagination={{
+						pageSize: 10,
+						pageIndex: 2,
+					}}
+					onPaginationChange={vi.fn()}
 				/>
 			</>,
 			{ wrapper: createWrapper() },
@@ -75,6 +81,12 @@ describe("Flow Runs DataTable", () => {
 				<FlowRunsDataTableRouter
 					flowRuns={MOCK_DATA}
 					flowRunsCount={MOCK_DATA.length}
+					pageCount={5}
+					pagination={{
+						pageSize: 10,
+						pageIndex: 2,
+					}}
+					onPaginationChange={vi.fn()}
 				/>
 			</>,
 			{ wrapper: createWrapper() },
