@@ -529,7 +529,7 @@ class TestDaskTaskRunner:
             return a, b, c
 
         test_flow()
-        
+
         assert report_path.exists()
         report_content = report_path.read_text()
         assert "Dask Performance Report" in report_content

@@ -405,9 +405,6 @@ class DaskTaskRunner(TaskRunner):
         - Creates a cluster if an external address is not set.
         - Creates a client to connect to the cluster.
         """
-        from contextlib import nullcontext
-        import distributed
-
         in_dask = False
         try:
             client = distributed.get_client()
@@ -457,7 +454,9 @@ class DaskTaskRunner(TaskRunner):
         if self.performance_report_path:
             # Register our client as current so that it's found by distributed.get_client()
             exit_stack.enter_context(distributed.Client.as_current(self._client))
-            exit_stack.enter_context(distributed.performance_report(self.performance_report_path))
+            exit_stack.enter_context(
+                distributed.performance_report(self.performance_report_path)
+            )
 
         if self._client.dashboard_link and not in_dask:
             self.logger.info(
