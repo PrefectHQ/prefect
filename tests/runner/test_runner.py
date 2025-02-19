@@ -22,6 +22,7 @@ from starlette import status
 
 import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
+from prefect.cli.deploy import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
@@ -467,6 +468,49 @@ class TestRunner:
         assert deployment.name == "test-openapi"
         assert deployment.description is None
         assert set(deployment.parameter_openapi_schema["properties"].keys()) == {"name"}
+
+    async def test_runner_deployment_updates_pull_steps(
+        self, prefect_client: PrefectClient, work_pool
+    ):
+        @flow
+        def one(num: int):
+            pass
+
+        deployment = RunnerDeployment(
+            name="test-pullsteps",
+            flow_name="one",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage(
+                pull_steps=[dict(name="step-one"), dict(name="step-two")]
+            ),
+        )
+
+        deployment_id = await deployment.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert api_deployment.name == "test-pullsteps"
+        assert api_deployment.pull_steps == [
+            dict(name="step-one"),
+            dict(name="step-two"),
+        ]
+
+        deployment = RunnerDeployment(
+            name="test-pullsteps",
+            flow_name="one",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage(
+                pull_steps=[dict(name="step-one"), dict(name="step-two-b")]
+            ),
+        )
+
+        deployment_id = await deployment.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert api_deployment.name == "test-pullsteps"
+        assert api_deployment.pull_steps == [
+            dict(name="step-one"),
+            dict(name="step-two-b"),
+        ]
 
     @pytest.mark.parametrize(
         "kwargs",

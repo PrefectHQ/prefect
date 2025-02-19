@@ -10,7 +10,6 @@ from typing import Type
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
-import pendulum
 import pytest
 from rich.color import Color, ColorType
 from rich.console import Console
@@ -68,6 +67,7 @@ from prefect.settings import (
 )
 from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import from_timestamp, now
 from prefect.utilities.names import obfuscate
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
@@ -464,8 +464,7 @@ class TestAPILogHandler:
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
         assert (
-            log_dict["timestamp"]
-            == pendulum.from_timestamp(record.created).to_iso8601_string()
+            log_dict["timestamp"] == from_timestamp(record.created).to_iso8601_string()
         )
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
@@ -487,7 +486,7 @@ class TestAPILogHandler:
 
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert log_dict["timestamp"] == pendulum.from_timestamp(now).to_iso8601_string()
+        assert log_dict["timestamp"] == from_timestamp(now).to_iso8601_string()
 
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
         with TaskRunContext.model_construct(task_run=task_run):
@@ -821,7 +820,7 @@ class TestAPILogWorker:
             task_run_id=uuid.uuid4(),
             name="test.logger",
             level=10,
-            timestamp=pendulum.now("utc"),
+            timestamp=now("utc"),
             message="hello",
         ).model_dump(mode="json")
 
