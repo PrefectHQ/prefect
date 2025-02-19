@@ -82,13 +82,14 @@ export const createFakeFlowRun = (
 	};
 };
 
-export const createFakeFlowRunWithDeploymentAndFlow =
-	(): FlowRunWithDeploymentAndFlow => {
-		const flowRun = createFakeFlowRun();
-
-		return {
-			...flowRun,
-			deployment: createFakeDeployment(),
-			flow: createFakeFlow(),
-		};
+export const createFakeFlowRunWithDeploymentAndFlow = (
+	overrides?: Partial<components["schemas"]["FlowRun"]>,
+): FlowRunWithDeploymentAndFlow => {
+	const flowRun = createFakeFlowRun();
+	return {
+		...flowRun,
+		deployment: createFakeDeployment(),
+		flow: createFakeFlow(),
+		...overrides,
 	};
+};

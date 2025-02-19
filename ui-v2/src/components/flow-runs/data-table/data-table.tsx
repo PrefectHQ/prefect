@@ -16,12 +16,13 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 
 import { Flow } from "@/api/flows";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 import { CheckedState } from "@radix-ui/react-checkbox";
@@ -33,10 +34,12 @@ import { RunNameSearch } from "./run-name-search";
 import { SortFilter } from "./sort-filter";
 import { StartTimeCell } from "./start-time-cell";
 import { StateFilter } from "./state-filter";
+import { TasksCell } from "./tasks-cell";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
 export type FlowRunsDataTableRow = FlowRun & {
 	flow: Flow;
+	numTaskRuns?: number;
 	deployment?: Deployment;
 };
 
@@ -79,7 +82,7 @@ const createColumns = ({
 			enableHiding: false,
 		}),
 		columnHelper.display({
-			size: 200,
+			size: 320,
 			id: "name",
 			header: "Name",
 			cell: ({ row }) => <NameCell flowRun={row.original} />,
@@ -116,7 +119,23 @@ const createColumns = ({
 				return <DurationCell flowRun={flowRun} />;
 			},
 		}),
-
+		columnHelper.display({
+			size: 200,
+			id: "taskRuns",
+			header: "Task Runs",
+			cell: ({ row }) => {
+				const flowRun = row.original;
+				if (flowRun.state?.type === "SCHEDULED") {
+					return null;
+				}
+				// nb: Defer data loading since this column is not guaranteed
+				return (
+					<Suspense fallback={<Skeleton className="p-4 h-2 w-full" />}>
+						<TasksCell flowRun={flowRun} />
+					</Suspense>
+				);
+			},
+		}),
 		columnHelper.accessor("tags", {
 			id: "tags",
 			header: "Tags",
