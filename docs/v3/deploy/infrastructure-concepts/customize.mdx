@@ -216,6 +216,13 @@ prefect deployment run \
   --job-variable HELLO=THERE
 ```
 
+### Use job variables in Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="job variables" href={deployments.tf} />
+
 ### Use job variables in automations
 
 Additionally, runs kicked off through automation actions can use job variables, including ones rendered from Jinja 

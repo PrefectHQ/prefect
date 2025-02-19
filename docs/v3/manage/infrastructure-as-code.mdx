@@ -1,0 +1,38 @@
+---
+title: Manage Prefect resources with infrastructure-as-code
+sidebarTitle: Infrastructure as code
+description: Declaratively manage Prefect resources with additional tools
+---
+
+You can manage many Prefect resources with tools like
+[Terraform](https://www.terraform.io/) and [Helm](https://helm.sh/).  These
+options are a viable alternative to Prefect's CLI and UI.
+
+## Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { home } from "/snippets/resource-management/vars.mdx"
+
+<TF name="resources" href={home.tf} />
+
+This documentation represents all Prefect resources that are supported by Terraform.
+This Terraform provider is maintained by the Prefect team, and is undergoing active development
+to reach [parity with the Prefect API](https://github.com/PrefectHQ/terraform-provider-prefect/milestone/1).
+
+The Prefect team welcomes contributions, feature requests, and bug reports
+via our [issue tracker](https://github.com/PrefectHQ/terraform-provider-prefect/issues).
+
+## Helm
+
+import { HELM } from "/snippets/resource-management/helm.mdx"
+
+<HELM name="resources" href={home.helm} />
+
+Each Helm chart subdirectory contains usage documentation. There are two main charts:
+
+- The `prefect-server` chart is used to a deploy a Prefect server. This is an alternative to using
+  [Prefect Cloud](https://app.prefect.cloud/).
+- The `prefect-worker` chart is used to deploy a [Prefect worker](/v3/deploy/infrastructure-concepts/workers).
+
+Finally, there is a `prefect-prometheus-exporter` chart that is used to deploy a Prometheus exporter,
+exposing Prefect metrics for monitoring and alerting.
