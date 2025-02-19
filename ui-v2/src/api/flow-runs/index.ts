@@ -103,7 +103,7 @@ export const buildListFlowRunsQuery = (
 export const useDeleteFlowRun = () => {
 	const queryClient = useQueryClient();
 	const { mutate: deleteFlowRun, ...rest } = useMutation({
-		mutationFn: async (id: string) =>
+		mutationFn: (id: string) =>
 			getQueryService().DELETE("/flow_runs/{id}", {
 				params: { path: { id } },
 			}),
