@@ -5,12 +5,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-
-export type SortFilters =
-	| "START_TIME_ASC"
-	| "START_TIME_DESC"
-	| "NAME_ASC"
-	| "NAME_DESC";
+import { SortFilters } from "./sort-filter-constants";
 
 type SortFilterProps = {
 	defaultValue?: SortFilters;

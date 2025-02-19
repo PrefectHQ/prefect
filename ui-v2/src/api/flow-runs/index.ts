@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -113,6 +114,7 @@ export const buildPaginateFlowRunsQuery = (
 		},
 		staleTime: 1000,
 		refetchInterval,
+		placeholderData: keepPreviousData,
 	});
 };
 

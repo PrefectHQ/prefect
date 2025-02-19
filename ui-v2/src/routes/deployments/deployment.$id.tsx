@@ -2,6 +2,10 @@ import { buildListAutomationsRelatedQuery } from "@/api/automations/automations"
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { buildFLowDetailsQuery } from "@/api/flows";
 import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
+import {
+	FLOW_RUN_STATES,
+	SORT_FILTERS,
+} from "@/components/flow-runs/data-table";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -14,6 +18,23 @@ const searchParams = z.object({
 	tab: z
 		.enum(["Runs", "Upcoming", "Parameters", "Configuration", "Description"])
 		.default("Runs"),
+	upcoming: z
+		.object({
+			flowRuns: z
+				.object({
+					name: z.string().optional(),
+					state: z.array(z.enum(FLOW_RUN_STATES)).optional(),
+				})
+				.optional(),
+			page: z.number().int().positive().optional().default(1).catch(1),
+			limit: z.number().int().positive().optional().default(10).catch(10),
+			sort: z
+				.enum(SORT_FILTERS)
+				.optional()
+				.default("START_TIME_DESC")
+				.catch("START_TIME_DESC"),
+		})
+		.optional(),
 });
 
 export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];

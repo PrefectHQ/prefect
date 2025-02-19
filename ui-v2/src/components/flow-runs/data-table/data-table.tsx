@@ -32,9 +32,11 @@ import { DurationCell } from "./duration-cell";
 import { NameCell } from "./name-cell";
 import { ParametersCell } from "./parameters-cell";
 import { RunNameSearch } from "./run-name-search";
-import { SortFilter, SortFilters } from "./sort-filter";
+import { SortFilter } from "./sort-filter";
+import type { SortFilters } from "./sort-filter-constants";
 import { StartTimeCell } from "./start-time-cell";
-import { FlowRunState, StateFilter } from "./state-filter";
+import { StateFilter } from "./state-filter";
+import type { FlowRunState } from "./state-filters-constants";
 import { TasksCell } from "./tasks-cell";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
@@ -180,7 +182,7 @@ type FilterProps = {
 };
 type SortProps = {
 	defaultValue?: SortFilters;
-	value: SortFilters;
+	value: SortFilters | undefined;
 	onSelect: (sort: SortFilters) => void;
 };
 
@@ -192,7 +194,6 @@ export type FlowRunsDataTableProps = {
 	flowRuns: Array<FlowRunWithDeploymentAndFlow | FlowRunWithFlow>;
 } & PaginationProps;
 export const FlowRunsDataTable = ({
-	pageCount,
 	pagination,
 	onPaginationChange,
 	search,
@@ -224,19 +225,19 @@ export const FlowRunsDataTable = ({
 		[pagination, onPaginationChange],
 	);
 
+	console.log(pagination);
+
 	const table = useReactTable({
-		getRowId: (row) => row.id,
-		onRowSelectionChange: setRowSelection,
-		state: { pagination, rowSelection },
+		columns: createColumns({ showDeployment }),
 		data: flowRuns,
-		columns: createColumns({
-			showDeployment,
-		}),
-		getCoreRowModel: getCoreRowModel(),
-		pageCount,
-		manualPagination: true,
 		defaultColumn: { maxSize: 300 },
+		getCoreRowModel: getCoreRowModel(),
+		getRowId: (row) => row.id,
+		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
+		onRowSelectionChange: setRowSelection,
+		rowCount: flowRunsCount,
+		state: { pagination, rowSelection },
 	});
 
 	const selectedRows = Object.keys(rowSelection);
