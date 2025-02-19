@@ -33,6 +33,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
+  "bokeh",
   "coverage",
   # Dask and its distributed scheduler follow the same release schedule and version,
   # so here we apply the same restrictions as for the distributed package up above in
