@@ -13,11 +13,7 @@ on:
     paths:
       - .github/workflows/markdown-tests.yaml
       - "docs/**"
-      - requirements-client.txt
-      - requirements-dev.txt
-      - requirements-markdown-tests.txt
-      - requirements.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
 
   push:
@@ -27,11 +23,7 @@ on:
       - .github/workflows/markdown-tests.yaml
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
-      - requirements-client.txt
-      - requirements-dev.txt
-      - requirements-markdown-tests.txt
-      - requirements.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
 
 permissions:

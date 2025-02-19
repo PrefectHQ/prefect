@@ -11,10 +11,7 @@ on:
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
       - scripts/entrypoint.sh
   push:
@@ -24,10 +21,7 @@ on:
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
       - scripts/entrypoint.sh
 permissions:
