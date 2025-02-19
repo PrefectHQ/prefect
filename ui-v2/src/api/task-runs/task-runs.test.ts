@@ -4,7 +4,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { TaskRun, TaskRunsFilter, buildListTaskRunsQuery } from ".";
+import {
+	TaskRun,
+	TaskRunsFilter,
+	buildGetFlowRunsTaskRunsCountQuery,
+	buildListTaskRunsQuery,
+} from ".";
 
 describe("task runs api", () => {
 	const mockFetchTaskRunsAPI = (taskRuns: Array<TaskRun>) => {
@@ -67,6 +72,34 @@ describe("task runs api", () => {
 			);
 
 			expect(refetchInterval).toBe(customRefetchInterval);
+		});
+	});
+
+	describe("buildGetFlowRunsTaskRunsCountQuery", () => {
+		const mockGetFlowRunsTaskRunsCountAPI = (
+			response: Record<string, number>,
+		) => {
+			server.use(
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json(response);
+				}),
+			);
+		};
+
+		it("fetches map of flow run ids vs query count ", async () => {
+			const mockIds = ["0", "1", "2"];
+			const mockResponse = { "0": 2, "1": 4, "2": 8 };
+			mockGetFlowRunsTaskRunsCountAPI(mockResponse);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildGetFlowRunsTaskRunsCountQuery(mockIds)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => {
+				expect(result.current.data).toEqual(mockResponse);
+			});
 		});
 	});
 });
