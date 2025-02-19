@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import os
 import tempfile
 from pathlib import Path
@@ -10,6 +9,7 @@ from botocore.exceptions import ClientError
 from pydantic_core import from_json
 
 from prefect.runner import Runner
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_aws.credentials import AwsCredentials
 
 from .types import AwsCredentialsBlockName, S3Bucket, S3Key
@@ -76,7 +76,7 @@ def execute_bundle_from_s3(
 
     bundle_data = from_json(Path(download_result["local_path"]).read_bytes())
 
-    asyncio.run(Runner().execute_bundle(bundle_data))
+    run_coro_as_sync(Runner().execute_bundle(bundle_data))
 
 
 if __name__ == "__main__":
