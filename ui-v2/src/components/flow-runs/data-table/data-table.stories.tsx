@@ -12,7 +12,7 @@ const MOCK_DATA = Array.from(
 const meta: Meta<typeof FlowRunsDataTable> = {
 	title: "Components/FlowRuns/DataTable/FlowRunsDataTable",
 	decorators: [routerDecorator],
-	args: { flowRuns: MOCK_DATA },
+	args: { flowRuns: MOCK_DATA, flowRunsCount: MOCK_DATA.length },
 	component: FlowRunsDataTable,
 };
 export default meta;
