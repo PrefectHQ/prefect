@@ -5,7 +5,16 @@ import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Protocol,
+    cast,
+    get_args,
+)
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
@@ -19,7 +28,14 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.timeout import timeout as timeout_context
 
-F = TypeVar("F")
+
+class HasDoneCallback(Protocol):
+    """Protocol for futures that support add_done_callback."""
+
+    def add_done_callback(self, fn: Callable[[Any], None]) -> None: ...
+
+
+F = TypeVar("F", bound=HasDoneCallback)
 R = TypeVar("R")
 
 if TYPE_CHECKING:
@@ -57,6 +73,12 @@ class PrefectFuture(abc.ABC, Generic[R]):
             # TODO: Consider using task run events to wait for the task to start
             return Pending()
         return task_run.state or Pending()
+
+    @property
+    def final_state(self) -> State[R]:
+        if self._final_state:
+            return self._final_state
+        raise RuntimeError("Final state not set for PrefectFuture")
 
     @abc.abstractmethod
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -109,7 +131,7 @@ class PrefectWrappedFuture(PrefectFuture[R], abc.ABC, Generic[R, F]):
 
     Type Parameters:
         R: The return type of the future
-        F: The type of the wrapped future
+        F: The type of the wrapped future, must support add_done_callback
     """
 
     def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
@@ -125,7 +147,7 @@ class PrefectWrappedFuture(PrefectFuture[R], abc.ABC, Generic[R, F]):
         """Add a callback to be executed when the future completes."""
         if not self._final_state:
 
-            def call_with_self(future: F):
+            def call_with_self(_: F):
                 """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
                 fn(self)
 
@@ -174,6 +196,9 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
+        if TYPE_CHECKING:
+            assert not isinstance(_result, Exception)
+            _result = cast(R, _result)
         return _result
 
     def __del__(self) -> None:
@@ -238,7 +263,12 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             )
             await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
             task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if task_run.state.is_final():
+            if task_run.state is None:
+                logger.warning(
+                    "Task run %s has no state after waiting for completion. Could not determine final state.",
+                    self.task_run_id,
+                )
+            elif task_run.state.is_final():
                 self._final_state = task_run.state
             return
 
@@ -263,9 +293,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 )
 
-        return await self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
+        return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
     def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
         if self._final_state:
@@ -274,7 +302,12 @@ class PrefectDistributedFuture(PrefectFuture[R]):
         TaskRunWaiter.instance()
         with get_client(sync_client=True) as client:
             task_run = client.read_task_run(task_run_id=self._task_run_id)
-            if task_run.state.is_final():
+            if task_run.state is None:
+                logger.warning(
+                    "Task run %s has no state after waiting for completion. Could not determine final state.",
+                    self.task_run_id,
+                )
+            elif task_run.state.is_final():
                 self._final_state = task_run.state
                 fn(self)
                 return
@@ -348,7 +381,7 @@ def as_completed(
     pending = unique_futures
     try:
         with timeout_context(timeout):
-            done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
+            done = {f for f in unique_futures if f.final_state}
             pending = unique_futures - done
             yield from done
 
@@ -425,7 +458,7 @@ def wait(
         ```
     """
     _futures = set(futures)
-    done = {f for f in _futures if f._final_state}
+    done = {f for f in _futures if f.final_state}
     not_done = _futures - done
     if len(done) == len(_futures):
         return DoneAndNotDoneFutures(done, not_done)
@@ -441,26 +474,29 @@ def wait(
         return DoneAndNotDoneFutures(done, not_done)
 
 
-def resolve_futures_to_states(
-    expr: Union[PrefectFuture[R], Any],
-) -> Union[State, Any]:
+def resolve_futures_to_states(expr: Any) -> set[State[Any]]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved to their final states.
     Resolving futures to their final states may wait for execution to complete.
 
     Unsupported object types will be returned without modification.
+
+    Returns:
+        A set of states corresponding to the futures in the original expression.
     """
-    futures: set[PrefectFuture[R]] = set()
+    futures: set[PrefectFuture[Any]] = set()
 
     def _collect_futures(
-        futures: set[PrefectFuture[R]], expr: Any, context: Any
-    ) -> Union[PrefectFuture[R], Any]:
+        futures: set[PrefectFuture[Any]], expr: Any, context: Any
+    ) -> PrefectFuture[Any]:
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
+            if TYPE_CHECKING:
+                assert (expr := get_args(expr)[0]) == Any
             futures.add(expr)
 
         return expr

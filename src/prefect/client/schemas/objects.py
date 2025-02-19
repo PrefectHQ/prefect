@@ -9,9 +9,11 @@ from typing import (
     Annotated,
     Any,
     ClassVar,
+    Coroutine,
     Generic,
     Optional,
     Union,
+    cast,
     overload,
 )
 from uuid import UUID, uuid4
@@ -323,6 +325,24 @@ class State(ObjectBaseModel, Generic[R]):
             fetch=fetch,
             retry_result_failure=retry_result_failure,
         )
+
+    async def aresult(
+        self,
+        raise_on_failure: bool = True,
+        retry_result_failure: bool = True,
+    ) -> R:
+        from prefect.states import _get_state_result  # type: ignore[reportPrivateUsage]
+
+        result = await _get_state_result(  # type: ignore
+            self,
+            raise_on_failure=raise_on_failure,
+            retry_result_failure=retry_result_failure,
+            _sync=False,  # type: ignore[reportCallIssue]
+        )
+        assert not isinstance(result, Coroutine)
+        if TYPE_CHECKING:
+            result = cast(R, result)
+        return result
 
     @model_validator(mode="after")
     def default_name_from_type(self) -> Self:
