@@ -102,7 +102,7 @@ my_flow.serve(
 
 </CodeGroup>
 
-### Create schedules in the terminal
+### Create schedules with the CLI
 
 You can create a schedule through the interactive `prefect deploy` command. You will be prompted to choose which type of schedule to create.
 
@@ -125,6 +125,13 @@ deployments:
       timezone: "Europe/London"
       active: true
 ```
+
+### Create schedules with Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="schedules" href={deployments.tf} />
 
 ## Schedule types
 
