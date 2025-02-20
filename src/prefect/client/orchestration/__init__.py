@@ -7,7 +7,6 @@ from contextlib import AsyncExitStack
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overload
 from uuid import UUID
-import warnings
 
 import certifi
 import httpcore
@@ -82,6 +81,7 @@ from prefect.client.orchestration._blocks_types.client import (
 
 import prefect
 import prefect.exceptions
+from prefect.logging.loggers import get_run_logger
 import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
@@ -1190,8 +1190,10 @@ class PrefectClient(
                 "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior. "
                 f"Please upgrade your Prefect server from version {api_version} to version {client_version} or higher."
             )
-            warnings.filterwarnings("once", message=warning_message)
-            warnings.warn(warning_message)
+            try:
+                get_run_logger().warning(warning_message)
+            except prefect.context.MissingContextError:
+                self.logger.warning(warning_message)
 
     async def __aenter__(self) -> Self:
         """
@@ -1538,8 +1540,10 @@ class SyncPrefectClient(
                 "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior. "
                 f"Please upgrade your Prefect server from version {api_version} to version {client_version} or higher."
             )
-            warnings.filterwarnings("once", message=warning_message)
-            warnings.warn(warning_message)
+            try:
+                get_run_logger().warning(warning_message)
+            except prefect.context.MissingContextError:
+                self.logger.warning(warning_message)
 
     def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
         task_run_data = TaskRunUpdate(name=name)

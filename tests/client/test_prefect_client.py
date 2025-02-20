@@ -1,7 +1,6 @@
 import json
 import os
 import ssl
-import warnings
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
@@ -2785,20 +2784,19 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
             in str(e.value)
         )
 
-    async def test_warn_on_server_incompatibility(self, prefect_client, monkeypatch):
+    async def test_warn_on_server_incompatibility(
+        self, prefect_client, monkeypatch, caplog
+    ):
         mock_version = "3.0.0"
         assert version.parse(mock_version) < version.parse(prefect.__version__)
         monkeypatch.setattr(
             prefect_client, "api_version", AsyncMock(return_value=mock_version)
         )
-        with warnings.catch_warnings(record=True) as w:
-            warnings.filterwarnings("always")
-            await prefect_client.raise_for_api_version_mismatch()
+        await prefect_client.raise_for_api_version_mismatch()
 
-        assert len(w) == 1
         assert (
             "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
-            in str(w[0].message)
+            in caplog.text
         )
 
 
@@ -2871,21 +2869,17 @@ class TestSyncClientRaiseForAPIVersionMismatch:
         )
 
     async def test_warn_on_server_incompatibility(
-        self, sync_prefect_client, monkeypatch
+        self, sync_prefect_client, monkeypatch, caplog
     ):
         mock_version = "3.0.0"
         assert version.parse(mock_version) < version.parse(prefect.__version__)
         monkeypatch.setattr(
             sync_prefect_client, "api_version", Mock(return_value=mock_version)
         )
-        with warnings.catch_warnings(record=True) as w:
-            warnings.filterwarnings("always")
-            sync_prefect_client.raise_for_api_version_mismatch()
-
-        assert len(w) == 1
+        sync_prefect_client.raise_for_api_version_mismatch()
         assert (
             "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
-            in str(w[0].message)
+            in caplog.text
         )
 
 
