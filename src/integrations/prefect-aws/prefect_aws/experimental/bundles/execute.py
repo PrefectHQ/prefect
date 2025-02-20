@@ -13,8 +13,6 @@ from prefect.runner import Runner
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_aws.credentials import AwsCredentials
 
-from .types import AwsCredentialsBlockName, S3Bucket, S3Key
-
 
 class DownloadResult(TypedDict):
     """Result of downloading a bundle from S3."""
@@ -24,10 +22,10 @@ class DownloadResult(TypedDict):
 
 
 def download_bundle_from_s3(
-    bucket: S3Bucket,
-    key: S3Key,
+    bucket: str,
+    key: str,
     output_dir: str | None = None,
-    aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+    aws_credentials_block_name: Optional[str] = None,
 ) -> DownloadResult:
     """
     Downloads a bundle from an S3 bucket.
@@ -45,7 +43,7 @@ def download_bundle_from_s3(
             - local_path: Path where the bundle was downloaded
     """
 
-    if aws_credentials_block_name:
+    if isinstance(aws_credentials_block_name, str):
         aws_credentials = AwsCredentials.load(aws_credentials_block_name)
     else:
         aws_credentials = AwsCredentials()
@@ -65,9 +63,9 @@ def download_bundle_from_s3(
 
 
 def execute_bundle_from_s3(
-    bucket: S3Bucket,
-    key: S3Key,
-    aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+    bucket: str,
+    key: str,
+    aws_credentials_block_name: Optional[str] = None,
 ) -> None:
     """
     Downloads a bundle from S3 and executes it.
@@ -95,5 +93,17 @@ def execute_bundle_from_s3(
     run_coro_as_sync(Runner().execute_bundle(bundle_data))
 
 
+def _execute_bundle_from_s3(
+    bucket: str = typer.Option(...),
+    key: str = typer.Option(...),
+    aws_credentials_block_name: Optional[str] = typer.Option(None),
+) -> None:
+    execute_bundle_from_s3(
+        bucket=bucket,
+        key=key,
+        aws_credentials_block_name=aws_credentials_block_name,
+    )
+
+
 if __name__ == "__main__":
-    typer.run(execute_bundle_from_s3)
+    typer.run(_execute_bundle_from_s3)

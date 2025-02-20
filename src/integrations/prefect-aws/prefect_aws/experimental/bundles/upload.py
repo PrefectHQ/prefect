@@ -13,13 +13,6 @@ from botocore.exceptions import ClientError
 
 from prefect_aws.credentials import AwsCredentials
 
-from .types import (
-    AwsCredentialsBlockName,
-    LocalFilepath,
-    S3Bucket,
-    S3Key,
-)
-
 
 class UploadResult(TypedDict):
     """Result of uploading a bundle to S3."""
@@ -33,10 +26,10 @@ class UploadResult(TypedDict):
 
 
 def upload_bundle_to_s3(
-    local_filepath: LocalFilepath,
-    bucket: S3Bucket,
-    key: S3Key,
-    aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+    local_filepath: str,
+    bucket: str,
+    key: str,
+    aws_credentials_block_name: Optional[str] = None,
 ) -> UploadResult:
     """
     Uploads a bundle file to an S3 bucket.
@@ -80,5 +73,25 @@ def upload_bundle_to_s3(
         raise RuntimeError(f"Failed to upload bundle to S3: {e}")
 
 
+def _upload_bundle_to_s3(
+    local_filepath: str = typer.Argument(...),
+    bucket: str = typer.Option(...),
+    key: str = typer.Option(...),
+    aws_credentials_block_name: Optional[str] = typer.Option(None),
+) -> UploadResult:
+    block_name = (
+        aws_credentials_block_name
+        if isinstance(aws_credentials_block_name, str)
+        else None
+    )
+
+    return upload_bundle_to_s3(
+        local_filepath=local_filepath,
+        bucket=bucket,
+        key=key,
+        aws_credentials_block_name=block_name,
+    )
+
+
 if __name__ == "__main__":
-    typer.run(upload_bundle_to_s3)
+    typer.run(_upload_bundle_to_s3)

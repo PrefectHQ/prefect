@@ -9,16 +9,11 @@ from typing import Any, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 from botocore.exceptions import ClientError
 from prefect_aws.experimental.bundles.execute import (
     download_bundle_from_s3,
     execute_bundle_from_s3,
-)
-from prefect_aws.experimental.bundles.types import (
-    AwsCredentialsBlockName,
-    LocalFilepath,
-    S3Bucket,
-    S3Key,
 )
 from prefect_aws.experimental.bundles.upload import upload_bundle_to_s3
 
@@ -171,10 +166,10 @@ class TestUploadBundle:
         original_func = upload.upload_bundle_to_s3
 
         def wrapper(
-            local_filepath: LocalFilepath,
-            bucket: S3Bucket,
-            key: S3Key,
-            aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+            local_filepath: str = typer.Argument(...),
+            bucket: str = typer.Option(...),
+            key: str = typer.Option(...),
+            aws_credentials_block_name: Optional[str] = typer.Option(None),
         ):
             captured_args.update(
                 {
@@ -222,10 +217,10 @@ class TestUploadBundle:
         original_func = upload.upload_bundle_to_s3
 
         def wrapper(
-            local_filepath: LocalFilepath,
-            bucket: S3Bucket,
-            key: S3Key,
-            aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+            local_filepath: str = typer.Argument(...),
+            bucket: str = typer.Option(...),
+            key: str = typer.Option(...),
+            aws_credentials_block_name: Optional[str] = typer.Option(None),
         ):
             captured_args.update(
                 {
