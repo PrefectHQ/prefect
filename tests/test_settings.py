@@ -65,6 +65,7 @@ from prefect.settings.legacy import (
 from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
+from prefect.settings.models.results import ResultsSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
@@ -654,6 +655,41 @@ class TestSettingsClass:
             monkeypatch.setenv(key, value)
         new_settings = Settings()
         assert settings.model_dump() == new_settings.model_dump()
+
+    @pytest.mark.parametrize(
+        "settings,alias,expected",
+        [
+            (
+                Settings(server=ServerSettings(logging_level="DEBUG")),
+                "PREFECT_LOGGING_SERVER_LEVEL",
+                "DEBUG",
+            ),
+            (
+                Settings(results=ResultsSettings(default_storage_block="foo/bar")),
+                "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK",
+                "foo/bar",
+            ),
+        ],
+    )
+    def test_settings_to_environment_includes_aliases(
+        self, settings: Settings, alias: str, expected: str
+    ):
+        assert (
+            settings.to_environment_variables(include_aliases=True).get(alias)
+            == expected
+        )
+
+    @pytest.mark.parametrize(
+        "alias",
+        ["PREFECT_LOGGING_SERVER_LEVEL", "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK"],
+    )
+    def test_settings_to_environment_doesnt_include_aliases_by_default(
+        self, alias: str
+    ):
+        assert (
+            Settings().to_environment_variables(include_aliases=False).get(alias)
+            is None
+        )
 
     def test_settings_hash_key(self):
         settings = Settings(testing=dict(test_mode=True))  # type: ignore

@@ -92,6 +92,7 @@ class PrefectBaseSettings(BaseSettings):
         self,
         exclude_unset: bool = False,
         include_secrets: bool = True,
+        include_aliases: bool = False,
     ) -> Dict[str, str]:
         """Convert the settings object to a dictionary of environment variables."""
         env: Dict[str, Any] = self.model_dump(
@@ -105,12 +106,26 @@ class PrefectBaseSettings(BaseSettings):
                 child_env = child_settings.to_environment_variables(
                     exclude_unset=exclude_unset,
                     include_secrets=include_secrets,
+                    include_aliases=include_aliases,
                 )
                 env_variables.update(child_env)
             elif (value := env.get(key)) is not None:
-                env_variables[f"{self.model_config.get('env_prefix')}{key.upper()}"] = (
-                    _to_environment_variable_value(value)
-                )
+                validation_alias = self.model_fields[key].validation_alias
+                if include_aliases and validation_alias is not None:
+                    if isinstance(validation_alias, AliasChoices):
+                        for alias in validation_alias.choices:
+                            if isinstance(alias, str):
+                                env_variables[alias.upper()] = (
+                                    _to_environment_variable_value(value)
+                                )
+                    elif isinstance(validation_alias, str):
+                        env_variables[validation_alias.upper()] = (
+                            _to_environment_variable_value(value)
+                        )
+                else:
+                    env_variables[
+                        f"{self.model_config.get('env_prefix')}{key.upper()}"
+                    ] = _to_environment_variable_value(value)
         return env_variables
 
     @model_serializer(
