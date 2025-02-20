@@ -83,7 +83,7 @@ export const buildListTaskRunsQuery = (
  * const { data } = useSuspenseQuery(buildListTaskRunsQuery(["id-0", "id-1"]));
  * ```
  */
-export const buildGetFlowRusTaskRunsCountQuery = (
+export const buildGetFlowRunsTaskRunsCountQuery = (
 	flow_run_ids: Array<string>,
 ) => {
 	return queryOptions({
