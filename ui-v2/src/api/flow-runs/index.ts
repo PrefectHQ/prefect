@@ -96,7 +96,7 @@ export const buildFilterFlowRunsQuery = (
 export const buildPaginateFlowRunsQuery = (
 	filter: FlowRunsPaginateFilter = {
 		page: 1,
-		sort: "ID_DESC",
+		sort: "START_TIME_DESC",
 	},
 	refetchInterval: number = 30_000,
 ) => {
