@@ -4,39 +4,33 @@ import {
 	type FlowRunWithDeploymentAndFlow,
 	type FlowRunWithFlow,
 } from "@/api/flow-runs";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 
 import { Flow } from "@/api/flows";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { Icon } from "@/components/ui/icons";
+
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
-import { pluralize } from "@/utils";
+
 import { CheckedState } from "@radix-ui/react-checkbox";
 import {
 	OnChangeFn,
 	PaginationState,
-	RowSelectionState,
+	TableOptions,
 	createColumnHelper,
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, use, useCallback, useMemo } from "react";
 
-import { DeploymentCell } from "./deployment-cell";
-import { DurationCell } from "./duration-cell";
-import { NameCell } from "./name-cell";
-import { ParametersCell } from "./parameters-cell";
-import { RunNameSearch } from "./run-name-search";
-import { SortFilter, SortFilters } from "./sort-filter";
-import { StartTimeCell } from "./start-time-cell";
-import { FlowRunState, StateFilter } from "./state-filter";
-import { TasksCell } from "./tasks-cell";
-import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
+import { DeploymentCell } from "./flow-runs-cells/deployment-cell";
+import { DurationCell } from "./flow-runs-cells/duration-cell";
+import { NameCell } from "./flow-runs-cells/name-cell";
+import { ParametersCell } from "./flow-runs-cells/parameters-cell";
+import { StartTimeCell } from "./flow-runs-cells/start-time-cell";
+import { TasksCell } from "./flow-runs-cells/tasks-cell";
+import { RowSelectionContext } from "./row-selection-context";
 
 export type FlowRunsDataTableRow = FlowRun & {
 	flow: Flow;
@@ -47,41 +41,13 @@ export type FlowRunsDataTableRow = FlowRun & {
 const columnHelper = createColumnHelper<FlowRunsDataTableRow>();
 
 const createColumns = ({
+	isSelectable = false,
 	showDeployment,
 }: {
+	isSelectable?: boolean;
 	showDeployment: boolean;
 }) => {
 	const ret = [
-		columnHelper.display({
-			size: 40,
-			id: "select",
-			header: ({ table }) => {
-				let checkedState: CheckedState = false;
-				if (table.getIsAllRowsSelected()) {
-					checkedState = true;
-				} else if (table.getIsSomePageRowsSelected()) {
-					checkedState = "indeterminate";
-				}
-				return (
-					<Checkbox
-						checked={checkedState}
-						onCheckedChange={(value) =>
-							table.toggleAllPageRowsSelected(Boolean(value))
-						}
-						aria-label="Select all"
-					/>
-				);
-			},
-			cell: ({ row }) => (
-				<Checkbox
-					checked={row.getIsSelected()}
-					onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
-					aria-label="Select row"
-				/>
-			),
-			enableSorting: false,
-			enableHiding: false,
-		}),
 		columnHelper.display({
 			size: 320,
 			id: "name",
@@ -145,6 +111,41 @@ const createColumns = ({
 			),
 		}),
 	];
+
+	if (isSelectable) {
+		ret.unshift(
+			columnHelper.display({
+				size: 40,
+				id: "select",
+				header: ({ table }) => {
+					let checkedState: CheckedState = false;
+					if (table.getIsAllRowsSelected()) {
+						checkedState = true;
+					} else if (table.getIsSomePageRowsSelected()) {
+						checkedState = "indeterminate";
+					}
+					return (
+						<Checkbox
+							checked={checkedState}
+							onCheckedChange={(value) =>
+								table.toggleAllPageRowsSelected(Boolean(value))
+							}
+							aria-label="Select all"
+						/>
+					);
+				},
+				cell: ({ row }) => (
+					<Checkbox
+						checked={row.getIsSelected()}
+						onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+						aria-label="Select row"
+					/>
+				),
+				enableSorting: false,
+				enableHiding: false,
+			}),
+		);
+	}
 	if (showDeployment) {
 		ret.push(
 			columnHelper.display({
@@ -164,48 +165,20 @@ const createColumns = ({
 	return ret;
 };
 
-type PaginationProps = {
+export type FlowRunsDataTableProps = {
+	flowRunsCount: number;
+	flowRuns: Array<FlowRunWithDeploymentAndFlow | FlowRunWithFlow>;
 	pageCount: number;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
 };
-type SearchProps = {
-	onChange: (value: string) => void;
-	value: string;
-};
-type FilterProps = {
-	defaultValue?: Set<FlowRunState>;
-	value: Set<FlowRunState>;
-	onSelect: (filters: Set<FlowRunState>) => void;
-};
-type SortProps = {
-	defaultValue?: SortFilters;
-	value: SortFilters;
-	onSelect: (sort: SortFilters) => void;
-};
-
-export type FlowRunsDataTableProps = {
-	search?: SearchProps;
-	filter?: FilterProps;
-	sort?: SortProps;
-	flowRunsCount: number;
-	flowRuns: Array<FlowRunWithDeploymentAndFlow | FlowRunWithFlow>;
-} & PaginationProps;
 export const FlowRunsDataTable = ({
-	pageCount,
 	pagination,
 	onPaginationChange,
-	search,
-	sort,
-	filter,
 	flowRunsCount,
 	flowRuns,
 }: FlowRunsDataTableProps) => {
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
-	const [deleteConfirmationDialogState, confirmDelete] =
-		useDeleteFlowRunsDialog();
-
+	const rowSelectionCtx = use(RowSelectionContext);
 	const showDeployment = useMemo(
 		() => flowRuns.some((flowRun) => "deployment" in flowRun),
 		[flowRuns],
@@ -224,78 +197,31 @@ export const FlowRunsDataTable = ({
 		[pagination, onPaginationChange],
 	);
 
-	const table = useReactTable({
-		getRowId: (row) => row.id,
-		onRowSelectionChange: setRowSelection,
-		state: { pagination, rowSelection },
+	let tableOptions: TableOptions<
+		FlowRunWithDeploymentAndFlow | FlowRunWithFlow
+	> = {
+		columns: createColumns({ showDeployment }),
 		data: flowRuns,
-		columns: createColumns({
-			showDeployment,
-		}),
-		getCoreRowModel: getCoreRowModel(),
-		pageCount,
-		manualPagination: true,
 		defaultColumn: { maxSize: 300 },
+		getCoreRowModel: getCoreRowModel(),
+		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
-	});
+		rowCount: flowRunsCount,
+		state: { pagination },
+	};
 
-	const selectedRows = Object.keys(rowSelection);
+	if (rowSelectionCtx) {
+		const { rowSelection, setRowSelection } = rowSelectionCtx;
+		tableOptions = {
+			...tableOptions,
+			columns: createColumns({ showDeployment, isSelectable: true }),
+			getRowId: (row) => row.id,
+			onRowSelectionChange: setRowSelection,
+			state: { pagination, rowSelection },
+		};
+	}
 
-	return (
-		<>
-			<div>
-				<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
-					<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
-						{selectedRows.length > 0 ? (
-							<div className="flex items-center gap-1">
-								<Typography
-									variant="bodySmall"
-									className="text-muted-foreground"
-								>
-									{selectedRows.length} selected
-								</Typography>
-								<Button
-									aria-label="Delete rows"
-									size="icon"
-									variant="secondary"
-									onClick={() => confirmDelete(selectedRows)}
-								>
-									<Icon id="Trash2" className="h-4 w-4" />
-								</Button>
-							</div>
-						) : (
-							<Typography variant="bodySmall" className="text-muted-foreground">
-								{flowRunsCount} {pluralize(flowRunsCount, "Flow run")}
-							</Typography>
-						)}
-					</div>
-					{search && (
-						<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
-							<RunNameSearch
-								value={search.value}
-								onChange={(e) => search.onChange(e.target.value)}
-								placeholder="Search by run name"
-							/>
-						</div>
-					)}
-					{filter && (
-						<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
-							<StateFilter
-								selectedFilters={filter.value}
-								onSelectFilter={filter.onSelect}
-							/>
-						</div>
-					)}
-					{sort && (
-						<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
-							<SortFilter value={sort.value} onSelect={sort.onSelect} />
-						</div>
-					)}
-				</div>
+	const table = useReactTable(tableOptions);
 
-				<DataTable table={table} />
-			</div>
-			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
-		</>
-	);
+	return <DataTable table={table} />;
 };
