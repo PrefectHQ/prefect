@@ -4,6 +4,7 @@ import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
 import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
 import { SchemaFormPropertyLabel } from "./schema-form-property-label";
+import { SchemaFormPropertyMenu } from "./schema-form-property-menu";
 import {
 	SchemaFormErrors,
 	SchemaValueIndexError,
@@ -48,11 +49,20 @@ export function SchemaFormProperty({
 	return (
 		<div className="flex flex-col gap-2">
 			{showLabel && (
-				<SchemaFormPropertyLabel
-					property={property}
-					required={required}
-					id={id}
-				/>
+				<div className="grid grid-cols-[1fr_auto] items-center gap-2">
+					<SchemaFormPropertyLabel
+						property={property}
+						required={required}
+						id={id}
+					/>
+					<div className="ml-auto">
+						<SchemaFormPropertyMenu
+							value={value}
+							onValueChange={onValueChange}
+							property={property}
+						/>
+					</div>
+				</div>
 			)}
 
 			<SchemaFormPropertyDescription property={property} />

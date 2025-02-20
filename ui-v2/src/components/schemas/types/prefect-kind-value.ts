@@ -8,10 +8,15 @@ type BasePrefectKindValue<
 	__prefect_kind: TKind;
 } & TRest;
 
-export type PrefectKindValue =
-	| PrefectKindNull
-	| PrefectKindJinja
-	| PrefectKindJson;
+export type PrefectKindValue = PrefectKindValueJinja | PrefectKindValueJson;
+
+export function getPrefectKindFromValue(value: unknown): PrefectKind | null {
+	if (isPrefectKindValue(value)) {
+		return value.__prefect_kind;
+	}
+
+	return null;
+}
 
 export function isPrefectKindValue<T extends PrefectKind = PrefectKind>(
 	value: unknown,
@@ -30,38 +35,31 @@ export function isPrefectKindValue<T extends PrefectKind = PrefectKind>(
 	return true;
 }
 
-export type PrefectKindNull = BasePrefectKindValue<
-	"none",
-	{
-		value: unknown;
-	}
->;
-
-export function isPrefectKindNull(value: unknown): value is PrefectKindNull {
-	return isPrefectKindValue(value, "none") && "value" in value;
-}
-
-export type PrefectKindJson = BasePrefectKindValue<
+export type PrefectKindValueJson = BasePrefectKindValue<
 	"json",
 	{
 		value?: string;
 	}
 >;
 
-export function isPrefectKindJson(value: unknown): value is PrefectKindJson {
+export function isPrefectKindValueJson(
+	value: unknown,
+): value is PrefectKindValueJson {
 	return (
 		isPrefectKindValue(value, "json") &&
 		(isString(value.value) || !isDefined(value.value))
 	);
 }
 
-export type PrefectKindJinja = BasePrefectKindValue<
+export type PrefectKindValueJinja = BasePrefectKindValue<
 	"jinja",
 	{
 		template?: string;
 	}
 >;
 
-export function isPrefectKindJinja(value: unknown): value is PrefectKindJinja {
+export function isPrefectKindValueJinja(
+	value: unknown,
+): value is PrefectKindValueJinja {
 	return isPrefectKindValue(value, "jinja") && isString(value.template);
 }

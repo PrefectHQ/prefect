@@ -240,7 +240,7 @@ const schema: PrefectSchemaObject = {
 	required: ["string_required"],
 };
 
-const kinds: PrefectKind[] = ["none", "json", "jinja", "workspace_variable"];
+const kinds: PrefectKind[] = ["json", "jinja"];
 
 const meta = {
 	title: "Components/SchemaForm",
