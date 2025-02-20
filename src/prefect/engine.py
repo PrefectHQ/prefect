@@ -116,6 +116,7 @@ if __name__ == "__main__":
                 "Unexpected exception encountered when trying to load flow",
                 exc_info=True,
             )
+            QueueService.drain_all()
             raise
 
         try:
