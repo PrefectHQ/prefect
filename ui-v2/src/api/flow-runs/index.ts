@@ -19,6 +19,9 @@ export type FlowRunWithDeploymentAndFlow = FlowRun & {
 export type FlowRunsFilter =
 	components["schemas"]["Body_read_flow_runs_flow_runs_filter_post"];
 
+export type FlowRunsPaginateFilter =
+	components["schemas"]["Body_paginate_flow_runs_flow_runs_paginate_post"];
+
 /**
  * Query key factory for flows-related queries
  *
@@ -27,16 +30,19 @@ export type FlowRunsFilter =
  * @property {function} list - Generates key for a specific filtered flow run query
  *
  * ```
- * all    =>   ['flowRuns']
- * lists  =>   ['flowRuns', 'list']
- * list   =>   ['flowRuns', 'list', { ...filter }]
+ * all    	=> 	['flowRuns']
+ * lists  	=>  ['flowRuns', 'list']
+ * filter	=>	['flowRuns', 'list', 'filter', {...filters}]
+ * paginate	=>	['flowRuns', 'list', 'paginate', {...filters}]
  * ```
  */
 export const queryKeyFactory = {
 	all: () => ["flowRuns"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
-	list: (filter: FlowRunsFilter) =>
-		[...queryKeyFactory.lists(), filter] as const,
+	filter: (filter: FlowRunsFilter) =>
+		[...queryKeyFactory.lists(), "filter", filter] as const,
+	paginate: (filter: FlowRunsPaginateFilter) =>
+		[...queryKeyFactory.lists(), "paginate", filter] as const,
 };
 
 /**
@@ -47,7 +53,7 @@ export const queryKeyFactory = {
  *
  * @example
  * ```ts
- * const { data, isLoading, error } = useQuery(buildListFlowRunsQuery({
+ * const { data, isLoading, error } = useQuery(buildFilterFlowRunsQuery({
  *   offset: 0,
  *   sort: "CREATED_DESC",
  *   flow_runs: {
@@ -56,7 +62,7 @@ export const queryKeyFactory = {
  * }));
  * ```
  */
-export const buildListFlowRunsQuery = (
+export const buildFilterFlowRunsQuery = (
 	filter: FlowRunsFilter = {
 		sort: "ID_DESC",
 		offset: 0,
@@ -64,12 +70,46 @@ export const buildListFlowRunsQuery = (
 	refetchInterval: number = 30_000,
 ) => {
 	return queryOptions({
-		queryKey: queryKeyFactory.list(filter),
+		queryKey: queryKeyFactory.filter(filter),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/flow_runs/filter", {
 				body: filter,
 			});
 			return (res.data ?? []) as FlowRun[];
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
+
+/**
+ * Builds a query configuration for fetching filtered flow runs
+ *
+ * @param filter - Filter parameters for the flow runs pagination query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildPaginateFlowRunsQuery());
+ * ```
+ */
+export const buildPaginateFlowRunsQuery = (
+	filter: FlowRunsPaginateFilter = {
+		page: 1,
+		sort: "START_TIME_DESC",
+	},
+	refetchInterval: number = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.paginate(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/flow_runs/paginate", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
 		},
 		staleTime: 1000,
 		refetchInterval,
