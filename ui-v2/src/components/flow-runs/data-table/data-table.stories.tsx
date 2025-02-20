@@ -12,7 +12,9 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { useMemo, useState } from "react";
 import { FlowRunsDataTable } from "./data-table";
-import { FlowRunState } from "./state-filter";
+import { FlowRunsFilters } from "./data-table-filters";
+import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
+import { RowSelectionProvider } from "./row-selection-provider";
 
 const MOCK_DATA = [
 	createFakeFlowRunWithDeploymentAndFlow({
@@ -45,11 +47,10 @@ const MOCK_FLOW_RUNS_TASK_COUNT = {
 	"4": faker.number.int({ min: 0, max: 5 }),
 };
 
-const meta: Meta<typeof FlowRunsDataTable> = {
+const meta = {
 	title: "Components/FlowRuns/DataTable/FlowRunsDataTable",
 	decorators: [routerDecorator, reactQueryDecorator, toastDecorator],
 	args: { flowRuns: MOCK_DATA, flowRunsCount: MOCK_DATA.length },
-	render: () => <FlowRunDataTableStory />,
 	parameters: {
 		msw: {
 			handlers: [
@@ -59,12 +60,20 @@ const meta: Meta<typeof FlowRunsDataTable> = {
 			],
 		},
 	},
-};
+} satisfies Meta<typeof FlowRunsDataTable>;
+
 export default meta;
+type Story = StoryObj<typeof meta>;
 
-export const story: StoryObj = { name: "FlowRunsDataTable" };
+export const DataTableWithFilters: Story = {
+	render: () => <DataTableWithFiltersStory />,
+};
 
-const FlowRunDataTableStory = () => {
+export const DataTableOnly: Story = {
+	render: () => <DataTableOnlyStory />,
+};
+
+const DataTableWithFiltersStory = () => {
 	const [pageIndex, setPageIndex] = useState(0);
 	const [pageSize, setPageSize] = useState(10);
 
@@ -82,6 +91,45 @@ const FlowRunDataTableStory = () => {
 	}, [filters, search]);
 
 	return (
+		<div className="flex flex-col">
+			<RowSelectionProvider>
+				<FlowRunsFilters
+					stateFilter={{
+						value: filters,
+						onSelect: setFilters,
+					}}
+					search={{
+						value: search,
+						onChange: setSearch,
+					}}
+					sort={{
+						value: "NAME_ASC",
+						onSelect: fn(),
+					}}
+					flowRunsCount={flowRuns.length}
+				/>
+				<FlowRunsDataTable
+					flowRuns={flowRuns}
+					flowRunsCount={flowRuns.length}
+					pagination={{ pageIndex, pageSize }}
+					pageCount={Math.ceil(flowRuns.length / pageSize)}
+					onPaginationChange={(pagination) => {
+						setPageIndex(pagination.pageIndex);
+						setPageSize(pagination.pageSize);
+					}}
+				/>
+			</RowSelectionProvider>
+		</div>
+	);
+};
+
+const DataTableOnlyStory = () => {
+	const [pageIndex, setPageIndex] = useState(0);
+	const [pageSize, setPageSize] = useState(10);
+
+	const flowRuns = MOCK_DATA;
+
+	return (
 		<FlowRunsDataTable
 			flowRuns={flowRuns}
 			flowRunsCount={flowRuns.length}
@@ -90,18 +138,6 @@ const FlowRunDataTableStory = () => {
 			onPaginationChange={(pagination) => {
 				setPageIndex(pagination.pageIndex);
 				setPageSize(pagination.pageSize);
-			}}
-			filter={{
-				value: filters,
-				onSelect: setFilters,
-			}}
-			search={{
-				value: search,
-				onChange: setSearch,
-			}}
-			sort={{
-				value: "NAME_ASC",
-				onSelect: fn(),
 			}}
 		/>
 	);

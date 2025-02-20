@@ -4,7 +4,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { mockPointerEvents } from "@tests/utils/browser";
 import { useState } from "react";
-import { type FlowRunState, StateFilter } from "./state-filter";
+import { StateFilter } from "./state-filter";
+import type { FlowRunState } from "./state-filters.constants";
 
 describe("FlowRunsDataTable -- StateFilter", () => {
 	beforeAll(mockPointerEvents);

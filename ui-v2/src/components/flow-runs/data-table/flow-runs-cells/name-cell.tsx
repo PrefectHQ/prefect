@@ -1,3 +1,4 @@
+import type { FlowRunsDataTableRow } from "@/components/flow-runs/data-table";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -5,7 +6,6 @@ import {
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import type { FlowRunsDataTableRow } from "./data-table";
 
 type NameCellProps = {
 	flowRun: FlowRunsDataTableRow;

@@ -5,12 +5,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-
-export type SortFilters =
-	| "START_TIME_ASC"
-	| "START_TIME_DESC"
-	| "NAME_ASC"
-	| "NAME_DESC";
+import { SortFilters } from "./sort-filter.constants";
 
 type SortFilterProps = {
 	defaultValue?: SortFilters;
@@ -29,8 +24,8 @@ export const SortFilter = ({
 				<SelectValue placeholder="Sort by" />
 			</SelectTrigger>
 			<SelectContent>
-				<SelectItem value="START_TIME_ASC">Newest to oldest</SelectItem>
-				<SelectItem value="START_TIME_DESC">Oldest to newest</SelectItem>
+				<SelectItem value="START_TIME_DESC">Newest to oldest</SelectItem>
+				<SelectItem value="START_TIME_ASC">Oldest to newest</SelectItem>
 				<SelectItem value="NAME_ASC">A to Z</SelectItem>
 				<SelectItem value="NAME_DESC">Z to A</SelectItem>
 			</SelectContent>
