@@ -246,7 +246,7 @@ class TestDownloadBundle:
         )
 
         mock_s3_client.download_file.assert_called_once_with(
-            "test-bucket", "test-key", tmp_path / "test-key"
+            "test-bucket", "test-key", str(tmp_path / "test-key")
         )
         assert Path(result["local_path"]).exists()
 

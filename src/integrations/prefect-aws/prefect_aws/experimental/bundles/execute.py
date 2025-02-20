@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from typing import TypedDict
 
 import typer
 from botocore.exceptions import ClientError
@@ -15,12 +16,19 @@ from prefect_aws.credentials import AwsCredentials
 from .types import AwsCredentialsBlockName, S3Bucket, S3Key
 
 
+class DownloadResult(TypedDict):
+    """Result of downloading a bundle from S3."""
+
+    local_path: str
+    """Local path where the bundle was downloaded."""
+
+
 def download_bundle_from_s3(
     bucket: S3Bucket,
     key: S3Key,
     output_dir: str | None = None,
     aws_credentials_block_name: AwsCredentialsBlockName | None = None,
-) -> dict[str, str]:
+) -> DownloadResult:
     """
     Downloads a bundle from an S3 bucket.
 
@@ -28,7 +36,13 @@ def download_bundle_from_s3(
         bucket: S3 bucket name
         key: S3 object key
         output_dir: Local directory to save the bundle (if None, uses a temp directory)
-        aws_credentials_block_name: Name of the AWS credentials block to use
+        aws_credentials_block_name: Name of the AWS credentials block to use. If None,
+            credentials will be inferred from the environment using boto3's standard
+            credential resolution.
+
+    Returns:
+        A dictionary containing:
+            - local_path: Path where the bundle was downloaded
     """
 
     if aws_credentials_block_name:
@@ -44,8 +58,8 @@ def download_bundle_from_s3(
     local_path = Path(output_dir) / os.path.basename(key)
 
     try:
-        s3.download_file(bucket, key, local_path)
-        return {"local_path": local_path}
+        s3.download_file(bucket, key, str(local_path))
+        return {"local_path": str(local_path)}
     except ClientError as e:
         raise RuntimeError(f"Failed to download bundle from S3: {e}")
 
@@ -66,7 +80,9 @@ def execute_bundle_from_s3(
     Args:
         bucket: S3 bucket name
         key: S3 object key
-        aws_credentials_block_name: Name of the AWS credentials block to use
+        aws_credentials_block_name: Name of the AWS credentials block to use. If None,
+            credentials will be inferred from the environment using boto3's standard
+            credential resolution.
     """
     download_result = download_bundle_from_s3(
         bucket=bucket,

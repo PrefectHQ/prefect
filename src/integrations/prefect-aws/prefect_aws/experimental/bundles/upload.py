@@ -6,6 +6,7 @@ These steps allow uploading and downloading flow/task bundles to and from S3.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypedDict
 
 import typer
 from botocore.exceptions import ClientError
@@ -20,12 +21,23 @@ from .types import (
 )
 
 
+class UploadResult(TypedDict):
+    """Result of uploading a bundle to S3."""
+
+    bucket: str
+    """The S3 bucket the bundle was uploaded to."""
+    key: str
+    """The S3 key (path) the bundle was uploaded to."""
+    url: str
+    """The full S3 URL of the uploaded bundle (s3://bucket/key)."""
+
+
 def upload_bundle_to_s3(
     local_filepath: LocalFilepath,
     bucket: S3Bucket,
     key: S3Key,
     aws_credentials_block_name: AwsCredentialsBlockName | None = None,
-) -> dict[str, str]:
+) -> UploadResult:
     """
     Uploads a bundle file to an S3 bucket.
 
@@ -33,10 +45,19 @@ def upload_bundle_to_s3(
         local_filepath: Local path to the bundle file
         bucket: S3 bucket name
         key: S3 object key (if None, uses the bundle filename)
-        aws_credentials_block_name: Name of the AWS credentials block to use
+        aws_credentials_block_name: Name of the AWS credentials block to use. If None,
+            credentials will be inferred from the environment using boto3's standard
+            credential resolution.
 
     Returns:
-        Dictionary containing the bucket, key, and S3 URL of the uploaded bundle
+        A dictionary containing:
+            - bucket: The S3 bucket the bundle was uploaded to
+            - key: The S3 key (path) the bundle was uploaded to
+            - url: The full S3 URL of the uploaded bundle (s3://bucket/key)
+
+    Raises:
+        ValueError: If the local file does not exist
+        RuntimeError: If the upload fails
     """
     filepath = Path(local_filepath)
     if not filepath.exists():
