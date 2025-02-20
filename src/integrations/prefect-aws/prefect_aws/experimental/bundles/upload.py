@@ -6,7 +6,7 @@ These steps allow uploading and downloading flow/task bundles to and from S3.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 import typer
 from botocore.exceptions import ClientError
@@ -36,7 +36,7 @@ def upload_bundle_to_s3(
     local_filepath: LocalFilepath,
     bucket: S3Bucket,
     key: S3Key,
-    aws_credentials_block_name: AwsCredentialsBlockName | None = None,
+    aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
 ) -> UploadResult:
     """
     Uploads a bundle file to an S3 bucket.

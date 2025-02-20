@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 import typer
 from botocore.exceptions import ClientError
@@ -27,7 +27,7 @@ def download_bundle_from_s3(
     bucket: S3Bucket,
     key: S3Key,
     output_dir: str | None = None,
-    aws_credentials_block_name: AwsCredentialsBlockName | None = None,
+    aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
 ) -> DownloadResult:
     """
     Downloads a bundle from an S3 bucket.
@@ -67,7 +67,7 @@ def download_bundle_from_s3(
 def execute_bundle_from_s3(
     bucket: S3Bucket,
     key: S3Key,
-    aws_credentials_block_name: AwsCredentialsBlockName | None = None,
+    aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
 ) -> None:
     """
     Downloads a bundle from S3 and executes it.
