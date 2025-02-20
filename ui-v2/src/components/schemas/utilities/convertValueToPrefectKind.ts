@@ -8,7 +8,7 @@ import { PrefectKind } from "../types/prefect-kind";
 import { PrefectKindValueJinja } from "../types/prefect-kind-value";
 import { PrefectKindValueJson } from "../types/prefect-kind-value";
 import { getPrefectKindFromValue } from "../types/prefect-kind-value";
-import { isArray, isRecord } from "./guards";
+import { isAnyOfObject, isArray, isRecord } from "./guards";
 import { mergeSchemaPropertyDefinition } from "./mergeSchemaPropertyDefinition";
 
 type ConvertValueToPrefectKindInput = {
@@ -218,6 +218,10 @@ function coerceValueToProperty({
 	schema,
 }: CoerceValueToPropertyInput): unknown {
 	const merged = mergeSchemaPropertyDefinition(property, schema);
+
+	if (isAnyOfObject(merged)) {
+		return coerceValueToProperties({ value, property: merged.anyOf, schema });
+	}
 
 	switch (merged.type) {
 		case "null":

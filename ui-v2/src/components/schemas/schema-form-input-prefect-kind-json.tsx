@@ -1,9 +1,9 @@
 import { JsonInput, JsonInputOnChange } from "../ui/json-input";
-import { PrefectKindJson } from "./types/prefect-kind-value";
+import { PrefectKindValueJson } from "./types/prefect-kind-value";
 
 type SchemaFormInputPrefectKindJsonProps = {
-	value: PrefectKindJson;
-	onValueChange: (value: PrefectKindJson) => void;
+	value: PrefectKindValueJson;
+	onValueChange: (value: PrefectKindValueJson) => void;
 	id: string;
 };
 
