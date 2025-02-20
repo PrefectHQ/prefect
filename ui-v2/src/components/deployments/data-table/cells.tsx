@@ -1,7 +1,7 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import type { DeploymentWithFlow } from "@/api/deployments";
-import { buildListFlowRunsQuery } from "@/api/flow-runs";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -111,7 +111,7 @@ export const ActivityCell = ({
 	}, []);
 
 	const { data: flowRuns } = useQuery(
-		buildListFlowRunsQuery({
+		buildFilterFlowRunsQuery({
 			deployments: {
 				operator: "and_",
 				id: {

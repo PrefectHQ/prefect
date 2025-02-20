@@ -1,4 +1,4 @@
-import { buildListFlowRunsQuery } from "@/api/flow-runs";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { buildListTaskRunsQuery } from "@/api/task-runs";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
@@ -20,7 +20,7 @@ export const useFilterArtifactsFlowTaskRuns = (filter: ArtifactsFilter) => {
 
 	const { flowRuns, taskRuns } = useQueries({
 		queries: [
-			buildListFlowRunsQuery({
+			buildFilterFlowRunsQuery({
 				flow_runs: {
 					operator: "and_",
 					id: {
@@ -75,7 +75,7 @@ export const useGetArtifactFlowTaskRuns = (artifactId: string) => {
 	const taskRunId = artifact?.task_run_id;
 	const { flowRuns, taskRuns } = useQueries({
 		queries: [
-			buildListFlowRunsQuery({
+			buildFilterFlowRunsQuery({
 				flow_runs: {
 					operator: "and_",
 					id: {
