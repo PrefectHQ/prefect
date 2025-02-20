@@ -1,6 +1,7 @@
 import json
 import os
 import ssl
+import warnings
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
@@ -18,6 +19,7 @@ import pytest
 import respx
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBasic, HTTPBearer
+from packaging import version
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -2783,6 +2785,22 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
             in str(e.value)
         )
 
+    async def test_warn_on_server_incompatibility(self, prefect_client, monkeypatch):
+        mock_version = "3.0.0"
+        assert version.parse(mock_version) < version.parse(prefect.__version__)
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value=mock_version)
+        )
+        with warnings.catch_warnings(record=True) as w:
+            warnings.filterwarnings("always")
+            await prefect_client.raise_for_api_version_mismatch()
+
+        assert len(w) == 1
+        assert (
+            "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
+            in str(w[0].message)
+        )
+
 
 class TestSyncClient:
     def test_get_sync_client(self):
@@ -2850,6 +2868,24 @@ class TestSyncClientRaiseForAPIVersionMismatch:
         assert (
             f"Found incompatible versions: client: {client_version}, server: {api_version}. "
             in str(e.value)
+        )
+
+    async def test_warn_on_server_incompatibility(
+        self, sync_prefect_client, monkeypatch
+    ):
+        mock_version = "3.0.0"
+        assert version.parse(mock_version) < version.parse(prefect.__version__)
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value=mock_version)
+        )
+        with warnings.catch_warnings(record=True) as w:
+            warnings.filterwarnings("always")
+            sync_prefect_client.raise_for_api_version_mismatch()
+
+        assert len(w) == 1
+        assert (
+            "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
+            in str(w[0].message)
         )
 
 
