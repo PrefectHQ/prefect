@@ -57,13 +57,14 @@ export function SchemaFormInputAnyOf({
 				))}
 			</ToggleGroup>
 
-			<Card className="p-3">
+			<Card className="p-2">
 				<SchemaFormProperty
 					value={value}
 					property={property.anyOf[selectedIndex]}
 					onValueChange={onValueChange}
 					errors={errors}
 					showLabel={false}
+					nested={false}
 					// This form property is nested within the anyOf property, so hard coding required to false because the anyOf property itself is what can be required
 					required={false}
 				/>

@@ -39,7 +39,7 @@ export const SchemaForm = ({
 		[onValuesChange],
 	);
 
-	const properties: SchemaFormInputObjectProps = {
+	const properties: Omit<SchemaFormInputObjectProps, "nested"> = {
 		values,
 		property: schema,
 		onValuesChange: handleValuesChange,
@@ -49,7 +49,7 @@ export const SchemaForm = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<SchemaFormProvider {...context}>
-				<SchemaFormInputObject {...properties} />
+				<SchemaFormInputObject {...properties} nested={false} />
 			</SchemaFormProvider>
 		</div>
 	);

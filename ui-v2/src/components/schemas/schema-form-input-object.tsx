@@ -1,5 +1,6 @@
 import { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useMemo } from "react";
+import { Card } from "../ui/card";
 import { SchemaFormProperty } from "./schema-form-property";
 import { SchemaFormErrors, isSchemaValuePropertyError } from "./types/errors";
 import { PrefectObjectSubtype } from "./types/schemas";
@@ -10,6 +11,7 @@ export type SchemaFormInputObjectProps = {
 	onValuesChange: (values: Record<string, unknown> | undefined) => void;
 	property: SchemaObject & ObjectSubtype & PrefectObjectSubtype;
 	errors: SchemaFormErrors;
+	nested: boolean;
 };
 
 export function SchemaFormInputObject({
@@ -17,6 +19,7 @@ export function SchemaFormInputObject({
 	onValuesChange,
 	property,
 	errors,
+	nested,
 }: SchemaFormInputObjectProps) {
 	function onPropertyValueChange(key: string, value: unknown) {
 		const newValues = { ...values, [key]: value };
@@ -50,7 +53,7 @@ export function SchemaFormInputObject({
 		);
 	}, [property.properties]);
 
-	return properties.map(([key, subProperty]) => {
+	const output = properties.map(([key, subProperty]) => {
 		return (
 			<SchemaFormProperty
 				key={key}
@@ -62,4 +65,10 @@ export function SchemaFormInputObject({
 			/>
 		);
 	});
+
+	if (nested) {
+		return <Card className="p-2">{output}</Card>;
+	}
+
+	return output;
 }

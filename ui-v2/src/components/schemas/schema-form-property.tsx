@@ -22,6 +22,7 @@ export type SchemaFormPropertyProps = {
 	required: boolean;
 	errors: SchemaFormErrors;
 	showLabel?: boolean;
+	nested?: boolean;
 };
 
 export function SchemaFormProperty({
@@ -31,6 +32,7 @@ export function SchemaFormProperty({
 	required,
 	errors,
 	showLabel = true,
+	nested = true,
 }: SchemaFormPropertyProps) {
 	const { schema } = useSchemaFormContext();
 	const id = useId();
@@ -47,7 +49,7 @@ export function SchemaFormProperty({
 	}, [errors]);
 
 	return (
-		<div className="flex flex-col gap-2">
+		<div className="flex flex-col gap-2 group">
 			{showLabel && (
 				<div className="grid grid-cols-[1fr_auto] items-center gap-2">
 					<SchemaFormPropertyLabel
@@ -73,6 +75,7 @@ export function SchemaFormProperty({
 				onValueChange={onValueChange}
 				errors={nestedErrors}
 				id={id}
+				nested={nested}
 			/>
 
 			<SchemaFormPropertyErrors errors={errors} />

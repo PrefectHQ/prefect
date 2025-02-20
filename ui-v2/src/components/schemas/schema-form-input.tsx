@@ -18,12 +18,14 @@ import {
 	isAnyOfObject,
 	isOneOfObject,
 } from "./utilities/guards";
+
 export type SchemaFormInputProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
 	errors: SchemaFormErrors;
 	property: SchemaObject;
 	id: string;
+	nested?: boolean;
 };
 
 export function SchemaFormInput({
@@ -32,6 +34,7 @@ export function SchemaFormInput({
 	errors,
 	property,
 	id,
+	nested = true,
 }: SchemaFormInputProps) {
 	if (isPrefectKindValue(value)) {
 		if (isPrefectKindValue(value, "json")) {
@@ -169,6 +172,7 @@ export function SchemaFormInput({
 				property={property}
 				onValuesChange={onValueChange}
 				errors={errors}
+				nested={nested}
 			/>
 		);
 	}
