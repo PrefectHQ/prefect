@@ -75,6 +75,10 @@ const flowRunHandlers = [
 			{ id: "2", name: "Flow 2", tags: [] },
 		]);
 	}),
+
+	http.delete(buildApiUrl("/flow_runs/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const globalConcurrencyLimitsHandlers = [

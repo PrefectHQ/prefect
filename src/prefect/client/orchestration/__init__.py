@@ -81,6 +81,7 @@ from prefect.client.orchestration._blocks_types.client import (
 
 import prefect
 import prefect.exceptions
+from prefect.logging.loggers import get_run_logger
 import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
@@ -149,17 +150,28 @@ T = TypeVar("T")
 
 
 @overload
-def get_client(  # type: ignore # TODO
-    *,
-    httpx_settings: Optional[dict[str, Any]] = ...,
-    sync_client: Literal[False] = False,
+def get_client(
+    httpx_settings: Optional[dict[str, Any]],
+    sync_client: Literal[False],
 ) -> "PrefectClient": ...
 
 
 @overload
+def get_client(*, httpx_settings: Optional[dict[str, Any]]) -> "PrefectClient": ...
+
+
+@overload
+def get_client(*, sync_client: Literal[False] = False) -> "PrefectClient": ...
+
+
+@overload
 def get_client(
-    *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
+    httpx_settings: Optional[dict[str, Any]], sync_client: Literal[True]
 ) -> "SyncPrefectClient": ...
+
+
+@overload
+def get_client(*, sync_client: Literal[True]) -> "SyncPrefectClient": ...
 
 
 def get_client(
@@ -1171,8 +1183,17 @@ class PrefectClient(
         if api_version.major != client_version.major:
             raise RuntimeError(
                 f"Found incompatible versions: client: {client_version}, server: {api_version}. "
-                f"Major versions must match."
+                "Major versions must match."
             )
+        if api_version < client_version:
+            warning_message = (
+                "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior. "
+                f"Please upgrade your Prefect server from version {api_version} to version {client_version} or higher."
+            )
+            try:
+                get_run_logger().warning(warning_message)
+            except prefect.context.MissingContextError:
+                self.logger.warning(warning_message)
 
     async def __aenter__(self) -> Self:
         """
@@ -1512,8 +1533,17 @@ class SyncPrefectClient(
         if api_version.major != client_version.major:
             raise RuntimeError(
                 f"Found incompatible versions: client: {client_version}, server: {api_version}. "
-                f"Major versions must match."
+                "Major versions must match."
             )
+        if api_version < client_version:
+            warning_message = (
+                "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior. "
+                f"Please upgrade your Prefect server from version {api_version} to version {client_version} or higher."
+            )
+            try:
+                get_run_logger().warning(warning_message)
+            except prefect.context.MissingContextError:
+                self.logger.warning(warning_message)
 
     def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
         task_run_data = TaskRunUpdate(name=name)

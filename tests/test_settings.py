@@ -65,6 +65,7 @@ from prefect.settings.legacy import (
 from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
+from prefect.settings.models.results import ResultsSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
@@ -291,6 +292,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RUNNER_SERVER_PORT": {"test_value": 8080},
     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {"test_value": True, "legacy": True},
     "PREFECT_SERVER_API_AUTH_STRING": {"test_value": "admin:admin"},
+    "PREFECT_SERVER_API_BASE_PATH": {"test_value": "/v2/api"},
     "PREFECT_SERVER_ANALYTICS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
     "PREFECT_SERVER_API_CORS_ALLOWED_METHODS": {"test_value": "foo"},
@@ -654,6 +656,41 @@ class TestSettingsClass:
             monkeypatch.setenv(key, value)
         new_settings = Settings()
         assert settings.model_dump() == new_settings.model_dump()
+
+    @pytest.mark.parametrize(
+        "settings,alias,expected",
+        [
+            (
+                Settings(server=ServerSettings(logging_level="DEBUG")),
+                "PREFECT_LOGGING_SERVER_LEVEL",
+                "DEBUG",
+            ),
+            (
+                Settings(results=ResultsSettings(default_storage_block="foo/bar")),
+                "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK",
+                "foo/bar",
+            ),
+        ],
+    )
+    def test_settings_to_environment_includes_aliases(
+        self, settings: Settings, alias: str, expected: str
+    ):
+        assert (
+            settings.to_environment_variables(include_aliases=True).get(alias)
+            == expected
+        )
+
+    @pytest.mark.parametrize(
+        "alias",
+        ["PREFECT_LOGGING_SERVER_LEVEL", "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK"],
+    )
+    def test_settings_to_environment_doesnt_include_aliases_by_default(
+        self, alias: str
+    ):
+        assert (
+            Settings().to_environment_variables(include_aliases=False).get(alias)
+            is None
+        )
 
     def test_settings_hash_key(self):
         settings = Settings(testing=dict(test_mode=True))  # type: ignore

@@ -7,9 +7,7 @@ on:
     paths:
       - .github/workflows/integration-tests.yaml
       - "src/prefect/**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
+      - pyproject.toml
       - ui/**
       - .nvmrc
       - Dockerfile
@@ -20,9 +18,7 @@ on:
     paths:
       - .github/workflows/integration-tests.yaml
       - "**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
+      - pyproject.toml
       - ui/**
       - .nvmrc
       - Dockerfile
