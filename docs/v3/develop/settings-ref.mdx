@@ -164,6 +164,20 @@ The URL of the Prefect UI. If not set, the client will attempt to infer it.
 **Supported environment variables**:
 `PREFECT_SILENCE_API_URL_MISCONFIGURATION`
 
+### `silence_client_server_mismatch_warning`
+
+        If `True`, disable the warning when a client version is newer than the server version.
+        
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `silence_client_server_mismatch_warning`
+
+**Supported environment variables**:
+`PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING`
+
 ---
 ## APISettings
 Settings for interacting with the Prefect API

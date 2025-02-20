@@ -86,6 +86,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
+    PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING,
     PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
@@ -2783,6 +2784,62 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
             in str(e.value)
         )
 
+    async def test_warns_when_client_version_newer_than_server(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value="3.2.0")
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.6")
+
+        await prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" in caplog.text
+        assert "Current client version: 3.2.6, server version: 3.2.0" in caplog.text
+
+    async def test_no_warning_when_client_version_older_than_server(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value="3.2.0")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.0")
+
+        await prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" not in caplog.text
+
+    async def test_no_warning_when_versions_match(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.6")
+
+        await prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" not in caplog.text
+
+    async def test_no_warning_when_silenced(self, prefect_client, monkeypatch, caplog):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value="3.2.0")
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.6")
+
+        with temporary_settings({PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING: True}):
+            await prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" not in caplog.text
+
 
 class TestSyncClient:
     def test_get_sync_client(self):
@@ -2851,6 +2908,61 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             f"Found incompatible versions: client: {client_version}, server: {api_version}. "
             in str(e.value)
         )
+
+    def test_warns_when_client_version_newer_than_server(
+        self, sync_prefect_client, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value="3.2.0")
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.6")
+
+        sync_prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" in caplog.text
+        assert "Current client version: 3.2.6, server version: 3.2.0" in caplog.text
+
+    def test_no_warning_when_client_version_older_than_server(
+        self, sync_prefect_client, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value="3.2.0")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.0")
+
+        sync_prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" not in caplog.text
+
+    def test_no_warning_when_versions_match(
+        self, sync_prefect_client, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.6")
+
+        sync_prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" not in caplog.text
+
+    def test_no_warning_when_silenced(self, sync_prefect_client, monkeypatch, caplog):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value="3.2.0")
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value="3.2.6")
+        )
+        monkeypatch.setattr(prefect, "__version__", "3.2.6")
+        with temporary_settings({PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING: True}):
+            sync_prefect_client.raise_for_api_version_mismatch()
+        assert "To avoid schema incompatibilities" not in caplog.text
 
 
 class TestPrefectClientWorkerHeartbeat:

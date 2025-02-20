@@ -129,6 +129,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TESTING_UNIT_TEST_MODE,
+    PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING,
 )
 from prefect.types._datetime import now
 
@@ -1184,6 +1185,16 @@ class PrefectClient(
                 f"Found incompatible versions: client: {client_version}, server: {api_version}. "
                 f"Major versions must match."
             )
+        if (
+            (not api_version >= client_version)
+            and ".dirty" not in prefect.__version__  # if developing, this is expected
+            and not PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING
+        ):
+            self.logger.warning(
+                f"To avoid schema incompatibilities, we recommend using a client version equal to or older than your server version. "
+                f"Current client version: {client_version}, server version: {api_version}. "
+                "To silence this warning, set `PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING=true."
+            )
 
     async def __aenter__(self) -> Self:
         """
@@ -1229,6 +1240,8 @@ class PrefectClient(
         await self._exit_stack.enter_async_context(self._client)
 
         self._started = True
+
+        await self.raise_for_api_version_mismatch()
 
         return self
 
@@ -1465,6 +1478,8 @@ class SyncPrefectClient(
         self._client.__enter__()
         self._started = True
 
+        self.raise_for_api_version_mismatch()
+
         return self
 
     def __exit__(self, *exc_info: Any) -> None:
@@ -1524,6 +1539,16 @@ class SyncPrefectClient(
             raise RuntimeError(
                 f"Found incompatible versions: client: {client_version}, server: {api_version}. "
                 f"Major versions must match."
+            )
+        if (
+            (not api_version >= client_version)
+            and ".dirty" not in prefect.__version__  # if developing, this is expected
+            and not PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING
+        ):
+            self.logger.warning(
+                f"To avoid schema incompatibilities, we recommend using a client version equal to or older than your server version. "
+                f"Current client version: {client_version}, server version: {api_version}. "
+                "To silence this warning, set `PREFECT_SILENCE_CLIENT_SERVER_MISMATCH_WARNING=true."
             )
 
     def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:

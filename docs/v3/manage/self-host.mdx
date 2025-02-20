@@ -11,11 +11,18 @@ To self-host a Prefect server instance on Kubernetes, check out the prefect-serv
 After installing Prefect, you have a Python SDK client that can communicate with 
 either [Prefect Cloud](/v3/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
 
+
 Prefect Cloud and self-hosted Prefect server share a common set of capabilities. 
 Prefect Cloud provides the additional features required by organizations such as RBAC, Audit logs, and SSO. 
 See the [Prefect Cloud overview](/v3/manage/cloud/) for more information.
 
 ## Self-host a Prefect server
+
+<Warning>
+Though old clients are compatible with new servers, we recommend using the same version of `prefect` for the client and server.
+As server-side schema changes are sometimes released, using new clients with an old server can lead to schema incompatibilities (e.g. 422s) or unexpected behavior.
+</Warning>
+
 
 1. Spin up a self-hosted Prefect server instance UI with the `prefect server start` CLI command in the terminal:
 

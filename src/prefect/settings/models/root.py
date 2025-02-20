@@ -151,6 +151,13 @@ class Settings(PrefectBaseSettings):
         """,
     )
 
+    silence_client_server_mismatch_warning: bool = Field(
+        default=False,
+        description="""
+        If `True`, disable the warning when a client version is newer than the server version.
+        """,
+    )
+
     ###########################################################################
     # allow deprecated access to PREFECT_SOME_SETTING_NAME
 
