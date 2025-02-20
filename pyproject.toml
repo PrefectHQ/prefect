@@ -80,6 +80,7 @@ dependencies = [
     "ujson>=5.8.0,<6.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=10.4,<14.0",
+    "python-docstring-markdown>=0.2.2",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
