@@ -8,7 +8,6 @@ import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-import pendulum
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -53,6 +52,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._datetime import now
 from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
@@ -560,6 +560,10 @@ class DeploymentSchedule(ORMBaseModel):
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="A dictionary of parameter value overrides."
     )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique slug for the schedule.",
+    )
 
     @field_validator("max_scheduled_runs")
     @classmethod
@@ -737,7 +741,9 @@ class BlockSchema(ORMBaseModel):
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
     fields: Dict[str, Any] = Field(
-        default_factory=dict, description="The block schema's field schema"
+        default_factory=dict,
+        description="The block schema's field schema",
+        json_schema_extra={"additionalProperties": True},
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
@@ -1018,7 +1024,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or (now("UTC") - last_polled).total_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

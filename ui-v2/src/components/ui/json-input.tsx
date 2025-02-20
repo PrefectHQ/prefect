@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from "react";
 
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { json } from "@codemirror/lang-json";
 import {
@@ -7,6 +8,8 @@ import {
 	EditorView,
 	useCodeMirror,
 } from "@uiw/react-codemirror";
+import { Button } from "./button";
+import { Icon } from "./icons";
 
 const extensions = [json(), EditorView.lineWrapping];
 
@@ -17,6 +20,7 @@ type JsonInputProps = React.ComponentProps<"div"> & {
 	disabled?: boolean;
 	className?: string;
 	hideLineNumbers?: boolean;
+	copy?: boolean;
 };
 
 export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
@@ -25,6 +29,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 			className,
 			value,
 			onChange,
+			copy = false,
 			onBlur,
 			disabled,
 			hideLineNumbers = false,
@@ -32,6 +37,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		},
 		forwardedRef,
 	) => {
+		const { toast } = useToast();
 		const editor = useRef<HTMLDivElement | null>(null);
 		// Setting `basicSetup` messes up the tab order. We only change the basic setup
 		// if the input is disabled, so we leave it undefined to maintain the tab order.
@@ -61,10 +67,15 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 			}
 		}, [setContainer]);
 
+		const handleCopy = (_value: string) => {
+			toast({ title: "Copied to clipboard" });
+			void navigator.clipboard.writeText(_value);
+		};
+
 		return (
 			<div
 				className={cn(
-					"rounded-md border shadow-sm overflow-hidden focus-within:outline-none focus-within:ring-1 focus-within:ring-ring",
+					"rounded-md border shadow-sm overflow-hidden focus-within:outline-none focus-within:ring-1 focus-within:ring-ring relative",
 					className,
 				)}
 				ref={(node) => {
@@ -76,7 +87,19 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 					}
 				}}
 				{...props}
-			/>
+			>
+				{copy && value && (
+					<Button
+						onClick={() => handleCopy(value)}
+						variant="ghost"
+						size="icon"
+						className="absolute top-0 right-0 z-10"
+						aria-label="copy"
+					>
+						<Icon id="Copy" className="h-2 w-2" />
+					</Button>
+				)}
+			</div>
 		);
 	},
 );

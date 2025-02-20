@@ -9,7 +9,6 @@ from copy import deepcopy
 from typing import Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 import prefect.server.schemas as schemas
@@ -41,6 +40,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._datetime import now
 from prefect.utilities.collections import listrepr
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
@@ -114,6 +114,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="A dictionary of parameter value overrides."
     )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
+    )
 
     @field_validator("max_scheduled_runs")
     @classmethod
@@ -139,6 +143,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     )
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="A dictionary of parameter value overrides."
+    )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -184,6 +192,7 @@ class DeploymentCreate(ActionBaseModel):
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="The parameter schema of the flow, including defaults.",
+        json_schema_extra={"additionalProperties": True},
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
@@ -273,7 +282,7 @@ class DeploymentUpdate(ActionBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: List[DeploymentScheduleUpdate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -286,6 +295,10 @@ class DeploymentUpdate(ActionBaseModel):
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
+    )
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The parameter schema of the flow, including defaults.",
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -303,6 +316,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Overrides for the flow's infrastructure configuration.",
     )
+    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
     entrypoint: Optional[str] = Field(None)
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
@@ -312,6 +326,7 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
     model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
@@ -397,7 +412,7 @@ class StateCreate(ActionBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = now("utc")
 
         return self
 

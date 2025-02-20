@@ -1687,6 +1687,77 @@ class TestSettingsSources:
         # Should default to ephemeral profile
         assert Settings().server.ephemeral.enabled
 
+    def test_prefect_home_determines_profiles_path(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        this is a regression test for https://github.com/PrefectHQ/prefect/issues/17068
+
+        Verify PREFECT_HOME is used to locate profiles.toml when no explicit
+        PREFECT_PROFILES_PATH is set.
+        """
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        home_dir = tmp_path / "custom_home"
+        home_dir.mkdir()
+        profile_path = home_dir / "profiles.toml"
+        profile_path.write_text(
+            textwrap.dedent(
+                """
+                active = "test"
+
+                [profiles.test]
+                PREFECT_API_KEY = "test_key"
+                """
+            )
+        )
+
+        monkeypatch.setenv("PREFECT_HOME", str(home_dir))
+        monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+
+        assert Settings().home == home_dir
+        assert Settings().profiles_path == profile_path
+        assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
+
+    def test_prefect_home_and_prefect_profiles_are_both_respected(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Verify that PREFECT_HOME and PREFECT_PROFILES_PATH are both respected when
+        both are set, even if PREFECT_PROFILES_PATH is not in the default location
+        relative to PREFECT_HOME.
+        """
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        home_dir = tmp_path / "custom_home"
+        some_other_dir = tmp_path / "some_other_dir"
+        home_dir.mkdir()
+        some_other_dir.mkdir()
+        profile_path = some_other_dir / "profiles.toml"
+        profile_path.write_text(
+            textwrap.dedent(
+                """
+                active = "test"
+
+                [profiles.test]
+                PREFECT_API_KEY = "test_key"
+                """
+            )
+        )
+
+        monkeypatch.setenv("PREFECT_HOME", str(home_dir))
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profile_path))
+
+        assert Settings().home == home_dir
+        assert Settings().profiles_path == profile_path
+        assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)

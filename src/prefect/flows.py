@@ -2080,6 +2080,29 @@ def load_flow_from_entrypoint(
     return flow
 
 
+def load_function_and_convert_to_flow(entrypoint: str) -> Flow[P, Any]:
+    """
+    Loads a function from an entrypoint and converts it to a flow if it is not already a flow.
+    """
+
+    if ":" in entrypoint:
+        # split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
+        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+    else:
+        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+    try:
+        func = import_object(entrypoint)  # pyright: ignore[reportRedeclaration]
+    except AttributeError as exc:
+        raise RuntimeError(
+            f"Function with name {func_name!r} not found in {path!r}."
+        ) from exc
+
+    if isinstance(func, Flow):
+        return func
+    else:
+        return Flow(func, log_prints=True)
+
+
 def serve(
     *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,
@@ -2327,9 +2350,15 @@ async def load_flow_from_flow_run(
             f"Running {len(deployment.pull_steps)} deployment pull step(s)"
         )
 
-        from prefect.deployments.steps.core import run_steps
+        from prefect.deployments.steps.core import StepExecutionError, run_steps
 
-        output = await run_steps(deployment.pull_steps)
+        try:
+            output = await run_steps(deployment.pull_steps)
+        except StepExecutionError as e:
+            e = e.__cause__ or e
+            run_logger.error(str(e))
+            raise
+
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
@@ -2337,11 +2366,17 @@ async def load_flow_from_flow_run(
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
-    flow = await run_sync_in_worker_thread(
-        load_flow_from_entrypoint,
-        str(import_path),
-        use_placeholder_flow=use_placeholder_flow,
-    )
+    try:
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint,
+            str(import_path),
+            use_placeholder_flow=use_placeholder_flow,
+        )
+    except MissingFlowError:
+        flow = await run_sync_in_worker_thread(
+            load_function_and_convert_to_flow,
+            str(import_path),
+        )
 
     return flow
 

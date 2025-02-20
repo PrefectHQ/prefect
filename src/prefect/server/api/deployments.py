@@ -7,7 +7,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import jsonschema.exceptions
-import pendulum
+import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from starlette.background import BackgroundTasks
 
@@ -26,6 +26,7 @@ from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -163,12 +164,12 @@ async def create_deployment(
                     ),
                 )
 
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )
 
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
 
         return schemas.responses.DeploymentResponse.model_validate(
@@ -189,6 +190,41 @@ async def update_deployment(
         if not existing_deployment:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+            )
+
+        # Checking how we should handle schedule updates
+        # If not all existing schedules have slugs then we'll fall back to the existing logic where are schedules are recreated to match the request.
+        # If the existing schedules have slugs, but not all provided schedules have slugs, then we'll return a 422 to avoid accidentally blowing away schedules.
+        # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
+        schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
+        schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
+        all_provided_have_slugs = all(
+            schedule.slug is not None for schedule in deployment.schedules or []
+        )
+        all_existing_have_slugs = existing_deployment.schedules and all(
+            schedule.slug is not None for schedule in existing_deployment.schedules
+        )
+        if all_provided_have_slugs and all_existing_have_slugs:
+            current_slugs = [
+                schedule.slug for schedule in existing_deployment.schedules
+            ]
+
+            for schedule in deployment.schedules:
+                if schedule.slug in current_slugs:
+                    schedules_to_patch.append(schedule)
+                elif schedule.schedule:
+                    schedules_to_create.append(schedule)
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Unable to create new deployment schedules without a schedule configuration.",
+                    )
+            # Clear schedules to handle their update/creation separately
+            deployment.schedules = None
+        elif not all_provided_have_slugs and all_existing_have_slugs:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Please provide a slug for each schedule in your request to ensure schedules are updated correctly.",
             )
 
         if deployment.work_pool_name:
@@ -229,8 +265,13 @@ async def update_deployment(
             else existing_deployment.enforce_parameter_schema
         )
         if enforce_parameter_schema:
-            # ensure that the new parameters conform to the existing schema
-            if not isinstance(existing_deployment.parameter_openapi_schema, dict):
+            # ensure that the new parameters conform to the proposed schema
+            if deployment.parameter_openapi_schema:
+                openapi_schema = deployment.parameter_openapi_schema
+            else:
+                openapi_schema = existing_deployment.parameter_openapi_schema
+
+            if not isinstance(openapi_schema, dict):
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
                     detail=(
@@ -242,7 +283,7 @@ async def update_deployment(
             try:
                 validate(
                     parameters,
-                    existing_deployment.parameter_openapi_schema,
+                    openapi_schema,
                     raise_on_error=True,
                     ignore_required=True,
                 )
@@ -260,6 +301,28 @@ async def update_deployment(
         result = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
         )
+
+        for schedule in schedules_to_patch:
+            await models.deployments.update_deployment_schedule(
+                session=session,
+                deployment_id=deployment_id,
+                schedule=schedule,
+                deployment_schedule_slug=schedule.slug,
+            )
+        if schedules_to_create:
+            await models.deployments.create_deployment_schedules(
+                session=session,
+                deployment_id=deployment_id,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        schedule=schedule.schedule,  # type: ignore We will raise above if schedule is not provided
+                        active=schedule.active if schedule.active is not None else True,
+                        slug=schedule.slug,
+                        parameters=schedule.parameters,
+                    )
+                    for schedule in schedules_to_create
+                ],
+            )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
@@ -717,11 +780,11 @@ async def create_flow_run_from_deployment(
         if not flow_run.state:
             flow_run.state = schemas.states.Scheduled()
 
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         model = await models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
         )
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
         return schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True
@@ -794,12 +857,19 @@ async def create_deployment_schedules(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
 
-        created = await models.deployments.create_deployment_schedules(
-            session=session,
-            deployment_id=deployment.id,
-            schedules=schedules,
-        )
-
+        try:
+            created = await models.deployments.create_deployment_schedules(
+                session=session,
+                deployment_id=deployment.id,
+                schedules=schedules,
+            )
+        except sa.exc.IntegrityError as e:
+            if "duplicate key value violates unique constraint" in str(e):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail="Schedule slugs must be unique within a deployment.",
+                )
+            raise
         return created
 
 

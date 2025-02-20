@@ -66,6 +66,7 @@ from prefect.settings import (
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.dispatch import get_registry_for_type
 
 # isort: split
@@ -140,11 +141,12 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/_internal",
     "tests/server/orchestration/test_rules.py",
     "tests/test_flows.py",
-    "tests/runner/test_runner.py",
 ]
 
 
-def pytest_collection_modifyitems(session, config, items):
+def pytest_collection_modifyitems(
+    session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
+):
     """
     Update tests to skip in accordance with service requests
     """
@@ -268,7 +270,7 @@ def tests_dir() -> pathlib.Path:
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_call(item):
+def pytest_runtest_call(item: pytest.Item):
     """
     This hook will be called within the test run. Allowing us to raise errors or add
     assertions to every test. On error, the test will be marked as failed. If we used
@@ -303,7 +305,7 @@ TEST_PREFECT_HOME = None
 TEST_PROFILE_CTX = None
 
 
-def pytest_sessionstart(session):
+def pytest_sessionstart(session: pytest.Session):
     """
     Creates a profile for the scope of the test session that modifies setting defaults.
 
@@ -378,7 +380,7 @@ def pytest_sessionstart(session):
 
 # def pytest_sessionfinish(session, exitstatus):
 @pytest.fixture(scope="session", autouse=True)
-def cleanup(drain_log_workers, drain_events_workers):
+def cleanup(drain_log_workers: None, drain_events_workers: None):
     # this fixture depends on other fixtures with important cleanup steps like
     # draining workers to ensure that the home directory is not deleted before
     # these steps are completed
@@ -519,7 +521,9 @@ def reset_registered_blocks():
 
 
 @pytest.fixture
-def caplog(caplog):
+def caplog(
+    caplog: pytest.LogCaptureFixture,
+) -> Generator[pytest.LogCaptureFixture, None, None]:
     """
     Overrides caplog to apply to all of our loggers that do not propagate and
     consequently would not be captured by caplog.
@@ -542,8 +546,8 @@ def disable_csrf_protection():
 
 
 @pytest.fixture
-def start_of_test() -> pendulum.DateTime:
-    return pendulum.now("UTC")
+def start_of_test() -> DateTime:
+    return now("UTC")
 
 
 @pytest.fixture(autouse=True)

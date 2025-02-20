@@ -1,0 +1,15 @@
+---
+title: Script Examples
+sidebarTitle: Scripts
+---
+
+The following examples demonstrate various utility scripts and automation tools built with the Prefect API.
+These examples are sourced from the [PrefectHQ/examples](https://github.com/PrefectHQ/examples) repository.
+
+| Example | Description |
+|---------|-------------|
+| [create_automation.py](https://github.com/PrefectHQ/examples/blob/main/scripts/create_automation.py) | Creates a Prefect automation that sends email notifications when flow runs fail or crash. Demonstrates block and automation creation via the API. |
+| [cross_workspace_flow_runs.py](https://github.com/PrefectHQ/examples/blob/main/scripts/cross_workspace_flow_runs.py) | Lists flow run counts by state and date across all workspaces in an account. Useful for analyzing flow run patterns and workspace usage. |
+| [extract_with_dlt.py](https://github.com/PrefectHQ/examples/blob/main/scripts/extract_with_dlt.py) | Shows how to extract Prefect Cloud data (deployments, flows, flow runs) using the dlt (data load tool) library into a DuckDB database. |
+| [list_block_type_versions.py](https://github.com/PrefectHQ/examples/blob/main/scripts/list_block_type_versions.py) | Displays a table of all block types in a workspace with their versions, creation dates, and checksums. Helpful for auditing block versions. |
+| [update_deployment_concurrency_limit.py](https://github.com/PrefectHQ/examples/blob/main/scripts/update_deployment_concurrency_limit.py) | Updates a deployment's concurrency limits via the API. Useful when working with Prefect 2.x installations where direct model updates aren't supported. |
