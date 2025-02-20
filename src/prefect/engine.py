@@ -98,6 +98,7 @@ if __name__ == "__main__":
         exit(1)
 
     with handle_engine_signals(flow_run_id):
+        from prefect._internal.concurrency.services import QueueService
         from prefect.flow_engine import (
             flow_run_logger,
             load_flow,
@@ -117,11 +118,16 @@ if __name__ == "__main__":
             )
             raise
 
-        # run the flow
-        if flow.isasync:
-            run_coro_as_sync(run_flow(flow, flow_run=flow_run, error_logger=run_logger))
-        else:
-            run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+        try:
+            # run the flow
+            if flow.isasync:
+                run_coro_as_sync(
+                    run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+                )
+            else:
+                run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+        finally:
+            QueueService.drain_all()
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)
