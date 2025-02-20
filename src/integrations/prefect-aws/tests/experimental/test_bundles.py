@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +13,12 @@ from botocore.exceptions import ClientError
 from prefect_aws.experimental.bundles.execute import (
     download_bundle_from_s3,
     execute_bundle_from_s3,
+)
+from prefect_aws.experimental.bundles.types import (
+    AwsCredentialsBlockName,
+    LocalFilepath,
+    S3Bucket,
+    S3Key,
 )
 from prefect_aws.experimental.bundles.upload import upload_bundle_to_s3
 
@@ -156,53 +162,109 @@ class TestUploadBundle:
                 key="test-key",
             )
 
-    def test_upload_bundle_cli(self, mock_s3_client: MagicMock, mock_bundle_file: Path):
+    @pytest.mark.usefixtures("mock_s3_client")
+    def test_upload_bundle_cli(self, mock_bundle_file: Path):
         """Test upload via CLI."""
-        with patch("typer.run") as mock_run:
-            from prefect_aws.experimental.bundles import upload
+        from prefect_aws.experimental.bundles import upload
 
-            mock_run.assert_not_called()  # Should not be called on import
+        captured_args: dict[str, Any] = {}
+        original_func = upload.upload_bundle_to_s3
 
-            old_argv = sys.argv
-            sys.argv = [
-                "upload.py",
-                str(mock_bundle_file),
-                "--bucket",
-                "test-bucket",
-                "--key",
-                "test-key",
-            ]
-            try:
+        def wrapper(
+            local_filepath: LocalFilepath,
+            bucket: S3Bucket,
+            key: S3Key,
+            aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+        ):
+            captured_args.update(
+                {
+                    "local_filepath": local_filepath,
+                    "bucket": bucket,
+                    "key": key,
+                    "aws_credentials_block_name": aws_credentials_block_name,
+                }
+            )
+            return original_func(
+                local_filepath, bucket, key, aws_credentials_block_name
+            )
+
+        upload.upload_bundle_to_s3 = wrapper
+
+        old_argv = sys.argv
+        sys.argv = [
+            "upload.py",
+            str(mock_bundle_file),
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+        try:
+            with patch("sys.exit"):  # Prevent typer from exiting
                 upload.typer.run(upload.upload_bundle_to_s3)
-            finally:
-                sys.argv = old_argv
+        finally:
+            sys.argv = old_argv
+            upload.upload_bundle_to_s3 = original_func
 
-            mock_run.assert_called_once_with(upload.upload_bundle_to_s3)
+        assert captured_args == {
+            "local_filepath": str(mock_bundle_file),
+            "bucket": "test-bucket",
+            "key": "test-key",
+            "aws_credentials_block_name": None,
+        }
 
-    def test_upload_bundle_cli_with_credentials(
-        self, mock_s3_client: MagicMock, mock_bundle_file: Path
-    ):
+    @pytest.mark.usefixtures("mock_s3_client", "mock_aws_credentials")
+    def test_upload_bundle_cli_with_credentials(self, mock_bundle_file: Path):
         """Test upload via CLI with AWS credentials."""
-        with patch("typer.run") as mock_run:
-            from prefect_aws.experimental.bundles import upload
+        from prefect_aws.experimental.bundles import upload
 
-            old_argv = sys.argv
-            sys.argv = [
-                "upload.py",
-                str(mock_bundle_file),
-                "--bucket",
-                "test-bucket",
-                "--key",
-                "test-key",
-                "--aws-credentials-block-name",
-                "test-creds",
-            ]
-            try:
+        captured_args: dict[str, Any] = {}
+        original_func = upload.upload_bundle_to_s3
+
+        def wrapper(
+            local_filepath: LocalFilepath,
+            bucket: S3Bucket,
+            key: S3Key,
+            aws_credentials_block_name: Optional[AwsCredentialsBlockName] = None,
+        ):
+            captured_args.update(
+                {
+                    "local_filepath": local_filepath,
+                    "bucket": bucket,
+                    "key": key,
+                    "aws_credentials_block_name": aws_credentials_block_name,
+                }
+            )
+            return original_func(
+                local_filepath, bucket, key, aws_credentials_block_name
+            )
+
+        upload.upload_bundle_to_s3 = wrapper
+
+        old_argv = sys.argv
+        sys.argv = [
+            "upload.py",
+            str(mock_bundle_file),
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+            "--aws-credentials-block-name",
+            "test-creds",
+        ]
+        try:
+            with patch("sys.exit"):  # Prevent typer from exiting
                 upload.typer.run(upload.upload_bundle_to_s3)
-            finally:
-                sys.argv = old_argv
+        finally:
+            sys.argv = old_argv
+            upload.upload_bundle_to_s3 = original_func
 
-            mock_run.assert_called_once_with(upload.upload_bundle_to_s3)
+        assert captured_args == {
+            "local_filepath": str(mock_bundle_file),
+            "bucket": "test-bucket",
+            "key": "test-key",
+            "aws_credentials_block_name": "test-creds",
+        }
 
     @pytest.mark.usefixtures("mock_s3_client")
     def test_upload_bundle_cli_missing_required(self, mock_bundle_file: Path):
