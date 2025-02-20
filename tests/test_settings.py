@@ -292,6 +292,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RUNNER_SERVER_PORT": {"test_value": 8080},
     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {"test_value": True, "legacy": True},
     "PREFECT_SERVER_API_AUTH_STRING": {"test_value": "admin:admin"},
+    "PREFECT_SERVER_API_BASE_PATH": {"test_value": "/v2/api"},
     "PREFECT_SERVER_ANALYTICS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
     "PREFECT_SERVER_API_CORS_ALLOWED_METHODS": {"test_value": "foo"},
