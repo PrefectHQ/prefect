@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -155,6 +156,74 @@ class TestUploadBundle:
                 key="test-key",
             )
 
+    def test_upload_bundle_cli(self, mock_s3_client: MagicMock, mock_bundle_file: Path):
+        """Test upload via CLI."""
+        with patch("typer.run") as mock_run:
+            from prefect_aws.experimental.bundles import upload
+
+            mock_run.assert_not_called()  # Should not be called on import
+
+            old_argv = sys.argv
+            sys.argv = [
+                "upload.py",
+                str(mock_bundle_file),
+                "--bucket",
+                "test-bucket",
+                "--key",
+                "test-key",
+            ]
+            try:
+                upload.typer.run(upload.upload_bundle_to_s3)
+            finally:
+                sys.argv = old_argv
+
+            mock_run.assert_called_once_with(upload.upload_bundle_to_s3)
+
+    def test_upload_bundle_cli_with_credentials(
+        self, mock_s3_client: MagicMock, mock_bundle_file: Path
+    ):
+        """Test upload via CLI with AWS credentials."""
+        with patch("typer.run") as mock_run:
+            from prefect_aws.experimental.bundles import upload
+
+            old_argv = sys.argv
+            sys.argv = [
+                "upload.py",
+                str(mock_bundle_file),
+                "--bucket",
+                "test-bucket",
+                "--key",
+                "test-key",
+                "--aws-credentials-block-name",
+                "test-creds",
+            ]
+            try:
+                upload.typer.run(upload.upload_bundle_to_s3)
+            finally:
+                sys.argv = old_argv
+
+            mock_run.assert_called_once_with(upload.upload_bundle_to_s3)
+
+    @pytest.mark.usefixtures("mock_s3_client")
+    def test_upload_bundle_cli_missing_required(self, mock_bundle_file: Path):
+        """Test upload via CLI with missing required options."""
+        from prefect_aws.experimental.bundles import upload
+
+        # Missing --bucket
+        old_argv = sys.argv
+        sys.argv = [
+            "upload.py",
+            str(mock_bundle_file),
+            "--key",
+            "test-key",
+        ]
+        try:
+            with pytest.raises(SystemExit) as exc_info:
+                upload.typer.run(upload.upload_bundle_to_s3)
+            assert exc_info.value.code == 2  # Typer exits with code 2 for usage errors
+        finally:
+            sys.argv = old_argv
+
 
 class TestDownloadBundle:
     def test_download_bundle_from_s3_success(
@@ -293,3 +362,61 @@ class TestExecuteBundle:
                 bucket="test-bucket",
                 key="test-key",
             )
+
+    def test_execute_bundle_cli(self, mock_s3_client: MagicMock):
+        """Test execution via CLI."""
+        with patch("typer.run") as mock_run:
+            from prefect_aws.experimental.bundles import execute
+
+            mock_run.assert_not_called()  # Should not be called on import
+
+            old_argv = sys.argv
+            sys.argv = ["execute.py", "--bucket", "test-bucket", "--key", "test-key"]
+            try:
+                execute.typer.run(execute.execute_bundle_from_s3)
+            finally:
+                sys.argv = old_argv
+
+            mock_run.assert_called_once_with(execute.execute_bundle_from_s3)
+
+    @pytest.mark.usefixtures("mock_s3_client")
+    def test_execute_bundle_cli_with_credentials(self):
+        """Test execution via CLI with AWS credentials."""
+        with patch("typer.run") as mock_run:
+            from prefect_aws.experimental.bundles import execute
+
+            old_argv = sys.argv
+            sys.argv = [
+                "execute.py",
+                "--bucket",
+                "test-bucket",
+                "--key",
+                "test-key",
+                "--aws-credentials-block-name",
+                "test-creds",
+            ]
+            try:
+                execute.typer.run(execute.execute_bundle_from_s3)
+            finally:
+                sys.argv = old_argv
+
+            mock_run.assert_called_once_with(execute.execute_bundle_from_s3)
+
+    @pytest.mark.usefixtures("mock_s3_client")
+    def test_execute_bundle_cli_missing_required(self):
+        """Test execution via CLI with missing required options."""
+        from prefect_aws.experimental.bundles import execute
+
+        # Missing --key
+        old_argv = sys.argv
+        sys.argv = [
+            "execute.py",
+            "--bucket",
+            "test-bucket",
+        ]
+        try:
+            with pytest.raises(SystemExit) as exc_info:
+                execute.typer.run(execute.execute_bundle_from_s3)
+            assert exc_info.value.code == 2  # Typer exits with code 2 for usage errors
+        finally:
+            sys.argv = old_argv
