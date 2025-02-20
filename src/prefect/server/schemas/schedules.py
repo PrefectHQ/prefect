@@ -10,6 +10,7 @@ from typing import Annotated, Any, ClassVar, Generator, List, Optional, Tuple, U
 import dateutil
 import dateutil.rrule
 import pytz
+from croniters import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 
 from prefect._internal.schemas.validators import (
@@ -18,7 +19,6 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect._vendor.croniter import croniter
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
 from prefect.types._datetime import create_datetime_instance, now
