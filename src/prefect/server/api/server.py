@@ -357,7 +357,10 @@ def create_api_app(
             header_token = request.headers.get("Authorization")
 
             # used for probes in k8s and such
-            if request.url.path in ["/api/health", "/api/ready"]:
+            if (
+                request.url.path.endswith(("health", "ready"))
+                and request.method.upper() == "GET"
+            ):
                 return await call_next(request)
             try:
                 if header_token is None:
