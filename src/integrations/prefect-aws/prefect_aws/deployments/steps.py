@@ -3,15 +3,16 @@ Prefect deployment steps for code storage and retrieval in S3 and S3
 compatible services.
 """
 
-from pathlib import Path, PurePosixPath
-from typing import Dict, Optional
+from __future__ import annotations
 
-import boto3
-from botocore.client import Config
+from pathlib import Path, PurePosixPath
+from typing import Any, Optional
+
 from typing_extensions import TypedDict
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
+from prefect_aws.s3 import get_s3_client
 
 
 class PushToS3Output(TypedDict):
@@ -44,7 +45,7 @@ class PullProjectFromS3Output(PullFromS3Output):
 
 
 @deprecated_callable(start_date="Jun 2023", help="Use `push_to_s3` instead.")
-def push_project_to_s3(*args, **kwargs):
+def push_project_to_s3(*args: Any, **kwargs: Any):
     """Deprecated. Use `push_to_s3` instead."""
     push_to_s3(*args, **kwargs)
 
@@ -52,8 +53,8 @@ def push_project_to_s3(*args, **kwargs):
 def push_to_s3(
     bucket: str,
     folder: str,
-    credentials: Optional[Dict] = None,
-    client_parameters: Optional[Dict] = None,
+    credentials: Optional[dict[str, Any]] = None,
+    client_parameters: Optional[dict[str, Any]] = None,
     ignore_file: Optional[str] = ".prefectignore",
 ) -> PushToS3Output:
     """
@@ -124,7 +125,7 @@ def push_to_s3(
 
 
 @deprecated_callable(start_date="Jun 2023", help="Use `pull_from_s3` instead.")
-def pull_project_from_s3(*args, **kwargs):
+def pull_project_from_s3(*args: Any, **kwargs: Any):
     """Deprecated. Use `pull_from_s3` instead."""
     pull_from_s3(*args, **kwargs)
 
@@ -132,8 +133,8 @@ def pull_project_from_s3(*args, **kwargs):
 def pull_from_s3(
     bucket: str,
     folder: str,
-    credentials: Optional[Dict] = None,
-    client_parameters: Optional[Dict] = None,
+    credentials: Optional[dict[str, Any]] = None,
+    client_parameters: Optional[dict[str, Any]] = None,
 ) -> PullFromS3Output:
     """
     Pulls the contents of an S3 bucket folder to the current working directory.
@@ -196,55 +197,3 @@ def pull_from_s3(
         "folder": folder,
         "directory": str(local_path),
     }
-
-
-def get_s3_client(
-    credentials: Optional[Dict] = None,
-    client_parameters: Optional[Dict] = None,
-) -> dict:
-    if credentials is None:
-        credentials = {}
-    if client_parameters is None:
-        client_parameters = {}
-
-    # Get credentials from credentials (regardless if block or not)
-    aws_access_key_id = credentials.get(
-        "aws_access_key_id", credentials.get("minio_root_user", None)
-    )
-    aws_secret_access_key = credentials.get(
-        "aws_secret_access_key", credentials.get("minio_root_password", None)
-    )
-    aws_session_token = credentials.get("aws_session_token", None)
-
-    # Get remaining session info from credentials, or client_parameters
-    profile_name = credentials.get(
-        "profile_name", client_parameters.get("profile_name", None)
-    )
-    region_name = credentials.get(
-        "region_name", client_parameters.get("region_name", None)
-    )
-
-    # Get additional info from client_parameters, otherwise credentials input (if block)
-    aws_client_parameters = credentials.get("aws_client_parameters", client_parameters)
-    api_version = aws_client_parameters.get("api_version", None)
-    endpoint_url = aws_client_parameters.get("endpoint_url", None)
-    use_ssl = aws_client_parameters.get("use_ssl", True)
-    verify = aws_client_parameters.get("verify", None)
-    config_params = aws_client_parameters.get("config", {})
-    config = Config(**config_params)
-
-    session = boto3.Session(
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        aws_session_token=aws_session_token,
-        profile_name=profile_name,
-        region_name=region_name,
-    )
-    return session.client(
-        "s3",
-        api_version=api_version,
-        endpoint_url=endpoint_url,
-        use_ssl=use_ssl,
-        verify=verify,
-        config=config,
-    )
