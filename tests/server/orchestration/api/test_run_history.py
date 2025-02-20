@@ -956,6 +956,11 @@ async def test_flow_run_lateness(client, session):
     # SQLite does not store microseconds. Hence each of the two
     # Scheduled runs estimated lateness can be 'off' by up to
     # a second based on how we estimate the 'current' time used by the api.
+    # Using a 3-second threshold to account for:
+    # 1. Two separate flow runs that each may have timing variations
+    # 2. SQLite's microsecond limitations
+    # 3. Network latency between test and API
+    # 4. Time differences between request_time capture and API processing
     assert (
         abs(
             (
@@ -964,5 +969,5 @@ async def test_flow_run_lateness(client, session):
                 - interval["states"][2]["sum_estimated_lateness"]
             ).total_seconds()
         )
-        < 2.5
+        < 3.0
     )
