@@ -1,4 +1,3 @@
-import { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -11,49 +10,11 @@ import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
 import { useMemo, useState } from "react";
-
-const FLOW_RUN_STATES = [
-	"Scheduled",
-	"Late",
-	"Resuming",
-	"AwaitingRetry",
-	"AwaitingConcurrencySlot",
-	"Pending",
-	"Paused",
-	"Suspended",
-	"Running",
-	"Retrying",
-	"Completed",
-	"Cached",
-	"Cancelled",
-	"Cancelling",
-	"Crashed",
-	"Failed",
-	"TimedOut",
-] as const;
-export type FlowRunState = (typeof FLOW_RUN_STATES)[number];
-const FLOW_RUN_STATES_NO_SCHEDULED = FLOW_RUN_STATES.filter(
-	(flowStateFilter) => flowStateFilter !== "Scheduled",
-);
-const FLOW_RUN_STATES_MAP = {
-	Scheduled: "SCHEDULED",
-	Late: "SCHEDULED",
-	Resuming: "SCHEDULED",
-	AwaitingRetry: "SCHEDULED",
-	AwaitingConcurrencySlot: "SCHEDULED",
-	Pending: "PENDING",
-	Paused: "PAUSED",
-	Suspended: "PAUSED",
-	Running: "RUNNING",
-	Retrying: "RUNNING",
-	Completed: "COMPLETED",
-	Cached: "COMPLETED",
-	Cancelled: "CANCELLED",
-	Cancelling: "CANCELLING",
-	Crashed: "CRASHED",
-	Failed: "FAILED",
-	TimedOut: "FAILED",
-} satisfies Record<FlowRunState, components["schemas"]["StateType"]>;
+import {
+	FLOW_RUN_STATES_MAP,
+	FLOW_RUN_STATES_NO_SCHEDULED,
+	type FlowRunState,
+} from "./state-filters.constants";
 
 const MAX_FILTERS_DISPLAYED = 4;
 

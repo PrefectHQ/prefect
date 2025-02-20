@@ -21,7 +21,7 @@ describe("FlowRunsDataTable -- SortFilter", () => {
 		await user.click(screen.getByRole("option", { name: /newest to oldest/i }));
 
 		// Assert
-		expect(mockOnSelectFn).toBeCalledWith("START_TIME_ASC");
+		expect(mockOnSelectFn).toBeCalledWith("START_TIME_DESC");
 	});
 
 	it("returns correct sort filter for Oldest to newest", async () => {
@@ -37,7 +37,7 @@ describe("FlowRunsDataTable -- SortFilter", () => {
 		await user.click(screen.getByRole("option", { name: /oldest to newest/i }));
 
 		// Assert
-		expect(mockOnSelectFn).toBeCalledWith("START_TIME_DESC");
+		expect(mockOnSelectFn).toBeCalledWith("START_TIME_ASC");
 	});
 
 	it("returns correct sort filter for A to Z", async () => {
