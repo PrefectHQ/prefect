@@ -2350,9 +2350,15 @@ async def load_flow_from_flow_run(
             f"Running {len(deployment.pull_steps)} deployment pull step(s)"
         )
 
-        from prefect.deployments.steps.core import run_steps
+        from prefect.deployments.steps.core import StepExecutionError, run_steps
 
-        output = await run_steps(deployment.pull_steps)
+        try:
+            output = await run_steps(deployment.pull_steps)
+        except StepExecutionError as e:
+            e = e.__cause__ or e
+            run_logger.error(str(e))
+            raise
+
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
