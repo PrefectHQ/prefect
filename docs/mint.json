@@ -390,7 +390,30 @@
       "group": "APIs & SDK",
       "pages": [
         "v3/api-ref/index",
-        "v3/api-ref/python/index",
+        {
+          "group": "Python SDK",
+          "pages": [
+            "v3/api-ref/python/index",
+            "v3/api-ref/python/prefect-aws",
+            "v3/api-ref/python/prefect-azure",
+            "v3/api-ref/python/prefect-bitbucket",
+            "v3/api-ref/python/prefect-dask",
+            "v3/api-ref/python/prefect-databricks",
+            "v3/api-ref/python/prefect-dbt",
+            "v3/api-ref/python/prefect-docker",
+            "v3/api-ref/python/prefect-email",
+            "v3/api-ref/python/prefect-gcp",
+            "v3/api-ref/python/prefect-github",
+            "v3/api-ref/python/prefect-gitlab",
+            "v3/api-ref/python/prefect-kubernetes",
+            "v3/api-ref/python/prefect-ray",
+            "v3/api-ref/python/prefect-redis",
+            "v3/api-ref/python/prefect-shell",
+            "v3/api-ref/python/prefect-slack",
+            "v3/api-ref/python/prefect-snowflake",
+            "v3/api-ref/python/prefect-sqlalchemy"
+          ]
+        },
         {
           "group": "REST API",
           "pages": [
