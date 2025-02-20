@@ -12,11 +12,23 @@ import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import { FlowRunsDataTable, type FlowRunsDataTableProps } from "./data-table";
+import { FlowRunsFilters } from "./data-table-filters";
+import { RowSelectionProvider } from "./row-selection-provider";
 
 // Wraps component in test with a Tanstack router provider
 const FlowRunsDataTableRouter = (props: FlowRunsDataTableProps) => {
 	const rootRoute = createRootRoute({
-		component: () => <FlowRunsDataTable {...props} />,
+		component: () => (
+			<RowSelectionProvider>
+				<FlowRunsFilters
+					search={{ value: "", onChange: vi.fn() }}
+					sort={{ value: undefined, onSelect: vi.fn() }}
+					stateFilter={{ value: new Set(), onSelect: vi.fn() }}
+					flowRunsCount={props.flowRunsCount}
+				/>
+				<FlowRunsDataTable {...props} />
+			</RowSelectionProvider>
+		),
 	});
 
 	const router = createRouter({
