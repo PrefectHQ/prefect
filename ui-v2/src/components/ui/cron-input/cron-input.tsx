@@ -1,7 +1,7 @@
 import { Input, type InputProps } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";
 import clsx from "clsx";
-import cronParser from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 import cronstrue from "cronstrue";
 import { useState } from "react";
 
@@ -9,7 +9,7 @@ const verifyCronValue = (cronValue: string) => {
 	let description = "";
 	let isCronValid = false;
 	try {
-		cronParser.parseExpression(cronValue);
+		CronExpressionParser.parse(cronValue);
 		description = cronstrue.toString(cronValue);
 		isCronValid = true;
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -23,16 +23,8 @@ const verifyCronValue = (cronValue: string) => {
 	};
 };
 
-export type CronInputProps = InputProps & {
-	/** Used to indicate the container if Cron is valid */
-	getIsCronValid?: (isValid: boolean) => void;
-};
-
-export const CronInput = ({
-	getIsCronValid = () => true,
-	onChange,
-	...props
-}: CronInputProps) => {
+export type CronInputProps = InputProps;
+export const CronInput = ({ onChange, ...props }: CronInputProps) => {
 	const [description, setDescription] = useState(
 		verifyCronValue(String(props.value)).description,
 	);
@@ -46,7 +38,6 @@ export const CronInput = ({
 			const { description, isCronValid } = verifyCronValue(event.target.value);
 			setDescription(description);
 			setIsCronValid(isCronValid);
-			getIsCronValid(isCronValid);
 		}
 	};
 

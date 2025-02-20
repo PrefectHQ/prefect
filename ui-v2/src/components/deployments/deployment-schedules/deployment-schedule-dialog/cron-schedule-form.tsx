@@ -27,14 +27,14 @@ import { TimezoneSelect } from "@/components/ui/timezone-select";
 import { Typography } from "@/components/ui/typography";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import cronParser from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const verifyCronValue = (cronValue: string) => {
 	try {
-		cronParser.parseExpression(cronValue);
+		CronExpressionParser.parse(cronValue);
 		return true;
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	} catch (e) {
