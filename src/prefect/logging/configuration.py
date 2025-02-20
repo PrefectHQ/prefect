@@ -38,7 +38,9 @@ def load_logging_config(path: Path) -> dict[str, Any]:
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         config = yaml.safe_load(
             # Substitute settings into the template in format $SETTING / ${SETTING}
-            template.substitute(current_settings.to_environment_variables())
+            template.substitute(
+                current_settings.to_environment_variables(include_aliases=True)
+            )
         )
 
     # Load overrides from the environment
