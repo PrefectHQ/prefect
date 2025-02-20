@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
 import { useState } from "react";
 import { CronInput } from "./cron-input";
 
@@ -15,11 +14,5 @@ export const story: StoryObj = { name: "CronInput" };
 const CronInputStory = () => {
 	const [input, setInput] = useState("* * * * *");
 
-	return (
-		<CronInput
-			value={input}
-			onChange={(e) => setInput(e.target.value)}
-			getIsCronValid={fn}
-		/>
-	);
+	return <CronInput value={input} onChange={(e) => setInput(e.target.value)} />;
 };
