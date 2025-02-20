@@ -100,24 +100,31 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import enum
 import json
 import logging
+import os
 import shlex
+import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Dict,
     List,
     Optional,
     Tuple,
+    TypeVar,
     Union,
 )
 
+import anyio
 import anyio.abc
 import kubernetes_asyncio
 from jsonpatch import JsonPatch
@@ -141,12 +148,10 @@ from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 import prefect
-from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
 )
-from prefect.server.schemas.core import Flow
-from prefect.server.schemas.responses import DeploymentResponse
+from prefect.states import Pending
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -165,6 +170,16 @@ from prefect_kubernetes.utilities import (
     _slugify_label_value,
     _slugify_name,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import Flow as APIFlow
+    from prefect.client.schemas.objects import FlowRun
+    from prefect.client.schemas.responses import DeploymentResponse
+    from prefect.flows import Flow
+
+# Captures flow return type
+R = TypeVar("R")
+
 
 MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
@@ -346,7 +361,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["Flow"] = None,
+        flow: Optional["APIFlow"] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -554,7 +569,13 @@ class KubernetesWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
-class KubernetesWorker(BaseWorker):
+class KubernetesWorker(
+    BaseWorker[
+        "KubernetesWorkerJobConfiguration",
+        "KubernetesWorkerVariables",
+        "KubernetesWorkerResult",
+    ]
+):
     """Prefect worker that executes flow runs within Kubernetes Jobs."""
 
     type: str = "kubernetes"
@@ -568,15 +589,17 @@ class KubernetesWorker(BaseWorker):
     _documentation_url = "https://docs.prefect.io/integrations/prefect-kubernetes"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"  # noqa
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self._created_secrets = {}
+        self._created_secrets: dict[
+            tuple[str, str], KubernetesWorkerJobConfiguration
+        ] = {}
 
     async def run(
         self,
         flow_run: "FlowRun",
         configuration: KubernetesWorkerJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> KubernetesWorkerResult:
         """
         Executes a flow run within a Kubernetes Job and waits for the flow run
@@ -621,7 +644,62 @@ class KubernetesWorker(BaseWorker):
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
-    async def teardown(self, *exc_info):
+    async def submit(
+        self, flow: "Flow[..., R]", parameters: dict[str, Any] | None = None
+    ) -> "FlowRun":
+        # TODO: Might not want to sync on every submit
+        await self.sync_with_backend()
+
+        from prefect._experimental.bundles import (
+            convert_step_to_command,
+            create_bundle_for_flow_run,
+        )
+
+        if TYPE_CHECKING:
+            assert self._client is not None
+        flow_run = await self._client.create_flow_run(
+            flow, parameters=parameters, state=Pending()
+        )
+        api_flow = await self._client.read_flow(flow_run.flow_id)
+
+        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            await (
+                anyio.Path(temp_dir)
+                .joinpath(str(flow_run.id))
+                .write_bytes(json.dumps(bundle).encode("utf-8"))
+            )
+
+            # TODO: Replace this with reading the steps from the work pool
+            upload_step = json.loads(
+                os.environ.get("PREFECT__BUNDLE_UPLOAD_STEP", "{}")
+            )
+            execute_step = json.loads(
+                os.environ.get("PREFECT__BUNDLE_EXECUTE_STEP", "{}")
+            )
+
+            upload_command = convert_step_to_command(upload_step, str(flow_run.id))
+
+            await anyio.run_process(
+                upload_command + [str(flow_run.id)],
+                cwd=temp_dir,
+            )
+
+            execute_command = convert_step_to_command(execute_step, str(flow_run.id))
+
+            configuration = await self.job_configuration.from_template_and_values(
+                base_job_template=self._work_pool.base_job_template,
+                values={"command": " ".join(execute_command)},
+                client=self._client,
+            )
+            configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
+
+            await self.run(flow_run, configuration)
+
+        return flow_run
+
+    async def teardown(self, *exc_info: Any):
         await super().teardown(*exc_info)
 
         await self._clean_up_created_secrets()

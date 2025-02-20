@@ -7,6 +7,7 @@ import multiprocessing
 import multiprocessing.context
 import os
 import subprocess
+import sys
 from typing import Any, TypedDict
 
 import cloudpickle
@@ -19,6 +20,7 @@ from prefect.flow_engine import run_flow
 from prefect.flows import Flow
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
+from prefect.utilities.slugify import slugify
 
 
 class SerializedBundle(TypedDict):
@@ -161,3 +163,51 @@ def execute_bundle_in_subprocess(
     process.start()
 
     return process
+
+
+def convert_step_to_command(step: dict[str, Any], key: str) -> list[str]:
+    """
+    Converts a bundle upload or execution step to a command.
+
+    Args:
+        step: The step to convert.
+        key: The key to use for the remote file when downloading or uploading.
+
+    Returns:
+        A list of strings representing the command to run the step.
+    """
+    # Start with uv run
+    command = ["uv", "run"]
+
+    step_keys = list(step.keys())
+
+    if len(step_keys) != 1:
+        raise ValueError("Expected exactly one function in step")
+
+    function_fqn = step_keys[0]
+    function_args = step[function_fqn]
+
+    # Add the `--with` argument to handle dependencies for running the step
+    requires: list[str] | str = function_args.get("requires", [])
+    if isinstance(requires, str):
+        requires = [requires]
+    command.extend(["--with", ",".join(requires)])
+
+    # Add the `--python` argument to handle the Python version for running the step
+    python_version = sys.version_info
+    command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
+
+    # Add the `-m` argument to defined the function to run
+    command.extend(["-m", function_fqn])
+
+    # Add any arguments with values defined in the step
+    for arg_name, arg_value in function_args.items():
+        if arg_name == "requires":
+            continue
+
+        command.extend([f"--{slugify(arg_name)}", arg_value])
+
+    # Add the `--key` argument to specify the remote file name
+    command.extend(["--key", key])
+
+    return command
