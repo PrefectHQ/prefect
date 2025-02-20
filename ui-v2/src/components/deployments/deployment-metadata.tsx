@@ -114,7 +114,7 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 		{
 			field: "Tags",
 			ComponentValue: () =>
-				deployment.tags ? (
+				deployment.tags && deployment.tags.length > 0 ? (
 					<dd aria-label={deployment.tags.toString()}>
 						<TagBadgeGroup tags={deployment.tags} maxTagsDisplayed={4} />
 					</dd>
