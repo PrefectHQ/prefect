@@ -13,5 +13,6 @@ export function SchemaFormPropertyDescription({
 		return property.description?.replace(/\n(?!\n)/g, " ");
 	}, [property.description]);
 
+	// todo: support markdown
 	return description && <p className="text-sm text-gray-500">{description}</p>;
 }

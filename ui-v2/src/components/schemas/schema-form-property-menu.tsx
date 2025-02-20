@@ -3,6 +3,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
@@ -66,12 +67,9 @@ export const SchemaFormPropertyMenu = ({
 					</DropdownMenuItem>
 				))}
 
-				{children && (
-					<>
-						<hr />
-						{children}
-					</>
-				)}
+				<DropdownMenuSeparator />
+
+				{children}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
