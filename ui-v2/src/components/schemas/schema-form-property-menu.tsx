@@ -6,7 +6,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { SchemaObject } from "openapi-typescript";
+import { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { ReactNode, useMemo } from "react";
 import {
 	PrefectKind,
@@ -16,10 +16,11 @@ import {
 import { getPrefectKindFromValue } from "./types/prefect-kind-value";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { convertValueToPrefectKind } from "./utilities/convertValueToPrefectKind";
+
 export type SchemaFormPropertyMenuProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
-	property: SchemaObject;
+	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	children?: ReactNode;
 };
 

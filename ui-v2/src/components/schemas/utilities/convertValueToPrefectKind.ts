@@ -13,7 +13,7 @@ import { mergeSchemaPropertyDefinition } from "./mergeSchemaPropertyDefinition";
 
 type ConvertValueToPrefectKindInput = {
 	value: unknown;
-	property: SchemaObject | ReferenceObject;
+	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	schema: SchemaObject & ObjectSubtype;
 	to: PrefectKind;
 };
@@ -60,7 +60,7 @@ export function convertValueToPrefectKind({
 
 type ConvertPrefectKindValueJsonInput = {
 	json: PrefectKindValueJson;
-	property: SchemaObject | ReferenceObject;
+	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	schema: SchemaObject & ObjectSubtype;
 	to: PrefectKind;
 };
@@ -89,14 +89,14 @@ function convertPrefectKindValueJson({
 			try {
 				const parsed: unknown = JSON.parse(json.value);
 
-				return coerceValueToProperty({ value: parsed, property, schema });
+				return coerceValueToProperties({ value: parsed, property, schema });
 			} catch {
 				throw new InvalidSchemaValueTransformation("json", null);
 			}
 
 		default:
-			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 			throw new Error(
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				`mapSchemaValueJson missing case for kind: ${to satisfies never}`,
 			);
 	}
@@ -104,7 +104,7 @@ function convertPrefectKindValueJson({
 
 type ConvertPrefectKindValueJinjaInput = {
 	jinja: PrefectKindValueJinja;
-	property: SchemaObject | ReferenceObject;
+	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	schema: SchemaObject & ObjectSubtype;
 	to: PrefectKind;
 };
@@ -133,14 +133,14 @@ function convertPrefectKindValueJinja({
 			try {
 				const parsed: unknown = JSON.parse(jinja.template);
 
-				return coerceValueToProperty({ value: parsed, property, schema });
+				return coerceValueToProperties({ value: parsed, property, schema });
 			} catch {
 				throw new InvalidSchemaValueTransformation("jinja", null);
 			}
 
 		default:
-			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 			throw new Error(
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				`mapSchemaValueJson missing case for kind: ${to satisfies never}`,
 			);
 	}
@@ -148,7 +148,7 @@ function convertPrefectKindValueJinja({
 
 type ConvertPrefectKindValueNullInput = {
 	value: unknown;
-	property: SchemaObject | ReferenceObject;
+	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	schema: SchemaObject & ObjectSubtype;
 	to: PrefectKind;
 };
@@ -174,14 +174,36 @@ function convertPrefectKindValueNull({
 			} satisfies PrefectKindValueJson;
 
 		case null:
-			return coerceValueToProperty({ value, property, schema });
+			return coerceValueToProperties({ value, property, schema });
 
 		default:
-			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 			throw new Error(
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				`mapSchemaValueJson missing case for kind: ${to satisfies never}`,
 			);
 	}
+}
+
+type CoerceValueToPropertiesInput = {
+	value: unknown;
+	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
+	schema: SchemaObject & ObjectSubtype;
+};
+
+function coerceValueToProperties({
+	value,
+	property,
+	schema,
+}: CoerceValueToPropertiesInput): unknown {
+	if (isArray(property)) {
+		const responses = property.map((property) =>
+			coerceValueToProperty({ value, property, schema }),
+		);
+
+		return responses.find((response) => response !== undefined);
+	}
+
+	return coerceValueToProperty({ value, property, schema });
 }
 
 type CoerceValueToPropertyInput = {
@@ -221,11 +243,17 @@ function coerceValueToProperty({
 
 		default:
 			if (isArray(merged.type)) {
-				throw new Error("Array types are not supported for schema properties");
+				console.error(
+					new Error(
+						"Array types are not supported for schema coercing values to schema properties",
+					),
+				);
+
+				return undefined;
 			}
 
-			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 			throw new Error(
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				`Unsupported property type: ${merged.type satisfies never}`,
 			);
 	}

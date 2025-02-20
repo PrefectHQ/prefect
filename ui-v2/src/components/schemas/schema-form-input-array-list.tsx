@@ -1,7 +1,6 @@
 import { ArraySubtype, SchemaObject } from "openapi-typescript";
 import { Button } from "../ui/button";
 import { SchemaFormInputArrayItem } from "./schema-form-input-array-item";
-import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
 import {
 	SchemaFormErrors,
 	SchemaValueIndexError,
@@ -44,6 +43,21 @@ export function SchemaFormInputArrayList({
 			.flatMap((error) => error.errors);
 	}
 
+	function getFirstForIndex(index: number): boolean {
+		return index === 0;
+	}
+
+	function getLastForIndex(index: number): boolean {
+		return index === (values?.length ?? 0) - 1;
+	}
+
+	function getCanMoveForIndex(index: number): boolean {
+		const isPrefixItem =
+			isArray(property.prefixItems) && index < property.prefixItems.length;
+
+		return !isPrefixItem;
+	}
+
 	function handleValueChange(index: number, value: unknown) {
 		const newValues = [...(values ?? [])];
 		newValues[index] = value;
@@ -53,6 +67,12 @@ export function SchemaFormInputArrayList({
 	function addItem() {
 		const newValues = [...(values ?? []), undefined];
 
+		onValuesChange(newValues);
+	}
+
+	function moveItem(from: number, to: number) {
+		const newValues = [...(values ?? [])];
+		newValues.splice(to, 0, newValues.splice(from, 1)[0]);
 		onValuesChange(newValues);
 	}
 
@@ -70,23 +90,19 @@ export function SchemaFormInputArrayList({
 			)}
 
 			{values?.map((value, index) => (
-				<div className="grid grid-cols-[1fr_auto] gap-2" key={index}>
-					<div className="grid grid-cols-1 gap-2">
-						<SchemaFormInputArrayItem
-							key={index}
-							items={getPropertyForIndex(index)}
-							value={value}
-							onValueChange={(value: unknown) =>
-								handleValueChange(index, value)
-							}
-							errors={getErrorsForIndex(index)}
-						/>
-						<SchemaFormPropertyErrors errors={getErrorsForIndex(index)} />
-					</div>
-					<Button size="sm" variant="outline" onClick={() => deleteItem(index)}>
-						Delete
-					</Button>
-				</div>
+				<SchemaFormInputArrayItem
+					key={index}
+					items={getPropertyForIndex(index)}
+					value={value}
+					onValueChange={(value) => handleValueChange(index, value)}
+					errors={getErrorsForIndex(index)}
+					onDelete={() => deleteItem(index)}
+					first={getFirstForIndex(index)}
+					last={getLastForIndex(index)}
+					canMove={getCanMoveForIndex(index)}
+					moveUp={() => moveItem(index, index - 1)}
+					moveDown={() => moveItem(index, index + 1)}
+				/>
 			))}
 
 			{canAddMore && (
