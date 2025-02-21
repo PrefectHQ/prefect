@@ -14,7 +14,7 @@ import anyio
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import (
-    StateType,
+    State, StateType,
 )
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.utilities import inject_client
@@ -22,6 +22,8 @@ from prefect.context import (
     FlowRunContext,
     TaskRunContext,
 )
+from prefect.events.clients import get_events_subscriber
+from prefect.events.filters import EventFilter, EventNameFilter, EventResourceFilter
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -64,7 +66,9 @@ async def wait_for_flow_run(
     Args:
         flow_run_id: The flow run ID for the flow run to wait for.
         timeout: The wait timeout in seconds. Defaults to 10800 (3 hours).
-        poll_interval: The poll interval in seconds. Defaults to 5.
+        poll_interval: Deprecated; polling is no longer used to wait for flow runs.
+        client: Optional Prefect client. If not provided, one will be injected.
+        log_states: If True, log state changes. Defaults to False.
 
     Returns:
         FlowRun: The finished flow run.
@@ -116,15 +120,30 @@ async def wait_for_flow_run(
     """
     assert client is not None, "Client injection failed"
     logger = get_logger()
+
+    flow_run = await client.read_flow_run(flow_run_id)
+    if flow_run.state and flow_run.state.is_final():
+        if log_states:
+            logger.info(f"Flow run is in state {flow_run.state.name!r}")
+        return flow_run
+
+    filter = EventFilter(
+        event=EventNameFilter(prefix=["prefect.flow-run"]),
+        resource=EventResourceFilter(id=[f"prefect.flow-run.{flow_run_id}"])
+    )
+
     with anyio.move_on_after(timeout):
-        while True:
-            flow_run = await client.read_flow_run(flow_run_id)
-            flow_state = flow_run.state
-            if log_states and flow_state:
-                logger.info(f"Flow run is in state {flow_state.name!r}")
-            if flow_state and flow_state.is_final():
-                return flow_run
-            await anyio.sleep(poll_interval)
+        async with get_events_subscriber(filter=filter) as subscriber:
+            async for event in subscriber:
+                state_type = StateType(event.resource["prefect.state-type"])
+                state = State(type=state_type)
+
+                if log_states:
+                    logger.info(f"Flow run is in state {state.name!r}")
+
+                if state.is_final():
+                    return await client.read_flow_run(flow_run_id)
+
     raise FlowRunWaitTimeout(
         f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
     )
