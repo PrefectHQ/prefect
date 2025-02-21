@@ -191,7 +191,8 @@ def convert_step_to_command(step: dict[str, Any], key: str) -> list[str]:
     requires: list[str] | str = function_args.get("requires", [])
     if isinstance(requires, str):
         requires = [requires]
-    command.extend(["--with", ",".join(requires)])
+    if requires:
+        command.extend(["--with", ",".join(requires)])
 
     # Add the `--python` argument to handle the Python version for running the step
     python_version = sys.version_info
