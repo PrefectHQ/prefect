@@ -232,7 +232,6 @@
               "version": "v3"
             },
             "v3/manage/cloud/rate-limits",
-            "v3/manage/cloud/terraform-provider",
             "v3/manage/cloud/troubleshoot-cloud"
           ],
           "version": "v3"
