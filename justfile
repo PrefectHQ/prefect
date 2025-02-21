@@ -2,33 +2,24 @@
 check-uv:
     #!/usr/bin/env sh
     if ! command -v uv >/dev/null 2>&1; then
-        # Try to find uv using our Python script first
-        if ! python scripts/find_uv.py >/dev/null 2>&1; then
-            echo "uv is not installed or not found in expected locations."
-            if [ "$(uname)" = "Darwin" ]; then
+        echo "uv is not installed or not found in expected locations."
+        case "$(uname)" in
+            "Darwin")
                 echo "To install uv on macOS, run one of:"
                 echo "• brew install uv"
                 echo "• curl -LsSf https://astral.sh/uv/install.sh | sh"
-                echo "• pip install uv"
-                echo "• pipx install uv"
-            elif [ "$(uname)" = "Linux" ]; then
-                echo "To install uv, run one of:"
-                echo "• curl -LsSf https://astral.sh/uv/install.sh | sh"
-                echo "• pip install uv"
-                echo "• pipx install uv"
-            elif [ "$(uname -s)" = "Windows_NT" ]; then
+                ;;
+            "Linux")
                 echo "To install uv, run:"
-                echo "• pip install uv"
-                echo "Or visit https://github.com/astral-sh/uv for other installation methods"
-            else
-                echo "Please install uv using pip or pipx:"
-                echo "• pip install uv"
-                echo "• pipx install uv"
-                echo "For more information, visit: https://github.com/astral-sh/uv"
-            fi
-            exit 1
-        fi
+                echo "• curl -LsSf https://astral.sh/uv/install.sh | sh"
+                ;;
+            *)
+                echo "To install uv, visit: https://github.com/astral-sh/uv"
+                ;;
+        esac
+        exit 1
     fi
+
 # Build and serve documentation
 docs: check-uv
     cd docs && uv run mintlify dev
