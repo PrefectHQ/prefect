@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -75,7 +76,7 @@ export const buildFilterFlowRunsQuery = (
 			const res = await getQueryService().POST("/flow_runs/filter", {
 				body: filter,
 			});
-			return (res.data ?? []) as FlowRun[];
+			return res.data ?? ([] satisfies FlowRun[]);
 		},
 		staleTime: 1000,
 		refetchInterval,
@@ -111,6 +112,7 @@ export const buildPaginateFlowRunsQuery = (
 			}
 			return res.data;
 		},
+		placeholderData: keepPreviousData,
 		staleTime: 1000,
 		refetchInterval,
 	});

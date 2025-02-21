@@ -74,7 +74,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 						/>
 					</div>
 				</div>
-				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
+				<div className="grid gap-4" style={{ gridTemplateColumns: "5fr 1fr" }}>
 					<div className="flex flex-col gap-5">
 						<DeploymentDetailsTabs deployment={deployment} />
 					</div>
