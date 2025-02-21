@@ -923,7 +923,7 @@ class UUIDList(sa.TypeDecorator[list[UUID]]):
     """Map a JSON list of strings back to a list of UUIDs at the result loading stage"""
 
     impl: Union[TypeEngine[Any], type[TypeEngine[Any]]] = sa.JSON()
-    cache_ok: bool = True
+    cache_ok: Optional[bool] = True
 
     def process_result_value(
         self, value: Optional[list[Union[str, UUID]]], dialect: sa.Dialect
