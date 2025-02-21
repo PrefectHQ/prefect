@@ -1,16 +1,15 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { PaginationState } from "@tanstack/react-table";
 
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
+import { FlowRunState, SortFilters } from "@/components/flow-runs/data-table";
 import {
-	FlowRunState,
-	FlowRunsDataTable,
 	FlowRunsFilters,
-	RowSelectionProvider,
-	SortFilters,
-} from "@/components/flow-runs/data-table";
-
-import { useCallback, useMemo } from "react";
+	FlowRunsList,
+	FlowRunsPagination,
+	FlowRunsRowCount,
+	type PaginationState,
+} from "@/components/flow-runs/flow-runs-list";
+import { useCallback, useMemo, useState } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -21,10 +20,12 @@ type DeploymentDetailsUpcomingTabProps = {
 export const DeploymentDetailsUpcomingTab = ({
 	deploymentId,
 }: DeploymentDetailsUpcomingTabProps) => {
-	const [pagination, onPaginationChange] = usePagination();
+	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+	const [pagination, onChangePagination] = usePagination();
 	const [search, setSearch] = useSearch();
 	const [sort, setSort] = useSort();
 	const [filter, setFilter] = useFilter();
+	const resetFilters = useResetFilters();
 
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
@@ -39,62 +40,98 @@ export const DeploymentDetailsUpcomingTab = ({
 			},
 			operator: "and_",
 		},
-		limit: pagination.pageSize,
-		page: pagination.pageIndex + 1, // + 1 for to account for react table's 0 index
+		limit: pagination.limit,
+		page: pagination.page,
 		sort,
 	});
 
+	const handleResetFilters = () => {
+		resetFilters();
+		setSelectedRows(new Set());
+	};
+
+	const addRow = (id: string) =>
+		setSelectedRows((curr) => new Set(curr).add(id));
+	const removeRow = (id: string) =>
+		setSelectedRows((curr) => {
+			const newValue = new Set(curr);
+			newValue.delete(id);
+			return newValue;
+		});
+
+	const handleSelectRow = (id: string, checked: boolean) => {
+		if (checked) {
+			addRow(id);
+		} else {
+			removeRow(id);
+		}
+	};
+
 	return (
-		<RowSelectionProvider>
-			<FlowRunsFilters
-				flowRunsCount={data?.count}
-				search={{ value: search, onChange: setSearch }}
-				sort={{ value: sort, onSelect: setSort }}
-				stateFilter={{
-					value: new Set(filter),
-					onSelect: setFilter,
-				}}
-			/>
-			{data ? (
-				<FlowRunsDataTable
-					flowRuns={data.results}
-					flowRunsCount={data.count}
-					pagination={pagination}
-					pageCount={data.pages}
-					onPaginationChange={onPaginationChange}
+		<div className="flex flex-col gap-2">
+			<div className="flex items-center justify-between">
+				<FlowRunsRowCount
+					count={data?.count}
+					results={data?.results}
+					selectedRows={selectedRows}
+					setSelectedRows={setSelectedRows}
 				/>
-			) : null}
-		</RowSelectionProvider>
+				<FlowRunsFilters
+					search={{ value: search, onChange: setSearch }}
+					sort={{ value: sort, onSelect: setSort }}
+					stateFilter={{
+						value: new Set(filter),
+						onSelect: setFilter,
+					}}
+				/>
+			</div>
+
+			<FlowRunsList
+				flowRuns={data?.results}
+				selectedRows={selectedRows}
+				onSelect={handleSelectRow}
+				onClearFilters={handleResetFilters}
+			/>
+
+			{data && data.results.length > 0 && (
+				<FlowRunsPagination
+					pagination={pagination}
+					onChangePagination={onChangePagination}
+					pages={data.pages}
+				/>
+			)}
+		</div>
 	);
 };
+
+function useResetFilters() {
+	const navigate = routeApi.useNavigate();
+	const resetFilters = useCallback(() => {
+		void navigate({
+			to: ".",
+			search: (prev) => ({
+				...prev,
+				upcoming: undefined,
+			}),
+			replace: true,
+		});
+	}, [navigate]);
+	return resetFilters;
+}
 
 function usePagination() {
 	const { upcoming } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
-	// React Table uses 0-based pagination, so we need to subtract 1 from the page number
-	const pageIndex = (upcoming?.page ?? 1) - 1;
-	const pageSize = upcoming?.limit ?? 5;
-	const pagination: PaginationState = useMemo(
-		() => ({
-			pageIndex,
-			pageSize,
-		}),
-		[pageIndex, pageSize],
-	);
-
-	const onPaginationChange = useCallback(
-		(newPagination: PaginationState) => {
+	const onChangePagination = useCallback(
+		(pagination?: PaginationState) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					page: newPagination.pageIndex + 1,
-					limit: newPagination.pageSize,
 					upcoming: {
 						...upcoming,
-						page: newPagination.pageIndex + 1,
-						limit: newPagination.pageSize,
+						...pagination,
 					},
 				}),
 				replace: true,
@@ -103,7 +140,14 @@ function usePagination() {
 		[navigate, upcoming],
 	);
 
-	return [pagination, onPaginationChange] as const;
+	const pagination = useMemo(() => {
+		return {
+			page: upcoming?.page ?? 1,
+			limit: upcoming?.limit ?? 5,
+		};
+	}, [upcoming?.limit, upcoming?.page]);
+
+	return [pagination, onChangePagination] as const;
 }
 
 function useSearch() {
@@ -111,7 +155,7 @@ function useSearch() {
 	const navigate = routeApi.useNavigate();
 
 	const onSearch = useCallback(
-		(value: string) => {
+		(value?: string) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -141,7 +185,7 @@ function useSort() {
 	const navigate = routeApi.useNavigate();
 
 	const onSort = useCallback(
-		(value: SortFilters | undefined) => {
+		(value?: SortFilters) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -168,7 +212,7 @@ function useFilter() {
 	const navigate = routeApi.useNavigate();
 
 	const onFilter = useCallback(
-		(value: Set<FlowRunState>) => {
+		(value?: Set<FlowRunState>) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -177,7 +221,7 @@ function useFilter() {
 						...upcoming,
 						flowRuns: {
 							...upcoming?.flowRuns,
-							state: Array.from(value),
+							state: value ? Array.from(value) : undefined,
 						},
 					},
 				}),
