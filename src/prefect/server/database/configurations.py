@@ -218,11 +218,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         if cache_key not in ENGINES:
             kwargs: dict[str, Any] = (
                 get_current_settings().server.database.sqlalchemy.model_dump(
-                    mode="json",
+                    mode="json", exclude={"connect_args"}
                 )
             )
-            connect_args: dict[str, Any] = kwargs.pop("connect_args")
-            app_name = connect_args.pop("application_name", None)
+            connect_args: dict[str, Any] = {}
 
             if self.timeout is not None:
                 connect_args["command_timeout"] = self.timeout
@@ -238,9 +237,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                     self.prepared_statement_cache_size
                 )
 
-            if self.connection_app_name is not None or app_name is not None:
+            if self.connection_app_name is not None:
                 connect_args["server_settings"] = dict(
-                    application_name=self.connection_app_name or app_name
+                    application_name=self.connection_app_name
                 )
 
             if connect_args:
