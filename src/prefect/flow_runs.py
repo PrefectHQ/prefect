@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 async def wait_for_flow_run(
     flow_run_id: UUID,
     timeout: int | None = 10800,
-    poll_interval: int = 5,
+    poll_interval: int | None = None,
     client: "PrefectClient | None" = None,
     log_states: bool = False,
 ) -> FlowRun:
@@ -118,6 +118,11 @@ async def wait_for_flow_run(
 
             ```
     """
+    if poll_interval is not None:
+        get_logger().warning(
+            "The `poll_interval` argument is deprecated and will be removed in a future release. "
+        )
+
     assert client is not None, "Client injection failed"
     logger = get_logger()
 
