@@ -142,11 +142,11 @@ class BaseDatabaseConfiguration(ABC):
             connection_app_name
             or get_current_settings().server.database.sqlalchemy.connect_args.application_name
         )
-        self.statement_cache_size = (
+        self.statement_cache_size: Optional[int] = (
             statement_cache_size
             or get_current_settings().server.database.sqlalchemy.connect_args.statement_cache_size
         )
-        self.prepared_statement_cache_size = (
+        self.prepared_statement_cache_size: Optional[int] = (
             prepared_statement_cache_size
             or get_current_settings().server.database.sqlalchemy.connect_args.prepared_statement_cache_size
         )
