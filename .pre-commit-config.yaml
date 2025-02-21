@@ -10,6 +10,9 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        additional_dependencies:
+          - tomli
+        exclude: package-lock.json|_vendor/.*|docs/styles/.*
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:
