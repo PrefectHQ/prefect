@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import {
 	PrefectKind,
 	getPrefectKindLabel,
@@ -32,6 +32,7 @@ export const SchemaFormPropertyMenu = ({
 	children,
 }: SchemaFormPropertyMenuProps) => {
 	const { schema, kinds } = useSchemaFormContext();
+	const [open, setOpen] = useState(false);
 
 	function convertValueKind(kind: PrefectKind) {
 		const newValue = convertValueToPrefectKind({
@@ -53,11 +54,12 @@ export const SchemaFormPropertyMenu = ({
 	}, [value, kinds]);
 
 	return (
-		<DropdownMenu>
+		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
 				<Button
 					variant="ghost"
-					className="h-8 w-8 p-0 group-hover:opacity-100 opacity-0 group-focus-within:opacity-100 transition-opacity"
+					data-open={open}
+					className="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
 				>
 					<span className="sr-only">Open menu</span>
 					<Icon id="MoreVertical" className="h-4 w-4" />
