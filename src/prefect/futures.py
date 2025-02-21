@@ -3,12 +3,14 @@ import asyncio
 import concurrent.futures
 import threading
 import uuid
+import warnings
 from collections.abc import Generator, Iterator
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
+from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger, get_run_logger
@@ -31,22 +33,39 @@ logger: "logging.Logger" = get_logger(__name__)
 class PrefectFuture(abc.ABC, Generic[R]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
-    asynchronous execution of a task run. It provides methods to wait for the task
-    to complete and to retrieve the result of the task run.
+    asynchronous execution of a run. It provides methods to wait for the
+    to complete and to retrieve the result of the run.
     """
 
     def __init__(self, task_run_id: uuid.UUID):
+        warnings.warn(
+            "The __init__ method of PrefectFuture is deprecated and will be removed in a future release. "
+            "If you are subclassing PrefectFuture, please implement the __init__ method in your subclass.",
+            DeprecationWarning,
+        )
         self._task_run_id = task_run_id
         self._final_state: Optional[State[R]] = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
         """The ID of the task run associated with this future"""
+        warnings.warn(
+            "The task_run_id property of PrefectFuture is deprecated and will be removed in a future release. "
+            "If you are subclassing PrefectFuture, please implement the task_run_id property in your subclass.",
+            DeprecationWarning,
+        )
+
         return self._task_run_id
 
     @property
     def state(self) -> State:
         """The current state of the task run associated with this future"""
+        warnings.warn(
+            "The state property of PrefectFuture is deprecated and will be removed in a future release. "
+            "If you are subclassing PrefectFuture, please implement the state property in your subclass.",
+            DeprecationWarning,
+        )
+
         if self._final_state:
             return self._final_state
         client = get_client(sync_client=True)
@@ -103,7 +122,36 @@ class PrefectFuture(abc.ABC, Generic[R]):
         ...
 
 
-class PrefectWrappedFuture(PrefectFuture[R], abc.ABC, Generic[R, F]):
+class PrefectTaskRunFuture(PrefectFuture[R]):
+    """
+    A Prefect future that represents the eventual execution of a task run.
+    """
+
+    def __init__(self, task_run_id: uuid.UUID):
+        self._task_run_id = task_run_id
+        self._final_state: Optional[State[R]] = None
+
+    @property
+    def task_run_id(self) -> uuid.UUID:
+        """The ID of the task run associated with this future"""
+        return self._task_run_id
+
+    @property
+    def state(self) -> State:
+        """The current state of the task run associated with this future"""
+        if self._final_state:
+            return self._final_state
+        client = get_client(sync_client=True)
+        try:
+            task_run = client.read_task_run(task_run_id=self.task_run_id)
+        except ObjectNotFound:
+            # We'll be optimistic and assume this task will eventually start
+            # TODO: Consider using task run events to wait for the task to start
+            return Pending()
+        return task_run.state or Pending()
+
+
+class PrefectWrappedFuture(PrefectTaskRunFuture[R], abc.ABC, Generic[R, F]):
     """
     A Prefect future that wraps another future object.
 
@@ -190,7 +238,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
         )
 
 
-class PrefectDistributedFuture(PrefectFuture[R]):
+class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
     """
     Represents the result of a computation happening anywhere.
 
@@ -287,6 +335,123 @@ class PrefectDistributedFuture(PrefectFuture[R]):
 
     def __hash__(self) -> int:
         return hash(self.task_run_id)
+
+
+class PrefectFlowRunFuture(PrefectFuture[R]):
+    """
+    A Prefect future that represents the eventual execution of a flow run.
+    """
+
+    def __init__(self, flow_run_id: uuid.UUID):
+        self._flow_run_id = flow_run_id
+        self._final_state: State[R] | None = None
+
+    @property
+    def flow_run_id(self) -> uuid.UUID:
+        """The ID of the flow run associated with this future"""
+        return self._flow_run_id
+
+    @property
+    def state(self) -> State:
+        """The current state of the flow run associated with this future"""
+        if self._final_state:
+            return self._final_state
+        client = get_client(sync_client=True)
+        state = Pending()
+        try:
+            flow_run = client.read_flow_run(flow_run_id=self.flow_run_id)
+            if flow_run.state:
+                state = flow_run.state
+        except ObjectNotFound:
+            # We'll be optimistic and assume this flow run will eventually start
+            pass
+        return state
+
+    def wait(self, timeout: Optional[float] = None) -> None:
+        return run_coro_as_sync(self.wait_async(timeout=timeout))
+
+    async def wait_async(self, timeout: Optional[float] = None) -> None:
+        if self._final_state:
+            logger.debug(
+                "Final state already set for %s. Returning...", self.task_run_id
+            )
+            return
+
+        # Ask for the instance of FlowRunWaiter _now_ so that it's already running and
+        # can catch the completion event if it happens before we start listening for it.
+        FlowRunWaiter.instance()
+
+        # Read task run to see if it is still running
+        async with get_client() as client:
+            flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
+            if flow_run.state is None:
+                raise RuntimeError(
+                    f"Flow run {self.flow_run_id} has no state which means it hasn't started yet."
+                )
+            if flow_run.state and flow_run.state.is_final():
+                logger.debug(
+                    "Flow run %s already finished. Returning...",
+                    self.flow_run_id,
+                )
+                self._final_state = flow_run.state
+                return
+
+            # If still running, wait for a completed event from the server
+            logger.debug(
+                "Waiting for completed event for flow run %s...",
+                self.flow_run_id,
+            )
+            await FlowRunWaiter.wait_for_flow_run(self._flow_run_id, timeout=timeout)
+            flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
+            if flow_run.state and flow_run.state.is_final():
+                self._final_state = flow_run.state
+            return
+
+    def result(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> R:
+        return run_coro_as_sync(
+            self.aresult(timeout=timeout, raise_on_failure=raise_on_failure)
+        )
+
+    async def aresult(
+        self,
+        timeout: Optional[float] = None,
+        raise_on_failure: bool = True,
+    ) -> R:
+        if not self._final_state:
+            await self.wait_async(timeout=timeout)
+            if not self._final_state:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                )
+
+        return await self._final_state.result(
+            raise_on_failure=raise_on_failure, fetch=True
+        )
+
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
+        if self._final_state:
+            fn(self)
+            return
+        FlowRunWaiter.instance()
+        with get_client(sync_client=True) as client:
+            flow_run = client.read_flow_run(flow_run_id=self._flow_run_id)
+            if flow_run.state and flow_run.state.is_final():
+                self._final_state = flow_run.state
+                fn(self)
+                return
+            FlowRunWaiter.add_done_callback(self._flow_run_id, partial(fn, self))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, PrefectFlowRunFuture):
+            return False
+        return self.flow_run_id == other.flow_run_id
+
+    def __hash__(self) -> int:
+        return hash(self.flow_run_id)
 
 
 class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
@@ -454,7 +619,7 @@ def resolve_futures_to_states(
     futures: set[PrefectFuture[R]] = set()
 
     def _collect_futures(
-        futures: set[PrefectFuture[R]], expr: Any, context: Any
+        futures: set[PrefectFuture[R]], expr: Any | PrefectFuture[R], context: Any
     ) -> Union[PrefectFuture[R], Any]:
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
@@ -469,7 +634,7 @@ def resolve_futures_to_states(
         expr,
         visit_fn=partial(_collect_futures, futures),
         return_data=False,
-        context={},
+        context={"annotation": None},
     )
 
     # if no futures were found, return the original expression
@@ -498,5 +663,5 @@ def resolve_futures_to_states(
         expr,
         visit_fn=replace_futures_with_states,
         return_data=True,
-        context={},
+        context={"annotation": None},
     )
