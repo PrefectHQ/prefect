@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import asyncio
 import concurrent.futures
@@ -6,7 +8,7 @@ import uuid
 import warnings
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
@@ -44,7 +46,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
             DeprecationWarning,
         )
         self._task_run_id = task_run_id
-        self._final_state: Optional[State[R]] = None
+        self._final_state: State[R] | None = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -78,7 +80,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
         return task_run.state or Pending()
 
     @abc.abstractmethod
-    def wait(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: float | None = None) -> None:
         ...
         """
         Wait for the task run to complete.
@@ -93,7 +95,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
     @abc.abstractmethod
     def result(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         ...
@@ -129,7 +131,7 @@ class PrefectTaskRunFuture(PrefectFuture[R]):
 
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._final_state: Optional[State[R]] = None
+        self._final_state: State[R] | None = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -188,7 +190,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
     when the task run is submitted to a ThreadPoolExecutor.
     """
 
-    def wait(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: float | None = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
@@ -198,7 +200,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
 
     def result(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         if not self._final_state:
@@ -250,10 +252,10 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
     done_callbacks: list[Callable[[PrefectFuture[R]], None]] = []
     waiter = None
 
-    def wait(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: float | None = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
-    async def wait_async(self, timeout: Optional[float] = None) -> None:
+    async def wait_async(self, timeout: float | None = None) -> None:
         if self._final_state:
             logger.debug(
                 "Final state already set for %s. Returning...", self.task_run_id
@@ -292,7 +294,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
 
     def result(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         return run_coro_as_sync(
@@ -301,7 +303,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
 
     async def result_async(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         if not self._final_state:
@@ -367,10 +369,10 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
             pass
         return state
 
-    def wait(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: float | None = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
-    async def wait_async(self, timeout: Optional[float] = None) -> None:
+    async def wait_async(self, timeout: float | None = None) -> None:
         if self._final_state:
             logger.debug(
                 "Final state already set for %s. Returning...", self.task_run_id
@@ -409,7 +411,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
 
     def result(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         return run_coro_as_sync(
@@ -418,7 +420,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
 
     async def aresult(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         if not self._final_state:
@@ -462,7 +464,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
     in the list to complete and to retrieve the results of all task runs.
     """
 
-    def wait(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: float | None = None) -> None:
         """
         Wait for all futures in the list to complete.
 
@@ -474,7 +476,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
 
     def result(
         self: Self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> list[R]:
         """
@@ -506,7 +508,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
 
 
 def as_completed(
-    futures: list[PrefectFuture[R]], timeout: Optional[float] = None
+    futures: list[PrefectFuture[R]], timeout: float | None = None
 ) -> Generator[PrefectFuture[R], None]:
     unique_futures: set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
@@ -557,7 +559,7 @@ class DoneAndNotDoneFutures(NamedTuple, Generic[R]):
 
 
 def wait(
-    futures: list[PrefectFuture[R]], timeout: Optional[float] = None
+    futures: list[PrefectFuture[R]], timeout: float | None = None
 ) -> DoneAndNotDoneFutures[R]:
     """
     Wait for the futures in the given sequence to complete.
@@ -607,8 +609,8 @@ def wait(
 
 
 def resolve_futures_to_states(
-    expr: Union[PrefectFuture[R], Any],
-) -> Union[State, Any]:
+    expr: PrefectFuture[R] | Any,
+) -> PrefectFuture[R] | Any:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved to their final states.
@@ -620,7 +622,7 @@ def resolve_futures_to_states(
 
     def _collect_futures(
         futures: set[PrefectFuture[R]], expr: Any | PrefectFuture[R], context: Any
-    ) -> Union[PrefectFuture[R], Any]:
+    ) -> Any | PrefectFuture[R]:
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
