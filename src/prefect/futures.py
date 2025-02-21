@@ -42,7 +42,8 @@ class PrefectFuture(abc.ABC, Generic[R]):
     def __init__(self, task_run_id: uuid.UUID):
         warnings.warn(
             "The __init__ method of PrefectFuture is deprecated and will be removed in a future release. "
-            "If you are subclassing PrefectFuture, please implement the __init__ method in your subclass.",
+            "If you are subclassing PrefectFuture, please implement the __init__ method in your subclass or "
+            "subclass PrefectTaskRunFuture instead.",
             DeprecationWarning,
         )
         self._task_run_id = task_run_id
@@ -53,7 +54,8 @@ class PrefectFuture(abc.ABC, Generic[R]):
         """The ID of the task run associated with this future"""
         warnings.warn(
             "The task_run_id property of PrefectFuture is deprecated and will be removed in a future release. "
-            "If you are subclassing PrefectFuture, please implement the task_run_id property in your subclass.",
+            "If you are subclassing PrefectFuture, please implement the task_run_id property in your subclass or "
+            "subclass PrefectTaskRunFuture instead.",
             DeprecationWarning,
         )
 
@@ -64,7 +66,8 @@ class PrefectFuture(abc.ABC, Generic[R]):
         """The current state of the task run associated with this future"""
         warnings.warn(
             "The state property of PrefectFuture is deprecated and will be removed in a future release. "
-            "If you are subclassing PrefectFuture, please implement the state property in your subclass.",
+            "If you are subclassing PrefectFuture, please implement the state property in your subclass or "
+            "subclass PrefectTaskRunFuture instead.",
             DeprecationWarning,
         )
 
@@ -636,7 +639,7 @@ def resolve_futures_to_states(
         expr,
         visit_fn=partial(_collect_futures, futures),
         return_data=False,
-        context={"annotation": None},
+        context={},
     )
 
     # if no futures were found, return the original expression
@@ -665,5 +668,5 @@ def resolve_futures_to_states(
         expr,
         visit_fn=replace_futures_with_states,
         return_data=True,
-        context={"annotation": None},
+        context={},
     )
