@@ -7,11 +7,11 @@ import uuid
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Self,
 )
 
 import anyio
 from cachetools import TTLCache
+from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.threads import get_global_loop
