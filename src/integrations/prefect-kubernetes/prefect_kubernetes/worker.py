@@ -729,7 +729,16 @@ class KubernetesWorker(
         )
         configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
 
-        await self.run(flow_run, configuration)
+        result = await self.run(flow_run, configuration)
+
+        if result.status_code != 0:
+            await self._propose_crashed_state(
+                flow_run,
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
+            )
 
     async def teardown(self, *exc_info: Any):
         await super().teardown(*exc_info)
