@@ -887,6 +887,30 @@ Controls the application_name field for connections opened from the connection p
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME`
 
+### `statement_cache_size`
+Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE`
+
+### `prepared_statement_cache_size`
+Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.prepared_statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE`
+
 ---
 ## SQLAlchemySettings
 Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
