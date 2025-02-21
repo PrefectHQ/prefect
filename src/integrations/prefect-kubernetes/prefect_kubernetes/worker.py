@@ -152,6 +152,7 @@ from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.exceptions import (
     InfrastructureError,
 )
+from prefect.futures import PrefectFlowRunFuture
 from prefect.states import Pending
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
@@ -646,7 +647,7 @@ class KubernetesWorker(
 
     async def submit(
         self, flow: "Flow[..., R]", parameters: dict[str, Any] | None = None
-    ) -> "FlowRun":
+    ) -> "PrefectFlowRunFuture[R]":
         """
         EXPERIMENTAL: The interface for this method is subject to change.
 
@@ -664,7 +665,7 @@ class KubernetesWorker(
         flow_run = await self._runs_task_group.start(
             self._submit_adhoc_run, flow, parameters
         )
-        return flow_run
+        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 
     async def _submit_adhoc_run(
         self,
