@@ -84,7 +84,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
                 getattr(self, "name", None)
                 or f"Automation for deployment {self._deployment_id}"
             ),
-            description="",
+            description=getattr(self, "description", ""),
             enabled=getattr(self, "enabled", True),
             trigger=trigger,
             actions=self.actions(),
