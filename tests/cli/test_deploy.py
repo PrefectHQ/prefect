@@ -5565,6 +5565,42 @@ class TestDeploymentTrigger:
                 )
             ]
 
+        async def test_automation_creation(
+            self, project_dir, prefect_client: PrefectClient
+        ):
+            await prefect_client.create_work_pool(
+                WorkPoolCreate(name="test-pool", type="test")
+            )
+            trigger_spec = {
+                "name": "unique-id",
+                "enabled": True,
+                "description": "This is a test trigger",
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Completed"],
+                "job_variables": {"foo": "bar"},
+                "within": 60,
+                "threshold": 2,
+            }
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                    " 1.0.0 -v env=prod -t foo-bar"
+                    f" --trigger '{json.dumps(trigger_spec)}'"
+                ),
+                expected_code=0,
+                expected_output_contains=[
+                    "An important name/test-name",
+                    "prefect worker start --pool 'test-pool'",
+                ],
+            )
+
+            automations = await prefect_client.read_automations_by_name("unique-id")
+            assert len(automations) == 1
+            automation = automations[0]
+            automation.name == "unique-id"
+            automation.description == "This is a test trigger"
+
         async def test_initialize_deployment_triggers_composite(self):
             trigger_spec = {
                 "name": "Trigger McTriggerson",
