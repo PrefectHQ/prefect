@@ -1,11 +1,12 @@
 import base64
 import json
 import re
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from time import monotonic, sleep
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
 import anyio.abc
@@ -37,6 +38,7 @@ from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
 )
+from prefect.futures import PrefectFlowRunFuture
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
@@ -184,6 +186,13 @@ async def mock_pods_stream_that_returns_completed_pod(
             yield {"object": mock_job, "type": "MODIFIED"}
 
     return mock_stream
+
+
+@pytest.fixture
+def mock_run_process(monkeypatch: pytest.MonkeyPatch):
+    mock = AsyncMock()
+    monkeypatch.setattr(anyio, "run_process", mock)
+    return mock
 
 
 @pytest.fixture
@@ -3131,3 +3140,139 @@ class TestKubernetesWorker:
             # The event for another job or pod shouldn't be included
             assert "NahChief" not in caplog.text
             assert "NotMeDude" not in caplog.text
+
+    class TestSubmit:
+        @pytest.fixture(autouse=True)
+        def mock_steps(self, monkeypatch: pytest.MonkeyPatch):
+            UPLOAD_STEP = {
+                "prefect_mock.experimental.bundles.upload": {
+                    "requires": "prefect-mock==0.5.5",
+                    "bucket": "test-bucket",
+                    "credentials_block_name": "my-creds",
+                }
+            }
+
+            EXECUTE_STEP = {
+                "prefect_mock.experimental.bundles.execute": {
+                    "requires": "prefect-mock==0.5.5",
+                    "bucket": "test-bucket",
+                    "credentials_block_name": "my-creds",
+                }
+            }
+
+            monkeypatch.setenv("PREFECT__BUNDLE_UPLOAD_STEP", json.dumps(UPLOAD_STEP))
+            monkeypatch.setenv("PREFECT__BUNDLE_EXECUTE_STEP", json.dumps(EXECUTE_STEP))
+
+        @pytest.fixture
+        def test_flow(self):
+            @prefect.flow
+            def my_flow():
+                return "Hello, world!"
+
+            return my_flow
+
+        async def test_submit_adhoc_run(
+            self,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_events,
+            mock_pods_stream_that_returns_completed_pod,
+            default_configuration,
+            test_flow,
+            mock_run_process: AsyncMock,
+            caplog: pytest.LogCaptureFixture,
+        ):
+            mock_watch.return_value.stream = mock.Mock(
+                side_effect=mock_pods_stream_that_returns_completed_pod
+            )
+            python_version_info = sys.version_info
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                future = await k8s_worker.submit(test_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+            expected_command = [
+                "uv",
+                "run",
+                "--with",
+                "prefect-mock==0.5.5",
+                "--python",
+                f"{python_version_info.major}.{python_version_info.minor}",
+                "-m",
+                "prefect_mock.experimental.bundles.upload",
+                "--bucket",
+                "test-bucket",
+                "--credentials-block-name",
+                "my-creds",
+                "--key",
+                str(future.flow_run_id),
+            ]
+            mock_run_process.assert_called_once_with(
+                expected_command,
+                cwd=ANY,
+            )
+
+        async def test_submit_adhoc_run_failed_submission(
+            self,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_events,
+            mock_pods_stream_that_returns_completed_pod,
+            default_configuration,
+            test_flow,
+            mock_run_process: AsyncMock,
+            caplog: pytest.LogCaptureFixture,
+        ):
+            response = MagicMock()
+            response.data = None
+            response.status = 403
+            response.reason = "Test"
+
+            mock_batch_client.return_value.create_namespaced_job.side_effect = (
+                ApiException(http_resp=response)
+            )
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                future = await k8s_worker.submit(test_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+            async with prefect.get_client() as client:
+                flow_run = await client.read_flow_run(future.flow_run_id)
+                assert flow_run.state.is_crashed()
+
+        async def test_submit_adhoc_run_non_zero_exit_code(
+            self,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_events,
+            mock_pods_stream_that_returns_completed_pod,
+            default_configuration,
+            test_flow,
+            mock_run_process: AsyncMock,
+            caplog: pytest.LogCaptureFixture,
+        ):
+            mock_watch.return_value.stream = mock.Mock(
+                side_effect=mock_pods_stream_that_returns_completed_pod
+            )
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            job_pod.status.phase = "Running"
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.terminated.exit_code = 1
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                future = await k8s_worker.submit(test_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+            async with prefect.get_client() as client:
+                flow_run = await client.read_flow_run(future.flow_run_id)
+                assert flow_run.state.is_crashed()

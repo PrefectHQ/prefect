@@ -711,7 +711,7 @@ class KubernetesWorker(
 
             try:
                 await anyio.run_process(
-                    upload_command + [str(flow_run.id)],
+                    upload_command,
                     cwd=temp_dir,
                 )
             except Exception as e:
@@ -729,16 +729,24 @@ class KubernetesWorker(
         )
         configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
 
-        result = await self.run(flow_run, configuration)
+        try:
+            result = await self.run(flow_run, configuration)
 
-        if result.status_code != 0:
-            await self._propose_crashed_state(
-                flow_run,
-                (
-                    "Flow run infrastructure exited with non-zero status code"
-                    f" {result.status_code}."
-                ),
+            if result.status_code != 0:
+                await self._propose_crashed_state(
+                    flow_run,
+                    (
+                        "Flow run infrastructure exited with non-zero status code"
+                        f" {result.status_code}."
+                    ),
+                )
+        except Exception as exc:
+            # This flow run was being submitted and did not start successfully
+            logger.exception(
+                f"Failed to submit flow run '{flow_run.id}' to infrastructure."
             )
+            message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+            await self._propose_crashed_state(flow_run, message)
 
     async def teardown(self, *exc_info: Any):
         await super().teardown(*exc_info)
