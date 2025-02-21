@@ -1,5 +1,5 @@
 import { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
 import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
@@ -13,6 +13,7 @@ import {
 	isSchemaValuePropertyError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
+import { isDefined } from "./utilities/guards";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
 export type SchemaFormPropertyProps = {
@@ -34,7 +35,8 @@ export function SchemaFormProperty({
 	showLabel = true,
 	nested = true,
 }: SchemaFormPropertyProps) {
-	const { schema } = useSchemaFormContext();
+	const { schema, skipDefaultValueInitialization } = useSchemaFormContext();
+	const [initialized, setInitialized] = useState(false);
 	const id = useId();
 
 	const property = useMemo(() => {
@@ -47,6 +49,24 @@ export function SchemaFormProperty({
 				isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
 		);
 	}, [errors]);
+
+	useEffect(() => {
+		if (initialized || skipDefaultValueInitialization) {
+			return;
+		}
+
+		if (isDefined(property.default) && !isDefined(value)) {
+			onValueChange(property.default);
+		}
+
+		setInitialized(true);
+	}, [
+		initialized,
+		skipDefaultValueInitialization,
+		onValueChange,
+		property.default,
+		value,
+	]);
 
 	return (
 		<div className="flex flex-col gap-2 group">

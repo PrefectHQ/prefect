@@ -16,6 +16,7 @@ const schema: PrefectSchemaObject = {
 			type: "string",
 			title: "String",
 			description: "This is a description",
+			default: "hello",
 		},
 		string_required: {
 			type: "string",
@@ -135,6 +136,7 @@ const schema: PrefectSchemaObject = {
 		array_items_with_any_of: {
 			type: "array",
 			title: "Array of items with anyOf",
+			default: [1, "foo"],
 			//@ts-expect-error pydantic can create properties without a type
 			items: {
 				anyOf: [{ type: "string" }, { type: "number" }],
@@ -175,6 +177,7 @@ const schema: PrefectSchemaObject = {
 		//@ts-expect-error pydantic can create properties without a type
 		any_of: {
 			title: "Any Of",
+			default: true,
 			anyOf: [
 				{
 					type: "string",
