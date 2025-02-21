@@ -9,7 +9,6 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
 from typing import Any, Dict
 
-import pendulum
 import typer
 
 import prefect
@@ -25,6 +24,7 @@ from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
     PREFECT_TEST_MODE,
 )
+from prefect.types._datetime import parse_datetime
 
 app: PrefectTyper = PrefectTyper(add_completion=True, no_args_is_help=True)
 
@@ -112,7 +112,7 @@ async def version(
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
-        "Built": pendulum.parse(
+        "Built": parse_datetime(
             prefect.__version_info__["date"]
         ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",

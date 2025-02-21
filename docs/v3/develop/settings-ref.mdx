@@ -887,6 +887,30 @@ Controls the application_name field for connections opened from the connection p
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME`
 
+### `statement_cache_size`
+Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE`
+
+### `prepared_statement_cache_size`
+Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.prepared_statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE`
+
 ---
 ## SQLAlchemySettings
 Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
@@ -950,7 +974,7 @@ Controls maximum overflow of the connection pool. To prevent overflow, set to -1
 ## ServerAPISettings
 Settings for controlling API server behavior
 ### `auth_string`
-A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.
+A string to use for basic authentication with the API in the form 'user:password'.
 
 **Type**: `string | None`
 
@@ -984,6 +1008,18 @@ The API's port address (defaults to `4200`).
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_PORT`
+
+### `base_path`
+The base URL path to serve the API under.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.base_path`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_BASE_PATH`
 
 ### `default_limit`
 The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.

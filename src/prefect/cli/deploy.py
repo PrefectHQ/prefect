@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import re
@@ -58,6 +59,7 @@ from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
     _save_deployment_to_prefect_file,
 )
+from prefect.deployments.runner import RunnerDeployment
 from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
@@ -87,6 +89,36 @@ DeploymentTriggerAdapter: TypeAdapter[DeploymentTriggerTypes] = TypeAdapter(
     DeploymentTriggerTypes
 )
 SlaAdapter: TypeAdapter[SlaTypes] = TypeAdapter(SlaTypes)
+
+
+class _PullStepStorage:
+    """
+    A shim storage class that allows passing pull steps to a `RunnerDeployment`.
+    """
+
+    def __init__(self, pull_steps: list[dict[str, Any]]):
+        self._base_path = Path.cwd()
+        self.pull_steps = pull_steps
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        pass
+
+    def to_pull_step(self):
+        return self.pull_steps
+
+    def __eq__(self, other: Any) -> bool:
+        return self.pull_steps == getattr(other, "pull_steps", None)
 
 
 @app.command()
@@ -730,35 +762,42 @@ async def _run_single_deploy(
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
-    flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
-
-    deployment_id = await client.create_deployment(
-        flow_id=flow_id,
-        name=deploy_config.get("name"),
-        work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
+    deployment = RunnerDeployment(
+        name=deploy_config["name"],
+        flow_name=deploy_config.get("flow_name"),
+        entrypoint=deploy_config.get("entrypoint"),
         work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
-        version=deploy_config.get("version"),
-        schedules=deploy_config.get("schedules"),
-        paused=deploy_config.get("paused"),
-        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", True),
-        parameter_openapi_schema=deploy_config.get(
-            "parameter_openapi_schema"
-        ).model_dump_for_openapi(),
+        work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
-        tags=deploy_config.get("tags", []),
+        version=deploy_config.get("version"),
+        tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         concurrency_options=deploy_config.get("concurrency_options"),
-        entrypoint=deploy_config.get("entrypoint"),
-        pull_steps=pull_steps,
+        schedules=deploy_config.get("schedules"),
+        paused=deploy_config.get("paused"),
+        storage=_PullStepStorage(pull_steps),
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
 
+    deployment._parameter_openapi_schema = deploy_config["parameter_openapi_schema"]
+
+    if deploy_config.get("enforce_parameter_schema") is not None:
+        deployment.enforce_parameter_schema = deploy_config.get(
+            "enforce_parameter_schema"
+        )
+
+    apply_coro = deployment.apply()
+    if TYPE_CHECKING:
+        assert inspect.isawaitable(apply_coro)
+
+    deployment_id = await apply_coro
+
     await _create_deployment_triggers(client, deployment_id, triggers)
 
-    # We want to ensure that if a user passes an empty list of SLAs, we call the
-    # apply endpoint to remove existing SLAs for the deployment.
-    # If the argument is not provided, we will not call the endpoint.
+    # # We want to ensure that if a user passes an empty list of SLAs, we call the
+    # # apply endpoint to remove existing SLAs for the deployment.
+    # # If the argument is not provided, we will not call the endpoint.
     sla_specs = _gather_deployment_sla_definitions(
         options.get("sla"), deploy_config.get("sla")
     )

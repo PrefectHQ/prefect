@@ -7,7 +7,6 @@ from typing import List, Optional
 from uuid import UUID
 
 import jsonschema.exceptions
-import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from starlette.background import BackgroundTasks
@@ -27,6 +26,7 @@ from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -164,12 +164,12 @@ async def create_deployment(
                     ),
                 )
 
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )
 
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
 
         return schemas.responses.DeploymentResponse.model_validate(
@@ -198,8 +198,8 @@ async def update_deployment(
         # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
         schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
         schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
-        all_provided_have_slugs = deployment.schedules and all(
-            schedule.slug is not None for schedule in deployment.schedules
+        all_provided_have_slugs = all(
+            schedule.slug is not None for schedule in deployment.schedules or []
         )
         all_existing_have_slugs = existing_deployment.schedules and all(
             schedule.slug is not None for schedule in existing_deployment.schedules
@@ -780,11 +780,11 @@ async def create_flow_run_from_deployment(
         if not flow_run.state:
             flow_run.state = schemas.states.Scheduled()
 
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         model = await models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
         )
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
         return schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True

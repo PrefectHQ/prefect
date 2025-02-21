@@ -13,12 +13,11 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Optional
+from typing import Any, List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
-import pendulum
 import pydantic
 import pytest
 import regex as re
@@ -45,6 +44,7 @@ from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
+    MissingFlowError,
     ParameterTypeError,
     ReservedArgumentError,
     ScriptError,
@@ -56,6 +56,7 @@ from prefect.flows import (
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    load_function_and_convert_to_flow,
     safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
@@ -85,6 +86,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import get_transaction, transaction
+from prefect.types._datetime import DateTime, Timezone
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -101,7 +103,7 @@ def mock_sigterm_handler():
         pytest.skip("Can't test signal handlers from a thread")
     mock = MagicMock()
 
-    def handler(*args, **kwargs):
+    def handler(*args: Any, **kwargs: Any):
         mock(*args, **kwargs)
 
     prev_handler = signal.signal(signal.SIGTERM, handler)
@@ -2695,6 +2697,48 @@ class TestLoadFlowFromEntrypoint:
             load_flow_from_entrypoint(f"{fpath}:dog", use_placeholder_flow=False)
 
 
+class TestLoadFunctionAndConvertToFlow:
+    def test_func_is_a_flow(self, tmp_path):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_function_and_convert_to_flow(f"{fpath}:dog")
+        assert flow.fn() == "woof!"
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+
+    def test_func_is_not_a_flow(self, tmp_path):
+        flow_code = """
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = load_function_and_convert_to_flow(f"{fpath}:dog")
+        assert isinstance(flow, Flow)
+        assert flow.name == "dog"
+        assert flow.log_prints is True
+        assert flow.fn() == "woof!"
+
+    def test_func_not_found(self, tmp_path):
+        flow_code = ""
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        with pytest.raises(
+            RuntimeError, match=f"Function with name 'dog' not found in '{fpath}'."
+        ):
+            load_function_and_convert_to_flow(f"{fpath}:dog")
+
+
 class TestFlowRunName:
     async def test_invalid_runtime_run_name(self):
         class InvalidFlowRunNameArg:
@@ -4925,6 +4969,41 @@ class TestLoadFlowFromFlowRun:
             "my.module.pretend_flow", use_placeholder_flow=True
         )
 
+    async def test_load_flow_from_non_flow_func(
+        self, prefect_client: "PrefectClient", monkeypatch
+    ):
+        def not_quite_a_flow():
+            pass
+
+        _load_flow_from_entrypoint = mock.Mock(side_effect=MissingFlowError)
+        monkeypatch.setattr(
+            "prefect.flows.load_flow_from_entrypoint",
+            _load_flow_from_entrypoint,
+        )
+
+        _import_object = mock.Mock(return_value=not_quite_a_flow)
+        monkeypatch.setattr(
+            "prefect.flows.import_object",
+            _import_object,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(not_quite_a_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my_file.py:not_quite_a_flow",
+            flow_id=flow_id,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run)
+
+        assert isinstance(result, Flow)
+        assert result.fn == not_quite_a_flow
+
 
 class TestTransactions:
     def test_grouped_rollback_behavior(self):
@@ -5476,14 +5555,14 @@ class TestSafeLoadFlowFromEntrypoint:
     def test_annotations_and_defaults_rely_on_imports(self, tmp_path: Path):
         source_code = dedent(
             """
-        import pendulum
         import datetime
         from prefect import flow
+        from prefect.types import DateTime
 
         @flow
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = DateTime(2025, 1, 1),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             return x, y, z
@@ -5494,7 +5573,7 @@ class TestSafeLoadFlowFromEntrypoint:
         assert result is not None
         assert result(datetime.datetime(2025, 1, 1)) == (
             datetime.datetime(2025, 1, 1),
-            pendulum.datetime(2025, 1, 1),
+            DateTime(2025, 1, 1, tzinfo=Timezone("UTC")),
             datetime.timedelta(seconds=5),
         )
 

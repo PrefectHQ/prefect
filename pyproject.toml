@@ -1,0 +1,351 @@
+[build-system]
+requires = ["hatchling", "versioningit"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prefect"
+dynamic = ["version"]
+description = "Workflow orchestration and management."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
+classifiers = [
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    # Server dependencies
+    "aiosqlite>=0.17.0,<1.0.0",
+    "alembic>=1.7.5,<2.0.0",
+    "apprise>=1.1.0,<2.0.0",
+    "asyncpg>=0.23,<1.0.0",
+    "click>=8.0,<8.2",
+    "cryptography>=36.0.1",
+    "dateparser>=1.1.1,<2.0.0",
+    "docker>=4.0,<8.0",
+    "graphviz>=0.20.1",
+    "jinja2>=3.0.0,<4.0.0",
+    "jinja2-humanize-extension>=0.4.0",
+    "humanize>=4.9.0,<5.0.0",
+    "pytz>=2021.1,<2026",
+    "readchar>=4.0.0,<5.0.0",
+    "sqlalchemy[asyncio]>=2.0,<3.0.0",
+    "typer>=0.12.0,!=0.12.2,<0.16.0",
+    # Client dependencies
+    # If you modify this list, make the same modification in client/pyproject.toml
+    "anyio>=4.4.0,<5.0.0",
+    "asgi-lifespan>=1.0,<3.0",
+    "cachetools>=5.3,<6.0",
+    "cloudpickle>=2.0,<4.0",
+    "coolname>=1.0.4,<3.0.0",
+    "exceptiongroup>=1.0.0",
+    "fastapi>=0.111.0,<1.0.0",
+    "fsspec>=2022.5.0",
+    "graphviz>=0.20.1",
+    "griffe>=0.49.0,<2.0.0",
+    "httpcore>=1.0.5,<2.0.0",
+    "httpx[http2]>=0.23,!=0.23.2",
+    "importlib_metadata>=4.4;python_version<'3.10'",
+    "jsonpatch>=1.32,<2.0",
+    "jsonschema>=4.0.0,<5.0.0",
+    "opentelemetry-api>=1.27.0,<2.0.0",
+    "orjson>=3.7,<4.0",
+    "packaging>=21.3,<24.3",
+    "pathspec>=0.8.0",
+    "pendulum>=3.0.0,<4",
+    "prometheus-client>=0.20.0",
+    "pydantic>=2.9,<3.0.0,!=2.10.0",
+    "pydantic_core>=2.12.0,<3.0.0",
+    "pydantic_extra_types>=2.8.2,<3.0.0",
+    "pydantic_settings>2.2.1",
+    "python-dateutil>=2.8.2,<3.0.0",
+    "python-slugify>=5.0,<9.0",
+    "python-socks[asyncio]>=2.5.3,<3.0",
+    "pyyaml>=5.4.1,<7.0.0",
+    "rfc3339-validator>=0.1.4,<0.2.0",
+    "rich>=11.0,<14.0",
+    "ruamel.yaml>=0.17.0",
+    "sniffio>=1.3.0,<2.0.0",
+    "toml>=0.10.0",
+    "typing_extensions>=4.5.0,<5.0.0",
+    "ujson>=5.8.0,<6.0.0",
+    "uvicorn>=0.14.0,!=0.29.0",
+    "websockets>=10.4,<14.0",
+]
+[project.urls]
+Changelog = "https://github.com/PrefectHQ/prefect/releases"
+Documentation = "https://docs.prefect.io"
+Source = "https://github.com/PrefectHQ/prefect"
+Tracker = "https://github.com/PrefectHQ/prefect/issues"
+[project.optional-dependencies]
+otel = [
+    "opentelemetry-distro>=0.48b0,<1.0.0",
+    "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
+    "opentelemetry-instrumentation>=0.48b0,<1.0.0",
+    "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
+    "opentelemetry-test-utils>=0.48b0,<1.0.0",
+]
+
+# Infrastructure extras
+aws = ["prefect-aws>=0.5.0"]
+azure = ["prefect-azure>=0.4.0"]
+gcp = ["prefect-gcp>=0.6.0"]
+docker = ["prefect-docker>=0.6.0"]
+kubernetes = ["prefect-kubernetes>=0.4.0"]
+shell = ["prefect-shell>=0.3.0"]
+# Distributed task execution extras
+dask = ["prefect-dask>=0.3.0"]
+ray = ["prefect-ray>=0.4.0"]
+# Version control extras
+bitbucket = ["prefect-bitbucket>=0.3.0"]
+github = ["prefect-github>=0.3.0"]
+gitlab = ["prefect-gitlab>=0.3.0"]
+# Database extras
+databricks = ["prefect-databricks>=0.3.0"]
+dbt = ["prefect-dbt>=0.6.0"]
+snowflake = ["prefect-snowflake>=0.28.0"]
+sqlalchemy = ["prefect-sqlalchemy>=0.5.0"]
+redis = ["prefect-redis>=0.2.0"]
+# Monitoring extras
+email = ["prefect-email>=0.4.0"]
+slack = ["prefect-slack>=0.3.0"]
+
+[project.scripts]
+prefect = "prefect.cli:app"
+
+[project.entry-points."mkdocs.plugins"]
+render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
+
+[dependency-groups]
+dev = [
+    "cairosvg>=2.7.1",
+    "codespell>=2.2.6",
+    "ipython",
+    "jinja2>=1.2",
+    "moto>=5",
+    "numpy",
+    "pillow>=11.1.0",
+    "pre-commit>=4.1.0",
+    "pluggy>=1.5.0",
+    "pyright>=1.1.390",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "pytest-cov>=6.0",
+    "pytest-env>=1.1.5",
+    "pytest-flakefinder>=1.1.0",
+    "pytest-mypy-plugins>=3.2.0",
+    "pytest-timeout>=2.3.1",
+    "pytest-xdist>=3.6.1",
+    "pyyaml>=6.0.1",
+    "redis>=5.2.1",
+    "setuptools>=65.6.3",
+    "uv>=0.5.30",
+    "vale>=3.9.5",
+    "virtualenv>=20.29.2",
+    "watchfiles>=1.0.4",
+    "respx>=0.22.0",
+    "codespell==2.4.1",
+    "ruff==0.9.6",
+    "mypy==1.15.0",
+    "types-cachetools>=5.3.1",
+    "types-PyYAML>=6.0.12",
+    "types-dateparser>=1.2.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.4",
+    "mkdocstrings[python]>=0.28.0",
+    "mkdocs-gen-files>=0.5.0",
+    # Need to stay in sync with otel extra
+    "opentelemetry-distro>=0.48b0,<1.0.0",
+    "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
+    "opentelemetry-instrumentation>=0.48b0,<1.0.0",
+    "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
+    "opentelemetry-test-utils>=0.48b0,<1.0.0",
+]
+
+markdown-docs = [
+    "pytest-markdown-docs>=0.6.0",
+    "prefect[aws]",
+    "prefect[azure]",
+    "prefect[bitbucket]",
+    "prefect[dask]",
+    "prefect[databricks]",
+    "prefect[email]",
+    "prefect[gcp]",
+    "prefect[github]",
+    "prefect[gitlab]",
+    "prefect[kubernetes]",
+    "prefect[ray]",
+    "prefect[shell]",
+    "prefect[slack]",
+    "prefect[snowflake]",
+    "prefect[sqlalchemy]",
+]
+
+
+benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
+
+[tool.hatch.version]
+source = "versioningit"
+
+[tool.versioningit.vcs]
+match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
+default-tag = "0.0.0"
+
+[tool.versioningit.write]
+method = { module = "write_build_info", value = "write_build_info", module-dir = "tools" }
+path = "src/prefect/_build_info.py"
+
+[tool.versioningit.format]
+distance = "{base_version}+{distance}.{vcs}{rev}"
+dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+
+[tool.hatch.build]
+artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-rfEs --mypy-only-local-stub"
+norecursedirs = [
+    "*.egg-info",
+    ".git",
+    ".mypy_cache",
+    "node_modules",
+    ".pytest_cache",
+    ".vscode",
+]
+python_files = ["test_*.py", "bench_*.py"]
+python_functions = ["test_*", "bench_*"]
+markers = [
+    "service(arg): a service integration test. For example 'docker'",
+    "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
+    "clear_db: marker to clear the database after test completion",
+]
+env = [
+    "PREFECT_TESTING_TEST_MODE=1",
+    "PREFECT_TESTING_UNIT_TEST_MODE=1",
+    "PREFECT_SERVER_LOGGING_LEVEL=DEBUG",
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+timeout = 90
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:tornado.platform.asyncio.*",
+    "ignore::DeprecationWarning:tornado.ioloop",
+    "ignore:Default value default=",
+    "ignore:Implicitly cleaning up:ResourceWarning",
+    "ignore::ResourceWarning:distributed.diskutils",
+    "ignore:unclosed:ResourceWarning:distributed.node",
+    "ignore::ImportWarning:google.api_core.exceptions",
+    "ignore:coroutine 'Connection.cursor' was never awaited:RuntimeWarning",
+    "ignore:coroutine 'AsyncAdapt_asyncpg_cursor._prepare_and_execute' was never awaited:RuntimeWarning",
+    "ignore:the imp module is deprecated:DeprecationWarning",
+    "ignore:distutils Version classes are deprecated:DeprecationWarning",
+    "ignore:The distutils package is deprecated:DeprecationWarning",
+    "ignore:Skipped unsupported reflection of expression-based index:sqlalchemy.exc.SAWarning",
+    "ignore:The --rsyncdir command line argument and rsyncdirs config variable are deprecated.:DeprecationWarning",
+    "ignore:Prefect will drop support for Python 3.7:FutureWarning",
+    "ignore:`PREFECT_API_URL` uses `/account/` but should use `/accounts/`.:UserWarning",
+    "ignore:`PREFECT_API_URL` should have `/api` after the base URL.:UserWarning",
+    "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
+    "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
+    "ignore::DeprecationWarning:botocore.*",
+    "ignore::sqlalchemy.exc.SAWarning",
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore::pluggy.PluggyTeardownRaisedWarning",
+]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+follow_imports = "skip"
+python_version = "3.9"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["@(abc.)?abstractmethod", "if TYPE_CHECKING:"]
+omit = ["src/prefect/server/database/migrations/versions/*"]
+ignore_errors = true
+
+[tool.ruff]
+src = ["src"]
+extend-select = ["I"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["E402", "F401", "I"]
+"main.py" = ["E402", "F401", "I"]
+"src/prefect/utilities/compat.py" = ["F401", "I"]
+"tests/conftest.py" = ["F405", "E402", "F403"]
+"src/prefect/runtime/*" = ["F822"]
+"src/prefect/server/database/migrations/**/*" = ["E501"]
+
+[tool.ruff.isort]
+known-third-party = []
+
+
+[tool.codespell]
+skip = [
+    ".git",
+    "*.pdf",
+    "*.svg",
+    "package-lock.json",
+    "_vendor",
+    "*.css",
+    "tests/utilities/test_text.py",
+    "pyproject.toml",
+]
+# from https://github.com/PrefectHQ/prefect/pull/10813#issuecomment-1732676130
+ignore-regex = ".*lazy=\"selectin\"|.*e import Bloc$|America/Nome"
+
+ignore-words-list = [
+    "selectin",
+    "aci",
+    "wqs",
+    "aks",
+    "ines",
+    "dependant",
+    "fsspec",
+    "automations",
+    "nmme",
+    "afterall",
+    "medias",
+]
+
+check-hidden = true
+
+
+[tool.uv.sources]
+prefect-aws = { path = "src/integrations/prefect-aws" }
+prefect-azure = { path = "src/integrations/prefect-azure" }
+prefect-bitbucket = { path = "src/integrations/prefect-bitbucket" }
+prefect-dask = { path = "src/integrations/prefect-dask" }
+prefect-databricks = { path = "src/integrations/prefect-databricks" }
+prefect-dbt = { path = "src/integrations/prefect-dbt" }
+prefect-docker = { path = "src/integrations/prefect-docker" }
+prefect-email = { path = "src/integrations/prefect-email" }
+prefect-gcp = { path = "src/integrations/prefect-gcp" }
+prefect-github = { path = "src/integrations/prefect-github" }
+prefect-gitlab = { path = "src/integrations/prefect-gitlab" }
+prefect-kubernetes = { path = "src/integrations/prefect-kubernetes" }
+prefect-ray = { path = "src/integrations/prefect-ray" }
+prefect-redis = { path = "src/integrations/prefect-redis" }
+prefect-shell = { path = "src/integrations/prefect-shell" }
+prefect-slack = { path = "src/integrations/prefect-slack" }
+prefect-sqlalchemy = { path = "src/integrations/prefect-sqlalchemy" }
+prefect-snowflake = { path = "src/integrations/prefect-snowflake" }

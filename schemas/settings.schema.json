@@ -757,6 +757,38 @@
                         "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME"
                     ],
                     "title": "Application Name"
+                },
+                "statement_cache_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE"
+                    ],
+                    "title": "Statement Cache Size"
+                },
+                "prepared_statement_cache_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE"
+                    ],
+                    "title": "Prepared Statement Cache Size"
                 }
             },
             "title": "SQLAlchemyConnectArgsSettings",
@@ -834,7 +866,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.",
+                    "description": "A string to use for basic authentication with the API in the form 'user:password'.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_API_AUTH_STRING"
                     ],
@@ -857,6 +889,25 @@
                     ],
                     "title": "Port",
                     "type": "integer"
+                },
+                "base_path": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The base URL path to serve the API under.",
+                    "examples": [
+                        "/v2/api"
+                    ],
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_BASE_PATH"
+                    ],
+                    "title": "Base Path"
                 },
                 "default_limit": {
                     "default": 200,

@@ -30,6 +30,20 @@ class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
         description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
     )
 
+    statement_cache_size: Optional[int] = Field(
+        default=None,
+        description="Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
+    )
+
+    prepared_statement_cache_size: Optional[int] = Field(
+        default=None,
+        description=(
+            "Controls the size of the statement cache for PostgreSQL connections. "
+            "When set to 0, statement caching is disabled. Defaults to None to use "
+            "SQLAlchemy's default behavior."
+        ),
+    )
+
 
 class SQLAlchemySettings(PrefectBaseSettings):
     """

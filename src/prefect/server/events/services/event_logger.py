@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, NoReturn
 
-import pendulum
 import rich
 
 from prefect.logging import get_logger
@@ -12,6 +11,7 @@ from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities.messaging import Consumer, Message, create_consumer
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -35,14 +35,14 @@ class EventLogger(RunInAllServers, Service):
         console = rich.console.Console()
 
         async def handler(message: Message):
-            now = pendulum.now("UTC")
+            right_now = now("UTC")
             event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
             console.print(
                 "Event:",
                 str(event.id).partition("-")[0],
                 f"{event.occurred.isoformat()}",
-                f" ({(event.occurred - now).total_seconds():>6,.2f})",
+                f" ({(event.occurred - right_now).total_seconds():>6,.2f})",
                 f"\\[[bold green]{event.event}[/]]",
                 event.resource.id,
             )

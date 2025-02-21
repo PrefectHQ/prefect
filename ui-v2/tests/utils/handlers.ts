@@ -5,6 +5,10 @@ export const buildApiUrl = (path: string) => {
 };
 
 const automationsHandlers = [
+	http.get(buildApiUrl("/automations/related-to/:resource_id"), () => {
+		return HttpResponse.json([]);
+	}),
+
 	http.post(buildApiUrl("/automations/filter"), () => {
 		return HttpResponse.json([]);
 	}),
@@ -35,6 +39,18 @@ const deploymentsHandlers = [
 	http.delete(buildApiUrl("/deployments/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
+
+	http.post(buildApiUrl("/deployments/:id/schedules"), () => {
+		return HttpResponse.json({ status: 201 });
+	}),
+
+	http.patch(buildApiUrl("/deployments/:id/schedules/:schedule_id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+
+	http.delete(buildApiUrl("/deployments/:id/schedules/:schedule_id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const flowHandlers = [
@@ -58,6 +74,10 @@ const flowRunHandlers = [
 			{ id: "1", name: "Flow 1", tags: [] },
 			{ id: "2", name: "Flow 2", tags: [] },
 		]);
+	}),
+
+	http.delete(buildApiUrl("/flow_runs/:id"), () => {
+		return HttpResponse.json({ status: 204 });
 	}),
 ];
 

@@ -2061,6 +2061,60 @@ class TestUpdateDeployment:
         }
         assert expected_interval_active_and_slug == interval_active_and_slug
 
+    async def test_update_schedule_without_slug_and_specifying_active_defaults_to_true(
+        self,
+        client,
+        flow,
+    ):
+        """When a schedule is provided without active or a slug, active should default to true."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=False,
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule2,
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(
+            f"/deployments/{deployment_id}",
+        )
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is True
+
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
         client,

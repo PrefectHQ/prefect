@@ -1,6 +1,7 @@
 {
-	"include": ["src/"],
-
+	"include": [
+		"src/"
+	],
 	"typeCheckingMode": "standard",
 	"strictListInference": true,
 	"strictDictionaryInference": true,
@@ -40,9 +41,7 @@
 	"reportUnknownMemberType": "warning",
 	"reportUnknownParameterType": "warning",
 	"reportUnknownVariableType": "warning",
-
 	"strict": [],
-
 	"ignore": [
 		"src/prefect/_version.py",
 		"src/prefect/server/database/_migrations/",
@@ -57,6 +56,7 @@
 		"src/prefect/_internal/_logging.py",
 		"src/prefect/_internal/pytz.py",
 		"src/prefect/_internal/retries.py",
+		"src/prefect/_vendor/",
 		"src/prefect/blocks/",
 		"src/prefect/cli/",
 		"src/prefect/deployments/",
@@ -106,7 +106,7 @@
 		"src/prefect/tasks.py",
 		"src/prefect/transactions.py",
 		"tests/",
-		"client/"
+		"client/",
 	],
 	"reportUnnecessaryTypeIgnoreComments": true
 }

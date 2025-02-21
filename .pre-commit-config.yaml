@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.4
+    rev: v0.9.5
     hooks:
       - id: ruff
         language_version: python3
@@ -10,11 +10,9 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        additional_dependencies:
+          - tomli
         exclude: package-lock.json|_vendor/.*|docs/styles/.*
-  - repo: https://github.com/netromdk/vermin
-    rev: v1.6.0
-    hooks:
-      - id: vermin
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:

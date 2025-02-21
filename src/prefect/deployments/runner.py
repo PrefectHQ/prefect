@@ -57,7 +57,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -230,6 +230,10 @@ class RunnerDeployment(BaseModel):
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
 
+    @property
+    def full_name(self) -> str:
+        return f"{self.flow_name}/{self.name}"
+
     @field_validator("name", mode="before")
     @classmethod
     def validate_name(cls, value: str) -> str:
@@ -256,24 +260,9 @@ class RunnerDeployment(BaseModel):
     def reconcile_schedules(cls, values):
         return reconcile_schedules_runner(values)
 
-    @sync_compatible
-    async def apply(
+    async def _create(
         self, work_pool_name: Optional[str] = None, image: Optional[str] = None
     ) -> UUID:
-        """
-        Registers this deployment with the API and returns the deployment's ID.
-
-        Args:
-            work_pool_name: The name of the work pool to use for this
-                deployment.
-            image: The registry, name, and tag of the Docker image to
-                use for this deployment. Only used when the deployment is
-                deployed to a work pool.
-
-        Returns:
-            The ID of the created deployment.
-        """
-
         work_pool_name = work_pool_name or self.work_pool_name
 
         if image and not work_pool_name:
@@ -325,9 +314,14 @@ class RunnerDeployment(BaseModel):
                 if image:
                     create_payload["job_variables"]["image"] = image
                 create_payload["path"] = None if self.storage else self._path
-                create_payload["pull_steps"] = (
-                    [self.storage.to_pull_step()] if self.storage else []
-                )
+                if self.storage:
+                    pull_steps = self.storage.to_pull_step()
+                    if isinstance(pull_steps, list):
+                        create_payload["pull_steps"] = pull_steps
+                    else:
+                        create_payload["pull_steps"] = [pull_steps]
+                else:
+                    create_payload["pull_steps"] = []
 
             try:
                 deployment_id = await client.create_deployment(**create_payload)
@@ -340,25 +334,7 @@ class RunnerDeployment(BaseModel):
                     f"Error while applying deployment: {str(exc)}"
                 ) from exc
 
-            try:
-                # The triggers defined in the deployment spec are, essentially,
-                # anonymous and attempting truly sync them with cloud is not
-                # feasible. Instead, we remove all automations that are owned
-                # by the deployment, meaning that they were created via this
-                # mechanism below, and then recreate them.
-                await client.delete_resource_owned_automations(
-                    f"prefect.deployment.{deployment_id}"
-                )
-            except PrefectHTTPStatusError as e:
-                if e.response.status_code == 404:
-                    # This Prefect server does not support automations, so we can safely
-                    # ignore this 404 and move on.
-                    return deployment_id
-                raise e
-
-            for trigger in self.triggers:
-                trigger.set_deployment_id(deployment_id)
-                await client.create_automation(trigger.as_automation())
+            await self._create_triggers(deployment_id, client)
 
             # We plan to support SLA configuration on the Prefect Server in the future.
             # For now, we only support it on Prefect Cloud.
@@ -370,6 +346,94 @@ class RunnerDeployment(BaseModel):
                 await self._create_slas(deployment_id, client)
 
             return deployment_id
+
+    async def _update(self, deployment_id: UUID, client: PrefectClient):
+        parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
+            exclude_unset=True
+        )
+
+        update_payload = self.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"storage", "name", "flow_name", "triggers"},
+        )
+
+        if self.storage:
+            pull_steps = self.storage.to_pull_step()
+            if not isinstance(pull_steps, list):
+                pull_steps = [pull_steps]
+            update_payload["pull_steps"] = pull_steps
+
+        await client.update_deployment(
+            deployment_id,
+            deployment=DeploymentUpdate(
+                **update_payload, parameter_openapi_schema=parameter_openapi_schema
+            ),
+        )
+
+        await self._create_triggers(deployment_id, client)
+
+        # We plan to support SLA configuration on the Prefect Server in the future.
+        # For now, we only support it on Prefect Cloud.
+
+        # If we're provided with an empty list, we will call the apply endpoint
+        # to remove existing SLAs for the deployment. If the argument is not provided,
+        # we will not call the endpoint.
+        if self._sla or self._sla == []:
+            await self._create_slas(deployment_id, client)
+
+        return deployment_id
+
+    async def _create_triggers(self, deployment_id: UUID, client: PrefectClient):
+        try:
+            # The triggers defined in the deployment spec are, essentially,
+            # anonymous and attempting truly sync them with cloud is not
+            # feasible. Instead, we remove all automations that are owned
+            # by the deployment, meaning that they were created via this
+            # mechanism below, and then recreate them.
+            await client.delete_resource_owned_automations(
+                f"prefect.deployment.{deployment_id}"
+            )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                # This Prefect server does not support automations, so we can safely
+                # ignore this 404 and move on.
+                return deployment_id
+            raise e
+
+        for trigger in self.triggers:
+            trigger.set_deployment_id(deployment_id)
+            await client.create_automation(trigger.as_automation())
+
+    @sync_compatible
+    async def apply(
+        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+    ) -> UUID:
+        """
+        Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            work_pool_name: The name of the work pool to use for this
+                deployment.
+            image: The registry, name, and tag of the Docker image to
+                use for this deployment. Only used when the deployment is
+                deployed to a work pool.
+
+        Returns:
+            The ID of the created deployment.
+        """
+
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(self.full_name)
+            except ObjectNotFound:
+                return await self._create(work_pool_name, image)
+            else:
+                if image:
+                    self.job_variables["image"] = image
+                if work_pool_name:
+                    self.work_pool_name = work_pool_name
+                return await self._update(deployment.id, client)
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):

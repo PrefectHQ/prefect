@@ -65,6 +65,7 @@ from prefect.settings.legacy import (
 from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
+from prefect.settings.models.results import ResultsSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
@@ -291,6 +292,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RUNNER_SERVER_PORT": {"test_value": 8080},
     "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {"test_value": True, "legacy": True},
     "PREFECT_SERVER_API_AUTH_STRING": {"test_value": "admin:admin"},
+    "PREFECT_SERVER_API_BASE_PATH": {"test_value": "/v2/api"},
     "PREFECT_SERVER_ANALYTICS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
     "PREFECT_SERVER_API_CORS_ALLOWED_METHODS": {"test_value": "foo"},
@@ -320,6 +322,12 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME": {
         "test_value": "prefect"
+    },
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE": {
+        "test_value": 1
+    },
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE": {
+        "test_value": 1
     },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE": {"test_value": 10},
@@ -654,6 +662,41 @@ class TestSettingsClass:
             monkeypatch.setenv(key, value)
         new_settings = Settings()
         assert settings.model_dump() == new_settings.model_dump()
+
+    @pytest.mark.parametrize(
+        "settings,alias,expected",
+        [
+            (
+                Settings(server=ServerSettings(logging_level="DEBUG")),
+                "PREFECT_LOGGING_SERVER_LEVEL",
+                "DEBUG",
+            ),
+            (
+                Settings(results=ResultsSettings(default_storage_block="foo/bar")),
+                "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK",
+                "foo/bar",
+            ),
+        ],
+    )
+    def test_settings_to_environment_includes_aliases(
+        self, settings: Settings, alias: str, expected: str
+    ):
+        assert (
+            settings.to_environment_variables(include_aliases=True).get(alias)
+            == expected
+        )
+
+    @pytest.mark.parametrize(
+        "alias",
+        ["PREFECT_LOGGING_SERVER_LEVEL", "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK"],
+    )
+    def test_settings_to_environment_doesnt_include_aliases_by_default(
+        self, alias: str
+    ):
+        assert (
+            Settings().to_environment_variables(include_aliases=False).get(alias)
+            is None
+        )
 
     def test_settings_hash_key(self):
         settings = Settings(testing=dict(test_mode=True))  # type: ignore
@@ -1685,6 +1728,77 @@ class TestSettingsSources:
 
         # Should default to ephemeral profile
         assert Settings().server.ephemeral.enabled
+
+    def test_prefect_home_determines_profiles_path(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        this is a regression test for https://github.com/PrefectHQ/prefect/issues/17068
+
+        Verify PREFECT_HOME is used to locate profiles.toml when no explicit
+        PREFECT_PROFILES_PATH is set.
+        """
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        home_dir = tmp_path / "custom_home"
+        home_dir.mkdir()
+        profile_path = home_dir / "profiles.toml"
+        profile_path.write_text(
+            textwrap.dedent(
+                """
+                active = "test"
+
+                [profiles.test]
+                PREFECT_API_KEY = "test_key"
+                """
+            )
+        )
+
+        monkeypatch.setenv("PREFECT_HOME", str(home_dir))
+        monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+
+        assert Settings().home == home_dir
+        assert Settings().profiles_path == profile_path
+        assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
+
+    def test_prefect_home_and_prefect_profiles_are_both_respected(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Verify that PREFECT_HOME and PREFECT_PROFILES_PATH are both respected when
+        both are set, even if PREFECT_PROFILES_PATH is not in the default location
+        relative to PREFECT_HOME.
+        """
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        home_dir = tmp_path / "custom_home"
+        some_other_dir = tmp_path / "some_other_dir"
+        home_dir.mkdir()
+        some_other_dir.mkdir()
+        profile_path = some_other_dir / "profiles.toml"
+        profile_path.write_text(
+            textwrap.dedent(
+                """
+                active = "test"
+
+                [profiles.test]
+                PREFECT_API_KEY = "test_key"
+                """
+            )
+        )
+
+        monkeypatch.setenv("PREFECT_HOME", str(home_dir))
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profile_path))
+
+        assert Settings().home == home_dir
+        assert Settings().profiles_path == profile_path
+        assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
 
 
 class TestLoadProfiles:

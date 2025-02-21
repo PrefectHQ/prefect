@@ -10,7 +10,6 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID, uuid4
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
@@ -29,6 +28,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.types._datetime import DateTime, create_datetime_instance, now
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
@@ -83,7 +83,7 @@ async def create_deployment(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    deployment.updated = pendulum.now("UTC")  # type: ignore[assignment]
+    deployment.updated = now("UTC")  # type: ignore[assignment]
 
     deployment.labels = await with_system_labels_for_deployment(session, deployment)
 
@@ -155,7 +155,7 @@ async def create_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active,  # type: ignore[call-arg]
+                    active=schedule.active,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
@@ -274,11 +274,12 @@ async def update_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active,  # type: ignore[call-arg]
+                    active=schedule.active if schedule.active is not None else True,
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
                 for schedule in schedules
+                if schedule.schedule is not None
             ],
         )
 
@@ -616,7 +617,7 @@ async def schedule_runs(
         max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
         assert max_runs is not None
     if start_time is None:
-        start_time = pendulum.now("UTC")
+        start_time = now("UTC")
     if end_time is None:
         end_time = start_time + (
             PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
@@ -625,10 +626,10 @@ async def schedule_runs(
         min_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
         assert min_time is not None
 
-    actual_start_time = pendulum.instance(start_time)
+    actual_start_time = create_datetime_instance(start_time)
     if TYPE_CHECKING:
         assert end_time is not None
-    actual_end_time = pendulum.instance(end_time)
+    actual_end_time = create_datetime_instance(end_time)
 
     runs = await _generate_scheduled_flow_runs(
         db,
@@ -702,7 +703,7 @@ async def _generate_scheduled_flow_runs(
     )
 
     for deployment_schedule in active_deployment_schedules:
-        dates: list[pendulum.DateTime] = []
+        dates: list[DateTime] = []
 
         # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
         for dt in deployment_schedule.schedule._get_dates_generator(
@@ -733,7 +734,7 @@ async def _generate_scheduled_flow_runs(
                     "work_queue_id": deployment.work_queue_id,
                     "parameters": parameters,
                     "infrastructure_document_id": deployment.infrastructure_document_id,
-                    "idempotency_key": f"scheduled {deployment.id} {date}",
+                    "idempotency_key": f"scheduled {deployment.id} {deployment_schedule.id} {date}",
                     "tags": tags,
                     "auto_scheduled": auto_scheduled,
                     "state": schemas.states.Scheduled(
@@ -1073,7 +1074,7 @@ async def mark_deployments_ready(
         )
         unready_deployments = list(result.scalars().unique().all())
 
-        last_polled = pendulum.now("UTC")
+        last_polled = now("UTC")
 
         await session.execute(
             sa.update(db.Deployment)
@@ -1148,7 +1149,7 @@ async def mark_deployments_not_ready(
                         session=session,
                         deployment_id=deployment_id,
                         status=DeploymentStatus.NOT_READY,
-                        occurred=pendulum.now("UTC"),
+                        occurred=now("UTC"),
                     )
                 )
 
