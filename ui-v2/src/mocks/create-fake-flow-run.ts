@@ -1,4 +1,4 @@
-import { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
+import { FlowRun, FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { faker } from "@faker-js/faker";
 import { createFakeDeployment } from "./create-fake-deployment";
@@ -80,6 +80,12 @@ export const createFakeFlowRun = (
 		job_variables: {},
 		...overrides,
 	};
+};
+
+export const createFakeFlowRuns = (
+	numberOfFlowRuns: number = 10,
+): FlowRun[] => {
+	return Array.from({ length: numberOfFlowRuns }, () => createFakeFlowRun());
 };
 
 export const createFakeFlowRunWithDeploymentAndFlow = (
