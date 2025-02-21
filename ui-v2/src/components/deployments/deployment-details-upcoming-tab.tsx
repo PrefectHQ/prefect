@@ -6,6 +6,7 @@ import {
 	FlowRunState,
 	FlowRunsDataTable,
 	FlowRunsFilters,
+	FlowRunsRowCount,
 	RowSelectionProvider,
 	SortFilters,
 } from "@/components/flow-runs/data-table";
@@ -45,26 +46,30 @@ export const DeploymentDetailsUpcomingTab = ({
 	});
 
 	return (
-		<RowSelectionProvider>
-			<FlowRunsFilters
-				flowRunsCount={data?.count}
-				search={{ value: search, onChange: setSearch }}
-				sort={{ value: sort, onSelect: setSort }}
-				stateFilter={{
-					value: new Set(filter),
-					onSelect: setFilter,
-				}}
-			/>
-			{data ? (
-				<FlowRunsDataTable
-					flowRuns={data.results}
-					flowRunsCount={data.count}
-					pagination={pagination}
-					pageCount={data.pages}
-					onPaginationChange={onPaginationChange}
-				/>
-			) : null}
-		</RowSelectionProvider>
+		<div className="flex flex-col gap-2">
+			<RowSelectionProvider>
+				<div className="flex items-center justify-between">
+					<FlowRunsRowCount flowRunsCount={data?.count} />
+					<FlowRunsFilters
+						search={{ value: search, onChange: setSearch }}
+						sort={{ value: sort, onSelect: setSort }}
+						stateFilter={{
+							value: new Set(filter),
+							onSelect: setFilter,
+						}}
+					/>
+				</div>
+				{data && (
+					<FlowRunsDataTable
+						flowRuns={data.results}
+						flowRunsCount={data.count}
+						pagination={pagination}
+						pageCount={data.pages}
+						onPaginationChange={onPaginationChange}
+					/>
+				)}
+			</RowSelectionProvider>
+		</div>
 	);
 };
 

@@ -13,6 +13,7 @@ import { http, HttpResponse } from "msw";
 import { useMemo, useState } from "react";
 import { FlowRunsDataTable } from "./data-table";
 import { FlowRunsFilters } from "./data-table-filters";
+import { FlowRunsRowCount } from "./data-table-row-count";
 import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
 import { RowSelectionProvider } from "./row-selection-provider";
 
@@ -91,23 +92,26 @@ const DataTableWithFiltersStory = () => {
 	}, [filters, search]);
 
 	return (
-		<div className="flex flex-col">
+		<div className="flex flex-col gap-2">
 			<RowSelectionProvider>
-				<FlowRunsFilters
-					stateFilter={{
-						value: filters,
-						onSelect: setFilters,
-					}}
-					search={{
-						value: search,
-						onChange: setSearch,
-					}}
-					sort={{
-						value: "NAME_ASC",
-						onSelect: fn(),
-					}}
-					flowRunsCount={flowRuns.length}
-				/>
+				<div className="flex items-center justify-between">
+					<FlowRunsRowCount flowRunsCount={flowRuns.length} />
+					<FlowRunsFilters
+						stateFilter={{
+							value: filters,
+							onSelect: setFilters,
+						}}
+						search={{
+							value: search,
+							onChange: setSearch,
+						}}
+						sort={{
+							value: "NAME_ASC",
+							onSelect: fn(),
+						}}
+					/>
+				</div>
+
 				<FlowRunsDataTable
 					flowRuns={flowRuns}
 					flowRunsCount={flowRuns.length}
