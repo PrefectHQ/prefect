@@ -1,3 +1,4 @@
+import { FlowRunsFilter } from "@/api/flow-runs";
 import { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
@@ -27,6 +28,18 @@ export const flowQueryParams = (
 	},
 });
 
+export const buildFlowRunsFilter = (
+	flowId: string,
+	filter: FlowRunsFilter,
+): FlowRunsFilter => ({
+	...filter,
+	flows: {
+		...filter.flows,
+		operator: "and_" as const,
+		id: { any_: [flowId] },
+	},
+});
+
 export const flowRunsQueryParams = (
 	id: string,
 	body: components["schemas"]["Body_read_flow_runs_flow_runs_filter_post"],
@@ -41,12 +54,7 @@ export const flowRunsQueryParams = (
 		const response = await getQueryService()
 			.POST("/flow_runs/filter", {
 				body: {
-					...body,
-					flows: {
-						...body.flows,
-						operator: "and_" as const,
-						id: { any_: [id] },
-					},
+					...buildFlowRunsFilter(id, body),
 				},
 			})
 			.then((response) => response.data);
