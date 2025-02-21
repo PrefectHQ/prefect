@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     Type,
     TypeVar,
     overload,
@@ -52,9 +53,9 @@ if TYPE_CHECKING:
 @inject_client
 async def wait_for_flow_run(
     flow_run_id: UUID,
-    timeout: Optional[int] = 10800,
+    timeout: int | None = 10800,
     poll_interval: int = 5,
-    client: Optional["PrefectClient"] = None,
+    client: "PrefectClient | None" = None,
     log_states: bool = False,
 ) -> FlowRun:
     """
@@ -119,8 +120,8 @@ async def wait_for_flow_run(
         while True:
             flow_run = await client.read_flow_run(flow_run_id)
             flow_state = flow_run.state
-            if log_states:
-                logger.info(f"Flow run is in state {flow_run.state.name!r}")
+            if log_states and flow_state:
+                logger.info(f"Flow run is in state {flow_state.name!r}")
             if flow_state and flow_state.is_final():
                 return flow_run
             await anyio.sleep(poll_interval)
@@ -138,7 +139,7 @@ async def pause_flow_run(
     wait_for_input: None = None,
     timeout: int = 3600,
     poll_interval: int = 10,
-    key: Optional[str] = None,
+    key: str | None = None,
 ) -> None: ...
 
 
@@ -147,17 +148,17 @@ async def pause_flow_run(
     wait_for_input: Type[T],
     timeout: int = 3600,
     poll_interval: int = 10,
-    key: Optional[str] = None,
+    key: str | None = None,
 ) -> T: ...
 
 
 @sync_compatible
 async def pause_flow_run(
-    wait_for_input: Optional[Type[T]] = None,
+    wait_for_input: Type[T] | None = None,
     timeout: int = 3600,
     poll_interval: int = 10,
-    key: Optional[str] = None,
-) -> Optional[T]:
+    key: str | None = None,
+) -> T | None:
     """
     Pauses the current flow run by blocking execution until resumed.
 
@@ -213,10 +214,13 @@ async def pause_flow_run(
 async def _in_process_pause(
     timeout: int = 3600,
     poll_interval: int = 10,
-    key: Optional[str] = None,
-    client=None,
-    wait_for_input: Optional[T] = None,
-) -> Optional[T]:
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
+    wait_for_input: Type[T] | None = None,
+) -> T | None:
+    if TYPE_CHECKING:
+        assert client is not None
+
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
@@ -302,32 +306,32 @@ async def _in_process_pause(
 @overload
 async def suspend_flow_run(
     wait_for_input: None = None,
-    flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 3600,
-    key: Optional[str] = None,
-    client: Optional[PrefectClient] = None,
+    flow_run_id: UUID | None = None,
+    timeout: int | None = 3600,
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
 ) -> None: ...
 
 
 @overload
 async def suspend_flow_run(
     wait_for_input: Type[T],
-    flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 3600,
-    key: Optional[str] = None,
-    client: Optional[PrefectClient] = None,
+    flow_run_id: UUID | None = None,
+    timeout: int | None = 3600,
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
 ) -> T: ...
 
 
 @sync_compatible
 @inject_client
 async def suspend_flow_run(
-    wait_for_input: Optional[Type[T]] = None,
-    flow_run_id: Optional[UUID] = None,
-    timeout: Optional[int] = 3600,
-    key: Optional[str] = None,
-    client: Optional[PrefectClient] = None,
-) -> Optional[T]:
+    wait_for_input: Type[T] | None = None,
+    flow_run_id: UUID | None = None,
+    timeout: int | None = 3600,
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> T | None:
     """
     Suspends a flow run by stopping code execution until resumed.
 
@@ -357,6 +361,9 @@ async def suspend_flow_run(
             resumed with the input, the flow will resume and the input will be
             loaded and returned from this function.
     """
+    if TYPE_CHECKING:
+        assert client is not None
+
     context = FlowRunContext.get()
 
     if flow_run_id is None:
@@ -427,7 +434,7 @@ async def suspend_flow_run(
 
 @sync_compatible
 async def resume_flow_run(
-    flow_run_id: UUID, run_input: Optional[dict[str, Any]] = None
+    flow_run_id: UUID, run_input: dict[str, Any] | None = None
 ) -> None:
     """
     Resumes a paused flow.
