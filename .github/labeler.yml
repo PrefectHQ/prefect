@@ -1,10 +1,12 @@
 docs:
-  - changed-files:
-      - any-glob-to-any-file: docs/**
+  - all:
+    - changed-files:
+        - any-glob-to-any-file: docs/**
+        - all-globs-to-all-files: '!docs/v3/api-ref/rest-api/server/schema.json'
 
 migration:
   - changed-files:
-      - any-glob-to-any-file: src/**/migrations/**/*.py
+      - any-glob-to-any-file: src/**/_migrations/**/*.py
 
 upstream dependency:
   - changed-files:
@@ -17,5 +19,7 @@ upstream dependency:
   - base-branch: '2.x'
 
 ui-replatform:
-  - changed-files:
-      - any-glob-to-any-file: ui-v2/**
+  - all:
+    - changed-files:
+        - any-glob-to-any-file: ui-v2/**
+        - all-globs-to-all-files: '!ui-v2/src/api/prefect.ts'

@@ -10,7 +10,7 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.results import ResultRecordMetadata
+from prefect._result_records import ResultRecordMetadata
 from prefect.server import schemas
 from prefect.server.database import orm_models as orm
 from prefect.server.exceptions import ObjectNotFoundError
@@ -487,10 +487,8 @@ class TestFlowRetryingRule:
         session,
         initialize_orchestration,
         monkeypatch,
+        frozen_time,
     ):
-        now = pendulum.now("UTC")
-        monkeypatch.setattr("pendulum.now", lambda *args: now)
-
         failed_task_runs = [
             mock.Mock(id="task_run_001"),
             mock.Mock(id="task_run_002"),

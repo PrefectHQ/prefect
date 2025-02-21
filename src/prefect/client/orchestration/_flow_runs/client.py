@@ -69,7 +69,7 @@ class FlowRunClient(BaseClient):
         """
         from prefect.client.schemas.actions import FlowCreate, FlowRunCreate
         from prefect.client.schemas.objects import Flow, FlowRun, FlowRunPolicy
-        from prefect.states import Pending
+        from prefect.states import Pending, to_state_create
 
         parameters = parameters or {}
         context = context or {}
@@ -93,7 +93,7 @@ class FlowRunClient(BaseClient):
             context=context,
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
-            state=state.to_state_create(),
+            state=to_state_create(state),
             empirical_policy=FlowRunPolicy(
                 retries=flow.retries,
                 retry_delay=int(flow.retry_delay_seconds or 0),
@@ -322,10 +322,12 @@ class FlowRunClient(BaseClient):
         """
         from uuid import UUID, uuid4
 
+        from prefect.states import to_state_create
+
         flow_run_id = (
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
-        state_create = state.to_state_create()
+        state_create = to_state_create(state)
         state_create.state_details.flow_run_id = flow_run_id
         state_create.state_details.transition_id = uuid4()
         try:
@@ -501,7 +503,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
         """
         from prefect.client.schemas.actions import FlowCreate, FlowRunCreate
         from prefect.client.schemas.objects import Flow, FlowRun, FlowRunPolicy
-        from prefect.states import Pending
+        from prefect.states import Pending, to_state_create
 
         parameters = parameters or {}
         context = context or {}
@@ -525,7 +527,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
             context=context,
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
-            state=state.to_state_create(),
+            state=to_state_create(state),
             empirical_policy=FlowRunPolicy(
                 retries=flow.retries,
                 retry_delay=int(flow.retry_delay_seconds or 0),
@@ -755,10 +757,12 @@ class FlowRunAsyncClient(BaseAsyncClient):
         """
         from uuid import UUID, uuid4
 
+        from prefect.states import to_state_create
+
         flow_run_id = (
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
-        state_create = state.to_state_create()
+        state_create = to_state_create(state)
         state_create.state_details.flow_run_id = flow_run_id
         state_create.state_details.transition_id = uuid4()
         try:

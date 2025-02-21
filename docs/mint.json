@@ -8,13 +8,8 @@
   },
   "anchors": [
     {
-      "icon": "github",
-      "name": "GitHub",
-      "url": "https://github.com/PrefectHQ/prefect"
-    },
-    {
       "icon": "slack",
-      "name": "Community",
+      "name": "Join our Community",
       "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
     },
     {
@@ -231,7 +226,8 @@
                 "v3/manage/cloud/manage-users/configure-sso",
                 "v3/manage/cloud/manage-users/audit-logs",
                 "v3/manage/cloud/manage-users/object-access-control-lists",
-                "v3/manage/cloud/manage-users/secure-access-by-ip-address"
+                "v3/manage/cloud/manage-users/secure-access-by-ip-address",
+                "v3/manage/cloud/manage-users/secure-access-by-private-link"
               ],
               "version": "v3"
             },
@@ -241,7 +237,8 @@
           ],
           "version": "v3"
         },
-        "v3/manage/self-host"
+        "v3/manage/self-host",
+        "v3/manage/infrastructure-as-code"
       ],
       "version": "v3"
     },
@@ -285,7 +282,6 @@
           "group": "Dask",
           "pages": [
             "integrations/prefect-dask/index",
-            "integrations/prefect-dask/usage_guide",
             "integrations/prefect-dask/sdk"
           ]
         },
@@ -724,7 +720,47 @@
             }
           ],
           "version": "v3"
+        },
+        {
+          "group": "CLI Reference",
+          "pages": [
+            "v3/api-ref/cli/artifact",
+            "v3/api-ref/cli/automation",
+            "v3/api-ref/cli/block",
+            "v3/api-ref/cli/concurrency-limit",
+            "v3/api-ref/cli/config",
+            "v3/api-ref/cli/dashboard",
+            "v3/api-ref/cli/deployment",
+            "v3/api-ref/cli/dev",
+            "v3/api-ref/cli/event",
+            "v3/api-ref/cli/flow-run",
+            "v3/api-ref/cli/flow",
+            "v3/api-ref/cli/global-concurrency-limit",
+            "v3/api-ref/cli/init",
+            "v3/api-ref/cli/profile",
+            "v3/api-ref/cli/profiles",
+            "v3/api-ref/cli/server",
+            "v3/api-ref/cli/shell",
+            "v3/api-ref/cli/task-run",
+            "v3/api-ref/cli/task",
+            "v3/api-ref/cli/variable",
+            "v3/api-ref/cli/version",
+            "v3/api-ref/cli/work-pool",
+            "v3/api-ref/cli/work-queue",
+            "v3/api-ref/cli/worker"
+          ]
         }
+      ],
+      "version": "v3"
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "v3/examples/index",
+        "v3/examples/flows",
+        "v3/examples/deployments",
+        "v3/examples/infrastructure",
+        "v3/examples/scripts"
       ],
       "version": "v3"
     },
@@ -741,6 +777,22 @@
     }
   ],
   "redirects": [
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/reference/:slug*"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/v3/reference/:slug*"
+    },
     {
       "destination": "/v3/getting-started/:slug*",
       "source": "/getting-started/:slug*"
@@ -800,6 +852,14 @@
     {
       "destination": "/v3/develop/settings-and-profiles",
       "source": "/v3/manage/settings-and-profiles"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/latest/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/latest/reference/:slug*"
     },
     {
       "destination": "/v3",
@@ -1402,6 +1462,10 @@
     {
       "name": "APIs & SDK",
       "url": "v3/api-ref"
+    },
+    {
+      "name": "Examples",
+      "url": "v3/examples"
     },
     {
       "name": "Integrations",

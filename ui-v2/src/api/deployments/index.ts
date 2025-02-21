@@ -11,6 +11,7 @@ export type Deployment = components["schemas"]["DeploymentResponse"];
 export type DeploymentWithFlow = Deployment & {
 	flow?: components["schemas"]["Flow"];
 };
+export type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
 export type DeploymentsFilter =
 	components["schemas"]["Body_read_deployments_deployments_filter_post"];
 export type DeploymentsPaginationFilter =
@@ -34,6 +35,8 @@ export type DeploymentsPaginationFilter =
  * list-filter		=>   ['deployments', 'list', 'filter', { ...filter }]
  * counts			=>   ['deployments', 'counts']
  * count			=>   ['deployments', 'counts', { ...filter }]
+ * details			=>   ['deployments', 'details']
+ * detail			=>   ['deployments', 'details', id]
  * ```
  */
 export const queryKeyFactory = {
@@ -48,6 +51,8 @@ export const queryKeyFactory = {
 	counts: () => [...queryKeyFactory.all(), "counts"] as const,
 	count: (filter: DeploymentsFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 // ----------------------------
@@ -140,14 +145,14 @@ export const buildFilterDeploymentsQuery = (
  *
  * @example
  * ```ts
- * const query = buildCountDeploymentsQuery({
+ * const query = useQuery(buildCountDeploymentsQuery({
  *   offset: 0,
  *   limit: 10,
  *   sort: "NAME_ASC",
  *   deployments: {
  *     name: { like_: "my-deployment" }
  *   }
- * });
+ * }));
  * ```
  */
 export const buildCountDeploymentsQuery = (
@@ -160,6 +165,32 @@ export const buildCountDeploymentsQuery = (
 				body: filter,
 			});
 			return res.data ?? 0;
+		},
+	});
+
+/**
+ * Builds a query configuration for getting a deployment details
+ *
+ * @param id - deployment's id
+ *
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useSuspenseQuery(buildDeploymentDetailsQuery(deployment.id));
+ * ```
+ */
+export const buildDeploymentDetailsQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/deployments/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
 		},
 	});
 
@@ -205,4 +236,133 @@ export const useDeleteDeployment = () => {
 	});
 
 	return { deleteDeployment, ...rest };
+};
+
+type UseCreateDeploymentSchedule = {
+	deployment_id: string;
+} & components["schemas"]["DeploymentScheduleCreate"];
+/**
+ * Hook for create a deployment's schedule
+ *
+ * @returns Mutation object for creating a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createDeploymentSchedule } = useCreateDeploymentSchedule();
+ *
+ * // create a deployment schedule
+ * createDeploymentSchedule({deployment_id, ...schedule}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useCreateDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: createDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({ deployment_id, ...schedule }: UseCreateDeploymentSchedule) =>
+			getQueryService().POST("/deployments/{id}/schedules", {
+				body: [schedule],
+				params: { path: { id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+
+	return { createDeploymentSchedule, ...rest };
+};
+
+type UpdateDeploymentSchedule = {
+	deployment_id: string;
+	schedule_id: string;
+} & components["schemas"]["DeploymentScheduleUpdate"];
+
+/**
+ * Hook for updating a deployment's schedule
+ *
+ * @returns Mutation object for updating a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { updateDeploymentSchedule } = useUpdateDeploymentSchedule();
+ *
+ * updateDeploymentSchedule({deployment_id, schedule_id, ...body}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule updated successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to update deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useUpdateDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: updateDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({
+			deployment_id,
+			schedule_id,
+			...body
+		}: UpdateDeploymentSchedule) =>
+			getQueryService().PATCH("/deployments/{id}/schedules/{schedule_id}", {
+				body,
+				params: { path: { schedule_id, id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
+	});
+
+	return { updateDeploymentSchedule, ...rest };
+};
+
+type DeleteDeploymentSchedule = {
+	deployment_id: string;
+	schedule_id: string;
+};
+/**
+ * Hook for deleting a deployment's schedule
+ *
+ * @returns Mutation object for deleting a deployment's schedule with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteDeploymentSchedule } = useDeleteDeploymentSchedule();
+ *
+ * deleteDeploymentSchedule({deployment_id, schedule_id, ...body}, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment schedule deleted successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to delete deployment schedule:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteDeploymentSchedule = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteDeploymentSchedule, ...rest } = useMutation({
+		mutationFn: ({ deployment_id, schedule_id }: DeleteDeploymentSchedule) =>
+			getQueryService().DELETE("/deployments/{id}/schedules/{schedule_id}", {
+				params: { path: { schedule_id, id: deployment_id } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
+	});
+
+	return { deleteDeploymentSchedule, ...rest };
 };

@@ -64,9 +64,15 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.to_thread
 from cachetools import LRUCache
 from typing_extensions import Self
 
+from prefect._experimental.bundles import (
+    SerializedBundle,
+    execute_bundle_in_subprocess,
+    extract_flow_from_bundle,
+)
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
@@ -94,6 +100,7 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
+from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RUNNER_SERVER_ENABLE,
@@ -134,7 +141,7 @@ __all__ = ["Runner"]
 
 
 class ProcessMapEntry(TypedDict):
-    flow_run: FlowRun
+    flow_run: "FlowRun"
     pid: int
 
 
@@ -220,6 +227,7 @@ class Runner:
         self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
         self._deployment_ids: set[UUID] = set()
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
+        self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
@@ -278,6 +286,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -303,6 +312,8 @@ class Runner:
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set the created deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this flow.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs of this flow to allow.
@@ -317,7 +328,7 @@ class Runner:
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
-        if any([interval, cron, rrule]) and not api:
+        if any([interval, cron, rrule, schedule, schedules]) and not api:
             self._logger.warning(
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
                 " start` to start the scheduler."
@@ -329,6 +340,7 @@ class Runner:
             interval=interval,
             cron=cron,
             rrule=rrule,
+            schedule=schedule,
             schedules=schedules,
             paused=paused,
             triggers=triggers,
@@ -503,7 +515,7 @@ class Runner:
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
     async def cancel_all(self) -> None:
-        runs_to_cancel: list[FlowRun] = []
+        runs_to_cancel: list["FlowRun"] = []
 
         # done to avoid dictionary size changing during iteration
         for info in self._flow_run_process_map.values():
@@ -597,7 +609,120 @@ class Runner:
                             )
                         )
 
-    def _get_flow_run_logger(self, flow_run: "FlowRun | FlowRun") -> PrefectLogAdapter:
+    async def execute_bundle(self, bundle: SerializedBundle) -> None:
+        """
+        Executes a bundle in a subprocess.
+        """
+        from prefect.client.schemas.objects import FlowRun
+
+        self.pause_on_shutdown = False
+        context = self if not self.started else asyncnullcontext()
+
+        flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+        async with context:
+            if not self._acquire_limit_slot(flow_run.id):
+                return
+
+            process = execute_bundle_in_subprocess(bundle)
+
+            if process.pid is None:
+                # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
+                # but we'll handle it gracefully anyway
+                msg = "Failed to start process for flow execution. No PID returned."
+                await self._propose_crashed_state(flow_run, msg)
+                raise RuntimeError(msg)
+
+            self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                pid=process.pid, flow_run=flow_run
+            )
+            self._flow_run_bundle_map[flow_run.id] = bundle
+
+            tasks: list[asyncio.Task[None]] = []
+            tasks.append(
+                asyncio.create_task(
+                    critical_service_loop(
+                        workload=self._check_for_cancelled_flow_runs,
+                        interval=self.query_seconds,
+                        jitter_range=0.3,
+                    )
+                )
+            )
+            if self.heartbeat_seconds is not None:
+                tasks.append(
+                    asyncio.create_task(
+                        critical_service_loop(
+                            workload=self._emit_flow_run_heartbeats,
+                            interval=self.heartbeat_seconds,
+                            jitter_range=0.1,
+                        )
+                    )
+                )
+
+            await anyio.to_thread.run_sync(process.join)
+
+            for task in tasks:
+                task.cancel()
+
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+            self._flow_run_process_map.pop(flow_run.id)
+
+            flow_run_logger = self._get_flow_run_logger(flow_run)
+            if process.exitcode is None:
+                raise RuntimeError("Process has no exit code")
+
+            if process.exitcode:
+                help_message = None
+                level = logging.ERROR
+                if process.exitcode == -9:
+                    level = logging.INFO
+                    help_message = (
+                        "This indicates that the process exited due to a SIGKILL signal. "
+                        "Typically, this is either caused by manual cancellation or "
+                        "high memory usage causing the operating system to "
+                        "terminate the process."
+                    )
+                if process.exitcode == -15:
+                    level = logging.INFO
+                    help_message = (
+                        "This indicates that the process exited due to a SIGTERM signal. "
+                        "Typically, this is caused by manual cancellation."
+                    )
+                elif process.exitcode == 247:
+                    help_message = (
+                        "This indicates that the process was terminated due to high "
+                        "memory usage."
+                    )
+                elif (
+                    sys.platform == "win32"
+                    and process.returncode == STATUS_CONTROL_C_EXIT
+                ):
+                    level = logging.INFO
+                    help_message = (
+                        "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
+                        "Typically, this is caused by manual cancellation."
+                    )
+
+                flow_run_logger.log(
+                    level,
+                    f"Process for flow run {flow_run.name!r} exited with status code:"
+                    f" {process.exitcode}"
+                    + (f"; {help_message}" if help_message else ""),
+                )
+                terminal_state = await self._propose_crashed_state(
+                    flow_run, help_message or "Process exited with non-zero exit code"
+                )
+                if terminal_state:
+                    await self._run_on_crashed_hooks(
+                        flow_run=flow_run, state=terminal_state
+                    )
+            else:
+                flow_run_logger.info(
+                    f"Process for flow run {flow_run.name!r} exited cleanly."
+                )
+
+    def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
             "runner",
             extra={
@@ -1303,8 +1428,11 @@ class Runner:
                 exc_info=True,
             )
 
-    async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
+    async def _propose_crashed_state(
+        self, flow_run: "FlowRun", message: str
+    ) -> State[Any] | None:
         run_logger = self._get_flow_run_logger(flow_run)
+        state = None
         try:
             state = await propose_state(
                 self._client,
@@ -1321,6 +1449,7 @@ class Runner:
                 run_logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
+        return state
 
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
@@ -1386,9 +1515,14 @@ class Runner:
         """
         if state.is_cancelling():
             try:
-                flow = await load_flow_from_flow_run(
-                    flow_run, storage_base_path=str(self._tmp_dir)
-                )
+                if flow_run.id in self._flow_run_bundle_map:
+                    flow = extract_flow_from_bundle(
+                        self._flow_run_bundle_map[flow_run.id]
+                    )
+                else:
+                    flow = await load_flow_from_flow_run(
+                        flow_run, storage_base_path=str(self._tmp_dir)
+                    )
                 hooks = flow.on_cancellation_hooks or []
 
                 await _run_hooks(hooks, flow_run, flow, state)
@@ -1407,9 +1541,12 @@ class Runner:
         Run the hooks for a flow.
         """
         if state.is_crashed():
-            flow = await load_flow_from_flow_run(
-                flow_run, storage_base_path=str(self._tmp_dir)
-            )
+            if flow_run.id in self._flow_run_bundle_map:
+                flow = extract_flow_from_bundle(self._flow_run_bundle_map[flow_run.id])
+            else:
+                flow = await load_flow_from_flow_run(
+                    flow_run, storage_base_path=str(self._tmp_dir)
+                )
             hooks = flow.on_crashed_hooks or []
 
             await _run_hooks(hooks, flow_run, flow, state)

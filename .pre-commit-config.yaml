@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.4
+    rev: v0.9.5
     hooks:
       - id: ruff
         language_version: python3
@@ -11,10 +11,6 @@ repos:
     hooks:
       - id: codespell
         exclude: package-lock.json|_vendor/.*|docs/styles/.*
-  - repo: https://github.com/netromdk/vermin
-    rev: v1.6.0
-    hooks:
-      - id: vermin
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.14.1
     hooks:
@@ -74,7 +70,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run lint",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run lint",
           ]
         files: |
           (?x)^(
@@ -89,7 +85,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run format",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run format",
           ]
         files: |
           (?x)^(
@@ -104,7 +100,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run service-sync",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run service-sync",
           ]
         files: |
           (?x)^(

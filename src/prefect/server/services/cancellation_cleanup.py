@@ -3,10 +3,10 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 """
 
 import asyncio
+import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
@@ -18,6 +18,7 @@ from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
@@ -64,7 +65,7 @@ class CancellationCleanup(LoopService):
                 .where(
                     db.FlowRun.state_type == states.StateType.CANCELLED,
                     db.FlowRun.end_time.is_not(None),
-                    db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
+                    db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
                 )
                 .limit(self.batch_size)
             )
@@ -83,8 +84,22 @@ class CancellationCleanup(LoopService):
     async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None:
         high_water_mark = UUID(int=0)
         while True:
+            # Performance optimization: Load only required columns while maintaining ORM functionality
+            # Required columns:
+            # - id: for high water mark tracking
+            # - state_type: for state validation
+            # - parent_task_run_id: for parent task run checks
+            # - deployment_id: for determining cancellation state type
             subflow_query = (
                 sa.select(db.FlowRun)
+                .options(
+                    sa.orm.load_only(
+                        db.FlowRun.id,
+                        db.FlowRun.state_type,
+                        db.FlowRun.parent_task_run_id,
+                        db.FlowRun.deployment_id,
+                    ),
+                )
                 .where(
                     or_(
                         db.FlowRun.state_type == states.StateType.PENDING,

@@ -381,7 +381,11 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
                 warnings_list.append(warning)
 
         parsed_url = urlparse(api_url)
-        if parsed_url.path and not parsed_url.path.startswith("/api"):
+        if (
+            parsed_url.path
+            and "api.prefect.cloud" in api_url
+            and not parsed_url.path.startswith("/api")
+        ):
             warnings_list.append(
                 "`PREFECT_API_URL` should have `/api` after the base URL."
             )

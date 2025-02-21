@@ -47,14 +47,21 @@ from prefect.context import (
     hydrated_context,
     serialize_context,
 )
+from prefect.engine import handle_engine_signals
 from prefect.exceptions import (
     Abort,
+    MissingFlowError,
     Pause,
     PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.flows import Flow, load_flow_from_entrypoint, load_flow_from_flow_run
+from prefect.flows import (
+    Flow,
+    load_flow_from_entrypoint,
+    load_flow_from_flow_run,
+    load_function_and_convert_to_flow,
+)
 from prefect.futures import PrefectFuture, resolve_futures_to_states
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -125,7 +132,10 @@ def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
 
     if entrypoint:
         # we should not accept a placeholder flow at runtime
-        flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        try:
+            flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        except MissingFlowError:
+            flow = load_function_and_convert_to_flow(entrypoint)
     else:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
@@ -1518,6 +1528,8 @@ def run_flow(
             ret_val = run_flow_async(**kwargs)
         else:
             ret_val = run_flow_sync(**kwargs)
+    except (Abort, Pause):
+        raise
     except:
         if error_logger:
             error_logger.error(
@@ -1581,8 +1593,6 @@ def run_flow_in_subprocess(
         """
         Wrapper function to update environment variables and settings before running the flow.
         """
-        engine_logger = logging.getLogger("prefect.engine")
-
         os.environ.update(env or {})
         settings_context = get_settings_context()
         # Create a new settings context with a new settings object to pick up the updated
@@ -1591,43 +1601,12 @@ def run_flow_in_subprocess(
             profile=settings_context.profile,
             settings=Settings(),
         ):
-            try:
+            with handle_engine_signals(getattr(flow_run, "id", None)):
                 maybe_coro = run_flow(*args, **kwargs)
                 if asyncio.iscoroutine(maybe_coro):
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
                     asyncio.run(maybe_coro)
-            except Abort as abort_signal:
-                abort_signal: Abort
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator: {abort_signal}"
-                else:
-                    msg = f"Execution aborted by orchestrator: {abort_signal}"
-                engine_logger.info(msg)
-                exit(0)
-            except Pause as pause_signal:
-                pause_signal: Pause
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' is paused: {pause_signal}"
-                else:
-                    msg = f"Execution is paused: {pause_signal}"
-                engine_logger.info(msg)
-                exit(0)
-            except Exception:
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' exited with unexpected exception"
-                else:
-                    msg = "Execution exited with unexpected exception"
-                engine_logger.error(msg, exc_info=True)
-                exit(1)
-            except BaseException:
-                if flow_run:
-                    msg = f"Execution of flow run '{flow_run.id}' interrupted by base exception"
-                else:
-                    msg = "Execution interrupted by base exception"
-                engine_logger.error(msg, exc_info=True)
-                # Let the exit code be determined by the base exception type
-                raise
 
     ctx = multiprocessing.get_context("spawn")
 

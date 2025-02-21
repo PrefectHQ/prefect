@@ -1,4 +1,5 @@
 export const DOCS_LINKS = {
+	"artifacts-guide": "https://docs.prefect.io/v3/develop/artifacts",
 	"automations-guide":
 		"https://docs.prefect.io/v3/automate/events/automations-triggers",
 	"global-concurrency-guide":

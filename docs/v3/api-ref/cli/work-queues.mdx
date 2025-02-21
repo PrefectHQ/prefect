@@ -1,0 +1,461 @@
+---
+title: " "
+sidebarTitle: prefect work-queues
+---
+
+# `prefect work-queues`
+
+
+
+```command
+prefect work-queues [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage work queues.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect work-queues create`
+
+
+
+```command
+prefect work-queues create [OPTIONS] NAME
+```
+
+
+
+<Info>
+Create a work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The unique name to assign this work queue  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-l">
+    The concurrency limit to set on the queue.
+</ResponseField>
+
+<ResponseField name="-p">
+    The name of the work pool to create the work queue in.
+</ResponseField>
+
+<ResponseField name="-q">
+    The associated priority for the created work queue
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues set-concurrency-limit`
+
+
+
+```command
+prefect work-queues set-concurrency-limit [OPTIONS] NAME LIMIT
+```
+
+
+
+<Info>
+Set a concurrency limit on a work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue  \[required]
+</ResponseField>
+<ResponseField name="LIMIT" type="string" required>
+    The concurrency limit to set on the queue.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues clear-concurrency-limit`
+
+
+
+```command
+prefect work-queues clear-concurrency-limit [OPTIONS] NAME
+```
+
+
+
+<Info>
+Clear any concurrency limits from a work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue to clear  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues pause`
+
+
+
+```command
+prefect work-queues pause [OPTIONS] NAME
+```
+
+
+
+<Info>
+Pause a work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue to pause  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues resume`
+
+
+
+```command
+prefect work-queues resume [OPTIONS] NAME
+```
+
+
+
+<Info>
+Resume a paused work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue to resume  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues inspect`
+
+
+
+```command
+prefect work-queues inspect [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Inspect a work queue by ID.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    The name or ID of the work queue to inspect
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues ls`
+
+
+
+```command
+prefect work-queues ls [OPTIONS]
+```
+
+
+
+<Info>
+View all work queues.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--verbose">
+    Display more information.
+</ResponseField>
+
+<ResponseField name="--match">
+    Will match work queues with names that start with the specified prefix string
+</ResponseField>
+
+<ResponseField name="-p">
+    The name of the work pool containing the work queues to list.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues preview`
+
+
+
+```command
+prefect work-queues preview [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Preview a work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    The name or ID of the work queue to preview
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-h">
+    The number of hours to look ahead; defaults to 1 hour
+</ResponseField>
+
+<ResponseField name="-p">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues delete`
+
+
+
+```command
+prefect work-queues delete [OPTIONS] NAME
+```
+
+
+
+<Info>
+Delete a work queue by ID.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue to delete  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool containing the work queue to delete.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queues read-runs`
+
+
+
+```command
+prefect work-queues read-runs [OPTIONS] NAME
+```
+
+
+
+<Info>
+Get runs in a work queue. Note that this will trigger an artificial poll of
+the work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue to poll  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-p">
+    The name of the work pool containing the work queue to poll.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

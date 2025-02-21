@@ -5,12 +5,11 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 from typing_extensions import Self
 
-from prefect.types import DateTime
+from prefect.types._datetime import DateTime, human_friendly_diff
 
 if TYPE_CHECKING:
     from pydantic.main import IncEx
@@ -72,6 +71,7 @@ class PrefectBaseModel(BaseModel):
 
     _reset_fields: ClassVar[set[str]] = set()
 
+    # TODO: investigate why removing this fails composite trigger tests?
     model_config: ClassVar[ConfigDict] = ConfigDict(
         ser_json_timedelta="float",
         extra=(
@@ -84,7 +84,7 @@ class PrefectBaseModel(BaseModel):
     )
 
     def __eq__(self, other: Any) -> bool:
-        """Equaltiy operator that ignores the resettable fields of the PrefectBaseModel.
+        """Equality operator that ignores the resettable fields of the PrefectBaseModel.
 
         NOTE: this equality operator will only be applied if the PrefectBaseModel is
         the left-hand operand. This is a limitation of Python.
@@ -107,9 +107,9 @@ class PrefectBaseModel(BaseModel):
                 value = str(value)
             elif isinstance(value, datetime.datetime):
                 value = (
-                    pendulum.instance(value).isoformat()
+                    value.isoformat()
                     if name == "timestamp"
-                    else pendulum.instance(value).diff_for_humans()
+                    else human_friendly_diff(value)
                 )
 
             yield name, value, field.get_default()
