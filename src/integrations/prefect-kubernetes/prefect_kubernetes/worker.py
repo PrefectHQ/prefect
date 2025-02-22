@@ -112,6 +112,7 @@ import shlex
 import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -646,7 +647,10 @@ class KubernetesWorker(
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
     async def submit(
-        self, flow: "Flow[..., R]", parameters: dict[str, Any] | None = None
+        self,
+        flow: "Flow[..., R]",
+        parameters: dict[str, Any] | None = None,
+        job_variables: dict[str, Any] | None = None,
     ) -> "PrefectFlowRunFuture[R]":
         """
         EXPERIMENTAL: The interface for this method is subject to change.
@@ -663,7 +667,12 @@ class KubernetesWorker(
         if self._runs_task_group is None:
             raise RuntimeError("Worker not properly initialized")
         flow_run = await self._runs_task_group.start(
-            self._submit_adhoc_run, flow, parameters
+            partial(
+                self._submit_adhoc_run,
+                flow=flow,
+                parameters=parameters,
+                job_variables=job_variables,
+            ),
         )
         return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 
@@ -671,6 +680,7 @@ class KubernetesWorker(
         self,
         flow: "Flow[..., R]",
         parameters: dict[str, Any] | None = None,
+        job_variables: dict[str, Any] | None = None,
         task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
     ):
         """
@@ -680,6 +690,8 @@ class KubernetesWorker(
             convert_step_to_command,
             create_bundle_for_flow_run,
         )
+
+        job_variables = job_variables or {}
 
         if TYPE_CHECKING:
             assert self._client is not None
@@ -711,7 +723,7 @@ class KubernetesWorker(
 
             try:
                 await anyio.run_process(
-                    upload_command,
+                    upload_command + [str(flow_run.id)],
                     cwd=temp_dir,
                 )
             except Exception as e:
@@ -724,7 +736,7 @@ class KubernetesWorker(
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            values={"command": " ".join(execute_command)},
+            values=job_variables | {"command": " ".join(execute_command)},
             client=self._client,
         )
         configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)

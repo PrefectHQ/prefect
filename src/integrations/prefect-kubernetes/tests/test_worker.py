@@ -3205,6 +3205,7 @@ class TestKubernetesWorker:
                 "my-creds",
                 "--key",
                 str(future.flow_run_id),
+                str(future.flow_run_id),
             ]
             mock_run_process.assert_called_once_with(
                 expected_command,
