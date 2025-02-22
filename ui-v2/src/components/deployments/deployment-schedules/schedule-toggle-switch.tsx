@@ -32,7 +32,7 @@ export const ScheduleToggleSwitch = ({
 			{
 				onSuccess: () =>
 					toast({
-						title: `Deployment schedule ${checked ? "active" : "inactive"}`,
+						title: `Deployment schedule ${checked ? "active" : "paused"}`,
 					}),
 				onError: (error) => {
 					const message =
@@ -47,13 +47,15 @@ export const ScheduleToggleSwitch = ({
 	return (
 		<TooltipProvider>
 			<Tooltip>
-				<TooltipTrigger>
-					<Switch
-						aria-label={`toggle ${getScheduleTitle(deploymentSchedule)}`}
-						checked={deploymentSchedule.active}
-						onCheckedChange={handleCheckedChanged}
-						disabled={disabled}
-					/>
+				<TooltipTrigger asChild>
+					<div>
+						<Switch
+							aria-label={`toggle ${getScheduleTitle(deploymentSchedule)}`}
+							checked={deploymentSchedule.active}
+							onCheckedChange={handleCheckedChanged}
+							disabled={disabled}
+						/>
+					</div>
 				</TooltipTrigger>
 				{disabled && (
 					<TooltipContent>Pause or resume this schedule</TooltipContent>

@@ -10,8 +10,10 @@ import {
 	FlowRunsRowCount,
 	type PaginationState,
 	SortFilters,
+	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
-import { useCallback, useMemo, useState } from "react";
+import useDebounce from "@/hooks/use-debounce";
+import { useCallback, useMemo } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -22,12 +24,15 @@ type DeploymentDetailsUpcomingTabProps = {
 export const DeploymentDetailsUpcomingTab = ({
 	deployment,
 }: DeploymentDetailsUpcomingTabProps) => {
-	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+	const [selectedRows, setSelectedRows, { clearSet, onSelectRow }] =
+		useFlowRunsSelectedRows();
 	const [pagination, onChangePagination] = usePagination();
 	const [search, setSearch] = useSearch();
 	const [sort, setSort] = useSort();
 	const [filter, setFilter] = useFilter();
 	const resetFilters = useResetFilters();
+
+	const debouncedSearch = useDebounce(search, 400);
 
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
@@ -35,7 +40,7 @@ export const DeploymentDetailsUpcomingTab = ({
 			id: { any_: [deployment.id] },
 		},
 		flow_runs: {
-			name: { like_: search || undefined },
+			name: { like_: debouncedSearch || undefined },
 			state: {
 				name: { any_: filter.length === 0 ? undefined : filter },
 				operator: "or_",
@@ -57,28 +62,11 @@ export const DeploymentDetailsUpcomingTab = ({
 		};
 	}, [data, deployment]);
 
-	const addRow = (id: string) =>
-		setSelectedRows((curr) => new Set(curr).add(id));
-	const removeRow = (id: string) =>
-		setSelectedRows((curr) => {
-			const newValue = new Set(curr);
-			newValue.delete(id);
-			return newValue;
-		});
-
-	const handleSelectRow = (id: string, checked: boolean) => {
-		if (checked) {
-			addRow(id);
-		} else {
-			removeRow(id);
-		}
-	};
-
 	const handleResetFilters = !resetFilters
 		? undefined
 		: () => {
 				resetFilters();
-				setSelectedRows(new Set());
+				clearSet();
 			};
 
 	return (
@@ -103,7 +91,7 @@ export const DeploymentDetailsUpcomingTab = ({
 			<FlowRunsList
 				flowRuns={dataWithDeployment?.results}
 				selectedRows={selectedRows}
-				onSelect={handleSelectRow}
+				onSelect={onSelectRow}
 				onClearFilters={handleResetFilters}
 			/>
 
