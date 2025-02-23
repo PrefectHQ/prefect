@@ -144,9 +144,7 @@ def execute_bundle_in_subprocess(
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
         subprocess.check_call(
-            [uv.find_uv_bin(), "pip", "install", *dependencies.split()],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            [uv.find_uv_bin(), "pip", "install", *dependencies.split("\n")],
         )
 
     process = ctx.Process(
