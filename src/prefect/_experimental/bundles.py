@@ -6,9 +6,11 @@ import gzip
 import multiprocessing
 import multiprocessing.context
 import os
+import subprocess
 from typing import Any, TypedDict
 
 import cloudpickle
+import uv
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
@@ -28,6 +30,7 @@ class SerializedBundle(TypedDict):
     function: str
     context: str
     flow_run: dict[str, Any]
+    dependencies: str
 
 
 def _serialize_bundle_object(obj: Any) -> str:
@@ -66,6 +69,9 @@ def create_bundle_for_flow_run(
         "function": _serialize_bundle_object(flow),
         "context": _serialize_bundle_object(context),
         "flow_run": flow_run.model_dump(mode="json"),
+        "dependencies": subprocess.check_output([uv.find_uv_bin(), "pip", "freeze"])
+        .decode()
+        .strip(),
     }
 
 
@@ -128,6 +134,14 @@ def execute_bundle_in_subprocess(
     """
 
     ctx = multiprocessing.get_context("spawn")
+
+    # Install dependencies if necessary
+    if dependencies := bundle.get("dependencies"):
+        subprocess.check_call(
+            [uv.find_uv_bin(), "pip", "install", *dependencies.split()],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     process = ctx.Process(
         target=_extract_and_run_flow,
