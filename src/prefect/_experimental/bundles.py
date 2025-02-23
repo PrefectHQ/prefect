@@ -69,7 +69,13 @@ def create_bundle_for_flow_run(
         "function": _serialize_bundle_object(flow),
         "context": _serialize_bundle_object(context),
         "flow_run": flow_run.model_dump(mode="json"),
-        "dependencies": subprocess.check_output([uv.find_uv_bin(), "pip", "freeze"])
+        "dependencies": subprocess.check_output(
+            [
+                uv.find_uv_bin(),
+                "pip",
+                "freeze",
+            ]
+        )
         .decode()
         .strip(),
     }
