@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { useState } from "react";
-import { type FlowRunState, StateFilter } from "./state-filter";
+import { StateFilter } from "./state-filter";
+import { FlowRunState } from "./state-filters.constants";
 
 const meta: Meta<typeof StateFilter> = {
-	title: "Components/FlowRuns/DataTable/StateFilter",
+	title: "Components/FlowRuns/StateFilter",
 	component: StateFilterStory,
 };
 export default meta;

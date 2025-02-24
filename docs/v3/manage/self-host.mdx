@@ -17,6 +17,13 @@ See the [Prefect Cloud overview](/v3/manage/cloud/) for more information.
 
 ## Self-host a Prefect server
 
+<Warning>
+We recommend using the same version of `prefect` for the client and server.
+Old clients are compatible with new servers, but new clients can be incompatible with old servers as new fields are added to the REST API.
+The server will typically return a 422 status code if any issues occur.
+</Warning>
+
+
 1. Spin up a self-hosted Prefect server instance UI with the `prefect server start` CLI command in the terminal:
 
 ```bash
