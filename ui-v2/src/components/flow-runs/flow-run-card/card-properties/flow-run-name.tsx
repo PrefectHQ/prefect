@@ -1,4 +1,4 @@
-import type { FlowRunsDataTableRow } from "@/components/flow-runs/data-table";
+import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -7,11 +7,11 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-type NameCellProps = {
-	flowRun: FlowRunsDataTableRow;
+type FlowRunNameProps = {
+	flowRun: FlowRunCardData;
 };
 
-export const NameCell = ({ flowRun }: NameCellProps) => {
+export const FlowRunName = ({ flowRun }: FlowRunNameProps) => {
 	return (
 		<div className="flex items-center">
 			<Breadcrumb>

@@ -26,11 +26,13 @@ export type PaginationStateUpdater = (
 ) => PaginationState;
 
 type FlowRunsPaginationProps = {
+	count: number;
 	pages: number;
 	pagination: PaginationState;
 	onChangePagination: (pagination: PaginationState) => void;
 };
 export const FlowRunsPagination = ({
+	count,
 	pages,
 	pagination,
 	onChangePagination,
@@ -48,15 +50,23 @@ export const FlowRunsPagination = ({
 	const disablePreviousPage = pagination.page <= 1;
 	const disableNextPage = pagination.page >= pages;
 
+	const handleChangeLimit = (value: string) => {
+		const newLimit = Number(value);
+		const newTotalPages = Math.ceil(count / newLimit);
+		const newPage = Math.min(pagination.page, newTotalPages);
+		onChangePagination({
+			limit: newLimit,
+			page: newPage,
+		});
+	};
+
 	return (
 		<div className="flex flex-row justify-between items-center">
 			<div className="flex flex-row items-center gap-2 text-xs text-muted-foreground">
 				<span className="whitespace-nowrap">Items per page</span>
 				<Select
 					value={String(pagination.limit)}
-					onValueChange={(value) =>
-						onChangePagination({ limit: Number(value), page: pagination.page })
-					}
+					onValueChange={handleChangeLimit}
 				>
 					<SelectTrigger aria-label="Items per page">
 						<SelectValue placeholder="Theme" />
