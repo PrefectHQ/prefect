@@ -82,7 +82,7 @@ const Step = ({
 				<Icon
 					id="CircleCheck"
 					color={isActive ? "teal" : "grey"}
-					className="h-12 w-12"
+					className="size-12"
 				/>
 			) : (
 				<StepIcon isActive={isActive} label={numberLabel} />
@@ -107,7 +107,7 @@ type StepIconProps = {
 const StepIcon = ({ isActive = false, label }: StepIconProps) => (
 	<div
 		className={cn(
-			"flex items-center justify-center w-12 h-12 rounded-full border-4 text-gray-500 border-gray-500",
+			"flex items-center justify-center size-12 rounded-full border-4 text-gray-500 border-gray-500",
 			isActive && "text-teal-700 border-teal-700",
 		)}
 	>

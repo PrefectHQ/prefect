@@ -59,7 +59,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>

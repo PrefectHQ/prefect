@@ -20,10 +20,10 @@ export const TimelineContainer = ({ artifacts }: TimelineContainerProps) => {
 				<div className="w-10 flex flex-col">
 					<div className="w-5 h-full border-r border-gray-200 pt-3">
 						<div
-							className="w-8 h-8 rounded-full bg-white my-5 mx-auto border-2 flex justify-center items-center"
+							className="size-8 rounded-full bg-white my-5 mx-auto border-2 flex justify-center items-center"
 							style={{ margin: "20px calc(50% - 6px)" }}
 						>
-							<div className="w-4 h-4 rounded-full border-2 border-black relative"></div>
+							<div className="size-4 rounded-full border-2 border-black relative"></div>
 						</div>
 					</div>
 				</div>

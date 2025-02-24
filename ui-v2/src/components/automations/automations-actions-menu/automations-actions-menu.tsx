@@ -27,9 +27,9 @@ export const AutomationsActionsMenu = ({ id, onDelete }: Props) => {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="h-8 w-8 p-0">
+				<Button variant="outline" className="size-8 p-0">
 					<span className="sr-only">Open menu</span>
-					<Icon id="MoreVertical" className="h-4 w-4" />
+					<Icon id="MoreVertical" className="size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
@@ -48,7 +48,7 @@ export const AutomationsActionsMenu = ({ id, onDelete }: Props) => {
 						href={DOCS_LINKS["automations-guide"]}
 						className="flex items-center"
 					>
-						Documentation <Icon id="ExternalLink" className="ml-2 h-4 w-4" />
+						Documentation <Icon id="ExternalLink" className="ml-2 size-4" />
 					</a>
 				</DropdownMenuItem>
 			</DropdownMenuContent>

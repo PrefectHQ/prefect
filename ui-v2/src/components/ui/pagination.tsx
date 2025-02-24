@@ -85,7 +85,7 @@ const PaginationPrevious = ({
 		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<Icon id="ChevronLeft" className="h-4 w-4" />
+		<Icon id="ChevronLeft" className="size-4" />
 		<span>Previous</span>
 	</PaginationLink>
 );
@@ -102,7 +102,7 @@ const PaginationPreviousButton = ({
 		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<Icon id="ChevronLeft" className="h-4 w-4" />
+		<Icon id="ChevronLeft" className="size-4" />
 	</Button>
 );
 PaginationPreviousButton.displayName = "PaginationPreviousButton";
@@ -118,7 +118,7 @@ const PaginationNext = ({
 		{...props}
 	>
 		<span>Next</span>
-		<Icon id="ChevronRight" className="h-4 w-4" />
+		<Icon id="ChevronRight" className="size-4" />
 	</PaginationLink>
 );
 PaginationNext.displayName = "PaginationNext";
@@ -134,7 +134,7 @@ const PaginationNextButton = ({
 		className={cn("gap-1 pr-2.5", className)}
 		{...props}
 	>
-		<Icon id="ChevronRight" className="h-4 w-4" />
+		<Icon id="ChevronRight" className="size-4" />
 	</Button>
 );
 PaginationNextButton.displayName = "PaginationNextButton";
@@ -149,10 +149,10 @@ const PaginationEllipsis = ({
 }: PaginationEllipsisProps) => (
 	<span
 		aria-hidden
-		className={cn("flex h-9 w-9 items-center justify-center", className)}
+		className={cn("flex size-9 items-center justify-center", className)}
 		{...props}
 	>
-		<DotsHorizontalIcon className="h-4 w-4" />
+		<DotsHorizontalIcon className="size-4" />
 		<span className="sr-only">More pages</span>
 	</span>
 );
@@ -169,7 +169,7 @@ const PaginationFirstButton = ({
 		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<Icon id="ChevronsLeft" className="h-4 w-4" />
+		<Icon id="ChevronsLeft" className="size-4" />
 	</Button>
 );
 PaginationFirstButton.displayName = "PaginationFirstButton";
@@ -185,7 +185,7 @@ const PaginationLastButton = ({
 		className={cn("gap-1 pr-2.5", className)}
 		{...props}
 	>
-		<Icon id="ChevronsRight" className="h-4 w-4" />
+		<Icon id="ChevronsRight" className="size-4" />
 	</Button>
 );
 

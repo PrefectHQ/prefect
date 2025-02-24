@@ -25,11 +25,11 @@ export const VariablesLayout = ({
 				</Breadcrumb>
 				<Button
 					size="icon"
-					className="h-7 w-7"
+					className="size-7"
 					variant="outline"
 					onClick={() => onAddVariableClick()}
 				>
-					<Icon id="Plus" className="h-4 w-4" />
+					<Icon id="Plus" className="size-4" />
 				</Button>
 			</div>
 			{children}

@@ -24,7 +24,7 @@ export const GlobalConcurrencyLimitsEmptyState = ({
 		</EmptyStateDescription>
 		<EmptyStateActions>
 			<Button onClick={onAdd}>
-				Add Concurrency Limit <Icon id="Plus" className="h-4 w-4 ml-2" />
+				Add Concurrency Limit <Icon id="Plus" className="size-4 ml-2" />
 			</Button>
 			<DocsLink id="global-concurrency-guide" />
 		</EmptyStateActions>

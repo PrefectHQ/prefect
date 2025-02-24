@@ -35,14 +35,14 @@ function Calendar({
 				weekday:
 					"text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
 				day: cn(
-					"h-10 w-10 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected].day-range-end)]:rounded-r-md",
+					"size-10 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected].day-range-end)]:rounded-r-md",
 					props.mode === "range"
 						? "[&:has(>.day-range-end)]:rounded-r-md [&:has(>.day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
 						: "[&:has([aria-selected])]:rounded-md",
 				),
 				button: cn(
 					buttonVariants({ variant: "ghost" }),
-					"h-8 w-8 p-0 font-normal aria-selected:opacity-100",
+					"size-8 p-0 font-normal aria-selected:opacity-100",
 				),
 				range_start: "day-range-start",
 				range_end: "day-range-end",
@@ -65,10 +65,10 @@ function Calendar({
 							onClick={() => setMonth((curr) => subMonths(curr, 1))}
 							variant="outline"
 							className={cn(
-								"h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+								"size-7 bg-transparent p-0 opacity-50 hover:opacity-100",
 							)}
 						>
-							<ChevronLeftIcon className="h-4 w-4" />
+							<ChevronLeftIcon className="size-4" />
 						</Button>
 						<p className="text-sm font-medium">{format(month, "MMMM yyyy")}</p>
 						<Button
@@ -76,10 +76,10 @@ function Calendar({
 							onClick={() => setMonth((curr) => addMonths(curr, 1))}
 							variant="outline"
 							className={cn(
-								"h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 ",
+								"size-7 bg-transparent p-0 opacity-50 hover:opacity-100 ",
 							)}
 						>
-							<ChevronRightIcon className="h-4 w-4" />
+							<ChevronRightIcon className="size-4" />
 						</Button>
 					</nav>
 				),

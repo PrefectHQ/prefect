@@ -18,7 +18,7 @@ export const ArtifactTimelineCard = ({
 	return (
 		<Card
 			data-testid={`timeline-card-${artifact.id}`}
-			className="flex flex-col p-4 m-2 transition-transform hover:translate-x-2 flex-grow"
+			className="flex flex-col p-4 m-2 transition-transform hover:translate-x-2 grow"
 		>
 			<Link to="/artifacts/artifact/$id" params={{ id: artifact.id ?? "" }}>
 				<Typography
