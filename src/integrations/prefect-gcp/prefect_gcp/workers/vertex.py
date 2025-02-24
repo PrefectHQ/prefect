@@ -156,6 +156,16 @@ class VertexAIWorkerVariables(BaseVariables):
         "within the provided ip ranges. Otherwise, the job will be deployed to "
         "any ip ranges under the provided VPC network.",
     )
+    scheduling: Optional[dict] = Field(
+        default=None,
+        title="Scheduling Options",
+        description=("A dictionary with scheduling options for a CustomJob, "
+        "these are parameters related to queuing, and scheduling custom jobs. "
+        "If unspecified default scheduling options are used. "
+        "The 'maximum_run_time_hours' variable will take precedance over the "
+        "'scheduling.timeout' field for backward compatibility."
+        ),
+    )
     service_account_name: Optional[str] = Field(
         default=None,
         title="Service Account Name",
@@ -235,6 +245,7 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
                 "network": "{{ network }}",
                 "reserved_ip_ranges": "{{ reserved_ip_ranges }}",
                 "maximum_run_time_hours": "{{ maximum_run_time_hours }}",
+                "scheduling": "{{ scheduling }}",
                 "worker_pool_specs": [
                     {
                         "replica_count": 1,
@@ -471,12 +482,25 @@ class VertexAIWorker(BaseWorker):
             for spec in configuration.job_spec.pop("worker_pool_specs", [])
         ]
 
-        timeout = Duration().FromTimedelta(
-            td=datetime.timedelta(
-                hours=configuration.job_spec["maximum_run_time_hours"]
-            )
-        )
-        scheduling = Scheduling(timeout=timeout)
+        scheduling = Scheduling()
+
+        if "scheduling" in configuration.job_spec:
+            scheduling_params = configuration.job_spec.pop("scheduling")
+            for key, value in scheduling_params.items():
+                # Handle if Strategy is passed as an Enum or Str
+                if key == "strategy":
+                    if isinstance(value, Scheduling.Strategy):
+                        setattr(scheduling, key, value)
+                    else:
+                        setattr(scheduling, key, Scheduling.Strategy[value])
+                else:
+                    setattr(scheduling, key, value)
+
+        # Override "timeout" in Scheduling object if "maximum_run_time_hours" is specified
+        if "maximum_run_time_hours" in configuration.job_spec:
+            timeout = Duration()
+            timeout.FromTimedelta(td = datetime.timedelta(hours=configuration.job_spec["maximum_run_time_hours"]))
+            scheduling.timeout = timeout
 
         if "service_account_name" in configuration.job_spec:
             service_account_name = configuration.job_spec.pop("service_account_name")
