@@ -30,7 +30,7 @@ export const TimelineRow = ({ artifact }: TimelineRowProps) => {
 					></div>
 				</div>
 			</div>
-			<div className="flex-grow mt-1">
+			<div className="grow mt-1">
 				<ArtifactTimelineCard artifact={artifact} />
 			</div>
 		</div>
