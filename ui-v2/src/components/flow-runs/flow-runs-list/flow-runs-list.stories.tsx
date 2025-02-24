@@ -137,6 +137,7 @@ const FlowRunsListStory = () => {
 			/>
 
 			<FlowRunsPagination
+				count={MOCK_DATA.length}
 				pagination={pagination}
 				onChangePagination={setPagination}
 				pages={20}

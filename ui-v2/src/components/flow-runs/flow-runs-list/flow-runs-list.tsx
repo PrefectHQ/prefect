@@ -1,15 +1,19 @@
+import {
+	FlowRunCard,
+	type FlowRunCardData,
+} from "@/components/flow-runs/flow-run-card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
-import { FlowRunCard } from "./flow-run-card";
-import type { FlowRunRow } from "./types";
 
 type FlowRunCardProps =
 	| {
-			flowRuns: Array<FlowRunRow> | undefined;
+			flowRuns: Array<FlowRunCardData> | undefined;
 			onClearFilters?: () => void;
 	  }
 	| {
-			flowRuns: Array<FlowRunRow> | undefined;
+			flowRuns: Array<FlowRunCardData> | undefined;
 			onSelect: (id: string, checked: boolean) => void;
 			selectedRows: Set<string>;
 			onClearFilters?: () => void;
@@ -21,8 +25,7 @@ export const FlowRunsList = ({
 	...props
 }: FlowRunCardProps) => {
 	if (!flowRuns) {
-		// Todo: Add Skeleton Loading UX
-		return "Loading...";
+		return <LoadingSkeleton numSkeletons={5} />;
 	}
 
 	if (flowRuns.length === 0) {
@@ -64,3 +67,23 @@ export const FlowRunsList = ({
 		</ul>
 	);
 };
+
+type LoadingSkeletonProps = {
+	numSkeletons?: number;
+};
+const LoadingSkeleton = ({ numSkeletons = 1 }: LoadingSkeletonProps) => (
+	<ul className="flex flex-col gap-1">
+		{Array.from({ length: numSkeletons }).map((_, i) => (
+			<li key={i}>
+				<Card className="flex flex-col gap-2 p-4">
+					<div className="flex justify-between">
+						<Skeleton className="h-4 w-[350px]" />
+						<Skeleton className="h-4 w-[400px]" />
+					</div>
+					<Skeleton className="h-4 w-[400px]" />
+					<Skeleton className="h-4 w-[200px]" />
+				</Card>
+			</li>
+		))}
+	</ul>
+);

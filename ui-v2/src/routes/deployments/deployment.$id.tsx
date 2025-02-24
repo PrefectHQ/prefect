@@ -5,7 +5,7 @@ import { DeploymentDetailsPage } from "@/components/deployments/deployment-detai
 import {
 	FLOW_RUN_STATES,
 	SORT_FILTERS,
-} from "@/components/flow-runs/data-table";
+} from "@/components/flow-runs/flow-runs-list";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";

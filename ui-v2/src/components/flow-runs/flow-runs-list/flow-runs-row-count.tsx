@@ -7,7 +7,7 @@ import { pluralize } from "@/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { useMemo } from "react";
-import { FlowRunRow } from "./types";
+import { FlowRunCardData } from "../flow-run-card";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
 // type FlowRunsRowCountProps = {
@@ -22,7 +22,7 @@ type CountOnlyProps = {
 };
 type SelectableProps = {
 	count: number | undefined;
-	results: Array<FlowRunRow> | undefined;
+	results: Array<FlowRunCardData> | undefined;
 	setSelectedRows: (rows: Set<string>) => void;
 	selectedRows: Set<string>;
 };
@@ -73,6 +73,7 @@ function SelectedCount({
 		}
 		return (
 			<Checkbox
+				className="block"
 				checked={checkedState}
 				onCheckedChange={(checked) => {
 					if (checked) {
@@ -90,7 +91,7 @@ function SelectedCount({
 	if (selectedRows.size > 0)
 		return (
 			<>
-				<div className="flex items-center gap-1">
+				<div className="flex items-center gap-2">
 					<ToggleCheckbox />
 					<Typography variant="bodySmall" className="text-muted-foreground">
 						{selectedRowsList.length} selected
@@ -111,9 +112,10 @@ function SelectedCount({
 		);
 
 	return (
-		<div className="flex items-center gap-1">
+		<div className="flex items-center gap-2">
 			{results && setSelectedRows && selectedRows && (
 				<Checkbox
+					className="block"
 					checked={false}
 					onCheckedChange={(checked) => {
 						setSelectedRows(new Set(checked ? resultsIds : undefined));

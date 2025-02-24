@@ -1,8 +1,4 @@
-import {
-	type FlowRunWithDeploymentAndFlow,
-	type FlowRunWithFlow,
-} from "@/api/flow-runs";
-import { Button } from "@/components/ui/button";
+import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
@@ -12,30 +8,30 @@ import {
 } from "@/components/ui/tooltip";
 import humanizeDuration from "humanize-duration";
 
-type DurationCellProps = {
-	flowRun: FlowRunWithFlow | FlowRunWithDeploymentAndFlow;
+type FlowRunDurationProps = {
+	flowRun: FlowRunCardData;
 };
 
-export const DurationCell = ({ flowRun }: DurationCellProps) => {
+export const FlowRunDuration = ({ flowRun }: FlowRunDurationProps) => {
 	const { estimated_run_time, total_run_time } = flowRun;
 	const duration = estimated_run_time || total_run_time;
 	const durationLabel = humanizeDuration(duration, {
 		maxDecimalPoints: 2,
+		units: ["s"],
 	});
 	const durationTooltip = humanizeDuration(duration, {
 		maxDecimalPoints: 5,
+		units: ["s"],
 	});
 
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<Button variant="ghost">
-						<div className="flex gap-2 items-center text-sm font-mono">
-							<Icon id="Clock" className="size-4" />
-							{durationLabel}
-						</div>
-					</Button>
+					<div className="flex gap-2 items-center text-xs font-mono">
+						<Icon id="Clock" className="size-4" />
+						{durationLabel}
+					</div>
 				</TooltipTrigger>
 				<TooltipContent>{durationTooltip}</TooltipContent>
 			</Tooltip>
