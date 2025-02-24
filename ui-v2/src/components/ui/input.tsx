@@ -34,7 +34,7 @@ const IconInput = React.forwardRef<HTMLInputElement, IconInputProps>(
 	({ className, Icon, ...props }, ref) => {
 		return (
 			<div className="relative w-full">
-				<Icon className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+				<Icon className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground size-4" />
 				<Input className={cn("pl-8", className)} ref={ref} {...props} />
 			</div>
 		);

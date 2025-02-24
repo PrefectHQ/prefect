@@ -44,7 +44,7 @@ export const DeploymentSchedules = ({
 				))}
 				<div>
 					<Button size="sm" onClick={onAddSchedule}>
-						<Icon id="Plus" className="mr-2 h-4 w-4" /> Schedule
+						<Icon id="Plus" className="mr-2 size-4" /> Schedule
 					</Button>
 				</div>
 			</div>

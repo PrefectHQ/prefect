@@ -50,7 +50,7 @@ export const StartTimeCell = ({ flowRun }: StartTimeCellProps) => {
 						variant="ghost"
 						className="text-sm font-mono flex gap-2 items-center"
 					>
-						<Icon id="Calendar" className="h-4 w-4" />
+						<Icon id="Calendar" className="size-4" />
 						{text ?? "No start time"}
 					</Button>
 				</TooltipTrigger>

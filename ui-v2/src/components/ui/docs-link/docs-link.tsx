@@ -17,7 +17,7 @@ export const DocsLink = ({
 	return (
 		<a href={DOCS_LINKS[id]} target="_blank" rel="noreferrer">
 			<Button variant="outline">
-				{label} <Icon id="ExternalLink" className="h-4 w-4 ml-2" />
+				{label} <Icon id="ExternalLink" className="size-4 ml-2" />
 			</Button>
 		</a>
 	);

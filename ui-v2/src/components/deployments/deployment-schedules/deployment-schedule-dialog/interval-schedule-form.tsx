@@ -308,7 +308,7 @@ export const IntervalScheduleForm = ({
 												{formatDate(field.value, "dateTime")}
 												<Icon
 													id="Calendar"
-													className="ml-auto h-4 w-4 opacity-50"
+													className="ml-auto size-4 opacity-50"
 												/>
 											</Button>
 										</FormControl>
