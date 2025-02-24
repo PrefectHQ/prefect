@@ -9,7 +9,7 @@ type DeploymentDescriptionProps = {
 export const DeploymentDescription = ({
 	deployment,
 }: DeploymentDescriptionProps) => (
-	<Markdown className="prose" remarkPlugins={[remarkGfm]}>
-		{deployment.description}
-	</Markdown>
+	<div className="prose">
+		<Markdown remarkPlugins={[remarkGfm]}>{deployment.description}</Markdown>
+	</div>
 );

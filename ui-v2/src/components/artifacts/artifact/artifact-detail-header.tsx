@@ -94,11 +94,8 @@ export const ArtifactDetailHeader = ({
 			</div>
 			{artifact.description && (
 				<div className="">
-					<Typography variant="h2" className="my-4 font-bold">
-						<Markdown
-							remarkPlugins={[remarkGfm]}
-							className={"prose lg:prose-xl"}
-						>
+					<Typography variant="h2" className="my-4 font-bold prose lg:prose-xl">
+						<Markdown remarkPlugins={[remarkGfm]}>
 							{artifact.description}
 						</Markdown>
 					</Typography>
