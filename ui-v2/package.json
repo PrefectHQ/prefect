@@ -71,7 +71,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@eslint/js": "^9.20.0",
+		"@eslint/js": "^9.21.0",
 		"@faker-js/faker": "^9.5.0",
 		"@storybook/addon-a11y": "^8.5.6",
 		"@storybook/addon-essentials": "^8.5.6",
@@ -99,7 +99,7 @@
 		"@vitejs/plugin-react-swc": "^3.8.0",
 		"@vitest/coverage-v8": "^3.0.5",
 		"autoprefixer": "^10.4.20",
-		"eslint": "^9.20.1",
+		"eslint": "^9.21.0",
 		"eslint-plugin-jest-dom": "^5.5.0",
 		"eslint-plugin-react": "^7.37.4",
 		"eslint-plugin-react-hooks": "^5.1.0",
@@ -115,7 +115,7 @@
 		"storybook": "^8.4.2",
 		"tailwindcss": "^3.4.17",
 		"typescript": "^5.7.3",
-		"typescript-eslint": "^8.24.0",
+		"typescript-eslint": "^8.24.1",
 		"vite": "^6.1.0",
 		"vitest": "^3.0.5"
 	}
