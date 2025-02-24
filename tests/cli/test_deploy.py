@@ -314,6 +314,69 @@ class TestProjectDeploy:
         assert deployment.job_variables == {}
         assert not deployment.enforce_parameter_schema
 
+    async def test_deploy_warns_on_notset_value_for_placeholder(
+        self,
+        project_dir: Path,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        mock_step = mock.MagicMock(return_value={"image": "foo"})
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_object", lambda x: mock_step
+        )
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.import_module",
+            lambda x: None,
+        )
+
+        prefect_yaml = {
+            "build": [
+                {
+                    "prefect_docker.deployments.steps.build_docker_image": {
+                        "id": "build-docker-image",
+                        "requires": "prefect-docker",
+                        "image_name": "repo-name/image-name",
+                        "tag": "dev",
+                        "dockerfile": "auto",
+                    }
+                }
+            ],
+            "deployments": [
+                {
+                    "name": "test-name",
+                    "work_pool": {
+                        "job_variables": {
+                            "image": "{{ this-is-the-wrong-placeholder }}"
+                        }
+                    },
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.job_variables == {}
+
+        warning_logs = [
+            record.message for record in caplog.records if record.levelname == "WARNING"
+        ]
+        assert len(warning_logs) == 1
+        assert (
+            "Value for placeholder 'this-is-the-wrong-placeholder' not found in provided values"
+            in caplog.text
+        )
+
     async def test_deploy_with_active_workers(
         self,
         project_dir: Path,
