@@ -31,7 +31,7 @@ export const DeploymentTriggers = ({ deployment }: DeploymentTriggersProps) => {
 					}}
 				>
 					<Button size="sm">
-						<Icon id="Plus" className="mr-2 h-4 w-4" /> Add
+						<Icon id="Plus" className="mr-2 size-4" /> Add
 					</Button>
 				</Link>
 			</div>
@@ -52,7 +52,7 @@ const RelatedDeployments = ({ automations }: RelatedDeploymentsProps) => {
 						params={{ id: automation.id }}
 						className="flex items-center text-xs"
 					>
-						<Icon id="Bot" className="mr-1 h-4 w-4" />
+						<Icon id="Bot" className="mr-1 size-4" />
 						<div>{automation.name}</div>
 					</Link>
 				</li>

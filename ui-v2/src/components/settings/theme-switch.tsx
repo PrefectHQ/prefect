@@ -29,14 +29,14 @@ export const ThemeSwitch = () => {
 		<div className="flex flex-col gap-1">
 			<label htmlFor="theme-switch">Theme</label>
 			<div className="flex gap-2 items-center">
-				<Icon id="Sun" className="h-4 w-4" />
+				<Icon id="Sun" className="size-4" />
 				<Switch
 					checked={colorScheme === "dark"}
 					onCheckedChange={(checked) =>
 						setColorScheme(checked ? "dark" : "light")
 					}
 				/>
-				<Icon id="Moon" className="h-7 w-4" />
+				<Icon id="Moon" className="size-4" />
 			</div>
 		</div>
 	);

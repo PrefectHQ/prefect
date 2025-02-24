@@ -41,7 +41,7 @@ function EmptyStateExample(): JSX.Element {
 			</EmptyStateDescription>
 			<EmptyStateActions>
 				<Button onClick={fn()}>
-					Add Variable <Icon id="Plus" className="h-4 w-4 ml-2" />
+					Add Variable <Icon id="Plus" className="size-4 ml-2" />
 				</Button>
 				<DocsLink id="variables-guide" />
 			</EmptyStateActions>

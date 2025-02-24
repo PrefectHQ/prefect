@@ -389,7 +389,7 @@ const FlowRunTooltip = ({
 								{flow.name}
 							</Link>
 						)}
-						<ChevronRight className="w-4 h-4" />
+						<ChevronRight className="size-4" />
 						<Link
 							to={"/runs/flow-run/$id"}
 							params={{ id: flowRun.id }}
@@ -411,14 +411,14 @@ const FlowRunTooltip = ({
 							params={{ id: deployment.id }}
 							className="flex items-center gap-1"
 						>
-							<Rocket className="w-4 h-4" />
+							<Rocket className="size-4" />
 							<p className="text-sm font-medium whitespace-nowrap">
 								{deployment.name}
 							</p>
 						</Link>
 					)}
 					<span className="flex items-center gap-1">
-						<Clock className="w-4 h-4" />
+						<Clock className="size-4" />
 						<p className="text-sm whitespace-nowrap">
 							{formatDistanceStrict(0, flowRun.total_run_time * 1000, {
 								addSuffix: false,
@@ -427,7 +427,7 @@ const FlowRunTooltip = ({
 					</span>
 					{startTime && (
 						<span className="flex items-center gap-1">
-							<Calendar className="w-4 h-4" />
+							<Calendar className="size-4" />
 							<p className="text-sm">
 								{format(startTime, "yyyy/MM/dd hh:mm a")}
 							</p>

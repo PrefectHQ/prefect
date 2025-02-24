@@ -96,7 +96,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 						className="absolute top-0 right-0 z-10"
 						aria-label="copy"
 					>
-						<Icon id="Copy" className="h-2 w-2" />
+						<Icon id="Copy" className="size-2" />
 					</Button>
 				)}
 			</div>

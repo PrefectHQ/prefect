@@ -58,7 +58,7 @@ const FilterComponent = () => {
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" className="w-[150px] justify-between">
 					<span className="truncate">{renderSelectedTags()}</span>
-					<Icon id="ChevronDown" className="h-4 w-4 shrink-0" />
+					<Icon id="ChevronDown" className="size-4 shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -116,7 +116,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>

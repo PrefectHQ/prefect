@@ -71,7 +71,7 @@ export const FlowRunsFilters = ({
 							);
 						}}
 					>
-						<Icon id="Trash2" className="h-4 w-4" />
+						<Icon id="Trash2" className="size-4" />
 					</Button>
 				</div>
 			);
