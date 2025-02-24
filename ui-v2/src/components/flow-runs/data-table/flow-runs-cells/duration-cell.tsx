@@ -32,7 +32,7 @@ export const DurationCell = ({ flowRun }: DurationCellProps) => {
 				<TooltipTrigger asChild>
 					<Button variant="ghost">
 						<div className="flex gap-2 items-center text-sm font-mono">
-							<Icon id="Clock" className="h-4 w-4" />
+							<Icon id="Clock" className="size-4" />
 							{durationLabel}
 						</div>
 					</Button>

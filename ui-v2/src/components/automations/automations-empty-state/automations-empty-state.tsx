@@ -22,7 +22,7 @@ export const AutomationsEmptyState = () => {
 			<EmptyStateActions>
 				<Link to="/automations/create">
 					<Button>
-						Add Automation <Icon id="Plus" className="h-4 w-4 ml-2" />
+						Add Automation <Icon id="Plus" className="size-4 ml-2" />
 					</Button>
 				</Link>
 				<DocsLink id="automations-guide" />

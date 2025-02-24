@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import { Icon, type IconId } from "./icons";
 
 const EmptyStateIcon = ({ id }: { id: IconId }): JSX.Element => {
-	return <Icon id={id} className="h-12 w-12 text-muted-foreground mb-8" />;
+	return <Icon id={id} className="size-12 text-muted-foreground mb-8" />;
 };
 const EmptyStateTitle = ({
 	children,

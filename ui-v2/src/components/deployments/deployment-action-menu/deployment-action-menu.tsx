@@ -29,9 +29,9 @@ export const DeploymentActionMenu = ({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="h-8 w-8 p-0">
+				<Button variant="outline" className="size-8 p-0">
 					<span className="sr-only">Open menu</span>
-					<Icon id="MoreVertical" className="h-4 w-4" />
+					<Icon id="MoreVertical" className="size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">

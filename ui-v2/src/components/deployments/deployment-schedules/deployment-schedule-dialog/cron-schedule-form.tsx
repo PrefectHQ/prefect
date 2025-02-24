@@ -253,7 +253,7 @@ const DayOrDialog = () => {
 		<Dialog>
 			<DialogTrigger asChild>
 				<button className="cursor-help">
-					<Icon id="Info" className="h-4 w-4 inline" />
+					<Icon id="Info" className="size-4 inline" />
 				</button>
 			</DialogTrigger>
 			<DialogContent aria-describedby={undefined}>

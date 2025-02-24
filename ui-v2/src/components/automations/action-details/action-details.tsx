@@ -185,7 +185,7 @@ const ActionResourceName = ({
 	name,
 }: { name: string; iconId: IconId }) => (
 	<div className="text-xs flex items-center">
-		<Icon id={iconId} className="h-4 w-4 mr-1" />
+		<Icon id={iconId} className="size-4 mr-1" />
 		{name}
 	</div>
 );

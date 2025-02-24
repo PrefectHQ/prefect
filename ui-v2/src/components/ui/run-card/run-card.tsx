@@ -118,7 +118,7 @@ type TimeRanProps = {
 const TimeRan = ({ duration }: TimeRanProps) => {
 	return (
 		<div className="flex gap-1 items-center">
-			<Icon id="Clock" className="h-4 w-4" />
+			<Icon id="Clock" className="size-4" />
 			<Typography variant="bodySmall">
 				{humanizeDuration(duration, { maxDecimalPoints: 3, units: ["s"] })}
 			</Typography>
@@ -131,7 +131,7 @@ type StartTimeProps = {
 };
 const StartTime = ({ time }: StartTimeProps) => (
 	<div className="flex gap-1 items-center">
-		<Icon id="Calendar" className="h-4 w-4" />
+		<Icon id="Calendar" className="size-4" />
 		<Typography variant="bodySmall" className="font-mono">
 			{format(parseISO(time), "yyyy/MM/dd pp")}
 		</Typography>

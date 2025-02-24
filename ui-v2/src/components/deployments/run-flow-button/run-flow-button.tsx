@@ -67,7 +67,7 @@ export const RunFlowButton = ({ deployment }: RunFlowButtonProps) => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button loading={isPending}>
-					Run <Icon className="ml-1 h-4 w-4" id="Play" />
+					Run <Icon className="ml-1 size-4" id="Play" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
