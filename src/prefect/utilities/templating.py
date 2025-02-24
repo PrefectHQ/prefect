@@ -33,7 +33,7 @@ VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 ENV_VAR_PLACEHOLDER_PREFIX = "$"
 
 
-logger: logging.Logger = get_logger("utilities.templating")
+logger: "logging.Logger" = get_logger("utilities.templating")
 
 
 class PlaceholderType(enum.Enum):
