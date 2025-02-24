@@ -1,7 +1,10 @@
 import signal
+import subprocess
 from typing import Literal
+from unittest.mock import MagicMock
 
 import pytest
+import uv
 
 from prefect import flow
 from prefect._experimental.bundles import (
@@ -9,24 +12,31 @@ from prefect._experimental.bundles import (
     execute_bundle_in_subprocess,
 )
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.filters import FlowFilter, FlowFilterName
 from prefect.context import TagsContext
 from prefect.exceptions import Abort
 
 
 @pytest.mark.parametrize("engine_type", ["sync", "async"])
 class TestExecuteBundleInSubprocess:
-    async def get_flow_run_for_flow(
-        self, prefect_client: PrefectClient, flow_name: str
-    ):
-        flow_runs = await prefect_client.read_flow_runs(
-            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+    @pytest.fixture(autouse=True)
+    def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
+        mock_subprocess_check_call = MagicMock()
+        monkeypatch.setattr(subprocess, "check_call", mock_subprocess_check_call)
+        return mock_subprocess_check_call
+
+    @pytest.fixture(autouse=True)
+    def mock_subprocess_check_output(self, monkeypatch: pytest.MonkeyPatch):
+        mock_subprocess_check_output = MagicMock(
+            return_value=b"the-whole-enchilada==0.5.3"
         )
-        assert len(flow_runs) == 1
-        return flow_runs[0]
+        monkeypatch.setattr(subprocess, "check_output", mock_subprocess_check_output)
+        return mock_subprocess_check_output
 
     async def test_basic(
-        self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+        mock_subprocess_check_call: MagicMock,
     ):
         if engine_type == "sync":
 
@@ -50,12 +60,24 @@ class TestExecuteBundleInSubprocess:
         )
 
         bundle = create_bundle_for_flow_run(simple_flow, flow_run)
+
+        assert bundle["dependencies"] == "the-whole-enchilada==0.5.3"
+
         process = execute_bundle_in_subprocess(bundle)
 
         process.join()
         assert process.exitcode == 0
 
-        flow_run = await self.get_flow_run_for_flow(prefect_client, simple_flow.name)
+        mock_subprocess_check_call.assert_called_once_with(
+            [
+                uv.find_uv_bin(),
+                "pip",
+                "install",
+                "the-whole-enchilada==0.5.3",
+            ]
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.is_completed()
         assert (
@@ -85,7 +107,7 @@ class TestExecuteBundleInSubprocess:
         process.join()
         assert process.exitcode == 1
 
-        flow_run = await self.get_flow_run_for_flow(prefect_client, foo.name)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.is_failed()
 
@@ -120,9 +142,7 @@ class TestExecuteBundleInSubprocess:
         process.join()
         assert process.exitcode == 0
 
-        flow_run = await self.get_flow_run_for_flow(
-            prefect_client, flow_with_parameters.name
-        )
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.is_completed()
         assert await flow_run.state.result() == "x: 42, y: hello"
@@ -160,7 +180,7 @@ class TestExecuteBundleInSubprocess:
         process.join()
         assert process.exitcode == 0
 
-        flow_run = await self.get_flow_run_for_flow(prefect_client, context_flow.name)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.is_completed()
         assert await flow_run.state.result() == {"foo", "bar"}
@@ -224,7 +244,7 @@ class TestExecuteBundleInSubprocess:
         process.join()
         assert process.exitcode == 1
 
-        flow_run = await self.get_flow_run_for_flow(prefect_client, foo.name)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.is_crashed()
 
@@ -255,7 +275,7 @@ class TestExecuteBundleInSubprocess:
         process.join()
         assert process.exitcode == -9
 
-        flow_run = await self.get_flow_run_for_flow(prefect_client, foo.name)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
         # Stays in running state because the process died
         assert flow_run.state is not None
         assert flow_run.state.is_running()
