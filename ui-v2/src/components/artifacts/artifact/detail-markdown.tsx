@@ -8,9 +8,7 @@ export type DetailMarkdownProps = {
 export const DetailMarkdown = ({ markdown }: DetailMarkdownProps) => {
 	return (
 		<div data-testid="markdown-display" className="mt-4 prose">
-			<Markdown remarkPlugins={[remarkGfm]} className={"prose"}>
-				{markdown}
-			</Markdown>
+			<Markdown remarkPlugins={[remarkGfm]}>{markdown}</Markdown>
 		</div>
 	);
 };
