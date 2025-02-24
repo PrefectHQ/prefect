@@ -175,19 +175,17 @@ async def test_worker_sends_heartbeat_messages(
 async def test_worker_sends_heartbeat_gets_id(respx_mock):
     work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
+    # Pass through the non-relevant paths
+    respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
+    respx_mock.get("api/csrf-token?").pass_through()
+    respx_mock.post("api/work_pools/").pass_through()
+    respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
+
+    respx_mock.post(
+        f"api/work_pools/{work_pool_name}/workers/heartbeat",
+    ).mock(return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id)))
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
         setattr(worker, "_should_get_worker_id", lambda: True)
-        # Pass through the non-relevant paths
-        respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
-        respx_mock.get("api/csrf-token?").pass_through()
-        respx_mock.post("api/work_pools/").pass_through()
-        respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
-
-        respx_mock.post(
-            f"api/work_pools/{work_pool_name}/workers/heartbeat",
-        ).mock(
-            return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id))
-        )
 
         await worker.sync_with_backend()
 
