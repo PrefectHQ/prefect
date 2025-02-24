@@ -703,6 +703,7 @@ class KubernetesWorker(
         api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
         logger = self.get_flow_run_logger(flow_run)
 
+        # TODO: Migrate steps to their own attributes on work pool when hardening this design
         upload_step = json.loads(
             get_from_dict(
                 self._work_pool.base_job_template,
