@@ -20,6 +20,8 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import get_from_dict
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.orchestration import PrefectClient
 
 
@@ -31,7 +33,7 @@ VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 ENV_VAR_PLACEHOLDER_PREFIX = "$"
 
 
-logger = get_logger("utilities.templating")
+logger: logging.Logger = get_logger("utilities.templating")
 
 
 class PlaceholderType(enum.Enum):
