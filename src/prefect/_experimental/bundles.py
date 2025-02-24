@@ -74,6 +74,7 @@ def create_bundle_for_flow_run(
                 uv.find_uv_bin(),
                 "pip",
                 "freeze",
+                # Exclude editable installs because we won't be able to install them in the execution environment
                 "--exclude-editable",
             ]
         )
