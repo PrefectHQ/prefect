@@ -13,7 +13,7 @@ export const DeploymentCell = ({ deployment }: DeploymentCellProps) => {
 			to="/deployments/deployment/$id"
 			params={{ id: deployment.id }}
 		>
-			<Icon id="Rocket" className="h-4 w-4" />
+			<Icon id="Rocket" className="size-4" />
 			<Typography variant="bodySmall">{deployment.name}</Typography>
 		</Link>
 	);

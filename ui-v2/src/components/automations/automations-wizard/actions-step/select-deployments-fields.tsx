@@ -155,7 +155,7 @@ const DeploymentLabel = ({ deploymentWithFlow }: DeploymentLabelProps) => {
 		return (
 			<div className="flex items-center gap-0.5">
 				<div>{deploymentWithFlow.flow.name}</div>
-				<Icon className="h-4 w-4" id="ChevronRight" />
+				<Icon className="size-4" id="ChevronRight" />
 				<div>{deploymentWithFlow.name}</div>
 			</div>
 		);

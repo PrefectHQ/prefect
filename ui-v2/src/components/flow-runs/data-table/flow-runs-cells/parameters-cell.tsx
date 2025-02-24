@@ -25,7 +25,7 @@ export const ParametersCell = (props: ParametersCellProps) => {
 	const parameters = props.getValue() ?? {};
 	return (
 		<div className="flex items-center">
-			<Icon id="SlidersVertical" className="h-4 w-4" />
+			<Icon id="SlidersVertical" className="size-4" />
 			<ParametersDialog flowRunName={flowRunName} parameters={parameters} />
 		</div>
 	);
