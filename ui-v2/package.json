@@ -85,6 +85,7 @@
 		"@storybook/types": "^8.5.8",
 		"@tailwindcss/postcss": "^4.0.8",
 		"@tailwindcss/typography": "^0.5.16",
+		"@tailwindcss/vite": "^4.0.8",
 		"@tanstack/eslint-plugin-query": "^5.66.1",
 		"@tanstack/eslint-plugin-router": "^1.105.0",
 		"@tanstack/router-devtools": "^1.111.3",
