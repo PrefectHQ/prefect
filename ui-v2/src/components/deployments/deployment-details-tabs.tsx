@@ -67,7 +67,7 @@ function useBuildTabOptions(deployment: Deployment) {
 					),
 					ViewComponent: () => (
 						<TabsContent value="Upcoming">
-							<DeploymentDetailsUpcomingTab deploymentId={deployment.id} />
+							<DeploymentDetailsUpcomingTab deployment={deployment} />
 						</TabsContent>
 					),
 				},
