@@ -1,7 +1,6 @@
-import { act, fireEvent, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { SchemaObject } from "openapi-typescript";
-import { useState } from "react";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import { SchemaForm, SchemaFormProps } from "./schema-form";
 
 /**
