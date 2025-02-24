@@ -3,6 +3,7 @@ import datetime
 import os
 import re
 import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -18,6 +19,7 @@ from unittest.mock import MagicMock
 import anyio
 import pendulum
 import pytest
+import uv
 from starlette import status
 
 import prefect.runner
@@ -1136,7 +1138,15 @@ class TestRunner:
             await runner._cancel_run(flow_run)
 
     class TestRunnerBundleExecution:
-        async def test_basic(self, prefect_client: PrefectClient):
+        @pytest.fixture(autouse=True)
+        def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
+            mock_subprocess_check_call = AsyncMock()
+            monkeypatch.setattr(subprocess, "check_call", mock_subprocess_check_call)
+            return mock_subprocess_check_call
+
+        async def test_basic(
+            self, prefect_client: PrefectClient, mock_subprocess_check_call: AsyncMock
+        ):
             runner = Runner()
 
             @flow(persist_result=True)
@@ -1152,6 +1162,14 @@ class TestRunner:
             assert flow_run.state
             assert flow_run.state.is_completed()
             assert await flow_run.state.result() == "Be a simple kind of flow"
+
+            # Ensure that the dependencies are installed
+            assert mock_subprocess_check_call.call_count == 1
+            assert mock_subprocess_check_call.call_args[0][0][:3] == [
+                uv.find_uv_bin(),
+                "pip",
+                "install",
+            ]
 
         async def test_with_parameters(self, prefect_client: PrefectClient):
             runner = Runner()
