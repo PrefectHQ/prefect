@@ -1,0 +1,4241 @@
+# Documentation
+
+
+## `agent`
+
+2024-06-27: This surfaces an actionable error message for moved or removed objects in Prefect 3.0 upgrade.
+
+<a id="prefect-artifacts"></a>
+## `artifacts`
+
+Interface for creating and reading artifacts.
+
+<a id="prefect-artifacts-artifact"></a>
+### `Artifact`
+
+An artifact is a piece of data that is created by a flow or task run.
+
+https://docs.prefect.io/latest/develop/artifacts
+
+Args:
+
+- `type`: A string identifying the type of artifact.
+- `key`: A user-provided string identifier.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+- `data`: A JSON payload that allows for a result to be retrieved.
+
+<a id="prefect-artifacts-artifact-acreate"></a>
+#### `acreate`
+
+```python
+def acreate(self, client: 'PrefectClient | None') -> 'ArtifactResponse':
+```
+
+An async method to create an artifact.
+
+Args:
+
+- `client`: The PrefectClient
+
+Returns: - The created artifact.
+
+<a id="prefect-artifacts-artifact-create"></a>
+#### `create`
+
+```python
+def create(self: Self, client: 'PrefectClient | None') -> 'ArtifactResponse':
+```
+
+A method to create an artifact.
+
+Args:
+
+- `client`: The PrefectClient
+
+Returns: - The created artifact.
+
+<a id="prefect-artifacts-artifact-aget"></a>
+#### `aget`
+
+```python
+def aget(cls, key: str | None, client: 'PrefectClient | None') -> 'ArtifactResponse | None':
+```
+
+A async method to get an artifact.
+
+Args:
+
+- `key`: The key of the artifact to get.
+- `client`: A client to use when calling the Prefect API.
+
+Returns: The artifact (if found).
+
+<a id="prefect-artifacts-artifact-get"></a>
+#### `get`
+
+```python
+def get(cls, key: str | None, client: 'PrefectClient | None') -> 'ArtifactResponse | None':
+```
+
+A method to get an artifact.
+
+Args:
+
+- `key`: The key of the artifact to get.
+- `client`: A client to use when calling the Prefect API.
+
+Returns: The artifact (if found).
+
+<a id="prefect-artifacts-artifact-aget-or-create"></a>
+#### `aget_or_create`
+
+```python
+def aget_or_create(cls, key: str | None, description: str | None, data: dict[str, Any] | Any | None, client: 'PrefectClient | None', kwargs: Any) -> tuple['ArtifactResponse', bool]:
+```
+
+A async method to get or create an artifact.
+
+Args:
+
+- `key`: The key of the artifact to get or create.
+- `description`: The description of the artifact to create.
+- `data`: The data of the artifact to create.
+- `client`: The PrefectClient
+- `kwargs`: Additional keyword arguments to use when creating the artifact.
+
+Returns: The artifact, either retrieved or created.
+
+<a id="prefect-artifacts-artifact-get-or-create"></a>
+#### `get_or_create`
+
+```python
+def get_or_create(cls, key: str | None, description: str | None, data: dict[str, Any] | Any | None, client: 'PrefectClient | None', kwargs: Any) -> tuple['ArtifactResponse', bool]:
+```
+
+A method to get or create an artifact.
+
+Args:
+
+- `key`: The key of the artifact to get or create.
+- `description`: The description of the artifact to create.
+- `data`: The data of the artifact to create.
+- `client`: The PrefectClient
+- `kwargs`: Additional keyword arguments to use when creating the artifact.
+
+Returns: The artifact, either retrieved or created.
+
+<a id="prefect-artifacts-artifact-aformat"></a>
+#### `aformat`
+
+```python
+def aformat(self) -> str | float | int | dict[str, Any]:
+```
+
+<a id="prefect-artifacts-artifact-format"></a>
+#### `format`
+
+```python
+def format(self) -> str | float | int | dict[str, Any]:
+```
+
+<a id="prefect-artifacts-linkartifact"></a>
+### `LinkArtifact`
+
+<a id="prefect-artifacts-linkartifact-aformat"></a>
+#### `aformat`
+
+```python
+def aformat(self) -> str:
+```
+
+<a id="prefect-artifacts-linkartifact-format"></a>
+#### `format`
+
+```python
+def format(self) -> str:
+```
+
+<a id="prefect-artifacts-markdownartifact"></a>
+### `MarkdownArtifact`
+
+<a id="prefect-artifacts-markdownartifact-aformat"></a>
+#### `aformat`
+
+```python
+def aformat(self) -> str:
+```
+
+<a id="prefect-artifacts-markdownartifact-format"></a>
+#### `format`
+
+```python
+def format(self) -> str:
+```
+
+<a id="prefect-artifacts-tableartifact"></a>
+### `TableArtifact`
+
+<a id="prefect-artifacts-tableartifact-aformat"></a>
+#### `aformat`
+
+```python
+def aformat(self) -> str:
+```
+
+<a id="prefect-artifacts-tableartifact-format"></a>
+#### `format`
+
+```python
+def format(self) -> str:
+```
+
+<a id="prefect-artifacts-progressartifact"></a>
+### `ProgressArtifact`
+
+<a id="prefect-artifacts-progressartifact-aformat"></a>
+#### `aformat`
+
+```python
+def aformat(self) -> float:
+```
+
+<a id="prefect-artifacts-progressartifact-format"></a>
+#### `format`
+
+```python
+def format(self) -> float:
+```
+
+<a id="prefect-artifacts-imageartifact"></a>
+### `ImageArtifact`
+
+An artifact that will display an image from a publicly accessible URL in the UI.
+
+Args:
+
+- `image_url`: The URL of the image to display.
+
+<a id="prefect-artifacts-imageartifact-aformat"></a>
+#### `aformat`
+
+```python
+def aformat(self) -> str:
+```
+
+<a id="prefect-artifacts-imageartifact-format"></a>
+#### `format`
+
+```python
+def format(self) -> str:
+```
+
+This method is used to format the artifact data so it can be properly sent
+
+to the API when the .create() method is called.
+
+Returns: (str) The image URL.
+
+<a id="prefect-artifacts-acreate-link-artifact"></a>
+### `acreate_link_artifact`
+
+```python
+def acreate_link_artifact(link: str, link_text: str | None, key: str | None, description: str | None, client: 'PrefectClient | None') -> UUID:
+```
+
+Create a link artifact.
+
+Args:
+
+- `link`: The link to create.
+- `link_text`: The link text.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The table artifact ID.
+
+<a id="prefect-artifacts-create-link-artifact"></a>
+### `create_link_artifact`
+
+```python
+def create_link_artifact(link: str, link_text: str | None, key: str | None, description: str | None, client: 'PrefectClient | None') -> UUID:
+```
+
+Create a link artifact.
+
+Args:
+
+- `link`: The link to create.
+- `link_text`: The link text.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The table artifact ID.
+
+<a id="prefect-artifacts-acreate-markdown-artifact"></a>
+### `acreate_markdown_artifact`
+
+```python
+def acreate_markdown_artifact(markdown: str, key: str | None, description: str | None) -> UUID:
+```
+
+Create a markdown artifact.
+
+Args:
+
+- `markdown`: The markdown to create.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The table artifact ID.
+
+<a id="prefect-artifacts-create-markdown-artifact"></a>
+### `create_markdown_artifact`
+
+```python
+def create_markdown_artifact(markdown: str, key: str | None, description: str | None) -> UUID:
+```
+
+Create a markdown artifact.
+
+Args:
+
+- `markdown`: The markdown to create.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The table artifact ID.
+
+<a id="prefect-artifacts-acreate-table-artifact"></a>
+### `acreate_table_artifact`
+
+```python
+def acreate_table_artifact(table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]], key: str | None, description: str | None) -> UUID:
+```
+
+Create a table artifact asynchronously.
+
+Args:
+
+- `table`: The table to create.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The table artifact ID.
+
+<a id="prefect-artifacts-create-table-artifact"></a>
+### `create_table_artifact`
+
+```python
+def create_table_artifact(table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]], key: str | None, description: str | None) -> UUID:
+```
+
+Create a table artifact.
+
+Args:
+
+- `table`: The table to create.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The table artifact ID.
+
+<a id="prefect-artifacts-acreate-progress-artifact"></a>
+### `acreate_progress_artifact`
+
+```python
+def acreate_progress_artifact(progress: float, key: str | None, description: str | None) -> UUID:
+```
+
+Create a progress artifact asynchronously.
+
+Args:
+
+- `progress`: The percentage of progress represented by a float between 0 and 100.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The progress artifact ID.
+
+<a id="prefect-artifacts-create-progress-artifact"></a>
+### `create_progress_artifact`
+
+```python
+def create_progress_artifact(progress: float, key: str | None, description: str | None) -> UUID:
+```
+
+Create a progress artifact.
+
+Args:
+
+- `progress`: The percentage of progress represented by a float between 0 and 100.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The progress artifact ID.
+
+<a id="prefect-artifacts-aupdate-progress-artifact"></a>
+### `aupdate_progress_artifact`
+
+```python
+def aupdate_progress_artifact(artifact_id: UUID, progress: float, description: str | None, client: 'PrefectClient | None') -> UUID:
+```
+
+Update a progress artifact asynchronously.
+
+Args:
+
+- `artifact_id`: The ID of the artifact to update.
+- `progress`: The percentage of progress represented by a float between 0 and 100.
+- `description`: A user-specified description of the artifact.
+
+Returns: The progress artifact ID.
+
+<a id="prefect-artifacts-update-progress-artifact"></a>
+### `update_progress_artifact`
+
+```python
+def update_progress_artifact(artifact_id: UUID, progress: float, description: str | None, client: 'PrefectClient | None') -> UUID:
+```
+
+Update a progress artifact.
+
+Args:
+
+- `artifact_id`: The ID of the artifact to update.
+- `progress`: The percentage of progress represented by a float between 0 and 100.
+- `description`: A user-specified description of the artifact.
+
+Returns: The progress artifact ID.
+
+<a id="prefect-artifacts-acreate-image-artifact"></a>
+### `acreate_image_artifact`
+
+```python
+def acreate_image_artifact(image_url: str, key: str | None, description: str | None) -> UUID:
+```
+
+Create an image artifact asynchronously.
+
+Args:
+
+- `image_url`: The URL of the image to display.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The image artifact ID.
+
+<a id="prefect-artifacts-create-image-artifact"></a>
+### `create_image_artifact`
+
+```python
+def create_image_artifact(image_url: str, key: str | None, description: str | None) -> UUID:
+```
+
+Create an image artifact.
+
+Args:
+
+- `image_url`: The URL of the image to display.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+Returns: The image artifact ID.
+
+<a id="prefect-automations"></a>
+## `automations`
+
+<a id="prefect-automations-automation"></a>
+### `Automation`
+
+<a id="prefect-automations-automation-acreate"></a>
+#### `acreate`
+
+```python
+def acreate(self: Self) -> Self:
+```
+
+Asynchronously create a new automation.
+
+<a id="prefect-automations-automation-create"></a>
+#### `create`
+
+```python
+def create(self: Self) -> Self:
+```
+
+Create a new automation.
+
+<a id="prefect-automations-automation-aupdate"></a>
+#### `aupdate`
+
+```python
+def aupdate(self: Self) -> None:
+```
+
+Updates an existing automation.
+
+<a id="prefect-automations-automation-update"></a>
+#### `update`
+
+```python
+def update(self: Self):
+```
+
+Updates an existing automation.
+
+<a id="prefect-automations-automation-aread"></a>
+#### `aread`
+
+```python
+def aread(cls, id: UUID, name: Optional[str]) -> Self:
+```
+
+<a id="prefect-automations-automation-aread-2"></a>
+#### `aread`
+
+```python
+def aread(cls, id: None, name: str) -> Self:
+```
+
+<a id="prefect-automations-automation-aread-3"></a>
+#### `aread`
+
+```python
+def aread(cls, id: Optional[UUID], name: Optional[str]) -> Self:
+```
+
+Asynchronously read an automation by ID or name.
+
+<a id="prefect-automations-automation-read"></a>
+#### `read`
+
+```python
+def read(cls, id: UUID, name: Optional[str]) -> Self:
+```
+
+<a id="prefect-automations-automation-read-2"></a>
+#### `read`
+
+```python
+def read(cls, id: None, name: str) -> Self:
+```
+
+<a id="prefect-automations-automation-read-3"></a>
+#### `read`
+
+```python
+def read(cls, id: Optional[UUID], name: Optional[str]) -> Self:
+```
+
+Read an automation by ID or name.
+
+<a id="prefect-automations-automation-adelete"></a>
+#### `adelete`
+
+```python
+def adelete(self: Self) -> bool:
+```
+
+Asynchronously delete an automation.
+
+<a id="prefect-automations-automation-delete"></a>
+#### `delete`
+
+```python
+def delete(self: Self) -> bool:
+```
+
+Delete an automation.
+
+<a id="prefect-automations-automation-adisable"></a>
+#### `adisable`
+
+```python
+def adisable(self: Self) -> bool:
+```
+
+Asynchronously disable an automation.
+
+Raises:
+
+- (ValueError) If the automation does not have an id
+- (PrefectHTTPStatusError) If the automation cannot be disabled
+
+<a id="prefect-automations-automation-disable"></a>
+#### `disable`
+
+```python
+def disable(self: Self) -> bool:
+```
+
+Disable an automation.
+
+Raises:
+
+- (ValueError) If the automation does not have an id
+- (PrefectHTTPStatusError) If the automation cannot be disabled
+
+<a id="prefect-automations-automation-aenable"></a>
+#### `aenable`
+
+```python
+def aenable(self: Self) -> bool:
+```
+
+Asynchronously enable an automation.
+
+Raises:
+
+- (ValueError) If the automation does not have an id
+- (PrefectHTTPStatusError) If the automation cannot be enabled
+
+<a id="prefect-automations-automation-enable"></a>
+#### `enable`
+
+```python
+def enable(self: Self) -> bool:
+```
+
+Enable an automation.
+
+Raises:
+
+- (ValueError) If the automation does not have an id
+- (PrefectHTTPStatusError) If the automation cannot be enabled
+
+<a id="prefect-cache-policies"></a>
+## `cache_policies`
+
+<a id="prefect-cache-policies-cachepolicy"></a>
+### `CachePolicy`
+
+Base class for all cache policies.
+
+<a id="prefect-cache-policies-cachepolicy-from-cache-key-fn"></a>
+#### `from_cache_key_fn`
+
+```python
+def from_cache_key_fn(cls, cache_key_fn: Callable[['TaskRunContext', Dict[str, Any]], Optional[str]]) -> 'CacheKeyFnPolicy':
+```
+
+Given a function generates a key policy.
+
+<a id="prefect-cache-policies-cachepolicy-configure"></a>
+#### `configure`
+
+```python
+def configure(self, key_storage: Union['WritableFileSystem', str, Path, None], lock_manager: Optional['LockManager'], isolation_level: Union[Literal['READ_COMMITTED', 'SERIALIZABLE'], 'IsolationLevel', None]) -> Self:
+```
+
+Configure the cache policy with the given key storage, lock manager, and isolation level.
+
+Args:
+
+- `key_storage`: The storage to use for cache keys. If not provided,
+the current key storage will be used.
+- `lock_manager`: The lock manager to use for the cache policy. If not provided,
+the current lock manager will be used.
+- `isolation_level`: The isolation level to use for the cache policy. If not provided,
+the current isolation level will be used.
+
+Returns: A new cache policy with the given key storage, lock manager, and isolation level.
+
+<a id="prefect-cache-policies-cachepolicy-compute-key"></a>
+#### `compute_key`
+
+```python
+def compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], kwargs: Any) -> Optional[str]:
+```
+
+<a id="prefect-cache-policies-cachepolicy-sub"></a>
+
+## `context`
+
+Async and thread safe models for passing runtime context data.
+
+These contexts should never be directly mutated by the user.
+
+For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
+
+<a id="prefect-context-serialize-context"></a>
+### `serialize_context`
+
+```python
+def serialize_context() -> dict[str, Any]:
+```
+
+Serialize the current context for use in a remote execution environment.
+
+<a id="prefect-context-hydrated-context"></a>
+### `hydrated_context`
+
+```python
+def hydrated_context(serialized_context: Optional[dict[str, Any]], client: Union[PrefectClient, SyncPrefectClient, None]) -> Generator[None, Any, None]:
+```
+
+<a id="prefect-context-contextmodel"></a>
+### `ContextModel`
+
+A base model for context data that forbids mutation and extra data while providing
+
+a context manager
+
+<a id="prefect-context-contextmodel-enter"></a>
+
+## `engine`
+
+<a id="prefect-engine-handle-engine-signals"></a>
+### `handle_engine_signals`
+
+```python
+def handle_engine_signals(flow_run_id: UUID | None):
+```
+
+Handle signals from the orchestrator to abort or pause the flow run or otherwise
+
+handle unexpected exceptions.
+
+This context manager will handle exiting the process depending on the signal received.
+
+Args:
+
+- `flow_run_id`: The ID of the flow run to handle signals for.
+
+<a id="prefect-exceptions"></a>
+## `exceptions`
+
+Prefect-specific exceptions.
+
+<a id="prefect-exceptions-exception-traceback"></a>
+### `exception_traceback`
+
+```python
+def exception_traceback(exc: Exception) -> str:
+```
+
+Convert an exception to a printable string with a traceback
+
+<a id="prefect-exceptions-prefectexception"></a>
+### `PrefectException`
+
+Base exception type for Prefect errors.
+
+<a id="prefect-exceptions-crashedrun"></a>
+### `CrashedRun`
+
+Raised when the result from a crashed run is retrieved.
+
+This occurs when a string is attached to the state instead of an exception or if
+the state's data is null.
+
+<a id="prefect-exceptions-failedrun"></a>
+### `FailedRun`
+
+Raised when the result from a failed run is retrieved and an exception is not
+
+attached.
+
+This occurs when a string is attached to the state instead of an exception or if
+the state's data is null.
+
+<a id="prefect-exceptions-cancelledrun"></a>
+### `CancelledRun`
+
+Raised when the result from a cancelled run is retrieved and an exception
+
+is not attached.
+
+This occurs when a string is attached to the state instead of an exception
+or if the state's data is null.
+
+<a id="prefect-exceptions-pausedrun"></a>
+### `PausedRun`
+
+Raised when the result from a paused run is retrieved.
+
+<a id="prefect-exceptions-pausedrun-init"></a>
+
+## `filesystems`
+
+<a id="prefect-filesystems-readablefilesystem"></a>
+### `ReadableFileSystem`
+
+<a id="prefect-filesystems-readablefilesystem-read-path"></a>
+#### `read_path`
+
+```python
+def read_path(self, path: str) -> bytes:
+```
+
+<a id="prefect-filesystems-writablefilesystem"></a>
+### `WritableFileSystem`
+
+<a id="prefect-filesystems-writablefilesystem-read-path"></a>
+#### `read_path`
+
+```python
+def read_path(self, path: str) -> bytes:
+```
+
+<a id="prefect-filesystems-writablefilesystem-write-path"></a>
+#### `write_path`
+
+```python
+def write_path(self, path: str, content: bytes) -> None:
+```
+
+<a id="prefect-filesystems-readabledeploymentstorage"></a>
+### `ReadableDeploymentStorage`
+
+<a id="prefect-filesystems-readabledeploymentstorage-get-directory"></a>
+#### `get_directory`
+
+```python
+def get_directory(self, from_path: Optional[str], local_path: Optional[str]) -> None:
+```
+
+<a id="prefect-filesystems-writabledeploymentstorage"></a>
+### `WritableDeploymentStorage`
+
+<a id="prefect-filesystems-writabledeploymentstorage-get-directory"></a>
+#### `get_directory`
+
+```python
+def get_directory(self, from_path: Optional[str], local_path: Optional[str]) -> None:
+```
+
+<a id="prefect-filesystems-writabledeploymentstorage-put-directory"></a>
+#### `put_directory`
+
+```python
+def put_directory(self, local_path: Optional[str], to_path: Optional[str], ignore_file: Optional[str]) -> None:
+```
+
+<a id="prefect-filesystems-localfilesystem"></a>
+### `LocalFileSystem`
+
+Store data as a file on a local file system.
+
+<a id="prefect-filesystems-localfilesystem-cast-pathlib"></a>
+#### `cast_pathlib`
+
+```python
+def cast_pathlib(cls, value: str | Path | None) -> str | None:
+```
+
+<a id="prefect-filesystems-localfilesystem-get-directory"></a>
+#### `get_directory`
+
+```python
+def get_directory(self, from_path: Optional[str], local_path: Optional[str]) -> None:
+```
+
+Copies a directory from one place to another on the local filesystem.
+
+Defaults to copying the entire contents of the block's basepath to the current working directory.
+
+<a id="prefect-filesystems-localfilesystem-put-directory"></a>
+#### `put_directory`
+
+```python
+def put_directory(self, local_path: Optional[str], to_path: Optional[str], ignore_file: Optional[str]) -> None:
+```
+
+Copies a directory from one place to another on the local filesystem.
+
+Defaults to copying the entire contents of the current working directory to the block's basepath.
+An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
+
+<a id="prefect-filesystems-localfilesystem-read-path"></a>
+#### `read_path`
+
+```python
+def read_path(self, path: str) -> bytes:
+```
+
+<a id="prefect-filesystems-localfilesystem-write-path"></a>
+#### `write_path`
+
+```python
+def write_path(self, path: str, content: bytes) -> str:
+```
+
+<a id="prefect-filesystems-remotefilesystem"></a>
+### `RemoteFileSystem`
+
+Store data as a file on a remote file system.
+
+Supports any remote file system supported by `fsspec`. The file system is specified
+using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
+
+<a id="prefect-filesystems-remotefilesystem-check-basepath"></a>
+#### `check_basepath`
+
+```python
+def check_basepath(cls, value: str) -> str:
+```
+
+<a id="prefect-filesystems-remotefilesystem-get-directory"></a>
+#### `get_directory`
+
+```python
+def get_directory(self, from_path: Optional[str], local_path: Optional[str]) -> None:
+```
+
+Downloads a directory from a given remote path to a local directory.
+
+Defaults to downloading the entire contents of the block's basepath to the current working directory.
+
+<a id="prefect-filesystems-remotefilesystem-put-directory"></a>
+#### `put_directory`
+
+```python
+def put_directory(self, local_path: Optional[str], to_path: Optional[str], ignore_file: Optional[str], overwrite: bool) -> int:
+```
+
+Uploads a directory from a given local path to a remote directory.
+
+Defaults to uploading the entire contents of the current working directory to the block's basepath.
+
+<a id="prefect-filesystems-remotefilesystem-read-path"></a>
+#### `read_path`
+
+```python
+def read_path(self, path: str) -> bytes:
+```
+
+<a id="prefect-filesystems-remotefilesystem-write-path"></a>
+#### `write_path`
+
+```python
+def write_path(self, path: str, content: bytes) -> str:
+```
+
+<a id="prefect-filesystems-remotefilesystem-filesystem"></a>
+#### `filesystem`
+
+```python
+def filesystem(self) -> fsspec.AbstractFileSystem:
+```
+
+<a id="prefect-filesystems-smb"></a>
+### `SMB`
+
+Store data as a file on a SMB share.
+
+<a id="prefect-filesystems-smb-basepath"></a>
+#### `basepath`
+
+```python
+def basepath(self) -> str:
+```
+
+<a id="prefect-filesystems-smb-filesystem"></a>
+#### `filesystem`
+
+```python
+def filesystem(self) -> RemoteFileSystem:
+```
+
+<a id="prefect-filesystems-smb-get-directory"></a>
+#### `get_directory`
+
+```python
+def get_directory(self, from_path: Optional[str], local_path: Optional[str]) -> bytes:
+```
+
+Downloads a directory from a given remote path to a local directory.
+
+Defaults to downloading the entire contents of the block's basepath to the current working directory.
+
+<a id="prefect-filesystems-smb-put-directory"></a>
+#### `put_directory`
+
+```python
+def put_directory(self, local_path: Optional[str], to_path: Optional[str], ignore_file: Optional[str]) -> int:
+```
+
+Uploads a directory from a given local path to a remote directory.
+
+Defaults to uploading the entire contents of the current working directory to the block's basepath.
+
+<a id="prefect-filesystems-smb-read-path"></a>
+#### `read_path`
+
+```python
+def read_path(self, path: str) -> bytes:
+```
+
+<a id="prefect-filesystems-smb-write-path"></a>
+#### `write_path`
+
+```python
+def write_path(self, path: str, content: bytes) -> str:
+```
+
+<a id="prefect-filesystems-nullfilesystem"></a>
+### `NullFileSystem`
+
+A file system that does not store any data.
+
+<a id="prefect-filesystems-nullfilesystem-read-path"></a>
+#### `read_path`
+
+```python
+def read_path(self, path: str) -> None:
+```
+
+<a id="prefect-filesystems-nullfilesystem-write-path"></a>
+#### `write_path`
+
+```python
+def write_path(self, path: str, content: bytes) -> None:
+```
+
+<a id="prefect-filesystems-nullfilesystem-get-directory"></a>
+#### `get_directory`
+
+```python
+def get_directory(self, from_path: Optional[str], local_path: Optional[str]) -> None:
+```
+
+<a id="prefect-filesystems-nullfilesystem-put-directory"></a>
+#### `put_directory`
+
+```python
+def put_directory(self, local_path: Optional[str], to_path: Optional[str], ignore_file: Optional[str]) -> None:
+```
+
+<a id="prefect-flow-engine"></a>
+## `flow_engine`
+
+<a id="prefect-flow-engine-flowruntimeouterror"></a>
+### `FlowRunTimeoutError`
+
+Raised when a flow run exceeds its defined timeout.
+
+<a id="prefect-flow-engine-load-flow-run"></a>
+### `load_flow_run`
+
+```python
+def load_flow_run(flow_run_id: UUID) -> FlowRun:
+```
+
+<a id="prefect-flow-engine-load-flow"></a>
+### `load_flow`
+
+```python
+def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
+```
+
+<a id="prefect-flow-engine-load-flow-and-flow-run"></a>
+### `load_flow_and_flow_run`
+
+```python
+def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
+```
+
+<a id="prefect-flow-engine-baseflowrunengine"></a>
+### `BaseFlowRunEngine`
+
+<a id="prefect-flow-engine-baseflowrunengine-post-init"></a>
+
+## `flow_runs`
+
+<a id="prefect-flow-runs-wait-for-flow-run"></a>
+### `wait_for_flow_run`
+
+```python
+def wait_for_flow_run(flow_run_id: UUID, timeout: Optional[int], poll_interval: int, client: Optional['PrefectClient'], log_states: bool) -> FlowRun:
+```
+
+Waits for the prefect flow run to finish and returns the FlowRun
+
+Args:
+
+- `flow_run_id`: The flow run ID for the flow run to wait for.
+- `timeout`: The wait timeout in seconds. Defaults to 10800 (3 hours).
+- `poll_interval`: The poll interval in seconds. Defaults to 5.
+
+Returns: (FlowRun) The finished flow run.
+
+Raises:
+
+- (prefect.exceptions.FlowWaitTimeout) If flow run goes over the timeout.
+
+<a id="prefect-flow-runs-pause-flow-run"></a>
+### `pause_flow_run`
+
+```python
+def pause_flow_run(wait_for_input: None, timeout: int, poll_interval: int, key: Optional[str]) -> None:
+```
+
+<a id="prefect-flow-runs-pause-flow-run-2"></a>
+### `pause_flow_run`
+
+```python
+def pause_flow_run(wait_for_input: Type[T], timeout: int, poll_interval: int, key: Optional[str]) -> T:
+```
+
+<a id="prefect-flow-runs-pause-flow-run-3"></a>
+### `pause_flow_run`
+
+```python
+def pause_flow_run(wait_for_input: Optional[Type[T]], timeout: int, poll_interval: int, key: Optional[str]) -> Optional[T]:
+```
+
+Pauses the current flow run by blocking execution until resumed.
+
+When called within a flow run, execution will block and no downstream tasks will
+run until the flow is resumed. Task runs that have already started will continue
+running. A timeout parameter can be passed that will fail the flow run if it has not
+been resumed within the specified time.
+
+Args:
+
+- `timeout`: the number of seconds to wait for the flow to be resumed before
+failing. Defaults to 1 hour (3600 seconds). If the pause timeout exceeds
+any configured flow-level timeout, the flow might fail even after resuming.
+- `poll_interval`: The number of seconds between checking whether the flow has been
+resumed. Defaults to 10 seconds.
+- `key`: An optional key to prevent calling pauses more than once. This defaults to
+the number of pauses observed by the flow so far, and prevents pauses that
+use the "reschedule" option from running the same pause twice. A custom key
+can be supplied for custom pausing behavior.
+- `wait_for_input`: a subclass of `RunInput` or any type supported by
+Pydantic. If provided when the flow pauses, the flow will wait for the
+input to be provided before resuming. If the flow is resumed without
+providing the input, the flow will fail. If the flow is resumed with the
+input, the flow will resume and the input will be loaded and returned
+from this function.
+
+<a id="prefect-flow-runs-suspend-flow-run"></a>
+### `suspend_flow_run`
+
+```python
+def suspend_flow_run(wait_for_input: None, flow_run_id: Optional[UUID], timeout: Optional[int], key: Optional[str], client: Optional[PrefectClient]) -> None:
+```
+
+<a id="prefect-flow-runs-suspend-flow-run-2"></a>
+### `suspend_flow_run`
+
+```python
+def suspend_flow_run(wait_for_input: Type[T], flow_run_id: Optional[UUID], timeout: Optional[int], key: Optional[str], client: Optional[PrefectClient]) -> T:
+```
+
+<a id="prefect-flow-runs-suspend-flow-run-3"></a>
+### `suspend_flow_run`
+
+```python
+def suspend_flow_run(wait_for_input: Optional[Type[T]], flow_run_id: Optional[UUID], timeout: Optional[int], key: Optional[str], client: Optional[PrefectClient]) -> Optional[T]:
+```
+
+Suspends a flow run by stopping code execution until resumed.
+
+When suspended, the flow run will continue execution until the NEXT task is
+orchestrated, at which point the flow will exit. Any tasks that have
+already started will run until completion. When resumed, the flow run will
+be rescheduled to finish execution. In order suspend a flow run in this
+way, the flow needs to have an associated deployment and results need to be
+configured with the `persist_result` option.
+
+Args:
+
+- `flow_run_id`: a flow run id. If supplied, this function will attempt to
+suspend the specified flow run. If not supplied will attempt to
+suspend the current flow run.
+- `timeout`: the number of seconds to wait for the flow to be resumed before
+failing. Defaults to 1 hour (3600 seconds). If the pause timeout
+exceeds any configured flow-level timeout, the flow might fail even
+after resuming.
+- `key`: An optional key to prevent calling suspend more than once. This
+defaults to a random string and prevents suspends from running the
+same suspend twice. A custom key can be supplied for custom
+suspending behavior.
+- `wait_for_input`: a subclass of `RunInput` or any type supported by
+Pydantic. If provided when the flow suspends, the flow will remain
+suspended until receiving the input before resuming. If the flow is
+resumed without providing the input, the flow will fail. If the flow is
+resumed with the input, the flow will resume and the input will be
+loaded and returned from this function.
+
+<a id="prefect-flow-runs-resume-flow-run"></a>
+### `resume_flow_run`
+
+```python
+def resume_flow_run(flow_run_id: UUID, run_input: Optional[dict[str, Any]]) -> None:
+```
+
+Resumes a paused flow.
+
+Args:
+
+- `flow_run_id`: the flow_run_id to resume
+- `run_input`: a dictionary of inputs to provide to the flow run.
+
+<a id="prefect-flows"></a>
+## `flows`
+
+Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
+
+<a id="prefect-flows-flowstatehook"></a>
+### `FlowStateHook`
+
+A callable that is invoked when a flow enters a given state.
+
+<a id="prefect-flows-flowstatehook-call"></a>
+
+## `futures`
+
+<a id="prefect-futures-prefectfuture"></a>
+### `PrefectFuture`
+
+Abstract base class for Prefect futures. A Prefect future is a handle to the
+
+asynchronous execution of a task run. It provides methods to wait for the task
+to complete and to retrieve the result of the task run.
+
+<a id="prefect-futures-prefectfuture-init"></a>
+
+## `main`
+
+
+<a id="prefect-plugins"></a>
+## `plugins`
+
+Utilities for loading plugins that extend Prefect's functionality.
+
+Plugins are detected by entry point definitions in package setup files.
+
+Currently supported entrypoints:
+    - prefect.collections: Identifies this package as a Prefect collection that
+        should be imported when Prefect is imported.
+
+<a id="prefect-plugins-safe-load-entrypoints"></a>
+### `safe_load_entrypoints`
+
+```python
+def safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception, Any]]:
+```
+
+Load entry points for a group capturing any exceptions that occur.
+
+<a id="prefect-plugins-load-prefect-collections"></a>
+### `load_prefect_collections`
+
+```python
+def load_prefect_collections() -> dict[str, Union[ModuleType, Exception]]:
+```
+
+Load all Prefect collections that define an entrypoint in the group
+
+`prefect.collections`.
+
+<a id="prefect-results"></a>
+## `results`
+
+<a id="prefect-results-default-storage-key-fn"></a>
+### `DEFAULT_STORAGE_KEY_FN`
+
+```python
+def DEFAULT_STORAGE_KEY_FN() -> str:
+```
+
+<a id="prefect-results-aget-default-result-storage"></a>
+### `aget_default_result_storage`
+
+```python
+def aget_default_result_storage() -> WritableFileSystem:
+```
+
+Generate a default file system for result storage.
+
+<a id="prefect-results-get-default-result-storage"></a>
+### `get_default_result_storage`
+
+```python
+def get_default_result_storage() -> WritableFileSystem:
+```
+
+Generate a default file system for result storage.
+
+<a id="prefect-results-aresolve-result-storage"></a>
+### `aresolve_result_storage`
+
+```python
+def aresolve_result_storage(result_storage: ResultStorage | UUID | Path) -> WritableFileSystem:
+```
+
+Resolve one of the valid `ResultStorage` input types into a saved block
+
+document id and an instance of the block.
+
+<a id="prefect-results-resolve-result-storage"></a>
+### `resolve_result_storage`
+
+```python
+def resolve_result_storage(result_storage: ResultStorage | UUID | Path) -> WritableFileSystem:
+```
+
+Resolve one of the valid `ResultStorage` input types into a saved block
+
+document id and an instance of the block.
+
+<a id="prefect-results-resolve-serializer"></a>
+### `resolve_serializer`
+
+```python
+def resolve_serializer(serializer: ResultSerializer) -> Serializer:
+```
+
+Resolve one of the valid `ResultSerializer` input types into a serializer
+
+instance.
+
+<a id="prefect-results-get-or-create-default-task-scheduling-storage"></a>
+### `get_or_create_default_task_scheduling_storage`
+
+```python
+def get_or_create_default_task_scheduling_storage() -> ResultStorage:
+```
+
+Generate a default file system for background task parameter/result storage.
+
+<a id="prefect-results-get-default-result-serializer"></a>
+### `get_default_result_serializer`
+
+```python
+def get_default_result_serializer() -> Serializer:
+```
+
+Generate a default file system for result storage.
+
+<a id="prefect-results-get-default-persist-setting"></a>
+### `get_default_persist_setting`
+
+```python
+def get_default_persist_setting() -> bool:
+```
+
+Return the default option for result persistence.
+
+<a id="prefect-results-get-default-persist-setting-for-tasks"></a>
+### `get_default_persist_setting_for_tasks`
+
+```python
+def get_default_persist_setting_for_tasks() -> bool:
+```
+
+Return the default option for result persistence for tasks.
+
+<a id="prefect-results-should-persist-result"></a>
+### `should_persist_result`
+
+```python
+def should_persist_result() -> bool:
+```
+
+Return the default option for result persistence determined by the current run context.
+
+If there is no current run context, the value of `results.persist_by_default` on the
+current settings will be returned.
+
+<a id="prefect-results-default-cache"></a>
+### `default_cache`
+
+```python
+def default_cache() -> LRUCache[str, 'ResultRecord[Any]']:
+```
+
+<a id="prefect-results-result-storage-discriminator"></a>
+### `result_storage_discriminator`
+
+```python
+def result_storage_discriminator(x: Any) -> str:
+```
+
+<a id="prefect-results-resultstore"></a>
+### `ResultStore`
+
+Manages the storage and retrieval of results.
+
+<a id="prefect-results-resultstore-result-storage-block-id"></a>
+#### `result_storage_block_id`
+
+```python
+def result_storage_block_id(self) -> UUID | None:
+```
+
+<a id="prefect-results-resultstore-update-for-flow"></a>
+#### `update_for_flow`
+
+```python
+def update_for_flow(self, flow: 'Flow[..., Any]') -> Self:
+```
+
+Create a new result store for a flow with updated settings.
+
+Args:
+
+- `flow`: The flow to update the result store for.
+
+Returns: An updated result store.
+
+<a id="prefect-results-resultstore-update-for-task"></a>
+#### `update_for_task`
+
+```python
+def update_for_task(self: Self, task: 'Task[P, R]') -> Self:
+```
+
+Create a new result store for a task.
+
+Args:
+
+- `task`: The task to update the result store for.
+
+Returns: An updated result store.
+
+<a id="prefect-results-resultstore-generate-default-holder"></a>
+#### `generate_default_holder`
+
+```python
+def generate_default_holder() -> str:
+```
+
+Generate a default holder string using hostname, PID, and thread ID.
+
+Returns: (str) A unique identifier string.
+
+<a id="prefect-results-resultstore-exists"></a>
+#### `exists`
+
+```python
+def exists(self, key: str) -> bool:
+```
+
+Check if a result record exists in storage.
+
+Args:
+
+- `key`: The key to check for the existence of a result record.
+
+Returns: (bool) True if the result record exists, False otherwise.
+
+<a id="prefect-results-resultstore-aexists"></a>
+#### `aexists`
+
+```python
+def aexists(self, key: str) -> bool:
+```
+
+Check if a result record exists in storage.
+
+Args:
+
+- `key`: The key to check for the existence of a result record.
+
+Returns: (bool) True if the result record exists, False otherwise.
+
+<a id="prefect-results-resultstore-read"></a>
+#### `read`
+
+```python
+def read(self, key: str, holder: str | None) -> 'ResultRecord[Any]':
+```
+
+Read a result record from storage.
+
+Args:
+
+- `key`: The key to read the result record from.
+- `holder`: The holder of the lock if a lock was set on the record.
+
+Returns: A result record.
+
+<a id="prefect-results-resultstore-aread"></a>
+#### `aread`
+
+```python
+def aread(self, key: str, holder: str | None) -> 'ResultRecord[Any]':
+```
+
+Read a result record from storage.
+
+Args:
+
+- `key`: The key to read the result record from.
+- `holder`: The holder of the lock if a lock was set on the record.
+
+Returns: A result record.
+
+<a id="prefect-results-resultstore-create-result-record"></a>
+#### `create_result_record`
+
+```python
+def create_result_record(self, obj: Any, key: str | None, expiration: DateTime | None) -> 'ResultRecord[Any]':
+```
+
+Create a result record.
+
+Args:
+
+- `key`: The key to create the result record for.
+- `obj`: The object to create the result record for.
+- `expiration`: The expiration time for the result record.
+
+<a id="prefect-results-resultstore-write"></a>
+#### `write`
+
+```python
+def write(self, obj: Any, key: str | None, expiration: DateTime | None, holder: str | None) -> None:
+```
+
+Write a result to storage.
+
+Handles the creation of a `ResultRecord` and its serialization to storage.
+
+Args:
+
+- `key`: The key to write the result record to.
+- `obj`: The object to write to storage.
+- `expiration`: The expiration time for the result record.
+- `holder`: The holder of the lock if a lock was set on the record.
+
+<a id="prefect-results-resultstore-awrite"></a>
+#### `awrite`
+
+```python
+def awrite(self, obj: Any, key: str | None, expiration: DateTime | None, holder: str | None) -> None:
+```
+
+Write a result to storage.
+
+Args:
+
+- `key`: The key to write the result record to.
+- `obj`: The object to write to storage.
+- `expiration`: The expiration time for the result record.
+- `holder`: The holder of the lock if a lock was set on the record.
+
+<a id="prefect-results-resultstore-persist-result-record"></a>
+#### `persist_result_record`
+
+```python
+def persist_result_record(self, result_record: 'ResultRecord[Any]', holder: str | None) -> None:
+```
+
+Persist a result record to storage.
+
+Args:
+
+- `result_record`: The result record to persist.
+
+<a id="prefect-results-resultstore-apersist-result-record"></a>
+#### `apersist_result_record`
+
+```python
+def apersist_result_record(self, result_record: 'ResultRecord[Any]', holder: str | None) -> None:
+```
+
+Persist a result record to storage.
+
+Args:
+
+- `result_record`: The result record to persist.
+
+<a id="prefect-results-resultstore-supports-isolation-level"></a>
+#### `supports_isolation_level`
+
+```python
+def supports_isolation_level(self, level: 'IsolationLevel') -> bool:
+```
+
+Check if the result store supports a given isolation level.
+
+Args:
+
+- `level`: The isolation level to check.
+
+Returns: (bool) True if the isolation level is supported, False otherwise.
+
+<a id="prefect-results-resultstore-acquire-lock"></a>
+#### `acquire_lock`
+
+```python
+def acquire_lock(self, key: str, holder: str | None, timeout: float | None) -> bool:
+```
+
+Acquire a lock for a result record.
+
+Args:
+
+- `key`: The key to acquire the lock for.
+- `holder`: The holder of the lock. If not provided, a default holder based on the
+current host, process, and thread will be used.
+- `timeout`: The timeout for the lock.
+
+Returns: (bool) True if the lock was successfully acquired; False otherwise.
+
+<a id="prefect-results-resultstore-aacquire-lock"></a>
+#### `aacquire_lock`
+
+```python
+def aacquire_lock(self, key: str, holder: str | None, timeout: float | None) -> bool:
+```
+
+Acquire a lock for a result record.
+
+Args:
+
+- `key`: The key to acquire the lock for.
+- `holder`: The holder of the lock. If not provided, a default holder based on the
+current host, process, and thread will be used.
+- `timeout`: The timeout for the lock.
+
+Returns: (bool) True if the lock was successfully acquired; False otherwise.
+
+<a id="prefect-results-resultstore-release-lock"></a>
+#### `release_lock`
+
+```python
+def release_lock(self, key: str, holder: str | None) -> None:
+```
+
+Release a lock for a result record.
+
+Args:
+
+- `key`: The key to release the lock for.
+- `holder`: The holder of the lock. Must match the holder that acquired the lock.
+If not provided, a default holder based on the current host, process, and
+thread will be used.
+
+<a id="prefect-results-resultstore-is-locked"></a>
+#### `is_locked`
+
+```python
+def is_locked(self, key: str) -> bool:
+```
+
+Check if a result record is locked.
+
+<a id="prefect-results-resultstore-is-lock-holder"></a>
+#### `is_lock_holder`
+
+```python
+def is_lock_holder(self, key: str, holder: str | None) -> bool:
+```
+
+Check if the current holder is the lock holder for the result record.
+
+Args:
+
+- `key`: The key to check the lock for.
+- `holder`: The holder of the lock. If not provided, a default holder based on the
+current host, process, and thread will be used.
+
+Returns: (bool) True if the current holder is the lock holder; False otherwise.
+
+<a id="prefect-results-resultstore-wait-for-lock"></a>
+#### `wait_for_lock`
+
+```python
+def wait_for_lock(self, key: str, timeout: float | None) -> bool:
+```
+
+Wait for the corresponding transaction record to become free.
+
+<a id="prefect-results-resultstore-await-for-lock"></a>
+#### `await_for_lock`
+
+```python
+def await_for_lock(self, key: str, timeout: float | None) -> bool:
+```
+
+Wait for the corresponding transaction record to become free.
+
+<a id="prefect-results-resultstore-store-parameters"></a>
+#### `store_parameters`
+
+```python
+def store_parameters(self, identifier: UUID, parameters: dict[str, Any]):
+```
+
+<a id="prefect-results-resultstore-read-parameters"></a>
+#### `read_parameters`
+
+```python
+def read_parameters(self, identifier: UUID) -> dict[str, Any]:
+```
+
+<a id="prefect-results-get-result-store"></a>
+### `get_result_store`
+
+```python
+def get_result_store() -> ResultStore:
+```
+
+Get the current result store.
+
+<a id="prefect-schedules"></a>
+## `schedules`
+
+This module contains functionality for creating schedules for deployments.
+
+<a id="prefect-schedules-schedule"></a>
+### `Schedule`
+
+A dataclass representing a schedule.
+
+Note that only one of `interval`, `cron`, or `rrule` can be defined at a time.
+
+<a id="prefect-schedules-schedule-post-init"></a>
+
+## `serializers`
+
+Serializer implementations for converting objects to bytes and bytes to objects.
+
+All serializers are based on the `Serializer` class and include a `type` string that
+allows them to be referenced without referencing the actual class. For example, you
+can get often specify the `JSONSerializer` with the string "json". Some serializers
+support additional settings for configuration of serialization. These are stored on
+the instance so the same settings can be used to load saved objects.
+
+All serializers must implement `dumps` and `loads` which convert objects to bytes and
+bytes to an object respectively.
+
+<a id="prefect-serializers-prefect-json-object-encoder"></a>
+### `prefect_json_object_encoder`
+
+```python
+def prefect_json_object_encoder(obj: Any) -> Any:
+```
+
+`JSONEncoder.default` for encoding objects into JSON with extended type support.
+
+Raises a `TypeError` to fallback on other encoders on failure.
+
+<a id="prefect-serializers-prefect-json-object-decoder"></a>
+### `prefect_json_object_decoder`
+
+```python
+def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
+```
+
+`JSONDecoder.object_hook` for decoding objects from JSON when previously encoded
+
+with `prefect_json_object_encoder`
+
+<a id="prefect-serializers-serializer"></a>
+### `Serializer`
+
+A serializer that can encode objects of type 'D' into bytes.
+
+<a id="prefect-serializers-serializer-init"></a>
+
+## `states`
+
+<a id="prefect-states-to-state-create"></a>
+### `to_state_create`
+
+```python
+def to_state_create(state: State) -> 'StateCreate':
+```
+
+Convert the state to a `StateCreate` type which can be used to set the state of
+
+a run in the API.
+
+This method will drop this state's `data` if it is not a result type. Only
+results should be sent to the API. Other data is only available locally.
+
+<a id="prefect-states-get-state-result"></a>
+### `get_state_result`
+
+```python
+def get_state_result(state: 'State[R]', raise_on_failure: bool, fetch: bool, retry_result_failure: bool) -> 'R':
+```
+
+Get the result from a state.
+
+See `State.result()`
+
+<a id="prefect-states-format-exception"></a>
+### `format_exception`
+
+```python
+def format_exception(exc: BaseException, tb: TracebackType) -> str:
+```
+
+<a id="prefect-states-exception-to-crashed-state"></a>
+### `exception_to_crashed_state`
+
+```python
+def exception_to_crashed_state(exc: BaseException, result_store: Optional['ResultStore']) -> State:
+```
+
+Takes an exception that occurs _outside_ of user code and converts it to a
+
+'Crash' exception with a 'Crashed' state.
+
+<a id="prefect-states-exception-to-failed-state"></a>
+### `exception_to_failed_state`
+
+```python
+def exception_to_failed_state(exc: Optional[BaseException], result_store: Optional['ResultStore'], write_result: bool, kwargs: Any) -> State[BaseException]:
+```
+
+Convenience function for creating `Failed` states from exceptions
+
+<a id="prefect-states-return-value-to-state"></a>
+### `return_value_to_state`
+
+```python
+def return_value_to_state(retval: 'R', result_store: 'ResultStore', key: Optional[str], expiration: Optional[datetime.datetime], write_result: bool) -> 'State[R]':
+```
+
+Given a return value from a user's function, create a `State` the run should
+
+be placed in.
+
+- If data is returned, we create a 'COMPLETED' state with the data
+- If a single, manually created state is returned, we use that state as given
+    (manual creation is determined by the lack of ids)
+- If an upstream state or iterable of upstream states is returned, we apply the
+    aggregate rule
+
+The aggregate rule says that given multiple states we will determine the final state
+such that:
+
+- If any states are not COMPLETED the final state is FAILED
+- If all of the states are COMPLETED the final state is COMPLETED
+- The states will be placed in the final state `data` attribute
+
+Callers should resolve all futures into states before passing return values to this
+function.
+
+<a id="prefect-states-get-state-exception"></a>
+### `get_state_exception`
+
+```python
+def get_state_exception(state: State) -> BaseException:
+```
+
+If not given a FAILED or CRASHED state, this raise a value error.
+
+If the state result is a state, its exception will be returned.
+
+If the state result is an iterable of states, the exception of the first failure
+will be returned.
+
+If the state result is a string, a wrapper exception will be returned with the
+string as the message.
+
+If the state result is null, a wrapper exception will be returned with the state
+message attached.
+
+If the state result is not of a known type, a `TypeError` will be returned.
+
+When a wrapper exception is returned, the type will be:
+    - `FailedRun` if the state type is FAILED.
+    - `CrashedRun` if the state type is CRASHED.
+    - `CancelledRun` if the state type is CANCELLED.
+
+<a id="prefect-states-raise-state-exception"></a>
+### `raise_state_exception`
+
+```python
+def raise_state_exception(state: State) -> None:
+```
+
+Given a FAILED or CRASHED state, raise the contained exception.
+
+<a id="prefect-states-is-state-iterable"></a>
+### `is_state_iterable`
+
+```python
+def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
+```
+
+Check if a the given object is an iterable of states types
+
+Supported iterables are:
+- set
+- list
+- tuple
+
+Other iterables will return `False` even if they contain states.
+
+<a id="prefect-states-stategroup"></a>
+### `StateGroup`
+
+<a id="prefect-states-stategroup-init"></a>
+
+## `task_engine`
+
+<a id="prefect-task-engine-taskruntimeouterror"></a>
+### `TaskRunTimeoutError`
+
+Raised when a task run exceeds its timeout.
+
+<a id="prefect-task-engine-basetaskrunengine"></a>
+### `BaseTaskRunEngine`
+
+<a id="prefect-task-engine-basetaskrunengine-post-init"></a>
+
+## `task_runners`
+
+<a id="prefect-task-runners-taskrunner"></a>
+### `TaskRunner`
+
+Abstract base class for task runners.
+
+A task runner is responsible for submitting tasks to the task run engine running
+in an execution environment. Submitted tasks are non-blocking and return a future
+object that can be used to wait for the task to complete and retrieve the result.
+
+Task runners are context managers and should be used in a `with` block to ensure
+proper cleanup of resources.
+
+<a id="prefect-task-runners-taskrunner-init"></a>
+
+## `task_runs`
+
+<a id="prefect-task-runs-taskrunwaiter"></a>
+### `TaskRunWaiter`
+
+A service used for waiting for a task run to finish.
+
+This service listens for task run events and provides a way to wait for a specific
+task run to finish. This is useful for waiting for a task run to finish before
+continuing execution.
+
+The service is a singleton and must be started before use. The service will
+automatically start when the first instance is created. A single websocket
+connection is used to listen for task run events.
+
+The service can be used to wait for a task run to finish by calling
+`TaskRunWaiter.wait_for_task_run` with the task run ID to wait for. The method
+will return when the task run has finished or the timeout has elapsed.
+
+The service will automatically stop when the Python process exits or when the
+global loop thread is stopped.
+
+<a id="prefect-task-runs-taskrunwaiter-init"></a>
+
+## `task_worker`
+
+<a id="prefect-task-worker-stoptaskworker"></a>
+### `StopTaskWorker`
+
+Raised when the task worker is stopped.
+
+<a id="prefect-task-worker-should-try-to-read-parameters"></a>
+### `should_try_to_read_parameters`
+
+```python
+def should_try_to_read_parameters(task: Task[P, R], task_run: TaskRun) -> bool:
+```
+
+Determines whether a task run should read parameters from the result store.
+
+<a id="prefect-task-worker-taskworker"></a>
+### `TaskWorker`
+
+This class is responsible for serving tasks that may be executed in the background
+
+by a task runner via the traditional engine machinery.
+
+When `start()` is called, the task worker will open a websocket connection to a
+server-side queue of scheduled task runs. When a scheduled task run is found, the
+scheduled task run is submitted to the engine for execution with a minimal `EngineContext`
+so that the task run can be governed by orchestration rules.
+
+Args:
+
+- `- tasks`: A list of tasks to serve. These tasks will be submitted to the engine
+when a scheduled task run is found.
+- `- limit`: The maximum number of tasks that can be run concurrently. Defaults to 10.
+Pass `None` to remove the limit.
+
+<a id="prefect-task-worker-taskworker-init"></a>
+
+## `tasks`
+
+Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
+
+<a id="prefect-tasks-task-input-hash"></a>
+### `task_input_hash`
+
+```python
+def task_input_hash(context: 'TaskRunContext', arguments: dict[str, Any]) -> Optional[str]:
+```
+
+A task cache key implementation which hashes all inputs to the task using a JSON or
+
+cloudpickle serializer. If any arguments are not JSON serializable, the pickle
+serializer is used as a fallback. If cloudpickle fails, this will return a null key
+indicating that a cache key could not be generated for the given inputs.
+
+Args:
+
+- `context`: the active `TaskRunContext`
+- `arguments`: a dictionary of arguments to be passed to the underlying task
+
+Returns: a string hash if hashing succeeded, else `None`
+
+<a id="prefect-tasks-exponential-backoff"></a>
+### `exponential_backoff`
+
+```python
+def exponential_backoff(backoff_factor: float) -> Callable[[int], list[float]]:
+```
+
+A task retry backoff utility that configures exponential backoff for task retries.
+
+The exponential backoff design matches the urllib3 implementation.
+
+Args:
+
+- `backoff_factor`: the base delay for the first retry, subsequent retries will
+increase the delay time by powers of 2.
+
+Returns: a callable that can be passed to the task constructor
+
+<a id="prefect-tasks-taskrunnamecallbackwithparameters"></a>
+### `TaskRunNameCallbackWithParameters`
+
+<a id="prefect-tasks-taskrunnamecallbackwithparameters-is-callback-with-parameters"></a>
+#### `is_callback_with_parameters`
+
+```python
+def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
+```
+
+<a id="prefect-tasks-taskrunnamecallbackwithparameters-call"></a>
+
+## `transactions`
+
+<a id="prefect-transactions-isolationlevel"></a>
+### `IsolationLevel`
+
+<a id="prefect-transactions-commitmode"></a>
+### `CommitMode`
+
+<a id="prefect-transactions-transactionstate"></a>
+### `TransactionState`
+
+<a id="prefect-transactions-transaction"></a>
+### `Transaction`
+
+A base model for transaction state.
+
+<a id="prefect-transactions-transaction-set"></a>
+#### `set`
+
+```python
+def set(self, name: str, value: Any) -> None:
+```
+
+Set a stored value in the transaction.
+
+Args:
+
+- `name`: The name of the value to set
+- `value`: The value to set
+
+<a id="prefect-transactions-transaction-get"></a>
+#### `get`
+
+```python
+def get(self, name: str, default: Any) -> Any:
+```
+
+Get a stored value from the transaction.
+
+Child transactions will return values from their parents unless a value with
+the same name is set in the child transaction.
+
+Direct changes to returned values will not update the stored value. To update the
+stored value, use the `set` method.
+
+Args:
+
+- `name`: The name of the value to get
+- `default`: The default value to return if the value is not found
+
+Returns: The value from the transaction
+
+<a id="prefect-transactions-transaction-is-committed"></a>
+#### `is_committed`
+
+```python
+def is_committed(self) -> bool:
+```
+
+<a id="prefect-transactions-transaction-is-rolled-back"></a>
+#### `is_rolled_back`
+
+```python
+def is_rolled_back(self) -> bool:
+```
+
+<a id="prefect-transactions-transaction-is-staged"></a>
+#### `is_staged`
+
+```python
+def is_staged(self) -> bool:
+```
+
+<a id="prefect-transactions-transaction-is-pending"></a>
+#### `is_pending`
+
+```python
+def is_pending(self) -> bool:
+```
+
+<a id="prefect-transactions-transaction-is-active"></a>
+#### `is_active`
+
+```python
+def is_active(self) -> bool:
+```
+
+<a id="prefect-transactions-transaction-enter"></a>
+
+## `variables`
+
+<a id="prefect-variables-variable"></a>
+### `Variable`
+
+Variables are named, mutable JSON values that can be shared across tasks and flows.
+
+Args:
+
+- `name`: A string identifying the variable.
+- `value`: A string that is the value of the variable.
+- `tags`: An optional list of strings to associate with the variable.
+
+<a id="prefect-variables-variable-aset"></a>
+#### `aset`
+
+```python
+def aset(cls, name: str, value: StrictVariableValue, tags: Optional[list[str]], overwrite: bool) -> 'Variable':
+```
+
+Asynchronously sets a new variable. If one exists with the same name, must pass `overwrite=True`
+
+Returns the newly set variable object.
+
+Args:
+
+- `- name`: The name of the variable to set.
+- `- value`: The value of the variable to set.
+- `- tags`: An optional list of strings to associate with the variable.
+- `- overwrite`: Whether to overwrite the variable if it already exists.
+
+<a id="prefect-variables-variable-set"></a>
+#### `set`
+
+```python
+def set(cls, name: str, value: StrictVariableValue, tags: Optional[list[str]], overwrite: bool) -> 'Variable':
+```
+
+Sets a new variable. If one exists with the same name, must pass `overwrite=True`
+
+Returns the newly set variable object.
+
+Args:
+
+- `- name`: The name of the variable to set.
+- `- value`: The value of the variable to set.
+- `- tags`: An optional list of strings to associate with the variable.
+- `- overwrite`: Whether to overwrite the variable if it already exists.
+
+<a id="prefect-variables-variable-aget"></a>
+#### `aget`
+
+```python
+def aget(cls, name: str, default: StrictVariableValue) -> StrictVariableValue:
+```
+
+Asynchronously get a variable's value by name.
+
+If the variable does not exist, return the default value.
+
+Args:
+
+- `- name`: The name of the variable value to get.
+- `- default`: The default value to return if the variable does not exist.
+
+<a id="prefect-variables-variable-get"></a>
+#### `get`
+
+```python
+def get(cls, name: str, default: StrictVariableValue) -> StrictVariableValue:
+```
+
+Get a variable's value by name.
+
+If the variable does not exist, return the default value.
+
+Args:
+
+- `- name`: The name of the variable value to get.
+- `- default`: The default value to return if the variable does not exist.
+
+<a id="prefect-variables-variable-aunset"></a>
+#### `aunset`
+
+```python
+def aunset(cls, name: str) -> bool:
+```
+
+Asynchronously unset a variable by name.
+
+Args:
+
+- `- name`: The name of the variable to unset.
+
+<a id="prefect-variables-variable-unset"></a>
+#### `unset`
+
+```python
+def unset(cls, name: str) -> bool:
+```
+
+Unset a variable by name.
+
+Args:
+
+- `- name`: The name of the variable to unset.
+
+<a id="prefect-blocks"></a>
+## `blocks`
+
+
+Exports:
+
+- `notifications`
+- `system`
+- `webhook`
+
+<a id="prefect-blocks-abstract"></a>
+### `abstract`
+
+<a id="prefect-blocks-abstract-credentialsblock"></a>
+### `CredentialsBlock`
+
+Stores credentials for an external system and exposes a client for interacting
+
+with that system. Can also hold config that is tightly coupled to credentials
+(domain, endpoint, account ID, etc.) Will often be composed with other blocks.
+Parent block should rely on the client provided by a credentials block for
+interacting with the corresponding external system.
+
+<a id="prefect-blocks-abstract-credentialsblock-logger"></a>
+#### `logger`
+
+```python
+def logger(self) -> LoggerOrAdapter:
+```
+
+Returns a logger based on whether the CredentialsBlock
+
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+Returns: The run logger or a default logger with the class's name.
+
+<a id="prefect-blocks-abstract-credentialsblock-get-client"></a>
+#### `get_client`
+
+```python
+def get_client(self, args: Any, kwargs: Any) -> Any:
+```
+
+Returns a client for interacting with the external system.
+
+If a service offers various clients, this method can accept
+a `client_type` keyword argument to get the desired client
+within the service.
+
+<a id="prefect-blocks-abstract-notificationerror"></a>
+### `NotificationError`
+
+Raised if a notification block fails to send a notification.
+
+<a id="prefect-blocks-abstract-notificationerror-init"></a>
+
+
+## `settings`
+
+Prefect settings are defined using `BaseSettings` from `pydantic_settings`. `BaseSettings` can load setting values
+
+from system environment variables and each additionally specified `env_file`.
+
+The recommended user-facing way to access Prefect settings at this time is to import specific setting objects directly,
+like `from prefect.settings import PREFECT_API_URL; print(PREFECT_API_URL.value())`.
+
+Importantly, we replace the `callback` mechanism for updating settings with an "after" model_validator that updates dependent settings.
+After https://github.com/pydantic/pydantic/issues/9789 is resolved, we will be able to define context-aware defaults
+for settings, at which point we will not need to use the "after" model_validator.
+
+<a id="prefect-settings-getattr"></a>
+
+## `docker`
+
+<a id="prefect-docker-getattr"></a>
+
+## `types`
+
+<a id="prefect-types-non-emptyish"></a>
+### `non_emptyish`
+
+```python
+def non_emptyish(value: str) -> str:
+```
+
+<a id="prefect-types-check-variable-value"></a>
+### `check_variable_value`
+
+```python
+def check_variable_value(value: object) -> object:
+```
+
+<a id="prefect-types-cast-none-to-empty-dict"></a>
+### `cast_none_to_empty_dict`
+
+```python
+def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
+```
+
+<a id="prefect-types-secretdict"></a>
+### `SecretDict`
+
+<a id="prefect-types-validate-set-t-from-delim-string"></a>
+### `validate_set_T_from_delim_string`
+
+```python
+def validate_set_T_from_delim_string(value: Union[str, T, Set[T], None], type_: type[T], delim: str | None) -> Set[T]:
+```
+
+"no-info" before validator useful in scooping env vars
+
+e.g. `PREFECT_CLIENT_RETRY_EXTRA_CODES=429,502,503` -> `\{429, 502, 503\}`
+e.g. `PREFECT_CLIENT_RETRY_EXTRA_CODES=429` -> `\{429\}`
+
+<a id="prefect-types-convert-none-to-empty-dict"></a>
+### `convert_none_to_empty_dict`
+
+```python
+def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
+```
+
+Exports:
+
+- `ClientRetryExtraCodes`
+- `Date`
+- `DateTime`
+- `LogLevel`
+- `KeyValueLabelsField`
+- `NonNegativeInteger`
+- `PositiveInteger`
+- `ListOfNonEmptyStrings`
+- `NonNegativeFloat`
+- `Name`
+- `NameOrEmpty`
+- `NonEmptyishName`
+- `SecretDict`
+- `StatusCode`
+- `StrictVariableValue`
+
+<a id="prefect-types-datetime"></a>
+
+
+## `input`
+
+
+Exports:
+
+- `GetInputHandler`
+- `Keyset`
+- `RunInput`
+- `RunInputMetadata`
+- `create_flow_run_input`
+- `create_flow_run_input_from_model`
+- `delete_flow_run_input`
+- `filter_flow_run_input`
+- `keyset_from_base_key`
+- `keyset_from_paused_state`
+- `read_flow_run_input`
+- `receive_input`
+- `send_input`
+
+<a id="prefect-input-actions"></a>
+### `actions`
+
+<a id="prefect-input-actions-ensure-flow-run-id"></a>
+### `ensure_flow_run_id`
+
+```python
+def ensure_flow_run_id(flow_run_id: Optional[UUID]) -> UUID:
+```
+
+<a id="prefect-input-actions-create-flow-run-input-from-model"></a>
+### `create_flow_run_input_from_model`
+
+```python
+def create_flow_run_input_from_model(key: str, model_instance: pydantic.BaseModel, flow_run_id: Optional[UUID], sender: Optional[str]):
+```
+
+<a id="prefect-input-actions-create-flow-run-input"></a>
+### `create_flow_run_input`
+
+```python
+def create_flow_run_input(client: 'PrefectClient', key: str, value: Any, flow_run_id: Optional[UUID], sender: Optional[str]):
+```
+
+Create a new flow run input. The given `value` will be serialized to JSON
+
+and stored as a flow run input value.
+
+Args:
+
+- `- key` (str): the flow run input key
+- `- value` (Any): the flow run input value
+- `- flow_run_id` (UUID): the, optional, flow run ID. If not given will
+default to pulling the flow run ID from the current context.
+
+<a id="prefect-input-actions-filter-flow-run-input"></a>
+### `filter_flow_run_input`
+
+```python
+def filter_flow_run_input(client: 'PrefectClient', key_prefix: str, limit: int, exclude_keys: Optional[Set[str]], flow_run_id: Optional[UUID]):
+```
+
+<a id="prefect-input-actions-read-flow-run-input"></a>
+### `read_flow_run_input`
+
+```python
+def read_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID]) -> Any:
+```
+
+Read a flow run input.
+
+Args:
+
+- `- key` (str): the flow run input key
+- `- flow_run_id` (UUID): the flow run ID
+
+<a id="prefect-input-actions-delete-flow-run-input"></a>
+### `delete_flow_run_input`
+
+```python
+def delete_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID]):
+```
+
+Delete a flow run input.
+
+Args:
+
+- `- flow_run_id` (UUID): the flow run ID
+- `- key` (str): the flow run input key
+
+<a id="prefect-input-run-input"></a>
+### `run_input`
+
+This module contains functions that allow sending type-checked `RunInput` data
+
+to flows at runtime. Flows can send back responses, establishing two-way
+channels with senders. These functions are particularly useful for systems that
+require ongoing data transfer or need to react to input quickly.
+real-time interaction and efficient data handling. It's designed to facilitate
+dynamic communication within distributed or microservices-oriented systems,
+making it ideal for scenarios requiring continuous data synchronization and
+processing. It's particularly useful for systems that require ongoing data
+input and output.
+
+The following is an example of two flows. One sends a random number to the
+other and waits for a response. The other receives the number, squares it, and
+sends the result back. The sender flow then prints the result.
+
+Sender flow:
+
+```python
+import random
+from uuid import UUID
+from prefect import flow
+from prefect.logging import get_run_logger
+from prefect.input import RunInput
+
+class NumberData(RunInput):
+    number: int
+
+
+@flow
+async def sender_flow(receiver_flow_run_id: UUID):
+    logger = get_run_logger()
+
+    the_number = random.randint(1, 100)
+
+    await NumberData(number=the_number).send_to(receiver_flow_run_id)
+
+    receiver = NumberData.receive(flow_run_id=receiver_flow_run_id)
+    squared = await receiver.next()
+
+    logger.info(f"\{the_number\} squared is \{squared.number\}")
+```
+
+Receiver flow:
+```python
+import random
+from uuid import UUID
+from prefect import flow
+from prefect.logging import get_run_logger
+from prefect.input import RunInput
+
+class NumberData(RunInput):
+    number: int
+
+
+@flow
+async def receiver_flow():
+    async for data in NumberData.receive():
+        squared = data.number  2
+        data.respond(NumberData(number=squared))
+```
+
+<a id="prefect-input-run-input-keyset-from-paused-state"></a>
+### `keyset_from_paused_state`
+
+```python
+def keyset_from_paused_state(state: 'State') -> Keyset:
+```
+
+Get the keyset for the given Paused state.
+
+Args:
+
+- `- state` (State): the state to get the keyset for
+
+<a id="prefect-input-run-input-keyset-from-base-key"></a>
+### `keyset_from_base_key`
+
+```python
+def keyset_from_base_key(base_key: str) -> Keyset:
+```
+
+Get the keyset for the given base key.
+
+Args:
+
+- `- base_key` (str): the base key to get the keyset for
+
+Returns: (- Dict[str, str]) the keyset
+
+<a id="prefect-input-run-input-runinputmetadata"></a>
+### `RunInputMetadata`
+
+<a id="prefect-input-run-input-baseruninput"></a>
+### `BaseRunInput`
+
+<a id="prefect-input-run-input-baseruninput-metadata"></a>
+#### `metadata`
+
+```python
+def metadata(self) -> RunInputMetadata:
+```
+
+<a id="prefect-input-run-input-baseruninput-keyset-from-type"></a>
+#### `keyset_from_type`
+
+```python
+def keyset_from_type(cls) -> Keyset:
+```
+
+<a id="prefect-input-run-input-baseruninput-save"></a>
+#### `save`
+
+```python
+def save(cls, keyset: Keyset, flow_run_id: Optional[UUID]):
+```
+
+Save the run input response to the given key.
+
+Args:
+
+- `- keyset` (Keyset): the keyset to save the input for
+- `- flow_run_id` (UUID): the flow run ID to save the input for
+
+<a id="prefect-input-run-input-baseruninput-load"></a>
+#### `load`
+
+```python
+def load(cls, keyset: Keyset, flow_run_id: Optional[UUID]) -> Self:
+```
+
+Load the run input response from the given key.
+
+Args:
+
+- `- keyset` (Keyset): the keyset to load the input for
+- `- flow_run_id` (UUID): the flow run ID to load the input for
+
+<a id="prefect-input-run-input-baseruninput-load-from-flow-run-input"></a>
+#### `load_from_flow_run_input`
+
+```python
+def load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self:
+```
+
+Load the run input from a FlowRunInput object.
+
+Args:
+
+- `- flow_run_input` (FlowRunInput): the flow run input to load the input for
+
+<a id="prefect-input-run-input-baseruninput-with-initial-data"></a>
+#### `with_initial_data`
+
+```python
+def with_initial_data(cls: Type[R], description: Optional[str], kwargs: Any) -> Type[R]:
+```
+
+Create a new `RunInput` subclass with the given initial data as field
+
+defaults.
+
+Args:
+
+- `- description` (str): a description to show when resuming
+a flow run that requires input
+- `- kwargs` (Any): the initial data to populate the subclass
+
+<a id="prefect-input-run-input-baseruninput-respond"></a>
+#### `respond`
+
+```python
+def respond(self, run_input: 'RunInput', sender: Optional[str], key_prefix: Optional[str]):
+```
+
+<a id="prefect-input-run-input-baseruninput-send-to"></a>
+#### `send_to`
+
+```python
+def send_to(self, flow_run_id: UUID, sender: Optional[str], key_prefix: Optional[str]):
+```
+
+<a id="prefect-input-run-input-runinput"></a>
+### `RunInput`
+
+<a id="prefect-input-run-input-runinput-receive"></a>
+#### `receive`
+
+```python
+def receive(cls, timeout: Optional[float], poll_interval: float, raise_timeout_error: bool, exclude_keys: Optional[Set[str]], key_prefix: Optional[str], flow_run_id: Optional[UUID]) -> GetInputHandler[Self]:
+```
+
+<a id="prefect-input-run-input-runinput-subclass-from-base-model-type"></a>
+#### `subclass_from_base_model_type`
+
+```python
+def subclass_from_base_model_type(cls, model_cls: Type[pydantic.BaseModel]) -> Type['RunInput']:
+```
+
+Create a new `RunInput` subclass from the given `pydantic.BaseModel`
+
+subclass.
+
+Args:
+
+- `- model_cls` (pydantic.BaseModel subclass): the class from which
+to create the new `RunInput` subclass
+
+<a id="prefect-input-run-input-automaticruninput"></a>
+### `AutomaticRunInput`
+
+<a id="prefect-input-run-input-automaticruninput-load"></a>
+#### `load`
+
+```python
+def load(cls, keyset: Keyset, flow_run_id: Optional[UUID]) -> Self:
+```
+
+Load the run input response from the given key.
+
+Args:
+
+- `- keyset` (Keyset): the keyset to load the input for
+- `- flow_run_id` (UUID): the flow run ID to load the input for
+
+<a id="prefect-input-run-input-automaticruninput-subclass-from-type"></a>
+#### `subclass_from_type`
+
+```python
+def subclass_from_type(cls, _type: Type[T]) -> Type['AutomaticRunInput[T]']:
+```
+
+Create a new `AutomaticRunInput` subclass from the given type.
+
+This method uses the type's name as a key prefix to identify related
+flow run inputs. This helps in ensuring that values saved under a type
+(like List[int]) are retrievable under the generic type name (like "list").
+
+<a id="prefect-input-run-input-automaticruninput-receive"></a>
+#### `receive`
+
+```python
+def receive(cls, timeout: Optional[float], poll_interval: float, raise_timeout_error: bool, exclude_keys: Optional[Set[str]], key_prefix: Optional[str], flow_run_id: Optional[UUID], with_metadata: bool) -> GetAutomaticInputHandler[T]:
+```
+
+<a id="prefect-input-run-input-run-input-subclass-from-type"></a>
+### `run_input_subclass_from_type`
+
+```python
+def run_input_subclass_from_type(_type: Union[Type[R], Type[T], pydantic.BaseModel]) -> Union[Type[AutomaticRunInput[T]], Type[R]]:
+```
+
+Create a new `RunInput` subclass from the given type.
+
+<a id="prefect-input-run-input-getinputhandler"></a>
+### `GetInputHandler`
+
+<a id="prefect-input-run-input-getinputhandler-init"></a>
+
+## `runner`
+
+
+<a id="prefect-runner-runner"></a>
+### `runner`
+
+Runners are responsible for managing the execution of all deployments.
+
+When creating a deployment using either `flow.serve` or the `serve` utility,
+they also will poll for scheduled runs.
+
+<a id="prefect-runner-runner-processmapentry"></a>
+### `ProcessMapEntry`
+
+<a id="prefect-runner-runner-runner"></a>
+### `Runner`
+
+<a id="prefect-runner-runner-runner-init"></a>
+
+## `locking`
+
+
+<a id="prefect-locking-filesystem"></a>
+### `filesystem`
+
+<a id="prefect-locking-filesystem-filesystemlockmanager"></a>
+### `FileSystemLockManager`
+
+A lock manager that implements locking using local files.
+
+<a id="prefect-locking-filesystem-filesystemlockmanager-init"></a>
+
+## `runtime`
+
+Module for easily accessing dynamic attributes for a given run, especially those generated from deployments.
+
+Example usage:
+    ```python
+    from prefect.runtime import deployment
+
+    print(f"This script is running from deployment \{deployment.id\} with parameters \{deployment.parameters\}")
+    ```
+
+<a id="prefect-runtime-deployment"></a>
+### `deployment`
+
+Access attributes of the current deployment run dynamically.
+
+Note that if a deployment is not currently being run, all attributes will return empty values.
+
+You can mock the runtime attributes for testing purposes by setting environment variables
+prefixed with `PREFECT__RUNTIME__DEPLOYMENT`.
+
+Example usage:
+    ```python
+    from prefect.runtime import deployment
+
+    def get_task_runner():
+        task_runner_config = deployment.parameters.get("runner_config", "default config here")
+        return DummyTaskRunner(task_runner_specs=task_runner_config)
+    ```
+
+Available attributes:
+    - `id`: the deployment's unique ID
+    - `name`: the deployment's name
+    - `version`: the deployment's version
+    - `flow_run_id`: the current flow run ID for this deployment
+    - `parameters`: the parameters that were passed to this run; note that these do not necessarily
+        include default values set on the flow function, only the parameter values set on the deployment
+        object or those directly provided via API for this run
+
+<a id="prefect-runtime-deployment-getattr"></a>
+
+## `server`
+
+
+Exports:
+
+- `models`
+- `orchestration`
+- `schemas`
+- `services`
+
+<a id="prefect-server-exceptions"></a>
+### `exceptions`
+
+<a id="prefect-server-exceptions-objectnotfounderror"></a>
+### `ObjectNotFoundError`
+
+Error raised by the Prefect REST API when a requested object is not found.
+
+If thrown during a request, this exception will be caught and
+a 404 response will be returned.
+
+<a id="prefect-server-exceptions-orchestrationerror"></a>
+### `OrchestrationError`
+
+An error raised while orchestrating a state transition
+
+<a id="prefect-server-exceptions-missingvariableerror"></a>
+### `MissingVariableError`
+
+An error raised by the Prefect REST API when attempting to create or update a
+
+deployment with missing required variables.
+
+<a id="prefect-server-exceptions-flowrungraphtoolarge"></a>
+### `FlowRunGraphTooLarge`
+
+Raised to indicate that a flow run's graph has more nodes that the configured
+
+maximum
+
+<a id="prefect-server-task-queue"></a>
+### `task_queue`
+
+Implements an in-memory task queue for delivering background task runs to TaskWorkers.
+
+<a id="prefect-server-task-queue-taskqueue"></a>
+### `TaskQueue`
+
+<a id="prefect-server-task-queue-taskqueue-enqueue"></a>
+#### `enqueue`
+
+```python
+def enqueue(cls, task_run: schemas.core.TaskRun) -> None:
+```
+
+<a id="prefect-server-task-queue-taskqueue-configure-task-key"></a>
+#### `configure_task_key`
+
+```python
+def configure_task_key(cls, task_key: str, scheduled_size: Optional[int], retry_size: Optional[int]) -> None:
+```
+
+<a id="prefect-server-task-queue-taskqueue-for-key"></a>
+#### `for_key`
+
+```python
+def for_key(cls, task_key: str) -> Self:
+```
+
+<a id="prefect-server-task-queue-taskqueue-reset"></a>
+#### `reset`
+
+```python
+def reset(cls) -> None:
+```
+
+A unit testing utility to reset the state of the task queues subsystem
+
+<a id="prefect-server-task-queue-taskqueue-init"></a>
+
+## `cli`
+
+
+<a id="prefect-cli-prompts"></a>
+
+## `utilities`
+
+
+<a id="prefect-utilities-deprecated"></a>
+
+## `testing`
+
+
+<a id="prefect-testing-cli"></a>
+### `cli`
+
+<a id="prefect-testing-cli-check-contains"></a>
+### `check_contains`
+
+```python
+def check_contains(cli_result: Result, content: str, should_contain: bool) -> None:
+```
+
+Utility function to see if content is or is not in a CLI result.
+
+Args:
+
+- `should_contain`: if True, checks that content is in cli_result,
+if False, checks that content is not in cli_result
+
+<a id="prefect-testing-cli-invoke-and-assert"></a>
+### `invoke_and_assert`
+
+```python
+def invoke_and_assert(command: str | list[str], user_input: str | None, prompts_and_responses: list[tuple[str, str] | tuple[str, str, str]] | None, expected_output: str | None, expected_output_contains: str | Iterable[str] | None, expected_output_does_not_contain: str | Iterable[str] | None, expected_line_count: int | None, expected_code: int | None, echo: bool, temp_dir: str | None) -> Result:
+```
+
+Test utility for the Prefect CLI application, asserts exact match with CLI output.
+
+Args:
+
+- `command`: Command passed to the Typer CliRunner
+- `user_input`: User input passed to the Typer CliRunner when running interactive
+commands.
+- `expected_output`: Used when you expect the CLI output to be an exact match with
+the provided text.
+- `expected_output_contains`: Used when you expect the CLI output to contain the
+string or strings.
+- `expected_output_does_not_contain`: Used when you expect the CLI output to not
+contain the string or strings.
+- `expected_code`: 0 if we expect the app to exit cleanly, else 1 if we expect
+the app to exit with an error.
+- `temp_dir`: if provided, the CLI command will be run with this as its present
+working directory.
+
+<a id="prefect-testing-cli-temporary-console-width"></a>
+### `temporary_console_width`
+
+```python
+def temporary_console_width(console: Console, width: int):
+```
+
+<a id="prefect-testing-docker"></a>
+### `docker`
+
+<a id="prefect-testing-docker-capture-builders"></a>
+### `capture_builders`
+
+```python
+def capture_builders() -> Generator[list[ImageBuilder], None, None]:
+```
+
+Captures any instances of ImageBuilder created while this context is active
+
+<a id="prefect-testing-fixtures"></a>
+### `fixtures`
+
+<a id="prefect-testing-fixtures-add-prefect-loggers-to-caplog"></a>
+### `add_prefect_loggers_to_caplog`
+
+```python
+def add_prefect_loggers_to_caplog(caplog: pytest.LogCaptureFixture) -> Generator[None, None, None]:
+```
+
+<a id="prefect-testing-fixtures-is-port-in-use"></a>
+### `is_port_in_use`
+
+```python
+def is_port_in_use(port: int) -> bool:
+```
+
+<a id="prefect-testing-fixtures-hosted-api-server"></a>
+### `hosted_api_server`
+
+```python
+def hosted_api_server(unused_tcp_port_factory: Callable[[], int]) -> AsyncGenerator[str, None]:
+```
+
+Runs an instance of the Prefect API server in a subprocess instead of the using the
+
+ephemeral application.
+
+Uses the same database as the rest of the tests.
+
+<a id="prefect-testing-fixtures-use-hosted-api-server"></a>
+### `use_hosted_api_server`
+
+```python
+def use_hosted_api_server(hosted_api_server: str) -> Generator[str, None, None]:
+```
+
+Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
+
+<a id="prefect-testing-fixtures-disable-hosted-api-server"></a>
+### `disable_hosted_api_server`
+
+```python
+def disable_hosted_api_server() -> Generator[None, None, None]:
+```
+
+Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
+
+<a id="prefect-testing-fixtures-enable-ephemeral-server"></a>
+### `enable_ephemeral_server`
+
+```python
+def enable_ephemeral_server(disable_hosted_api_server: None) -> Generator[None, None, None]:
+```
+
+Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
+
+<a id="prefect-testing-fixtures-mock-anyio-sleep"></a>
+### `mock_anyio_sleep`
+
+```python
+def mock_anyio_sleep(monkeypatch: pytest.MonkeyPatch) -> Generator[Callable[[float], None], None, None]:
+```
+
+Mock sleep used to not actually sleep but to set the current time to now + sleep
+
+delay seconds while still yielding to other tasks in the event loop.
+
+Provides "assert_sleeps_for" context manager which asserts a sleep time occurred
+within the context while using the actual runtime of the context as a tolerance.
+
+<a id="prefect-testing-fixtures-recorder"></a>
+### `Recorder`
+
+<a id="prefect-testing-fixtures-recorder-init"></a>
+
+## `concurrency`
+
+
+<a id="prefect-concurrency-asyncio"></a>
+
+## `workers`
+
+
+Exports:
+
+- `ProcessWorker`
+
+<a id="prefect-workers-base"></a>
+### `base`
+
+<a id="prefect-workers-base-basejobconfiguration"></a>
+### `BaseJobConfiguration`
+
+<a id="prefect-workers-base-basejobconfiguration-is-using-a-runner"></a>
+#### `is_using_a_runner`
+
+```python
+def is_using_a_runner(self) -> bool:
+```
+
+<a id="prefect-workers-base-basejobconfiguration-from-template-and-values"></a>
+#### `from_template_and_values`
+
+```python
+def from_template_and_values(cls, base_job_template: dict, values: dict, client: Optional['PrefectClient']):
+```
+
+Creates a valid worker configuration object from the provided base
+
+configuration and overrides.
+
+Important: this method expects that the base_job_template was already
+validated server-side.
+
+<a id="prefect-workers-base-basejobconfiguration-json-template"></a>
+#### `json_template`
+
+```python
+def json_template(cls) -> dict[str, Any]:
+```
+
+Returns a dict with job configuration as keys and the corresponding templates as values
+
+Defaults to using the job configuration parameter name as the template variable name.
+
+e.g.
+\{
+    key1: '\{\{ key1 \}\}',     # default variable template
+    key2: '\{\{ template2 \}\}', # `template2` specifically provide as template
+\}
+
+<a id="prefect-workers-base-basejobconfiguration-prepare-for-flow-run"></a>
+#### `prepare_for_flow_run`
+
+```python
+def prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: Optional['DeploymentResponse'], flow: Optional['Flow']) -> None:
+```
+
+Prepare the job configuration for a flow run.
+
+This method is called by the worker before starting a flow run. It
+should be used to set any configuration values that are dependent on
+the flow run.
+
+Args:
+
+- `flow_run`: The flow run to be executed.
+- `deployment`: The deployment that the flow run is associated with.
+- `flow`: The flow that the flow run is associated with.
+
+<a id="prefect-workers-base-basevariables"></a>
+### `BaseVariables`
+
+<a id="prefect-workers-base-basevariables-model-json-schema"></a>
+#### `model_json_schema`
+
+```python
+def model_json_schema(cls, by_alias: bool, ref_template: str, schema_generator: Type[GenerateJsonSchema], mode: Literal['validation', 'serialization']) -> Dict[str, Any]:
+```
+
+TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?
+
+<a id="prefect-workers-base-baseworkerresult"></a>
+### `BaseWorkerResult`
+
+<a id="prefect-workers-base-baseworkerresult-bool"></a>
+
+## `telemetry`
+
+
+<a id="prefect-telemetry-bootstrap"></a>
+### `bootstrap`
+
+<a id="prefect-telemetry-bootstrap-setup-telemetry"></a>
+### `setup_telemetry`
+
+```python
+def setup_telemetry() -> Union[tuple['TracerProvider', 'MeterProvider', 'LoggerProvider'], tuple[None, None, None]]:
+```
+
+<a id="prefect-telemetry-instrumentation"></a>
+### `instrumentation`
+
+<a id="prefect-telemetry-instrumentation-extract-account-and-workspace-id"></a>
+### `extract_account_and_workspace_id`
+
+```python
+def extract_account_and_workspace_id(url: str) -> tuple[UUID, UUID]:
+```
+
+<a id="prefect-telemetry-instrumentation-setup-exporters"></a>
+### `setup_exporters`
+
+```python
+def setup_exporters(api_url: str, api_key: str) -> 'tuple[TracerProvider, MeterProvider, LoggerProvider]':
+```
+
+<a id="prefect-telemetry-logging"></a>
+### `logging`
+
+<a id="prefect-telemetry-logging-set-log-handler"></a>
+### `set_log_handler`
+
+```python
+def set_log_handler(log_handler: Optional['LoggingHandler']) -> None:
+```
+
+Set the OTLP log handler.
+
+<a id="prefect-telemetry-logging-get-log-handler"></a>
+### `get_log_handler`
+
+```python
+def get_log_handler() -> Optional['LoggingHandler']:
+```
+
+Get the OTLP log handler.
+
+<a id="prefect-telemetry-logging-add-telemetry-log-handler"></a>
+### `add_telemetry_log_handler`
+
+```python
+def add_telemetry_log_handler(logger: logging.Logger) -> None:
+```
+
+Add the OTLP log handler to the given logger if the log handler has
+
+been configured.
+
+<a id="prefect-telemetry-processors"></a>
+### `processors`
+
+<a id="prefect-telemetry-processors-inflightspanprocessor"></a>
+### `InFlightSpanProcessor`
+
+<a id="prefect-telemetry-processors-inflightspanprocessor-init"></a>
+
+## `events`
+
+
+Exports:
+
+- `Event`
+- `ReceivedEvent`
+- `Resource`
+- `RelatedResource`
+- `ResourceSpecification`
+- `Automation`
+- `AutomationCore`
+- `Posture`
+- `TriggerTypes`
+- `Trigger`
+- `ResourceTrigger`
+- `EventTrigger`
+- `MetricTrigger`
+- `MetricTriggerOperator`
+- `MetricTriggerQuery`
+- `CompositeTrigger`
+- `CompoundTrigger`
+- `SequenceTrigger`
+- `DeploymentTriggerTypes`
+- `DeploymentEventTrigger`
+- `DeploymentMetricTrigger`
+- `DeploymentCompoundTrigger`
+- `DeploymentSequenceTrigger`
+- `ActionTypes`
+- `Action`
+- `DoNothing`
+- `RunDeployment`
+- `PauseDeployment`
+- `ResumeDeployment`
+- `ChangeFlowRunState`
+- `CancelFlowRun`
+- `SuspendFlowRun`
+- `CallWebhook`
+- `SendNotification`
+- `PauseWorkPool`
+- `ResumeWorkPool`
+- `PauseWorkQueue`
+- `ResumeWorkQueue`
+- `PauseAutomation`
+- `ResumeAutomation`
+- `DeclareIncident`
+- `emit_event`
+- `get_events_client`
+- `get_events_subscriber`
+
+<a id="prefect-events-actions"></a>
+### `actions`
+
+<a id="prefect-events-actions-action"></a>
+### `Action`
+
+An Action that may be performed when an Automation is triggered
+
+<a id="prefect-events-actions-action-describe-for-cli"></a>
+#### `describe_for_cli`
+
+```python
+def describe_for_cli(self) -> str:
+```
+
+A human-readable description of the action
+
+<a id="prefect-events-actions-donothing"></a>
+### `DoNothing`
+
+Do nothing when an Automation is triggered
+
+<a id="prefect-events-actions-deploymentaction"></a>
+### `DeploymentAction`
+
+Base class for Actions that operate on Deployments and need to infer them from
+
+events
+
+<a id="prefect-events-actions-deploymentaction-selected-deployment-requires-id"></a>
+#### `selected_deployment_requires_id`
+
+```python
+def selected_deployment_requires_id(self):
+```
+
+<a id="prefect-events-actions-rundeployment"></a>
+### `RunDeployment`
+
+Runs the given deployment with the given parameters
+
+<a id="prefect-events-actions-pausedeployment"></a>
+### `PauseDeployment`
+
+Pauses the given Deployment
+
+<a id="prefect-events-actions-resumedeployment"></a>
+### `ResumeDeployment`
+
+Resumes the given Deployment
+
+<a id="prefect-events-actions-changeflowrunstate"></a>
+### `ChangeFlowRunState`
+
+Changes the state of a flow run associated with the trigger
+
+<a id="prefect-events-actions-cancelflowrun"></a>
+### `CancelFlowRun`
+
+Cancels a flow run associated with the trigger
+
+<a id="prefect-events-actions-resumeflowrun"></a>
+### `ResumeFlowRun`
+
+Resumes a flow run associated with the trigger
+
+<a id="prefect-events-actions-suspendflowrun"></a>
+### `SuspendFlowRun`
+
+Suspends a flow run associated with the trigger
+
+<a id="prefect-events-actions-callwebhook"></a>
+### `CallWebhook`
+
+Call a webhook when an Automation is triggered.
+
+<a id="prefect-events-actions-sendnotification"></a>
+### `SendNotification`
+
+Send a notification when an Automation is triggered
+
+<a id="prefect-events-actions-workpoolaction"></a>
+### `WorkPoolAction`
+
+Base class for Actions that operate on Work Pools and need to infer them from
+
+events
+
+<a id="prefect-events-actions-pauseworkpool"></a>
+### `PauseWorkPool`
+
+Pauses a Work Pool
+
+<a id="prefect-events-actions-resumeworkpool"></a>
+### `ResumeWorkPool`
+
+Resumes a Work Pool
+
+<a id="prefect-events-actions-workqueueaction"></a>
+### `WorkQueueAction`
+
+Base class for Actions that operate on Work Queues and need to infer them from
+
+events
+
+<a id="prefect-events-actions-workqueueaction-selected-work-queue-requires-id"></a>
+#### `selected_work_queue_requires_id`
+
+```python
+def selected_work_queue_requires_id(self) -> Self:
+```
+
+<a id="prefect-events-actions-pauseworkqueue"></a>
+### `PauseWorkQueue`
+
+Pauses a Work Queue
+
+<a id="prefect-events-actions-resumeworkqueue"></a>
+### `ResumeWorkQueue`
+
+Resumes a Work Queue
+
+<a id="prefect-events-actions-automationaction"></a>
+### `AutomationAction`
+
+Base class for Actions that operate on Automations and need to infer them from
+
+events
+
+<a id="prefect-events-actions-automationaction-selected-automation-requires-id"></a>
+#### `selected_automation_requires_id`
+
+```python
+def selected_automation_requires_id(self) -> Self:
+```
+
+<a id="prefect-events-actions-pauseautomation"></a>
+### `PauseAutomation`
+
+Pauses a Work Queue
+
+<a id="prefect-events-actions-resumeautomation"></a>
+### `ResumeAutomation`
+
+Resumes a Work Queue
+
+<a id="prefect-events-actions-declareincident"></a>
+### `DeclareIncident`
+
+Declares an incident for the triggering event.  Only available on Prefect Cloud
+
+<a id="prefect-events-clients"></a>
+### `clients`
+
+<a id="prefect-events-clients-http-to-ws"></a>
+### `http_to_ws`
+
+```python
+def http_to_ws(url: str) -> str:
+```
+
+<a id="prefect-events-clients-events-in-socket-from-api-url"></a>
+### `events_in_socket_from_api_url`
+
+```python
+def events_in_socket_from_api_url(url: str) -> str:
+```
+
+<a id="prefect-events-clients-events-out-socket-from-api-url"></a>
+### `events_out_socket_from_api_url`
+
+```python
+def events_out_socket_from_api_url(url: str) -> str:
+```
+
+<a id="prefect-events-clients-websocketproxyconnect"></a>
+### `WebsocketProxyConnect`
+
+<a id="prefect-events-clients-websocketproxyconnect-init"></a>
+
+## `infrastructure`
+
+2024-06-27: This surfaces an actionable error message for moved or removed objects in Prefect 3.0 upgrade.
+
+<a id="prefect-infrastructure-base"></a>
+### `base`
+
+2024-06-27: This surfaces an actionable error message for moved or removed objects in Prefect 3.0 upgrade.
+
+<a id="prefect-infrastructure-provisioners"></a>
+### `provisioners`
+
+<a id="prefect-infrastructure-provisioners-provisioner"></a>
+### `Provisioner`
+
+<a id="prefect-infrastructure-provisioners-provisioner-console"></a>
+#### `console`
+
+```python
+def console(self) -> rich.console.Console:
+```
+
+<a id="prefect-infrastructure-provisioners-provisioner-console-2"></a>
+#### `console`
+
+```python
+def console(self, value: rich.console.Console) -> None:
+```
+
+<a id="prefect-infrastructure-provisioners-provisioner-provision"></a>
+#### `provision`
+
+```python
+def provision(self, work_pool_name: str, base_job_template: Dict[str, Any], client: Optional['PrefectClient']) -> Dict[str, Any]:
+```
+
+<a id="prefect-infrastructure-provisioners-get-infrastructure-provisioner-for-work-pool-type"></a>
+### `get_infrastructure_provisioner_for_work_pool_type`
+
+```python
+def get_infrastructure_provisioner_for_work_pool_type(work_pool_type: str) -> Type[Provisioner]:
+```
+
+Retrieve an instance of the infrastructure provisioner for the given work pool type.
+
+Args:
+
+- `work_pool_type`: the work pool type
+
+Returns: an instance of the infrastructure provisioner for the given work pool type
+
+Raises:
+
+- (ValueError) if the work pool type is not supported
+
+<a id="prefect-infrastructure-provisioners-cloud-run"></a>
+#### `cloud_run`
+
+<a id="prefect-infrastructure-provisioners-cloud-run-cloudrunpushprovisioner"></a>
+### `CloudRunPushProvisioner`
+
+<a id="prefect-infrastructure-provisioners-cloud-run-cloudrunpushprovisioner-init"></a>
+
+## `client`
+
+Asynchronous client implementation for communicating with the [Prefect REST API](/api-ref/rest-api/).
+
+Explore the client by communicating with an in-memory webserver - no setup required:
+
+<div class="termy">
+```
+$ # start python REPL with native await functionality
+$ python -m asyncio
+>>> from prefect.client.orchestration import get_client
+>>> async with get_client() as client:
+...     response = await client.hello()
+...     print(response.json())
+👋
+```
+</div>
+
+<a id="prefect-client-base"></a>
+### `base`
+
+<a id="prefect-client-base-asgiapp"></a>
+### `ASGIApp`
+
+<a id="prefect-client-base-asgiapp-call"></a>
+
+## `logging`
+
+
+Exports:
+
+- `get_logger`
+- `get_run_logger`
+- `LogEavesdropper`
+
+<a id="prefect-logging-configuration"></a>
+### `configuration`
+
+<a id="prefect-logging-configuration-load-logging-config"></a>
+### `load_logging_config`
+
+```python
+def load_logging_config(path: Path) -> dict[str, Any]:
+```
+
+Loads logging configuration from a path allowing override from the environment
+
+<a id="prefect-logging-configuration-setup-logging"></a>
+### `setup_logging`
+
+```python
+def setup_logging(incremental: Optional[bool]) -> dict[str, Any]:
+```
+
+Sets up logging.
+
+Returns the config used.
+
+<a id="prefect-logging-filters"></a>
+### `filters`
+
+<a id="prefect-logging-filters-redact-substr"></a>
+### `redact_substr`
+
+```python
+def redact_substr(obj: Any, substr: str) -> Any:
+```
+
+Redact a string from a potentially nested object.
+
+Args:
+
+- `obj`: The object to redact the string from
+- `substr`: The string to redact.
+
+Returns: (Any) The object with the API key redacted.
+
+<a id="prefect-logging-filters-obfuscateapikeyfilter"></a>
+### `ObfuscateApiKeyFilter`
+
+A logging filter that obfuscates any string that matches the obfuscate_string function.
+
+<a id="prefect-logging-filters-obfuscateapikeyfilter-filter"></a>
+#### `filter`
+
+```python
+def filter(self, record: logging.LogRecord) -> bool:
+```
+
+<a id="prefect-logging-formatters"></a>
+### `formatters`
+
+<a id="prefect-logging-formatters-format-exception-info"></a>
+### `format_exception_info`
+
+```python
+def format_exception_info(exc_info: ExceptionInfoType) -> dict[str, Any]:
+```
+
+<a id="prefect-logging-formatters-jsonformatter"></a>
+### `JsonFormatter`
+
+Formats log records as a JSON string.
+
+The format may be specified as "pretty" to format the JSON with indents and
+newlines.
+
+<a id="prefect-logging-formatters-jsonformatter-init"></a>
+
+## `deployments`
+
+<a id="prefect-deployments-getattr"></a>
+### `__getattr__`
+
+```python
+def __getattr__(attr_name: str) -> object:
+```
+
+Exports:
+
+- `initialize_project`
+- `deploy`
+- `run_deployment`
+
+<a id="prefect-deployments-base"></a>
+### `base`
+
+Core primitives for managing Prefect deployments via `prefect deploy`, providing a minimally opinionated
+
+build system for managing flows and deployments.
+
+To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
+
+<a id="prefect-deployments-base-create-default-prefect-yaml"></a>
+### `create_default_prefect_yaml`
+
+```python
+def create_default_prefect_yaml(path: str, name: Optional[str], contents: Optional[Dict[str, Any]]) -> bool:
+```
+
+Creates default `prefect.yaml` file in the provided path if one does not already exist;
+
+returns boolean specifying whether a file was created.
+
+Args:
+
+- `name` (str): the name of the project; if not provided, the current directory name
+will be used
+- `contents` (dict): a dictionary of contents to write to the file; if not provided,
+defaults will be used
+
+<a id="prefect-deployments-base-configure-project-by-recipe"></a>
+### `configure_project_by_recipe`
+
+```python
+def configure_project_by_recipe(recipe: str, formatting_kwargs: Any) -> dict[str, Any] | type[NotSet]:
+```
+
+Given a recipe name, returns a dictionary representing base configuration options.
+
+Args:
+
+- `recipe` (str): the name of the recipe to use
+- `formatting_kwargs` (dict): additional keyword arguments to format the recipe
+
+Raises:
+
+- (ValueError) if provided recipe name does not exist.
+
+<a id="prefect-deployments-base-initialize-project"></a>
+### `initialize_project`
+
+```python
+def initialize_project(name: Optional[str], recipe: Optional[str], inputs: Optional[Dict[str, Any]]) -> List[str]:
+```
+
+Initializes a basic project structure with base files.  If no name is provided, the name
+
+of the current directory is used.  If no recipe is provided, one is inferred.
+
+Args:
+
+- `name` (str): the name of the project; if not provided, the current directory name
+- `recipe` (str): the name of the recipe to use; if not provided, one is inferred
+- `inputs` (dict): a dictionary of inputs to use when formatting the recipe
+
+Returns: (List[str]) a list of files / directories that were created
+
+<a id="prefect-deployments-deployments"></a>
+### `deployments`
+
+
+<a id="prefect-deployments-flow-runs"></a>
+### `flow_runs`
+
+<a id="prefect-deployments-flow-runs-run-deployment"></a>
+### `run_deployment`
+
+```python
+def run_deployment(name: Union[str, UUID], client: Optional['PrefectClient'], parameters: Optional[dict[str, Any]], scheduled_time: Optional[datetime], flow_run_name: Optional[str], timeout: Optional[float], poll_interval: Optional[float], tags: Optional[Iterable[str]], idempotency_key: Optional[str], work_queue_name: Optional[str], as_subflow: Optional[bool], job_variables: Optional[dict[str, Any]]) -> 'FlowRun':
+```
+
+Create a flow run for a deployment and return it after completion or a timeout.
+
+By default, this function blocks until the flow run finishes executing.
+Specify a timeout (in seconds) to wait for the flow run to execute before
+returning flow run metadata. To return immediately, without waiting for the
+flow run to execute, set `timeout=0`.
+
+Note that if you specify a timeout, this function will return the flow run
+metadata whether or not the flow run finished executing.
+
+If called within a flow or task, the flow run this function creates will
+be linked to the current flow run as a subflow. Disable this behavior by
+passing `as_subflow=False`.
+
+Args:
+
+- `name`: The deployment id or deployment name in the form:
+`"flow name/deployment name"`
+- `parameters`: Parameter overrides for this flow run. Merged with the deployment
+defaults.
+- `scheduled_time`: The time to schedule the flow run for, defaults to scheduling
+the flow run to start now.
+- `flow_run_name`: A name for the created flow run
+- `timeout`: The amount of time to wait (in seconds) for the flow run to
+complete before returning. Setting `timeout` to 0 will return the flow
+run metadata immediately. Setting `timeout` to None will allow this
+function to poll indefinitely. Defaults to None.
+- `poll_interval`: The number of seconds between polls
+- `tags`: A list of tags to associate with this flow run; tags can be used in
+automations and for organizational purposes.
+- `idempotency_key`: A unique value to recognize retries of the same run, and
+prevent creating multiple flow runs.
+- `work_queue_name`: The name of a work queue to use for this run. Defaults to
+the default work queue for the deployment.
+- `as_subflow`: Whether to link the flow run as a subflow of the current
+flow or task run.
+- `job_variables`: A dictionary of dot delimited infrastructure overrides that
+will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
+`namespace='prefect'`
+
+<a id="prefect-deployments-runner"></a>
+### `runner`
+
+Objects for creating and configuring deployments for flows using `serve` functionality.
+
+<a id="prefect-deployments-runner-deploymentapplyerror"></a>
+### `DeploymentApplyError`
+
+Raised when an error occurs while applying a deployment.
+
+<a id="prefect-deployments-runner-runnerdeployment"></a>
+### `RunnerDeployment`
+
+A Prefect RunnerDeployment definition, used for specifying and building deployments.
+
+<a id="prefect-deployments-runner-runnerdeployment-entrypoint-type"></a>
+#### `entrypoint_type`
+
+```python
+def entrypoint_type(self) -> EntrypointType:
+```
+
+<a id="prefect-deployments-runner-runnerdeployment-full-name"></a>
+#### `full_name`
+
+```python
+def full_name(self) -> str:
+```
+
+<a id="prefect-deployments-runner-runnerdeployment-validate-name"></a>
+#### `validate_name`
+
+```python
+def validate_name(cls, value: str) -> str:
+```
+
+<a id="prefect-deployments-runner-runnerdeployment-validate-automation-names"></a>
+#### `validate_automation_names`
+
+```python
+def validate_automation_names(self):
+```
+
+Ensure that each trigger has a name for its automation if none is provided.
+
+<a id="prefect-deployments-runner-runnerdeployment-reconcile-paused"></a>
+#### `reconcile_paused`
+
+```python
+def reconcile_paused(cls, values):
+```
+
+<a id="prefect-deployments-runner-runnerdeployment-reconcile-schedules"></a>
+#### `reconcile_schedules`
+
+```python
+def reconcile_schedules(cls, values):
+```
+
+<a id="prefect-deployments-runner-runnerdeployment-apply"></a>
+#### `apply`
+
+```python
+def apply(self, work_pool_name: Optional[str], image: Optional[str]) -> UUID:
+```
+
+Registers this deployment with the API and returns the deployment's ID.
+
+Args:
+
+- `work_pool_name`: The name of the work pool to use for this
+deployment.
+- `image`: The registry, name, and tag of the Docker image to
+use for this deployment. Only used when the deployment is
+deployed to a work pool.
+
+Returns: The ID of the created deployment.
+
+<a id="prefect-deployments-runner-runnerdeployment-from-flow"></a>
+#### `from_flow`
+
+```python
+def from_flow(cls, flow: 'Flow[..., Any]', name: str, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]], cron: Optional[Union[Iterable[str], str]], rrule: Optional[Union[Iterable[str], str]], paused: Optional[bool], schedule: Optional[Schedule], schedules: Optional['FlexibleScheduleList'], concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]], parameters: Optional[dict[str, Any]], triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]], description: Optional[str], tags: Optional[List[str]], version: Optional[str], enforce_parameter_schema: bool, work_pool_name: Optional[str], work_queue_name: Optional[str], job_variables: Optional[dict[str, Any]], entrypoint_type: EntrypointType, _sla: Optional[Union[SlaTypes, list[SlaTypes]]]) -> 'RunnerDeployment':
+```
+
+Configure a deployment for a given flow.
+
+Args:
+
+- `flow`: A flow function to deploy
+- `name`: A name for the deployment
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `concurrency_limit`: The maximum number of concurrent runs this deployment will allow.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+<a id="prefect-deployments-runner-runnerdeployment-from-entrypoint"></a>
+#### `from_entrypoint`
+
+```python
+def from_entrypoint(cls, entrypoint: str, name: str, flow_name: Optional[str], interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]], cron: Optional[Union[Iterable[str], str]], rrule: Optional[Union[Iterable[str], str]], paused: Optional[bool], schedule: Optional[Schedule], schedules: Optional['FlexibleScheduleList'], concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]], parameters: Optional[dict[str, Any]], triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]], description: Optional[str], tags: Optional[List[str]], version: Optional[str], enforce_parameter_schema: bool, work_pool_name: Optional[str], work_queue_name: Optional[str], job_variables: Optional[dict[str, Any]], _sla: Optional[Union[SlaTypes, list[SlaTypes]]]) -> 'RunnerDeployment':
+```
+
+Configure a deployment for a given flow located at a given entrypoint.
+
+Args:
+
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py:flow_func_name`.
+- `name`: A name for the deployment
+- `flow_name`: The name of the flow to deploy
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+<a id="prefect-deployments-runner-runnerdeployment-afrom-storage"></a>
+#### `afrom_storage`
+
+```python
+def afrom_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str], interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]], cron: Optional[Union[Iterable[str], str]], rrule: Optional[Union[Iterable[str], str]], paused: Optional[bool], schedule: Optional[Schedule], schedules: Optional['FlexibleScheduleList'], concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]], parameters: Optional[dict[str, Any]], triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]], description: Optional[str], tags: Optional[List[str]], version: Optional[str], enforce_parameter_schema: bool, work_pool_name: Optional[str], work_queue_name: Optional[str], job_variables: Optional[dict[str, Any]], _sla: Optional[Union[SlaTypes, list[SlaTypes]]]) -> 'RunnerDeployment':
+```
+
+Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+
+local storage location.
+
+Args:
+
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py:flow_func_name`.
+- `name`: A name for the deployment
+- `flow_name`: The name of the flow to deploy
+- `storage`: A storage object to use for retrieving flow code. If not provided, a
+URL must be provided.
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not the deployment is paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+<a id="prefect-deployments-runner-runnerdeployment-from-storage"></a>
+#### `from_storage`
+
+```python
+def from_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str], interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]], cron: Optional[Union[Iterable[str], str]], rrule: Optional[Union[Iterable[str], str]], paused: Optional[bool], schedule: Optional[Schedule], schedules: Optional['FlexibleScheduleList'], concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]], parameters: Optional[dict[str, Any]], triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]], description: Optional[str], tags: Optional[List[str]], version: Optional[str], enforce_parameter_schema: bool, work_pool_name: Optional[str], work_queue_name: Optional[str], job_variables: Optional[dict[str, Any]], _sla: Optional[Union[SlaTypes, list[SlaTypes]]]) -> 'RunnerDeployment':
+```
+
+Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+
+local storage location.
+
+Args:
+
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py:flow_func_name`.
+- `name`: A name for the deployment
+- `flow_name`: The name of the flow to deploy
+- `storage`: A storage object to use for retrieving flow code. If not provided, a
+URL must be provided.
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not the deployment is paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+<a id="prefect-deployments-runner-deploy"></a>
+### `deploy`
+
+```python
+def deploy(deployments: RunnerDeployment, work_pool_name: Optional[str], image: Optional[Union[str, DockerImage]], build: bool, push: bool, print_next_steps_message: bool, ignore_warnings: bool) -> List[UUID]:
+```
+
+Deploy the provided list of deployments to dynamic infrastructure via a
+
+work pool.
+
+By default, calling this function will build a Docker image for the deployments, push it to a
+registry, and create each deployment via the Prefect API that will run the corresponding
+flow on the given schedule.
+
+If you want to use an existing image, you can pass `build=False` to skip building and pushing
+an image.
+
+Args:
+
+- `deployments`: A list of deployments to deploy.
+- `work_pool_name`: The name of the work pool to use for these deployments. Defaults to
+the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+- `image`: The name of the Docker image to build, including the registry and
+repository. Pass a DockerImage instance to customize the Dockerfile used
+and build arguments.
+- `build`: Whether or not to build a new image for the flow. If False, the provided
+image will be used as-is and pulled at runtime.
+- `push`: Whether or not to skip pushing the built image to a registry.
+- `print_next_steps_message`: Whether or not to print a message with next steps
+after deploying the deployments.
+
+Returns: A list of deployment IDs for the created/updated deployments.
+
+<a id="prefect-deployments-schedules"></a>
+### `schedules`
+
+<a id="prefect-deployments-schedules-create-deployment-schedule-create"></a>
+### `create_deployment_schedule_create`
+
+```python
+def create_deployment_schedule_create(schedule: Union['SCHEDULE_TYPES', 'Schedule'], active: Optional[bool]) -> DeploymentScheduleCreate:
+```
+
+Create a DeploymentScheduleCreate object from common schedule parameters.
+
+<a id="prefect-deployments-schedules-normalize-to-deployment-schedule-create"></a>
+### `normalize_to_deployment_schedule_create`
+
+```python
+def normalize_to_deployment_schedule_create(schedules: Optional['FlexibleScheduleList']) -> List[DeploymentScheduleCreate]:
+```
+
+<a id="prefect-deployments-steps"></a>
+### `steps`
+
+
+<a id="prefect-deployments-steps-core"></a>
+#### `core`
+
+Core primitives for running Prefect deployment steps.
+
+Deployment steps are YAML representations of Python functions along with their inputs.
+
+Whenever a step is run, the following actions are taken:
+
+- The step's inputs and block / variable references are resolved (see [the `prefect deploy` documentation](/guides/prefect-deploy/#templating-options) for more details)
+- The step's function is imported; if it cannot be found, the `requires` keyword is used to install the necessary packages
+- The step's function is called with the resolved inputs
+- The step's output is returned and used to resolve inputs for subsequent steps
+
+<a id="prefect-deployments-steps-core-stepexecutionerror"></a>
+### `StepExecutionError`
+
+Raised when a step fails to execute.
+
+<a id="prefect-deployments-steps-core-run-step"></a>
+### `run_step`
+
+```python
+def run_step(step: dict[str, Any], upstream_outputs: Optional[dict[str, Any]]) -> dict[str, Any]:
+```
+
+Runs a step, returns the step's output.
+
+Steps are assumed to be in the format `\{"importable.func.name": \{"kwarg1": "value1", ...\}\}`.
+
+The 'id and 'requires' keywords are reserved for specific purposes and will be removed from the
+inputs before passing to the step function:
+
+This keyword is used to specify packages that should be installed before running the step.
+
+<a id="prefect-deployments-steps-core-run-steps"></a>
+### `run_steps`
+
+```python
+def run_steps(steps: List[Dict[str, Any]], upstream_outputs: Optional[Dict[str, Any]], print_function: Any) -> dict[str, Any]:
+```
+
+<a id="prefect-deployments-steps-pull"></a>
+#### `pull`
+
+Core set of steps for specifying a Prefect project pull step.
+
+<a id="prefect-deployments-steps-pull-set-working-directory"></a>
+### `set_working_directory`
+
+```python
+def set_working_directory(directory: str) -> dict[str, str]:
+```
+
+Sets the working directory; works with both absolute and relative paths.
+
+Args:
+
+- `directory` (str): the directory to set as the working directory
+
+Returns: (dict) a dictionary containing a `directory` key of the
+directory that was set
+
+<a id="prefect-deployments-steps-pull-agit-clone"></a>
+### `agit_clone`
+
+```python
+def agit_clone(repository: str, branch: Optional[str], include_submodules: bool, access_token: Optional[str], credentials: Optional['Block'], directories: Optional[list[str]]) -> dict[str, str]:
+```
+
+Asynchronously clones a git repository into the current working directory.
+
+Args:
+
+- `repository`: the URL of the repository to clone
+- `branch`: the branch to clone; if not provided, the default branch will be used
+- `include_submodules` (bool): whether to include git submodules when cloning the repository
+- `access_token`: an access token to use for cloning the repository; if not provided
+the repository will be cloned using the default git credentials
+- `credentials`: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
+credentials to use for cloning the repository.
+
+Returns: (dict) a dictionary containing a `directory` key of the new directory that was created
+
+Raises:
+
+- (subprocess.CalledProcessError) if the git clone command fails for any reason
+
+<a id="prefect-deployments-steps-pull-git-clone"></a>
+### `git_clone`
+
+```python
+def git_clone(repository: str, branch: Optional[str], include_submodules: bool, access_token: Optional[str], credentials: Optional['Block'], directories: Optional[list[str]]) -> dict[str, str]:
+```
+
+Clones a git repository into the current working directory.
+
+Args:
+
+- `repository`: the URL of the repository to clone
+- `branch`: the branch to clone; if not provided, the default branch will be used
+- `include_submodules` (bool): whether to include git submodules when cloning the repository
+- `access_token`: an access token to use for cloning the repository; if not provided
+the repository will be cloned using the default git credentials
+- `credentials`: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
+credentials to use for cloning the repository.
+- `directories`: Specify directories you want to be included (uses git sparse-checkout)
+
+Returns: (dict) a dictionary containing a `directory` key of the new directory that was created
+
+Raises:
+
+- (subprocess.CalledProcessError) if the git clone command fails for any reason
+
+<a id="prefect-deployments-steps-pull-pull-from-remote-storage"></a>
+### `pull_from_remote_storage`
+
+```python
+def pull_from_remote_storage(url: str, settings: Any) -> dict[str, Any]:
+```
+
+Pulls code from a remote storage location into the current working directory.
+
+Works with protocols supported by `fsspec`.
+
+Args:
+
+- `url` (str): the URL of the remote storage location. Should be a valid `fsspec` URL.
+Some protocols may require an additional `fsspec` dependency to be installed.
+Refer to the [`fsspec` docs](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+for more details.
+- `settings` (Any): any additional settings to pass the `fsspec` filesystem class.
+
+Returns: (dict) a dictionary containing a `directory` key of the new directory that was created
+
+<a id="prefect-deployments-steps-pull-pull-with-block"></a>
+### `pull_with_block`
+
+```python
+def pull_with_block(block_document_name: str, block_type_slug: str) -> dict[str, Any]:
+```
+
+Pulls code using a block.
+
+Args:
+
+- `block_document_name`: The name of the block document to use
+- `block_type_slug`: The slug of the type of block to use
+
+<a id="prefect-deployments-steps-utility"></a>
+#### `utility`
+
+Utility project steps that are useful for managing a project's deployment lifecycle.
+
+Steps within this module can be used within a `build`, `push`, or `pull` deployment action.
+
+<a id="prefect-deployments-steps-utility-runshellscriptresult"></a>
+### `RunShellScriptResult`
+
+The result of a `run_shell_script` step.
+
+<a id="prefect-deployments-steps-utility-run-shell-script"></a>
+### `run_shell_script`
+
+```python
+def run_shell_script(script: str, directory: Optional[str], env: Optional[Dict[str, str]], stream_output: bool, expand_env_vars: bool) -> RunShellScriptResult:
+```
+
+Runs one or more shell commands in a subprocess. Returns the standard
+
+output and standard error of the script.
+
+Args:
+
+- `script`: The script to run
+- `directory`: The directory to run the script in. Defaults to the current
+working directory.
+- `env`: A dictionary of environment variables to set for the script
+- `stream_output`: Whether to stream the output of the script to
+stdout/stderr
+- `expand_env_vars`: Whether to expand environment variables in the script
+before running it
+
+Returns: A dictionary with the keys `stdout` and `stderr` containing the output
+of the script
+
+<a id="prefect-deployments-steps-utility-pip-install-requirements"></a>
+### `pip_install_requirements`
+
+```python
+def pip_install_requirements(directory: Optional[str], requirements_file: str, stream_output: bool) -> dict[str, Any]:
+```
+
+Installs dependencies from a requirements.txt file.
+
+Args:
+
+- `requirements_file`: The requirements.txt to use for installation.
+- `directory`: The directory the requirements.txt file is in. Defaults to
+the current working directory.
+- `stream_output`: Whether to stream the output from pip install should be
+streamed to the console
+
+Returns: A dictionary with the keys `stdout` and `stderr` containing the output
+the `pip install` command
+
+Raises:
+
+- (subprocess.CalledProcessError) if the pip install command fails for any reason

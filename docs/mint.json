@@ -394,8 +394,9 @@
           "group": "Python SDK",
           "pages": [
             "v3/api-ref/python/index",
-            "v3/api-ref/python/prefect-aws",
-            "v3/api-ref/python/prefect-azure",
+            "v3/api-ref/python/pdm",
+            "v3/api-ref/python/prefect_aws",
+            "v3/api-ref/python/prefect_azure",
             "v3/api-ref/python/prefect-bitbucket",
             "v3/api-ref/python/prefect-dask",
             "v3/api-ref/python/prefect-databricks",

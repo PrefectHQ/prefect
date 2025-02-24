@@ -13,6 +13,10 @@ def convert_md_to_mdx(input_file, output_file):
         # Remove everything from "## Table of Contents" to the next second-level header
         content = re.sub(r"(?s)## Table of Contents.*?(?=\n## )", "", content)
 
+        # Remove sections for methods that start with _ or __
+        content = re.sub(r"(?s)##+ `_.*?`.*?(?=\n## )", "", content)
+        # TODO - check might be removing too much
+
         # Convert <url> to [url](url)
         content = re.sub(r"<(http[s]?://[^>]+)>", r"[\1](\1)", content)
 
@@ -44,14 +48,14 @@ def convert_md_to_mdx(input_file, output_file):
         os.remove(input_file)
 
 
-def process_directory(directory):
-    for filename in os.listdir(directory):
-        if filename.endswith(".md"):
-            input_file = os.path.join(directory, filename)
-            output_file = os.path.join(directory, filename.replace(".md", ".mdx"))
-            convert_md_to_mdx(input_file, output_file)
-            print(f"Converted {input_file} to {output_file}")
+# def process_directory(directory):
+#     for filename in os.listdir(directory):
+#         if filename.endswith(".md"):
+#             input_file = os.path.join(directory, filename)
+#             output_file = os.path.join(directory, filename.replace(".md", ".mdx"))
+#             convert_md_to_mdx(input_file, output_file)
+#             print(f"Converted {input_file} to {output_file}")
 
 
-if __name__ == "__main__":
-    process_directory("../docs/v3/api-ref/python")
+# if __name__ == "__main__":
+#     process_directory("../docs/v3/api-ref/python")
