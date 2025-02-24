@@ -15,10 +15,13 @@ from typing import (
 )
 
 from prefect.client.utilities import inject_client
+from prefect.logging.loggers import get_logger
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import get_from_dict
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.orchestration import PrefectClient
 
 
@@ -28,6 +31,9 @@ PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]$]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 ENV_VAR_PLACEHOLDER_PREFIX = "$"
+
+
+logger: "logging.Logger" = get_logger("utilities.templating")
 
 
 class PlaceholderType(enum.Enum):
@@ -92,24 +98,36 @@ def find_placeholders(template: T) -> set[Placeholder]:
 
 @overload
 def apply_values(
-    template: T, values: dict[str, Any], remove_notset: Literal[True] = True
+    template: T,
+    values: dict[str, Any],
+    remove_notset: Literal[True] = True,
+    warn_on_notset: bool = False,
 ) -> T: ...
 
 
 @overload
 def apply_values(
-    template: T, values: dict[str, Any], remove_notset: Literal[False] = False
+    template: T,
+    values: dict[str, Any],
+    remove_notset: Literal[False] = False,
+    warn_on_notset: bool = False,
 ) -> Union[T, type[NotSet]]: ...
 
 
 @overload
 def apply_values(
-    template: T, values: dict[str, Any], remove_notset: bool = False
+    template: T,
+    values: dict[str, Any],
+    remove_notset: bool = False,
+    warn_on_notset: bool = False,
 ) -> Union[T, type[NotSet]]: ...
 
 
 def apply_values(
-    template: T, values: dict[str, Any], remove_notset: bool = True
+    template: T,
+    values: dict[str, Any],
+    remove_notset: bool = True,
+    warn_on_notset: bool = False,
 ) -> Union[T, type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
@@ -134,6 +152,7 @@ def apply_values(
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
         remove_notset: If True, remove keys with an unset value
+        warn_on_notset: If True, warn when a placeholder is not found in `values`
 
     Returns:
         The template with the values applied
@@ -153,7 +172,13 @@ def apply_values(
             # If there is only one variable with no surrounding text,
             # we can replace it. If there is no variable value, we
             # return NotSet to indicate that the value should not be included.
-            return get_from_dict(values, list(placeholders)[0].name, NotSet)
+            value = get_from_dict(values, list(placeholders)[0].name, NotSet)
+            if value is NotSet and warn_on_notset:
+                logger.warning(
+                    f"Value for placeholder {list(placeholders)[0].name!r} not found in provided values. Please ensure that "
+                    "the placeholder is spelled correctly and that the corresponding value is provided.",
+                )
+            return value
         else:
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.STANDARD:
@@ -164,10 +189,14 @@ def apply_values(
                 else:
                     continue
 
-                if value is NotSet and not remove_notset:
-                    continue
-                elif value is NotSet:
-                    template = template.replace(full_match, "")
+                if value is NotSet:
+                    if warn_on_notset:
+                        logger.warning(
+                            f"Value for placeholder {full_match!r} not found in provided values. Please ensure that "
+                            "the placeholder is spelled correctly and that the corresponding value is provided.",
+                        )
+                    if remove_notset:
+                        template = template.replace(full_match, "")
                 else:
                     template = template.replace(full_match, str(value))
 
@@ -175,7 +204,12 @@ def apply_values(
     elif isinstance(template, dict):
         updated_template: dict[str, Any] = {}
         for key, value in template.items():
-            updated_value = apply_values(value, values, remove_notset=remove_notset)
+            updated_value = apply_values(
+                value,
+                values,
+                remove_notset=remove_notset,
+                warn_on_notset=warn_on_notset,
+            )
             if updated_value is not NotSet:
                 updated_template[key] = updated_value
             elif not remove_notset:
@@ -185,7 +219,12 @@ def apply_values(
     elif isinstance(template, list):
         updated_list: list[Any] = []
         for value in template:
-            updated_value = apply_values(value, values, remove_notset=remove_notset)
+            updated_value = apply_values(
+                value,
+                values,
+                remove_notset=remove_notset,
+                warn_on_notset=warn_on_notset,
+            )
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
         return cast(T, updated_list)
