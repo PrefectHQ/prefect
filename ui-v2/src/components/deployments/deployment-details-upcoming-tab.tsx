@@ -1,24 +1,26 @@
 import { getRouteApi } from "@tanstack/react-router";
 
+import { Deployment } from "@/api/deployments";
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
-import { FlowRunState, SortFilters } from "@/components/flow-runs/data-table";
 import {
+	FlowRunState,
 	FlowRunsFilters,
 	FlowRunsList,
 	FlowRunsPagination,
 	FlowRunsRowCount,
 	type PaginationState,
+	SortFilters,
 } from "@/components/flow-runs/flow-runs-list";
 import { useCallback, useMemo, useState } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
 type DeploymentDetailsUpcomingTabProps = {
-	deploymentId: string;
+	deployment: Deployment;
 };
 
 export const DeploymentDetailsUpcomingTab = ({
-	deploymentId,
+	deployment,
 }: DeploymentDetailsUpcomingTabProps) => {
 	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 	const [pagination, onChangePagination] = usePagination();
@@ -30,7 +32,7 @@ export const DeploymentDetailsUpcomingTab = ({
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
 			operator: "and_",
-			id: { any_: [deploymentId] },
+			id: { any_: [deployment.id] },
 		},
 		flow_runs: {
 			name: { like_: search || undefined },
@@ -45,10 +47,15 @@ export const DeploymentDetailsUpcomingTab = ({
 		sort,
 	});
 
-	const handleResetFilters = () => {
-		resetFilters();
-		setSelectedRows(new Set());
-	};
+	const dataWithDeployment = useMemo(() => {
+		if (!data) {
+			return undefined;
+		}
+		return {
+			...data,
+			results: data.results.map((flowRun) => ({ ...flowRun, deployment })),
+		};
+	}, [data, deployment]);
 
 	const addRow = (id: string) =>
 		setSelectedRows((curr) => new Set(curr).add(id));
@@ -67,12 +74,19 @@ export const DeploymentDetailsUpcomingTab = ({
 		}
 	};
 
+	const handleResetFilters = !resetFilters
+		? undefined
+		: () => {
+				resetFilters();
+				setSelectedRows(new Set());
+			};
+
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex items-center justify-between">
 				<FlowRunsRowCount
-					count={data?.count}
-					results={data?.results}
+					count={dataWithDeployment?.count}
+					results={dataWithDeployment?.results}
 					selectedRows={selectedRows}
 					setSelectedRows={setSelectedRows}
 				/>
@@ -87,17 +101,18 @@ export const DeploymentDetailsUpcomingTab = ({
 			</div>
 
 			<FlowRunsList
-				flowRuns={data?.results}
+				flowRuns={dataWithDeployment?.results}
 				selectedRows={selectedRows}
 				onSelect={handleSelectRow}
 				onClearFilters={handleResetFilters}
 			/>
 
-			{data && data.results.length > 0 && (
+			{dataWithDeployment && dataWithDeployment.results.length > 0 && (
 				<FlowRunsPagination
+					count={dataWithDeployment.count}
 					pagination={pagination}
 					onChangePagination={onChangePagination}
-					pages={data.pages}
+					pages={dataWithDeployment.pages}
 				/>
 			)}
 		</div>
@@ -105,6 +120,7 @@ export const DeploymentDetailsUpcomingTab = ({
 };
 
 function useResetFilters() {
+	const { upcoming } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 	const resetFilters = useCallback(() => {
 		void navigate({
@@ -116,7 +132,9 @@ function useResetFilters() {
 			replace: true,
 		});
 	}, [navigate]);
-	return resetFilters;
+	const hasFiltersApplied = useMemo(() => Boolean(upcoming), [upcoming]);
+
+	return hasFiltersApplied ? resetFilters : undefined;
 }
 
 function usePagination() {
