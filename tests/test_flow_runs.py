@@ -18,7 +18,7 @@ async def test_create_then_wait_for_flow_run(prefect_client: PrefectClient):
     flow_run = await prefect_client.create_flow_run(foo, state=Completed())
     assert isinstance(flow_run, client_schemas.FlowRun)
 
-    lookup = await wait_for_flow_run(flow_run.id, poll_interval=0)
+    lookup = await wait_for_flow_run(flow_run.id)
     # Estimates will not be equal since time has passed
     assert lookup == flow_run
     assert flow_run.state
