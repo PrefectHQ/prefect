@@ -8,6 +8,11 @@ import { SchemaForm, SchemaFormProps } from "./schema-form";
  *
  * ⚠️ These snapshot tests are order dependent because of `useId` which produces
  * a random id that is order dependent on how many times useId is called.
+ * We could mock react's useId to return a deterministic id. However radix-ui
+ * had their own wrapper around useId that we would also need to mock. Which
+ * we've been unable to do so far.
+ * 
+ * https://github.com/radix-ui/primitives/discussions/3393
  *
  * 🔄 Running tests in a different order will cause snapshots to fail. Such as
  * when adding a new test to the middle of the list.
