@@ -73,6 +73,7 @@ function SelectedCount({
 		}
 		return (
 			<Checkbox
+				className="block"
 				checked={checkedState}
 				onCheckedChange={(checked) => {
 					if (checked) {
@@ -90,7 +91,7 @@ function SelectedCount({
 	if (selectedRows.size > 0)
 		return (
 			<>
-				<div className="flex items-center gap-1">
+				<div className="flex items-center gap-2">
 					<ToggleCheckbox />
 					<Typography variant="bodySmall" className="text-muted-foreground">
 						{selectedRowsList.length} selected
@@ -111,9 +112,10 @@ function SelectedCount({
 		);
 
 	return (
-		<div className="flex items-center gap-1">
+		<div className="flex items-center gap-2">
 			{results && setSelectedRows && selectedRows && (
 				<Checkbox
+					className="block"
 					checked={false}
 					onCheckedChange={(checked) => {
 						setSelectedRows(new Set(checked ? resultsIds : undefined));

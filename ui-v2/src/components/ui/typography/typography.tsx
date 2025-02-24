@@ -11,9 +11,18 @@ const VARIANTS_TO_ELEMENT_MAP = {
 	bodyLarge: "p",
 	body: "p",
 	bodySmall: "p",
+	xsmall: "p",
 } as const;
 
-type Variant = "h1" | "h2" | "h3" | "h4" | "bodyLarge" | "body" | "bodySmall";
+type Variant =
+	| "h1"
+	| "h2"
+	| "h3"
+	| "h4"
+	| "bodyLarge"
+	| "body"
+	| "bodySmall"
+	| "xsmall";
 type FontFamily = "sans" | "serif" | "mono";
 
 type TypographyProps = {

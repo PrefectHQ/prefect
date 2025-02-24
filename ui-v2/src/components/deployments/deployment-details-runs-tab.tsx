@@ -1,28 +1,31 @@
-import { getRouteApi } from "@tanstack/react-router";
-
 import { Deployment } from "@/api/deployments";
+import { useFilterFlowRunswithFlows } from "@/api/flow-runs/use-filter-flow-runs-with-flows";
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
+import { FlowRunCard } from "@/components/flow-runs/flow-run-card";
 import {
 	FlowRunState,
 	FlowRunsFilters,
 	FlowRunsList,
 	FlowRunsPagination,
 	FlowRunsRowCount,
-	type PaginationState,
+	PaginationState,
 	SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
+import { FLOW_RUN_STATES_NO_SCHEDULED } from "@/components/flow-runs/flow-runs-list";
+import { Typography } from "@/components/ui/typography";
+import { getRouteApi } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
-type DeploymentDetailsUpcomingTabProps = {
+type DeploymentDetailsRunsTabProps = {
 	deployment: Deployment;
 };
 
-export const DeploymentDetailsUpcomingTab = ({
+export const DeploymentDetailsRunsTab = ({
 	deployment,
-}: DeploymentDetailsUpcomingTabProps) => {
+}: DeploymentDetailsRunsTabProps) => {
 	const [selectedRows, setSelectedRows, { clearSet, onSelectRow }] =
 		useFlowRunsSelectedRows();
 	const [pagination, onChangePagination] = usePagination();
@@ -66,64 +69,96 @@ export const DeploymentDetailsUpcomingTab = ({
 				clearSet();
 			};
 
+	const nextRun = useGetNextRun(deployment);
+
 	return (
 		<div className="flex flex-col gap-2">
-			<div className="flex items-center justify-between">
-				<FlowRunsRowCount
-					count={dataWithDeployment?.count}
-					results={dataWithDeployment?.results}
-					selectedRows={selectedRows}
-					setSelectedRows={setSelectedRows}
-				/>
-				<FlowRunsFilters
-					search={{ value: search, onChange: setSearch }}
-					sort={{ value: sort, onSelect: setSort }}
-					stateFilter={{
-						value: new Set(filter),
-						onSelect: setFilter,
-					}}
-				/>
-			</div>
-
-			<FlowRunsList
-				flowRuns={dataWithDeployment?.results}
-				selectedRows={selectedRows}
-				onSelect={onSelectRow}
-				onClearFilters={handleResetFilters}
-			/>
-
-			{dataWithDeployment && dataWithDeployment.results.length > 0 && (
-				<FlowRunsPagination
-					count={dataWithDeployment.count}
-					pagination={pagination}
-					onChangePagination={onChangePagination}
-					pages={dataWithDeployment.pages}
-				/>
+			{nextRun && (
+				<div className="flex flex-col gap-2 border-b py-2">
+					<Typography variant="bodyLarge">Next Run</Typography>
+					<FlowRunCard flowRun={nextRun} />
+				</div>
 			)}
+			<div className="flex flex-col gap-2">
+				<div className="flex items-center justify-between">
+					<FlowRunsRowCount
+						count={dataWithDeployment?.count}
+						results={dataWithDeployment?.results}
+						selectedRows={selectedRows}
+						setSelectedRows={setSelectedRows}
+					/>
+					<FlowRunsFilters
+						search={{ value: search, onChange: setSearch }}
+						sort={{ value: sort, onSelect: setSort }}
+						stateFilter={{
+							value: new Set(filter),
+							onSelect: setFilter,
+						}}
+					/>
+				</div>
+				<FlowRunsList
+					flowRuns={dataWithDeployment?.results}
+					selectedRows={selectedRows}
+					onSelect={onSelectRow}
+					onClearFilters={handleResetFilters}
+				/>
+
+				{dataWithDeployment && dataWithDeployment.results.length > 0 && (
+					<FlowRunsPagination
+						count={dataWithDeployment.count}
+						pagination={pagination}
+						onChangePagination={onChangePagination}
+						pages={dataWithDeployment.pages}
+					/>
+				)}
+			</div>
 		</div>
 	);
 };
 
+function useGetNextRun(deployment: Deployment) {
+	const { data } = useFilterFlowRunswithFlows({
+		deployments: { id: { any_: [deployment.id] }, operator: "and_" },
+		flow_runs: {
+			state: { name: { any_: ["Scheduled"] }, operator: "and_" },
+			operator: "and_",
+		},
+		sort: "NAME_ASC",
+		limit: 1,
+		offset: 0,
+	});
+
+	return useMemo(() => {
+		if (!data || !data[0]) {
+			return undefined;
+		}
+		return {
+			...data[0],
+			deployment,
+		};
+	}, [data, deployment]);
+}
+
 function useResetFilters() {
-	const { upcoming } = routeApi.useSearch();
+	const { runs } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 	const resetFilters = useCallback(() => {
 		void navigate({
 			to: ".",
 			search: (prev) => ({
 				...prev,
-				upcoming: undefined,
+				runs: undefined,
 			}),
 			replace: true,
 		});
 	}, [navigate]);
-	const hasFiltersApplied = useMemo(() => Boolean(upcoming), [upcoming]);
+	const hasFiltersApplied = useMemo(() => Boolean(runs), [runs]);
 
 	return hasFiltersApplied ? resetFilters : undefined;
 }
 
 function usePagination() {
-	const { upcoming } = routeApi.useSearch();
+	const { runs } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
 	const onChangePagination = useCallback(
@@ -132,29 +167,29 @@ function usePagination() {
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					upcoming: {
-						...upcoming,
+					runs: {
+						...runs,
 						...pagination,
 					},
 				}),
 				replace: true,
 			});
 		},
-		[navigate, upcoming],
+		[navigate, runs],
 	);
 
 	const pagination = useMemo(() => {
 		return {
-			page: upcoming?.page ?? 1,
-			limit: upcoming?.limit ?? 5,
+			page: runs?.page ?? 1,
+			limit: runs?.limit ?? 10,
 		};
-	}, [upcoming?.limit, upcoming?.page]);
+	}, [runs?.limit, runs?.page]);
 
 	return [pagination, onChangePagination] as const;
 }
 
 function useSearch() {
-	const { upcoming } = routeApi.useSearch();
+	const { runs } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
 	const onSearch = useCallback(
@@ -163,10 +198,10 @@ function useSearch() {
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					upcoming: {
-						...upcoming,
+					runs: {
+						...runs,
 						flowRuns: {
-							...upcoming?.flowRuns,
+							...runs?.flowRuns,
 							name: value,
 						},
 					},
@@ -174,17 +209,17 @@ function useSearch() {
 				replace: true,
 			});
 		},
-		[navigate, upcoming],
+		[navigate, runs],
 	);
 	const search = useMemo(
-		() => upcoming?.flowRuns?.name ?? "",
-		[upcoming?.flowRuns?.name],
+		() => runs?.flowRuns?.name ?? "",
+		[runs?.flowRuns?.name],
 	);
 	return [search, onSearch] as const;
 }
 
 function useSort() {
-	const { upcoming } = routeApi.useSearch();
+	const { runs } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
 	const onSort = useCallback(
@@ -193,25 +228,22 @@ function useSort() {
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					upcoming: {
-						...upcoming,
+					runs: {
+						...runs,
 						sort: value,
 					},
 				}),
 				replace: true,
 			});
 		},
-		[navigate, upcoming],
+		[navigate, runs],
 	);
-	const sort = useMemo(
-		() => upcoming?.sort ?? "START_TIME_ASC",
-		[upcoming?.sort],
-	);
+	const sort = useMemo(() => runs?.sort ?? "START_TIME_DESC", [runs?.sort]);
 	return [sort, onSort] as const;
 }
 
 function useFilter() {
-	const { upcoming } = routeApi.useSearch();
+	const { runs } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
 	const onFilter = useCallback(
@@ -220,10 +252,10 @@ function useFilter() {
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					upcoming: {
-						...upcoming,
+					runs: {
+						...runs,
 						flowRuns: {
-							...upcoming?.flowRuns,
+							...runs?.flowRuns,
 							state: value ? Array.from(value) : undefined,
 						},
 					},
@@ -231,14 +263,14 @@ function useFilter() {
 				replace: true,
 			});
 		},
-		[navigate, upcoming],
+		[navigate, runs],
 	);
 
 	const filter = useMemo(
 		() =>
-			upcoming?.flowRuns?.state ??
-			(["Scheduled"] satisfies Array<FlowRunState>),
-		[upcoming?.flowRuns?.state],
+			runs?.flowRuns?.state ??
+			(FLOW_RUN_STATES_NO_SCHEDULED satisfies Array<FlowRunState>),
+		[runs?.flowRuns?.state],
 	);
 	return [filter, onFilter] as const;
 }
