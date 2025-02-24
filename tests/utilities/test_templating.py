@@ -251,6 +251,22 @@ class TestApplyValues:
             "right now we need": {"first_name": "Superman", "age": 30}
         }
 
+    def test_apply_values_warns_on_notset_value(self, caplog: pytest.LogCaptureFixture):
+        template = "{{name}}"
+        apply_values(template, values={}, warn_on_notset=True)
+        assert (
+            "Value for placeholder 'name' not found in provided values." in caplog.text
+        )
+
+    def test_apply_values_warns_on_notset_value_dict(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        template = {"name": "{{name}}"}
+        apply_values(template, values={}, warn_on_notset=True)
+        assert (
+            "Value for placeholder 'name' not found in provided values." in caplog.text
+        )
+
 
 class TestResolveBlockDocumentReferences:
     @pytest.fixture(autouse=True)
