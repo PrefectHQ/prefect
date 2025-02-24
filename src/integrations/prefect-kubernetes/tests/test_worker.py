@@ -35,6 +35,8 @@ from pydantic import ValidationError
 
 import prefect
 from prefect.client.schemas import FlowRun
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.objects import WorkPool
 from prefect.exceptions import (
     InfrastructureError,
 )
@@ -3142,8 +3144,24 @@ class TestKubernetesWorker:
             assert "NotMeDude" not in caplog.text
 
     class TestSubmit:
+        @pytest.fixture
+        async def work_pool(self):
+            async with prefect.get_client() as client:
+                work_pool = await client.create_work_pool(
+                    WorkPoolCreate(
+                        name=f"test-{uuid.uuid4()}",
+                        base_job_template=KubernetesWorker.get_default_base_job_template(),
+                    )
+                )
+                try:
+                    yield work_pool
+                finally:
+                    await client.delete_work_pool(work_pool.name)
+
         @pytest.fixture(autouse=True)
-        def mock_steps(self, monkeypatch: pytest.MonkeyPatch):
+        async def mock_steps(
+            self, work_pool: WorkPool, monkeypatch: pytest.MonkeyPatch
+        ):
             UPLOAD_STEP = {
                 "prefect_mock.experimental.bundles.upload": {
                     "requires": "prefect-mock==0.5.5",
@@ -3160,8 +3178,17 @@ class TestKubernetesWorker:
                 }
             }
 
-            monkeypatch.setenv("PREFECT__BUNDLE_UPLOAD_STEP", json.dumps(UPLOAD_STEP))
-            monkeypatch.setenv("PREFECT__BUNDLE_EXECUTE_STEP", json.dumps(EXECUTE_STEP))
+            async with prefect.get_client() as client:
+                work_pool.base_job_template["variables"]["properties"]["env"][
+                    "default"
+                ] = {
+                    "PREFECT__BUNDLE_UPLOAD_STEP": json.dumps(UPLOAD_STEP),
+                    "PREFECT__BUNDLE_EXECUTE_STEP": json.dumps(EXECUTE_STEP),
+                }
+                await client.update_work_pool(
+                    work_pool.name,
+                    WorkPoolUpdate(base_job_template=work_pool.base_job_template),
+                )
 
         @pytest.fixture
         def test_flow(self):
@@ -3182,12 +3209,13 @@ class TestKubernetesWorker:
             test_flow,
             mock_run_process: AsyncMock,
             caplog: pytest.LogCaptureFixture,
+            work_pool: WorkPool,
         ):
             mock_watch.return_value.stream = mock.Mock(
                 side_effect=mock_pods_stream_that_returns_completed_pod
             )
             python_version_info = sys.version_info
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
                 future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
             expected_command = [
@@ -3223,6 +3251,7 @@ class TestKubernetesWorker:
             test_flow,
             mock_run_process: AsyncMock,
             caplog: pytest.LogCaptureFixture,
+            work_pool: WorkPool,
         ):
             response = MagicMock()
             response.data = None
@@ -3233,7 +3262,7 @@ class TestKubernetesWorker:
                 ApiException(http_resp=response)
             )
 
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
                 future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
 
@@ -3252,6 +3281,7 @@ class TestKubernetesWorker:
             test_flow,
             mock_run_process: AsyncMock,
             caplog: pytest.LogCaptureFixture,
+            work_pool: WorkPool,
         ):
             mock_watch.return_value.stream = mock.Mock(
                 side_effect=mock_pods_stream_that_returns_completed_pod
@@ -3270,7 +3300,7 @@ class TestKubernetesWorker:
                 job_pod
             ]
 
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
                 future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
 

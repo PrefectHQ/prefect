@@ -107,7 +107,6 @@ import base64
 import enum
 import json
 import logging
-import os
 import shlex
 import tempfile
 from contextlib import asynccontextmanager
@@ -155,6 +154,7 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFlowRunFuture
 from prefect.states import Pending
+from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -691,10 +691,9 @@ class KubernetesWorker(
             create_bundle_for_flow_run,
         )
 
-        job_variables = job_variables or {}
-
         if TYPE_CHECKING:
             assert self._client is not None
+            assert self._work_pool is not None
         flow_run = await self._client.create_flow_run(
             flow, parameters=parameters, state=Pending()
         )
@@ -704,14 +703,34 @@ class KubernetesWorker(
         api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
         logger = self.get_flow_run_logger(flow_run)
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-
-        # TODO: Replace this with reading the steps from the work pool
-        upload_step = json.loads(os.environ.get("PREFECT__BUNDLE_UPLOAD_STEP", "{}"))
-        execute_step = json.loads(os.environ.get("PREFECT__BUNDLE_EXECUTE_STEP", "{}"))
+        upload_step = json.loads(
+            get_from_dict(
+                self._work_pool.base_job_template,
+                "variables.properties.env.default.PREFECT__BUNDLE_UPLOAD_STEP",
+                "{}",
+            )
+        )
+        execute_step = json.loads(
+            get_from_dict(
+                self._work_pool.base_job_template,
+                "variables.properties.env.default.PREFECT__BUNDLE_EXECUTE_STEP",
+                "{}",
+            )
+        )
 
         upload_command = convert_step_to_command(upload_step, str(flow_run.id))
         execute_command = convert_step_to_command(execute_step, str(flow_run.id))
+
+        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+
+        configuration = await self.job_configuration.from_template_and_values(
+            base_job_template=self._work_pool.base_job_template,
+            values=job_variables | {"command": " ".join(execute_command)},
+            client=self._client,
+        )
+        configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
+
+        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
         logger.debug("Uploading execution bundle")
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -733,13 +752,6 @@ class KubernetesWorker(
                 raise e
 
         logger.debug("Successfully uploaded execution bundle")
-
-        configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=self._work_pool.base_job_template,
-            values=job_variables | {"command": " ".join(execute_command)},
-            client=self._client,
-        )
-        configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
 
         try:
             result = await self.run(flow_run, configuration)
