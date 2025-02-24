@@ -3,6 +3,6 @@ import { FlowRun } from "@/api/flow-runs";
 import { Flow } from "@/api/flows";
 
 export type FlowRunRow = FlowRun & {
-	flow: Flow;
+	flow?: Flow;
 	deployment?: Deployment;
 };

@@ -1,8 +1,4 @@
-import {
-	type FlowRunWithFlow,
-	type FlowRunsPaginateFilter,
-	buildPaginateFlowRunsQuery,
-} from "@/api/flow-runs";
+import { FlowRunsFilter, buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { Flow, buildListFlowsQuery } from "@/api/flows";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -12,19 +8,17 @@ import { useMemo } from "react";
  * @param filter
  * @returns a simplified query object that joins a flow run's pagination data with it's parent flow
  */
-export const usePaginateFlowRunswithFlows = (
-	filter: FlowRunsPaginateFilter,
-) => {
-	const { data: paginateFlowRunsData, error: paginateFlowRunsError } = useQuery(
-		buildPaginateFlowRunsQuery(filter),
+export const useFilterFlowRunswithFlows = (filter: FlowRunsFilter) => {
+	const { data: flowRunsData, error: flowRunsError } = useQuery(
+		buildFilterFlowRunsQuery(filter),
 	);
 
 	const flowIds = useMemo(() => {
-		if (!paginateFlowRunsData) {
+		if (!flowRunsData) {
 			return [];
 		}
-		return paginateFlowRunsData.results.map((flowRun) => flowRun.flow_id);
-	}, [paginateFlowRunsData]);
+		return flowRunsData.map((flowRun) => flowRun.flow_id);
+	}, [flowRunsData]);
 
 	const { data: flows, error: flowsError } = useQuery(
 		buildListFlowsQuery(
@@ -45,38 +39,32 @@ export const usePaginateFlowRunswithFlows = (
 	}, [flows]);
 
 	// If there's no results from the query, return empty
-	if (paginateFlowRunsData && paginateFlowRunsData.results.length === 0) {
+	if (flowRunsData && flowRunsData.length === 0) {
 		return {
 			status: "success" as const,
 			error: null,
-			data: {
-				...paginateFlowRunsData,
-				results: [] satisfies Array<FlowRunWithFlow>,
-			},
+			data: [],
 		};
 	}
 
-	if (paginateFlowRunsData && flowMap.size > 0) {
+	if (flowRunsData && flowMap.size > 0) {
 		return {
 			status: "success" as const,
 			error: null,
-			data: {
-				...paginateFlowRunsData,
-				results: paginateFlowRunsData.results.map((flowRun) => {
-					const flow = flowMap.get(flowRun.flow_id);
-					return {
-						...flowRun,
-						flow,
-					};
-				}),
-			},
+			data: flowRunsData.map((flowRun) => {
+				const flow = flowMap.get(flowRun.flow_id);
+				return {
+					...flowRun,
+					flow,
+				};
+			}),
 		};
 	}
 
-	if (paginateFlowRunsError || flowsError) {
+	if (flowRunsError || flowsError) {
 		return {
 			status: "error" as const,
-			error: paginateFlowRunsError || flowsError,
+			error: flowRunsError || flowsError,
 			data: undefined,
 		};
 	}

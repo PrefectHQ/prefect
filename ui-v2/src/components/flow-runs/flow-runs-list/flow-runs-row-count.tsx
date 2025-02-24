@@ -4,10 +4,10 @@ import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
-import { FlowRunWithFlow } from "@/api/flow-runs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { useMemo } from "react";
+import { FlowRunRow } from "./types";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
 // type FlowRunsRowCountProps = {
@@ -22,7 +22,7 @@ type CountOnlyProps = {
 };
 type SelectableProps = {
 	count: number | undefined;
-	results: Array<FlowRunWithFlow> | undefined;
+	results: Array<FlowRunRow> | undefined;
 	setSelectedRows: (rows: Set<string>) => void;
 	selectedRows: Set<string>;
 };
