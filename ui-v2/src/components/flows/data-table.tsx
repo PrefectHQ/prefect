@@ -58,7 +58,7 @@ const FilterComponent = () => {
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" className="w-[150px] justify-between">
 					<span className="truncate">{renderSelectedTags()}</span>
-					<Icon id="ChevronDown" className="h-4 w-4 flex-shrink-0" />
+					<Icon id="ChevronDown" className="h-4 w-4 shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
