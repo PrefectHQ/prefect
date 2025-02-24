@@ -18,7 +18,7 @@ export const DeploymentFlowLink = ({ flowId }: DeploymentFlowLinkProps) => {
 				params={{ id: flow.id }}
 				className="flex items-center gap-1"
 			>
-				<Icon id="Workflow" className="h-4 w-4" />
+				<Icon id="Workflow" className="size-4" />
 				{flow.name}
 			</Link>
 		</div>
