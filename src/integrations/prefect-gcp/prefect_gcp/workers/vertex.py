@@ -159,11 +159,12 @@ class VertexAIWorkerVariables(BaseVariables):
     scheduling: Optional[dict] = Field(
         default=None,
         title="Scheduling Options",
-        description=("A dictionary with scheduling options for a CustomJob, "
-        "these are parameters related to queuing, and scheduling custom jobs. "
-        "If unspecified default scheduling options are used. "
-        "The 'maximum_run_time_hours' variable will take precedance over the "
-        "'scheduling.timeout' field for backward compatibility."
+        description=(
+            "A dictionary with scheduling options for a CustomJob, "
+            "these are parameters related to queuing, and scheduling custom jobs. "
+            "If unspecified default scheduling options are used. "
+            "The 'maximum_run_time_hours' variable will take precedance over the "
+            "'scheduling.timeout' field for backward compatibility."
         ),
     )
     service_account_name: Optional[str] = Field(
@@ -499,7 +500,11 @@ class VertexAIWorker(BaseWorker):
         # Override "timeout" in Scheduling object if "maximum_run_time_hours" is specified
         if "maximum_run_time_hours" in configuration.job_spec:
             timeout = Duration()
-            timeout.FromTimedelta(td = datetime.timedelta(hours=configuration.job_spec["maximum_run_time_hours"]))
+            timeout.FromTimedelta(
+                td=datetime.timedelta(
+                    hours=configuration.job_spec["maximum_run_time_hours"]
+                )
+            )
             scheduling.timeout = timeout
 
         if "service_account_name" in configuration.job_spec:
