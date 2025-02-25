@@ -84,7 +84,7 @@ export function SchemaFormInputArrayList({
 	}
 
 	return (
-		<>
+		<div className="flex flex-col gap-2">
 			{isEmpty && (
 				<p className="text-sm text-subdued italic">No items in this list</p>
 			)}
@@ -118,6 +118,6 @@ export function SchemaFormInputArrayList({
 					You can&apos;t add more items
 				</p>
 			)}
-		</>
+		</div>
 	);
 }
