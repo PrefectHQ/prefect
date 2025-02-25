@@ -671,3 +671,19 @@ These settings will not override the `retries` or `retry_delay_seconds` that are
 prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
 prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
+
+
+## Decorator syntax
+
+Though it is typically recommended to use `@task` decorators to define tasks, if needed you can use the `task` decorator inline with any callable to create tasks on the fly:
+```python
+from prefect import flow, task
+
+@flow
+def dynamic_flow() -> list[int]:
+    return task(name="dynamic-task")(lambda x: x + 1).map([1, 2, 3]).result()
+
+assert dynamic_flow() == [2, 3, 4]
+```
+
+See a more realistic example of this pattern in the [Task Runners](/v3/develop/task-runners/#nested-mapped-tasks) guide.

@@ -291,54 +291,73 @@ futures = some_task.map(some_iterable)
 results = [future.result() for future in futures]
 ```
 
-### Nested mapping for complex workflows
+### Nested mapped tasks
 
-For more complex workflow structures, you can nest mapped tasks to create hierarchical concurrent execution patterns. This is particularly useful when you need to:
+To model more complex workflow structures, you can map tasks within other tasks:
 
-1. Apply the same transformation to many data sources
-2. Process many datasets in similar, but slightly different ways 
-3. Run multiple models against multiple datasets
+```python {16}
+import re
 
-Here's a simple example of nested mapping:
-
-```python
 from prefect import flow, task
-from prefect import unmapped
+from prefect.futures import wait
 
+def count_words(text: str) -> int:
+    """Count the number of words in a text."""
+    return len(text.split())
+
+def extract_emails(text: str) -> list[str]:
+    return re.findall(r"[\w.+-]+@[\w-]+\.[\w.-]+", text)
 
 @task
-def process_item(dataset, transform):
-    return f"Applied {transform} to {dataset}"
-
-@task
-def process_dataset(dataset, transforms):
-    # For each dataset, apply all transforms concurrently
-    return process_item.map(
-        dataset=unmapped(dataset),  # Keep dataset the same for all transforms
-        transform=transforms        # Map over each transform
-    ).result()
+def analyze_texts(texts: list[str]) -> dict[str, list[int | list[str]]]:
+    futures = {
+        op.__name__: task(op).map(texts) for op in [count_words, extract_emails]
+    }
+    wait([f for futs in futures.values() for f in futs])
+    return {name: [f.result() for f in futs] for name, futs in futures.items()}
 
 @flow
-def process_data():
-    datasets = ["dataset_1", "dataset_2", "dataset_3"]
-    transforms = ["normalize", "clean", "aggregate"]
-    
-    # For each dataset, apply all transforms concurrently
-    results = process_dataset.map(
-        dataset=datasets,                 # Map over each dataset
-        transforms=unmapped(transforms)   # Keep transforms the same for all datasets
-    ).result()
-    
-    print(results)
+def run_text_analysis():
+    """Analyze a batch of social media posts with multiple operations."""
+    results = analyze_texts(
+        texts=[
+            "Just visited #Paris! Contact me at visitor@example.com #travel #vacation",
+            "Working on my new #project. Reach out at developer@example.com if interested!",
+            "Happy to announce our company event #celebration #milestone email: events@company.org",
+        ]
+    )
+    print("\nAnalysis Results:")
+    print(f"  Word counts: {results['count_words']}")
+    print(f"  Extracted emails: {results['extract_emails']}\n")
+    return results
 
-if __name__ == "__main__":
-    process_data()
+run_text_analysis()
 ```
 
-This creates a nested structure where:
-1. The outer mapping processes each dataset concurrently
-2. For each dataset, the inner mapping applies all transforms concurrently
-3. The result is a nested list that matches the structure of the mapping
+<Accordion title="Output">
+
+```python
+00:03:45.159 | INFO    | Flow run 'hilarious-collie' - Beginning flow run 'hilarious-collie' for flow 'run-text-analysis'
+00:03:45.233 | INFO    | Task run 'count_words-01a' - Finished in state Completed()
+00:03:45.236 | INFO    | Task run 'extract_emails-7a7' - Finished in state Completed()
+00:03:45.237 | INFO    | Task run 'extract_emails-ca2' - Finished in state Completed()
+00:03:45.239 | INFO    | Task run 'count_words-01d' - Finished in state Completed()
+00:03:45.240 | INFO    | Task run 'count_words-f0a' - Finished in state Completed()
+00:03:45.242 | INFO    | Task run 'extract_emails-0c6' - Finished in state Completed()
+00:03:45.247 | INFO    | Task run 'analyze_texts-53b' - Finished in state Completed()
+
+Analysis Results:
+  Word counts: [9, 11, 10]
+  Extracted emails: [['visitor@example.com'], ['developer@example.com'], ['events@company.org']]
+
+00:03:45.491 | INFO    | Flow run 'hilarious-collie' - Finished in state Completed()
+```
+</Accordion>
+
+This pattern is useful when you need to:
+1. Process combinations of parameters concurrently
+2. Apply multiple transformations to multiple datasets
+3. Create a grid of operations where each cell is an independent task
 
 
 ### Real-world applications
