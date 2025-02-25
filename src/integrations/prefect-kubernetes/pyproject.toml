@@ -32,7 +32,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "aiohttp",
     "coverage",
