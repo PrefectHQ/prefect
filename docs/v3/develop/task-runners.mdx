@@ -4,16 +4,18 @@ description: Learn how to use task runners for concurrent, parallel or distribut
 ---
 
 Task runners are not required for task execution. 
-Calling a task function directly without a task runner executes the function in the main thread by default, 
-which blocks execution of its flow until the task completes. 
+Calling a task function directly executes the function in the main thread by default, 
+blocking execution of its caller until the task completes. 
 
-To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` method to submit a task to a _task runner_. 
+To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` or `.map()` methods to submit tasks to a **task runner**. 
+
 The default task runner in Prefect is the [`ThreadPoolTaskRunner`](https://reference.prefect.io/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
-which runs tasks concurrently within a thread pool.
-For parallel or distributed task execution, you must additionally install one of the following task runners, available as integrations:
+which runs tasks concurrently in independent threads.
 
-- [`DaskTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask) can run tasks using [`dask.distributed`](http://distributed.dask.org/).
-- [`RayTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-ray) can run tasks using [Ray](https://www.ray.io/).
+For truly parallel or distributed task execution, you must use one of the following task runners, which are available as extras of the `prefect` library:
+
+- [`DaskTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask) can run tasks using [`dask.distributed`](http://distributed.dask.org/) (install `prefect[dask]`)
+- [`RayTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-ray) can run tasks using [Ray](https://www.ray.io/) (install `prefect[ray]`)
 
 <Note>
 **Concurrency vs. parallelism**
@@ -29,39 +31,19 @@ such as for operations mapped across a dataset.
 
 ## Configure a task runner
 
-To configure your flow to use a specific task runner, provide the runner to the `task_runner` keyword of the flow decorator.
+To configure a specific task runner, provide a `task_runner` keyword argument to the parent flow:
 
-To submit work to the runner, use the task's `.submit()` method.
-This method returns a [`PrefectFuture`](https://reference.prefect.io/prefect/futures/#prefect.futures.PrefectFuture), which is a Prefect object that contains:
-- a reference to the payload returned by the task;
-- and a [`State`](https://reference.prefect.io/prefect/server/schemas/states/), which is a Prefect object indicating the state of the task run.
-
-<Warning>
-Prefect future objects must be resolved explicitly before returning from a flow. 
-Dependencies between futures will be automatically resolved whenever their dependents are resolved.
-This means that only _terminal_ futures need to be resolved, either by:
-- returning the terminal futures from your flow 
-- calling `.wait()` or `.result()` on each terminal future
-- using one of the top level `wait` or `as_completed` utilities to resolve terminal futures
-
-Not doing so may leave your tasks in an unfinished state.
-</ Warning>
-
-For example:
-
-```python
+```python {12}
 from prefect import flow, task
 from prefect.futures import wait
 from prefect.task_runners import ThreadPoolTaskRunner
 import time
-
 
 @task
 def stop_at_floor(floor):
     print(f"elevator moving to floor {floor}")
     time.sleep(floor)
     print(f"elevator stops on floor {floor}")
-
 
 @flow(task_runner=ThreadPoolTaskRunner(max_workers=3))
 def elevator():
@@ -73,22 +55,28 @@ def elevator():
     wait(floors)
 ```
 
-<Tip>
-**Default task runner**
-If you don't specify a task runner for a flow and you call a task with `.submit()` within the flow, 
-Prefect uses the default `ThreadPoolTaskRunner`.
-</Tip>
-
 The `max_workers` parameter of the `ThreadPoolTaskRunner` controls the number of threads that the task runner will use to execute tasks concurrently.
 
-## Access results from submitted tasks
+## Submit tasks to a task runner
 
 When you use `.submit()` to submit a task to a task runner, the task runner creates a 
 [`PrefectFuture`](https://reference.prefect.io/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and 
 result of the task.
 
-A `PrefectFuture` is an object that provides access to a computation happening in a task runner, 
-even if that computation happens on a remote system.
+A `PrefectFuture` is an object that provides:
+- a reference to the result returned by the task
+- a [`State`](https://reference.prefect.io/prefect/server/schemas/states/) indicating the current state of the task run
+
+<Warning>
+`PrefectFuture` objects must be resolved explicitly before returning from a flow or task. 
+Dependencies between futures will be automatically resolved whenever their dependents are resolved.
+This means that only _terminal_ futures need to be resolved, either by:
+- returning the terminal futures from your flow or task
+- calling `.wait()` or `.result()` on each terminal future
+- using one of the top level `wait` or `as_completed` utilities to resolve terminal futures
+
+Not doing so may leave your tasks in an unfinished state.
+</Warning>
 
 When you pass a future into a task, Prefect automatically waits for the "upstream" task (the one that the future references), 
 to reach a final state before starting the downstream task.
@@ -118,7 +106,9 @@ def hello_world():
 hello_world()
 ```
 
-Notice that we only had to wait for the final `print_result` future as Prefect automatically resolved `say_hello` to a string.
+If we run this, we see that we only had to wait for the final `print_result` future as Prefect automatically resolved `say_hello` to a string.
+
+### Access results from submitted tasks
 
 You can access the result of a future explicitly with the `.result()` method.
 
@@ -162,10 +152,11 @@ def my_flow():
         ...
 ```
 
+### Creating state dependencies
 
 You may also use the [`wait_for=[]`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.Task.submit) parameter 
 when calling a task by specifying upstream task dependencies. This enables you to control task execution 
-order for tasks that do not share data dependencies.
+order for tasks that do not directly exchange data.
 
 ```python
 @task
@@ -199,40 +190,53 @@ def my_flow():
 **A few notes on `.result()`**
 
 - `.result()` is a blocking call.
-This means that calling `.result()` will wait until the task run completes before continuing execution.
+This means that calling `.result()` will block the caller until the task run completes.
 - Only use `.result()` when you need to interact directly with the return value of your submitted task;
-for example, you should use `.result()` if passing the return value to a standard Python function (not a 
-Prefect task) but _not_ if you are passing the value to another task.
+for example, you **should** use `.result()` if passing the return value to a standard Python function (not a 
+Prefect task) but do not need to use `.result()` if you are passing the value to another task (as these futures will be [automatically resolved](/v3/develop/task-runners/#submit-tasks-to-a-task-runner)).
 </Note>
 
 ## Mapping over iterables
 
-Prefect also provides a `.map()` method that automatically submits a new task run for each element of its 
+Prefect provides a `.map()` method that automatically submits a new task run for each element of its 
 input data. 
 This can be useful when submitting a lot of work to a task runner simultaneously.
 
+<Tip> 
+**`wait_for` can also be used with `.map()`**
+
+Similar to the `.submit()` method, the `.map()` method accepts a `wait_for` argument to establish state dependencies between mapped tasks that do not have data dependencies.
+
+</Tip>
+
+
+### Simple mapping
 ```python
 from prefect import flow, task
 
 @task
-def print_nums(nums):
+def print_nums(nums: list[int]):
     for n in nums:
         print(n)
 
 @task
-def square_num(num):
+def square_num(num: int) -> int:
     return num**2
 
 @flow
-def map_flow(nums):
+def map_flow(nums: list[int]):
     print_nums(nums)
-    squared_nums = square_num.map(nums) 
+    squared_nums = square_num.map(nums)
     print_nums(squared_nums)
 
 map_flow([1,2,3,5,8,13])
 ```
 
-Prefect also supports `unmapped` arguments, allowing you to pass static values that don't get mapped over.
+### Using the `unmapped` annotation
+
+Sometimes you may not want to map a task over a certain input value.
+
+By default, non-iterable values will not be mapped over (so `unmapped` is not required):
 
 ```python
 from prefect import flow, task
@@ -242,7 +246,7 @@ def add_together(x, y):
     return x + y
 
 @flow
-def sum_it(numbers, static_value):
+def sum_it(numbers: list[int], static_value: int):
     futures = add_together.map(numbers, static_value)
     return futures.result()
 
@@ -250,27 +254,8 @@ resulting_sum = sum_it([1, 2, 3], 5)
 assert resulting_sum == [6, 7, 8]
 ```
 
-<Tip>
-**Get the results from a list of mapped futures**
-
-When using `.map` as in the above example, the result of the task is a list of futures. 
-You can wait for or retrieve the results from these futures with `wait` or `result` methods:
-
-```python
-futures = some_task.map(some_iterable)
-results = futures.result()
-```
-which is shorthand for:
-
-```python
-futures = some_task.map(some_iterable)
-results = [future.result() for future in futures]
-```
-</Tip>
-
-
-If your static argument is an iterable, wrap it with `unmapped` to tell Prefect to treat it 
-as a static value.
+... but if your argument is an iterable type, wrap it with `unmapped` to tell `.map` to treat it 
+as static:
 
 ```python
 from prefect import flow, task, unmapped
@@ -287,6 +272,114 @@ def sum_it(numbers, static_iterable):
 resulting_sum = sum_it([4, 5, 6], [1, 2, 3])
 assert resulting_sum == [10, 11, 12]
 ```
+
+
+### Bulk `PrefectFuture` operations
+
+When using `.map` as in the above example, the result of the task is a list of futures.
+
+You can wait for or retrieve the results from these futures with `wait` or `result` methods:
+
+```python
+futures = some_task.map(some_iterable)
+results = futures.result()
+```
+which is syntactic sugar for the corresponding list comprehension:
+
+```python
+futures = some_task.map(some_iterable)
+results = [future.result() for future in futures]
+```
+
+### Nested mapping for complex workflows
+
+For more complex workflow structures, you can nest mapped tasks to create hierarchical concurrent execution patterns. This is particularly useful when you need to:
+
+1. Apply the same transformation to many data sources
+2. Process many datasets in similar, but slightly different ways 
+3. Run multiple models against multiple datasets
+
+Here's a simple example of nested mapping:
+
+```python
+from prefect import flow, task
+from prefect import unmapped
+
+
+@task
+def process_item(dataset, transform):
+    return f"Applied {transform} to {dataset}"
+
+@task
+def process_dataset(dataset, transforms):
+    # For each dataset, apply all transforms concurrently
+    return process_item.map(
+        dataset=unmapped(dataset),  # Keep dataset the same for all transforms
+        transform=transforms        # Map over each transform
+    ).result()
+
+@flow
+def process_data():
+    datasets = ["dataset_1", "dataset_2", "dataset_3"]
+    transforms = ["normalize", "clean", "aggregate"]
+    
+    # For each dataset, apply all transforms concurrently
+    results = process_dataset.map(
+        dataset=datasets,                 # Map over each dataset
+        transforms=unmapped(transforms)   # Keep transforms the same for all datasets
+    ).result()
+    
+    print(results)
+
+if __name__ == "__main__":
+    process_data()
+```
+
+This creates a nested structure where:
+1. The outer mapping processes each dataset concurrently
+2. For each dataset, the inner mapping applies all transforms concurrently
+3. The result is a nested list that matches the structure of the mapping
+
+
+### Real-world applications
+
+Mapped tasks are particularly valuable in common data science and ETL workflows such as:
+
+1. **Machine learning model evaluation**: Train multiple models on multiple datasets concurrently
+2. **ETL pipelines**: Process multiple data sources with multiple transformations
+3. **API data enrichment**: Enrich multiple records with data from multiple external services
+
+For example, you could structure a machine learning workflow like this:
+
+```python
+@task
+def train_model(dataset, model_config):
+    # Train a specific model on a specific dataset
+    return {"dataset": dataset.name, "model": model_config.name, "score": 0.95}
+
+@task
+def process_dataset(dataset, model_configs):
+    # For each dataset, train all models concurrently
+    return train_model.map(
+        dataset=unmapped(dataset),
+        model_config=model_configs
+    ).result()
+
+@flow
+def evaluate_models():
+    datasets = [Dataset("customers"), Dataset("products")]
+    models = [ModelConfig("random_forest"), ModelConfig("gradient_boosting")]
+    
+    # Process each dataset concurrently
+    results = process_dataset.map(
+        dataset=datasets,
+        model_configs=unmapped(models)
+    ).result()
+    
+    # results will be a list of lists with all model results
+    # Flatten and analyze to find the best model
+```
+
 
 ## Use multiple task runners
 
@@ -335,3 +428,18 @@ def parent_flow():
 if __name__ == "__main__":
     parent_flow()
 ```
+
+
+## Design considerations
+
+When choosing how and when to achieve concurrency using task runners, consider the following:
+
+1. **Task granularity**: The "proper" size for tasks depends on the nature and complexity of the work you're doing, e.g. too many small tasks might create overhead - see [Writing tasks](/v3/develop/write-tasks) for more.
+
+2. **Resource constraints**: Be aware of environment limitations. Using `.map` can create many task instances very quickly, which might exceed your resource availability.
+
+3. **Data transfer**: Large data passed between tasks can impact performance. Consider passing references to external storage when dealing with large datasets.
+
+4. For true parallelism (rather than just concurrency), consider using a specialized task runner like the `DaskTaskRunner` or `RayTaskRunner` (or [propose a new task runner type](https://github.com/PrefectHQ/prefect/issues/new?template=2_feature_enhancement.yaml)).
+
+5. **Beware of unsafe global state**: Use of concurrency or parallelism features like `.submit` and `.map` must respect the underlying primitives to avoid unexpected behavior. For example, the default `ThreadPoolTaskRunner` runs each task in a separate thread, which means that any global state must be threadsafe. Similarly, `DaskTaskRunner` and `RayTaskRunner` are multi-process runners that require global state to be picklable.
