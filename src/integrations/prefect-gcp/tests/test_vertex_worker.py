@@ -166,12 +166,8 @@ class TestVertexAIWorker:
     async def test_params_worker_run(self, flow_run, job_config):
         async with VertexAIWorker("test-pool") as worker:
             # Initialize scheduling parameters
-            maximum_run_time_hours = job_config.job_spec[
-                "maximum_run_time_hours"
-            ]
-            max_wait_duration = job_config.job_spec["scheduling"][
-                "max_wait_duration"
-            ]
+            maximum_run_time_hours = job_config.job_spec["maximum_run_time_hours"]
+            max_wait_duration = job_config.job_spec["scheduling"]["max_wait_duration"]
             timeout = Duration()
             timeout.FromTimedelta(td=datetime.timedelta(hours=maximum_run_time_hours))
             scheduling = Scheduling(
@@ -179,9 +175,7 @@ class TestVertexAIWorker:
             )
 
             job_config.prepare_for_flow_run(flow_run, None, None)
-            result = await worker.run(
-                flow_run=flow_run, configuration=job_config
-            )
+            result = await worker.run(flow_run=flow_run, configuration=job_config)
 
             custom_job_spec = job_config.credentials.job_service_async_client.create_custom_job.call_args[
                 1
