@@ -118,16 +118,29 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
         id: UUID = uuid.uuid4()
         name: str = "test-flow"
 
+    class MockWorkPool(BaseModel):
+        id: UUID = uuid.uuid4()
+        name: str = "test-work-pool"
+        type: str = "process"
+        description: str = "None"
+        base_job_template: dict[str, Any] = {}
+
     mock_get_client = MagicMock()
     mock_client = MagicMock()
     mock_read_deployment = AsyncMock()
     mock_read_deployment.return_value = MockDeployment()
     mock_read_flow = AsyncMock()
     mock_read_flow.return_value = MockFlow()
+    mock_read_work_pool = AsyncMock()
+    mock_read_work_pool.return_value = MockWorkPool()
+    mock_update_work_pool = AsyncMock()
+    mock_update_work_pool.return_value = MockWorkPool()
     mock_client.read_deployment = mock_read_deployment
     mock_client.read_flow = mock_read_flow
     mock_get_client.return_value = mock_client
-
+    mock_client.read_work_pool = mock_read_work_pool
+    mock_client.update_work_pool = mock_update_work_pool
+    mock_client.send_worker_heartbeat = AsyncMock()
     monkeypatch.setattr("prefect.workers.base.get_client", mock_get_client)
 
     return mock_read_deployment
