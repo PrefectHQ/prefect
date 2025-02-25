@@ -6,6 +6,7 @@ import { type JSX, useMemo } from "react";
 
 import { DeploymentConfiguration } from "./deployment-configuration";
 import { DeploymentDescription } from "./deployment-description";
+import { DeploymentDetailsRunsTab } from "./deployment-details-runs-tab";
 import { DeploymentDetailsUpcomingTab } from "./deployment-details-upcoming-tab";
 import { DeploymentParametersTable } from "./deployment-parameters-table";
 
@@ -54,7 +55,7 @@ function useBuildTabOptions(deployment: Deployment) {
 					),
 					ViewComponent: () => (
 						<TabsContent value="Runs">
-							<div className="border border-red-400">{"<RunsView />"}</div>
+							<DeploymentDetailsRunsTab deployment={deployment} />
 						</TabsContent>
 					),
 				},
