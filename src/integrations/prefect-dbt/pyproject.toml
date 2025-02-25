@@ -30,7 +30,7 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 snowflake = ["prefect-snowflake>=0.28.0", "dbt-snowflake"]
 bigquery = ["prefect-gcp[bigquery]>=0.6.0", "dbt-bigquery"]
 postgres = ["prefect-sqlalchemy>=0.5.1", "dbt-postgres"]

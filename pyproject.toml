@@ -87,6 +87,7 @@ Changelog = "https://github.com/PrefectHQ/prefect/releases"
 Documentation = "https://docs.prefect.io"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
+
 [project.optional-dependencies]
 otel = [
     "opentelemetry-distro>=0.48b0,<1.0.0",

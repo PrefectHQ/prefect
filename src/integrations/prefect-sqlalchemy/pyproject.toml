@@ -25,7 +25,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "aiosqlite",
   "asyncpg",
