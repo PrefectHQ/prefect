@@ -321,6 +321,7 @@ export const TypeArrayWithAnyOf: Story = {
 					default: [1, "foo"],
 					title: "Name",
 					type: "array",
+					//@ts-expect-error pydantic can create properties without a type
 					items: {
 						anyOf: [
 							{ type: "string" },
