@@ -14,10 +14,10 @@ const [values, setValues] = useState({});
 const [errors, setErrors] = useState([]);
 
 const schema = {
-	type: "object",
-	properties: {
-		name: { type: "string", title: "Name" },
-	},
+  type: "object",
+  properties: {
+    name: { type: "string", title: "Name" },
+  },
 };
 
 <SchemaForm
