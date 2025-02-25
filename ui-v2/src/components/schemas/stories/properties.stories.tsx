@@ -1,10 +1,6 @@
+import { PrefectSchemaObject } from "@/components/schemas/types/schemas";
 import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
-import { JsonInput } from "../ui/json-input";
-import { Typography } from "../ui/typography";
-import { SchemaForm, SchemaFormProps } from "./schema-form";
-import { SchemaFormErrors } from "./types/errors";
-import { PrefectSchemaObject } from "./types/schemas";
+import { TestSchemaForm } from "./utilities";
 
 const userDefinition: PrefectSchemaObject = {
 	type: "object",
@@ -14,51 +10,13 @@ const userDefinition: PrefectSchemaObject = {
 	},
 };
 
-function TestSchemaForm({
-	schema,
-	kinds = ["json"],
-	errors = [],
-	values: initialValues = {},
-	onValuesChange = () => {},
-}: Partial<SchemaFormProps> & {
-	schema: PrefectSchemaObject;
-}) {
-	const [values, setValues] = useState<Record<string, unknown>>(initialValues);
-
-	function handleValuesChange(values: Record<string, unknown>) {
-		setValues(values);
-		onValuesChange(values);
-	}
-
-	return (
-		<div className="grid grid-cols-2 gap-4 p-4 size-full">
-			<div className="flex flex-col gap-4">
-				<Typography variant="h2">Form</Typography>
-				<SchemaForm
-					schema={schema}
-					kinds={kinds}
-					errors={errors}
-					values={values}
-					onValuesChange={handleValuesChange}
-				/>
-			</div>
-			<div className="flex flex-col gap-4">
-				<Typography variant="h2">Values</Typography>
-				<JsonInput value={JSON.stringify(values, null, 2)} />
-				<Typography variant="h2">Schema</Typography>
-				<JsonInput value={JSON.stringify(schema, null, 2)} />
-			</div>
-		</div>
-	);
-}
-
 const meta = {
-	title: "Components/SchemaForm",
+	title: "Components/SchemaForm/Properties",
 	component: TestSchemaForm,
 	parameters: {
 		layout: "fullscreen",
 	},
-} satisfies Meta<typeof SchemaForm>;
+} satisfies Meta<typeof TestSchemaForm>;
 
 export default meta;
 
