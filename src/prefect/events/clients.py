@@ -27,12 +27,12 @@ from prometheus_client import Counter
 from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets import Subprotocol
+from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
     ConnectionClosedOK,
 )
-from websockets.legacy.client import Connect, WebSocketClientProtocol
 
 from prefect.events import Event
 from prefect.logging import get_logger
@@ -91,7 +91,7 @@ def events_out_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/events/out"
 
 
-class WebsocketProxyConnect(Connect):
+class WebsocketProxyConnect(connect):
     def __init__(self: Self, uri: str, **kwargs: Any):
         # super() is intentionally deferred to the _proxy_connect method
         # to allow for the socket to be established first
@@ -130,7 +130,7 @@ class WebsocketProxyConnect(Connect):
             ctx.verify_mode = ssl.CERT_NONE
             self._kwargs.setdefault("ssl", ctx)
 
-    async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
+    async def _proxy_connect(self: Self) -> ClientConnection:
         if self._proxy:
             sock = await self._proxy.connect(
                 dest_host=self._host,
@@ -142,7 +142,7 @@ class WebsocketProxyConnect(Connect):
         proto = await self.__await_impl__()
         return proto
 
-    def __await__(self: Self) -> Generator[Any, None, WebSocketClientProtocol]:
+    def __await__(self: Self) -> Generator[Any, None, ClientConnection]:
         return self._proxy_connect().__await__()
 
 
@@ -311,7 +311,7 @@ def _get_api_url_and_key(
 class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
-    _websocket: Optional[WebSocketClientProtocol]
+    _websocket: Optional[ClientConnection]
     _unconfirmed_events: List[Event]
 
     def __init__(
@@ -537,7 +537,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         )
         self._connect = websocket_connect(
             self._events_socket_url,
-            extra_headers={"Authorization": f"bearer {api_key}"},
+            additional_headers={"Authorization": f"bearer {api_key}"},
         )
 
 
@@ -562,7 +562,7 @@ class PrefectEventSubscriber:
 
     """
 
-    _websocket: Optional[WebSocketClientProtocol]
+    _websocket: Optional[ClientConnection]
     _filter: "EventFilter"
     _seen_events: MutableMapping[UUID, bool]
 
