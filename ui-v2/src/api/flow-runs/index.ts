@@ -135,7 +135,7 @@ export const buildPaginateFlowRunsQuery = (
  *     // Handle successful deletion
  *     console.log('Flow run deleted successfully');
  *   },
- *   onError: (error) => {
+ *    (error) => {
  *     // Handle error
  *     console.error('Failed to delete flow run:', error);
  *   }
@@ -179,7 +179,7 @@ type MutateCreateFlowRun = {
  *     // Handle successful creation
  *     console.log('Flow run created successfully');
  *   },
- *   onError: (error) => {
+ *    (error) => {
  *     // Handle error
  *     console.error('Failed to create flow run:', error);
  *   }

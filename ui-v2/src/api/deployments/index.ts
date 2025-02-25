@@ -199,6 +199,48 @@ export const buildDeploymentDetailsQuery = (id: string) =>
 // ----------------------------
 
 /**
+ * Hook for updating a deployment
+ *
+ * @returns Mutation object for updating a deployment with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { updateDeployment } = useUpdateDeployment();
+ *
+ * // Update a deployment by id
+ * updateDeployment('deployment-id', {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Deployment updated successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to update deployment:', error);
+ *   }
+ * });
+ * ```
+ */
+type UseUpdateDeployment = {
+	id: string;
+} & components["schemas"]["DeploymentUpdate"];
+export const useUpdateDeployment = () => {
+	const queryClient = useQueryClient();
+	const { mutate: updateDeployment, ...rest } = useMutation({
+		mutationFn: ({ id, ...body }: UseUpdateDeployment) =>
+			getQueryService().PATCH("/deployments/{id}", {
+				body,
+				params: { path: { id } },
+			}),
+		onSettled: async () => {
+			return await queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			});
+		},
+	});
+	return { updateDeployment, ...rest };
+};
+
+/**
  * Hook for deleting a deployment
  *
  * @returns Mutation object for deleting a deployment with loading/error states and trigger function
