@@ -90,7 +90,6 @@ const values = {}
 />
 ```
 
-:::note
-This can be disabled by setting the `skipDefaultValueInitialization` prop to `true`.
-:::
+> **Note**
+> This can be disabled by setting the `skipDefaultValueInitialization` prop to `true`.
 
