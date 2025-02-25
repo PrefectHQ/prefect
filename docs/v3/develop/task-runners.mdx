@@ -156,7 +156,7 @@ def my_flow():
 
 You may also use the [`wait_for=[]`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.Task.submit) parameter 
 when calling a task by specifying upstream task dependencies. This enables you to control task execution 
-order for tasks that do not directly exchange data.
+order for tasks that do not share data dependencies.
 
 ```python
 @task
@@ -205,7 +205,7 @@ This can be useful when submitting a lot of work to a task runner simultaneously
 <Tip> 
 **`wait_for` can also be used with `.map()`**
 
-Similar to the `.submit()` method, the `.map()` method accepts a `wait_for` argument to establish state dependencies between mapped tasks that do not have data dependencies.
+Similar to the `.submit()` method, the `.map()` method accepts a `wait_for` argument to establish state dependencies between mapped tasks that do not share data dependencies.
 
 </Tip>
 
