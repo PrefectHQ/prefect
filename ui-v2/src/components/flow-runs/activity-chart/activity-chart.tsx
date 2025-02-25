@@ -1,6 +1,8 @@
 import { FlowRun } from "@/api/flow-runs";
+import { components } from "@/api/prefect";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
+import { cva } from "class-variance-authority";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { FlowRunCell } from "./flowRunCell";
 
@@ -13,14 +15,14 @@ export type FlowRunsBarChartProps = {
 	className?: string;
 };
 
-const FlowRunsBarChart: React.FC<FlowRunsBarChartProps> = ({
+const FlowRunsBarChart = ({
 	startWindow,
 	endWindow,
 	mini = false,
 	flowRuns,
 	flowName,
 	className,
-}) => {
+}: FlowRunsBarChartProps) => {
 	const divRef = React.useRef<HTMLDivElement>(null);
 	const [width, setWidth] = React.useState(400);
 	const [height, setHeight] = React.useState(400);
@@ -51,21 +53,6 @@ const FlowRunsBarChart: React.FC<FlowRunsBarChartProps> = ({
 		};
 	}, [divRef, findWindow]);
 
-	const mapStateToColor = (state: string) => {
-		switch (state) {
-			case "COMPLETED":
-				return "#4caf50";
-			case "FAILED":
-				return "#f44336";
-			case "RUNNING":
-				return "#ff9800";
-			case "CANCELED":
-				return "#9e9e9e";
-			default:
-				return "#6f727b";
-		}
-	};
-
 	// Organize flow runs with gaps
 	const organizeFlowRunsWithGaps = useCallback(
 		(runs: FlowRun[]): (FlowRun | null)[] => {
@@ -94,7 +81,6 @@ const FlowRunsBarChart: React.FC<FlowRunsBarChartProps> = ({
 				: runs;
 
 			const getEmptyBucket = (index: number): number | null => {
-				console.log("index", index);
 				if (index < 0) return null;
 				if (buckets[index])
 					return getEmptyBucket(index + bucketIncrementDirection);
@@ -137,6 +123,22 @@ const FlowRunsBarChart: React.FC<FlowRunsBarChartProps> = ({
 		[maxValue, height],
 	);
 
+	const stateBadgeVariants = cva("gap-1", {
+		variants: {
+			state: {
+				COMPLETED: "bg-green-500",
+				FAILED: "bg-red-500",
+				RUNNING: "bg-blue-500",
+				CANCELLED: "bg-gray-500",
+				CANCELLING: "bg-gray-500",
+				CRASHED: "bg-orange-500",
+				PAUSED: "bg-gray-500",
+				PENDING: "bg-gray-500",
+				SCHEDULED: "bg-yellow-500",
+			} satisfies Record<components["schemas"]["StateType"], string>,
+		},
+	});
+
 	return (
 		<div className={`w-full h-full ${className}`}>
 			<TooltipProvider>
@@ -157,11 +159,9 @@ const FlowRunsBarChart: React.FC<FlowRunsBarChartProps> = ({
 								height={flowRun ? calcHeight(flowRun) : "5px"}
 								flowName={flowName}
 								flowRun={flowRun}
-								color={
-									flowRun
-										? mapStateToColor(flowRun.state_type ?? "")
-										: "#6f727b"
-								}
+								className={stateBadgeVariants({
+									state: flowRun?.state?.type ?? "PENDING",
+								})}
 							/>
 						))}
 					</div>

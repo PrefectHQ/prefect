@@ -8,7 +8,7 @@ export type FlowRunCellProps = {
 	flowName: string;
 	width: string;
 	height: string;
-	color: string;
+	className?: string;
 };
 
 export const FlowRunCell = ({
@@ -16,17 +16,17 @@ export const FlowRunCell = ({
 	flowRun,
 	width,
 	height,
-	color,
+	className,
 }: FlowRunCellProps) => {
 	return (
 		<Tooltip delayDuration={0}>
 			<TooltipTrigger asChild>
 				<div
 					data-testid={`flow-run-cell-${flowRun?.id}`}
+					className={className}
 					style={{
 						width: width,
 						height: height,
-						backgroundColor: color,
 						borderRadius: "4px",
 						margin: "3px",
 					}}

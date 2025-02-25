@@ -15,7 +15,7 @@ describe("Flow Run Activity Chart Cells", () => {
 					flowName="test-flow"
 					width="10px"
 					height="10px"
-					color="red"
+					className="bg-blue-500"
 				/>
 			</TooltipProvider>,
 		);
