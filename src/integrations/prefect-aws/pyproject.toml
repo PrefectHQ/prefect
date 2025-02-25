@@ -33,7 +33,7 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "black",
   "boto3-stubs >= 1.24.39",
