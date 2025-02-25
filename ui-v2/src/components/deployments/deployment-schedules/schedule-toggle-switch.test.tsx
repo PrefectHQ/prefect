@@ -38,5 +38,5 @@ test("AutomationEnableToggle can toggle switch", async () => {
 	await user.click(
 		screen.getByRole("switch", { name: /toggle every 1 hour/i }),
 	);
-	expect(screen.getByText(/Deployment schedule inactive/i)).toBeVisible();
+	expect(screen.getByText(/Deployment schedule paused/i)).toBeVisible();
 });

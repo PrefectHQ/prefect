@@ -40,13 +40,15 @@ export const DeploymentScheduleToggle = ({
 	return (
 		<TooltipProvider>
 			<Tooltip>
-				<TooltipTrigger>
-					<Switch
-						aria-label="Pause or resume all schedules"
-						disabled={isDeploymentDeprecated}
-						onCheckedChange={handleChckedChange}
-						checked={!deployment.paused}
-					/>
+				<TooltipTrigger asChild>
+					<div>
+						<Switch
+							aria-label="Pause or resume all schedules"
+							disabled={isDeploymentDeprecated}
+							onCheckedChange={handleChckedChange}
+							checked={!deployment.paused}
+						/>
+					</div>
 				</TooltipTrigger>
 				<TooltipContent>Pause or resume all schedules</TooltipContent>
 			</Tooltip>
