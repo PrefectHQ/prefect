@@ -7,11 +7,14 @@ from typing import Any, List, Optional
 
 import pytest
 
-from prefect import task
+from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import MissingResult
+from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
+    PrefectFlowRunFuture,
     PrefectFuture,
     PrefectFutureList,
     PrefectWrappedFuture,
@@ -19,12 +22,13 @@ from prefect.futures import (
     resolve_futures_to_states,
     wait,
 )
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, Failed
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import ThreadPoolTaskRunner
 
 
-class MockFuture(PrefectWrappedFuture):
+class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
     def __init__(self, data: Any = 42):
         super().__init__(uuid.uuid4(), Future())
         self._final_state = Completed(data=data)
@@ -401,6 +405,162 @@ class TestPrefectDistributedFuture:
             task=my_task,
             task_run_id=future.task_run_id,
             task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        await events_pipeline.process_events()
+
+        with pytest.raises(MissingResult):
+            future.result()
+
+
+class TestPrefectFlowRunFuture:
+    async def test_wait_with_timeout(self, prefect_client: PrefectClient):
+        @flow
+        async def my_flow():
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+
+        asyncio.create_task(
+            run_flow_async(
+                flow=my_flow,
+                flow_run=flow_run,
+                parameters={},
+                return_type="state",
+            )
+        )
+
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+        future.wait(timeout=0.25)
+        assert future.state.is_pending()
+
+    async def test_wait_without_timeout(
+        self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
+    ):
+        @flow
+        def my_flow():
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+        state = run_flow_sync(
+            flow=my_flow,
+            flow_run=flow_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        await events_pipeline.process_events()
+
+        future.wait()
+        assert future.state.is_completed()
+
+    async def test_result_with_final_state(
+        self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
+    ):
+        @flow(persist_result=True)
+        def my_flow():
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+        state = run_flow_sync(
+            flow=my_flow,
+            flow_run=flow_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        await events_pipeline.process_events()
+
+        assert await state.result() == 42
+
+        assert future.result() == 42
+
+    async def test_final_state_without_result(
+        self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
+    ):
+        @flow(persist_result=False)
+        def my_flow():
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+        state = run_flow_sync(
+            flow=my_flow,
+            flow_run=flow_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        await events_pipeline.process_events()
+
+        with pytest.raises(MissingResult):
+            future.result()
+
+    async def test_result_with_final_state_and_raise_on_failure(
+        self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
+    ):
+        @flow(persist_result=True)
+        def my_flow():
+            raise ValueError("oops")
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+        state = run_flow_sync(
+            flow=my_flow,
+            flow_run=flow_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_failed()
+
+        await events_pipeline.process_events()
+
+        with pytest.raises(ValueError, match="oops"):
+            future.result(raise_on_failure=True)
+
+    async def test_final_state_missing_result(
+        self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
+    ):
+        @flow(persist_result=False)
+        def my_flow():
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+        state = run_flow_sync(
+            flow=my_flow,
+            flow_run=flow_run,
             parameters={},
             return_type="state",
         )

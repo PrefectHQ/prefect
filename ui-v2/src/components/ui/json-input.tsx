@@ -79,7 +79,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		return (
 			<div
 				className={cn(
-					"rounded-md border shadow-sm overflow-hidden focus-within:outline-none focus-within:ring-1 focus-within:ring-ring relative",
+					"rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring relative",
 					className,
 				)}
 				ref={(node) => {
@@ -100,7 +100,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 						className="absolute top-0 right-0 z-10"
 						aria-label="copy"
 					>
-						<Icon id="Copy" className="h-2 w-2" />
+						<Icon id="Copy" className="size-2" />
 					</Button>
 				)}
 			</div>

@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { useMemo } from "react";
 import { DeploymentScheduleItem } from "./deployment-schedule-item";
+import { DeploymentScheduleToggle } from "./deployment-schedule-toggle";
+
+const NUM_SCHEDULES_TO_TOGGLE = 3;
 
 type DeploymentSchedulesProps = {
 	onAddSchedule: () => void;
@@ -33,18 +36,25 @@ export const DeploymentSchedules = ({
 
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="text-sm text-muted-foreground">Schedules</div>
+			<div className="flex items-center justify-between">
+				<div className="text-sm text-muted-foreground">Schedules</div>
+				{(deploymentSchedulesSorted.length > NUM_SCHEDULES_TO_TOGGLE ||
+					deployment.paused) && (
+					<DeploymentScheduleToggle deployment={deployment} />
+				)}
+			</div>
 			<div className="flex flex-col gap-2">
 				{deploymentSchedulesSorted.map((schedule) => (
 					<DeploymentScheduleItem
 						key={schedule.id}
+						disabled={deployment.paused}
 						deploymentSchedule={schedule}
 						onEditSchedule={onEditSchedule}
 					/>
 				))}
 				<div>
 					<Button size="sm" onClick={onAddSchedule}>
-						<Icon id="Plus" className="mr-2 h-4 w-4" /> Schedule
+						<Icon id="Plus" className="mr-2 size-4" /> Schedule
 					</Button>
 				</div>
 			</div>

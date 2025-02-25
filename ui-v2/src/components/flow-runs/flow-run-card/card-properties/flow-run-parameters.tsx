@@ -1,7 +1,4 @@
-import {
-	type FlowRunWithDeploymentAndFlow,
-	type FlowRunWithFlow,
-} from "@/api/flow-runs";
+import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Button } from "@/components/ui/button";
 import { DialogHeader } from "@/components/ui/dialog";
 import {
@@ -13,33 +10,20 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { JsonInput } from "@/components/ui/json-input";
 import { pluralize } from "@/utils";
-import type { CellContext } from "@tanstack/react-table";
 
-type ParametersCellProps = CellContext<
-	FlowRunWithFlow | FlowRunWithDeploymentAndFlow,
-	Record<string, unknown> | undefined
->;
+type FlowRunParametersProps = { flowRun: FlowRunCardData };
 
-export const ParametersCell = (props: ParametersCellProps) => {
-	const flowRunName = props.row.original.name;
-	const parameters = props.getValue() ?? {};
+export const FlowRunParameters = ({ flowRun }: FlowRunParametersProps) => {
 	return (
 		<div className="flex items-center">
-			<Icon id="SlidersVertical" className="h-4 w-4" />
-			<ParametersDialog flowRunName={flowRunName} parameters={parameters} />
+			<Icon id="SlidersVertical" className="size-4" />
+			<ParametersDialog flowRun={flowRun} />
 		</div>
 	);
 };
 
-type ParametersDialogProps = {
-	flowRunName: string | undefined;
-	parameters: Record<string, unknown>;
-};
-
-export const ParametersDialog = ({
-	flowRunName,
-	parameters,
-}: ParametersDialogProps) => {
+const ParametersDialog = ({ flowRun }: FlowRunParametersProps) => {
+	const parameters = flowRun.parameters ?? {};
 	const numParameters = Object.keys(parameters).length;
 	return (
 		<Dialog>
@@ -51,7 +35,7 @@ export const ParametersDialog = ({
 			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>
-						Flow run parameters for {flowRunName ?? "Flow run"}
+						Flow run parameters for {flowRun.name ?? "Flow run"}
 					</DialogTitle>
 				</DialogHeader>
 				<JsonInput value={JSON.stringify(parameters, null, 2)} disabled />

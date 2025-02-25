@@ -5,16 +5,19 @@ import { Typography } from "@/components/ui/typography";
 
 import { Link } from "@tanstack/react-router";
 
-type DeploymentCellProps = { deployment: Deployment };
-export const DeploymentCell = ({ deployment }: DeploymentCellProps) => {
+type FlowRunDeploymentProps = { deployment: Deployment };
+export const FlowRunDeployment = ({ deployment }: FlowRunDeploymentProps) => {
 	return (
 		<Link
 			className="flex items-center gap-1"
 			to="/deployments/deployment/$id"
 			params={{ id: deployment.id }}
 		>
-			<Icon id="Rocket" className="h-4 w-4" />
-			<Typography variant="bodySmall">{deployment.name}</Typography>
+			<Typography variant="xsmall" className="font-medium leading-none">
+				Deployment
+			</Typography>
+			<Icon id="Rocket" className="size-4" />
+			<Typography variant="xsmall">{deployment.name}</Typography>
 		</Link>
 	);
 };

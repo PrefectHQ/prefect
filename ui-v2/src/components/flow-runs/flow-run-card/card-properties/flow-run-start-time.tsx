@@ -1,8 +1,3 @@
-import {
-	type FlowRun,
-	type FlowRunWithDeploymentAndFlow,
-} from "@/api/flow-runs";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
@@ -14,18 +9,10 @@ import { formatDate } from "@/utils/date";
 import humanizeDuration from "humanize-duration";
 import { useMemo } from "react";
 
-type StartTimeCellProps = {
-	flowRun: FlowRun | FlowRunWithDeploymentAndFlow;
-};
+import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 
-const getDelta = (estimated_start_time_delta: null | number) => {
-	if (!estimated_start_time_delta || estimated_start_time_delta <= 60) {
-		return "";
-	}
-	return `(${humanizeDuration(estimated_start_time_delta, { maxDecimalPoints: 0 })} late)`;
-};
-
-export const StartTimeCell = ({ flowRun }: StartTimeCellProps) => {
+type FlowRunStartTimeProps = { flowRun: FlowRunCardData };
+export const FlowRunStartTime = ({ flowRun }: FlowRunStartTimeProps) => {
 	const { start_time, expected_start_time, estimated_start_time_delta } =
 		flowRun;
 
@@ -46,16 +33,20 @@ export const StartTimeCell = ({ flowRun }: StartTimeCellProps) => {
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger asChild disabled={!text}>
-					<Button
-						variant="ghost"
-						className="text-sm font-mono flex gap-2 items-center"
-					>
-						<Icon id="Calendar" className="h-4 w-4" />
+					<div className="text-xs font-mono flex gap-2 items-center">
+						<Icon id="Calendar" className="size-4" />
 						{text ?? "No start time"}
-					</Button>
+					</div>
 				</TooltipTrigger>
 				<TooltipContent>{tooltipText}</TooltipContent>
 			</Tooltip>
 		</TooltipProvider>
 	);
+};
+
+const getDelta = (estimated_start_time_delta: null | number) => {
+	if (!estimated_start_time_delta || estimated_start_time_delta <= 60) {
+		return "";
+	}
+	return `(${humanizeDuration(estimated_start_time_delta, { maxDecimalPoints: 0 })} late)`;
 };

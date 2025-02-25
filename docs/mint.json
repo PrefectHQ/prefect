@@ -232,7 +232,6 @@
               "version": "v3"
             },
             "v3/manage/cloud/rate-limits",
-            "v3/manage/cloud/terraform-provider",
             "v3/manage/cloud/troubleshoot-cloud"
           ],
           "version": "v3"
@@ -1428,6 +1427,10 @@
     {
       "destination": "/v3/develop/interact-with-api",
       "source": "/v3/resources/interact-with-api"
+    },
+    {
+      "destination": "/v3/manage/infrastructure-as-code",
+      "source": "/v3/manage/cloud/terraform-provider"
     },
     {
       "destination": "/v3/api-ref/python",

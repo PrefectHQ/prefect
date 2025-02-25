@@ -11,10 +11,11 @@ import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { useMemo, useState } from "react";
-import { FlowRunsDataTable } from "./data-table";
-import { FlowRunsFilters } from "./data-table-filters";
+import { FlowRunsFilters } from "./flow-runs-filters";
 import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
-import { RowSelectionProvider } from "./row-selection-provider";
+import { FlowRunsList } from "./flow-runs-list";
+import { FlowRunsPagination, PaginationState } from "./flow-runs-pagination";
+import { FlowRunsRowCount } from "./flow-runs-row-count";
 
 const MOCK_DATA = [
 	createFakeFlowRunWithDeploymentAndFlow({
@@ -48,9 +49,9 @@ const MOCK_FLOW_RUNS_TASK_COUNT = {
 };
 
 const meta = {
-	title: "Components/FlowRuns/DataTable/FlowRunsDataTable",
+	title: "Components/FlowRuns/FlowRunsList",
+	render: () => <FlowRunsListStory />,
 	decorators: [routerDecorator, reactQueryDecorator, toastDecorator],
-	args: { flowRuns: MOCK_DATA, flowRunsCount: MOCK_DATA.length },
 	parameters: {
 		msw: {
 			handlers: [
@@ -60,23 +61,18 @@ const meta = {
 			],
 		},
 	},
-} satisfies Meta<typeof FlowRunsDataTable>;
+} satisfies Meta<typeof FlowRunsList>;
 
 export default meta;
-type Story = StoryObj<typeof meta>;
 
-export const DataTableWithFilters: Story = {
-	render: () => <DataTableWithFiltersStory />,
-};
+export const story: StoryObj = { name: "FlowRunsList" };
 
-export const DataTableOnly: Story = {
-	render: () => <DataTableOnlyStory />,
-};
-
-const DataTableWithFiltersStory = () => {
-	const [pageIndex, setPageIndex] = useState(0);
-	const [pageSize, setPageSize] = useState(10);
-
+const FlowRunsListStory = () => {
+	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+	const [pagination, setPagination] = useState<PaginationState>({
+		limit: 5,
+		page: 1,
+	});
 	const [search, setSearch] = useState("");
 	const [filters, setFilters] = useState<Set<FlowRunState>>(new Set());
 
@@ -90,55 +86,62 @@ const DataTableWithFiltersStory = () => {
 		);
 	}, [filters, search]);
 
+	const addRow = (id: string) =>
+		setSelectedRows((curr) => new Set([...Array.from(curr), id]));
+
+	const removeRow = (id: string) =>
+		setSelectedRows(
+			(curr) => new Set([...Array.from(curr).filter((i) => i !== id)]),
+		);
+	const handleSelectRow = (id: string, checked: boolean) => {
+		if (checked) {
+			addRow(id);
+		} else {
+			removeRow(id);
+		}
+	};
+
+	const handleResetFilters = () => {
+		setSelectedRows(new Set());
+		setSearch("");
+		setFilters(new Set());
+	};
+
 	return (
-		<div className="flex flex-col">
-			<RowSelectionProvider>
+		<div className="flex flex-col gap-2">
+			<div className="flex items-center justify-between">
+				<FlowRunsRowCount
+					count={MOCK_DATA.length}
+					results={flowRuns}
+					selectedRows={selectedRows}
+					setSelectedRows={setSelectedRows}
+				/>
 				<FlowRunsFilters
+					search={{ value: search, onChange: setSearch }}
 					stateFilter={{
 						value: filters,
 						onSelect: setFilters,
-					}}
-					search={{
-						value: search,
-						onChange: setSearch,
 					}}
 					sort={{
 						value: "NAME_ASC",
 						onSelect: fn(),
 					}}
-					flowRunsCount={flowRuns.length}
 				/>
-				<FlowRunsDataTable
-					flowRuns={flowRuns}
-					flowRunsCount={flowRuns.length}
-					pagination={{ pageIndex, pageSize }}
-					pageCount={Math.ceil(flowRuns.length / pageSize)}
-					onPaginationChange={(pagination) => {
-						setPageIndex(pagination.pageIndex);
-						setPageSize(pagination.pageSize);
-					}}
-				/>
-			</RowSelectionProvider>
+			</div>
+
+			<FlowRunsList
+				flowRuns={flowRuns}
+				selectedRows={selectedRows}
+				onSelect={handleSelectRow}
+				onClearFilters={handleResetFilters}
+			/>
+
+			<FlowRunsPagination
+				count={MOCK_DATA.length}
+				pagination={pagination}
+				onChangePagination={setPagination}
+				pages={20}
+			/>
 		</div>
-	);
-};
-
-const DataTableOnlyStory = () => {
-	const [pageIndex, setPageIndex] = useState(0);
-	const [pageSize, setPageSize] = useState(10);
-
-	const flowRuns = MOCK_DATA;
-
-	return (
-		<FlowRunsDataTable
-			flowRuns={flowRuns}
-			flowRunsCount={flowRuns.length}
-			pagination={{ pageIndex, pageSize }}
-			pageCount={Math.ceil(flowRuns.length / pageSize)}
-			onPaginationChange={(pagination) => {
-				setPageIndex(pagination.pageIndex);
-				setPageSize(pagination.pageSize);
-			}}
-		/>
 	);
 };

@@ -63,7 +63,7 @@ const ComboboxTrigger = ({
 				id={id}
 			>
 				{children}
-				<Icon id="ChevronsUpDown" className="h-4 w-4 opacity-50" />
+				<Icon id="ChevronsUpDown" className="size-4 opacity-50" />
 			</Button>
 		</PopoverTrigger>
 	);
