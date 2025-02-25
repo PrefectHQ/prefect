@@ -107,11 +107,14 @@ export function SchemaFormProperty({
 		<div className="flex flex-col gap-2 group">
 			{showLabel && (
 				<div className="grid grid-cols-[1fr_auto] items-center gap-2">
-					<SchemaFormPropertyLabel
-						property={property}
-						required={required}
-						id={id}
-					/>
+					<div className="flex flex-col gap-1">
+						<SchemaFormPropertyLabel
+							property={property}
+							required={required}
+							id={id}
+						/>
+						<SchemaFormPropertyDescription property={property} />
+					</div>
 					<div className="ml-auto">
 						<SchemaFormPropertyMenu
 							value={value}
@@ -127,7 +130,7 @@ export function SchemaFormProperty({
 				</div>
 			)}
 
-			<SchemaFormPropertyDescription property={property} />
+			{!showLabel && <SchemaFormPropertyDescription property={property} />}
 
 			<fieldset disabled={omitted}>
 				<SchemaFormInput

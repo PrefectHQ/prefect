@@ -6,7 +6,17 @@ const userDefinition: PrefectSchemaObject = {
 	type: "object",
 	title: "User",
 	properties: {
-		name: { type: "string", title: "Name" },
+		name: {
+			type: "string",
+			title: "Name",
+			description: "The name of the user",
+		},
+		age: {
+			type: "string",
+			title: "Birthday",
+			description: "The age of the user",
+			format: "date",
+		},
 	},
 };
 
@@ -21,6 +31,36 @@ const meta = {
 export default meta;
 
 type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+	args: {
+		schema: {
+			definitions: {
+				user: userDefinition,
+			},
+			type: "object",
+			properties: {
+				user: {
+					title: "User",
+					type: "object",
+					allOf: [
+						{ $ref: "#/definitions/user" },
+						{
+							type: "object",
+							properties: {
+								email: {
+									type: "string",
+									title: "Email",
+									description: "The email of the user",
+								},
+							},
+						},
+					],
+				},
+			},
+		},
+	},
+};
 
 export const TypeString: Story = {
 	args: {
