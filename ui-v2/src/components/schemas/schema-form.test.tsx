@@ -1,8 +1,8 @@
 import { fireEvent } from "@testing-library/react";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { SchemaObject } from "openapi-typescript";
 import { act, useState } from "react";
-import { describe, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, test, vi } from "vitest";
 import { expect } from "vitest";
 import { SchemaForm } from "./schema-form";
 import { SchemaFormProps } from "./schema-form";
@@ -25,10 +25,17 @@ function TestSchemaForm({
 	);
 }
 
+beforeEach(() => {
+	vi.useFakeTimers();
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+});
+
 describe("property.type", () => {
 	describe("string", () => {
-		test("", async () => {
-			vi.useFakeTimers();
+		test("base", async () => {
 			const spy = vi.fn();
 
 			function Wrapper() {
@@ -53,13 +60,9 @@ describe("property.type", () => {
 				);
 			}
 
-			const { container } = render(<Wrapper />);
+			render(<Wrapper />);
 
-			const input = container.querySelector("textarea");
-
-			if (!input) {
-				throw new Error("input not found");
-			}
+			const input = screen.getByRole("textbox");
 
 			fireEvent.change(input, { target: { value: "bar" } });
 
@@ -71,8 +74,39 @@ describe("property.type", () => {
 
 			expect(spy).toHaveBeenCalledTimes(1);
 			expect(spy).toHaveBeenCalledWith({ name: "bar" });
-
-			vi.useRealTimers();
 		});
+	});
+
+	test("base with default value", async () => {
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState({});
+			spy.mockImplementation((value: Record<string, unknown>) =>
+				setValues(value),
+			);
+
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					name: { type: "string", default: "John Doe" },
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		// fixes warning: "An update to Wrapper inside a test was not wrapped in act(...)"
+		// eslint-disable-next-line @typescript-eslint/require-await
+		await act(async () => {
+			vi.runAllTimers();
+		});
+
+		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledWith({ name: "John Doe" });
 	});
 });
