@@ -1,22 +1,29 @@
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from prefect_kubernetes._decorators import kubernetes
 from prefect_kubernetes.worker import KubernetesWorker
 
-from prefect import flow
+from prefect import State, flow
 from prefect.futures import PrefectFuture
-from prefect.states import Completed
 
 
 @pytest.fixture
 def mock_submit(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     """Mock the KubernetesWorker.submit method"""
+    # Create a mock state
+    mock_state = MagicMock(spec=State)
+    mock_state.is_completed.return_value = True
+    mock_state.message = "Success"
+
+    # Create a mock future
     mock_future = MagicMock(spec=PrefectFuture)
     mock_future.aresult = AsyncMock(return_value="test_result")
     mock_future.wait_async = AsyncMock()
-    mock_future.state = Completed()
+    mock_future.state = mock_state
 
+    # Create the submit mock
     mock = AsyncMock(return_value=mock_future)
 
     # Patch just the submit method
@@ -26,11 +33,10 @@ def mock_submit(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     return mock
 
 
-@pytest.mark.usefixtures("mock_submit")
 def test_kubernetes_decorator_sync_flow(mock_submit: AsyncMock) -> None:
     @kubernetes(work_pool="test-pool", memory="2Gi")
     @flow
-    def sync_test_flow(param1: str, param2: str = "default") -> str:
+    def sync_test_flow(param1, param2="default"):
         return f"{param1}-{param2}"
 
     result = sync_test_flow("test")
@@ -43,11 +49,10 @@ def test_kubernetes_decorator_sync_flow(mock_submit: AsyncMock) -> None:
     assert result == "test_result"
 
 
-@pytest.mark.usefixtures("mock_submit")
 async def test_kubernetes_decorator_async_flow(mock_submit: AsyncMock) -> None:
     @kubernetes(work_pool="test-pool", cpu="1")
     @flow
-    async def async_test_flow(param1: str) -> str:
+    async def async_test_flow(param1):
         return f"async-{param1}"
 
     result = await async_test_flow("test")
@@ -61,7 +66,7 @@ async def test_kubernetes_decorator_async_flow(mock_submit: AsyncMock) -> None:
 
 
 @pytest.mark.usefixtures("mock_submit")
-def test_kubernetes_decorator_return_state(mock_submit: AsyncMock) -> None:
+def test_kubernetes_decorator_return_state() -> None:
     @kubernetes(work_pool="test-pool")
     @flow
     def test_flow():
@@ -74,7 +79,7 @@ def test_kubernetes_decorator_return_state(mock_submit: AsyncMock) -> None:
 
 
 @pytest.mark.usefixtures("mock_submit")
-def test_kubernetes_decorator_preserves_flow_attributes(mock_submit: AsyncMock) -> None:
+def test_kubernetes_decorator_preserves_flow_attributes() -> None:
     @flow(name="custom-flow-name", description="Custom description")
     def original_flow():
         return "test"
@@ -92,28 +97,50 @@ def test_kubernetes_decorator_preserves_flow_attributes(mock_submit: AsyncMock) 
 
 
 @pytest.fixture
-def mock_worker_context(monkeypatch: pytest.MonkeyPatch) -> None:
+def mock_worker_context(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     """Mock the worker context manager to avoid actual worker creation"""
-    worker_mock = MagicMock()
-    worker_mock.__aenter__ = AsyncMock(return_value=worker_mock)
-    worker_mock.__aexit__ = AsyncMock(return_value=None)
+    # Create a properly structured async worker mock
+    worker_mock = AsyncMock()
+    worker_mock.__aenter__.return_value = worker_mock
+    worker_mock.__aexit__.return_value = None
 
-    monkeypatch.setattr(KubernetesWorker, "__init__", lambda self, work_pool_name: None)
+    # Add the submit method that returns an async result
+    mock_future = MagicMock(spec=PrefectFuture)
+    mock_future.aresult = AsyncMock(return_value="test_result")
+    mock_future.wait_async = AsyncMock()
+    mock_future.state = MagicMock(spec=State)
+    mock_future.state.is_completed.return_value = True
+    mock_future.state.message = "Success"
+
+    worker_mock.submit = AsyncMock(return_value=mock_future)
+
+    # Patch the constructor to track work_pool_name
+    original_init = KubernetesWorker.__init__
+
+    def init_wrapper(self, work_pool_name=None, **kwargs: Any):
+        self.captured_work_pool_name = work_pool_name
+        if original_init != object.__init__:
+            original_init(self, work_pool_name=work_pool_name, **kwargs)
+
+    monkeypatch.setattr(KubernetesWorker, "__init__", init_wrapper)
     monkeypatch.setattr(
         KubernetesWorker, "__new__", lambda cls, *args, **kwargs: worker_mock
     )
+    return worker_mock
 
 
-@pytest.mark.usefixtures("mock_worker_context", "mock_submit")
-def test_worker_creation() -> None:
-    """Test that the worker is created with the correct work pool name"""
+@pytest.mark.usefixtures("mock_submit")
+def test_worker_creation(mock_worker_context: AsyncMock) -> None:
+    """Test the worker context is properly used"""
 
     @kubernetes(work_pool="specific-pool")
     @flow
     def test_flow():
         return "test"
 
-    test_flow()
+    result = test_flow()
 
-    # Since we're mocking __new__, we can't easily test the work_pool_name parameter
-    # This test primarily ensures the worker context is used correctly
+    # Verify the result matches what our mock returns
+    assert result == "test_result"
+    # Verify the worker's submit method was called
+    mock_worker_context.submit.assert_called_once()
