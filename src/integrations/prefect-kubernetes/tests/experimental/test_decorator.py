@@ -2,7 +2,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from prefect_kubernetes._decorators import kubernetes
+from prefect_kubernetes.experimental.decorators import kubernetes
 from prefect_kubernetes.worker import KubernetesWorker
 
 from prefect import State, flow

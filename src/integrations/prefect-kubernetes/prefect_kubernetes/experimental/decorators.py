@@ -13,13 +13,13 @@ from typing import (
     overload,
 )
 
+from prefect_kubernetes.worker import KubernetesWorker
 from typing_extensions import Literal, ParamSpec
 
 from prefect import Flow, State
 from prefect.futures import PrefectFuture
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import get_call_parameters
-from prefect_kubernetes.worker import KubernetesWorker
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -106,6 +106,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         async def modified_call(
             *args: P.args,
             return_state: bool = False,
+            # TODO: Handle wait_for once we have an asynchronous way to wait for futures
             wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
             **kwargs: P.kwargs,
         ) -> R | State[R]:
