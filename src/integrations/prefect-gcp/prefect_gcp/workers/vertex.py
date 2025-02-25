@@ -156,7 +156,7 @@ class VertexAIWorkerVariables(BaseVariables):
         "within the provided ip ranges. Otherwise, the job will be deployed to "
         "any ip ranges under the provided VPC network.",
     )
-    scheduling: Optional[dict] = Field(
+    scheduling: Optional[dict[str, Any]] = Field(
         default=None,
         title="Scheduling Options",
         description=(
