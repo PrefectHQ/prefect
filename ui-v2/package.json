@@ -8,6 +8,7 @@
 		"build": "tsc -b && vite build",
 		"test": "vitest",
 		"lint": "eslint .",
+		"lint-staged": "lint-staged",
 		"lint:fix": "eslint . --fix",
 		"format:check": "biome check",
 		"format": "biome check --write",
@@ -110,6 +111,7 @@
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^16.0.0",
 		"jsdom": "^26.0.0",
+		"lint-staged": "^15.4.3",
 		"msw": "^2.7.1",
 		"msw-storybook-addon": "^2.0.4",
 		"postcss": "^8.5.3",
@@ -119,5 +121,8 @@
 		"typescript-eslint": "^8.24.1",
 		"vite": "^6.1.1",
 		"vitest": "^3.0.5"
+	},
+	"lint-staged": {
+		"*.{js,jsx,ts,tsx}": ["eslint --fix"]
 	}
 }
