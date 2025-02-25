@@ -20,11 +20,14 @@ export const DeploymentScheduleItem = ({
 	return (
 		<Card className="p-3 flex items-center justify-between">
 			<Typography>{getScheduleTitle(deploymentSchedule)}</Typography>
-			<div className="flex items-center gap-2">
-				<ScheduleToggleSwitch
-					deploymentSchedule={deploymentSchedule}
-					disabled={disabled}
-				/>
+			<div className="flex items-baseline gap-2">
+				<div>
+					<ScheduleToggleSwitch
+						deploymentSchedule={deploymentSchedule}
+						disabled={disabled}
+					/>
+				</div>
+				<div></div>
 				<ScheduleActionMenu
 					deploymentSchedule={deploymentSchedule}
 					onEditSchedule={onEditSchedule}
