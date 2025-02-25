@@ -30,6 +30,11 @@ async def create_block_schema(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
+    """
+    Create a block schema.
+
+    For more information, see [securely store typed configuration](/v3/develop/blocks).
+    """
     from prefect.blocks.core import Block
 
     async with db.session_context(begin_transaction=True) as session:
