@@ -159,6 +159,15 @@ class VertexAIWorkerVariables(BaseVariables):
     scheduling: Optional[dict[str, Any]] = Field(
         default=None,
         title="Scheduling Options",
+        examples=[
+            {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}},
+            {
+                "scheduling": {
+                    "strategy": Scheduling.Strategy.FLEX_START,
+                    "max_wait_duration": "1800s",
+                }
+            },
+        ],
         description=(
             "A dictionary with scheduling options for a CustomJob, "
             "these are parameters related to queuing, and scheduling custom jobs. "
