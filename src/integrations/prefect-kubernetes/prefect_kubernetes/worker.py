@@ -109,6 +109,7 @@ import json
 import logging
 import shlex
 import tempfile
+import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime
 from functools import partial
@@ -664,6 +665,11 @@ class KubernetesWorker(
         Returns:
             A flow run object
         """
+        warnings.warn(
+            "The `submit` method on the Kubernetes worker is experimental. The interface "
+            "and behavior of this method are subject to change.",
+            category=FutureWarning,
+        )
         if self._runs_task_group is None:
             raise RuntimeError("Worker not properly initialized")
         flow_run = await self._runs_task_group.start(
@@ -698,6 +704,7 @@ class KubernetesWorker(
             flow, parameters=parameters, state=Pending()
         )
         if task_status is not None:
+            # Emit the flow run object to .submit to allow it to return a future as soon as possible
             task_status.started(flow_run)
         # Avoid an API call to get the flow
         api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
@@ -726,7 +733,7 @@ class KubernetesWorker(
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            values=job_variables | {"command": " ".join(execute_command)},
+            values=job_variables,
             client=self._client,
         )
         configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
