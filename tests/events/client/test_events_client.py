@@ -184,8 +184,8 @@ async def test_reconnects_and_resends_after_hard_disconnect(
     assert recorder.events == [
         example_event_1,
         example_event_2,
+        example_event_2,
         example_event_3,
-        example_event_3,  # resent due to the hard disconnect after event 2
         example_event_4,
         example_event_5,
     ]

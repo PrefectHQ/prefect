@@ -329,7 +329,8 @@ async def events_server(
             recorder.events.append(event)
 
             if puppeteer.hard_disconnect_after == event.id:
-                raise ValueError("zonk")
+                puppeteer.hard_disconnect_after = None
+                raise ValueError("Disconnect after incoming event")
 
     async def outgoing_events(socket: ServerConnection):
         # 1. authentication
