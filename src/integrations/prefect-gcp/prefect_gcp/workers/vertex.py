@@ -163,7 +163,7 @@ class VertexAIWorkerVariables(BaseVariables):
             "A dictionary with scheduling options for a CustomJob, "
             "these are parameters related to queuing, and scheduling custom jobs. "
             "If unspecified default scheduling options are used. "
-            "The 'maximum_run_time_hours' variable will take precedance over the "
+            "The 'maximum_run_time_hours' variable will take precedence over the "
             "'scheduling.timeout' field for backward compatibility."
         ),
     )
