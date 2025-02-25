@@ -22,6 +22,7 @@ export type SchemaFormPropertyMenuProps = {
 	value: unknown;
 	onValueChange: (value: unknown) => void;
 	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
+	disableKinds?: boolean;
 	children?: ReactNode;
 };
 
@@ -30,6 +31,7 @@ export const SchemaFormPropertyMenu = ({
 	onValueChange,
 	property,
 	children,
+	disableKinds,
 }: SchemaFormPropertyMenuProps) => {
 	const { schema, kinds } = useSchemaFormContext();
 	const [open, setOpen] = useState(false);
@@ -49,9 +51,12 @@ export const SchemaFormPropertyMenu = ({
 		const current = getPrefectKindFromValue(value);
 
 		return prefectKinds.filter(
-			(kind) => kind !== current && (kinds.includes(kind) || kind === null),
+			(kind) =>
+				kind !== current &&
+				(kinds.includes(kind) || kind === null) &&
+				!disableKinds,
 		);
-	}, [value, kinds]);
+	}, [value, kinds, disableKinds]);
 
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>

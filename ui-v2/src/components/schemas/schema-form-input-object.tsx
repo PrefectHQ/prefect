@@ -73,18 +73,20 @@ export function SchemaFormInputObject({
 		);
 	}, [property.properties]);
 
-	const output = properties.map(([key, subProperty]) => {
-		return (
-			<SchemaFormProperty
-				key={key}
-				value={getPropertyValue(key)}
-				onValueChange={(value) => onPropertyValueChange(key, value)}
-				property={subProperty}
-				errors={getPropertyErrors(key)}
-				required={Boolean(property.required?.includes(key))}
-			/>
-		);
-	});
+	const output = (
+		<div className="flex flex-col gap-2">
+			{properties.map(([key, subProperty]) => (
+				<SchemaFormProperty
+					key={key}
+					value={getPropertyValue(key)}
+					onValueChange={(value) => onPropertyValueChange(key, value)}
+					property={subProperty}
+					errors={getPropertyErrors(key)}
+					required={Boolean(property.required?.includes(key))}
+				/>
+			))}
+		</div>
+	);
 
 	if (nested) {
 		return <Card className="p-2">{output}</Card>;

@@ -42,6 +42,10 @@ export function SchemaFormProperty({
 		return mergeSchemaPropertyDefinition(propertyDefinition, schema);
 	}, [propertyDefinition, schema]);
 
+	const unknownPropertyType = useMemo(() => {
+		return !isDefined(property.type);
+	}, [property.type]);
+
 	const nestedErrors = useMemo(() => {
 		return errors.filter(
 			(error): error is SchemaValuePropertyError | SchemaValueIndexError =>
@@ -113,6 +117,7 @@ export function SchemaFormProperty({
 							value={value}
 							onValueChange={handleValueChange}
 							property={property}
+							disableKinds={unknownPropertyType}
 						>
 							<DropdownMenuItem onClick={handleOmittedChange}>
 								{omitted ? "Include value" : "Omit value"}
