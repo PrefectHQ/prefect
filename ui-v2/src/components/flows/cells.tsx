@@ -60,9 +60,9 @@ export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 		}),
 	);
 
-	if (!row.original.id) return null;
+	if (!row.original.id || !flowRun?.[0]) return null;
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRun?.[0]?.id ?? "" }}>
+		<Link to="/runs/flow-run/$id" params={{ id: flowRun[0].id ?? "" }}>
 			<Typography
 				variant="bodySmall"
 				className="text-blue-700 hover:underline p-2"
@@ -81,9 +81,9 @@ export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
 		}),
 	);
 
-	if (!row.original.id) return null;
+	if (!row.original.id || !flowRun?.[0]) return null;
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRun?.[0]?.id ?? "" }}>
+		<Link to="/runs/flow-run/$id" params={{ id: flowRun[0].id ?? "" }}>
 			<Typography
 				variant="bodySmall"
 				className="text-blue-700 hover:underline p-2"
@@ -167,11 +167,11 @@ export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 						className={cn(
 							"flex-1 mr-[1px] rounded-full bg-gray-400",
 							data?.[index]?.state_type &&
-							data?.[index]?.state_type === "COMPLETED" &&
-							"bg-green-500",
+								data?.[index]?.state_type === "COMPLETED" &&
+								"bg-green-500",
 							data?.[index]?.state_type &&
-							data?.[index]?.state_type !== "COMPLETED" &&
-							"bg-red-500",
+								data?.[index]?.state_type !== "COMPLETED" &&
+								"bg-red-500",
 						)}
 					/>
 				))}
