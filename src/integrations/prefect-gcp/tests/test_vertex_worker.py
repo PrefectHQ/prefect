@@ -46,6 +46,7 @@ def job_config(service_account_info, gcp_credentials):
         },
     )
 
+
 @pytest.fixture
 def job_config_params(service_account_info, gcp_credentials):
     return VertexAIWorkerJobConfiguration(
@@ -76,7 +77,7 @@ def job_config_params(service_account_info, gcp_credentials):
             "scheduling": {
                 "timeout": "7200s",
                 "strategy": "FLEX_START",
-                "max_wait_duration": "1800s"
+                "max_wait_duration": "1800s",
             },
         },
     )
@@ -193,22 +194,26 @@ class TestVertexAIWorker:
             assert result == VertexAIWorkerResult(
                 status_code=0, identifier="mock_display_name"
             )
-    
+
     async def test_params_worker_run(self, flow_run, job_config_params):
         async with VertexAIWorker("test-pool") as worker:
             # Initialize scheduling parameters
-            maximum_run_time_hours = job_config_params.job_spec["maximum_run_time_hours"]
-            max_wait_duration = job_config_params.job_spec["scheduling"]["max_wait_duration"]
+            maximum_run_time_hours = job_config_params.job_spec[
+                "maximum_run_time_hours"
+            ]
+            max_wait_duration = job_config_params.job_spec["scheduling"][
+                "max_wait_duration"
+            ]
             timeout = Duration()
-            timeout.FromTimedelta(
-                td=datetime.timedelta(
-                    hours=maximum_run_time_hours
-                )
+            timeout.FromTimedelta(td=datetime.timedelta(hours=maximum_run_time_hours))
+            scheduling = Scheduling(
+                timeout=timeout, max_wait_duration=max_wait_duration
             )
-            scheduling = Scheduling(timeout=timeout, max_wait_duration=max_wait_duration)
 
             job_config_params.prepare_for_flow_run(flow_run, None, None)
-            result = await worker.run(flow_run=flow_run, configuration=job_config_params)
+            result = await worker.run(
+                flow_run=flow_run, configuration=job_config_params
+            )
 
             custom_job_spec = job_config_params.credentials.job_service_async_client.create_custom_job.call_args[
                 1
@@ -216,8 +221,13 @@ class TestVertexAIWorker:
 
             # Assert scheduling parameters
             assert custom_job_spec.scheduling.timeout == scheduling.timeout
-            assert custom_job_spec.scheduling.strategy == Scheduling.Strategy["FLEX_START"]
-            assert custom_job_spec.scheduling.max_wait_duration == scheduling.max_wait_duration
+            assert (
+                custom_job_spec.scheduling.strategy == Scheduling.Strategy["FLEX_START"]
+            )
+            assert (
+                custom_job_spec.scheduling.max_wait_duration
+                == scheduling.max_wait_duration
+            )
 
             assert (
                 job_config_params.credentials.job_service_async_client.get_custom_job.call_count
