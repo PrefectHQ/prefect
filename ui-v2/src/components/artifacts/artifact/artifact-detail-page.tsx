@@ -38,11 +38,11 @@ export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
 				<div className="flex-grow">
 					{artifact.description && (
 						<div>
-							<Typography variant="h2" className="my-4 font-bold">
-								<Markdown
-									remarkPlugins={[remarkGfm]}
-									className={"prose lg:prose-xl"}
-								>
+							<Typography
+								variant="h2"
+								className="my-4 font-bold prose lg:prose-xl"
+							>
+								<Markdown remarkPlugins={[remarkGfm]}>
 									{artifact.description}
 								</Markdown>
 							</Typography>
