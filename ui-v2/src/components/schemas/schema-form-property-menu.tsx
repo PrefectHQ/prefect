@@ -62,7 +62,7 @@ export const SchemaFormPropertyMenu = ({
 					className="h-8 w-8 p-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
 				>
 					<span className="sr-only">Open menu</span>
-					<Icon id="MoreVertical" className="h-4 w-4" />
+					<Icon id="MoreVertical" className="size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">

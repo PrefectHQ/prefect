@@ -1,5 +1,6 @@
 import { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
 import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
@@ -36,8 +37,6 @@ export function SchemaFormProperty({
 	nested = true,
 }: SchemaFormPropertyProps) {
 	const { schema, skipDefaultValueInitialization } = useSchemaFormContext();
-	const [initialized, setInitialized] = useState(false);
-	const id = useId();
 
 	const property = useMemo(() => {
 		return mergeSchemaPropertyDefinition(propertyDefinition, schema);
@@ -49,6 +48,26 @@ export function SchemaFormProperty({
 				isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
 		);
 	}, [errors]);
+
+	const [initialized, setInitialized] = useState(false);
+	const [internalValue, setInternalValue] = useState(getInitialValue);
+	const [omitted, setOmitted] = useState(false);
+	const id = useId();
+
+	const handleValueChange = useCallback(
+		(value: unknown) => {
+			setInternalValue(value);
+			onValueChange(value);
+		},
+		[setInternalValue, onValueChange],
+	);
+
+	const handleOmittedChange = useCallback(() => {
+		const isOmitted = !omitted;
+
+		setOmitted(isOmitted);
+		onValueChange(isOmitted ? undefined : internalValue);
+	}, [omitted, onValueChange, internalValue]);
 
 	useEffect(() => {
 		if (initialized || skipDefaultValueInitialization) {
@@ -68,6 +87,18 @@ export function SchemaFormProperty({
 		value,
 	]);
 
+	function getInitialValue() {
+		if (isDefined(value)) {
+			return value;
+		}
+
+		if (isDefined(property.default) && !skipDefaultValueInitialization) {
+			return property.default;
+		}
+
+		return undefined;
+	}
+
 	return (
 		<div className="flex flex-col gap-2 group">
 			{showLabel && (
@@ -80,23 +111,29 @@ export function SchemaFormProperty({
 					<div className="ml-auto">
 						<SchemaFormPropertyMenu
 							value={value}
-							onValueChange={onValueChange}
+							onValueChange={handleValueChange}
 							property={property}
-						/>
+						>
+							<DropdownMenuItem onClick={handleOmittedChange}>
+								{omitted ? "Include value" : "Omit value"}
+							</DropdownMenuItem>
+						</SchemaFormPropertyMenu>
 					</div>
 				</div>
 			)}
 
 			<SchemaFormPropertyDescription property={property} />
 
-			<SchemaFormInput
-				property={property}
-				value={value}
-				onValueChange={onValueChange}
-				errors={nestedErrors}
-				id={id}
-				nested={nested}
-			/>
+			<fieldset disabled={omitted}>
+				<SchemaFormInput
+					property={property}
+					value={internalValue}
+					onValueChange={handleValueChange}
+					errors={nestedErrors}
+					id={id}
+					nested={nested}
+				/>
+			</fieldset>
 
 			<SchemaFormPropertyErrors errors={errors} />
 		</div>

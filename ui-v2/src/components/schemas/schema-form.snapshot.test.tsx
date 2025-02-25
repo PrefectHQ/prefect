@@ -11,7 +11,7 @@ import { SchemaForm, SchemaFormProps } from "./schema-form";
  * We could mock react's useId to return a deterministic id. However radix-ui
  * had their own wrapper around useId that we would also need to mock. Which
  * we've been unable to do so far.
- * 
+ *
  * https://github.com/radix-ui/primitives/discussions/3393
  *
  * 🔄 Running tests in a different order will cause snapshots to fail. Such as
