@@ -62,6 +62,7 @@ export const ArrayErrors: Story = {
 			{
 				property: "values",
 				errors: [
+					"Values is not valid",
 					{ index: 0, errors: ["Value must not be empty"] },
 					{ index: 2, errors: ["Value must not be bar"] },
 				],
@@ -76,13 +77,25 @@ export const ObjectErrors: Story = {
 			type: "object",
 			required: ["name"],
 			properties: {
-				name: { type: "string", title: "Name" },
-				age: { type: "number", title: "Age" },
+				user: {
+					title: "User",
+					type: "object",
+					properties: {
+						name: { type: "string", title: "Name" },
+						age: { type: "number", title: "Age" },
+					},
+				},
 			},
 		},
 		errors: [
-			{ property: "name", errors: ["Name is required"] },
-			{ property: "age", errors: ["Age must be a number"] },
+			{
+				property: "user",
+				errors: [
+					"User is not valid",
+					{ property: "name", errors: ["Name is required"] },
+					{ property: "age", errors: ["Age must be a number"] },
+				],
+			},
 		],
 	},
 };

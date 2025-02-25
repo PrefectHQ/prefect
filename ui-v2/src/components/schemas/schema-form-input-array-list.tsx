@@ -1,5 +1,6 @@
 import { ArraySubtype, SchemaObject } from "openapi-typescript";
 import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 import { SchemaFormInputArrayItem } from "./schema-form-input-array-item";
 import {
 	SchemaFormErrors,
@@ -84,7 +85,7 @@ export function SchemaFormInputArrayList({
 	}
 
 	return (
-		<div className="flex flex-col gap-2">
+		<Card className="flex flex-col gap-2 p-2">
 			{isEmpty && (
 				<p className="text-sm text-subdued italic">No items in this list</p>
 			)}
@@ -118,6 +119,6 @@ export function SchemaFormInputArrayList({
 					You can&apos;t add more items
 				</p>
 			)}
-		</div>
+		</Card>
 	);
 }
