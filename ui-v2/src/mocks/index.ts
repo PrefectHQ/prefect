@@ -6,7 +6,11 @@ export {
 	createFakeDeploymentWithFlow,
 } from "./create-fake-deployment";
 export { createFakeFlow } from "./create-fake-flow";
-export { createFakeFlowRun } from "./create-fake-flow-run";
+export {
+	createFakeFlowRun,
+	createFakeFlowRunWithFlow,
+	createFakeFlowRunWithDeploymentAndFlow,
+} from "./create-fake-flow-run";
 export { createFakeGlobalConcurrencyLimit } from "./create-fake-global-concurrency-limit";
 export { createFakeSchedule } from "./create-fake-schedule";
 export { createFakeServerSettings } from "./create-fake-server-settings";
