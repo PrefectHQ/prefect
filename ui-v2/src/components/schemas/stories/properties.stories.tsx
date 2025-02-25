@@ -445,6 +445,35 @@ export const TypeObjectWithAllOfAndReference: Story = {
 };
 TypeObjectWithAllOfAndReference.storyName = "type:object & allOf & reference";
 
+export const TypeObjectWithPosition: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				third: {
+					type: "string",
+					title: "Third",
+					//@ts-expect-error position isn't part of the schema types
+					position: 3,
+				},
+				first: {
+					type: "string",
+					title: "First",
+					//@ts-expect-error position isn't part of the schema types
+					position: 1,
+				},
+				second: {
+					type: "string",
+					title: "Second",
+					//@ts-expect-error position isn't part of the schema types
+					position: 2,
+				},
+			},
+		},
+	},
+};
+TypeObjectWithPosition.storyName = "type:object & position";
+
 export const TypeUnknown: Story = {
 	args: {
 		schema: {
