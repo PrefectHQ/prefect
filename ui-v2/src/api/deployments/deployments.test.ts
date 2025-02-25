@@ -14,6 +14,7 @@ import {
 	useCreateDeploymentSchedule,
 	useDeleteDeployment,
 	useDeleteDeploymentSchedule,
+	useUpdateDeployment,
 	useUpdateDeploymentSchedule,
 } from "./index";
 
@@ -174,6 +175,47 @@ describe("deployments api", () => {
 
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual(mockResponse);
+		});
+	});
+
+	describe("useUpdateDeployment", () => {
+		it("invalidates cache and fetches updated value", async () => {
+			const MOCK_ID = "0";
+			const mockDeployment = createFakeDeployment({
+				id: MOCK_ID,
+				paused: false,
+			});
+			const updatedMockDeployment = { ...mockDeployment, paused: true };
+			mockFetchDeploymentsAPI([updatedMockDeployment]);
+
+			const queryClient = new QueryClient();
+
+			queryClient.setQueryData(queryKeyFactory.all(), [mockDeployment]);
+
+			const { result: useListDeploymentsResult } = renderHook(
+				() => useQuery(buildPaginateDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useUpdateDeploymentResult } = renderHook(
+				useUpdateDeployment,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useUpdateDeploymentResult.current.updateDeployment({
+					id: MOCK_ID,
+					paused: true,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useUpdateDeploymentResult.current.isSuccess).toBe(true),
+			);
+			const result = useListDeploymentsResult.current.data?.results.find(
+				(deployment) => deployment.id === MOCK_ID,
+			);
+			expect(result).toEqual(updatedMockDeployment);
 		});
 	});
 
