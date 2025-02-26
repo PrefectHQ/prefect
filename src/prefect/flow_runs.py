@@ -126,12 +126,6 @@ async def wait_for_flow_run(
     assert client is not None, "Client injection failed"
     logger = get_logger()
 
-    flow_run = await client.read_flow_run(flow_run_id)
-    if flow_run.state and flow_run.state.is_final():
-        if log_states:
-            logger.info(f"Flow run is in state {flow_run.state.name!r}")
-        return flow_run
-
     filter = EventFilter(
         event=EventNameFilter(prefix=["prefect.flow-run"]),
         resource=EventResourceFilter(id=[f"prefect.flow-run.{flow_run_id}"])
@@ -139,6 +133,12 @@ async def wait_for_flow_run(
 
     with anyio.move_on_after(timeout):
         async with get_events_subscriber(filter=filter) as subscriber:
+            flow_run = await client.read_flow_run(flow_run_id)
+            if flow_run.state and flow_run.state.is_final():
+                if log_states:
+                    logger.info(f"Flow run is in state {flow_run.state.name!r}")
+                return flow_run
+
             async for event in subscriber:
                 state_type = StateType(event.resource["prefect.state-type"])
                 state = State(type=state_type)
