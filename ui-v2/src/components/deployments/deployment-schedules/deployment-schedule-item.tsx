@@ -8,18 +8,26 @@ import { ScheduleToggleSwitch } from "./schedule-toggle-switch";
 
 type DeploymentScheduleItemProps = {
 	deploymentSchedule: DeploymentSchedule;
+	disabled: boolean;
 	onEditSchedule: (scheduleId: string) => void;
 };
 
 export const DeploymentScheduleItem = ({
 	deploymentSchedule,
+	disabled,
 	onEditSchedule,
 }: DeploymentScheduleItemProps) => {
 	return (
 		<Card className="p-3 flex items-center justify-between">
 			<Typography>{getScheduleTitle(deploymentSchedule)}</Typography>
-			<div className="flex items-center gap-2">
-				<ScheduleToggleSwitch deploymentSchedule={deploymentSchedule} />
+			<div className="flex items-baseline gap-2">
+				<div>
+					<ScheduleToggleSwitch
+						deploymentSchedule={deploymentSchedule}
+						disabled={disabled}
+					/>
+				</div>
+				<div></div>
 				<ScheduleActionMenu
 					deploymentSchedule={deploymentSchedule}
 					onEditSchedule={onEditSchedule}
