@@ -145,20 +145,12 @@ def execute_bundle_in_subprocess(
 
     ctx = multiprocessing.get_context("spawn")
 
-    print("Checking for dependencies")
-    print("Dependencies: ", bundle.get("dependencies"))
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
-        print("Installing dependencies")
-        print(
-            "Command: ", [uv.find_uv_bin(), "pip", "install", *dependencies.split("\n")]
-        )
         subprocess.check_call(
             [uv.find_uv_bin(), "pip", "install", *dependencies.split("\n")],
             # Copy the current environment to ensure we install into the correct venv
             env=os.environ,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
         )
 
     process = ctx.Process(
