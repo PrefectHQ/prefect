@@ -1,6 +1,9 @@
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { Toaster } from "@/components/ui/toaster";
-import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
+import {
+	createFakeFlowRun,
+	createFakeFlowRunWithDeploymentAndFlow,
+} from "@/mocks/create-fake-flow-run";
 import { QueryClient } from "@tanstack/react-query";
 import {
 	RouterProvider,
@@ -60,16 +63,17 @@ describe("DeploymentsDataTable", () => {
 		onPaginationChange: vi.fn(),
 		onSortChange: vi.fn(),
 		onColumnFiltersChange: vi.fn(),
-		onQuickRun: vi.fn(),
-		onCustomRun: vi.fn(),
-		onEdit: vi.fn(),
-		onDuplicate: vi.fn(),
 	};
 
 	// Wraps component in test with a Tanstack router provider
 	const DeploymentsDataTableRouter = (props: DeploymentsDataTableProps) => {
 		const rootRoute = createRootRoute({
-			component: () => <DeploymentsDataTable {...props} />,
+			component: () => (
+				<>
+					<Toaster />
+					<DeploymentsDataTable {...props} />
+				</>
+			),
 		});
 
 		const router = createRouter({
@@ -152,59 +156,48 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("calls onQuickRun when quick run action is clicked", async () => {
-		const onQuickRun = vi.fn();
-		render(
-			<DeploymentsDataTableRouter {...defaultProps} onQuickRun={onQuickRun} />,
-			{ wrapper: createWrapper() },
+		server.use(
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				return HttpResponse.json(createFakeFlowRun({ name: "new-flow-run" }));
+			}),
 		);
+
+		render(<DeploymentsDataTableRouter {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const quickRunButton = screen.getByRole("menuitem", { name: "Quick Run" });
 		await userEvent.click(quickRunButton);
 
-		expect(onQuickRun).toHaveBeenCalledWith(mockDeployment);
+		expect(screen.getByText("new-flow-run")).toBeVisible();
+		expect(screen.getByRole("button", { name: "View run" })).toBeVisible();
 	});
 
-	it("calls onCustomRun when custom run action is clicked", async () => {
-		const onCustomRun = vi.fn();
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				onCustomRun={onCustomRun}
-			/>,
-			{ wrapper: createWrapper() },
-		);
-
-		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
-		const customRunButton = screen.getByRole("menuitem", {
-			name: "Custom Run",
-		});
-		await userEvent.click(customRunButton);
-
-		expect(onCustomRun).toHaveBeenCalledWith(mockDeployment);
-	});
-
-	it("calls onEdit when edit action is clicked", async () => {
-		const onEdit = vi.fn();
-		render(<DeploymentsDataTableRouter {...defaultProps} onEdit={onEdit} />, {
+	it("has an action menu item that links to create a custom run", async () => {
+		render(<DeploymentsDataTableRouter {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
-		const editButton = screen.getByRole("menuitem", { name: "Edit" });
-		await userEvent.click(editButton);
+		expect(screen.getByRole("menuitem", { name: "Custom Run" })).toBeVisible();
+		expect(screen.getByRole("link", { name: /custom run/i })).toBeVisible();
+	});
 
-		expect(onEdit).toHaveBeenCalledWith(mockDeployment);
+	it("has an action menu item that links to edit deployment", async () => {
+		render(<DeploymentsDataTableRouter {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
+		expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
+		expect(screen.getByRole("link", { name: /edit/i })).toBeVisible();
 	});
 
 	it("handles deletion", async () => {
-		render(
-			<>
-				<Toaster />
-				<DeploymentsDataTableRouter {...defaultProps} />
-			</>,
-			{ wrapper: createWrapper() },
-		);
+		render(<DeploymentsDataTableRouter {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
@@ -218,21 +211,14 @@ describe("DeploymentsDataTable", () => {
 		expect(screen.getByText("Deployment deleted")).toBeInTheDocument();
 	});
 
-	it("calls onDuplicate when duplicate action is clicked", async () => {
-		const onDuplicate = vi.fn();
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				onDuplicate={onDuplicate}
-			/>,
-			{ wrapper: createWrapper() },
-		);
+	it("has an action menu item that links to duplicate deployment", async () => {
+		render(<DeploymentsDataTableRouter {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
-		const duplicateButton = screen.getByRole("menuitem", { name: "Duplicate" });
-		await userEvent.click(duplicateButton);
-
-		expect(onDuplicate).toHaveBeenCalledWith(mockDeployment);
+		expect(screen.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+		expect(screen.getByRole("link", { name: /duplicate/i })).toBeVisible();
 	});
 
 	it("calls onPaginationChange when pagination buttons are clicked", async () => {

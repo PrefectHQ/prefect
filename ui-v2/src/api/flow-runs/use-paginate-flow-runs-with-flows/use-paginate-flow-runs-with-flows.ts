@@ -64,9 +64,6 @@ export const usePaginateFlowRunswithFlows = (
 				...paginateFlowRunsData,
 				results: paginateFlowRunsData.results.map((flowRun) => {
 					const flow = flowMap.get(flowRun.flow_id);
-					if (!flow) {
-						throw new Error("Expecting parent flow to be found");
-					}
 					return {
 						...flowRun,
 						flow,

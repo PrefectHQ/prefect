@@ -1,39 +1,46 @@
 import { getRouteApi } from "@tanstack/react-router";
 
+import { Deployment } from "@/api/deployments";
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
-import { FlowRunState, SortFilters } from "@/components/flow-runs/data-table";
 import {
+	FlowRunState,
 	FlowRunsFilters,
 	FlowRunsList,
 	FlowRunsPagination,
 	FlowRunsRowCount,
 	type PaginationState,
+	SortFilters,
+	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
-import { useCallback, useMemo, useState } from "react";
+import useDebounce from "@/hooks/use-debounce";
+import { useCallback, useMemo } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
 type DeploymentDetailsUpcomingTabProps = {
-	deploymentId: string;
+	deployment: Deployment;
 };
 
 export const DeploymentDetailsUpcomingTab = ({
-	deploymentId,
+	deployment,
 }: DeploymentDetailsUpcomingTabProps) => {
-	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+	const [selectedRows, setSelectedRows, { clearSet, onSelectRow }] =
+		useFlowRunsSelectedRows();
 	const [pagination, onChangePagination] = usePagination();
 	const [search, setSearch] = useSearch();
 	const [sort, setSort] = useSort();
 	const [filter, setFilter] = useFilter();
 	const resetFilters = useResetFilters();
 
+	const debouncedSearch = useDebounce(search, 400);
+
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
 			operator: "and_",
-			id: { any_: [deploymentId] },
+			id: { any_: [deployment.id] },
 		},
 		flow_runs: {
-			name: { like_: search || undefined },
+			name: { like_: debouncedSearch || undefined },
 			state: {
 				name: { any_: filter.length === 0 ? undefined : filter },
 				operator: "or_",
@@ -45,34 +52,29 @@ export const DeploymentDetailsUpcomingTab = ({
 		sort,
 	});
 
-	const handleResetFilters = () => {
-		resetFilters();
-		setSelectedRows(new Set());
-	};
-
-	const addRow = (id: string) =>
-		setSelectedRows((curr) => new Set(curr).add(id));
-	const removeRow = (id: string) =>
-		setSelectedRows((curr) => {
-			const newValue = new Set(curr);
-			newValue.delete(id);
-			return newValue;
-		});
-
-	const handleSelectRow = (id: string, checked: boolean) => {
-		if (checked) {
-			addRow(id);
-		} else {
-			removeRow(id);
+	const dataWithDeployment = useMemo(() => {
+		if (!data) {
+			return undefined;
 		}
-	};
+		return {
+			...data,
+			results: data.results.map((flowRun) => ({ ...flowRun, deployment })),
+		};
+	}, [data, deployment]);
+
+	const handleResetFilters = !resetFilters
+		? undefined
+		: () => {
+				resetFilters();
+				clearSet();
+			};
 
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex items-center justify-between">
 				<FlowRunsRowCount
-					count={data?.count}
-					results={data?.results}
+					count={dataWithDeployment?.count}
+					results={dataWithDeployment?.results}
 					selectedRows={selectedRows}
 					setSelectedRows={setSelectedRows}
 				/>
@@ -87,17 +89,18 @@ export const DeploymentDetailsUpcomingTab = ({
 			</div>
 
 			<FlowRunsList
-				flowRuns={data?.results}
+				flowRuns={dataWithDeployment?.results}
 				selectedRows={selectedRows}
-				onSelect={handleSelectRow}
+				onSelect={onSelectRow}
 				onClearFilters={handleResetFilters}
 			/>
 
-			{data && data.results.length > 0 && (
+			{dataWithDeployment && dataWithDeployment.results.length > 0 && (
 				<FlowRunsPagination
+					count={dataWithDeployment.count}
 					pagination={pagination}
 					onChangePagination={onChangePagination}
-					pages={data.pages}
+					pages={dataWithDeployment.pages}
 				/>
 			)}
 		</div>
@@ -105,6 +108,7 @@ export const DeploymentDetailsUpcomingTab = ({
 };
 
 function useResetFilters() {
+	const { upcoming } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 	const resetFilters = useCallback(() => {
 		void navigate({
@@ -116,7 +120,9 @@ function useResetFilters() {
 			replace: true,
 		});
 	}, [navigate]);
-	return resetFilters;
+	const hasFiltersApplied = useMemo(() => Boolean(upcoming), [upcoming]);
+
+	return hasFiltersApplied ? resetFilters : undefined;
 }
 
 function usePagination() {

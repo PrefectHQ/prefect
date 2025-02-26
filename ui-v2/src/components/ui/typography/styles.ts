@@ -10,6 +10,7 @@ export const typographyVariants = cva("", {
 			bodyLarge: "text-lg",
 			body: "text-base",
 			bodySmall: "text-sm",
+			xsmall: "text-xs",
 		},
 	},
 	defaultVariants: {
