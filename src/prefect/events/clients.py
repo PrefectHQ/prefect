@@ -406,8 +406,6 @@ class PrefectEventsClient(EventsClient):
     async def _checkpoint(self, event: Event) -> None:
         assert self._websocket
 
-        self._unconfirmed_events.append(event)
-
         unconfirmed_count = len(self._unconfirmed_events)
 
         logger.debug(
@@ -433,6 +431,8 @@ class PrefectEventsClient(EventsClient):
 
     async def _emit(self, event: Event) -> None:
         self._log_debug("Emitting event id=%s.", event.id)
+        self._unconfirmed_events.append(event)
+
         for i in range(self._reconnection_attempts + 1):
             self._log_debug("Emit reconnection attempt %s.", i)
             try:
