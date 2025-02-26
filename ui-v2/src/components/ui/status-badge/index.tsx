@@ -31,12 +31,14 @@ const statusBadgeVariants = cva(
 	},
 );
 
+export const StatusIcon = ({ status }: StatusBadgeProps) =>
+	STATUS_ICONS[status];
+
 export const StatusBadge = ({ status }: StatusBadgeProps) => {
-	const Icon = STATUS_ICONS[status];
 	const statusText = status.split("_").map(capitalize).join(" ");
 	return (
 		<Badge className={statusBadgeVariants({ status })}>
-			{Icon}
+			<StatusIcon status={status} />
 			{statusText}
 		</Badge>
 	);
