@@ -153,13 +153,15 @@ class Timestamp(TypeDecorator[DateTime]):
 
     def process_bind_param(
         self,
-        value: Optional[DateTime],
+        value: Optional[str | DateTime],
         dialect: sa.Dialect,
     ) -> Optional[DateTime]:
         if value is None:
             return None
         else:
-            if value.tzinfo is None:
+            if isinstance(value, str):
+                return DateTime.fromisoformat(value)
+            elif value.tzinfo is None:
                 raise ValueError("Timestamps must have a timezone.")
             elif dialect.name == "sqlite":
                 return DateTime.instance(value).in_timezone("UTC")
@@ -168,7 +170,7 @@ class Timestamp(TypeDecorator[DateTime]):
 
     def process_result_value(
         self,
-        value: Optional[Union[datetime.datetime, DateTime]],
+        value: Optional[datetime.datetime | DateTime],
         dialect: sa.Dialect,
     ) -> Optional[DateTime]:
         # retrieve timestamps in their native timezone (or UTC)
