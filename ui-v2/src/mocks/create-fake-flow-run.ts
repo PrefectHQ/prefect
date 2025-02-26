@@ -94,6 +94,12 @@ export const createFakeFlowRunWithFlow = (
 	};
 };
 
+export const createFakeFlowRuns = (
+	numberOfFlowRuns: number = 10,
+): FlowRun[] => {
+	return Array.from({ length: numberOfFlowRuns }, () => createFakeFlowRun());
+};
+
 export const createFakeFlowRunWithDeploymentAndFlow = (
 	overrides?: Partial<FlowRun>,
 ): FlowRunWithDeploymentAndFlow => {
