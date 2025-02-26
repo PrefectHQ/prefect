@@ -1,3 +1,4 @@
+import os
 import signal
 import subprocess
 import sys
@@ -76,7 +77,8 @@ class TestExecuteBundleInSubprocess:
                 "pip",
                 "install",
                 "the-whole-enchilada==0.5.3",
-            ]
+            ],
+            env=os.environ,
         )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
