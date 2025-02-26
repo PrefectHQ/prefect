@@ -2,6 +2,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import { useQuickRun } from "@/components/deployments/use-quick-run";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -14,29 +15,21 @@ import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import type { CellContext } from "@tanstack/react-table";
 import { subSeconds } from "date-fns";
 import { secondsInWeek } from "date-fns/constants";
 import { useCallback, useState } from "react";
 
 type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
-	onQuickRun: (deployment: DeploymentWithFlow) => void;
-	onCustomRun: (deployment: DeploymentWithFlow) => void;
-	onEdit: (deployment: DeploymentWithFlow) => void;
 	onDelete: (deployment: DeploymentWithFlow) => void;
-	onDuplicate: (deployment: DeploymentWithFlow) => void;
 };
 
-export const ActionsCell = ({
-	row,
-	onQuickRun,
-	onCustomRun,
-	onEdit,
-	onDelete,
-	onDuplicate,
-}: ActionsCellProps) => {
+export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 	const id = row.original.id;
 	const { toast } = useToast();
+	const { onQuickRun, isPending } = useQuickRun();
+
 	if (!id) return null;
 
 	return (
@@ -50,30 +43,35 @@ export const ActionsCell = ({
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
-					<DropdownMenuItem onClick={() => onQuickRun(row.original)}>
+					<DropdownMenuItem disabled={isPending} onClick={() => onQuickRun(id)}>
 						Quick Run
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onCustomRun(row.original)}>
-						Custom Run
+					<DropdownMenuItem>
+						<Link to="/deployments/deployment/$id/run" params={{ id }}>
+							Custom Run
+						</Link>
 					</DropdownMenuItem>
+
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(id);
-							toast({
-								title: "ID copied",
-							});
+							toast({ title: "ID copied" });
 						}}
 					>
 						Copy ID
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onEdit(row.original)}>
-						Edit
+					<DropdownMenuItem>
+						<Link to="/deployments/deployment/$id/edit" params={{ id }}>
+							Edit
+						</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={() => onDelete(row.original)}>
 						Delete
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onDuplicate(row.original)}>
-						Duplicate
+					<DropdownMenuItem>
+						<Link to="/deployments/deployment/$id/duplicate" params={{ id }}>
+							Duplicate
+						</Link>
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
