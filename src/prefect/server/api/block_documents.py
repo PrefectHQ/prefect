@@ -25,7 +25,7 @@ async def create_block_document(
     """
     Create a new block document.
 
-    For more information, see [securely store typed configuration](/v3/develop/blocks).
+    For more information, see [securely store typed configuration](https://docs.prefect.io/v3/develop/blocks).
     """
     async with db.session_context(begin_transaction=True) as session:
         if block_document.name is not None:

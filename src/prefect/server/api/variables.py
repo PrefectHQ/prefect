@@ -60,7 +60,7 @@ async def create_variable(
     """
     Create a variable.
 
-    For more information, see [get and set variables](/v3/develop/variables).
+    For more information, see [get and set variables](https://docs.prefect.io/v3/develop/variables).
     """
     async with db.session_context(begin_transaction=True) as session:
         try:
