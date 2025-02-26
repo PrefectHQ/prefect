@@ -3,7 +3,6 @@ title: Migrating from Airflow
 description: "Migrating from Apache Airflow to Prefect: A Comprehensive Step-by-Step Tutorial"
 ---
 
-## Introduction
 Migrating from Apache Airflow to Prefect simplifies orchestration, reduces overhead, and enables a more Pythonic workflow. Prefect's flexible **library-based approach** lets you write, test, and run workflows like regular code—without the complexity of schedulers, executors, or metadata databases.
 
 This guide will walk you through a **step-by-step migration**, helping you transition from Airflow DAGs to Prefect flows while mapping key concepts, adapting infrastructure, and optimizing deployments. By the end, you'll have a streamlined, scalable orchestration system that lets your team focus on engineering rather than maintaining workflow infrastructure.
@@ -27,10 +26,10 @@ This table provides a quick reference for migrating key Airflow concepts to thei
 
 Before jumping into code conversion, set the stage for a smooth migration. Preparation includes auditing your existing Airflow DAGs, setting up a Prefect environment for testing, and mapping Airflow concepts to their Prefect equivalents.
 
-**Audit your Airflow DAGs and dependencies:** Catalog all DAGs, schedules, task counts, and dependencies (databases, APIs, cloud services). Identify **high-priority pipelines** (business-critical, failure-prone, frequently updated) and **simpler DAGs** for pilot migration. Start with a small, non-critical DAG to gain confidence before tackling complex workflows.  
+**Audit your Airflow DAGs and dependencies:** Catalog all DAGs, schedules, task counts, and dependencies (databases, APIs, cloud services). Identify **high-priority pipelines** (business-critical, failure-prone, frequently updated) and **simpler DAGs** for pilot migration. Start with a small, non-critical DAG to gain confidence before tackling complex workflows.
 
 **Set up Prefect alongside Airflow:** Prepare a **parallel Prefect environment** for testing before fully migrating
-- Install Prefect (`pip install prefect`) and launch a [**Prefect Server**](/v3/manage/self-host) or sign up for [**Prefect Cloud**](https://app.prefect.cloud/).
+- [Install Prefect](/v3/get-started/install) (`pip install prefect`) and launch a [**Prefect Server**](/v3/manage/self-host) or sign up for [**Prefect Cloud**](https://app.prefect.cloud/)
 - Configure an [**execution environment**](/v3/deploy/infrastructure-concepts/work-pools) (local, Docker, Kubernetes)
 - Consider running **Airflow and Prefect side-by-side temporarily** for validation, but avoid maintaining both long-term—disable Airflow DAGs once Prefect replacements are stable
 
@@ -116,7 +115,7 @@ Unlike Airflow, where testing often requires an Airflow context, Prefect flows r
 - **Prefect:** Calls tasks like functions, with execution order determined by data flow, making workflows more intuitive and testable.
 
 ### Branching and conditional logic
-Many Airflow DAGs include branches (using `BranchPythonOperator`) or conditionally skipping tasks (`ShortCircuitOperator`, trigger rules, etc.). In Prefect, you implement branching with normal Python `if/else` or loops inside the flow function. For example, suppose after extraction you choose one of two paths to run (Branch A or Branch B), and later join. In Airflow you'd use a BranchPythonOperator and perhaps DummyOperators to join branches. In Prefect, you can do:
+Many legacy Airflow DAGs include branches (using `BranchPythonOperator`) or conditionally skipping tasks (`ShortCircuitOperator`, trigger rules, etc.). In Prefect, you implement branching with normal Python `if/else` or loops inside the flow function. For example, suppose after extraction you choose one of two paths to run (Branch A or Branch B), and later join. In legacy Airflow you'd use a BranchPythonOperator and perhaps DummyOperators to join branches. In Prefect, you can do:
 
 ```python
 @flow
@@ -176,16 +175,16 @@ if __name__ == "__main__":
     etl_pipeline_flow()
 ```
 
-Key improvements in this converted code:  
+Key improvements in this converted code:
 
-- **Direct execution for testing** - `if __name__ == "__main__": etl_pipeline_flow()` allows running the flow locally during development. In production, Prefect handles scheduling.  
-- **Built-in retries and logging** - `retries=1` ensures one retry on failure, and `log_prints=True` sends `print()` output to Prefect's UI.  
+- **Direct execution for testing** - `if __name__ == "__main__": etl_pipeline_flow()` allows running the flow locally during development. In production, Prefect handles scheduling.
+- **Built-in retries and logging** - `retries=1` ensures one retry on failure, and `log_prints=True` sends `print()` output to Prefect's UI.
 - **Pure Python** - No Airflow imports or context, making the flow easy to test, debug, and run consistently across environments (IDE, CI, or production).
 
 ### Validate functional equivalence
 Once a DAG has been rewritten as a Prefect flow, execute the flow and compare its results with the Airflow DAG to ensure expected outcomes. If discrepancies arise, modify the flow accordingly. Keep in mind the original DAG may have depended on XComs or global variables that you will need to account for.
 
-For each task and special case, including subDAGs and TaskGroups, implement them as subflows or Python functions in Prefect. When transitioning from Airflow's TaskFlow API, keep in mind that Prefect's `@task` decorator serves a similar purpose but does not rely on XComs.
+For each task and special case, including [subDAGs](/docs/apache-airflow/stable/core-concepts/dags.html#concepts-subdags) and [TaskGroups](/docs/apache-airflow/stable/core-concepts/dags.html#taskgroups), implement them as subflows or Python functions in Prefect. When transitioning from Airflow's TaskFlow API, keep in mind that Prefect's `@task` decorator serves a similar purpose but does not rely on XComs.
 
 After completing these steps, the Prefect flow should accurately replicate the functionality of the Airflow DAG while being more modular and testable. The migration is now complete, and the next step is to focus on deploying and optimizing the new workflows.
 
@@ -199,38 +198,67 @@ Migrating your code is a big step, but ensuring your workflows run smoothly in P
 #### Airflow LocalExecutor
 With the **Airflow LocalExecutor** tasks run as subprocesses on the same machine. In Prefect, the default behavior is similar - you can run the flow in a local Python process, and tasks will execute sequentially by default. That does not _have_ to be the same machine that is running your Prefect UI and scheduler. 
 
-For parallelism on a single machine, use [**`DaskTaskRunner`**](/integrations/prefect-dask/index) to enable multi-process execution:  
+For parallelism on a single machine, use [**`DaskTaskRunner`**](/integrations/prefect-dask/index) to enable multi-process execution:
 
 ```python
 @flow(task_runner=DaskTaskRunner())
-```  
+```
 
-By default, Prefect’s **Process work pool** runs flows as subprocesses. A basic **Airflow LocalExecutor** setup can be replaced with a **Prefect worker** on the same VM using a **process work pool**, eliminating the need for a separate scheduler.
+By default, Prefect's **Process work pool** runs flows as subprocesses. A basic **Airflow LocalExecutor** setup can be replaced with a **Prefect worker** on the same VM using a **process work pool**, eliminating the need for a separate scheduler.
 
 #### Airflow CeleryExecutor
-**Airflow CeleryExecutor**  where distributed workers run across multiple machines, using a message broker like RabbitMQ/Redis.
+**Airflow CeleryExecutor** where distributed workers run across multiple machines, using a message broker like RabbitMQ/Redis.
 
-Prefect eliminates the need for a **message broker** or **results backend**, as its API server manages work distribution. To replicate an Airflow **CeleryExecutor** setup, deploy **multiple Prefect workers** across machines, all polling from a shared **work pool**.  
+Prefect eliminates the need for a **message broker** or **results backend**, as its API server manages work distribution. To replicate an Airflow **CeleryExecutor** setup, deploy **multiple Prefect workers** across machines, all polling from a shared **work pool**.
 
-**Setting Up a Work Pool and Workers**  
-1. **Create a work pool** (e.g., `"prod-work-pool"`):  
+**Setting Up a Work Pool and Workers**
+1. **Create a work pool** (e.g., `"prod-work-pool"`):
    ```bash
    prefect work-pool create prod-work-pool --type process
    ```
-2. **Start a worker on each node**, assigning it to the work pool:  
+2. **Start a worker on each node**, assigning it to the work pool:
    ```bash
    prefect worker start -p prod-work-pool
    ```
-3. **Workers poll the work pool** and execute assigned flow runs.  
+3. **Workers poll the work pool** and execute assigned flow runs.
 
 Prefect **work pools** function similarly to **Celery queues**, allowing multiple workers to process tasks concurrently. Multiple **work queues** can be created within a pool for **priority-based task routing**, without the overhead of maintaining a Celery broker or backend.
 
 #### Airflow KubernetesExecutor
-Using the **Airflow KubernetesExecutor** each task launches in its own Kubernetes Pod.
+In Airflow, the **KubernetesExecutor** launches **each task** in its own Kubernetes pod. Prefect, instead, uses a **Kubernetes Work Pool**, where each **flow run** is executed in a Kubernetes pod, rather than launching separate pods for each task. This approach reduces fragmentation and simplifies configuration while maintaining scalability and isolation.
 
-Prefect approaches this a bit differently. Prefect has a **Kubernetes work pool** that can launch each *flow run* in a Kubernetes Job/Pod. Instead of each task being a pod, Prefect will typically execute the entire flow in a pod (which can itself spawn parallel threads or sub-tasks if needed). This achieves isolation and scalability similar to KubernetesExecutor but with less fragmentation and easier config. 
+**Configuring a Kubernetes Work Pool**
+For detailed instructions, see [Prefect's Kubernetes Work Pool documentation](/v3/deploy/infrastructure-examples/kubernetes). But the general steps to take are:
 
-You can set up a Kubernetes work pool with the desired pod template (image, resources, etc.), and when you deploy your flow you'd specify that work pool. Then Prefect's Kubernetes **worker** (which could be running in-cluster) will create a new pod for each run. The pod spins up, executes the flow's tasks, then terminates - no long-running scheduler in the loop. This simplifies what in Airflow often required a lot of YAML and `airflow.cfg` tweaks.
+1. **Create a Kubernetes work pool** with the desired pod template (e.g., image, resources):
+   ```bash
+   prefect work-pool create k8s-pool --type kubernetes
+   ```
+2. **Deploy a flow to the Kubernetes work pool**:
+   ```python
+   from prefect import flow
+
+    @flow(log_prints=True)
+    def buy():
+        print("Buying securities")
+
+    if __name__ == "__main__":
+        buy.deploy(
+            name="my-code-baked-into-an-image-deployment",
+            work_pool_name="k8s-pool",
+            image="my_registry/my_image:my_image_tag"
+        )
+   ```
+
+Alternatively, you can use a [prefect.yaml](/v3/deploy/infrastructure-examples/kubernetes#define-a-prefect-deployment) file to deploy your flow to the Kubernetes work pool.
+
+3. [**Run a Kubernetes worker in-cluster**](/v3/deploy/infrastructure-examples/kubernetes#deploy-a-worker-using-helm) to execute flow runs.
+4. **Execution Flow**:
+- The worker **picks up a scheduled flow run**.
+- It **creates a new pod**, which executes the entire flow.
+- The **pod terminates automatically** after execution.
+
+This setup eliminates the need for a long-running scheduler, reducing operational complexity while leveraging Kubernetes for **on-demand, containerized execution**.
 
 #### Airflow CeleryKubernetes
 **Airflow + Celery + Kubernetes (CeleryKubernetes Executor)** or other hybrid: Some Airflow deployments use Celery for distributed scheduling but run tasks in containers or on Kubernetes. 
@@ -238,20 +266,20 @@ You can set up a Kubernetes work pool with the desired pod template (image, reso
 Prefect's model can handle these as well by combining approaches - e.g., use a Kubernetes work pool with multiple worker processes distributed as needed. The general principle is that Prefect **work pools** can cover all these patterns (local, multi-machine, containers, serverless) via configuration, not code, and you manage them via Prefect's UI/CLI.
 
 #### Using Serverless compute
-Prefect supports **serverless execution** on various cloud platforms, eliminating the need for dedicated infrastructure. Instead of provisioning long-running workers, flows can be executed **on-demand** in ephemeral environments. Prefect's **push-based work pools** allow flows to be submitted to serverless services, where they run in isolated containers and automatically scale with demand.  
+Prefect supports [**serverless execution**](/v3/deploy/infrastructure-examples/serverless) on various cloud platforms, eliminating the need for dedicated infrastructure. Instead of provisioning long-running workers, flows can be executed **on-demand** in ephemeral environments. Prefect's push-based work pools allow flows to be submitted to serverless services, where they run in isolated containers and automatically scale with demand.  
 
-**Serverless Platforms**  
-Prefect flows can run on:  
-- **AWS ECS** (Fargate or EC2-backed containers)  
-- **Azure Container Instances (ACI)**  
-- **Google Cloud Run**  
-- **Modal** (serverless compute for AI/ML workloads)  
-- **Coiled** (serverless Dask clusters for parallel workloads)  
+**Serverless Platforms**
+Prefect flows can run on:
+- **AWS ECS** (Fargate or EC2-backed containers)
+- **Azure Container Instances (ACI)**
+- **Google Cloud Run**
+- **Modal** (serverless compute for AI/ML workloads)
+- **Coiled** (serverless Dask clusters for parallel workloads)
 
-**Configuring a Serverless Work Pool**  
+**Configuring a Serverless Work Pool**
 To run flows on a serverless platform, create a **push-based work pool** and configure it to submit jobs to the desired service.  
 
-Example: Creating an **ECS work pool**:  
+Example: Creating an **ECS work pool**:
 ```bash
 prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
 ```
@@ -262,10 +290,10 @@ For setup details, refer to [Prefect's serverless execution documentation](/v3/d
 ### Airflow Sensors
 Airflow Sensors continuously poll for external conditions, such as file availability or database changes, which can tie up resources. Prefect replaces this with an **event-driven approach**, where external systems trigger flow execution when conditions are met.  
 
-#### **Using External Triggers**  
+**Using External Triggers**  
 Instead of using an Airflow `S3KeySensor`, configure an AWS Lambda or EventBridge rule to call the Prefect API when an S3 file is uploaded. Prefect Cloud and Server provide API endpoints to start flows on demand. Prefect's **Automations** can also trigger flows based on specific conditions.  
 
-#### **Handling Polling Scenarios**  
+**Handling Polling Scenarios**  
 If an external system lacks event-driven capabilities, implement a lightweight **polling flow** that runs on a schedule (e.g., every 5 minutes), checks the condition, and triggers the main flow if met. This approach minimizes idle resource consumption compared to Airflow's persistent sensors.  
 
 Prefect's model eliminates long-running sensor tasks, making workflows **more efficient, scalable, and event-driven**.
@@ -282,69 +310,69 @@ Airflow provides hooks and operators for interacting with external systems (e.g.
         engine = hook.get_sqlalchemy_engine()
         session = sessionmaker(bind=engine)()
      ```
-     Use Prefect Blocks for secure credential management:  
+     Use Prefect Blocks for secure credential management:
      ```python
         from prefect_sqlalchemy import SqlAlchemyConnector
 
         SqlAlchemyConnector.load("BLOCK_NAME-PLACEHOLDER")
      ```
-3. **Use Prefect Blocks for secrets management**, similar to Airflow Connections, to separate credentials from code.  
+3. **Use Prefect Blocks for secrets management**, similar to Airflow Connections, to separate credentials from code.
 
-**Replacing Airflow Operators with Prefect Tasks**  
-- **Prefect tasks** can call any Python library, eliminating the need for custom Airflow operators.  
-- Example: Instead of using a **BashOperator** to call an API via a shell script, install the necessary package in the flow's environment and call it directly in a task.  
+**Replacing Airflow Operators with Prefect Tasks**
+- **Prefect tasks** can call any Python library, eliminating the need for custom Airflow operators.
+- Example: Instead of using a **BashOperator** to call an API via a shell script, install the necessary package in the flow's environment and call it directly in a task.
 
 Prefect's approach **removes unnecessary abstraction layers**, allowing direct access to the full Python ecosystem without Airflow-specific constraints.
 
-The general rule is: **Anything you did with a custom Airflow operator or hook can be achieved in Prefect by writing a task that uses the appropriate Python library**. You're no longer constrained to what Airflow provides - you have the whole Python ecosystem at your disposal within tasks. This is powerful because you might eliminate entire categories of Airflow workaround code. For example, if you had an Airflow BashOperator to run a shell script that calls an API (because maybe the Airflow Python environment didn't have the needed package), in Prefect you could install that package in your flow's environment and call it directly from a task, avoiding the indirection of a shell script.
+Basically: **anything done with a custom Airflow operator or hook can be replaced in Prefect with a task using the appropriate Python library.** Prefect removes Airflow's constraints, allowing direct use of the full Python ecosystem. For example, instead of using a **BashOperator** to call an API via a shell script, install the required package in your environment and call it directly from a task, eliminating unnecessary workarounds.
 
 ### Observability
 
 #### State and logging
-**Task and Flow State Management**  
-In Airflow, task states (`success`, `failed`, `skipped`, etc.) are stored in a metadata database and displayed in the Airflow UI’s DAG run view. Prefect also tracks state for **each task and flow run**, but these states are managed by the **Prefect backend** (Prefect Server or Cloud API) and can be accessed via the **Prefect UI, API, or CLI**.  
+**Task and Flow State Management**
+In Airflow, task states (`success`, `failed`, `skipped`, etc.) are stored in a metadata database and displayed in the Airflow UI's DAG run view. Prefect also tracks state for **each task and flow run**, but these states are managed by the **Prefect backend** (Prefect Server or Cloud API) and can be accessed via the **Prefect UI, API, or CLI**.
 
-After migration, similar visibility is available in Prefect’s UI, where you can track which flows and tasks succeeded or failed. Prefect also includes additional state management features such as:  
-- **Flow cancellation** (`Cancelling` state).  
-- **Resuming failed flows** (with manual steps).  
-- **Task caching** between runs to avoid redundant computations.  
+After migration, similar visibility is available in Prefect's UI, where you can track which flows and tasks succeeded or failed. Prefect also includes additional state management features such as: 
+- **Flow cancellation** (`Cancelling` state).
+- **Resuming failed flows** (with manual steps).
+- **Task caching** between runs to avoid redundant computations.
 
-**Logging Differences**  
-Airflow logs task execution output to files (stored on executor machines or remote storage), viewable through the UI. Prefect **captures stdout, stderr, and Python logging** from tasks and sends them to the Prefect backend, making logs accessible in the **Prefect UI, API, and CLI**.  
+**Logging Differences**
+Airflow logs task execution output to files (stored on executor machines or remote storage), viewable through the UI. Prefect **captures stdout, stderr, and Python logging** from tasks and sends them to the Prefect backend, making logs accessible in the **Prefect UI, API, and CLI**.
 
-To ensure logs appear correctly in Prefect’s UI, use:  
+To ensure logs appear correctly in Prefect's UI, use:
 ```python
-@flow(log_prints=True)  
-@task(log_prints=True)  
+@flow(log_prints=True)
+@task(log_prints=True)
 ```
-These flags route `print()` statements to Prefect logs automatically.  
+These flags route `print()` statements to Prefect logs automatically.
 
-For centralized logging (e.g., ElasticSearch, Stackdriver), Prefect supports **custom logging handlers** and **third-party integrations**. Logs can be forwarded similarly to how Airflow handled external logging.  
+For centralized logging (e.g., ElasticSearch, Stackdriver), Prefect supports **custom logging handlers** and **third-party integrations**. Logs can be forwarded similarly to how Airflow handled external logging.
 
-**Debugging and Troubleshooting**  
-Prefect simplifies debugging because tasks are **standard Python functions**. Instead of analyzing scheduler or worker logs, you can:  
-- **Re-run individual tasks or flows locally** to reproduce issues.  
-- **Test flows interactively** in an IDE before deploying.  
+**Debugging and Troubleshooting**
+Prefect simplifies debugging because tasks are **standard Python functions**. Instead of analyzing scheduler or worker logs, you can:
+- **Re-run individual tasks or flows locally** to reproduce issues.
+- **Test flows interactively** in an IDE before deploying.
 
 This direct execution model eliminates the need to troubleshoot failures through a scheduling system, making debugging faster and more intuitive than in Airflow.
 
 #### Monitoring
-**Notifications and Alerts**  
-In Airflow, monitoring is typically managed through the UI, email alerts on task failures, and external monitoring of the scheduler. Prefect provides similar capabilities through **Notifications and Automations**, which can be configured to trigger alerts via **Slack, email, or webhooks** based on specific events.  
+**Notifications and Alerts**
+In Airflow, monitoring is typically managed through the UI, email alerts on task failures, and external monitoring of the scheduler. Prefect provides similar capabilities through **Notifications and Automations**, which can be configured to trigger alerts via **Slack, email, or webhooks** based on specific events.
 
-To replicate Airflow's alerting (e.g., failures or SLA misses), configure [**Prefect Automations**](/v3/automate/events/automations-triggers) to:  
-- Notify on **flow or task failures**.  
-- Alert when a **flow run exceeds a specified runtime**.  
-- Trigger **custom actions** based on state changes.  
+To replicate Airflow's alerting (e.g., failures or SLA misses), configure [**Prefect Automations**](/v3/automate/events/automations-triggers) to:
+- Notify on **flow or task failures**.
+- Alert when a **flow run exceeds a specified runtime**.
+- Trigger **custom actions** based on state changes.
 
-**Service Level Agreements (SLAs)**  
+**Service Level Agreements (SLAs)**
 Prefect Cloud supports Service Level Agreements (SLAs) to monitor and enforce performance expectations for flow runs. SLAs automatically trigger alerts when predefined thresholds are violated.
 
 SLAs can be defined via the Prefect UI, prefect.yaml, `.deploy()` method, or CLI. Violations generate `prefect.sla.violation` events, which can trigger Automations to send notifications or take corrective actions.
 
 For full configuration details, refer to the [Measure reliability with Service Level Agreements](/v3/automate/events/slas) documentation.
 
-**Implementation Considerations**  
+**Implementation Considerations**
 Prefect allows flexible logging and alerting adjustments to match existing monitoring workflows. Logging handlers can integrate with **third-party services** (e.g., ElasticSearch, Datadog), and **Prefect's API and UI provide real-time state visibility** for proactive monitoring.
 
 ## Deployment & CI/CD Changes
@@ -368,7 +396,7 @@ To migrate each Airflow DAG, you will create a Prefect deployment for its flow. 
 deployments:
   - name: etl-pipeline-prod
     flow_name: etl_pipeline_flow
-    entrypoint: etl_flow.py:etl_pipeline_flow   # file and function where the flow is defined
+    entrypoint: etl_flow.py:etl_pipeline_flow # file and function where the flow is defined
     parameters: {}
     schedule: "@daily"
     work_pool:
@@ -376,7 +404,7 @@ deployments:
       # other infra settings like image, etc., if needed
 ```
 
-This YAML can define multiple deployments, but in this case we have one named “etl-pipeline-prod” which runs daily via the `prod-k8s-pool` (a Kubernetes pool perhaps). In Airflow, these details were all intertwined in the DAG file (the schedule was in code, the infrastructure maybe in the executor config or the DAG via `executor_config`). In Prefect, there is a separation of these concerns. 
+This YAML can define multiple deployments, but in this case we have one named “etl-pipeline-prod” which runs daily via the `prod-k8s-pool` (a Kubernetes pool perhaps). In Airflow, these details were all intertwined in the DAG file (the schedule was in code, the infrastructure maybe in the executor config or the DAG via `executor_config`). In Prefect, there is a separation of these concerns.
 
 ### Automation via CI/CD
 Many organizations use CI/CD to deploy Airflow DAGs (for example, a Git push triggers a Jenkins job that lints DAGs and copies them to the Airflow server). With Prefect, you'll likely adjust your CI/CD to **register Prefect deployments** whenever you update the flow code. Prefect's CLI is your friend here. A common pattern is: 
@@ -391,47 +419,48 @@ Altenatively, if your deployment is set to pull the workflow code from your git 
 This CI pipeline approach allows versioning and automating your flows deployment, treating them similarly to application code deployments. It's a shift from Airflow where deployment could be syncing a folder - Prefect's method is more **controlled** and **atomic** (you create a deployment manifest and apply it, which registers everything with Prefect).
 
 ### Prefect in Production
-Once deployed, Prefect will begin scheduling and orchestrating according to your deployments. Here are best practices for running Prefect in prod, analogous to Airflow's production setup considerations:
+Once deployed, Prefect schedules and orchestrates flows based on your **deployments**. Follow these best practices to ensure a reliable production setup:
 
-- **Ensure high availability of Prefect orchestration**: If you self-host, run Prefect with a reliable backing database (Postgres recommended) and possibly in a highly available mode (e.g., multiple replicas behind a load balancer for the API,). If using Prefect Cloud, the reliability is handled by the service - you just worry about your agents/workers.
-- **Keep Prefect workers running**: Just like Airflow had scheduler/worker processes always on, you need your Prefect workers active to pick up scheduled runs. You might run them as systemd services, Docker containers in a cluster, or Kubernetes deployments. 
-- **Configure logging and observability**: Decide if you'll use Prefect's UI for all log access or also pipe logs to an external system. You might, for instance, set up an S3 block so that flow run logs are additionally saved to S3 for long-term storage.
-- **Notifications and alerts**: As mentioned, set up Prefect notifications for failures. Prefect Cloud lets you configure Alerts easily (Slack, Email, etc.), and Prefect Server can use Automations (which might need an outbound notification block like Twilio or SMTP configured). This ensures that if a flow fails at 2 AM, the relevant people get notified.
-- **CI/CD for Prefect flows**: We covered deploying flows via CI. It's good practice to also run tests on your flow functions as part of CI (even if Airflow DAGs were hard to test, now you can test Prefect tasks like any Python function!). Also, you might incorporate a **Prefect preview** or dry-run in CI – for example, use `prefect deployment build --skip-upload` just to validate that the deployment YAML is well-formed and the flow is importable, etc. This catches errors before they hit production.
-- **Managing configuration**: In Airflow, you might use Variables or connections in the UI. In Prefect, you can use **Blocks** in the UI/CLI to store things like credentials, and reference them in your flows. After migration, audit what Airflow Variables/Connections you had and create equivalent Prefect Blocks or Secrets. Prefect Blocks can be created via CLI or UI, and you can even store them in code (as JSON) and apply via CI for consistency.
-- **Security**: If your Airflow was self-hosted, you likely secured the webserver and had roles. Prefect Cloud has built-in authentication and role-based access. 
-- **Decommissioning Airflow**: Once you've migrated all DAGs, you can gradually tear down the Airflow infrastructure. It's common to overlap for a few days or weeks during cutover (with Airflow DAGs disabled but available if needed). Eventually, you can archive the DAG code and shut down Airflow components, reducing ops burden.
+- **High Availability**: If self-hosting, use **PostgreSQL** and consider running **multiple API replicas behind a load balancer**. Prefect Cloud handles availability automatically.
+- **Keep Workers Active**: Ensure Prefect **workers are always running**, whether as **systemd services, Docker containers, or Kubernetes deployments**.
+- **Logging & Observability**: Use Prefect's **UI** for logs or configure **external storage (e.g., S3, Elasticsearch)** for long-term retention.
+- **Notifications & Alerts**: Set up **failure alerts** via **Slack, email, or Twilio** using **Prefect Automations** to ensure timely issue resolution.
+- **CI/CD & Testing**: Validate **deployment YAMLs** in CI (`prefect deployment build --skip-upload`), and unit test tasks as **regular Python functions**.
+- **Configuration Management**: Replace Airflow **Variables/Connections** with **Prefect Blocks**, storing secrets in **CLI, UI, or version-controlled JSON**.
+- **Security & Access Control**: Prefect Cloud includes **built-in authentication & role-based access**; self-hosted setups should secure API and workers accordingly.
+- **Decommissioning Airflow**: Once migration is complete, **disable DAGs, archive the code, and shut down Airflow components** to reduce operational overhead.
+
+For more details on operating Prefect in production, see the [Operate](/v3/manage/index) guide.
 
 ## Testing & Validation
+Thorough testing ensures your Prefect flows perform like their Airflow equivalents. Since this is a **full migration**, validation is essential before decommissioning Airflow.
 
-Thorough testing and validation are critical during the migration to ensure your new Prefect flows perform just like the old Airflow DAGs. Because we aim for a **full migration** (not running Airflow and Prefect together long-term), you'll want high confidence in Prefect before decommissioning Airflow. This section covers strategies for testing Prefect flows and running side-by-side comparisons, as well as common issues and troubleshooting tips.
+**Testing Prefect Flows in Isolation**
+- **Unit test task logic** - Write tests for tasks as regular Python functions.
+- **Run flows locally** - Execute `@flow` functions directly (`etl_pipeline_flow()`) to validate logic.
+- **Use Prefect's local orchestration** - Start a Prefect server (`prefect server start`), register a deployment, and trigger flows via Prefect UI to mirror production behavior.
+- **Compare outputs** - Run both Airflow and Prefect for the same input and validate results (e.g., database rows, file outputs). Debug discrepancies early.
 
-**Test Prefect flows in isolation:** One advantage of Prefect's design is that you can test flows and tasks as plain Python. Make use of this! For each migrated DAG:
-- **Unit test task logic:** Since tasks are simple functions, write unit tests for them with various inputs. This wasn't always easy with Airflow operators tied to Airflow context, but now it is. Ensure that given certain inputs, your task returns or produces expected outcomes.
-- **Dry-run flows locally:** You can call the `@flow` function directly in a development environment to execute the workflow immediately. This is great for validation. For example, run `etl_pipeline_flow()` on your laptop or a dev pod and see that it completes and produces the correct result (perhaps writing to a dev database or a sandbox bucket). This executes outside the Prefect server, but it uses the same code, so it's a good smoke test. Keep in mind when you call a flow function directly, it will run *synchronously* in your local process (unless tasks use concurrent task runners). That's fine for testing.
-- **Use Prefect's local orchestration for testing:** You can also start a local Prefect server (`prefect server start`) and actually trigger the flow via Prefect (register a deployment and run it). This tests the full pipeline with Prefect in the loop and will show you the flow in the UI. It's a bit more overhead than calling the function directly, but it mirrors production execution more closely (especially if your deployment uses Docker/K8s, etc., you can simulate that).
-- **Side-by-side output comparison:** Run the Prefect flow for a given date or input, and run the Airflow DAG for the same date/input (Airflow's backfill or manual trigger can be used to run it on demand). Compare the outputs: e.g., did both write the same number of rows to the database? Do files have the same content? This can be manual or automated depending on what your pipelines do, but it's a very important step. If any discrepancies arise, debug them now.
+**Validation Phase: Temporary Parallel Running (Shadow Mode)**
+- **Keep the Airflow DAG inactive** but available for testing.
+- **Manually trigger** both Airflow and Prefect flows for the same execution date.
+- **Write test outputs separately** to prevent conflicts, ensuring parity before stopping Airflow runs.
 
-### Validation Phase
-**Temporary parallel running (shadow mode):** During a validation phase, you might keep the Airflow DAG active (but not scheduled) and trigger it in parallel with Prefect flows for critical pipelines. *Do not run them both on the same schedule against production data simultaneously*, as that could double-process data or cause conflicts. Instead, you can:
-- Pause the Airflow DAG's schedule (so it doesn't auto-run).
-- Whenever the Prefect flow runs, manually trigger the Airflow DAG (or vice versa) for that execution date, but perhaps point it to write output to a test location.
-- Compare results and performance. This overlapping period should be as short as possible - just enough to verify correctness and performance parity.
+For batch jobs, this phase should be **brief**, ensuring correctness without long-term dual maintenance.
 
-For example, if migrating a daily batch job, you might run the first few days on Prefect and also still run Airflow (maybe writing to a temp table) to confirm results match, then stop Airflow runs. This builds trust that nothing was lost in translation.
-
-### Decommissioning Airflow
-**Retiring Airflow DAGs:** Once a Prefect flow is confirmed stable, **disable the Airflow DAG** to avoid confusion. In Airflow, you can pause the DAG or remove it. The Prefect “replacement” should be clearly documented as the new source of truth. This one-by-one migration ensures you're never maintaining two versions of the pipeline for long. It's tempting to leave the Airflow DAG as backup, but that can lead to accidentally running it or outdated logic floating around. Safer is to remove or archive it once Prefect is live.
+**Decommissioning Airflow**
+Once a Prefect flow is stable, **disable the corresponding Airflow DAG** to prevent accidental execution. Clearly document Prefect as the new source of truth. Avoid keeping inactive DAGs indefinitely, as they can cause confusion—**archive or remove them once the migration is complete**.
 
 ### Common issues and troubleshooting
 
-- **Missing dependencies:** If a Prefect flow fails with `ImportError`, ensure all required libraries are installed in the execution environment (Docker image, VM, etc.), not just locally.  
-- **Credentials & access:** Verify that Prefect tasks have the same permissions as Airflow (e.g., service accounts, IAM roles). If using Kubernetes, ensure pods can access necessary databases and APIs.  
-- **Scheduling differences:** Airflow schedules may trigger at the end of an interval, while Prefect runs in real-time. Align Cron schedules and time zones if needed.  
-- **Concurrency & parallelism:** Configure **work pool and flow run concurrency limits** to prevent overlapping jobs. If too many tasks run in parallel, use Prefect’s **tags and concurrency controls** to throttle execution.  
-- **Error handling & retries:** Test retries by forcing failures. If Airflow used `trigger_rule="all_done"`, implement equivalent logic in Prefect with `try/except`.  
+- **Missing dependencies:** If a Prefect flow fails with `ImportError`, ensure all required libraries are installed in the execution environment (Docker image, VM, etc.), not just locally.
+- **Credentials & access:** Verify that Prefect tasks have the same permissions as Airflow (e.g., service accounts, IAM roles). If using Kubernetes, ensure pods can access necessary databases and APIs.
+- **Scheduling differences:** Airflow schedules may trigger at the end of an interval, while Prefect runs in real-time. Align Cron schedules and time zones if needed.
+- **Concurrency & parallelism:** Configure **work pool and flow run concurrency limits** to prevent overlapping jobs. If too many tasks run in parallel, use Prefect's **tags and concurrency controls** to throttle execution.
+- **Error handling & retries:** Test retries by forcing failures. If Airflow used `trigger_rule="all_done"`, implement equivalent logic in Prefect with `try/except`.
 - **Performance monitoring:** Compare Prefect vs. Airflow run times. If slower, check if tasks are running sequentially instead of in parallel (enable mapping, async, or parallel task runners). If too much parallelism, adjust concurrency settings.
-Throughout testing, keep an eye on the Prefect UI's **Flow Run and Task Run views** – they will show you the execution steps, logs, and any exceptions. The UI can be very helpful for pinpointing where a flow failed or hung. It's analogous to Airflow's Graph view and log view but with the benefit of real-time state updates (no need to refresh for state changes).
+
+Throughout testing, keep an eye on the Prefect UI's **Flow Run and Task Run views** - they will show you the execution steps, logs, and any exceptions. The UI can be very helpful for pinpointing where a flow failed or hung. It's analogous to Airflow's Graph view and log view but with the benefit of real-time state updates (no need to refresh for state changes).
 
 **Debugging tips:**
 - If a flow run gets stuck, you can cancel it via UI/CLI.
