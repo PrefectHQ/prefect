@@ -14,7 +14,8 @@ import anyio
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import (
-    State, StateType,
+    State,
+    StateType,
 )
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.utilities import inject_client
@@ -126,13 +127,13 @@ async def wait_for_flow_run(
     assert client is not None, "Client injection failed"
     logger = get_logger()
 
-    filter = EventFilter(
+    event_filter = EventFilter(
         event=EventNameFilter(prefix=["prefect.flow-run"]),
-        resource=EventResourceFilter(id=[f"prefect.flow-run.{flow_run_id}"])
+        resource=EventResourceFilter(id=[f"prefect.flow-run.{flow_run_id}"]),
     )
 
     with anyio.move_on_after(timeout):
-        async with get_events_subscriber(filter=filter) as subscriber:
+        async with get_events_subscriber(filter=event_filter) as subscriber:
             flow_run = await client.read_flow_run(flow_run_id)
             if flow_run.state and flow_run.state.is_final():
                 if log_states:
