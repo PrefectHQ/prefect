@@ -11,7 +11,6 @@ import anyio
 import anyio.abc
 import pendulum
 import pytest
-from exceptiongroup import ExceptionGroup, catch
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,9 +19,10 @@ from prefect import flow
 from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.server import models
+from prefect.server.database.orm_models import Flow
 from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
@@ -42,12 +42,17 @@ def example_process_worker_flow():
 
 
 @pytest.fixture
-def patch_run_process(monkeypatch):
-    def patch_run_process(returncode=0, pid=1000):
+def patch_run_process(monkeypatch: pytest.MonkeyPatch):
+    def patch_run_process(returncode: int = 0, pid: int = 1000):
         mock_run_process = AsyncMock()
-        mock_run_process.return_value.returncode = returncode
-        mock_run_process.return_value.pid = pid
-        monkeypatch.setattr(prefect.workers.process, "run_process", mock_run_process)
+        mock_process = MagicMock()
+        mock_process.returncode = returncode
+        mock_process.pid = pid
+        mock_run_process.return_value = mock_process
+
+        monkeypatch.setattr(
+            "prefect.workers.process.Runner._run_process", mock_run_process
+        )
 
         return mock_run_process
 
@@ -55,9 +60,25 @@ def patch_run_process(monkeypatch):
 
 
 @pytest.fixture
-async def flow_run(prefect_client: PrefectClient):
-    flow_run = await prefect_client.create_flow_run(
-        flow=example_process_worker_flow,
+async def deployment(prefect_client: PrefectClient, flow: Flow):
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow.id,
+        name=f"test-process-worker-deployment-{uuid.uuid4()}",
+        path=str(
+            prefect.__development_base_path__
+            / "tests"
+            / "test-projects"
+            / "import-project"
+        ),
+        entrypoint="my_module/flow.py:test_flow",
+    )
+    return await prefect_client.read_deployment(deployment_id)
+
+
+@pytest.fixture
+async def flow_run(deployment: Deployment, prefect_client: PrefectClient):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment.id,
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
@@ -66,6 +87,39 @@ async def flow_run(prefect_client: PrefectClient):
         ),
     )
 
+    return flow_run
+
+
+@pytest.fixture
+async def deployment_with_overrides(prefect_client: PrefectClient, flow: Flow):
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow.id,
+        name=f"test-process-worker-deployment-{uuid.uuid4()}",
+        path=str(
+            prefect.__development_base_path__
+            / "tests"
+            / "test-projects"
+            / "import-project"
+        ),
+        entrypoint="my_module/flow.py:test_flow",
+        job_variables={
+            "command": "echo hello",
+            "env": {"NEW_ENV_VAR": "from_deployment"},
+            "working_dir": "/deployment/tmp/test",
+        },
+    )
+    deployment = await prefect_client.read_deployment(deployment_id)
+    return deployment
+
+
+@pytest.fixture
+async def flow_run_with_deployment_overrides(
+    deployment_with_overrides: Deployment, prefect_client: PrefectClient
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_with_overrides.id,
+        state=State(type=client_schemas.StateType.SCHEDULED),
+    )
     return flow_run
 
 
@@ -103,6 +157,17 @@ def mock_open_process(monkeypatch):
         anyio.open_process.return_value.terminate = MagicMock()  # noqa
 
         yield anyio.open_process
+
+
+@pytest.fixture
+def mock_runner_execute_flow_run(monkeypatch: pytest.MonkeyPatch):
+    mock_process = MagicMock(returncode=0, pid=1000)
+    mock_execute_flow_run = AsyncMock()
+    mock_execute_flow_run.return_value = mock_process
+    monkeypatch.setattr(
+        "prefect.runner.runner.Runner.execute_flow_run", mock_execute_flow_run
+    )
+    return mock_execute_flow_run
 
 
 def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
@@ -185,11 +250,11 @@ async def work_pool_with_default_env(session: AsyncSession):
 
 
 async def test_worker_process_run_flow_run(
-    flow_run, patch_run_process, process_work_pool, monkeypatch
+    flow_run: FlowRun,
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+    prefect_client: PrefectClient,
 ):
-    mock: AsyncMock = patch_run_process()
-    patch_client(monkeypatch)
-
     async with ProcessWorker(
         work_pool_name=process_work_pool.name,
     ) as worker:
@@ -202,108 +267,100 @@ async def test_worker_process_run_flow_run(
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-        mock.assert_awaited_once
-        assert mock.call_args.args == (
-            [
-                sys.executable,
-                "-m",
-                "prefect.engine",
-            ],
-        )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.type == StateType.COMPLETED
 
 
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
-    flow_run, patch_run_process, work_pool_with_default_env, monkeypatch
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    work_pool_with_default_env: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setenv("EXISTING_ENV_VAR", "from_os")
-    mock: AsyncMock = patch_run_process()
-    patch_client(monkeypatch)
 
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        worker._work_pool = work_pool_with_default_env
+        configuration = await worker._get_configuration(flow_run)
         result = await worker.run(
             flow_run,
-            configuration=await worker._get_configuration(flow_run),
+            configuration=configuration,
         )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-        mock.assert_awaited_once
-        assert mock.call_args.args == (
-            [
-                sys.executable,
-                "-m",
-                "prefect.engine",
-            ],
-        )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
-        assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
-        assert (
-            mock.call_args.kwargs["env"]["CONFIG_ENV_VAR"] == "from_job_configuration"
-        )
+    mock_runner_execute_flow_run.assert_awaited_once_with(
+        flow_run_id=flow_run.id,
+        command=configuration.command,
+        cwd=configuration.working_dir,
+        env=configuration.env,
+        task_status=None,
+    )
+    assert configuration.env["CONFIG_ENV_VAR"] == "from_job_configuration"
+    assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
 
 
 async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
-    flow_run, patch_run_process, work_pool_with_default_env, monkeypatch
+    flow_run_with_deployment_overrides: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    work_pool_with_default_env: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.setenv("EXISTING_ENV_VAR", "from_os")
-    mock: AsyncMock = patch_run_process()
-    patch_client(monkeypatch, overrides={"env": {"NEW_ENV_VAR": "from_deployment"}})
 
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        worker._work_pool = work_pool_with_default_env
+        configuration = await worker._get_configuration(
+            flow_run_with_deployment_overrides
+        )
         result = await worker.run(
-            flow_run,
-            configuration=await worker._get_configuration(flow_run),
+            flow_run_with_deployment_overrides,
+            configuration=configuration,
         )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-        mock.assert_awaited_once
-        assert mock.call_args.args == (
-            [
-                sys.executable,
-                "-m",
-                "prefect.engine",
-            ],
-        )
-        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
-        assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
-        assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
+    mock_runner_execute_flow_run.assert_awaited_once_with(
+        flow_run_id=flow_run_with_deployment_overrides.id,
+        command=configuration.command,
+        cwd=configuration.working_dir,
+        env=configuration.env,
+        task_status=None,
+    )
+    assert configuration.env["NEW_ENV_VAR"] == "from_deployment"
+    assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
 
 
 async def test_flow_run_without_job_vars(
-    flow_run,
-    work_pool_with_default_env,
-    monkeypatch,
+    flow_run_with_deployment_overrides: FlowRun,
+    work_pool_with_default_env: WorkPool,
+    prefect_client: PrefectClient,
 ):
-    deployment_job_vars = {"working_dir": "/deployment/tmp/test"}
-    patch_client(monkeypatch, overrides=deployment_job_vars)
+    deployment = await prefect_client.read_deployment(
+        flow_run_with_deployment_overrides.deployment_id
+    )
 
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        worker._work_pool = work_pool_with_default_env
-        config = await worker._get_configuration(flow_run)
-        assert str(config.working_dir) == deployment_job_vars["working_dir"]
+        configuration = await worker._get_configuration(
+            flow_run_with_deployment_overrides
+        )
+        assert str(configuration.working_dir) == deployment.job_variables["working_dir"]
 
 
 async def test_flow_run_vars_take_precedence(
-    deployment,
-    flow_run_with_overrides,
-    work_pool_with_default_env,
+    flow_run_with_overrides: FlowRun,
+    work_pool_with_default_env: WorkPool,
     session: AsyncSession,
 ):
     await models.deployments.update_deployment(
         session=session,
-        deployment_id=deployment.id,
+        deployment_id=flow_run_with_overrides.deployment_id,
         deployment=DeploymentUpdate(
             job_variables={"working_dir": "/deployment/tmp/test"},
         ),
@@ -346,119 +403,6 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
             == flow_run_with_overrides.job_variables["working_dir"]
         )
         assert config.stream_output is False
-
-
-async def test_process_created_then_marked_as_started(
-    flow_run, mock_open_process, process_work_pool, monkeypatch
-):
-    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-    # By raising an exception when started is called we can assert the process
-    # is opened before this time
-    fake_status.started.side_effect = RuntimeError("Started called!")
-    patch_client(monkeypatch)
-    fake_configuration = MagicMock()
-    fake_configuration.command = "echo hello"
-
-    def handle_exception_group(excgrp: ExceptionGroup):
-        assert len(excgrp.exceptions) == 1
-        assert isinstance(excgrp.exceptions[0], RuntimeError)
-        assert str(excgrp.exceptions[0]) == "Started called!"
-
-    with catch(  # should be superseded by `ExceptionGroup` once we're 3.11+
-        {RuntimeError: handle_exception_group}  # type: ignore
-    ):  # see https://github.com/agronholm/anyio/blob/master/docs/migration.rst#task-groups-now-wrap-single-exceptions-in-groups # noqa F821
-        async with ProcessWorker(
-            work_pool_name=process_work_pool.name,
-        ) as worker:
-            worker._work_pool = process_work_pool
-            await worker.run(
-                flow_run=flow_run,
-                configuration=fake_configuration,
-                task_status=fake_status,
-            )
-
-    fake_status.started.assert_called_once()
-    mock_open_process.assert_awaited_once()
-
-
-@pytest.mark.parametrize(
-    "exit_code,help_message",
-    [
-        (-9, "This indicates that the process exited due to a SIGKILL signal"),
-        (
-            247,
-            "This indicates that the process was terminated due to high memory usage.",
-        ),
-    ],
-)
-async def test_process_worker_logs_exit_code_help_message(
-    exit_code,
-    help_message,
-    caplog,
-    patch_run_process,
-    flow_run,
-    process_work_pool,
-    monkeypatch,
-):
-    patch_client(monkeypatch)
-    patch_run_process(returncode=exit_code)
-    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        worker._work_pool = process_work_pool
-        result = await worker.run(
-            flow_run=flow_run,
-            configuration=await worker._get_configuration(flow_run),
-        )
-
-        assert result.status_code == exit_code
-
-        record = caplog.records[-1]
-        assert record.levelname == "ERROR"
-        assert help_message in record.message
-
-
-@pytest.mark.skipif(
-    sys.platform != "win32",
-    reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
-)
-async def test_windows_process_worker_run_sets_process_group_creation_flag(
-    patch_run_process, flow_run, process_work_pool, monkeypatch
-):
-    mock = patch_run_process()
-    patch_client(monkeypatch)
-
-    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        worker._work_pool = process_work_pool
-        await worker.run(
-            flow_run=flow_run,
-            configuration=await worker._get_configuration(flow_run),
-        )
-
-    mock.assert_awaited_once()
-    (_, kwargs) = mock.call_args
-    assert kwargs.get("creationflags") == mock.CREATE_NEW_PROCESS_GROUP
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason=(
-        "The asyncio.open_process_*.creationflags argument is only supported on Windows"
-    ),
-)
-async def test_unix_process_worker_run_does_not_set_creation_flag(
-    patch_run_process, flow_run, process_work_pool, monkeypatch
-):
-    mock = patch_run_process()
-    patch_client(monkeypatch)
-    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        worker._work_pool = process_work_pool
-        await worker.run(
-            flow_run=flow_run,
-            configuration=await worker._get_configuration(flow_run),
-        )
-
-    mock.assert_awaited_once()
-    (_, kwargs) = mock.call_args
-    assert kwargs.get("creationflags") is None
 
 
 async def test_process_worker_working_dir_override(
@@ -527,64 +471,73 @@ async def test_process_worker_stream_output_override(
         assert mock.call_args.kwargs["stream_output"] is False
 
 
-async def test_process_worker_uses_correct_default_command(
-    flow_run, patch_run_process, process_work_pool, monkeypatch
+async def test_process_worker_executes_flow_run_with_runner(
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
 ):
-    mock: AsyncMock = patch_run_process()
-    correct_default = [
-        sys.executable,
-        "-m",
-        "prefect.engine",
-    ]
-    patch_client(monkeypatch)
-
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        worker._work_pool = process_work_pool
+        configuration = await worker._get_configuration(flow_run)
         result = await worker.run(
             flow_run=flow_run,
-            configuration=await worker._get_configuration(flow_run),
+            configuration=configuration,
         )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.args == (correct_default,)
+        mock_runner_execute_flow_run.assert_awaited_once_with(
+            flow_run_id=flow_run.id,
+            command=configuration.command,
+            cwd=configuration.working_dir,
+            env=configuration.env,
+            task_status=None,
+        )
 
 
 async def test_process_worker_command_override(
-    flow_run, patch_run_process, process_work_pool, monkeypatch
+    deployment_with_overrides: Deployment,
+    flow_run_with_deployment_overrides: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
 ):
-    mock: AsyncMock = patch_run_process()
-    override_command = "echo hello world"
-    override = {"command": override_command}
-    patch_client(monkeypatch, overrides=override)
-
+    override_command = deployment_with_overrides.job_variables["command"]
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        worker._work_pool = process_work_pool
+        configuration = await worker._get_configuration(
+            flow_run_with_deployment_overrides
+        )
         result = await worker.run(
-            flow_run=flow_run,
-            configuration=await worker._get_configuration(flow_run),
+            flow_run=flow_run_with_deployment_overrides,
+            configuration=configuration,
         )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.args == (override_command.split(" "),)
+        mock_runner_execute_flow_run.assert_awaited_once_with(
+            flow_run_id=flow_run_with_deployment_overrides.id,
+            command=override_command,
+            cwd=configuration.working_dir,
+            env=configuration.env,
+            task_status=None,
+        )
 
 
-async def test_task_status_receives_infrastructure_pid(
-    process_work_pool, patch_run_process, monkeypatch, flow_run
+async def test_task_status_receives_pid(
+    process_work_pool: WorkPool,
+    patch_run_process: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    flow_run: FlowRun,
 ):
-    patch_client(monkeypatch)
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run=flow_run,
             configuration=await worker._get_configuration(flow_run),
             task_status=fake_status,
         )
 
-        hostname = socket.gethostname()
-        fake_status.started.assert_called_once_with(f"{hostname}:{result.identifier}")
+        fake_status.started.assert_called_once_with(int(result.identifier))
 
 
 async def test_process_kill_mismatching_hostname(monkeypatch, process_work_pool):

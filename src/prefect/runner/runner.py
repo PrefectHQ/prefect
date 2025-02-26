@@ -228,6 +228,7 @@ class Runner:
         self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
         self._deployment_ids: set[UUID] = set()
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
+        self._flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
 
         self._tmp_dir: Path = (
@@ -580,7 +581,7 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    process = await self._runs_task_group.start(
+                    process: anyio.abc.Process = await self._runs_task_group.start(
                         partial(
                             self._submit_run_and_capture_errors,
                             flow_run=flow_run,
@@ -593,9 +594,15 @@ class Runner:
                     if task_status:
                         task_status.started(process.pid)
 
-                    self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=process.pid, flow_run=flow_run
-                    )
+                    if TYPE_CHECKING:
+                        assert self._flow_run_process_map_lock is not None
+
+                    async with self._flow_run_process_map_lock:
+                        # Only add the process to the map if it is still running
+                        if process.returncode is None:
+                            self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                                pid=process.pid, flow_run=flow_run
+                            )
 
                     # We want this loop to stop when the flow run process exits
                     # so we'll check if the flow run process is still alive on
@@ -1341,9 +1348,13 @@ class Runner:
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
-                self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                    pid=readiness_result, flow_run=flow_run
-                )
+                if TYPE_CHECKING:
+                    assert self._flow_run_process_map_lock is not None
+
+                async with self._flow_run_process_map_lock:
+                    self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                        pid=readiness_result, flow_run=flow_run
+                    )
             # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
             if self.heartbeat_seconds is not None:
                 await self._emit_flow_run_heartbeat(flow_run)
@@ -1395,7 +1406,11 @@ class Runner:
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
-            self._flow_run_process_map.pop(flow_run.id, None)
+            if TYPE_CHECKING:
+                assert self._flow_run_process_map_lock is not None
+
+            async with self._flow_run_process_map_lock:
+                self._flow_run_process_map.pop(flow_run.id, None)
 
         if status_code != 0:
             await self._propose_crashed_state(
@@ -1613,6 +1628,8 @@ class Runner:
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
+        self._flow_run_process_map_lock = asyncio.Lock()
+
         self.started = True
         return self
 
@@ -1621,6 +1638,8 @@ class Runner:
         if self.pause_on_shutdown:
             await self._pause_schedules()
         self.started = False
+
+        self._flow_run_process_map_lock = None
 
         for scope in self._scheduled_task_scopes:
             scope.cancel()
