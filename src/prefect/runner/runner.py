@@ -39,6 +39,7 @@ import datetime
 import inspect
 import logging
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -550,13 +551,22 @@ class Runner:
             )
 
     async def execute_flow_run(
-        self, flow_run_id: UUID, entrypoint: Optional[str] = None
-    ) -> None:
+        self,
+        flow_run_id: UUID,
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | None = None,
+        env: dict[str, str | None] | None = None,
+        task_status: anyio.abc.TaskStatus[int] | None = None,
+    ) -> anyio.abc.Process | None:
         """
         Executes a single flow run with the given ID.
 
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
+
+        Returns:
+            The flow run process.
         """
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
@@ -570,16 +580,21 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    pid = await self._runs_task_group.start(
+                    process = await self._runs_task_group.start(
                         partial(
                             self._submit_run_and_capture_errors,
                             flow_run=flow_run,
                             entrypoint=entrypoint,
+                            command=command,
+                            cwd=cwd,
+                            env=env,
                         ),
                     )
+                    if task_status:
+                        task_status.started(process.pid)
 
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=pid, flow_run=flow_run
+                        pid=process.pid, flow_run=flow_run
                     )
 
                     # We want this loop to stop when the flow run process exits
@@ -608,6 +623,8 @@ class Runner:
                                 jitter_range=0.3,
                             )
                         )
+
+                    return process
 
     async def execute_bundle(self, bundle: SerializedBundle) -> None:
         """
@@ -696,7 +713,7 @@ class Runner:
                     )
                 elif (
                     sys.platform == "win32"
-                    and process.returncode == STATUS_CONTROL_C_EXIT
+                    and process.exitcode == STATUS_CONTROL_C_EXIT
                 ):
                     level = logging.INFO
                     help_message = (
@@ -733,9 +750,12 @@ class Runner:
     async def _run_process(
         self,
         flow_run: "FlowRun",
-        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
-        entrypoint: Optional[str] = None,
-    ) -> int:
+        task_status: anyio.abc.TaskStatus[anyio.abc.Process] | None = None,
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | None = None,
+        env: dict[str, str | None] | None = None,
+    ) -> anyio.abc.Process:
         """
         Runs the given flow run in a subprocess.
 
@@ -747,7 +767,10 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = [get_sys_executable(), "-m", "prefect.engine"]
+        if command is None:
+            runner_command = [get_sys_executable(), "-m", "prefect.engine"]
+        else:
+            runner_command = shlex.split(command)
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -760,7 +783,9 @@ class Runner:
 
         flow_run_logger.info("Opening process...")
 
-        env = get_current_settings().to_environment_variables(exclude_unset=True)
+        if env is None:
+            env = {}
+        env.update(get_current_settings().to_environment_variables(exclude_unset=True))
         env.update(
             {
                 **{
@@ -798,12 +823,12 @@ class Runner:
                 setattr(storage, "last_adhoc_pull", datetime.datetime.now())
 
         process = await run_process(
-            command=command,
+            command=runner_command,
             stream_output=True,
             task_status=task_status,
-            task_status_handler=None,
+            task_status_handler=lambda process: process,
             env=env,
-            cwd=storage.destination if storage else None,
+            cwd=storage.destination if storage else cwd,
             **kwargs,
         )
 
@@ -852,7 +877,7 @@ class Runner:
                 f"Process for flow run {flow_run.name!r} exited cleanly."
             )
 
-        return process.returncode
+        return process
 
     async def _kill_process(
         self,
@@ -1333,17 +1358,24 @@ class Runner:
     async def _submit_run_and_capture_errors(
         self,
         flow_run: "FlowRun",
-        task_status: anyio.abc.TaskStatus[int | Exception],
-        entrypoint: Optional[str] = None,
+        task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | None = None,
+        env: dict[str, str | None] | None = None,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
         try:
-            status_code = await self._run_process(
+            process = await self._run_process(
                 flow_run=flow_run,
                 task_status=task_status,
                 entrypoint=entrypoint,
+                command=command,
+                cwd=cwd,
+                env=env,
             )
+            status_code = process.returncode
         except Exception as exc:
             if task_status:
                 # This flow run was being submitted and did not start successfully
@@ -1513,6 +1545,7 @@ class Runner:
         """
         Run the hooks for a flow.
         """
+        run_logger = self._get_flow_run_logger(flow_run)
         if state.is_cancelling():
             try:
                 if flow_run.id in self._flow_run_bundle_map:
@@ -1520,6 +1553,7 @@ class Runner:
                         self._flow_run_bundle_map[flow_run.id]
                     )
                 else:
+                    run_logger.info("Loading flow to check for on_cancellation hooks")
                     flow = await load_flow_from_flow_run(
                         flow_run, storage_base_path=str(self._tmp_dir)
                     )
@@ -1529,7 +1563,7 @@ class Runner:
             except ObjectNotFound:
                 run_logger = self._get_flow_run_logger(flow_run)
                 run_logger.warning(
-                    f"Runner cannot retrieve flow to execute cancellation hooks for flow run {flow_run.id!r}."
+                    f"Runner failed to retrieve flow to execute on_cancellation hooks for flow run {flow_run.id!r}."
                 )
 
     async def _run_on_crashed_hooks(
@@ -1540,16 +1574,25 @@ class Runner:
         """
         Run the hooks for a flow.
         """
+        run_logger = self._get_flow_run_logger(flow_run)
         if state.is_crashed():
-            if flow_run.id in self._flow_run_bundle_map:
-                flow = extract_flow_from_bundle(self._flow_run_bundle_map[flow_run.id])
-            else:
-                flow = await load_flow_from_flow_run(
-                    flow_run, storage_base_path=str(self._tmp_dir)
-                )
-            hooks = flow.on_crashed_hooks or []
+            try:
+                if flow_run.id in self._flow_run_bundle_map:
+                    flow = extract_flow_from_bundle(
+                        self._flow_run_bundle_map[flow_run.id]
+                    )
+                else:
+                    run_logger.info("Loading flow to check for on_crashed hooks")
+                    flow = await load_flow_from_flow_run(
+                        flow_run, storage_base_path=str(self._tmp_dir)
+                    )
+                hooks = flow.on_crashed_hooks or []
 
-            await _run_hooks(hooks, flow_run, flow, state)
+                await _run_hooks(hooks, flow_run, flow, state)
+            except ObjectNotFound:
+                run_logger.warning(
+                    f"Runner failed to retrieve flow to execute on_crashed hooks for flow run {flow_run.id!r}."
+                )
 
     async def __aenter__(self) -> Self:
         self._logger.debug("Starting runner...")

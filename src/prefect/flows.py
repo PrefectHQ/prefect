@@ -2353,7 +2353,9 @@ async def load_flow_from_flow_run(
         from prefect.deployments.steps.core import StepExecutionError, run_steps
 
         try:
-            output = await run_steps(deployment.pull_steps)
+            output = await run_steps(
+                deployment.pull_steps, print_function=run_logger.info
+            )
         except StepExecutionError as e:
             e = e.__cause__ or e
             run_logger.error(str(e))
