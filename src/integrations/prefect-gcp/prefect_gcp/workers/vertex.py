@@ -159,6 +159,13 @@ class VertexAIWorkerVariables(BaseVariables):
     scheduling: Optional[dict[str, Any]] = Field(
         default=None,
         title="Scheduling Options",
+        description=(
+            "A dictionary with scheduling options for a CustomJob, "
+            "these are parameters related to queuing, and scheduling custom jobs. "
+            "If unspecified default scheduling options are used. "
+            "The 'maximum_run_time_hours' variable will take precedence over the "
+            "'scheduling.timeout' field for backward compatibility."
+        ),
         examples=[
             {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}},
             {
@@ -168,13 +175,6 @@ class VertexAIWorkerVariables(BaseVariables):
                 }
             },
         ],
-        description=(
-            "A dictionary with scheduling options for a CustomJob, "
-            "these are parameters related to queuing, and scheduling custom jobs. "
-            "If unspecified default scheduling options are used. "
-            "The 'maximum_run_time_hours' variable will take precedence over the "
-            "'scheduling.timeout' field for backward compatibility."
-        ),
     )
     service_account_name: Optional[str] = Field(
         default=None,
