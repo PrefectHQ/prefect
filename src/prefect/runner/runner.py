@@ -559,6 +559,7 @@ class Runner:
         cwd: Path | None = None,
         env: dict[str, str | None] | None = None,
         task_status: anyio.abc.TaskStatus[int] | None = None,
+        stream_output: bool = True,
     ) -> anyio.abc.Process | None:
         """
         Executes a single flow run with the given ID.
@@ -589,6 +590,7 @@ class Runner:
                             command=command,
                             cwd=cwd,
                             env=env,
+                            stream_output=stream_output,
                         ),
                     )
                     if task_status:
@@ -762,6 +764,7 @@ class Runner:
         command: str | None = None,
         cwd: Path | None = None,
         env: dict[str, str | None] | None = None,
+        stream_output: bool = True,
     ) -> anyio.abc.Process:
         """
         Runs the given flow run in a subprocess.
@@ -831,7 +834,7 @@ class Runner:
 
         process = await run_process(
             command=runner_command,
-            stream_output=True,
+            stream_output=stream_output,
             task_status=task_status,
             task_status_handler=lambda process: process,
             env=env,
@@ -1374,6 +1377,7 @@ class Runner:
         command: str | None = None,
         cwd: Path | None = None,
         env: dict[str, str | None] | None = None,
+        stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
@@ -1385,6 +1389,7 @@ class Runner:
                 command=command,
                 cwd=cwd,
                 env=env,
+                stream_output=stream_output,
             )
             status_code = process.returncode
         except Exception as exc:
@@ -1638,8 +1643,6 @@ class Runner:
         if self.pause_on_shutdown:
             await self._pause_schedules()
         self.started = False
-
-        self._flow_run_process_map_lock = None
 
         for scope in self._scheduled_task_scopes:
             scope.cancel()

@@ -223,6 +223,7 @@ class ProcessWorker(
             command=configuration.command,
             cwd=configuration.working_dir,
             env=configuration.env,
+            stream_output=configuration.stream_output,
             task_status=task_status,
         )
 
