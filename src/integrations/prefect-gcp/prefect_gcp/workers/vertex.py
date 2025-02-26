@@ -163,8 +163,10 @@ class VertexAIWorkerVariables(BaseVariables):
             "A dictionary with scheduling options for a CustomJob, "
             "these are parameters related to queuing, and scheduling custom jobs. "
             "If unspecified default scheduling options are used. "
-            "The 'maximum_run_time_hours' variable will take precedence over the "
-            "'scheduling.timeout' field for backward compatibility."
+            "The 'maximum_run_time_hours' variable sets the job timeout "
+            "field 'scheduling.timeout' for backward compatibility. "
+            "See SDK: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.Scheduling "
+            "See REST: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/CustomJobSpec#Scheduling"
         ),
         examples=[
             {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}},
@@ -497,7 +499,7 @@ class VertexAIWorker(BaseWorker):
         if "scheduling" in configuration.job_spec:
             scheduling_params = configuration.job_spec.pop("scheduling")
             for key, value in scheduling_params.items():
-                # Handle if Strategy is passed as an Enum or Str
+                # allow users to pass 'strategy' as Scheduling.Strategy or str
                 if key == "strategy":
                     if isinstance(value, Scheduling.Strategy):
                         setattr(scheduling, key, value)
@@ -506,7 +508,7 @@ class VertexAIWorker(BaseWorker):
                 else:
                     setattr(scheduling, key, value)
 
-        # Override "timeout" in Scheduling object if "maximum_run_time_hours" is specified
+        # set 'timeout' using "maximum_run_time_hours" for backward compatibility
         if "maximum_run_time_hours" in configuration.job_spec:
             timeout = Duration()
             timeout.FromTimedelta(
