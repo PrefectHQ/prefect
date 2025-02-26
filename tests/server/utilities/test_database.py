@@ -215,6 +215,56 @@ class TestTimestamp:
         assert results[0].ts_1 is not None
         assert results[0].ts_1.tzinfo == pendulum.timezone("UTC")
 
+    async def test_string_iso_timestamp_handled(self, session: AsyncSession):
+        """Test that string ISO timestamps are correctly handled by the Timestamp class."""
+        # Create a query with a string timestamp parameter
+        iso_timestamp = "2022-01-01T12:00:00+00:00"
+        query = sa.select(SQLTimestampModel).where(
+            SQLTimestampModel.ts_1 >= iso_timestamp
+        )
+
+        # This should not raise an error
+        await session.execute(query)
+
+        # Test that we can use a string in a bind parameter
+        # This directly tests the process_bind_param method
+        bind_param_query = sa.select(sa.literal(True)).where(
+            sa.bindparam("ts", iso_timestamp, type_=Timestamp())
+            > sa.literal("2000-01-01T00:00:00+00:00")
+        )
+        result = await session.scalar(bind_param_query)
+        assert result is True, (
+            "String timestamp should be properly processed in bind parameters"
+        )
+
+        # For direct assignment, parse the ISO string to a pendulum DateTime
+        dt = pendulum.parse(iso_timestamp)
+
+        model = SQLTimestampModel(ts_1=dt)
+        session.add(model)
+        await session.flush()
+        await session.commit()
+
+        # Create a new query to fetch the saved model
+        fetched_model = await session.scalar(
+            sa.select(SQLTimestampModel).where(SQLTimestampModel.id == model.id)
+        )
+
+        # Verify the timestamp was correctly converted
+        assert fetched_model is not None
+        assert fetched_model.ts_1 is not None
+        assert isinstance(fetched_model.ts_1, pendulum.DateTime)
+
+        # Check for UTC equivalent timezone by checking the offset
+        assert fetched_model.ts_1.tzinfo.offset == 0, (
+            f"Expected UTC equivalent timezone (offset 0) but got {fetched_model.ts_1.tzinfo}"
+        )
+
+        assert fetched_model.ts_1.year == 2022
+        assert fetched_model.ts_1.month == 1
+        assert fetched_model.ts_1.day == 1
+        assert fetched_model.ts_1.hour == 12
+
 
 class TestJSON:
     @pytest.fixture(autouse=True)
@@ -574,7 +624,7 @@ class TestDateFunctions:
                 SQLTimestampModel
             )
         )
-        assert pytest.approx(result) == 259500.0
+        assert pytest.approx(result) == 259500.0  # type: ignore
 
     async def test_date_diff_seconds_from_now_literal(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
