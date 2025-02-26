@@ -1,6 +1,8 @@
+import os
 import signal
 import subprocess
-from typing import Literal
+import sys
+from typing import Any, Literal
 from unittest.mock import MagicMock
 
 import pytest
@@ -8,6 +10,7 @@ import uv
 
 from prefect import flow
 from prefect._experimental.bundles import (
+    convert_step_to_command,
     create_bundle_for_flow_run,
     execute_bundle_in_subprocess,
 )
@@ -74,7 +77,8 @@ class TestExecuteBundleInSubprocess:
                 "pip",
                 "install",
                 "the-whole-enchilada==0.5.3",
-            ]
+            ],
+            env=os.environ,
         )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
@@ -279,3 +283,68 @@ class TestExecuteBundleInSubprocess:
         # Stays in running state because the process died
         assert flow_run.state is not None
         assert flow_run.state.is_running()
+
+
+class TestConvertStepToCommand:
+    def test_basic(self):
+        step = {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws==0.5.5",
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "my-creds",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            "prefect-aws==0.5.5",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.upload",
+            "--bucket",
+            "test-bucket",
+            "--aws-credentials-block-name",
+            "my-creds",
+            "--key",
+            "test-key",
+        ]
+
+    def test_with_no_requires(self):
+        step = {
+            "prefect_mock.experimental.bundles.upload": {
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_mock.experimental.bundles.upload",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_raises_if_multiple_functions_are_provided(self):
+        step: dict[str, Any] = {
+            "prefect_mock.experimental.bundles.upload": {},
+            "prefect_mock.experimental.bundles.download": {},
+        }
+        with pytest.raises(ValueError, match="Expected exactly one function in step"):
+            convert_step_to_command(step, "test-key")
+
+    def test_raises_if_no_function_is_provided(self):
+        step: dict[str, Any] = {}
+        with pytest.raises(ValueError, match="Expected exactly one function in step"):
+            convert_step_to_command(step, "test-key")
