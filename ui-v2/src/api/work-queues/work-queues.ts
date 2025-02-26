@@ -15,9 +15,11 @@ export type WorkQueuesFilter =
 
  *
  * ```
- * all    =>   ['work-queues']
- * lists  =>   ['work-queues', 'list']
- * list   =>   ['work-queues', 'list', { ...filter }]
+ * all    	=>   ['work-queues']
+ * lists  	=>   ['work-queues', 'list']
+ * list   	=>   ['work-queues', 'list', { ...filter }]
+ * details	=>   ['work-queues', 'details']
+ * detail	=>   ['work-queues', 'detail', workPoolName, workQueueName]
  * ```
  */
 export const queryKeyFactory = {
@@ -25,6 +27,9 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: WorkQueuesFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (workPoolName: string, workQueueName: string) =>
+		[...queryKeyFactory.details(), workPoolName, workQueueName] as const,
 };
 
 // ----------------------------
@@ -64,4 +69,22 @@ export const buildFilterWorkQueuesQuery = (
 			return res.data;
 		},
 		enabled,
+	});
+
+export const buildWorkQueueDetailsQuery = (
+	work_pool_name: string,
+	name: string,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(work_pool_name, name),
+		queryFn: async () => {
+			const res = await getQueryService().GET(
+				"/work_pools/{work_pool_name}/queues/{name}",
+				{ params: { path: { work_pool_name, name } } },
+			);
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
 	});
