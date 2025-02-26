@@ -56,10 +56,6 @@ export const Default: StoryObj<StoryArgs> = {
 	args: {
 		numberOfDeployments: 10,
 		onPaginationChange: fn(),
-		onQuickRun: fn(),
-		onCustomRun: fn(),
-		onEdit: fn(),
-		onDuplicate: fn(),
 	},
 	render: (
 		args: Omit<
