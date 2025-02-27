@@ -228,7 +228,7 @@ class Runner:
         self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
         self._deployment_ids: set[UUID] = set()
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
-        self._flow_run_process_map_lock: asyncio.Lock | None = None
+        self.__flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
 
         self._tmp_dir: Path = (
@@ -244,6 +244,12 @@ class Runner:
             maxsize=100
         )
         self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
+
+    @property
+    def _flow_run_process_map_lock(self) -> asyncio.Lock:
+        if self.__flow_run_process_map_lock is None:
+            self.__flow_run_process_map_lock = asyncio.Lock()
+        return self.__flow_run_process_map_lock
 
     @sync_compatible
     async def add_deployment(
@@ -595,9 +601,6 @@ class Runner:
                     )
                     if task_status:
                         task_status.started(process.pid)
-
-                    if TYPE_CHECKING:
-                        assert self._flow_run_process_map_lock is not None
 
                     async with self._flow_run_process_map_lock:
                         # Only add the process to the map if it is still running
@@ -1351,9 +1354,6 @@ class Runner:
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
-                if TYPE_CHECKING:
-                    assert self._flow_run_process_map_lock is not None
-
                 async with self._flow_run_process_map_lock:
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
                         pid=readiness_result, flow_run=flow_run
@@ -1411,8 +1411,6 @@ class Runner:
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
-            if TYPE_CHECKING:
-                assert self._flow_run_process_map_lock is not None
 
             async with self._flow_run_process_map_lock:
                 self._flow_run_process_map.pop(flow_run.id, None)
@@ -1632,8 +1630,6 @@ class Runner:
 
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-
-        self._flow_run_process_map_lock = asyncio.Lock()
 
         self.started = True
         return self

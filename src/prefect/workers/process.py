@@ -17,12 +17,10 @@ checkout out the [Prefect docs](/concepts/work-pools/).
 from __future__ import annotations
 
 import os
-import socket
-import sys
 import threading
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import anyio
 import anyio.abc
@@ -44,20 +42,6 @@ from prefect.workers.base import (
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow
     from prefect.client.schemas.responses import DeploymentResponse
-
-if sys.platform == "win32":
-    # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
-    STATUS_CONTROL_C_EXIT = 0xC000013A
-
-
-def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
-    hostname = socket.gethostname()
-    return f"{hostname}:{process.pid}"
-
-
-def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
-    hostname, pid = infrastructure_pid.split(":")
-    return hostname, int(pid)
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
@@ -86,7 +70,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
             else self.command
         )
 
-    def _base_flow_run_command(self) -> str:
+    @staticmethod
+    def _base_flow_run_command() -> str:
         """
         Override the base flow run command because enhanced cancellation doesn't
         work with the process worker.
