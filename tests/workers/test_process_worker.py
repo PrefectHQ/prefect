@@ -1,14 +1,11 @@
 import sys
 import uuid
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
-from uuid import UUID
 
 import anyio
 import anyio.abc
-import pendulum
 import pytest
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
@@ -24,7 +21,7 @@ from prefect.server.schemas.actions import (
     WorkPoolCreate,
 )
 from prefect.testing.utilities import AsyncMock, MagicMock
-from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.workers.process import (
     ProcessWorker,
     ProcessWorkerResult,
@@ -77,7 +74,7 @@ async def flow_run(deployment: Deployment, prefect_client: PrefectClient):
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
-                scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                scheduled_time=now("utc") - timedelta(minutes=5)
             ),
         ),
     )
@@ -119,13 +116,15 @@ async def flow_run_with_deployment_overrides(
 
 
 @pytest.fixture
-async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
+async def flow_run_with_overrides(
+    deployment: Deployment, prefect_client: PrefectClient
+):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment.id,
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
-                scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                scheduled_time=now("utc") - timedelta(minutes=5)
             ),
         ),
     )
@@ -137,7 +136,7 @@ async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
 
 
 @pytest.fixture
-def mock_open_process(monkeypatch):
+def mock_open_process(monkeypatch: pytest.MonkeyPatch):
     if sys.platform == "win32":
         monkeypatch.setattr(
             "prefect.utilities.processutils._open_anyio_process", AsyncMock()
@@ -148,10 +147,11 @@ def mock_open_process(monkeypatch):
 
         yield prefect.utilities.processutils._open_anyio_process  # noqa
     else:
-        monkeypatch.setattr("anyio.open_process", AsyncMock())
-        anyio.open_process.return_value.terminate = MagicMock()  # noqa
+        mock_open_process = AsyncMock()
+        monkeypatch.setattr("anyio.open_process", mock_open_process)
+        mock_open_process.return_value.terminate = MagicMock()  # noqa
 
-        yield anyio.open_process
+        yield mock_open_process
 
 
 @pytest.fixture
@@ -168,47 +168,7 @@ def mock_runner_execute_flow_run(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture(autouse=True)
 def tmp_cwd(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.chdir(str(tmp_path))
-
-
-def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
-    """Patches client to return a mock deployment and mock flow with the specified overrides"""
-
-    class MockDeployment(BaseModel):
-        id: UUID = uuid.uuid4()
-        job_variables: Dict[str, Any] = overrides or {}
-        name: str = "test-deployment"
-        updated: DateTime = pendulum.now("utc")
-
-    class MockFlow(BaseModel):
-        id: UUID = uuid.uuid4()
-        name: str = "test-flow"
-
-    class MockWorkPool(BaseModel):
-        id: UUID = uuid.uuid4()
-        name: str = "test-work-pool"
-        type: str = "process"
-        description: str = "None"
-        base_job_template: dict[str, Any] = {}
-
-    mock_get_client = MagicMock()
-    mock_client = MagicMock()
-    mock_read_deployment = AsyncMock()
-    mock_read_deployment.return_value = MockDeployment()
-    mock_read_flow = AsyncMock()
-    mock_read_flow.return_value = MockFlow()
-    mock_read_work_pool = AsyncMock()
-    mock_read_work_pool.return_value = MockWorkPool()
-    mock_update_work_pool = AsyncMock()
-    mock_update_work_pool.return_value = MockWorkPool()
-    mock_client.read_deployment = mock_read_deployment
-    mock_client.read_flow = mock_read_flow
-    mock_get_client.return_value = mock_client
-    mock_client.read_work_pool = mock_read_work_pool
-    mock_client.update_work_pool = mock_update_work_pool
-    mock_client.send_worker_heartbeat = AsyncMock()
-    monkeypatch.setattr("prefect.workers.base.get_client", mock_get_client)
-
-    return mock_read_deployment
+    yield
 
 
 @pytest.fixture
@@ -258,7 +218,6 @@ async def test_worker_process_run_flow_run(
     async with ProcessWorker(
         work_pool_name=process_work_pool.name,
     ) as worker:
-        worker._work_pool = process_work_pool
         result = await worker.run(
             flow_run,
             configuration=await worker._get_configuration(flow_run),
@@ -268,6 +227,7 @@ async def test_worker_process_run_flow_run(
         assert result.status_code == 0
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state is not None
         assert flow_run.state.type == StateType.COMPLETED
 
 
@@ -342,6 +302,7 @@ async def test_flow_run_without_job_vars(
     work_pool_with_default_env: WorkPool,
     prefect_client: PrefectClient,
 ):
+    assert flow_run_with_deployment_overrides.deployment_id is not None
     deployment = await prefect_client.read_deployment(
         flow_run_with_deployment_overrides.deployment_id
     )
@@ -360,6 +321,8 @@ async def test_flow_run_vars_take_precedence(
     work_pool_with_default_env: WorkPool,
     session: AsyncSession,
 ):
+    assert flow_run_with_overrides.deployment_id is not None
+    assert flow_run_with_overrides.job_variables is not None
     await models.deployments.update_deployment(
         session=session,
         deployment_id=flow_run_with_overrides.deployment_id,
@@ -372,7 +335,6 @@ async def test_flow_run_vars_take_precedence(
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        worker._work_pool = work_pool_with_default_env
         config = await worker._get_configuration(flow_run_with_overrides)
         assert (
             str(config.working_dir)
@@ -381,14 +343,15 @@ async def test_flow_run_vars_take_precedence(
 
 
 async def test_flow_run_vars_and_deployment_vars_get_merged(
-    deployment,
-    flow_run_with_overrides,
-    work_pool_with_default_env,
+    flow_run_with_overrides: FlowRun,
+    work_pool_with_default_env: WorkPool,
     session: AsyncSession,
 ):
+    assert flow_run_with_overrides.deployment_id is not None
+    assert flow_run_with_overrides.job_variables is not None
     await models.deployments.update_deployment(
         session=session,
-        deployment_id=deployment.id,
+        deployment_id=flow_run_with_overrides.deployment_id,
         deployment=DeploymentUpdate(
             job_variables={"stream_output": False},
         ),
@@ -398,7 +361,6 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        worker._work_pool = work_pool_with_default_env
         config = await worker._get_configuration(flow_run_with_overrides)
         assert (
             str(config.working_dir)
@@ -429,10 +391,11 @@ async def test_process_worker_working_dir_override(
             path_override_value
         )
 
+    assert flow_run.deployment_id is not None
     # Check mock_path is used after setting the override
     await prefect_client.update_deployment(
         deployment_id=flow_run.deployment_id,
-        deployment=DeploymentUpdate(
+        deployment=client_schemas.actions.DeploymentUpdate(
             job_variables={"working_dir": path_override_value},
         ),
     )
@@ -467,9 +430,10 @@ async def test_process_worker_stream_output_override(
         assert result.status_code == 0
         assert mock_runner_execute_flow_run.call_args.kwargs["stream_output"] is True
 
+    assert flow_run.deployment_id is not None
     await prefect_client.update_deployment(
         deployment_id=flow_run.deployment_id,
-        deployment=DeploymentUpdate(
+        deployment=client_schemas.actions.DeploymentUpdate(
             job_variables={"stream_output": False},
         ),
     )

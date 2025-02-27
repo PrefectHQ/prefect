@@ -1180,7 +1180,11 @@ class TestRunner:
         caplog: pytest.LogCaptureFixture,
         patch_run_process: MagicMock,
         prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
+        # Change directory to avoid polluting the working directory
+        monkeypatch.chdir(str(tmp_path))
         flow_id = await prefect_client.create_flow(
             flow=dummy_flow_1,
         )
