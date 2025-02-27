@@ -77,7 +77,7 @@ If the task does not have a name specified, the name is derived from the decorat
 **How big should a task be?**
 
 Prefect encourages "small tasks." Each one should represent a single logical step of your workflow. 
-This allows Prefect to better contain task failures.
+This allows Prefect to better contain task failures and offer more granular observability and control of results.
 
 There's nothing stopping you from putting all of your code in a single task. However, if any line of 
 code fails, the entire task fails and must be retried from the beginning. 
@@ -236,10 +236,10 @@ list(generator) # prints 'Generator consumed!'
 
 ## Concurrency
 
-Tasks enable concurrent execution, allowing you to execute multiple tasks asynchronously.
+Tasks enable concurrent execution, allowing you to execute multiple tasks concurrently.
 This concurrency can greatly enhance the efficiency and performance of your workflows.
 
-Expand the script to calculate the average open issues per user by making more requests:
+To motivate task concurrency, let's imagine expanding the [example script](/v3/develop/write-tasks/#example-task) to calculate the average open issues per user by making more requests:
 
 ```python repo_info.py
 import httpx
@@ -286,6 +286,8 @@ if __name__ == "__main__":
 ```
 
 Now you're fetching the data you need, but the requests happen sequentially.
+
+
 Tasks expose a [`submit`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
 the execution from sequential to concurrent.
 In this example, you also need to use the 
@@ -306,8 +308,7 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
     return [i for p in issues for i in p.result()]
 ```
 
-The logs show that each task is running concurrently:
-
+<Accordion title="Logs showing concurrent task execution">
 
 ```bash
 12:45:28.241 | INFO    | prefect.engine - Created flow run 'intrepid-coua' for flow 'get-repo-info'
@@ -338,6 +339,10 @@ The logs show that each task is running concurrently:
 Average open issues per user 💌 : 2.27
 12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
 ```
+
+</Accordion>
+
+Read more about implementing task concurrency in the [Task Runners](/v3/develop/task-runners) guide.
 
 ## Task configuration
 
@@ -666,3 +671,28 @@ These settings will not override the `retries` or `retry_delay_seconds` that are
 prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
 prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
+
+
+## Decorator syntax
+
+Though it is typically recommended to use `@task` decorators to define tasks:
+
+```python
+from prefect import task
+
+@task
+def my_static_task(): ...
+```
+
+if needed you can use the `task` decorator inline with any callable to create tasks on the fly:
+```python
+from prefect import flow, task
+
+@flow
+def dynamic_flow() -> list[int]:
+    return task(name="dynamic-task")(lambda x: x + 1).map([1, 2, 3]).result()
+
+assert dynamic_flow() == [2, 3, 4]
+```
+
+See a more realistic example of this pattern in the [Task Runners](/v3/develop/task-runners/#nested-mapped-tasks) guide.
