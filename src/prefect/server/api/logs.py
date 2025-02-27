@@ -20,7 +20,11 @@ async def create_logs(
     logs: List[schemas.actions.LogCreate],
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    """Create new logs from the provided schema."""
+    """
+    Create new logs from the provided schema.
+
+    For more information, see https://docs.prefect.io/v3/develop/logging.
+    """
     for batch in models.logs.split_logs_into_batches(logs):
         async with db.session_context(begin_transaction=True) as session:
             await models.logs.create_logs(session=session, logs=batch)
