@@ -61,7 +61,7 @@ If you're running a server in a Docker container, you will need to:
 For example:
 
 ```bash
-docker run -p 4200:4200 --rm -d prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+docker run -p 4200:4200 -d --rm prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
 ```
 
 <Tip>
