@@ -334,7 +334,7 @@ In Airflow, task states (`success`, `failed`, `skipped`, etc.) are stored in a m
 
 After migration, similar visibility is available in Prefect's UI, where you can track which flows and tasks succeeded or failed. Prefect also includes additional state management features such as: 
 - Cancel a flow run (`Cancelling` state).
-- **Resuming failed flows** (with manual steps).
+- Retry a failed flow run (with manual steps).
 - **Task caching** between runs to avoid redundant computations.
 
 **Logging Differences**
