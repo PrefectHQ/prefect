@@ -72,7 +72,7 @@ with DAG("etl_pipeline", start_date=datetime(2023,1,1), schedule_interval="@dail
 In this Airflow DAG, we define three tasks using `PythonOperator`, then specify that they run sequentially (`extract` then `transform` then `load`). The DAG is scheduled daily. If we wanted 
 
 ### Create equivalent Prefect tasks
-In Prefect, we'll take the core logic of `extract_fn`, `transform_fn`, `load_fn` and turn each into a `@task` function. The code inside can remain largely the same (minus any Airflow specific calls). For example:
+In Prefect, we'll take the core logic of `extract_fn`, `transform_fn`, `load_fn` and turn each into a `@task`-decorated function. The code inside can remain largely the same (minus any Airflow-specific cruft). For example:
 
 ```python
 # Prefect tasks for ETL
