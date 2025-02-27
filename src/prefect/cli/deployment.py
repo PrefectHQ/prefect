@@ -894,7 +894,6 @@ async def run(
         soft_wrap=True,
     )
     if watch:
-        watch_interval = 5 if watch_interval is None else watch_interval
         app.console.print(f"Watching flow run {flow_run.name!r}...")
         finished_flow_run = await wait_for_flow_run(
             flow_run.id,
