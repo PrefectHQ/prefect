@@ -550,6 +550,9 @@ You might also consider joining the [Prefect Slack community](https://prefect.io
 - If a flow run gets stuck, you can cancel it via UI/CLI.
 - Utilize the fact that you can re-run a Prefect flow easily. For example, if a specific task fails consistently, you can add some debug `print` statements, re-deploy (which is quick with Prefect CLI), and re-run to see output.
 - Leverage Prefect's task state inspection. In the UI, you can often see the exception message and stack trace for a failed task, which helps identify the problem in code.
+- Read the results from MarvinAI's analysis of your code to help identify potential issues.
+
+![MarvinAI](/v3/img/ui/marvin-ai.png)
 
 As you systematically validate each migrated workflow, you'll build confidence in the new system. When all tests pass and the outputs match the old system's, you can declare the migration a success for that workflow. After migrating a few, you'll also develop a playbook for the rest, and the process may speed up.
 
@@ -590,3 +593,11 @@ To set yourself up for future success:
 ### Conclusion
 By completing this migration, you've moved to a more scalable, efficient orchestration system.
 Prefect allows your team to focus on engineering—iterating faster, improving reliability, and scaling seamlessly.
+
+**Next steps:**
+- [Learn more about Prefect](/v3/get-started/index)
+- [See more Prefect examples](/v3/examples/index)
+- [Join the community](https://prefect.io/slack)
+- [Dig into Prefect's Integrations](/integrations/integrations)
+- [Learn more about Prefect Cloud](https://prefect.io/cloud)
+- [Vist Prefect's GitHub](https://github.com/PrefectHQ/prefect)
