@@ -29,10 +29,12 @@ Before jumping into code conversion, set the stage for a smooth migration. Prepa
 
 **Audit your Airflow DAGs and dependencies:** Catalog all DAGs, schedules, task counts, and dependencies (databases, APIs, cloud services). Identify **high-priority pipelines** (business-critical, failure-prone, frequently updated) and **simpler DAGs** for pilot migration. Start with a small, non-critical DAG to gain confidence before tackling complex workflows.
 
-**Set up Prefect alongside Airflow:** Prepare a **parallel Prefect environment** for testing before fully migrating
-- [Install Prefect](/v3/get-started/install) (`pip install prefect`) and launch a [**Prefect Server**](/v3/manage/self-host) or sign up for [**Prefect Cloud**](https://app.prefect.cloud/)
-- Configure an [**execution environment**](/v3/deploy/infrastructure-concepts/work-pools) (local, Docker, Kubernetes)
-- Consider running **Airflow and Prefect side-by-side temporarily** for validation, but avoid maintaining both long-term—disable Airflow DAGs once Prefect replacements are stable
+**Set up Prefect for testing:** Before fully migrating, set up a parallel Prefect environment to test your flows. Prefect provides a managed execution environment out of the box, so you can get started without configuring infrastructure.
+1. [**Install Prefect**](https://chatgpt.com/v3/get-started/install) (`pip install prefect`).
+2. **Start a Prefect server locally** (`prefect server start`) or sign up for [**Prefect Cloud**](https://app.prefect.cloud/) to run flows immediately.
+3. **Run initial flows without infrastructure setup**: Run flows locally or using Prefect's managed execution allows you to test without configuring work pools or Kubernetes.
+
+Once you've validated basic functionality, you can explore configuring an [**execution environment**](/v3/deploy/infrastructure-concepts/work-pools) (e.g., Docker, Kubernetes) for production, which we cover later in this tutorial.
 
 For each Airflow DAG, you can outline its Prefect flow structure (tasks and control flow), where its schedule will live, and what execution infrastructure it needs. With preparation done, it's time to start converting code.
 
@@ -191,7 +193,59 @@ After completing these steps, the Prefect flow should accurately replicate the f
 
 ## Infrastructure Migration Considerations
 
-Migrating your code is a big step, but ensuring your workflows run smoothly in Prefect is just as important. Prefect's **flexible execution** makes this easier, supporting local machines, VMs, containers, and Kubernetes with less setup. This section maps Airflowss executors to **Prefect Work Pools and Workers**, while also covering sensors, hooks, logging, and state management to complete your migration.
+Migrating your code is a big step, but ensuring your workflows run smoothly in Prefect is just as important. Prefect's **flexible execution** makes this easier, supporting Prefect managed execution, local machines, VMs, containers, and Kubernetes with less setup. This section maps Airflowss executors to **Prefect Work Pools and Workers**, while also covering sensors, hooks, logging, and state management to complete your migration.
+
+### Leveraging Prefect Managed Execution
+**Running Flows Without Infrastructure Setup**
+
+Prefect Cloud offers [Managed Execution](/v3/deploy/infrastructure-examples/managed), allowing you to run flows **without setting up infrastructure or maintaining workers**. With Prefect Managed work pools, Prefect handles compute, execution, and scheduling, eliminating the need for a cloud provider account or on-premises infrastructure.
+
+**Getting Started with Prefect Managed Execution**
+
+Create a Prefect Managed Work Pool:
+
+```bash
+prefect work-pool create my-managed-pool --type prefect:managed
+```
+
+Deploy a Flow to Managed Execution:
+
+```python
+from prefect import flow
+
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/prefecthq/demo.git",
+        entrypoint="flow.py:my_flow",
+    ).deploy(
+        name="test-managed-flow",
+        work_pool_name="my-managed-pool",
+    )
+```
+
+Run the Deployment via Prefect UI or CLI:
+```bash
+python managed-execution.py
+```
+This will allo your flow to run remotely without provisioning workers, setting up Kubernetes, or maintaining cloud infrastructure.
+
+**When to Use Prefect Managed Execution**
+
+✅ Best for:
+- Quickly testing and running flows without infrastructure setup.
+- Production use cases where infrastructure management is not required.
+- Teams wanting fully managed execution without needing a cloud provider.
+
+❌ Consider self-hosted execution if you need:
+- Custom container images or dependency-heavy environments.
+- Private networking beyond static outbound IPs.
+- Higher concurrency limits beyond what's available in the free or paid tiers.
+
+**Next Steps**
+
+If you require self-hosted execution, the next sections cover how to migrate Airflow Executors to Prefect Work Pools across different infrastructure types (Kubernetes, Docker, Celery, etc.).
+
+For full details on Prefect Managed Execution, refer to the [Managed Execution documentation](/v3/deploy/infrastructure-examples/managed).
 
 ### Airflow Executors
 **Airflow Executors vs Prefect Work Pools/Workers:** Airflow's executor setting determines how tasks are distributed. Prefect's equivalent concept is the [**work pool**](/v3/deploy/infrastructure-concepts/work-pools) (with one or more [**workers**](/v3/deploy/infrastructure-concepts/workers) polling it). Here's a mapping of typical setups:
