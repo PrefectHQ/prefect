@@ -292,13 +292,16 @@ def show_profile_changes(
 @profile_app.command()
 def populate_defaults():
     """Populate the profiles configuration with default base profiles, preserving existing user profiles."""
-    user_path = prefect.settings.PREFECT_PROFILES_PATH.value()
-    default_profiles = prefect.settings.profiles._read_profiles_from(
-        prefect.settings.DEFAULT_PROFILES_PATH
+    from prefect.settings.profiles import (
+        _read_profiles_from,  # type: ignore[reportPrivateUsage]
+        _write_profiles_to,  # type: ignore[reportPrivateUsage]
     )
 
+    user_path = prefect.settings.PREFECT_PROFILES_PATH.value()
+    default_profiles = _read_profiles_from(prefect.settings.DEFAULT_PROFILES_PATH)
+
     if user_path.exists():
-        user_profiles = prefect.settings.profiles._read_profiles_from(user_path)
+        user_profiles = _read_profiles_from(user_path)
 
         if not show_profile_changes(user_profiles, default_profiles):
             return
@@ -323,7 +326,7 @@ def populate_defaults():
         if name not in user_profiles:
             user_profiles.add_profile(profile)
 
-    prefect.settings.profiles._write_profiles_to(user_path, user_profiles)
+    _write_profiles_to(user_path, user_profiles)
     app.console.print(f"\nProfiles updated in [green]{user_path}[/green]")
     app.console.print(
         "\nUse with [green]prefect profile use[/green] [blue][PROFILE-NAME][/blue]"
