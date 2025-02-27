@@ -5,12 +5,13 @@ import {
 } from "./schema-form-input-object";
 import { SchemaFormProvider } from "./schema-form-provider";
 import { SchemaFormErrors } from "./types/errors";
+import { SchemaFormValues } from "./types/values";
 import { SchemaFormContext } from "./use-schema-form-context";
 
 export type SchemaFormProps = SchemaFormContext & {
 	errors: SchemaFormErrors;
-	values: Record<string, unknown>;
-	onValuesChange: (values: Record<string, unknown>) => void;
+	values: SchemaFormValues;
+	onValuesChange: (values: SchemaFormValues) => void;
 };
 
 export const SchemaForm = ({

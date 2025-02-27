@@ -1,5 +1,5 @@
 export { SchemaForm } from "./schema-form";
-export { SchemaFormProvider } from "./schema-form-provider";
 export { useSchemaFormContext } from "./use-schema-form-context";
-
+export { useSchemaFormValues } from "./hooks/useSchemaValues";
+export { useSchemaFormErrors } from "./hooks/useSchemaFormErrors";
 export { validateSchemaValues } from "./utilities/validate";

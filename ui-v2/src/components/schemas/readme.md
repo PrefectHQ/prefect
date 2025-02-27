@@ -8,10 +8,10 @@ Prefect uses schema generated forms for several features:
 ## Example form
 
 ```tsx
-import { SchemaForm } from "@/components/schemas";
+import { SchemaForm, useSchemaFormValues, useSchemaFormErrors } from "@/components/schemas";
 
-const [values, setValues] = useState({});
-const [errors, setErrors] = useState([]);
+const [values, setValues] = useSchemaFormValues();
+const [errors, setErrors] = useSchemaFormErrors();
 
 const schema = {
   type: "object",
