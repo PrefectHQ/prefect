@@ -106,7 +106,7 @@ def etl_pipeline():
     load_data(processed)          # calls load_data with result of transform_data
 ```
 
-This Prefect flow function replaces the Airflow DAG, automatically executing tasks in order based on data flow—no need for `>>` dependencies or XComs. **Tasks pass outputs directly as function arguments**, ensuring a clear, Pythonic workflow.  
+This Prefect flow function replaces the Airflow DAG. No need for `>>` dependencies or XComs. **Task results can be stored in variables that are passed directly to other tasks as arguments**. By default, tasks are automatically executed in the order they are called.
 
 Unlike Airflow, where testing often requires an Airflow context, Prefect flows run like standard Python code. You can execute `etl_pipeline()` in an interpreter, import it elsewhere, or test tasks individually (`transform_data.fn(sample_data)`).  
 
