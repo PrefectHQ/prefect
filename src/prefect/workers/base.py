@@ -961,7 +961,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 " execution"
             )
             self._submitting_flow_run_ids.remove(flow_run.id)
-            self._mark_flow_run_as_cancelled(
+            await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates=dict(
                     message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
