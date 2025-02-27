@@ -65,7 +65,7 @@ docker run -p 4200:4200 -d --rm prefecthq/prefect:3-latest -- prefect server sta
 ```
 
 <Tip>
-The `--rm` flag will remove the container when it is stopped and the `-d` flag will run the container in detached mode (i.e. in the background).
+The `-d` flag runs the container in detached mode (i.e. in the background) and the `--rm` flag removes the container once it is stopped.
 </Tip>
 
 Read more about Docker networking [here](https://docs.docker.com/network/network-tutorial-host/).
