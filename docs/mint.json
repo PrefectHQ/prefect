@@ -69,8 +69,7 @@
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
             "v3/tutorials/scraping",
-            "v3/tutorials/ml",
-            "v3/tutorials/airflow"
+            "v3/tutorials/ml"
           ]
         },
         {
@@ -245,6 +244,7 @@
     {
       "group": "Migrate",
       "pages": [
+        "v3/tutorials/airflow",
         "v3/resources/upgrade-to-prefect-3",
         "v3/resources/upgrade-agents-to-workers"
       ],

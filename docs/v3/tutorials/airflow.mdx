@@ -3,7 +3,8 @@ title: Migrate from Airflow
 description: "Migration from Apache Airflow to Prefect: A Comprehensive How-To Guide"
 ---
 
-Migrating from Apache Airflow to Prefect simplifies orchestration, reduces overhead, and enables a more Pythonic workflow. Prefect's flexible **library-based approach** lets you write, test, and run workflows with regular code—without the complexity of schedulers, executors, or metadata databases.
+Migrating from Apache Airflow to Prefect simplifies orchestration, reduces overhead, and enables a more Pythonic workflow. 
+Prefect's flexible **library-based approach** lets you write, test, and run workflows with regular code—without the complexity of schedulers, executors, or metadata databases.
 
 This guide will walk you through a **step-by-step migration**, helping you transition from Airflow DAGs to Prefect flows while mapping key concepts, adapting infrastructure, and optimizing deployments. By the end, you'll have a streamlined, scalable orchestration system that lets your team focus on engineering rather than maintaining workflow infrastructure.
 
@@ -69,7 +70,7 @@ with DAG("etl_pipeline", start_date=datetime(2023,1,1), schedule_interval="@dail
     extract >> transform >> load
 ```
 
-In this Airflow DAG, we define three tasks using `PythonOperator`, then specify that they run sequentially (`extract` then `transform` then `load`). The DAG is scheduled daily. If we wanted 
+In this Airflow DAG, we define three tasks using `PythonOperator`, then specify that they run sequentially (`extract` then `transform` then `load`).
 
 ### Create equivalent Prefect tasks
 In Prefect, we'll take the core logic of `extract_fn`, `transform_fn`, `load_fn` and turn each into a `@task`-decorated function. The code inside can remain largely the same (minus any Airflow-specific cruft). For example:
@@ -438,7 +439,7 @@ Thorough testing ensures your Prefect flows perform like their Airflow equivalen
 
 **Testing Prefect Flows in Isolation**
 - **Unit test task logic** - Write tests for tasks as regular Python functions.
-- **Run flows locally** - Execute `@flow` functions directly (`etl_pipeline_flow()`) to validate logic.
+- **Run flows locally** - Run the script that calls your flow function - just like a normal Python script.
 - **Use Prefect's local orchestration** - Start a Prefect server (`prefect server start`), register a deployment, and trigger flows via Prefect UI to mirror production behavior.
 - **Compare outputs** - Run both Airflow and Prefect for the same input and validate results (e.g., database rows, file outputs). Debug discrepancies early.
 
@@ -455,7 +456,7 @@ Once a Prefect flow is stable, **disable the corresponding Airflow DAG** to prev
 ### Common issues and troubleshooting
 
 - **Missing dependencies:** If a Prefect flow fails with `ImportError`, ensure all required libraries are installed in the execution environment (Docker image, VM, etc.), not just locally.
-- **Credentials & access:** Verify that Prefect tasks have the same permissions as Airflow (e.g., service accounts, IAM roles). If using Kubernetes, ensure pods can access necessary databases and APIs.
+- **Credentials & access:** Verify that Prefect workers have the same permissions as Airflow (e.g., service accounts, IAM roles). If using Kubernetes, ensure pods can access necessary databases and APIs.
 - **Scheduling differences:** Airflow schedules may trigger at the end of an interval, while Prefect runs in real-time. Align Cron schedules and time zones if needed.
 - **Concurrency & parallelism:** Configure **work pool and flow run concurrency limits** to prevent overlapping jobs. If too many tasks run in parallel, use Prefect's **tags and concurrency controls** to throttle execution.
 - **Error handling & retries:** Test retries by forcing failures. If Airflow used `trigger_rule="all_done"`, implement equivalent logic in Prefect with `try/except`.
@@ -493,7 +494,7 @@ With your workflows running in Prefect, it's time to optimize, scale, and take f
 To scale and optimize for cost:
 | Technique | Description |
 |-----------|-------------|
-| _Scale efficiently_ | Prefect naturally distributes workloads across work pools and workers, eliminating Airflow's scheduler bottlenecks. |
+| _Scale efficiently_ | Prefect makes it simple to distribute workloads across work pools and workers, eliminating Airflow's scheduler bottlenecks. |
 | _Optimize infrastructure_ | Adjust worker capacity based on usage, scaling vertically (more resources per worker) or horizontally (adding more workers). |
 | _Reduce costs_ | Consider _serverless work pools_ (AWS ECS, GCP Cloud Run) to avoid idle infrastructure costs. |
 
