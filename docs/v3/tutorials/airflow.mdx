@@ -358,7 +358,8 @@ This direct execution model eliminates the need to troubleshoot failures through
 
 #### Monitoring
 **Notifications and Alerts**
-In Airflow, monitoring is typically managed through the UI, email alerts on task failures, and external monitoring of the scheduler. Prefect provides similar capabilities through **Notifications and Automations**, which can be configured to trigger alerts via **Slack, email, or webhooks** based on specific events.
+In Airflow, monitoring is typically managed through the UI, email alerts on task failures, and external monitoring of the scheduler.
+Prefect provides similar capabilities through _Automations_, which can be configured to trigger alerts via Slack, email, or webhooks based on specific events.
 
 To replicate Airflow's alerting (e.g., failures or SLA misses), configure [**Prefect Automations**](/v3/automate/events/automations-triggers) to:
 - Notify on **flow or task failures**.
