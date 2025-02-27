@@ -28,6 +28,11 @@ async def create_concurrency_limit(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
+    """
+    Create a task run concurrency limit.
+
+    For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
+    """
     # hydrate the input model into a full model
     concurrency_limit_model = schemas.core.ConcurrencyLimit(
         **concurrency_limit.model_dump()

@@ -26,6 +26,11 @@ async def create_artifact(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
+    """
+    Create an artifact.
+
+    For more information, see https://docs.prefect.io/v3/develop/artifacts.
+    """
     artifact = core.Artifact(**artifact.model_dump())
 
     right_now = now("UTC")

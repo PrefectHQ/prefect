@@ -25,6 +25,8 @@ async def create_flow_run_notification_policy(
 ) -> schemas.core.FlowRunNotificationPolicy:
     """
     Creates a new flow run notification policy.
+
+    For more information, see https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations.
     """
     async with db.session_context(begin_transaction=True) as session:
         return await models.flow_run_notification_policies.create_flow_run_notification_policy(

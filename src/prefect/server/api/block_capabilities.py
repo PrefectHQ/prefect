@@ -19,6 +19,11 @@ router: PrefectRouter = PrefectRouter(
 async def read_available_block_capabilities(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[str]:
+    """
+    Get available block capabilities.
+
+    For more information, see https://docs.prefect.io/v3/develop/blocks.
+    """
     async with db.session_context() as session:
         return await models.block_schemas.read_available_block_capabilities(
             session=session
