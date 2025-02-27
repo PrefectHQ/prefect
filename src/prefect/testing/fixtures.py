@@ -12,8 +12,12 @@ import anyio
 import httpx
 import pytest
 from starlette.status import WS_1008_POLICY_VIOLATION
+from websockets.asyncio.server import (
+    Server,
+    ServerConnection,
+    serve,
+)
 from websockets.exceptions import ConnectionClosed
-from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
 from prefect.events.clients import (
@@ -297,11 +301,12 @@ def puppeteer() -> Puppeteer:
 @pytest.fixture
 async def events_server(
     unused_tcp_port: int, recorder: Recorder, puppeteer: Puppeteer
-) -> AsyncGenerator[WebSocketServer, None]:
-    server: WebSocketServer
+) -> AsyncGenerator[Server, None]:
+    server: Server
 
-    async def handler(socket: WebSocketServerProtocol) -> None:
-        path = socket.path
+    async def handler(socket: ServerConnection) -> None:
+        assert socket.request
+        path = socket.request.path
         recorder.connections += 1
         if puppeteer.refuse_any_further_connections:
             raise ValueError("nope")
@@ -313,7 +318,7 @@ async def events_server(
         elif path.endswith("/events/out"):
             await outgoing_events(socket)
 
-    async def incoming_events(socket: WebSocketServerProtocol):
+    async def incoming_events(socket: ServerConnection):
         while True:
             try:
                 message = await socket.recv()
@@ -324,9 +329,10 @@ async def events_server(
             recorder.events.append(event)
 
             if puppeteer.hard_disconnect_after == event.id:
-                raise ValueError("zonk")
+                puppeteer.hard_disconnect_after = None
+                raise ValueError("Disconnect after incoming event")
 
-    async def outgoing_events(socket: WebSocketServerProtocol):
+    async def outgoing_events(socket: ServerConnection):
         # 1. authentication
         auth_message = json.loads(await socket.recv())
 
@@ -366,12 +372,12 @@ async def events_server(
 
 
 @pytest.fixture
-def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
+def events_api_url(events_server: Server, unused_tcp_port: int) -> str:
     return f"http://localhost:{unused_tcp_port}"
 
 
 @pytest.fixture
-def events_cloud_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
+def events_cloud_api_url(events_server: Server, unused_tcp_port: int) -> str:
     return f"http://localhost:{unused_tcp_port}/accounts/A/workspaces/W"
 
 
