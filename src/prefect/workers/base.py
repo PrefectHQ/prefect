@@ -1085,7 +1085,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
-    ) -> BaseJobConfiguration:
+    ) -> C:
         deployment = (
             deployment
             if deployment
