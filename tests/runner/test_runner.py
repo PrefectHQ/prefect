@@ -7,12 +7,13 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 import warnings
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
-from typing import Any, Generator, List, Union
+from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -113,6 +114,31 @@ def tired_flow():
     for _ in range(100):
         print("zzzzz...")
         sleep(5)
+
+
+@pytest.fixture
+def patch_run_process(monkeypatch: pytest.MonkeyPatch):
+    def patch_run_process(returncode: int = 0, pid: int = 1000):
+        mock_run_process = AsyncMock()
+        mock_process = MagicMock()
+        mock_process.returncode = returncode
+        mock_process.pid = pid
+        mock_run_process.return_value = mock_process
+
+        async def side_effect(
+            *args: Any,
+            **kwargs: Any,
+        ):
+            kwargs["task_status"].started(mock_process)
+            return MagicMock(returncode=returncode, pid=pid)
+
+        mock_run_process.side_effect = side_effect
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
+
+        return mock_run_process
+
+    return patch_run_process
 
 
 class MockStorage:
@@ -832,7 +858,7 @@ class TestRunner:
         assert flow_run.state.is_cancelled()
         assert "This flow was cancelled!" not in caplog.text
         assert (
-            "Runner cannot retrieve flow to execute cancellation hooks for flow run"
+            "Runner failed to retrieve flow to execute on_cancellation hooks for flow run"
             in caplog.text
         )
 
@@ -1136,6 +1162,121 @@ class TestRunner:
             runner.stopping = True
             runner._cancelling_flow_run_ids.add(flow_run.id)
             await runner._cancel_run(flow_run)
+
+    @pytest.mark.parametrize(
+        "exit_code,help_message",
+        [
+            (-9, "This indicates that the process exited due to a SIGKILL signal"),
+            (
+                247,
+                "This indicates that the process was terminated due to high memory usage.",
+            ),
+        ],
+    )
+    async def test_runner_logs_exit_code_help_message(
+        self,
+        exit_code: int,
+        help_message: str,
+        caplog: pytest.LogCaptureFixture,
+        patch_run_process: MagicMock,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        # Change directory to avoid polluting the working directory
+        monkeypatch.chdir(str(tmp_path))
+        flow_id = await prefect_client.create_flow(
+            flow=dummy_flow_1,
+        )
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test-runner-deployment-{uuid.uuid4()}",
+            path=str(
+                prefect.__development_base_path__
+                / "tests"
+                / "test-projects"
+                / "import-project"
+            ),
+            entrypoint="my_module/flow.py:test_flow",
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id,
+        )
+
+        patch_run_process(returncode=exit_code)
+        async with Runner() as runner:
+            result = await runner.execute_flow_run(
+                flow_run_id=flow_run.id,
+            )
+
+        assert result
+        assert result.returncode == exit_code
+
+        record = next(r for r in caplog.records if help_message in r.message)
+        if exit_code == -9:
+            assert record.levelname == "INFO"
+        else:
+            assert record.levelname == "ERROR"
+
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
+    )
+    async def test_windows_process_worker_run_sets_process_group_creation_flag(
+        self,
+        patch_run_process: MagicMock,
+        prefect_client: PrefectClient,
+    ):
+        mock = patch_run_process()
+
+        deployment = await dummy_flow_1.ato_deployment(__file__)
+        deployment_id_coro = deployment.apply()
+        if TYPE_CHECKING:
+            assert isinstance(deployment_id_coro, Coroutine)
+        deployment_id = await deployment_id_coro
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        async with Runner() as runner:
+            await runner.execute_flow_run(
+                flow_run_id=flow_run.id,
+            )
+
+        mock.assert_awaited_once()
+        (_, kwargs) = mock.call_args
+        assert kwargs.get("creationflags") == mock.CREATE_NEW_PROCESS_GROUP
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason=(
+            "The asyncio.open_process_*.creationflags argument is only supported on Windows"
+        ),
+    )
+    async def test_unix_process_worker_run_does_not_set_creation_flag(
+        self, patch_run_process: MagicMock, prefect_client: PrefectClient
+    ):
+        mock = patch_run_process()
+        deployment = await dummy_flow_1.ato_deployment(__file__)
+        deployment_id_coro = deployment.apply()
+        if TYPE_CHECKING:
+            assert isinstance(deployment_id_coro, Coroutine)
+        deployment_id = await deployment_id_coro
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        async with Runner() as runner:
+            await runner.execute_flow_run(
+                flow_run_id=flow_run.id,
+            )
+
+        mock.assert_awaited_once()
+        (_, kwargs) = mock.call_args
+        assert kwargs.get("creationflags") is None
 
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)

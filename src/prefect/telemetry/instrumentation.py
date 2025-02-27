@@ -95,7 +95,7 @@ def _setup_meter_provider(
     resource: Resource, headers: dict[str, str], telemetry_url: str
 ) -> MeterProvider:
     metric_reader = PeriodicExportingMetricReader(
-        OTLPMetricExporter(
+        OTLPMetricExporter(  # pyright: ignore[reportArgumentType] `preferred_temporality` and `preferred_aggregation` default to `None`, but otel's typing doesn't include it
             endpoint=_url_join(telemetry_url, "v1/metrics"),
             headers=headers,
         )
@@ -109,7 +109,7 @@ def _setup_meter_provider(
 def _setup_logger_provider(
     resource: Resource, headers: dict[str, str], telemetry_url: str
 ) -> LoggerProvider:
-    logger_provider = LoggerProvider(resource=resource)
+    logger_provider = LoggerProvider(resource=resource)  # pyright: ignore[reportArgumentType] `multi_log_record_processor` defaults to `None` but otel's typing doesn't include it
     queueing_log_exporter = QueueingLogExporter.instance(
         _url_join(telemetry_url, "v1/logs"), tuple(headers.items())
     )

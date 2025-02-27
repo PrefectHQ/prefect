@@ -277,8 +277,8 @@ class DeploymentUpdate(ActionBaseModel):
     def remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return remove_old_deployment_fields(values)
 
-    version: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
+    version: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
@@ -305,28 +305,27 @@ class DeploymentUpdate(ActionBaseModel):
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
     )
-    work_queue_name: Optional[str] = Field(None)
+    work_queue_name: Optional[str] = Field(default=None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         examples=["my-work-pool"],
     )
-    path: Optional[str] = Field(None)
+    path: Optional[str] = Field(default=None)
     job_variables: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Overrides for the flow's infrastructure configuration.",
     )
-    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
-    entrypoint: Optional[str] = Field(None)
-    storage_document_id: Optional[UUID] = Field(None)
-    infrastructure_document_id: Optional[UUID] = Field(None)
+    pull_steps: Optional[List[dict[str, Any]]] = Field(default=None)
+    entrypoint: Optional[str] = Field(default=None)
+    storage_document_id: Optional[UUID] = Field(default=None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
     model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
