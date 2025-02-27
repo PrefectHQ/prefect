@@ -8,6 +8,8 @@
 	"files": {
 		"ignoreUnknown": false,
 		"ignore": [
+			"node_modules",
+			"dist",
 			"src/api/prefect.ts",
 			"src/routeTree.gen.ts",
 			"package.json",
@@ -21,6 +23,8 @@
 	"organizeImports": {
 		"enabled": true,
 		"ignore": [
+			"node_modules",
+			"dist",
 			"src/api/prefect.ts",
 			"src/routeTree.gen.ts",
 			"package.json",
