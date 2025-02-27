@@ -333,7 +333,7 @@ Basically: **anything done with a custom Airflow operator or hook can be replace
 In Airflow, task states (`success`, `failed`, `skipped`, etc.) are stored in a metadata database and displayed in the Airflow UI's DAG run view. Prefect also tracks state for **each task and flow run**, but these states are managed by the **Prefect backend** (Prefect Server or Cloud API) and can be accessed via the **Prefect UI, API, or CLI**.
 
 After migration, similar visibility is available in Prefect's UI, where you can track which flows and tasks succeeded or failed. Prefect also includes additional state management features such as: 
-- **Flow cancellation** (`Cancelling` state).
+- Cancel a flow run (`Cancelling` state).
 - **Resuming failed flows** (with manual steps).
 - **Task caching** between runs to avoid redundant computations.
 
