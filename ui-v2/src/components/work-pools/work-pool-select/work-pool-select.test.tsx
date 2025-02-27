@@ -9,91 +9,89 @@ import { http, HttpResponse } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { WorkPoolSelect } from "./work-pool-select";
 
-describe("ActionsStep", () => {
+describe("WorkPoolSelect", () => {
 	beforeAll(mockPointerEvents);
 
-	describe("WorkPoolSelect", () => {
-		const mockListWorkPoolsAPI = (workPools: Array<WorkPool>) => {
-			server.use(
-				http.post(buildApiUrl("/work_pools/filter"), () => {
-					return HttpResponse.json(workPools);
-				}),
-			);
-		};
+	const mockListWorkPoolsAPI = (workPools: Array<WorkPool>) => {
+		server.use(
+			http.post(buildApiUrl("/work_pools/filter"), () => {
+				return HttpResponse.json(workPools);
+			}),
+		);
+	};
 
-		it("able to select a workpool", async () => {
-			const mockOnSelect = vi.fn();
-			mockListWorkPoolsAPI([
-				createFakeWorkPool({ name: "my work pool 0" }),
-				createFakeWorkPool({ name: "my work pool 1" }),
-			]);
+	it("able to select a workpool", async () => {
+		const mockOnSelect = vi.fn();
+		mockListWorkPoolsAPI([
+			createFakeWorkPool({ name: "my work pool 0" }),
+			createFakeWorkPool({ name: "my work pool 1" }),
+		]);
 
-			const user = userEvent.setup();
+		const user = userEvent.setup();
 
-			// ------------ Setup
-			render(<WorkPoolSelect selected={undefined} onSelect={mockOnSelect} />, {
-				wrapper: createWrapper(),
-			});
-
-			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select a work pool/i }),
-			);
-			await user.click(screen.getByRole("option", { name: "my work pool 0" }));
-
-			// ------------ Assert
-			expect(mockOnSelect).toHaveBeenLastCalledWith("my work pool 0");
+		// ------------ Setup
+		render(<WorkPoolSelect selected={undefined} onSelect={mockOnSelect} />, {
+			wrapper: createWrapper(),
 		});
 
-		it("able to select a preset option", async () => {
-			const mockOnSelect = vi.fn();
-			mockListWorkPoolsAPI([
-				createFakeWorkPool({ name: "my work pool 0" }),
-				createFakeWorkPool({ name: "my work pool 1" }),
-			]);
+		// ------------ Act
+		await user.click(
+			screen.getByRole("combobox", { name: /select a work pool/i }),
+		);
+		await user.click(screen.getByRole("option", { name: "my work pool 0" }));
 
-			const user = userEvent.setup();
+		// ------------ Assert
+		expect(mockOnSelect).toHaveBeenLastCalledWith("my work pool 0");
+	});
 
-			// ------------ Setup
-			const PRESETS = [{ label: "None", value: undefined }];
-			render(
-				<WorkPoolSelect
-					presetOptions={PRESETS}
-					selected={undefined}
-					onSelect={mockOnSelect}
-				/>,
-				{ wrapper: createWrapper() },
-			);
+	it("able to select a preset option", async () => {
+		const mockOnSelect = vi.fn();
+		mockListWorkPoolsAPI([
+			createFakeWorkPool({ name: "my work pool 0" }),
+			createFakeWorkPool({ name: "my work pool 1" }),
+		]);
 
-			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select a work pool/i }),
-			);
-			await user.click(screen.getByRole("option", { name: "None" }));
+		const user = userEvent.setup();
 
-			// ------------ Assert
-			expect(mockOnSelect).toHaveBeenLastCalledWith(undefined);
-		});
+		// ------------ Setup
+		const PRESETS = [{ label: "None", value: undefined }];
+		render(
+			<WorkPoolSelect
+				presetOptions={PRESETS}
+				selected={undefined}
+				onSelect={mockOnSelect}
+			/>,
+			{ wrapper: createWrapper() },
+		);
 
-		it("has the selected value displayed", () => {
-			mockListWorkPoolsAPI([
-				createFakeWorkPool({ name: "my work pool 0" }),
-				createFakeWorkPool({ name: "my work pool 1" }),
-			]);
+		// ------------ Act
+		await user.click(
+			screen.getByRole("combobox", { name: /select a work pool/i }),
+		);
+		await user.click(screen.getByRole("option", { name: "None" }));
 
-			// ------------ Setup
-			const PRESETS = [{ label: "None", value: undefined }];
-			render(
-				<WorkPoolSelect
-					presetOptions={PRESETS}
-					selected="my work pool 0"
-					onSelect={vi.fn()}
-				/>,
-				{ wrapper: createWrapper() },
-			);
+		// ------------ Assert
+		expect(mockOnSelect).toHaveBeenLastCalledWith(undefined);
+	});
 
-			// ------------ Assert
-			expect(screen.getByText("my work pool 0")).toBeVisible();
-		});
+	it("has the selected value displayed", () => {
+		mockListWorkPoolsAPI([
+			createFakeWorkPool({ name: "my work pool 0" }),
+			createFakeWorkPool({ name: "my work pool 1" }),
+		]);
+
+		// ------------ Setup
+		const PRESETS = [{ label: "None", value: undefined }];
+		render(
+			<WorkPoolSelect
+				presetOptions={PRESETS}
+				selected="my work pool 0"
+				onSelect={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		expect(screen.getByText("my work pool 0")).toBeVisible();
 	});
 });
