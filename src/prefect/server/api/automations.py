@@ -42,7 +42,7 @@ async def create_automation(
     """
     Create an automation.
 
-    For more information, see [automate](https://docs.prefect.io/v3/automate).
+    For more information, see https://docs.prefect.io/v3/automate.
     """
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()

@@ -22,7 +22,7 @@ async def read_available_block_capabilities(
     """
     Get available block capabilities.
 
-    For more information, see [securely store typed configuration](https://docs.prefect.io/v3/develop/blocks).
+    For more information, see https://docs.prefect.io/v3/develop/blocks.
     """
     async with db.session_context() as session:
         return await models.block_schemas.read_available_block_capabilities(

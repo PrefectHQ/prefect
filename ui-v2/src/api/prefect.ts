@@ -52,7 +52,7 @@ export interface paths {
          * @description Gracefully creates a new flow from the provided schema. If a flow with the
          *     same name already exists, the existing flow is returned.
          *
-         *     For more information, see [flows](https://docs.prefect.io/v3/develop/write-flows).
+         *     For more information, see https://docs.prefect.io/v3/develop/write-flows.
          */
         post: operations["create_flow_flows__post"];
         delete?: never;
@@ -185,7 +185,7 @@ export interface paths {
          *
          *     If no state is provided, the flow run will be created in a PENDING state.
          *
-         *     For more information, see [flow runs](https://docs.prefect.io/v3/develop/write-flows).
+         *     For more information, see https://docs.prefect.io/v3/develop/write-flows.
          */
         post: operations["create_flow_run_flow_runs__post"];
         delete?: never;
@@ -523,7 +523,7 @@ export interface paths {
          *
          *     If no state is provided, the task run will be created in a PENDING state.
          *
-         *     For more information, see [write and run tasks](https://docs.prefect.io/v3/develop/write-tasks).
+         *     For more information, see https://docs.prefect.io/v3/develop/write-tasks.
          */
         post: operations["create_task_run_task_runs__post"];
         delete?: never;
@@ -651,7 +651,7 @@ export interface paths {
          * Read Flow Run State
          * @description Get a flow run state by id.
          *
-         *     For more information, see [write and run flows](https://docs.prefect.io/v3/develop/write-flows#final-state-determination).
+         *     For more information, see https://docs.prefect.io/v3/develop/write-flows#final-state-determination.
          */
         get: operations["read_flow_run_state_flow_run_states__id__get"];
         put?: never;
@@ -693,7 +693,7 @@ export interface paths {
          * Read Task Run State
          * @description Get a task run state by id.
          *
-         *     For more information, see [write and run tasks](https://docs.prefect.io/v3/develop/write-tasks).
+         *     For more information, see https://docs.prefect.io/v3/develop/write-tasks.
          */
         get: operations["read_task_run_state_task_run_states__id__get"];
         put?: never;
@@ -737,7 +737,7 @@ export interface paths {
          * Create Flow Run Notification Policy
          * @description Creates a new flow run notification policy.
          *
-         *     For more information, see [trigger actions on events](https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations).
+         *     For more information, see https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations.
          */
         post: operations["create_flow_run_notification_policy_flow_run_notification_policies__post"];
         delete?: never;
@@ -811,7 +811,7 @@ export interface paths {
          *     If the deployment has an active schedule, flow runs will be scheduled.
          *     When upserting, any scheduled runs from the existing deployment will be deleted.
          *
-         *     For more information, see [deployments](https://docs.prefect.io/v3/deploy).
+         *     For more information, see https://docs.prefect.io/v3/deploy.
          */
         post: operations["create_deployment_deployments__post"];
         delete?: never;
@@ -1184,7 +1184,7 @@ export interface paths {
          * Create Logs
          * @description Create new logs from the provided schema.
          *
-         *     For more information, see [configure logging](https://docs.prefect.io/v3/develop/logging).
+         *     For more information, see https://docs.prefect.io/v3/develop/logging.
          */
         post: operations["create_logs_logs__post"];
         delete?: never;
@@ -1226,7 +1226,7 @@ export interface paths {
          * Create Concurrency Limit
          * @description Create a task run concurrency limit.
          *
-         *     For more information, see [manage concurrency](https://docs.prefect.io/v3/develop/task-run-limits).
+         *     For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
          */
         post: operations["create_concurrency_limit_concurrency_limits__post"];
         delete?: never;
@@ -1370,7 +1370,7 @@ export interface paths {
          * Create Concurrency Limit V2
          * @description Create a task run concurrency limit.
          *
-         *     For more information, see [manage concurrency](https://docs.prefect.io/v3/develop/global-concurrency-limits).
+         *     For more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.
          */
         post: operations["create_concurrency_limit_v2_v2_concurrency_limits__post"];
         delete?: never;
@@ -1462,7 +1462,7 @@ export interface paths {
          * Create Block Type
          * @description Create a new block type.
          *
-         *     For more information, see [securely store typed configuration](https://docs.prefect.io/v3/develop/blocks).
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
          */
         post: operations["create_block_type_block_types__post"];
         delete?: never;
@@ -1600,7 +1600,7 @@ export interface paths {
          * Create Block Document
          * @description Create a new block document.
          *
-         *     For more information, see [securely store typed configuration](https://docs.prefect.io/v3/develop/blocks).
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
          */
         post: operations["create_block_document_block_documents__post"];
         delete?: never;
@@ -1682,7 +1682,7 @@ export interface paths {
          * @description Creates a new work pool. If a work pool with the same
          *     name already exists, an error will be raised.
          *
-         *     For more information, see [work pools](https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools).
+         *     For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.
          */
         post: operations["create_work_pool_work_pools__post"];
         delete?: never;
@@ -1793,7 +1793,7 @@ export interface paths {
          * @description Creates a new work pool queue. If a work pool queue with the same
          *     name already exists, an error will be raised.
          *
-         *     For more information, see [work queues](https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues).
+         *     For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_pools__work_pool_name__queues_post"];
         delete?: never;
@@ -1920,7 +1920,7 @@ export interface paths {
          * Read Task Workers
          * @description Read active task workers. Optionally filter by task keys.
          *
-         *     For more information, see [run tasks in the background](https://docs.prefect.io/v3/develop/deferred-tasks).
+         *     For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
          */
         post: operations["read_task_workers_task_workers_filter_post"];
         delete?: never;
@@ -1945,7 +1945,7 @@ export interface paths {
          *     If a work queue with the same name already exists, an error
          *     will be raised.
          *
-         *     For more information, see [work queues](https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues).
+         *     For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_queues__post"];
         delete?: never;
@@ -2075,7 +2075,7 @@ export interface paths {
          * Create Artifact
          * @description Create an artifact.
          *
-         *     For more information, see [create run artifacts](https://docs.prefect.io/v3/develop/artifacts).
+         *     For more information, see https://docs.prefect.io/v3/develop/artifacts.
          */
         post: operations["create_artifact_artifacts__post"];
         delete?: never;
@@ -2225,7 +2225,7 @@ export interface paths {
          * Create Block Schema
          * @description Create a block schema.
          *
-         *     For more information, see [securely store typed configuration](https://docs.prefect.io/v3/develop/blocks).
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
          */
         post: operations["create_block_schema_block_schemas__post"];
         delete?: never;
@@ -2306,7 +2306,7 @@ export interface paths {
          * Read Available Block Capabilities
          * @description Get available block capabilities.
          *
-         *     For more information, see [securely store typed configuration](https://docs.prefect.io/v3/develop/blocks).
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
          */
         get: operations["read_available_block_capabilities_block_capabilities__get"];
         put?: never;
@@ -2350,7 +2350,7 @@ export interface paths {
          * Create Variable
          * @description Create a variable.
          *
-         *     For more information, see [get and set variables](https://docs.prefect.io/v3/develop/variables).
+         *     For more information, see https://docs.prefect.io/v3/develop/variables.
          */
         post: operations["create_variable_variables__post"];
         delete?: never;
@@ -2464,7 +2464,7 @@ export interface paths {
          * Create Events
          * @description Record a batch of Events.
          *
-         *     For more information, see [track activity through events](https://docs.prefect.io/v3/automate/events/events).
+         *     For more information, see https://docs.prefect.io/v3/automate/events/events.
          */
         post: operations["create_events_events_post"];
         delete?: never;
@@ -2551,7 +2551,7 @@ export interface paths {
          * Create Automation
          * @description Create an automation.
          *
-         *     For more information, see [automate](https://docs.prefect.io/v3/automate).
+         *     For more information, see https://docs.prefect.io/v3/automate.
          */
         post: operations["create_automation_automations__post"];
         delete?: never;
