@@ -1516,6 +1516,45 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_update_deployment_with_schedule_allows_addition_of_concurrency(
+        self, client, deployment
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17227
+        """
+        # ensure there's a schedule
+        update_data = DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
+                    active=True,
+                )
+            ]
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        # no slug so that it deletes and recreates the schedule
+        update_again = DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
+                    active=True,
+                )
+            ],
+            concurrency_limit=4,  # add a limit
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json=update_again
+        )
+        assert response.status_code == 204
+
     async def test_update_deployment_enforces_parameter_schema(
         self,
         deployment_with_parameter_schema,
