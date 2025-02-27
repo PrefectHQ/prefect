@@ -1,6 +1,7 @@
 import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { buildFLowDetailsQuery } from "@/api/flows";
+import { buildWorkQueueDetailsQuery } from "@/api/work-queues";
 import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
 import {
 	FLOW_RUN_STATES,
@@ -78,7 +79,14 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 		void queryClient.prefetchQuery(
 			buildListAutomationsRelatedQuery(`prefect.deployment.${params.id}`),
 		);
+
 		void queryClient.prefetchQuery(buildFLowDetailsQuery(res.flow_id));
+
+		if (res.work_pool_name && res.work_queue_name) {
+			void queryClient.prefetchQuery(
+				buildWorkQueueDetailsQuery(res.work_pool_name, res.work_queue_name),
+			);
+		}
 	},
 	wrapInSuspense: true,
 });

@@ -3,15 +3,15 @@ import { Icon } from "@/components/ui/icons";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-type DeploymentFlowLinkProps = {
+type FlowLinkProps = {
 	flowId: string;
 };
 
-export const DeploymentFlowLink = ({ flowId }: DeploymentFlowLinkProps) => {
+export const FlowLink = ({ flowId }: FlowLinkProps) => {
 	const { data: flow } = useSuspenseQuery(buildFLowDetailsQuery(flowId));
 
 	return (
-		<div className="flex items-center gap-1 text-sm">
+		<div className="flex items-center gap-1 text-xs">
 			Flow
 			<Link
 				to="/flows/flow/$id"
