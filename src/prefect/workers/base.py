@@ -952,8 +952,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     f" {deployment.name!r} which is configured with a storage block."
                     " Please use an agent to execute this flow run."
                 )
-            self._submitting_flow_run_ids.remove(flow_run.id)
-            return
+                self._submitting_flow_run_ids.remove(flow_run.id)
+                return
         except ObjectNotFound:
             self._logger.exception(
                 f"Deployment {flow_run.deployment_id} no longer exists. "
