@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import warnings
 from pathlib import Path
@@ -9,7 +11,6 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
-    Set,
     Union,
 )
 
@@ -32,8 +33,8 @@ from prefect.settings.models.root import Settings
 
 
 def _cast_settings(
-    settings: Union[Dict[Union[str, Setting], Any], Any],
-) -> Dict[Setting, Any]:
+    settings: dict[str | Setting, Any] | Any,
+) -> dict[Setting, Any]:
     """For backwards compatibility, allow either Settings objects as keys or string references to settings."""
     if not isinstance(settings, dict):
         raise ValueError("Settings must be a dictionary.")
@@ -63,7 +64,7 @@ class Profile(BaseModel):
     )
 
     name: str
-    settings: Annotated[Dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
+    settings: Annotated[dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
         default_factory=dict
     )
     source: Optional[Path] = None
@@ -114,7 +115,7 @@ class ProfilesCollection:
         self.active_name = active
 
     @property
-    def names(self) -> Set[str]:
+    def names(self) -> set[str]:
         """
         Return a set of profile names in this collection.
         """
