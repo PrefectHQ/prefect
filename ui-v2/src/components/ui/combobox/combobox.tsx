@@ -35,10 +35,12 @@ const Combobox = ({ children }: { children: React.ReactNode }) => {
 const ComboboxTrigger = ({
 	"aria-label": ariaLabel,
 	selected = false,
+	id,
 	children,
 }: {
 	"aria-label"?: string;
 	selected?: boolean;
+	id?: string;
 	children: React.ReactNode;
 }) => {
 	const comboboxCtx = use(ComboboxContext);
@@ -58,6 +60,7 @@ const ComboboxTrigger = ({
 					"w-full justify-between",
 					selected && "text-muted-foreground",
 				)}
+				id={id}
 			>
 				{children}
 				<Icon id="ChevronsUpDown" className="size-4 opacity-50" />
@@ -113,6 +116,7 @@ const ComboboxCommandItem = ({
 	"aria-label": ariaLabel,
 	disabled = false,
 	onSelect,
+	closeOnSelect = true,
 	selected = false,
 	value,
 	children,
@@ -120,6 +124,7 @@ const ComboboxCommandItem = ({
 	"aria-label"?: string;
 	disabled?: boolean;
 	onSelect?: (value: string) => void;
+	closeOnSelect?: boolean;
 	selected?: boolean;
 	value?: string;
 	children: React.ReactNode;
@@ -136,7 +141,10 @@ const ComboboxCommandItem = ({
 			aria-label={ariaLabel}
 			value={value}
 			onSelect={() => {
-				setOpen(false);
+				if (closeOnSelect) {
+					setOpen(false);
+				}
+
 				if (onSelect && value) {
 					onSelect(value);
 				}
