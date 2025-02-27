@@ -1,4 +1,4 @@
-import debounce from "lodash.debounce";
+import useDebounceCallback from "@/hooks/use-debounce-callback";
 import { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useCallback, useMemo, useRef } from "react";
 import { Card } from "../ui/card";
@@ -24,10 +24,8 @@ export function SchemaFormInputObject({
 }: SchemaFormInputObjectProps) {
 	const patches = useRef<{ key: string; value: unknown }[]>([]);
 
-	// eslint doesn't like creating a callback using the debounce function
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	const flush = useCallback(
-		debounce(() => {
+	const flush = useDebounceCallback(
+		useCallback(() => {
 			const newValues = { ...values };
 
 			patches.current.forEach(({ key, value }) => {
@@ -46,8 +44,8 @@ export function SchemaFormInputObject({
 			}
 
 			onValuesChange(newValues);
-		}, 10),
-		[values, onValuesChange],
+		}, [values, onValuesChange]),
+		10,
 	);
 
 	function onPropertyValueChange(key: string, value: unknown) {
@@ -74,7 +72,7 @@ export function SchemaFormInputObject({
 	}, [property.properties]);
 
 	const output = (
-		<div className="flex flex-col gap-2">
+		<div className="flex flex-col gap-4">
 			{properties.map(([key, subProperty]) => (
 				<SchemaFormProperty
 					key={key}
