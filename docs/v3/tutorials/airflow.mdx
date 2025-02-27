@@ -478,7 +478,7 @@ With your workflows running in Prefect, it's time to optimize, scale, and take f
 
 **Simplify and Enhance Your Workflows**
 - **Remove unnecessary complexity**: If your Airflow DAGs used workarounds (e.g., database intermediaries for data passing), replace them with direct Prefect task returns.
-- **Use subflows for modularity**: Instead of chaining DAGs, use **subflows** to orchestrate dependencies within a single flow.
+- **Use nested flows for modularity**: Instead of chaining DAGs, use **nested flows** to orchestrate dependencies within a single flow.
 - **Optimize async convenience**: Use **dynamic task mapping** (`task.map(items)`) to process large datasets efficiently.
 - **Leverage caching**: Enable **result persistence** to skip redundant computations.
 - **Ensure idempotency**: Prevent duplicate processing by parameterizing flows and validating execution logic.
