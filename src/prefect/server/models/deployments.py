@@ -1012,12 +1012,16 @@ async def delete_schedules_for_deployment(
         deployment_id: a deployment id
     """
 
+    deployment = await session.get(db.Deployment, deployment_id)
+    assert deployment is not None
+
     result = await session.execute(
         sa.delete(db.DeploymentSchedule).where(
             db.DeploymentSchedule.deployment_id == deployment_id
         )
     )
 
+    await session.refresh(deployment)
     return result.rowcount > 0
 
 
