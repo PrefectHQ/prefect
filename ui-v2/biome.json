@@ -7,7 +7,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
+		"ignore": [
+			"src/api/prefect.ts",
+			"src/routeTree.gen.ts",
+			"package.json",
+			"package-lock.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -15,7 +20,12 @@
 	},
 	"organizeImports": {
 		"enabled": true,
-		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
+		"ignore": [
+			"src/api/prefect.ts",
+			"src/routeTree.gen.ts",
+			"package.json",
+			"package-lock.json"
+		]
 	},
 	"linter": {
 		"enabled": false,
