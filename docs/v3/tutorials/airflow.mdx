@@ -21,7 +21,22 @@ This table provides a quick reference for migrating key Airflow concepts to thei
 | [**XComs**](#define-a-prefect-flow)  | [**Return Values**](#define-a-prefect-flow)           | Prefect tasks return data directly; no need for XComs or metadata storage. |
 | [**Hooks & Connections**](#airflow-hooks-and-integrations) | [**Blocks & Integrations**](#airflow-hooks-and-integrations)           | Prefect replaces Hooks with **Blocks** for secure resource management. |
 | [**Sensors**](#airflow-sensors) | [**Triggers & Event-Driven Flows**](#using-external-triggers) | Prefect uses external event triggers or lightweight polling flows. |
-| [**Airflow UI**](observability) | [**Prefect UI**](observability)             | Prefect provides real-time monitoring, task logs, and automation features. |
+| [**Airflow UI**](#observability) | [**Prefect UI**](#observability)             | Prefect provides real-time monitoring, task logs, and automation features. |
+
+There are also so key differenes when it comes to task execution, resource control, data passing, and parallelism. We'll cover these in more detail below.
+
+| **Feature** | **Airflow** | **Prefect** |
+|---------|---------|---------|
+| **Task Execution** | Tasks run as independent processes/pods | Tasks execute in single flow runtime |
+| **Resource Control** | Task-level via executor settings | Flow-level via work pools & task runners |
+| **Data Passing** | Requires XComs or external storage | Direct in-memory data passing |
+| **Parallelism** | Managed by executor configuration | Managed by work pools and task runners |
+| **Task Dependencies** | Uses `>>` operators and `set_upstream()` | Implicit via Python function calls |
+| **DAG Parsing** | Pre-parsed with global variable execution | Standard Python function execution |
+| **State & Retries** | Individual task retries, manual DAG fixes | Built-in flow & task retry handling |
+| **Scheduling** | Tightly coupled with DAG code | Decoupled via deployments |
+| **Infrastructure** | Requires scheduler, metadata DB, workers | Lightweight API server with optional cloud |
+
 
 ## Preparing for migration
 
@@ -248,7 +263,13 @@ If you require self-hosted execution, the next sections cover how to migrate Air
 For full details on Prefect Managed Execution, refer to the [Managed Execution documentation](/v3/deploy/infrastructure-examples/managed).
 
 ### Airflow Executors
-**Airflow Executors vs Prefect Work Pools/Workers:** Airflow's executor setting determines how tasks are distributed. Prefect's equivalent concept is the [**work pool**](/v3/deploy/infrastructure-concepts/work-pools) (with one or more [**workers**](/v3/deploy/infrastructure-concepts/workers) polling it). Here's a mapping of typical setups:
+**Airflow Executors vs Prefect Work Pools/Workers:** Airflow's executor setting determines how tasks are distributed. Prefect's equivalent concept is the [**work pool**](/v3/deploy/infrastructure-concepts/work-pools) (with one or more [**workers**](/v3/deploy/infrastructure-concepts/workers) polling it). 
+
+In Airflow, each task executes independently, regardless of the executor used. Whether running with LocalExecutor, CeleryExecutor, or KubernetesExecutor, every task runs as an isolated process or pod. Executors control how and where these tasks are executed, but the core execution model remains task-by-task.
+
+In contrast, Prefect executes an entire flow run within a single execution environment (e.g., a local process, Docker container, or Kubernetes pod). Tasks within a flow execute within the same runtime context, reducing fragmentation and improving performance. Prefect's execution model simplifies resource management, allowing for in-memory data passing between tasks rather than relying on external storage or metadata databases.
+
+Here's a mapping of typical setups:
 
 #### Airflow LocalExecutor
 With the **Airflow LocalExecutor** tasks run as subprocesses on the same machine. In Prefect, the default behavior is similar - you can run the flow in a local Python process, and tasks will execute sequentially by default. That does not _have_ to be the same machine that is running your Prefect UI and scheduler. 
@@ -277,10 +298,10 @@ Prefect eliminates the need for a **message broker** or **results backend**, as 
    ```
 3. **Workers poll the work pool** and execute assigned flow runs.
 
-Prefect **work pools** function similarly to **Celery queues**, allowing multiple workers to process tasks concurrently. Multiple **work queues** can be created within a pool for **priority-based task routing**, without the overhead of maintaining a Celery broker or backend.
+Prefect **work pools** function similarly to **Celery queues**, allowing multiple workers to process tasks concurrently.
 
 #### Airflow KubernetesExecutor
-In Airflow, the **KubernetesExecutor** launches **each task** in its own Kubernetes pod. Prefect, instead, uses a **Kubernetes Work Pool**, where each **flow run** is executed in a Kubernetes pod, rather than launching separate pods for each task. This approach reduces fragmentation and simplifies configuration while maintaining scalability and isolation.
+In Airflow, the **KubernetesExecutor** follows the per-task execution model, launching each task in its own Kubernetes pod. Prefect, instead, uses a Kubernetes Work Pool, where each flow run executes in a single Kubernetes pod. This approach reduces fragmentation, as tasks run within the same execution environment rather than spawning separate pods.
 
 **Configuring a Kubernetes Work Pool**
 For detailed instructions, see [Prefect's Kubernetes Work Pool documentation](/v3/deploy/infrastructure-examples/kubernetes). But the general steps to take are:
@@ -516,7 +537,14 @@ Once a Prefect flow is stable, **disable the corresponding Airflow DAG** to prev
 - **Error handling & retries:** Test retries by forcing failures. If Airflow used `trigger_rule="all_done"`, implement equivalent logic in Prefect with `try/except`.
 - **Performance monitoring:** Compare Prefect vs. Airflow run times. If slower, check if tasks are running sequentially instead of in parallel (enable mapping, async, or parallel task runners). If too much parallelism, adjust concurrency settings.
 
+For some help with troubleshooting, you can see articles on:
+- [Configurating logging](/v3/develop/logging)
+- [Debugging](/v3/tutorials/debug)
+- [Tracking activity](/v3/automate/events/events)
+
 Throughout testing, keep an eye on the Prefect UI's **Flow Run and Task Run views** - they will show you the execution steps, logs, and any exceptions. The UI can be very helpful for pinpointing where a flow failed or hung. It's analogous to Airflow's Graph view and log view but with the benefit of real-time state updates (no need to refresh for state changes).
+
+You might also consider joining the [Prefect Slack community](https://prefect.io/slack) to get help from the community and Prefect team.
 
 **Debugging tips:**
 - If a flow run gets stuck, you can cancel it via UI/CLI.
