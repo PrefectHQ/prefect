@@ -491,9 +491,11 @@ With your workflows running in Prefect, it's time to optimize, scale, and take f
 - **Update documentation**: Ensure internal runbooks reflect Prefect's CLI/UI for managing schedules, failures, and retries.
 
 **Scaling and Cost Optimization**
-- **Scale efficiently**: Prefect naturally distributes workloads across **Work Pools and Workers**, eliminating Airflow's scheduler bottlenecks.
-- **Optimize infrastructure**: Adjust worker capacity based on usage, scaling vertically (more resources per worker) or horizontally (adding more workers).
-- **Reduce costs**: Consider **serverless work pools** (AWS ECS, GCP Cloud Run) to avoid idle infrastructure costs.
+| Technique | Description |
+|-----------|-------------|
+| _Scale efficiently_ | Prefect naturally distributes workloads across work pools and workers, eliminating Airflow's scheduler bottlenecks. |
+| _Optimize infrastructure_ | Adjust worker capacity based on usage, scaling vertically (more resources per worker) or horizontally (adding more workers). |
+| _Reduce costs_ | Consider _serverless work pools_ (AWS ECS, GCP Cloud Run) to avoid idle infrastructure costs. |
 
 To set yourself up for future success:
 
