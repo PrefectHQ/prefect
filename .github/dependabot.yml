@@ -1,6 +1,6 @@
 version: 2
+enable-beta-ecosystems: true
 updates:
-
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -51,3 +51,7 @@ updates:
     schedule:
       interval: "daily"
     labels: ["development", "2.x"]
+
+  # update uv.lock file
+  - package-ecosystem: "uv" 
+    directory: "/" # Location of package manifests
