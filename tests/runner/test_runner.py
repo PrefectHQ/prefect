@@ -207,6 +207,10 @@ class TestInit:
             runner = Runner()
             assert runner.limit == 100
 
+    async def test_runner_limit_can_be_none(self):
+        runner = Runner(limit=None)
+        assert runner.limit is None
+
     async def test_runner_respects_poll_setting(self):
         runner = Runner()
         assert runner.query_seconds == PREFECT_RUNNER_POLL_FREQUENCY.value()
@@ -939,7 +943,7 @@ class TestRunner:
     async def test_runner_can_execute_a_single_flow_run(
         self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
     ):
-        runner = Runner(heartbeat_seconds=30)
+        runner = Runner(heartbeat_seconds=30, limit=None)
 
         deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 
