@@ -72,7 +72,7 @@ repos:
         args:
           [
             "-c",
-            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run lint",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run lint-staged",
           ]
         files: |
           (?x)^(

@@ -746,7 +746,7 @@ async def _run_single_deploy(
 
     _schedules = deploy_config.pop("schedules")
 
-    deploy_config = apply_values(deploy_config, step_outputs)
+    deploy_config = apply_values(deploy_config, step_outputs, warn_on_notset=True)
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
 

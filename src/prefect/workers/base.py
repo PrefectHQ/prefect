@@ -566,8 +566,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         healthcheck_thread = None
         try:
             async with self as worker:
-                # wait for an initial heartbeat to configure the worker
-                await worker.sync_with_backend()
                 # schedule the scheduled flow run polling loop
                 async with anyio.create_task_group() as loops_task_group:
                     loops_task_group.start_soon(
@@ -654,6 +652,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
+
+        await self.sync_with_backend()
 
         self.is_setup = True
 
@@ -1085,7 +1085,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
-    ) -> BaseJobConfiguration:
+    ) -> C:
         deployment = (
             deployment
             if deployment

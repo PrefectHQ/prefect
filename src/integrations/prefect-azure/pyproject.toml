@@ -32,7 +32,7 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
 ml_datastore = ["azureml-core"]

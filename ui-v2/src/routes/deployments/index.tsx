@@ -260,11 +260,6 @@ function RouteComponent() {
 					onPaginationChange={onPaginationChange}
 					onSortChange={onSortChange}
 					onColumnFiltersChange={onColumnFiltersChange}
-					// TODO: Replace console.log with actual handlers for deployment actions
-					onQuickRun={(deployment) => console.log(deployment)}
-					onCustomRun={(deployment) => console.log(deployment)}
-					onEdit={(deployment) => console.log(deployment)}
-					onDuplicate={(deployment) => console.log(deployment)}
 				/>
 			)}
 		</div>

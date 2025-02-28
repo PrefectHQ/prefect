@@ -19,7 +19,9 @@ async def create_block_type(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockType:
     """
-    Create a new block type
+    Create a new block type.
+
+    For more information, see https://docs.prefect.io/v3/develop/blocks.
     """
     # API-created blocks cannot start with the word "Prefect"
     # as it is reserved for system use

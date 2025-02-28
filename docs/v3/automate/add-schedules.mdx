@@ -49,7 +49,8 @@ Just add the keyword argument `cron`, `interval`, or `rrule`.
 | `cron`      | A cron schedule string of when to execute runs of this deployment. Also accepts an iterable of cron schedule strings to create multiple schedules.                                                                                                    |
 | `rrule`     | An rrule schedule string of when to execute runs of this deployment. Also accepts an iterable of rrule schedule strings to create multiple schedules.                                                                                                 |
 | `schedules` | A list of schedule objects defining when to execute runs of this deployment. Used to define multiple schedules or additional scheduling options such as `timezone`.                                                                                   |
-| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options such as `timezone`.                                                                                                                     |
+| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options such as `timezone`.                                                                                                                  |
+| `slug`      | An optional unique identifier for the schedule containing only lowercase letters, numbers, and hyphens. If not provided for a given schedule, the schedule will be unnamed.                                                                           |
 
 The `serve` method below will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
 
@@ -116,12 +117,15 @@ deployments:
   ...
   schedules:
     - cron: "0 0 * * *"
+      slug: "chicago-schedule"
       timezone: "America/Chicago"
       active: false
     - cron: "0 12 * * *"
+      slug: "new-york-schedule"
       timezone: "America/New_York"
       active: true
     - cron: "0 18 * * *"
+      slug: "london-schedule"
       timezone: "Europe/London"
       active: true
 ```
@@ -319,10 +323,12 @@ send_email.serve(
   schedules=[
     Cron(
       "0 8 * * *",
+      slug: "jim-email",
       parameters={"to": "jim.halpert@dundermifflin.com"}
     ),
     Cron(
       "5 8 * * *",
+      slug: "dwight-email",
       parameters={
         "to": "dwight.schrute@dundermifflin.com",
         "message": "Stop goofing off! You're assistant _to_ the regional manager!"
@@ -353,9 +359,11 @@ deployments:
   entrypoint: send_email_flow.py:send_email
   schedules:
     - cron: "0 8 * * *"
+      slug: "jim-email"
       parameters:
         to: "jim.halpert@dundermifflin.com"
     - cron: "5 8 * * *"
+      slug: "dwight-email"
       parameters:
         to: "dwight.schrute@dundermifflin.com"
         message: "Stop goofing off! You're assistant _to_ the regional manager!"

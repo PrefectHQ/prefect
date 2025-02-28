@@ -8,6 +8,7 @@ import os
 import traceback
 import uuid
 import urllib.parse
+import warnings
 import webbrowser
 from contextlib import asynccontextmanager
 from typing import (
@@ -131,7 +132,18 @@ async def serve_login_api(
     try:
         # Yield the server object
         task_status.started(server)
-        await server.serve()
+        with warnings.catch_warnings():
+            # Uvicorn uses the deprecated pieces of websockets, filter out
+            # the warnings until uvicorn has its dependencies updated
+            warnings.filterwarnings(
+                "ignore", category=DeprecationWarning, module="websockets"
+            )
+            warnings.filterwarnings(
+                "ignore",
+                category=DeprecationWarning,
+                module="uvicorn.protocols.websockets",
+            )
+            await server.serve()
     except anyio.get_cancelled_exc_class():
         pass  # Already cancelled, do not cancel again
     except SystemExit as exc:
@@ -197,7 +209,6 @@ def prompt_select_from_list(
     Returns:
         str: the selected option
     """
-
     current_idx = 0
     selected_option = None
 
@@ -243,12 +254,16 @@ def prompt_select_from_list(
                 exit_with_error("")
             elif key == readchar.key.ENTER or key == readchar.key.CR:
                 selected_option = options[current_idx]
-                if isinstance(selected_option, tuple):
-                    selected_option = selected_option[0]
+                # Break out of the loop immediately after setting selected_option
+                break
 
             live.update(build_table(), refresh=True)
 
-        return selected_option
+    # Convert tuple to its first element if needed
+    if isinstance(selected_option, tuple):
+        selected_option = selected_option[0]
+
+    return selected_option
 
 
 async def login_with_browser() -> str:
@@ -364,11 +379,13 @@ async def _prompt_for_account_and_workspace(
         None,
         "[bold]Go back to account selection[/bold]",
     )
+
     result = prompt_select_from_list(
         app.console,
         "Which workspace would you like to use?",
         options=workspace_options + [go_back_option],
     )
+
     if not result:
         return None, True
     else:
@@ -688,10 +705,22 @@ async def set(
             if not workspaces:
                 exit_with_error("No workspaces found in the selected account.")
 
+            # Store the original list of workspaces
+            original_workspaces = workspaces.copy()
+
             go_back = True
             workspace = None
+            loop_count = 0
+
             while go_back:
+                loop_count += 1
+
+                # If we're going back, use the original list of workspaces
+                if loop_count > 1:
+                    workspaces = original_workspaces.copy()
+
                 workspace, go_back = await _prompt_for_account_and_workspace(workspaces)
+
             if workspace is None:
                 exit_with_error("No workspace selected.")
 
