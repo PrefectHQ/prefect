@@ -4015,12 +4015,12 @@ export interface components {
         };
         /** Body_count_deployments_deployments_count_post */
         Body_count_deployments_deployments_count_post: {
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
         /** Body_count_flow_runs_flow_runs_count_post */
         Body_count_flow_runs_flow_runs_count_post: {
@@ -4235,12 +4235,12 @@ export interface components {
              * @default 1
              */
             page: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["DeploymentSort"];
             /**
@@ -4421,12 +4421,12 @@ export interface components {
              * @default 0
              */
             offset: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["DeploymentSort"];
             /**
