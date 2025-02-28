@@ -342,21 +342,22 @@ For detailed instructions, see [Prefect's Kubernetes Work Pool documentation](/v
    prefect work-pool create k8s-pool --type kubernetes
    ```
 2. **Deploy a flow to the Kubernetes work pool**:
-   {/* pmd-metadata: notest */}
-   ```python
-   from prefect import flow
 
-    @flow(log_prints=True)
-    def buy():
-        print("Buying securities")
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
 
-    if __name__ == "__main__":
-        buy.deploy(
-            name="my-code-baked-into-an-image-deployment",
-            work_pool_name="k8s-pool",
-            image="my_registry/my_image:my_image_tag"
-        )
-   ```
+@flow(log_prints=True)
+def buy():
+    print("Buying securities")
+
+if __name__ == "__main__":
+    buy.deploy(
+        name="my-code-baked-into-an-image-deployment",
+        work_pool_name="k8s-pool",
+        image="my_registry/my_image:my_image_tag"
+    )
+```
 
 Alternatively, you can use a [prefect.yaml](/v3/deploy/infrastructure-examples/kubernetes#define-a-prefect-deployment) file to deploy your flow to the Kubernetes work pool.
 
@@ -414,6 +415,7 @@ Airflow provides hooks and operators for interacting with external systems (e.g.
 2. **Replace them with equivalent Prefect integrations** or direct Python library calls.  
 
 **Example:** Instead of 
+
 {/* pmd-metadata: notest */} 
 ```python
 hook = PostgresHook(postgres_conn_id=my_conn_id)
