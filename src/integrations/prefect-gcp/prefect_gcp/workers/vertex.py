@@ -156,6 +156,28 @@ class VertexAIWorkerVariables(BaseVariables):
         "within the provided ip ranges. Otherwise, the job will be deployed to "
         "any ip ranges under the provided VPC network.",
     )
+    scheduling: Optional[dict[str, Any]] = Field(
+        default=None,
+        title="Scheduling Options",
+        description=(
+            "A dictionary with scheduling options for a CustomJob, "
+            "these are parameters related to queuing, and scheduling custom jobs. "
+            "If unspecified default scheduling options are used. "
+            "The 'maximum_run_time_hours' variable sets the job timeout "
+            "field 'scheduling.timeout' for backward compatibility. "
+            "See SDK: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.Scheduling "
+            "See REST: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/CustomJobSpec#Scheduling"
+        ),
+        examples=[
+            {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}},
+            {
+                "scheduling": {
+                    "strategy": Scheduling.Strategy.FLEX_START,
+                    "max_wait_duration": "1800s",
+                }
+            },
+        ],
+    )
     service_account_name: Optional[str] = Field(
         default=None,
         title="Service Account Name",
@@ -235,6 +257,7 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
                 "network": "{{ network }}",
                 "reserved_ip_ranges": "{{ reserved_ip_ranges }}",
                 "maximum_run_time_hours": "{{ maximum_run_time_hours }}",
+                "scheduling": "{{ scheduling }}",
                 "worker_pool_specs": [
                     {
                         "replica_count": 1,
@@ -471,12 +494,29 @@ class VertexAIWorker(BaseWorker):
             for spec in configuration.job_spec.pop("worker_pool_specs", [])
         ]
 
-        timeout = Duration().FromTimedelta(
-            td=datetime.timedelta(
-                hours=configuration.job_spec["maximum_run_time_hours"]
+        scheduling = Scheduling()
+
+        if "scheduling" in configuration.job_spec:
+            scheduling_params = configuration.job_spec.pop("scheduling")
+            for key, value in scheduling_params.items():
+                # allow users to pass 'strategy' as Scheduling.Strategy or str
+                if key == "strategy":
+                    if isinstance(value, Scheduling.Strategy):
+                        setattr(scheduling, key, value)
+                    else:
+                        setattr(scheduling, key, Scheduling.Strategy[value])
+                else:
+                    setattr(scheduling, key, value)
+
+        # set 'timeout' using "maximum_run_time_hours" for backward compatibility
+        if "maximum_run_time_hours" in configuration.job_spec:
+            timeout = Duration()
+            timeout.FromTimedelta(
+                td=datetime.timedelta(
+                    hours=configuration.job_spec["maximum_run_time_hours"]
+                )
             )
-        )
-        scheduling = Scheduling(timeout=timeout)
+            scheduling.timeout = timeout
 
         if "service_account_name" in configuration.job_spec:
             service_account_name = configuration.job_spec.pop("service_account_name")
