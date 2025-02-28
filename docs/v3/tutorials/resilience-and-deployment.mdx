@@ -163,7 +163,7 @@ def retry_handler(task, task_run, state) -> bool:
 ```
 
 
-Afer defining the handler, you can add it to the `@task` decorator using the `retry_condition_fn` parameter.
+After defining the handler, you can add it to the `@task` decorator using the `retry_condition_fn` parameter.
 
 
 ```python
@@ -363,7 +363,7 @@ The `from_source()` method specifies the location of flow code when creating dep
 It's particularly useful when you want to pull flow code from a remote storage location at runtime, rather than having it baked into a Docker image.
 You can see that it takes two arguments: A URL to a git repository or a storage object, and the path to the file containing the flow and the function name, separated by a colon.
 
-The `.deploy()` method enables you to define a deployment programatically in Python code.
+The `.deploy()` method enables you to define a deployment programmatically in Python code.
 It takes a name for the deployment, the work pool to submit work to, and a dictionary of parameters to pass to the flow.
 There is also a `job_variables` parameter, which accepts a list of packages to install in the flow's execution environment.
 
