@@ -212,10 +212,11 @@ class Runner:
         self.started: bool = False
         self.stopping: bool = False
         self.pause_on_shutdown: bool = pause_on_shutdown
-        if limit is NotSet:
-            self.limit = settings.runner.process_limit
-        else:
-            self.limit = limit
+        self.limit: int | None = (
+            settings.runner.process_limit
+            if limit is NotSet or isinstance(limit, type)
+            else limit
+        )
         self.webserver: bool = webserver
 
         self.query_seconds: float = query_seconds or settings.runner.poll_frequency
