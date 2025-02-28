@@ -945,15 +945,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
 
         try:
-            deployment = await self._client.read_deployment(flow_run.deployment_id)
-            if deployment.storage_document_id:
-                self._logger.error(
-                    f"Flow run {flow_run.id!r} was created from deployment"
-                    f" {deployment.name!r} which is configured with a storage block."
-                    " Please use an agent to execute this flow run."
-                )
-                self._submitting_flow_run_ids.remove(flow_run.id)
-                return
+            await self._client.read_deployment(flow_run.deployment_id)
         except ObjectNotFound:
             self._logger.exception(
                 f"Deployment {flow_run.deployment_id} no longer exists. "
