@@ -224,8 +224,8 @@ The following code snippet can be added to the portion of script where the rest 
 There is an `on_rollback` hook that is designed to delete the file if the data quality check fails.
 If less than 5 entries are found in the file, the data quality check will fail, triggering the rollback.
 
-{/* pmd-metadata: notest */}
 <Expandable title="Data Quality Check and Rollback">
+{/* pmd-metadata: notest */}
 ```python
 # Paste this code snippet where the rest of the tasks are defined.
 
@@ -424,6 +424,7 @@ After running the updated script, you'll see that the deployment has a new sched
 It's worth noting that cron isn't the only schedule type available in Prefect. You can use `interval` and `rrule` schedules as well.
 
 Interval schedules are useful for running flows at specific intervals, such as every 10 minutes.
+
 {/* pmd-metadata: notest */}
 ```python
 # Run every 10 minutes.
@@ -432,6 +433,7 @@ interval=timedelta(minutes=10)
 
 For more complex recurrence patterns, Prefect supports RRule schedules. 
 This enables you to run workflows on more intricate schedules. For example, running workflows every Monday, Wednesday, and Friday of the month at 4:00 PM.
+
 {/* pmd-metadata: notest */}
 ```python
 # Run Monday, Tuesday, Wednesday, Thursday, Friday at 4:00 PM UTC.
