@@ -12703,22 +12703,64 @@
             "Body_count_deployments_deployments_count_post": {
                 "properties": {
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -13126,22 +13168,64 @@
                         "default": 1
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "sort": {
                         "$ref": "#/components/schemas/DeploymentSort",
@@ -13608,22 +13692,64 @@
                         "default": 0
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "sort": {
                         "$ref": "#/components/schemas/DeploymentSort",
