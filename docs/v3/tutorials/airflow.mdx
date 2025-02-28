@@ -66,6 +66,7 @@ Let's break down the conversion process step-by-step, and walk through a concret
 ### Choose a DAG to convert
 Start with one of your simpler DAGs (perhaps one of those identified in the audit as an easy win). For illustration, suppose we have an Airflow DAG that runs a simple ETL: it **extracts data**, **transforms** it, and then **loads** the results. In Airflow, this might be defined as:
 
+{/* pmd-metadata: notest */}
 ```python
 # Airflow DAG example (simplified ETL)
 from airflow import DAG
@@ -98,6 +99,7 @@ In this Airflow DAG, we define three tasks using `PythonOperator`, then specify 
 ### Create equivalent Prefect tasks
 In Prefect, we'll take the core logic of `extract_fn`, `transform_fn`, `load_fn` and turn each into a `@task` decorated function. The code inside can remain largely the same (minus any Airflow-specific cruft). For example:
 
+{/* pmd-metadata: notest */}
 ```python
 # Prefect tasks for ETL
 from prefect import task, flow
@@ -122,6 +124,7 @@ Notice we simply applied `@task` to each function. No need for a special operato
 ### Define a Prefect flow
 Now we write a `@flow` function that calls these tasks in the required order:
 
+{/* pmd-metadata: notest */}
 ```python
 @flow
 def etl_pipeline():
@@ -146,6 +149,7 @@ In Airflow, conditional branching is typically handled using BranchPythonOperato
 
 Instead of using BranchPythonOperator and dummy tasks for joining paths, you can structure conditional execution using native Python control flow:
 
+{/* pmd-metadata: notest */}
 ```python
 @flow
 def my_flow():
@@ -185,6 +189,7 @@ If your DAG used Airflow Variables or Connections (Airflow's way to store config
 
 As an illustration, here's how our example **ETL pipeline** looks after conversion:
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow, task
 
@@ -247,6 +252,7 @@ Prefect Cloud offers [Managed Execution](/v3/deploy/infrastructure-examples/mana
     ```
   </Step>
   <Step title="Deploy a Flow to Managed Execution">
+    {/* pmd-metadata: notest */}
     ```python
     from prefect import flow
 
@@ -300,6 +306,7 @@ With the **Airflow LocalExecutor** tasks run as subprocesses on the same machine
 
 For parallelism on a single machine, use [**`DaskTaskRunner`**](/integrations/prefect-dask/index) to enable multi-process execution:
 
+{/* pmd-metadata: notest */}
 ```python
 @flow(task_runner=DaskTaskRunner())
 ```
@@ -335,6 +342,7 @@ For detailed instructions, see [Prefect's Kubernetes Work Pool documentation](/v
    prefect work-pool create k8s-pool --type kubernetes
    ```
 2. **Deploy a flow to the Kubernetes work pool**:
+   {/* pmd-metadata: notest */}
    ```python
    from prefect import flow
 
@@ -404,13 +412,15 @@ Airflow provides hooks and operators for interacting with external systems (e.g.
 **Migrating Airflow Hooks to Prefect**  
 1. **Identify Airflow hooks** used in your DAGs (e.g., `PostgresHook`, `GoogleCloudStorageHook`).  
 2. **Replace them with equivalent Prefect integrations** or direct Python library calls.  
-   - Example: Instead of  
+   - Example: Instead of 
+     {/* pmd-metadata: notest */} 
      ```python
         hook = PostgresHook(postgres_conn_id=my_conn_id)
         engine = hook.get_sqlalchemy_engine()
         session = sessionmaker(bind=engine)()
      ```
      Use Prefect Blocks for secure credential management:
+     {/* pmd-metadata: notest */}
      ```python
         from prefect_sqlalchemy import SqlAlchemyConnector
 
@@ -441,6 +451,7 @@ After migration, similar visibility is available in Prefect's UI, where you can 
 Airflow logs task execution output to files (stored on executor machines or remote storage), viewable through the UI. Prefect **captures stdout, stderr, and Python logging** from tasks and sends them to the Prefect backend, making logs accessible in the **Prefect UI, API, and CLI**.
 
 To ensure logs appear correctly in Prefect's UI, use:
+{/* pmd-metadata: notest */}
 ```python
 @flow(log_prints=True)
 @task(log_prints=True)
