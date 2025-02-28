@@ -114,6 +114,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import DateTime
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
@@ -153,7 +154,7 @@ class Runner:
         query_seconds: Optional[float] = None,
         prefetch_seconds: float = 10,
         heartbeat_seconds: Optional[float] = None,
-        limit: Optional[int] = None,
+        limit: int | type[NotSet] | None = NotSet,
         pause_on_shutdown: bool = True,
         webserver: bool = False,
     ):
@@ -169,7 +170,8 @@ class Runner:
             heartbeat_seconds: The number of seconds to wait between emitting
                 flow run heartbeats. The runner will not emit heartbeats if the value is None.
                 Defaults to `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.
-            limit: The maximum number of flow runs this runner should be running at
+            limit: The maximum number of flow runs this runner should be running at. Provide `None` for no limit.
+                If not provided, the runner will use the value of `PREFECT_RUNNER_PROCESS_LIMIT`.
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
             webserver: a boolean flag for whether to start a webserver for this runner
@@ -210,7 +212,11 @@ class Runner:
         self.started: bool = False
         self.stopping: bool = False
         self.pause_on_shutdown: bool = pause_on_shutdown
-        self.limit: int | None = limit or settings.runner.process_limit
+        self.limit: int | None = (
+            settings.runner.process_limit
+            if limit is NotSet or isinstance(limit, type)
+            else limit
+        )
         self.webserver: bool = webserver
 
         self.query_seconds: float = query_seconds or settings.runner.poll_frequency
@@ -1280,8 +1286,8 @@ class Runner:
                 assert self._limiter is not None
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                " in progress. You can control this limit by passing a `limit` value"
-                " to `serve` or adjusting the PREFECT_RUNNER_PROCESS_LIMIT setting."
+                " in progress. You can control this limit by adjusting the "
+                "PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
             return False
 

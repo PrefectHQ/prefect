@@ -222,7 +222,7 @@ class ProcessWorker(
     async def __aenter__(self) -> ProcessWorker:
         await super().__aenter__()
         self._runner = await self._exit_stack.enter_async_context(
-            Runner(pause_on_shutdown=False)
+            Runner(pause_on_shutdown=False, limit=None)
         )
         return self
 
