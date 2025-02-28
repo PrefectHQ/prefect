@@ -77,7 +77,7 @@ You can create this block by using the Python SDK, or through the Prefect Cloud 
 
 <Expandable title="Python SDK method">
 Create a new python file in your project directory and add the following code:
-
+{/* pmd-metadata: notest */}
 ```python
 from prefect_aws import AwsCredentials
 
@@ -112,6 +112,7 @@ S3 bucket blocks are used to store your S3 bucket configuration. It allows your 
 Similarly to the AWS credentials block, you can create this block by using the Python SDK, or through the Prefect Cloud UI.
 
 <Expandable title="Python SDK method">
+{/* pmd-metadata: notest */}
 ```python
 from prefect_aws import S3Bucket, AwsCredentials
 
@@ -170,6 +171,7 @@ This secret block will allow your flows and tasks to connect to your MotherDuck 
 You can create a secret block by using the Python SDK, or through the Prefect Cloud UI.
 
 <Expandable title="Python SDK method">
+{/* pmd-metadata: notest */}
 ```python
 from prefect_secrets import Secret
 
@@ -228,6 +230,7 @@ Let's start by importing the necessary packages, and creating three tasks that f
 You'll also create a flow that calls these tasks and defines the dependencies between them.
 
 <Expandable title="data ingestion tasks">
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow, task, runtime
 from prefect.artifacts import create_markdown_artifact
@@ -306,6 +309,7 @@ If you run this flow as-is, you'll see the raw data saved to the `raw_data` fold
 For the next two tasks, you'll upload the raw data file to s3, and pull it back down for further processing. You'll need to add these new tasks to your flow function as well.
 
 <Expandable title="S3 tasks">
+{/* pmd-metadata: notest */}
 ```python
 #Copy and paste this code in your mlb_flow.py file.
 
@@ -334,6 +338,7 @@ def download_raw_data_from_s3(s3_file_path):
 </Expandable>
 
 <Expandable title="updated flow function">
+{/* pmd-metadata: notest */}
 ```python
 # Update the mlb_flow function to include the new tasks.
 @flow
@@ -371,6 +376,7 @@ Once you have your flow function updated, you can run the the script to see the 
 Let's create a set of functions that clean up the raw data, run some basic statistics, and save the results to a MotherDuck database.
 
 <Expandable title="data processing and MotherDuck tasks">
+{/* pmd-metadata: notest */}
 ```python
 # Copy and paste this code in your mlb_flow.py file.
 @task
@@ -497,6 +503,7 @@ def load_parquet_to_duckdb(parquet_file_path, team_name):
 </Expandable>
 
 <Expandable title="updated flow function">
+{/* pmd-metadata: notest */}
 ```python
 # Update the mlb_flow function to include the new tasks.    
 @flow
@@ -593,6 +600,7 @@ Correlation between game time and score differential: {game_analysis['time_diffe
 </Expandable>
 
 <Expandable title="updated flow function">
+{/* pmd-metadata: notest */}
 ```python
 # Update the mlb_flow function to include the new tasks.
 @flow
