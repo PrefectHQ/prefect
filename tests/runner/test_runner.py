@@ -211,6 +211,10 @@ class TestInit:
         runner = Runner(limit=None)
         assert runner.limit is None
 
+        # Be extra sure that the limiter is not initialized
+        assert runner._limiter is None
+        assert runner._acquire_limit_slot("foobar") is True
+
     async def test_runner_respects_poll_setting(self):
         runner = Runner()
         assert runner.query_seconds == PREFECT_RUNNER_POLL_FREQUENCY.value()
