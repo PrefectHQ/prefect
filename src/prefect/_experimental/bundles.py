@@ -25,7 +25,7 @@ try:
     import uv
 
     uv_path = uv.find_uv_bin()
-except ImportError:
+except (ImportError, ModuleNotFoundError):
     uv_path = "uv"
 
 
