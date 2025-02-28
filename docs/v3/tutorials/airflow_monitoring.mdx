@@ -1,0 +1,373 @@
+---
+title: Monitor Airflow DAGs with Prefect
+description: Learn how to monitor Airflow runs with Prefect.
+---
+
+
+If you're running Airflow but struggling with limited observability, you might think you need to completely switch tools to solve this issue. However, with Prefect, you can integrate enhanced monitoring capabilities without changing how your DAGs run.
+This tutorial will show you how to add Prefect observability to your existing Airflow workflows, allowing you to:
+
+- Monitor your Airflow DAGs from the Prefect UI
+- Keep your existing Airflow infrastructure running as-is
+- Receive notifications when DAGs fail
+- Gradually transition to Prefect while maintaining visibility across both systems
+
+### Prerequisites
+
+- A working Airflow installation
+- Python and basic Python knowledge
+- Prefect installed and configured
+
+### The Example Airflow DAG
+
+For this tutorial, we're using a simple Airflow DAG with three tasks:
+
+- A first task that simply succeeds
+- A second task that fails 75% of the time (to demonstrate failure monitoring)
+- A third task that only runs if the second task succeeds
+
+Here's what our example DAG looks like:
+
+```python
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime, timedelta
+import random
+
+# Define default arguments
+default_args = {
+    'owner': 'test',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 1, 1),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 0,
+    'retry_delay': timedelta(minutes=1),
+}
+
+def task_success():
+    print("This task will succeed")
+    return "Success!"
+
+def task_random_fail():
+    if random.random() < 0.1:  # 75% chance of failure
+        raise Exception("Random failure!")
+    return "Success!"
+
+def task_final():
+    print("Final task")
+    return "Done!"
+
+# Create the DAG
+with DAG(
+    'test_workflow',
+    default_args=default_args,
+    description='A test DAG for monitoring',
+    schedule='*/5 * * * *',  # Run every 5 minutes for testing
+    catchup=False
+) as dag:
+
+    # Define tasks
+    task1 = PythonOperator(
+        task_id='always_succeed',
+        python_callable=task_success,
+    )
+
+    task2 = PythonOperator(
+        task_id='randomly_fail',
+        python_callable=task_random_fail,
+    )
+
+    task3 = PythonOperator(
+        task_id='final_task',
+        python_callable=task_final,
+    )
+
+    # Set task dependencies
+    task1 >> task2 >> task3
+
+if __name__ == "__main__":
+    dag.test()
+```
+
+# Building the Prefect Monitoring Solution
+
+Now, let's create a Prefect flow that will monitor the status of our Airflow DAGs. The solution consists of three main components:
+
+- A function to check if Airflow is properly set up and running
+- A function to retrieve the current status of specific DAGs
+- A function to analyze the health of those DAGs based on recent run history
+
+<Note>
+    You can see the full code not broken down here: https://github.com/PrefectHQ/Airflow-DAG-Monitoring/blob/main/monitoring/airflow_monitor.py
+</Note>
+
+### Step 1: Setting Up the Custom Exception
+
+First, we'll create a custom exception for Airflow monitoring:
+
+```python
+class AirflowMonitorError(Exception):
+    """Custom exception for Airflow monitoring errors.
+    Used to differentiate Airflow-specific errors from other exceptions."""
+    pass
+```
+
+### Step 2: Creating the Airflow Setup Check Task
+
+Second, we'll create a task that verifies Airflow is properly configured and running:
+
+```python
+@task
+def check_airflow_setup() -> bool:
+    """Verify Airflow is properly configured and running.
+    
+    Returns:
+        bool: True if Airflow is running and accessible, False otherwise.
+    """
+    logger = get_run_logger()
+    airflow_home = os.environ.get("AIRFLOW_HOME")
+    logger.info(f"Current AIRFLOW_HOME: {airflow_home}")
+    
+    try:
+        # Run Airflow health check command
+        health_check = subprocess.run(
+            ["airflow", "jobs", "check"], 
+            capture_output=True, 
+            text=True
+        )
+        return health_check.returncode == 0
+    except Exception as e:
+        logger.error(f"Airflow health check failed: {str(e)}")
+        return False
+```
+
+### Step 3: Creating the DAG Status Task
+
+Next, we'll add a task that gets the detailed status of a specific Airflow DAG and its recent runs:
+
+```python
+@task
+def get_dag_status(dag_id: str) -> Dict[str, Any]:
+    """Get the detailed status of a specific DAG and its recent runs.
+    
+    Args:
+        dag_id (str): The ID of the DAG to check.
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing:
+            - current_state: Latest state of the DAG
+            - recent_runs: List of up to 5 most recent runs
+            - last_run_time: Timestamp of the last run
+            - run_id: ID of the most recent run
+            
+    Raises:
+        AirflowMonitorError: If there's any issue getting or parsing DAG status.
+    """
+    logger = get_run_logger()
+    
+    try:
+        # Construct and execute Airflow command to get DAG runs
+        cmd = ["airflow", "dags", "list-runs", "--dag-id", dag_id, "--output", "json"]
+        logger.info(f"Executing command: {' '.join(cmd)}")
+        
+        # Run command and check for errors
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        
+        # Handle empty result case
+        if not result.stdout.strip():
+            logger.warning("No DAG runs found")
+            return {
+                "current_state": "No runs",
+                "recent_runs": [],
+                "last_run_time": None,
+                "run_id": None
+            }
+            
+        # Parse JSON output from Airflow
+        runs_data = json.loads(result.stdout)
+        # Get only the 5 most recent runs for analysis
+        recent_runs = runs_data[:5]
+        logger.info(f"Found {len(recent_runs)} recent runs")
+        
+        if recent_runs:
+            latest_run = recent_runs[0]
+            return {
+                "current_state": latest_run["state"],
+                "recent_runs": recent_runs,
+                "last_run_time": latest_run["end_date"],
+                "run_id": latest_run["run_id"]
+            }
+        else:
+            return {
+                "current_state": "No runs",
+                "recent_runs": [],
+                "last_run_time": None,
+                "run_id": None
+            }
+            
+    except subprocess.CalledProcessError as e:
+        error_msg = f"Failed to execute Airflow command: {e.stderr}"
+        logger.error(error_msg)
+        raise AirflowMonitorError(error_msg)
+    except json.JSONDecodeError as e:
+        error_msg = f"Failed to parse Airflow output: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Raw output: {result.stdout[:200]}...")
+        raise AirflowMonitorError(error_msg)
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        logger.error(error_msg)
+        raise AirflowMonitorError(error_msg)
+```
+
+### Step 4: Creating the DAG Health Analysis Task
+
+Then we'll add another task that analyzes the health of a DAG by checking the recent run history:
+
+```python
+@task
+def analyze_dag_health(status_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Analyze DAG health by checking recent run history.
+    
+    Raises an error if 3 or more of the last 5 runs failed.
+    
+    Args:
+        status_info (Dict[str, Any]): Status information from get_dag_status
+        
+    Returns:
+        Dict[str, Any]: Analysis results containing:
+            - issues: List of identified problems
+            - severity: Current severity level (info/warning/critical)
+            - recent_failures: Count of recent failures
+            
+    Raises:
+        AirflowMonitorError: If failure threshold is exceeded (3+ failures in 5 runs)
+    """
+    logger = get_run_logger()
+    
+    # Check if we have any runs to analyze
+    if not status_info.get("recent_runs"):
+        return {
+            "issues": ["No DAG runs found to analyze"],
+            "severity": "warning",
+            "recent_failures": 0
+        }
+    
+    # Extract and count failures
+    recent_runs = status_info["recent_runs"]
+    failed_runs = [run for run in recent_runs if run["state"] == "failed"]
+    failed_count = len(failed_runs)
+    total_runs = len(recent_runs)
+    
+    # Log status of each run with visual indicators
+    logger.info("\nAnalyzing recent DAG runs:")
+    for run in recent_runs:
+        state_emoji = "❌" if run["state"] == "failed" else "✅"
+        logger.info(f"{state_emoji} Run {run['run_id']}: {run['state']}")
+    
+    # Check if we've exceeded failure threshold (3+ failures)
+    if failed_count >= 3:
+        # Create visual alert with details
+        logger.error("\n" + "="*50)
+        logger.error("🚨 CRITICAL ALERT: DAG Failure Threshold Exceeded 🚨")
+        logger.error("="*50)
+        logger.error(f"\n{failed_count} out of the last {total_runs} runs have failed!")
+        logger.error("\nFailed Runs:")
+        
+        # Log details for each failed run
+        for run in failed_runs:
+            logger.error(f"\n❌ Run ID: {run['run_id']}")
+            logger.error(f"   Start: {run['start_date']}")
+            logger.error(f"   End: {run['end_date']}")
+        
+        error_msg = f"{failed_count} out of the last {total_runs} DAG runs have failed!"
+        raise AirflowMonitorError(error_msg)
+    
+    return {
+        "issues": [],
+        "severity": "info",
+        "recent_failures": failed_count
+    }
+```
+
+### Step 5: Put the Tasks into a Flow and Running It
+
+Finally, we'll put these tasks into a flow and run the flow.
+```python
+@flow(name="Airflow Monitor")
+def monitor_airflow_dag(dag_id: str = "test_workflow") -> Dict[str, Any]:
+    """Monitor an Airflow DAG and check for failure patterns.
+    
+    This flow will:
+    1. Verify Airflow is running
+    2. Get the status of recent DAG runs
+    3. Analyze run history for failure patterns
+    4. Alert if too many failures are detected
+    
+    Args:
+        dag_id (str): The ID of the DAG to monitor
+        
+    Returns:
+        Dict[str, Any]: Monitoring results containing status and health analysis
+        
+    Raises:
+        AirflowMonitorError: If Airflow is down or too many failures are detected
+    """
+    logger = get_run_logger()
+    
+    # First, verify Airflow is running
+    if not check_airflow_setup():
+        raise AirflowMonitorError("Airflow setup check failed - service may be down!")
+    
+    # Get current DAG status and recent runs
+    status = get_dag_status(dag_id)
+    
+    # Analyze health and check failure threshold
+    health_analysis = analyze_dag_health(status)
+    
+    return {
+        "status": status,
+        "health_analysis": health_analysis
+    }
+
+if __name__ == "__main__":
+    monitor_airflow_dag("test_workflow")
+```
+
+# Testing and Results
+
+When you run the script, it will check the status of your Airflow DAG and analyze its health. Here are two scenarios we'll test:
+
+### Scenario 1: When Many DAG Runs Failed
+
+If three or more of the last five DAG runs have failed, the Prefect flow will fail with an error message. In the Prefect UI, you'll see:
+
+- The flow run status will be marked as "Failed"
+- The error message will indicate that the DAG failure threshold has been exceeded
+- The logs will show details about which specific runs failed
+
+### Scenario 2: When Most DAG Runs Succeeded
+
+If fewer than three of the last five DAG runs have failed, the Prefect flow will complete successfully. In the Prefect UI, you'll see:
+
+- The flow run status will be marked as "Completed"
+- The logs will show a summary of the recent runs
+- No error messages will be displayed
+
+# Benefits of This Approach
+
+Implementing this monitoring solution allows you to:
+
+1. Maintain a single view of all your workflows, whether they're in Airflow or Prefect
+2. Gradually migrate from Airflow to Prefect without losing visibility
+3. Set up notifications when Airflow DAGs fail, using Prefect's notification system
+4. Centralize observability for all your data pipelines
+
+# Next Steps
+
+The process outlined in this tutorial can be upgraded by adding some features. As a next step you can:
+
+- [Send email notifications](/v3/tutorials/alerts).
+- Send a Slack/Teams message to stakeholders. 
+- Store DAG run history to a database or cloud storage.

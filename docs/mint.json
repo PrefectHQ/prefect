@@ -79,6 +79,12 @@
             "v3/tutorials/debug",
             "v3/tutorials/alerts"
           ]
+        },
+        {
+          "group": "Navigating Off Airflow",
+          "pages": [
+            "v3/tutorials/airflow_monitoring"
+          ]
         }
       ],
       "version": "v3"
