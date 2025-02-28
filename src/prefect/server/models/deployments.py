@@ -6,6 +6,7 @@ Intended for internal use by the Prefect REST API.
 from __future__ import annotations
 
 import datetime
+import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID, uuid4
@@ -33,7 +34,7 @@ from prefect.types._datetime import DateTime, create_datetime_instance, now
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
-logger = get_logger("prefect.server.models.deployments")
+logger: logging.Logger = get_logger("prefect.server.models.deployments")
 
 
 @db_injector
