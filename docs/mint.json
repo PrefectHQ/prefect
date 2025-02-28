@@ -244,6 +244,7 @@
     {
       "group": "Migrate",
       "pages": [
+        "v3/tutorials/airflow",
         "v3/resources/upgrade-to-prefect-3",
         "v3/resources/upgrade-agents-to-workers"
       ],
