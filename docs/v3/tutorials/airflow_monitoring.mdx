@@ -28,6 +28,7 @@ For this tutorial, we're using a simple Airflow DAG with three tasks:
 
 Here's what our example DAG looks like:
 
+{/* pmd-metadata: notest */}
 ```python
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -106,6 +107,7 @@ Now, let's create a Prefect flow that will monitor the status of our Airflow DAG
 
 First, we'll create a custom exception for Airflow monitoring:
 
+{/* pmd-metadata: notest */}
 ```python
 class AirflowMonitorError(Exception):
     """Custom exception for Airflow monitoring errors.
@@ -117,6 +119,7 @@ class AirflowMonitorError(Exception):
 
 Second, we'll create a task that verifies Airflow is properly configured and running:
 
+{/* pmd-metadata: notest */}
 ```python
 @task
 def check_airflow_setup() -> bool:
@@ -146,6 +149,7 @@ def check_airflow_setup() -> bool:
 
 Next, we'll add a task that gets the detailed status of a specific Airflow DAG and its recent runs:
 
+{/* pmd-metadata: notest */}
 ```python
 @task
 def get_dag_status(dag_id: str) -> Dict[str, Any]:
@@ -225,6 +229,7 @@ def get_dag_status(dag_id: str) -> Dict[str, Any]:
 
 Then we'll add another task that analyzes the health of a DAG by checking the recent run history:
 
+{/* pmd-metadata: notest */}
 ```python
 @task
 def analyze_dag_health(status_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -294,6 +299,8 @@ def analyze_dag_health(status_info: Dict[str, Any]) -> Dict[str, Any]:
 ### Step 5: Put the Tasks into a Flow and Running It
 
 Finally, we'll put these tasks into a flow and run the flow.
+
+{/* pmd-metadata: notest */}
 ```python
 @flow(name="Airflow Monitor")
 def monitor_airflow_dag(dag_id: str = "test_workflow") -> Dict[str, Any]:
