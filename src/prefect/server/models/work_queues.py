@@ -533,7 +533,6 @@ async def record_work_queue_polls(
         )
 
 
-@db_injector
 async def mark_work_queues_ready(
     db: PrefectDBInterface,
     polled_work_queue_ids: Sequence[UUID],
