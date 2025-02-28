@@ -55,3 +55,6 @@ updates:
   # update uv.lock file
   - package-ecosystem: "uv" 
     directory: "/" # Location of package manifests
+    schedule:
+      interval: "daily"
+    labels: ["development"]
