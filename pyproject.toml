@@ -174,9 +174,8 @@ dev = [
 ]
 
 markdown-docs = [
-    "prefect==3.2.7",
     "pytest-markdown-docs>=0.6.0",
-    "prefect[aws]",
+    "prefect[aws]==3.2.7",
     "prefect[azure]",
     "prefect[bitbucket]",
     "prefect[dask]",
