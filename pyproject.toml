@@ -79,13 +79,15 @@ dependencies = [
     "typing_extensions>=4.5.0,<5.0.0",
     "ujson>=5.8.0,<6.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
-    "websockets>=10.4,<14.0",
+    "websockets>=13.0,<16.0",
+    "uv>=0.6.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
 Documentation = "https://docs.prefect.io"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
+
 [project.optional-dependencies]
 otel = [
     "opentelemetry-distro>=0.48b0,<1.0.0",

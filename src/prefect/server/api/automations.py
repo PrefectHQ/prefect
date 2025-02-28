@@ -39,6 +39,11 @@ async def create_automation(
     automation: AutomationCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Automation:
+    """
+    Create an automation.
+
+    For more information, see https://docs.prefect.io/v3/automate.
+    """
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 

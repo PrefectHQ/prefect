@@ -36,6 +36,10 @@ const deploymentsHandlers = [
 		return HttpResponse.json([]);
 	}),
 
+	http.patch(buildApiUrl("/deployments/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+
 	http.delete(buildApiUrl("/deployments/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),

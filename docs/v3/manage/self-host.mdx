@@ -52,6 +52,24 @@ You can save the API server address in a Prefect profile.
 Whenever that profile is active, the API endpoint is at that address.
 See [Profiles and configuration](/v3/develop/settings-and-profiles/) for more information on profiles and configurable Prefect settings.
 
+### Run a server in a Docker container
+
+If you're running a server in a Docker container, you will need to:
+- Port forward the server to your local machine (e.g. `-p 4200:4200`)
+- Set the `--host` flag on the `prefect server start` command to `0.0.0.0`
+
+For example:
+
+```bash
+docker run -p 4200:4200 -d --rm prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+```
+
+<Tip>
+The `-d` flag runs the container in detached mode (i.e. in the background) and the `--rm` flag removes the container once it is stopped.
+</Tip>
+
+For more information, see the Docker topic about [Networking using the host network](https://docs.docker.com/network/network-tutorial-host/).
+
 ## The Prefect database
 
 The Prefect database persists data to track the state of your flow runs and related Prefect concepts, including:

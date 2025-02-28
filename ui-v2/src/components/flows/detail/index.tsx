@@ -9,7 +9,10 @@ import {
 } from "./metadata-columns";
 import { columns as flowRunColumns } from "./runs-columns";
 
+import { FlowRun } from "@/api/flow-runs";
+import { Flow } from "@/api/flows";
 import { components } from "@/api/prefect";
+import FlowRunsBarChart from "@/components/flow-runs/activity-chart/activity-chart";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -59,7 +62,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -95,14 +98,13 @@ export default function FlowDetail({
 	deployments,
 	tab = "runs",
 }: {
-	flow: components["schemas"]["Flow"];
-	flowRuns: components["schemas"]["FlowRun"][];
-	activity: components["schemas"]["FlowRun"][];
+	flow: Flow;
+	flowRuns: FlowRun[];
+	activity: FlowRun[];
 	deployments: components["schemas"]["DeploymentResponse"][];
 	tab: "runs" | "deployments" | "details";
 }): JSX.Element {
 	const navigate = useNavigate();
-	console.log(activity);
 
 	const flowRunTable = useReactTable({
 		data: flowRuns,
@@ -149,6 +151,15 @@ export default function FlowDetail({
 
 	return (
 		<div className="container mx-auto">
+			<div className="h-[200px] mb-2">
+				<FlowRunsBarChart
+					className="mb-2"
+					flowName={flow.name}
+					flowRuns={activity}
+					endWindow={new Date(Date.now())}
+					startWindow={new Date(Date.now() - 1000 * 60 * 24 * 7)}
+				/>
+			</div>
 			<Tabs
 				value={tab}
 				onValueChange={(value) =>

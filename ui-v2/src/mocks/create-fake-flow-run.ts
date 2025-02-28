@@ -1,13 +1,14 @@
-import { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
-import type { components } from "@/api/prefect";
+import {
+	FlowRun,
+	FlowRunWithDeploymentAndFlow,
+	FlowRunWithFlow,
+} from "@/api/flow-runs";
 import { faker } from "@faker-js/faker";
 import { createFakeDeployment } from "./create-fake-deployment";
 import { createFakeFlow } from "./create-fake-flow";
 import { createFakeState } from "./create-fake-state";
 
-export const createFakeFlowRun = (
-	overrides?: Partial<components["schemas"]["FlowRun"]>,
-): components["schemas"]["FlowRun"] => {
+export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
 	const { stateType, stateName } = createFakeState();
 
 	return {
@@ -82,8 +83,25 @@ export const createFakeFlowRun = (
 	};
 };
 
+export const createFakeFlowRunWithFlow = (
+	overrides?: Partial<FlowRun>,
+): FlowRunWithFlow => {
+	const flowRun = createFakeFlowRun();
+	return {
+		...flowRun,
+		flow: createFakeFlow(),
+		...overrides,
+	};
+};
+
+export const createFakeFlowRuns = (
+	numberOfFlowRuns: number = 10,
+): FlowRun[] => {
+	return Array.from({ length: numberOfFlowRuns }, () => createFakeFlowRun());
+};
+
 export const createFakeFlowRunWithDeploymentAndFlow = (
-	overrides?: Partial<components["schemas"]["FlowRun"]>,
+	overrides?: Partial<FlowRun>,
 ): FlowRunWithDeploymentAndFlow => {
 	const flowRun = createFakeFlowRun();
 	return {

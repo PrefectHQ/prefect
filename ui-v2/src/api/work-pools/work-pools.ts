@@ -18,11 +18,13 @@ export type WorkPoolsCountFilter =
  * @property {function} count - Generates key for specific filtered count queries
  *
  * ```
- * all    =>   ['work-pools']
- * lists  =>   ['work-pools', 'list']
- * list   =>   ['work-pools', 'list', { ...filter }]
- * counts =>   ['work-pools', 'counts']
- * count  =>   ['work-pools', 'counts', { ...filter }]
+ * all		=>   ['work-pools']
+ * lists	=>   ['work-pools', 'list']
+ * list		=>   ['work-pools', 'list', { ...filter }]
+ * counts	=>   ['work-pools', 'counts']
+ * count	=>   ['work-pools', 'counts', { ...filter }]
+ * details	=>   ['work-pools', 'details']
+ * detail	=>   ['work-pools', 'details', workPoolName]
  * ```
  */
 export const queryKeyFactory = {
@@ -33,6 +35,8 @@ export const queryKeyFactory = {
 	counts: () => [...queryKeyFactory.all(), "counts"] as const,
 	count: (filter: WorkPoolsCountFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (name: string) => [...queryKeyFactory.counts(), name] as const,
 };
 
 // ----------------------------
@@ -107,6 +111,31 @@ export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 				throw new Error("'data' expected");
 			}
 
+			return res.data;
+		},
+	});
+
+/**
+ * Builds a query configuration for getting a work pool details
+ *
+ * @param name - Work pool name to get details of
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useQuery(buildWorkPoolDetailsQuery('myWorkPool');
+ * ```
+ */
+export const buildWorkPoolDetailsQuery = (name: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(name),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/work_pools/{name}", {
+				params: { path: { name } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
 			return res.data;
 		},
 	});

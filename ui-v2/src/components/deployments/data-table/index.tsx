@@ -42,26 +42,14 @@ export type DeploymentsDataTableProps = {
 	onPaginationChange: (pagination: PaginationState) => void;
 	onSortChange: (sort: components["schemas"]["DeploymentSort"]) => void;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
-	onQuickRun: (deployment: DeploymentWithFlow) => void;
-	onCustomRun: (deployment: DeploymentWithFlow) => void;
-	onEdit: (deployment: DeploymentWithFlow) => void;
-	onDuplicate: (deployment: DeploymentWithFlow) => void;
 };
 
 const columnHelper = createColumnHelper<DeploymentWithFlow>();
 
 const createColumns = ({
-	onQuickRun,
-	onCustomRun,
-	onEdit,
 	onDelete,
-	onDuplicate,
 }: {
-	onQuickRun: (deployment: DeploymentWithFlow) => void;
-	onCustomRun: (deployment: DeploymentWithFlow) => void;
-	onEdit: (deployment: DeploymentWithFlow) => void;
 	onDelete: (deployment: DeploymentWithFlow) => void;
-	onDuplicate: (deployment: DeploymentWithFlow) => void;
 }) => [
 	columnHelper.display({
 		id: "name",
@@ -132,16 +120,7 @@ const createColumns = ({
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: (props) => (
-			<ActionsCell
-				{...props}
-				onQuickRun={onQuickRun}
-				onCustomRun={onCustomRun}
-				onEdit={onEdit}
-				onDelete={onDelete}
-				onDuplicate={onDuplicate}
-			/>
-		),
+		cell: (props) => <ActionsCell {...props} onDelete={onDelete} />,
 	}),
 ];
 
@@ -155,10 +134,6 @@ export const DeploymentsDataTable = ({
 	onPaginationChange,
 	onSortChange,
 	onColumnFiltersChange,
-	onQuickRun,
-	onCustomRun,
-	onEdit,
-	onDuplicate,
 }: DeploymentsDataTableProps) => {
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
@@ -209,16 +184,12 @@ export const DeploymentsDataTable = ({
 	const table = useReactTable({
 		data: deployments,
 		columns: createColumns({
-			onQuickRun,
-			onCustomRun,
-			onEdit,
 			onDelete: (deployment) => {
 				const name = deployment.flow?.name
 					? `${deployment.flow?.name}/${deployment.name}`
 					: deployment.name;
 				confirmDelete({ ...deployment, name });
 			},
-			onDuplicate,
 		}),
 		getCoreRowModel: getCoreRowModel(),
 		pageCount,

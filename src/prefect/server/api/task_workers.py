@@ -20,7 +20,11 @@ async def read_task_workers(
         default=None, description="The task worker filter", embed=True
     ),
 ) -> List[TaskWorkerResponse]:
-    """Read active task workers. Optionally filter by task keys."""
+    """
+    Read active task workers. Optionally filter by task keys.
+
+    For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
+    """
 
     if task_worker_filter and task_worker_filter.task_keys:
         return await models.task_workers.get_workers_for_task_keys(
