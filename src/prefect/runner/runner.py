@@ -1286,8 +1286,8 @@ class Runner:
                 assert self._limiter is not None
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                " in progress. You can control this limit by passing a `limit` value"
-                " to `serve` or adjusting the PREFECT_RUNNER_PROCESS_LIMIT setting."
+                " in progress. You can control this limit by adjusting the "
+                "PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
             return False
 
