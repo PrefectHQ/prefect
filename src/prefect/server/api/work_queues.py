@@ -164,6 +164,7 @@ async def read_work_queue_runs(
 
     background_tasks.add_task(
         mark_work_queues_ready,
+        db=db,
         polled_work_queue_ids=[work_queue_id],
         ready_work_queue_ids=(
             [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
@@ -172,6 +173,7 @@ async def read_work_queue_runs(
 
     background_tasks.add_task(
         mark_deployments_ready,
+        db=db,
         work_queue_ids=[work_queue_id],
     )
 
