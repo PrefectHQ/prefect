@@ -67,6 +67,7 @@ The task itself has a few modifications to simulate random API failures.
 ### Implement a simple retry
 This example shows how to use the `@task` decorator to apply a simple retry strategy to the `get_recent_games` task.
 
+{/* pmd-metadata: notest */}
 ```python
 #Replace the existing get_recent_games task with this one.
 
@@ -92,7 +93,7 @@ A delayed retry in Prefect is a mechanism that automatically retries a task or f
 This feature is particularly useful for handling transient errors or temporary issues with external systems, like rate limiting or network issues.
 All that's needed is an additional `retry_delay_seconds` utility in the `@task` decorator to implement this retry strategy.
 
-
+{/* pmd-metadata: notest */}
 ```python
 #Replace the existing get_recent_games task with this one.
 
@@ -117,6 +118,7 @@ def get_recent_games(team_name, start_date, end_date):
 Exponential backoff is a retry strategy where the delay between retry attempts increases, well, exponentially!
 This means that each subsequent retry attempt waits longer than the previous one. In Prefect, this can be implemented by adding the `exponential_backoff` utility to the `@task` decorator.
 
+{/* pmd-metadata: notest */}
 ```python
 #Replace the existing get_recent_games task with this one.
 
@@ -143,7 +145,7 @@ This is useful for more complex retry logic, like retrying only when a specific 
 To implement a retry handler, you'll need to define a separate function that Prefect will use to determine whether to retry a task.
 This function will take three arguments: `task`, `task_run`, and `state`. It will return a boolean value indicating whether to retry the task.
 
-
+{/* pmd-metadata: notest */}
 ```python
 #Add this code snippet to the mlb_flow.py file.
 
@@ -165,7 +167,7 @@ def retry_handler(task, task_run, state) -> bool:
 
 After defining the handler, you can add it to the `@task` decorator using the `retry_condition_fn` parameter.
 
-
+{/* pmd-metadata: notest */}
 ```python
 #Replace the existing get_recent_games task with this one.
 
@@ -210,6 +212,7 @@ cd dev-day-zoom-out/track_1_build_workflows/session_2_resilent_workflows/1_start
 
 First, you'll need to import the `transaction` utility from the `prefect.transactions` module.
 
+{/* pmd-metadata: notest */}
 <Expandable title="Necessary Imports">
 ```python
 # Add this import to your script.
@@ -221,6 +224,7 @@ The following code snippet can be added to the portion of script where the rest 
 There is an `on_rollback` hook that is designed to delete the file if the data quality check fails.
 If less than 5 entries are found in the file, the data quality check will fail, triggering the rollback.
 
+{/* pmd-metadata: notest */}
 <Expandable title="Data Quality Check and Rollback">
 ```python
 # Paste this code snippet where the rest of the tasks are defined.
@@ -246,6 +250,7 @@ def quality_test(file_path):
 In your flow function, you'll add a transaction block that will run the data quality check against the file containing the raw game data. 
 
 <Expandable title="Flow with Transaction Block">
+{/* pmd-metadata: notest */}
 ```python
 # Replace the existing mlb_flow function with this one.
 @flow
@@ -334,6 +339,7 @@ cd dev-day-zoom-out/track_1_build_workflows/session_2_resilent_workflows/4_deplo
 
 The following code snippet shows the contents of the `mlb_flow_deploy.py` script, which uses the `from_source()` and `deploy()` methods.
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 from pathlib import Path
@@ -387,6 +393,7 @@ One of the most commonly used types of schedules are cron schedules, which is us
 The following example shows how to add a cron schedule to the deployment so that the flow will run every day at 12:00 AM.
 Try it out for yourself by making the changes to the mlb_flow_deploy.py file and running it again.
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 from pathlib import Path
@@ -417,6 +424,7 @@ After running the updated script, you'll see that the deployment has a new sched
 It's worth noting that cron isn't the only schedule type available in Prefect. You can use `interval` and `rrule` schedules as well.
 
 Interval schedules are useful for running flows at specific intervals, such as every 10 minutes.
+{/* pmd-metadata: notest */}
 ```python
 # Run every 10 minutes.
 interval=timedelta(minutes=10)
@@ -424,6 +432,7 @@ interval=timedelta(minutes=10)
 
 For more complex recurrence patterns, Prefect supports RRule schedules. 
 This enables you to run workflows on more intricate schedules. For example, running workflows every Monday, Wednesday, and Friday of the month at 4:00 PM.
+{/* pmd-metadata: notest */}
 ```python
 # Run Monday, Tuesday, Wednesday, Thursday, Friday at 4:00 PM UTC.
 rrule="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=16;BYMINUTE=0"
