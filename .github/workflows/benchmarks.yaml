@@ -41,9 +41,6 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
-      - name: Install the project
-        run:  uv sync --group benchmark --compile-bytecode
-
       - name: Prepare benchmark comparisons
         # Note: We use a "cache" instead of artifacts because artifacts are not available
         #       across workflow runs.
@@ -71,6 +68,8 @@ jobs:
         env:
           HEAD_REF: ${{ github.head_ref }}
           GITHUB_SHA: ${{ github.sha }}
+          UV_COMPILE_BYTECODE: 1
+
         # Includes comparison to previous benchmarks if available
         # Import benchmark is ignored because because we run those
         # benchmarks via CodSpeed
@@ -88,7 +87,7 @@ jobs:
           sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
 
           PREFECT_API_URL="http://127.0.0.1:4200/api" \
-          uv run python -m benches \
+          uv run --group benchmark -m benches \
           --ignore=benches/bench_import.py \
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \

@@ -73,9 +73,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
 
-      - name: Install packages
-        run: uv sync --group markdown-docs
-
       - name: Start server
         run: |
           PREFECT_HOME=$(pwd) uv run prefect server start&
@@ -83,6 +80,8 @@ jobs:
 
       - name: Run tests
         run: >
-          PREFECT_API_URL="http://127.0.0.1:4200/api" uv run pytest docs/ --markdown-docs -m markdown-docs
-          --numprocesses auto
+          PREFECT_API_URL="http://127.0.0.1:4200/api" \
+          uv run --group markdown-docs pytest docs/ \
+          --markdown-docs -m markdown-docs \
+          --numprocesses auto \
           --maxprocesses 6

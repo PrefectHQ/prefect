@@ -42,9 +42,6 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
           
-      - name: Install the project
-        run:  uv sync --group benchmark --compile-bytecode
-
       - name: Start server
         run: |
           PREFECT_HOME=$(pwd) uv run prefect server start&
@@ -57,9 +54,10 @@ jobs:
         uses: CodSpeedHQ/action@v3
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
+          UV_COMPILE_BYTECODE: 1
         with:
           run: >
-            uv run pytest 
+            uv run --group benchmark pytest 
             benches/bench_import.py 
             benches/bench_tasks.py 
             benches/bench_flows.py::bench_flow_decorator

@@ -113,9 +113,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
 
-      - name: Install packages
-        run: uv sync
-
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
         run: >
@@ -246,8 +243,6 @@ jobs:
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
-      - name: Install packages
-        run: uv sync
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -331,9 +326,6 @@ jobs:
         enable-cache: true
         python-version: "3.12"
         cache-dependency-glob: "pyproject.toml"
-
-    - name: Install packages
-      run: uv sync
 
     - name: Run tests
       run: |

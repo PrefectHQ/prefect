@@ -34,15 +34,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.9"
-          enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
-
-      - name: Install the project
-        run: uv sync --compile-bytecode --no-editable
 
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -53,9 +44,18 @@ jobs:
       - name: Install mintlify-scrape
         run: npm install -g @mintlify/scraping
 
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.9"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
       - name: Run pre-commit
+        env:
+          UV_COMPILE_BYTECODE: 1
         run: |
-          uv run pre-commit run --show-diff-on-failure --color=always --all-files
+          uv run --no-editable pre-commit run --show-diff-on-failure --color=always --all-files
 
   type-checks:
     name: Type Checks
@@ -73,15 +73,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
       
-      - name: Install the project
-        run: uv sync --compile-bytecode --no-editable
-
       - name: Run type completeness check
         run: >-
-          uv run pyright --ignoreexternal --verifytypes prefect
+          uv run --no-editable pyright --ignoreexternal --verifytypes prefect
 
       - name: Run pyright check
         run: >-
-          uv run pyright -p pyrightconfig-ci.json
+          uv run --no-editable pyright -p pyrightconfig-ci.json
 
 
