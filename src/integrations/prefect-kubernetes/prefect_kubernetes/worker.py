@@ -1205,9 +1205,9 @@ class KubernetesWorker(
             )
             most_recent_pod = pods.items[0] if pods.items else None
             first_container_status = (
-                getattr(most_recent_pod, "status", None) and
-                getattr(most_recent_pod.status, "container_statuses", None) and
-                most_recent_pod.status.container_statuses[0]
+                getattr(most_recent_pod, "status", None)
+                and getattr(most_recent_pod.status, "container_statuses", None)
+                and most_recent_pod.status.container_statuses[0]
             )
 
         if not first_container_status:
