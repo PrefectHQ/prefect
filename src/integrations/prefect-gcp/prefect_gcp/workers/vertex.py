@@ -140,15 +140,6 @@ class VertexAIWorkerVariables(BaseVariables):
         title="Maximum Run Time (Hours)",
         description="The maximum job running time, in hours",
     )
-    persistent_resource_id: Optional[str] = Field(
-        default=None,
-        title="Persistent Resource ID",
-        description="The ID of the PersistentResource in the same Project and Location "
-        "which to run if this is specified, the job will be run on existing machines "
-        "held by the PersistentResource instead of on-demand short-live machines. "
-        "See: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.CustomJobSpec",
-        examples="PERSISTENT_RESOURCE_ID",
-    )
     network: Optional[str] = Field(
         default=None,
         title="Network",
