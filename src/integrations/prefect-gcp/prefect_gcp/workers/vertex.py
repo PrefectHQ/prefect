@@ -170,7 +170,7 @@ class VertexAIWorkerVariables(BaseVariables):
             "See REST: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/CustomJobSpec#Scheduling"
         ),
         examples=[
-            {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}},
+            {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}}
         ],
     )
     service_account_name: Optional[str] = Field(
