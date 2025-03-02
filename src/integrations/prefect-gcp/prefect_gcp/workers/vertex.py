@@ -55,7 +55,8 @@ try:
     )
     from google.cloud.aiplatform_v1.types.job_state import JobState
     from google.cloud.aiplatform_v1.types.machine_resources import DiskSpec, MachineSpec
-    from google.protobuf.duration_pb2 import Duration
+
+    # from google.protobuf.duration_pb2 import Duration # Remove unused import
     from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
 except ModuleNotFoundError:
     pass
@@ -139,6 +140,15 @@ class VertexAIWorkerVariables(BaseVariables):
         title="Maximum Run Time (Hours)",
         description="The maximum job running time, in hours",
     )
+    persistent_resource_id: Optional[str] = Field(
+        default=None,
+        title="Persistent Resource ID",
+        description="The ID of the PersistentResource in the same Project and Location "
+        "which to run if this is specified, the job will be run on existing machines "
+        "held by the PersistentResource instead of on-demand short-live machines. "
+        "See: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.CustomJobSpec",
+        examples="PERSISTENT_RESOURCE_ID",
+    )
     network: Optional[str] = Field(
         default=None,
         title="Network",
@@ -169,7 +179,7 @@ class VertexAIWorkerVariables(BaseVariables):
             "See REST: https://cloud.google.com/vertex-ai/docs/reference/rest/v1/CustomJobSpec#Scheduling"
         ),
         examples=[
-            {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}}
+            {"scheduling": {"strategy": "FLEX_START", "max_wait_duration": "1800s"}},
         ],
     )
     service_account_name: Optional[str] = Field(
@@ -183,6 +193,26 @@ class VertexAIWorkerVariables(BaseVariables):
             "used. Takes precedence over the service account found in GCP credentials, "
             "and required if a service account cannot be detected in GCP credentials."
         ),
+    )
+    enable_web_access: Optional[bool] = Field(
+        default=None,
+        title="Enable Web Access",
+        description=(
+            "Whether you want Vertex AI to enable `interactive shell access` "
+            "See: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.CustomJobSpec"
+        ),
+        examples=[True],
+    )
+    enable_dashboard_access: Optional[bool] = Field(
+        default=None,
+        title="Enable Dashboard Access",
+        description=(
+            "Whether you want Vertex AI to enable access to the customized dashboard in training "
+            "chief container. If set to true, you can access the dashboard at the URIs given by "
+            "CustomJob.web_access_uris or Trial.web_access_uris (within HyperparameterTuningJob.trials). "
+            "See: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.CustomJobSpec"
+        ),
+        examples=[True],
     )
     job_watch_poll_interval: float = Field(
         default=5.0,
@@ -252,6 +282,8 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
                 "reserved_ip_ranges": "{{ reserved_ip_ranges }}",
                 "maximum_run_time_hours": "{{ maximum_run_time_hours }}",
                 "scheduling": "{{ scheduling }}",
+                "enable_web_access": "{{ enable_web_access }}",
+                "enable_dashboard_access": "{{ enable_dashboard_access }}",
                 "worker_pool_specs": [
                     {
                         "replica_count": 1,
@@ -492,25 +524,18 @@ class VertexAIWorker(BaseWorker):
 
         if "scheduling" in configuration.job_spec:
             scheduling_params = configuration.job_spec.pop("scheduling")
-            for key, value in scheduling_params.items():
-                # allow users to pass 'strategy' as Scheduling.Strategy or str
-                if key == "strategy":
-                    if isinstance(value, Scheduling.Strategy):
-                        setattr(scheduling, key, value)
-                    else:
-                        setattr(scheduling, key, Scheduling.Strategy[value])
-                else:
-                    setattr(scheduling, key, value)
+            # allow users to pass 'scheduling.strategy' as str
+            if type(scheduling_params.get("strategy")) is str:
+                scheduling_params["strategy"] = Scheduling.Strategy[
+                    scheduling_params["strategy"]
+                ]
 
-        # set 'timeout' using "maximum_run_time_hours" for backward compatibility
+            scheduling = Scheduling(**scheduling_params)
+
+        # set 'scheduling.timeout' using "maximum_run_time_hours" for backward compatibility
         if "maximum_run_time_hours" in configuration.job_spec:
-            timeout = Duration()
-            timeout.FromTimedelta(
-                td=datetime.timedelta(
-                    hours=configuration.job_spec["maximum_run_time_hours"]
-                )
-            )
-            scheduling.timeout = timeout
+            maximum_run_time_hours = configuration.job_spec["maximum_run_time_hours"]
+            scheduling.timeout = str(maximum_run_time_hours * 60 * 60) + "s"
 
         if "service_account_name" in configuration.job_spec:
             service_account_name = configuration.job_spec.pop("service_account_name")
