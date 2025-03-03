@@ -249,11 +249,11 @@ def quality_test(file_path):
 </Expandable>
 
 In your flow function, you'll add a transaction block that will run the data quality check against the file containing the raw game data. 
+Replace the existing `mlb_flow` function with the following.
 
 <Expandable title="Flow with Transaction Block">
 {/* pmd-metadata: notest */}
 ```python
-# Replace the existing mlb_flow function with this one.
 @flow
 def mlb_flow_rollback(team_name, start_date, end_date):
     # Get recent games.
