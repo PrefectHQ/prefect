@@ -97,8 +97,8 @@ To implement this retry strategy, add a `retry_delay_seconds` utility to the `ge
 {/* pmd-metadata: notest */}
 ```python
 
-#The retry_delay_seconds option accepts a list of integers for customized retry behavior.
-#This task will retry 10 times with a delay of 1 second each time.
+# The retry_delay_seconds option accepts a list of integers for customized retry behavior.
+# This task will retry 10 times with a delay of 1 second each time.
 @task(retries=10, retry_delay_seconds=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 def get_recent_games(team_name, start_date, end_date):
     # Simulate random API failure (70% chance).
