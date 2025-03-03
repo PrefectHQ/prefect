@@ -250,8 +250,14 @@ def copy_directory(directory: str, path: str) -> None:
             if os.path.exists(destination):
                 shutil.rmtree(destination)
             shutil.copytree(source, destination, symlinks=True)
+            # ensure copied files are writeable
+            for root, dirs, files in os.walk(destination):
+                for f in files:
+                    os.chmod(os.path.join(root, f), 0o600)
         else:
             shutil.copy2(source, destination)
+            # Ensure copied file is writeable
+            os.chmod(destination, 0o600)
 
 
 async def custom_internal_exception_handler(
