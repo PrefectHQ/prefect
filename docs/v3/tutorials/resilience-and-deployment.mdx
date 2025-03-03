@@ -272,7 +272,7 @@ def mlb_flow_rollback(team_name, start_date, end_date):
         txn.set("filepath", raw_file_path)
         # Save raw data to a file.
         save_raw_data_to_file(game_data, raw_file_path)
-        time.sleep(10) # Add a delay to give you a chance to see the file.
+        time.sleep(10)  # Add a delay to give you a chance to see the file.
         quality_test(raw_file_path)
         # Upload raw data to s3.
         s3_file_path = upload_raw_data_to_s3(raw_file_path)
