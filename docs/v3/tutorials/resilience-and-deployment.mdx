@@ -278,7 +278,7 @@ def mlb_flow_rollback(team_name, start_date, end_date):
         s3_file_path = upload_raw_data_to_s3(raw_file_path)
     
     
-    #Download raw data from s3.
+    # Download raw data from s3.
     raw_data = download_raw_data_from_s3(s3_file_path)
     
     # Clean the time value. 
