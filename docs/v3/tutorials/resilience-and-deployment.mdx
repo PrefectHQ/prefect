@@ -403,7 +403,7 @@ Try it out for yourself by making the changes to the mlb_flow_deploy.py file and
 from prefect import flow
 from pathlib import Path
 
-#This helper function reads the requirements.txt file.
+# This helper function reads the requirements.txt file.
 def read_requirements(file_path="requirements.txt"):
     """Read and parse requirements.txt file"""
     requirements = Path(file_path).read_text().splitlines()
