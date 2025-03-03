@@ -267,7 +267,7 @@ def mlb_flow_rollback(team_name, start_date, end_date):
     flow_run_name = runtime.flow_run.name
     raw_file_path = f"./raw_data/{today}-{team_name}-{flow_run_name}-boxscore.json"
     
-    #Create transaction which will be used to rollback if the data quality test fails.
+    # Create transaction which will be used to rollback if the data quality test fails.
     with transaction() as txn:
         txn.set("filepath", raw_file_path)
         # Save raw data to a file.
