@@ -92,11 +92,10 @@ def get_recent_games(team_name, start_date, end_date):
 ### Implement a delayed retry
 A delayed retry in Prefect is a mechanism that automatically retries a task or flow run after a specified delay when it fails. 
 This feature is particularly useful for handling transient errors or temporary issues with external systems, like rate limiting or network issues.
-All that's needed is an additional `retry_delay_seconds` utility in the `@task` decorator to implement this retry strategy.
+To implement this retry strategy, add a `retry_delay_seconds` utility to the `get_recent_games` task's `@task` decorator.
 
 {/* pmd-metadata: notest */}
 ```python
-#Replace the existing get_recent_games task with this one.
 
 #The retry_delay_seconds option accepts a list of integers for customized retry behavior.
 #This task will retry 10 times with a delay of 1 second each time.
