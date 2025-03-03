@@ -77,7 +77,7 @@ Replace the existing `get_recent_games` task with the following.
 def get_recent_games(team_name, start_date, end_date):
      # Simulate random API failure (70% chance).
     if random.random() < 0.7:
-        time.sleep(2) #Add a delay to see the retries in action.
+        time.sleep(2)  # Add a delay to see the retries in action.
         raise Exception("Simulated API failure: MLB Stats API is temporarily unavailable")
     
     # Get all games for the provided team and date range.
