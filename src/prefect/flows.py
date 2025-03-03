@@ -2163,10 +2163,13 @@ def serve(
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
         if deployment.work_pool_name:
-            raise ValueError(
-                "Work pools are not necessary for served deployments, omit the "
-                "`work_pool_name` argument."
+            warnings.warn(
+                "Work pools are not necessary for served deployments - "
+                "the `work_pool_name` argument will be ignored. Omit the "
+                f"`work_pool_name` argument from `to_deployment` for {deployment.name!r}.",
+                UserWarning,
             )
+            deployment.work_pool_name = None
         runner.add_deployment(deployment)
 
     if print_starting_message:
