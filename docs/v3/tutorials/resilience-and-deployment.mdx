@@ -182,7 +182,7 @@ def get_recent_games(team_name, start_date, end_date):
         time.sleep(2)  # Allow us to see the retries in action.
         raise Exception("Simulated API failure: MLB Stats API is temporarily unavailable")
     elif failure_chance >= 0.4:
-        time.sleep(2) #Allow us to see the retries in action.
+        time.sleep(2)  # Allow us to see the retries in action.
         raise TimeoutError("Simulated timeout: Request took too long") # Simulate empty response.
     
     # If no failure, proceed with actual API call.
