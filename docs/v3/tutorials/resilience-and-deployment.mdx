@@ -159,7 +159,7 @@ def retry_handler(task, task_run, state) -> bool:
         # If Exception is a TimeoutError, retry.
         if isinstance(e, TimeoutError):
             return True
-        #For any other exception, do not retry.
+        # For any other exception, do not retry.
         return False
 
 ```
