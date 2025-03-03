@@ -7,7 +7,7 @@ import { http, HttpResponse } from "msw";
 import { useState } from "react";
 import { WorkQueueSelect } from "./work-queue-select";
 
-const MOCK_WORK_POOLS_DATA = Array.from({ length: 5 }, () =>
+const MOCK_WORK_QUEUES_DATA = Array.from({ length: 5 }, () =>
 	createFakeWorkQueue({ work_pool_name: "my-work-pool" }),
 );
 const PRESET_OPTIONS = [{ label: "None", value: undefined }];
@@ -21,7 +21,7 @@ const meta = {
 				http.post(
 					buildApiUrl("/work_pools/:work_pool_name/queues/filter"),
 					() => {
-						return HttpResponse.json(MOCK_WORK_POOLS_DATA);
+						return HttpResponse.json(MOCK_WORK_QUEUES_DATA);
 					},
 				),
 			],
