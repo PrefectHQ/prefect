@@ -38,53 +38,35 @@ The following steps will help you set up the AWS resources and Prefect blocks fo
 Sign in to the [AWS Console](https://aws.amazon.com/console/) to create an AWS IAM User and an AWS S3 bucket.
 Sign in to [Prefect Cloud](https://app.prefect.cloud/) to create a Prefect AWS credentials block and an S3 bucket block.
 
-#### Configure an AWS IAM User 
-In the AWS Console, complete the following steps:
-
-1. Click **Users** in the left sidebar
-2. Click **Create user**
-3. Enter a username (for example, "prefect-s3")
-4. Select **Attach policies directly** from the **Permissions** options, and choose `AmazonS3FullAccess` from the **Permissions** policy list
-5. Create the user
-6. Once the user is created, click the new user record
-7. Click **Create access key**
-8. From the **Access key best practices & alternatives** menu, select **Local code**
-9. Click **Next**
-10. Set a description tag for the access key (for example, "Prefect S3 Access Key")
-11. Click **Create access key**
+#### Configure an AWS IAM User
+Follow the [AWS documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html) to create an IAM User with `AmazonS3FullAccess` permissions.
 
 <Tip>
-Important: Save the **Access Key ID** and **Secret Access Key** - you'll need these to create a Prefect AWS credentials block.
+Save the **Access Key ID** and **Secret Access Key** - you'll need these to create a Prefect AWS credentials block.
 </Tip>
 
 #### Create an AWS S3 bucket
-To create an AWS S3 bucket, complete the following steps in the AWS Console:
+Follow the [AWS documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html) to create an AWS S3 bucket.
 
-1. Navigate to S3 service
-2. Click **Create bucket**
-3. Enter a unique bucket name (for example, "mlb-game-data")
-4. Select your region
-5. Keep default settings for:
-    - Object Ownership (ACLs disabled)
-    - Block Public Access settings
-    - Bucket Versioning
-    - Tags
-6. Click **Create bucket**
+<Tip>
+Save the bucket name - you'll need this to create a Prefect S3 bucket block.
+</Tip>
 
 #### Create a Prefect AWS Credentials block
 The Access Key ID and Secret Access Key from the IAM User can be stored in a Prefect AWS Credentials block. 
 This Prefect block allows your flows and tasks to connect to your AWS resources.
 You can create this block by using the Python SDK, or through the Prefect Cloud UI.
 
-<Expandable title="Python SDK method">
-Create a new python file in your project directory and add the following code:
+<Tabs>
+  <Tab title="Python SDK method">
+    Create a new python file in your project directory and add the following code:
 {/* pmd-metadata: notest */}
 ```python
 from prefect_aws import AwsCredentials
 
 
 AwsCredentials(
-    aws_access_key_id="PLACEHOLDER",  # Replace this with your access key id. 
+    aws_access_key_id="PLACEHOLDER",  # Replace this with your access key id.
     aws_secret_access_key="PLACEHOLDER",  # Replace this with your secret access key.
     region_name="us-east-2"  # Replace this with your region.
 ).save("BLOCK-NAME-PLACEHOLDER")  # Replace this with a descriptive block name.
@@ -93,27 +75,34 @@ AwsCredentials(
 <Tip>
 Make sure you have `prefect-aws` installed in your environment before running the script.
 </Tip>
-</Expandable>
 
-<Expandable title="Prefect Cloud UI method">
-<iframe 
-width="560" 
-height="315" 
-src="https://demo.arcade.software/hNTXKvOyX8d36VBRX7rB?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true" 
-title="Arcade player" 
-frameborder="0" 
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-referrerpolicy="strict-origin-when-cross-origin" 
-allowfullscreen>
-</iframe>
-</Expandable>
+  </Tab>
+  <Tab title="Prefect Cloud UI method">
+    <iframe 
+    width="560" 
+    height="315" 
+    src="https://demo.arcade.software/hNTXKvOyX8d36VBRX7rB?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true" 
+    title="Arcade player" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+    referrerpolicy="strict-origin-when-cross-origin" 
+    allowfullscreen>
+    </iframe>
+
+  </Tab>
+</Tabs>
+
+
 
 #### Create a Prefect S3 bucket block
 S3 bucket blocks are used to store your S3 bucket configuration.
 Your flows and tasks use this block to connect to your S3 bucket.
 Similarly to the AWS credentials block, you can create this block by using the Python SDK or Prefect Cloud UI.
 
-<Expandable title="Python SDK method">
+
+<Tabs>
+  <Tab title="Python SDK method">
+    Create a new python file in your project directory and add the following code:
 {/* pmd-metadata: notest */}
 ```python
 from prefect_aws import S3Bucket, AwsCredentials
@@ -129,10 +118,8 @@ S3Bucket(
 Important: Make sure you have `prefect-aws` installed in your environment before running the script.
 </Tip>
 
-</Expandable>
-
-<Expandable title="Prefect Cloud UI method">
-
+  </Tab>
+  <Tab title="Prefect Cloud UI method">
 <iframe 
 width="560" 
 height="315" 
@@ -144,24 +131,14 @@ referrerpolicy="strict-origin-when-cross-origin"
 allowfullscreen>
 </iframe>
 
-</Expandable>
+  </Tab>
+</Tabs>
 
 ### Create a MotherDuck access token and secret block
 This section will guide you through the process of creating a MotherDuck access token and a Prefect secret block to store the token.
 
 #### Create a MotherDuck Access Token
-Sign in to your [MotherDuck Console](https://motherduck.com/) and complete the following steps to create the access token:
-
-<iframe 
-width="560" 
-height="315" 
-src="https://demo.arcade.software/7Qag37hD0ttC92p7SjTh?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true"
-title="Arcade player" 
-frameborder="0" 
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-referrerpolicy="strict-origin-when-cross-origin" 
-allowfullscreen>
-</iframe>
+Follow the [MotherDuck documentation](https://motherduck.com/docs/key-tasks/authenticating-and-connecting-to-motherduck/authenticating-to-motherduck/#authentication-using-an-access-token) to create an access token.
 
 <Tip>
 Save the token&mdash;you'll need this to create a Prefect Secret block.
@@ -172,7 +149,9 @@ Prefect secret blocks are used to store sensitive information, such as your Moth
 This secret block will allow your flows and tasks to connect to your MotherDuck database.
 You can create a secret block by using the Python SDK or Prefect Cloud UI.
 
-<Expandable title="Python SDK method">
+<Tabs>
+  <Tab title="Python SDK method">
+    Create a new python file in your project directory and add the following code:
 {/* pmd-metadata: notest */}
 ```python
 from prefect_secrets import Secret
@@ -182,9 +161,9 @@ Secret(
     name="motherduck-access-token" #Replace this with a name that will help you identify the secret.
 ).save("BLOCK-NAME-PLACEHOLDER") #Replace this with a descriptive block name.
 ```
-</Expandable>
 
-<Expandable title="Prefect Cloud UI method">
+  </Tab>
+  <Tab title="Prefect Cloud UI method">
 <iframe 
 width="560" 
 height="315" 
@@ -196,7 +175,8 @@ referrerpolicy="strict-origin-when-cross-origin"
 allowfullscreen>
 </iframe>
 
-</Expandable>
+  </Tab>
+</Tabs>
 
 ## Set up your project
 
@@ -506,6 +486,8 @@ def load_parquet_to_duckdb(parquet_file_path, team_name):
 ```
 </Expandable>
 
+Update the `mlb_flow` function to include the new tasks.
+
 <Expandable title="updated flow function">
 {/* pmd-metadata: notest */}
 ```python
@@ -672,4 +654,4 @@ allowfullscreen>
 
 Now that you have a complete ETL pipeline, you can outfit it with some failure handling and data quality checks to make it more resilient.
 You might even consider deploying it to serverless infrastructure, so that you don't have to keep your laptop running 24/7!
-Jump to the next tutorial to learn how you can use Prefect to do just that: [Resilient Pipelines and Serverless Infrastructure](/v3/tutorials/resilience-and-deployment)
+Jump to the next tutorial to learn how you can use Prefect to do just that: [Deploy resilient pipelines to serverless infrastructure](/v3/tutorials/resilience-and-deployment)
