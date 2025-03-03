@@ -375,6 +375,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_work_queues_ready,
+        db=db,
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -385,6 +386,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_deployments_ready,
+        db=db,
         work_queue_ids=[wq.id for wq in work_queues],
     )
 
