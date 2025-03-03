@@ -144,10 +144,10 @@ This is useful for more complex retry logic, like retrying only when a specific 
 To implement a retry handler, you'll need to define a separate function that Prefect will use to determine whether to retry a task.
 This function will take three arguments: `task`, `task_run`, and `state`.
 It will return a boolean value indicating whether to retry the task.
+Add the following code snippet to the `mlb_flow.py` file.
 
 {/* pmd-metadata: notest */}
 ```python
-#Add this code snippet to the mlb_flow.py file.
 
 #Custom retry handler.
 def retry_handler(task, task_run, state) -> bool:
