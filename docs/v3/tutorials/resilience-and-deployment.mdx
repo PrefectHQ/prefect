@@ -66,11 +66,11 @@ The following code snippets show how to apply a different retries to the `get_re
 The task itself has a few modifications to simulate random API failures. 
 
 ### Implement a simple retry
-This example shows how to use the `@task` decorator to apply a simple retry strategy to the `get_recent_games` task.
+This example shows how to use the `@task` decorator to apply a simple retry strategy.
+Replace the existing `get_recent_games` task with the following.
 
 {/* pmd-metadata: notest */}
 ```python
-#Replace the existing get_recent_games task with this one.
 
 #Get recent games, and retry 10 times if the API fails.
 @task(retries=10)
