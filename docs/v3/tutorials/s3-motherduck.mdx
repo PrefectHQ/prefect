@@ -552,11 +552,11 @@ Once you have your flow function updated, you can run the the script to see the 
 
 #### Add a markdown artifact
 As a last step, let's add some visibility into the results of your flow. You can add a task that creates a markdown artifact to view the results in the Prefect Cloud UI.
+Copy and paste the following code into your `mlb_flow.py` file.
 
 <Expandable title="markdown Artifact task">
 {/* pmd-metadata: notest */}
 ```python
-# Copy and paste this code in your mlb_flow.py file
 @task
 def game_analysis_artifact(game_analysis, game_data_path):
     '''This task will create an artifact with the game analysis.'''
