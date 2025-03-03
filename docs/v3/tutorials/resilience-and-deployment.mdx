@@ -169,9 +169,9 @@ After defining the handler, you can add it to the `@task` decorator using the `r
 
 {/* pmd-metadata: notest */}
 ```python
-#Replace the existing get_recent_games task with this one.
+# Replace the existing get_recent_games task with this one.
 
-#The retry_condition_fn parameter enables us to specify a custom retry condition function
+# The retry_condition_fn parameter enables us to specify a custom retry condition function
 @task(retries=10, retry_condition_fn=retry_handler)
 def get_recent_games(team_name, start_date, end_date):
     # Generate random number.
