@@ -41,17 +41,17 @@ Sign in to [Prefect Cloud](https://app.prefect.cloud/) to create a Prefect AWS c
 #### Configure an AWS IAM User 
 In the AWS Console, complete the following steps:
 
-1. Click "Users" in the left sidebar
-2. Click "Create user"
+1. Click **Users** in the left sidebar
+2. Click **Create user**
 3. Enter a username (for example, "prefect-s3")
-4. Select "Attach policies directly" from the Permissions options, and choose "AmazonS3FullAccess" from the Permissions policy list
+4. Select **Attach policies directly** from the **Permissions** options, and choose `AmazonS3FullAccess` from the **Permissions** policy list
 5. Create the user
 6. Once the user is created, click the new user record
-7. Click "Create access key"
-8. From the "Access key best practices & alternatives" menu, select "Local code"
-9. Click "Next"
+7. Click **Create access key**
+8. From the **Access key best practices & alternatives** menu, select **Local code**
+9. Click **Next**
 10. Set a description tag for the access key (for example, "Prefect S3 Access Key")
-11. Click "Create access key"
+11. Click **Create access key**
 
 <Tip>
 Important: Save the Access Key ID and Secret Access Key - you'll need these to create a Prefect AWS credentials block.
