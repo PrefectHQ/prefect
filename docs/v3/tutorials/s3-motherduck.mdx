@@ -308,18 +308,19 @@ if __name__ == "__main__":
 If you run this flow, you'll see the raw data saved to the `raw_data` folder in your project directory.
 
 #### Loading data to S3
-For the next two tasks, you'll upload the raw data file to s3, and pull it back down for further processing. You'll need to add these new tasks to your flow function as well.
+For the next two tasks, you'll upload the raw data file to s3, and pull it back down for further processing.
+You'll need to add these new tasks to your flow function as well.
+Copy and paste the following code into your `mlb_flow.py` file.
 
 <Expandable title="S3 tasks">
 {/* pmd-metadata: notest */}
 ```python
-#Copy and paste this code in your mlb_flow.py file.
 
 @task
 def upload_raw_data_to_s3(file_path):
     '''This task will upload the raw data to s3.'''
     
-    s3_bucket = S3Bucket.load("mlb-raw-data") #Replace this with your S3 bucket block name.
+    s3_bucket = S3Bucket.load("mlb-raw-data")  # Replace this with your S3 bucket block name.
     s3_bucket_path = s3_bucket.upload_from_path(file_path)
     
     print(s3_bucket_path)
@@ -330,7 +331,7 @@ def upload_raw_data_to_s3(file_path):
 def download_raw_data_from_s3(s3_file_path):
     '''Download the raw data from s3.'''
     
-    s3_bucket = S3Bucket.load("mlb-raw-data") #Replace this with your S3 bucket block name.
+    s3_bucket = S3Bucket.load("mlb-raw-data")  # Replace this with your S3 bucket block name.
     local_file_path = f"./boxscore_analysis/{s3_file_path}"
     s3_bucket.download_object_to_path(s3_file_path, local_file_path)
     
@@ -339,10 +340,11 @@ def download_raw_data_from_s3(s3_file_path):
 ```
 </Expandable>
 
+Update the `mlb_flow` function to include the new tasks.
+
 <Expandable title="updated flow function">
 {/* pmd-metadata: notest */}
 ```python
-# Update the mlb_flow function to include the new tasks.
 @flow
 def mlb_flow(team_name, start_date, end_date):
     # Get recent games.
@@ -351,8 +353,8 @@ def mlb_flow(team_name, start_date, end_date):
     # Fetch boxscore for each game.
     game_data = [fetch_single_game_boxscore(game_id, start_date, end_date, team_name) for game_id in game_ids]
     
-    #Define file path for raw data.
-    today = datetime.now().strftime("%Y-%m-%d") #This uses the current date in the format YYYY-MM-DD.
+    # Define file path for raw data.
+    today = datetime.now().strftime("%Y-%m-%d")  # This uses the current date in the format YYYY-MM-DD.
     flow_run_name = runtime.flow_run.name
     raw_file_path = f"./raw_data/{today}-{team_name}-{flow_run_name}-boxscore.json"
     
@@ -362,7 +364,7 @@ def mlb_flow(team_name, start_date, end_date):
     # Upload raw data to s3.
     s3_file_path = upload_raw_data_to_s3(raw_file_path)
     
-    #Download raw data from s3.
+    # Download raw data from s3.
     raw_data = download_raw_data_from_s3(s3_file_path)
 
 if __name__ == "__main__":
@@ -375,12 +377,12 @@ if __name__ == "__main__":
 Once you have your flow function updated, you can run the the script to see the data file arrive in your S3 bucket.
 
 #### Define data processing and MotherDuck tasks
-Let's create a set of functions that clean up the raw data, run some basic statistics, and save the results to a MotherDuck database.
+Create a set of functions that clean up the raw data, run some basic statistics, and save the results to a MotherDuck database.
+Copy and paste the following code into your `mlb_flow.py` file.
 
 <Expandable title="data processing and MotherDuck tasks">
 {/* pmd-metadata: notest */}
 ```python
-# Copy and paste this code in your mlb_flow.py file.
 @task
 def clean_time_value(data_file_path):
     '''This task will clean the time value.'''
@@ -399,7 +401,7 @@ def clean_time_value(data_file_path):
         if '(' in game_data['game_time']:
             game_data['game_time'] = game_data['game_time'].split('(')[0]
         
-        # Remove any non-d igit, non-colon characters.
+        # Remove any non-digit, non-colon characters.
         game_data['game_time'] = ''.join(char for char in game_data['game_time'] if char.isdigit() or char == ':')
         
         hours, minutes = map(int, game_data['game_time'].split(':'))
@@ -426,7 +428,7 @@ def analyze_games(data_file_path):
     # Convert to a DataFrame.
     df = pd.DataFrame(game_data)
     
-    #Get the search parameters.
+    # Get the search parameters.
     start_date = df['search_start_date'].unique()[0]
     end_date = df['search_end_date'].unique()[0]
     team_name = df['chosen_team_name'].unique()[0]
@@ -478,12 +480,12 @@ def load_parquet_to_duckdb(parquet_file_path, team_name):
     '''This task will load the parquet file to duckdb.'''
     
     #Connect to duckdb.
-    secret_block = Secret.load("mother-duck-token") #Replace this with your secret block name.
+    secret_block = Secret.load("mother-duck-token")  # Replace this with your secret block name.
     # Access the stored secret. 
     duck_token = secret_block.get()
     duckdb_conn = duckdb.connect(f"md:?motherduck_token={duck_token}")
     
-    #Create a table in duckdb.
+    # Create a table in duckdb.
     duckdb_conn.execute(f"""CREATE TABLE IF NOT EXISTS boxscore_analysis_{team_name} (
         search_start_date TEXT, 
         search_end_date TEXT, 
@@ -517,7 +519,7 @@ def mlb_flow(team_name, start_date, end_date):
     game_data = [fetch_single_game_boxscore(game_id, start_date, end_date, team_name) for game_id in game_ids]
     
     #Define file path for raw data.
-    today = datetime.now().strftime("%Y-%m-%d") #This uses the current date in the format YYYY-MM-DD.
+    today = datetime.now().strftime("%Y-%m-%d")  # This uses the current date in the format YYYY-MM-DD.
     flow_run_name = runtime.flow_run.name
     raw_file_path = f"./raw_data/{today}-{team_name}-{flow_run_name}-boxscore.json"
     
@@ -527,7 +529,7 @@ def mlb_flow(team_name, start_date, end_date):
     # Upload raw data to s3.
     s3_file_path = upload_raw_data_to_s3(raw_file_path)
     
-    #Download raw data from s3.
+    # Download raw data from s3.
     raw_data = download_raw_data_from_s3(s3_file_path)
     
     # Clean the time value.
@@ -553,7 +555,8 @@ if __name__ == "__main__":
 Once you have your flow function updated, you can run the the script to see the processed data arrive in your MotherDuck database.
 
 #### Add a markdown artifact
-As a last step, let's add some visibility into the results of your flow. You can add a task that creates a markdown artifact to view the results in the Prefect Cloud UI.
+As a last step, add some visibility into the results of your flow.
+You can add a task that creates a markdown artifact to view the results in the Prefect Cloud UI.
 Copy and paste the following code into your `mlb_flow.py` file.
 
 <Expandable title="markdown Artifact task">
@@ -601,10 +604,11 @@ Correlation between game time and score differential: {game_analysis['time_diffe
 ```
 </Expandable>
 
+Update the `mlb_flow` function to include the new tasks.
+
 <Expandable title="updated flow function">
 {/* pmd-metadata: notest */}
 ```python
-# Update the mlb_flow function to include the new tasks.
 @flow
 def mlb_flow(team_name, start_date, end_date):
     # Get recent games.
@@ -614,7 +618,7 @@ def mlb_flow(team_name, start_date, end_date):
     game_data = [fetch_single_game_boxscore(game_id, start_date, end_date, team_name) for game_id in game_ids]
     
     #Define file path for raw data.
-    today = datetime.now().strftime("%Y-%m-%d") #This uses the current date in the format YYYY-MM-DD.
+    today = datetime.now().strftime("%Y-%m-%d")  # This uses the current date in the format YYYY-MM-DD.
     flow_run_name = runtime.flow_run.name
     raw_file_path = f"./raw_data/{today}-{team_name}-{flow_run_name}-boxscore.json"
     
