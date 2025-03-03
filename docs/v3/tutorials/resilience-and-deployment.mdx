@@ -72,7 +72,7 @@ Replace the existing `get_recent_games` task with the following.
 {/* pmd-metadata: notest */}
 ```python
 
-#Get recent games, and retry 10 times if the API fails.
+# Get recent games, and retry 10 times if the API fails.
 @task(retries=10)
 def get_recent_games(team_name, start_date, end_date):
      # Simulate random API failure (70% chance).
