@@ -191,7 +191,7 @@ def temp_storage() -> Generator[MockStorage, Any, None]:
 
 @pytest.fixture
 def in_temporary_runner_directory(tmp_path: Path):
-    with tmpchdir(tmp_path):
+    with tmpchdir(str(tmp_path)):
         yield
 
 
@@ -246,12 +246,14 @@ class TestInit:
 
 class TestServe:
     @pytest.fixture(autouse=True)
-    async def mock_runner_start(self, monkeypatch):
+    async def mock_runner_start(self, monkeypatch: pytest.MonkeyPatch):
         mock = AsyncMock()
         monkeypatch.setattr("prefect.runner.Runner.start", mock)
         return mock
 
-    def test_serve_prints_help_message_on_startup(self, capsys):
+    def test_serve_prints_help_message_on_startup(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
         serve(
             dummy_flow_1.to_deployment(__file__),
             dummy_flow_2.to_deployment(__file__),
@@ -271,7 +273,17 @@ class TestServe:
 
     is_python_38 = sys.version_info[:2] == (3, 8)
 
-    def test_serve_typed_container_inputs_flow(self, capsys):
+    def test_serve_raises_if_runner_deployment_sets_work_pool_name(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
+        with pytest.raises(
+            ValueError, match="Work pools are not necessary for served deployments"
+        ):
+            serve(dummy_flow_1.to_deployment(__file__, work_pool_name="foo"))
+
+    def test_serve_typed_container_inputs_flow(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
         if self.is_python_38:
 
             @flow
@@ -333,7 +345,7 @@ class TestServe:
 
         mock_runner_start.assert_awaited_once()
 
-    def test_log_level_lowercasing(self, monkeypatch):
+    def test_log_level_lowercasing(self, monkeypatch: pytest.MonkeyPatch):
         runner_mock = mock.MagicMock()
         log_level = "DEBUG"
 
@@ -353,7 +365,7 @@ class TestServe:
                     webserver_mock, host=mock.ANY, port=mock.ANY, log_level="debug"
                 )
 
-    def test_serve_in_async_context_raises_error(self, monkeypatch):
+    def test_serve_in_async_context_raises_error(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(
             "asyncio.get_running_loop", lambda: asyncio.get_event_loop()
         )
