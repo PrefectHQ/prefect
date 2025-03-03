@@ -121,8 +121,6 @@ In Prefect, this can be implemented by adding the `exponential_backoff` utility 
 
 {/* pmd-metadata: notest */}
 ```python
-#Replace the existing get_recent_games task with this one.
-
 #The exponential_backoff utility will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy.
 #This task will retry 10 times with a delay of 2, 4, 8, and 16 seconds.
 @task(retries=4, retry_delay_seconds=exponential_backoff(backoff_factor=2))
