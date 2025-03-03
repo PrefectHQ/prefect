@@ -419,7 +419,7 @@ if __name__ == "__main__":
         work_pool_name="managed-pool",
         parameters={"team_name": "phillies", "start_date": "06/01/2024", "end_date": "06/30/2024"},
         job_variables={"pip_packages": read_requirements()},
-        #This schedule will run the flow every day at 12:00 AM.
+        # This schedule will run the flow every day at 12:00 AM.
         cron="0 0 * * *"
     )
 ```
