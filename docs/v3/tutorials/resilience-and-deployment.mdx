@@ -116,7 +116,8 @@ def get_recent_games(team_name, start_date, end_date):
 
 ### Implement an exponential retry
 Exponential backoff is a retry strategy where the delay between retry attempts increases, well, exponentially!
-This means that each subsequent retry attempt waits longer than the previous one. In Prefect, this can be implemented by adding the `exponential_backoff` utility to the `@task` decorator.
+This means that each subsequent retry attempt waits longer than the previous one.
+In Prefect, this can be implemented by adding the `exponential_backoff` utility to the `get_recent_games` task's `@task` decorator.
 
 {/* pmd-metadata: notest */}
 ```python
