@@ -142,7 +142,8 @@ def get_recent_games(team_name, start_date, end_date):
 A retry handler in Prefect is a custom function that determines whether a task should be retried based on specific conditions. 
 This is useful for more complex retry logic, like retrying only when a specific exception is raised.
 To implement a retry handler, you'll need to define a separate function that Prefect will use to determine whether to retry a task.
-This function will take three arguments: `task`, `task_run`, and `state`. It will return a boolean value indicating whether to retry the task.
+This function will take three arguments: `task`, `task_run`, and `state`.
+It will return a boolean value indicating whether to retry the task.
 
 {/* pmd-metadata: notest */}
 ```python
