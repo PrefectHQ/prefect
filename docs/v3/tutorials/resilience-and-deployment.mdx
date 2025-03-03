@@ -179,7 +179,7 @@ def get_recent_games(team_name, start_date, end_date):
     
     # Simulate different types of failures.
     if failure_chance < 0.3:
-        time.sleep(2) #Allow us to see the retries in action.
+        time.sleep(2)  # Allow us to see the retries in action.
         raise Exception("Simulated API failure: MLB Stats API is temporarily unavailable")
     elif failure_chance >= 0.4:
         time.sleep(2) #Allow us to see the retries in action.
