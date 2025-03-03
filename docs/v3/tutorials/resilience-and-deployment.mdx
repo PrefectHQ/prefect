@@ -262,7 +262,7 @@ def mlb_flow_rollback(team_name, start_date, end_date):
     # Fetch boxscore for each game.
     game_data = [fetch_single_game_boxscore(game_id, start_date, end_date, team_name) for game_id in game_ids]
     
-    #Define file path for raw data.
+    # Define file path for raw data.
     today = datetime.now().strftime("%Y-%m-%d") #YYYY-MM-DD.
     flow_run_name = runtime.flow_run.name
     raw_file_path = f"./raw_data/{today}-{team_name}-{flow_run_name}-boxscore.json"
