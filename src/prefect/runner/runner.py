@@ -49,6 +49,7 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
+from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -108,6 +109,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -582,6 +584,10 @@ class Runner:
         Returns:
             The flow run process.
         """
+        # Set up signal handling to reschedule run on SIGTERM
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGTERM, self._handle_execute_sigterm)
+
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
@@ -950,6 +956,51 @@ class Runner:
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
                 return
+
+    def _handle_execute_sigterm(
+        self, signum: int, frame: FrameType | None = None
+    ) -> None:
+        """
+        Reschedules all flow runs that are currently running.
+        """
+        self._logger.info("SIGTERM received, initiating graceful shutdown...")
+        from_sync.call_in_loop_thread(create_call(self._reschedule_flow_runs))
+        self._logger.info("Graceful shutdown complete")
+
+        sys.exit(0)
+
+    async def _reschedule_flow_runs(self) -> None:
+        """
+        Reschedules a flow run for resubmission.
+        """
+
+        async def reschedule_flow_run(process_info: ProcessMapEntry) -> None:
+            flow_run = process_info["flow_run"]
+            run_logger = self._get_flow_run_logger(flow_run)
+            run_logger.info("Rescheduling flow run for resubmission...")
+            try:
+                await self._kill_process(process_info["pid"])
+                await propose_state(
+                    self._client, AwaitingRetry(), flow_run_id=flow_run.id
+                )
+                run_logger.info("Rescheduled flow run for resubmission")
+            except Abort as exc:
+                run_logger.info(
+                    (
+                        f"Aborted submission of flow run. "
+                        f"Server sent an abort signal: {exc}"
+                    ),
+                )
+            except Exception:
+                run_logger.exception(
+                    "Failed to reschedule flow run",
+                )
+
+        coros = [
+            reschedule_flow_run(process_info)
+            for process_info in self._flow_run_process_map.values()
+        ]
+        await asyncio.gather(*coros)
 
     async def _pause_schedules(self):
         """
