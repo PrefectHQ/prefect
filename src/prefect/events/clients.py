@@ -125,7 +125,7 @@ class WebsocketProxyConnect(connect):
         self._host = host
         self._port = port
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY or u.scheme == "ws":
             # Create an unverified context for insecure connections
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
