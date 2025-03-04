@@ -842,7 +842,9 @@ class TestSignalHandling:
         sigterm_handling: str | None,
     ):
         if sigterm_handling is not None:
-            monkeypatch.setenv("PREFECT_RUNNER_ON_SIGTERM", sigterm_handling)
+            monkeypatch.setenv(
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", sigterm_handling
+            )
 
         # Create a flow run that will take a while to run
         deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
