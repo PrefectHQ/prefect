@@ -23,8 +23,8 @@ const formSchema = z.object({
 				return;
 			}
 			return JSON.parse(val) as Record<string, unknown>;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		} catch (e) {
+		} catch (err) {
+			console.error(err);
 			ctx.addIssue({ code: "custom", message: "Invalid JSON" });
 			return z.NEVER;
 		}
