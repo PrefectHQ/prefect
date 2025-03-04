@@ -9,6 +9,7 @@ import {
 	getByText,
 	render,
 	screen,
+	waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
@@ -543,7 +544,9 @@ describe("Variables page", () => {
 
 			await user.click(screen.getByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Delete"));
-			expect(screen.getByText("Variable deleted")).toBeVisible();
+			await waitFor(() => {
+				expect(screen.getByText("Variable deleted")).toBeVisible();
+			});
 		});
 
 		it("should handle filtering by name", async () => {

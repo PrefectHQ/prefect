@@ -43,7 +43,9 @@ describe("ScheduleActionMenu", () => {
 		await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
 
 		// ------------ Assert
-		expect(screen.getByText("ID copied")).toBeVisible();
+		await waitFor(() => {
+			expect(screen.getByText("ID copied")).toBeVisible();
+		});
 	});
 
 	it("calls edit option", async () => {
@@ -52,7 +54,6 @@ describe("ScheduleActionMenu", () => {
 		const mockOnEditScheduleFn = vi.fn();
 		render(
 			<>
-				<Toaster />
 				<ScheduleActionMenu
 					deploymentSchedule={MOCK_DEPLOYMENT_SCHEDULE}
 					onEditSchedule={mockOnEditScheduleFn}

@@ -57,12 +57,15 @@ describe("RunFlowButton", () => {
 
 		// ------------ Assert
 		const list = screen.getByRole("list");
-		expect(within(list).getByRole("status")).toBeVisible();
-		expect(
-			screen.getByRole("button", {
-				name: /view run/i,
-			}),
-		).toBeVisible();
+
+		await waitFor(() => {
+			expect(within(list).getByRole("status")).toBeVisible();
+			expect(
+				screen.getByRole("button", {
+					name: /view run/i,
+				}),
+			).toBeVisible();
+		});
 	});
 
 	it("custom run option is a link with deployment parameters", async () => {
