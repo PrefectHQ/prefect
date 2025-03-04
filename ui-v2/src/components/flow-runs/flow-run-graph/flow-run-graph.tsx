@@ -17,7 +17,7 @@ import { getQueryService } from "@/api/service";
 import { mapApiResponseToRunGraphData } from "./utilities";
 
 type RunGraphProps = {
-	flowRun: FlowRun;
+	flowRunId: string;
 	viewport?: ViewportDateRange;
 	onViewportChange?: (viewport: ViewportDateRange) => void;
 	selected?: GraphItemSelection;
@@ -41,7 +41,7 @@ const fetch = async (id: string): Promise<RunGraphData> => {
 }
 
 export function RunGraph({
-	flowRun,
+	flowRunId,
 	viewport,
 	onViewportChange,
 	selected,
@@ -65,10 +65,10 @@ export function RunGraph({
 	);
 
   const config = useMemo<RunGraphConfig>(() => ({
-    runId: flowRun.id,
+    runId: flowRunId,
     fetch: (id) => fetch(id),
     theme: 'dark',
-  }), [flowRun])
+  }), [flowRunId])
 
 	useEffect(() => {
 		setConfig(config);

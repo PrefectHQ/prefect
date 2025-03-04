@@ -48,18 +48,6 @@ const stateTypeColors: Record<StateType, string> = {
 
 export const Default: Story = {
   args: {
-    config: {
-      runId: 'foo',
-      fetch: () => parseJson(DemoData),
-      fetchEvents: () => parseJson(DemoEvents),
-      styles: {
-        node: (node) => ({
-          background: stateTypeColors[node.state_type],
-        }),
-        state: (state) => ({
-          background: stateTypeColors[state.type],
-        }),
-      },
-    },
+    flowRunId: 'foo',
   },
 }
