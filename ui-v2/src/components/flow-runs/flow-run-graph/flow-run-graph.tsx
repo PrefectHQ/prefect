@@ -1,6 +1,8 @@
+import { FlowRun } from "@/api/flow-runs";
 import {
 	GraphItemSelection,
 	RunGraphConfig,
+	RunGraphData,
 	ViewportDateRange,
 	centerViewport,
 	emitter,
@@ -10,10 +12,12 @@ import {
 	stop,
 	updateViewportFromDateRange,
 } from "@prefecthq/graphs";
-import { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getQueryService } from "@/api/service";
+import { mapApiResponseToRunGraphData } from "./utilities";
 
 type RunGraphProps = {
-	config: RunGraphConfig;
+	flowRun: FlowRun;
 	viewport?: ViewportDateRange;
 	onViewportChange?: (viewport: ViewportDateRange) => void;
 	selected?: GraphItemSelection;
@@ -24,12 +28,24 @@ type RunGraphProps = {
 	style?: CSSProperties;
 };
 
+const fetch = async (id: string): Promise<RunGraphData> => {
+  const { data } = await getQueryService().GET('/flow_runs/{id}/graph-v2', {
+    params: { path: { id } },
+  })
+
+  if (!data) {
+    throw new Error("No data returned from API")
+  }
+
+  return mapApiResponseToRunGraphData(data)
+}
+
 export function RunGraph({
+	flowRun,
 	viewport,
 	onViewportChange,
 	selected,
 	onSelectedChange,
-	config,
 	className,
 	style,
 	fullscreen: controlledFullscreen,
@@ -47,6 +63,12 @@ export function RunGraph({
 		},
 		[onFullscreenChange],
 	);
+
+  const config = useMemo<RunGraphConfig>(() => ({
+    runId: flowRun.id,
+    fetch: (id) => fetch(id),
+    theme: 'dark',
+  }), [flowRun])
 
 	useEffect(() => {
 		setConfig(config);
