@@ -84,11 +84,8 @@ If you specify a task definition [ARN (Amazon Resource Name)](https://docs.aws.a
 You can use either EC2 or Fargate as the capacity provider. Fargate simplifies initiation, but lengthens infrastructure setup time for each flow run. Using EC2 for the ECS cluster can reduce setup time. In this example, we will show how to use Fargate.
 
 import { TF } from "/snippets/resource-management/terraform.mdx"
-import { HELM } from "/snippets/resource-management/helm.mdx"
 import { workers } from "/snippets/resource-management/vars.mdx"
 import { work_pools } from "/snippets/resource-management/vars.mdx"
-
-<HELM name="Prefect workers" href={workers.helm} />
 
 <TF name="work pools" href={work_pools.tf} />
 
