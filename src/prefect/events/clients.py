@@ -125,13 +125,13 @@ class WebsocketProxyConnect(connect):
         self._host = host
         self._port = port
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY or u.scheme == "ws":
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY and u.scheme == "wss":
             # Create an unverified context for insecure connections
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             self._kwargs.setdefault("ssl", ctx)
-        else:
+        elif u.scheme == "wss":
             cert_file = PREFECT_API_SSL_CERT_FILE.value()
             if not cert_file:
                 cert_file = certifi.where()
