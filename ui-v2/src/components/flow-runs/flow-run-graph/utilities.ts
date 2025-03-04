@@ -56,6 +56,6 @@ function mapArtifact(artifact: ApiResponseArtifact): RunGraphArtifact {
     id: artifact.id,
     created: parseISO(artifact.created),
     key: artifact.key ?? undefined,
-    type: artifact.type as RunGraphArtifact["type"],
+    type: artifact.type as Exclude<RunGraphArtifact["type"], "progress">,
   }
 }
