@@ -132,7 +132,7 @@ class RunTelemetry:
             },
         )
 
-        if traceparent := self._traceparent_from_span(self.span):
+        if traceparent := RunTelemetry.traceparent_from_span(self.span):
             run.labels[LABELS_TRACEPARENT_KEY] = traceparent
 
         return traceparent, self.span
@@ -150,7 +150,8 @@ class RunTelemetry:
         carrier = {TRACEPARENT_KEY: traceparent}
         return propagate.extract(carrier)
 
-    def _traceparent_from_span(self, span: Span) -> str | None:
+    @staticmethod
+    def traceparent_from_span(span: Span) -> str | None:
         carrier: dict[str, Any] = {}
         propagate.inject(carrier, context=trace.set_span_in_context(span))
         return carrier.get(TRACEPARENT_KEY)
