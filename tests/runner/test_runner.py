@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import multiprocessing
 import os
 import re
 import signal
@@ -67,11 +66,9 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
-from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.states import Cancelling
 from prefect.testing.utilities import AsyncMock
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
@@ -3225,64 +3222,3 @@ def execute_flow_run(flow_run_id: str, env: dict[str, str]):
         runner = Runner()
         print("Starting flow run")
         asyncio.run(runner.execute_flow_run(flow_run_id))
-
-
-class TestSignalHandling:
-    @pytest.mark.parametrize("sigterm_handling", ["reschedule", None])
-    async def test_flow_run_execute_sigterm_handling(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        prefect_client: PrefectClient,
-        sigterm_handling: str | None,
-    ):
-        if sigterm_handling is not None:
-            monkeypatch.setenv("PREFECT_RUNNER_ON_SIGTERM", sigterm_handling)
-
-        # Create a flow run that will take a while to run
-        deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
-
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-
-        # Run the flow run in a new process with a Runner
-        ctx = multiprocessing.get_context("spawn")
-        process = ctx.Process(
-            target=execute_flow_run,
-            args=(
-                flow_run.id,
-                get_current_settings().to_environment_variables(exclude_unset=True)
-                | os.environ,
-            ),
-        )
-        process.start()
-
-        # Wait for the flow run to start
-        while True:
-            await anyio.sleep(0.5)
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            if flow_run.state.is_running():
-                break
-
-        # Send the SIGTERM signal
-        process.terminate()
-
-        # Wait for the process to exit
-        await run_sync_in_worker_thread(process.join, timeout=10)
-        assert not process.is_alive(), "The process should have exited"
-
-        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-
-        if sigterm_handling == "reschedule":
-            assert flow_run.state.is_scheduled(), (
-                "The flow run should have been rescheduled"
-            )
-            assert process.exitcode == 0, (
-                "The process should have exited with a 0 exit code"
-            )
-        else:
-            assert flow_run.state.is_running(), (
-                "The flow run should be stuck in running"
-            )
-            assert process.exitcode == -signal.SIGTERM.value

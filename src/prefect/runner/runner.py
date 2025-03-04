@@ -592,18 +592,6 @@ class Runner:
             if not self._acquire_limit_slot(flow_run_id):
                 return
 
-            # Set up signal handling to reschedule run on SIGTERM
-            on_sigterm = os.environ.get("PREFECT_RUNNER_ON_SIGTERM")
-            if (
-                threading.current_thread() is threading.main_thread()
-                and self._loop
-                and on_sigterm == "reschedule"
-            ):
-                self._loop.add_signal_handler(
-                    signal.SIGTERM,
-                    lambda: asyncio.create_task(self._handle_reschedule_sigterm()),
-                )
-
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
                     self._submitting_flow_run_ids.add(flow_run_id)
@@ -966,46 +954,47 @@ class Runner:
                 # process ended right after the check above.
                 return
 
-    async def _handle_reschedule_sigterm(
+    async def reschedule_current_flow_runs(
         self,
     ) -> None:
         """
         Reschedules all flow runs that are currently running.
         """
-        self._logger.info("SIGTERM received, initiating graceful shutdown...")
         self._rescheduling = True
+        # Create new a client because this will often run in a separate thread
+        # as part of a signal handler.
+        async with get_client() as client:
 
-        async def reschedule_flow_run(process_info: ProcessMapEntry) -> None:
-            flow_run = process_info["flow_run"]
-            run_logger = self._get_flow_run_logger(flow_run)
-            run_logger.info(
-                "Rescheduling flow run for resubmission in response to SIGTERM"
-            )
-            try:
-                await propose_state(
-                    self._client, AwaitingRetry(), flow_run_id=flow_run.id
-                )
-                run_logger.info("Rescheduled flow run for resubmission")
-            except Abort as exc:
+            async def reschedule_flow_run(process_info: ProcessMapEntry) -> None:
+                flow_run = process_info["flow_run"]
+                run_logger = self._get_flow_run_logger(flow_run)
                 run_logger.info(
-                    (
-                        f"Aborted submission of flow run. "
-                        f"Server sent an abort signal: {exc}"
-                    ),
+                    "Rescheduling flow run for resubmission in response to SIGTERM"
                 )
-            except Exception:
-                run_logger.exception(
-                    "Failed to reschedule flow run",
-                )
+                try:
+                    await propose_state(
+                        client, AwaitingRetry(), flow_run_id=flow_run.id
+                    )
+                    await self._kill_process(process_info["pid"])
+                    run_logger.info("Rescheduled flow run for resubmission")
+                except Abort as exc:
+                    run_logger.info(
+                        (
+                            f"Aborted submission of flow run. "
+                            f"Server sent an abort signal: {exc}"
+                        ),
+                    )
+                except Exception:
+                    run_logger.exception(
+                        "Failed to reschedule flow run",
+                    )
 
-        self._logger.info("Rescheduling flow runs...")
-        coros = [
-            reschedule_flow_run(process_info)
-            for process_info in self._flow_run_process_map.values()
-        ]
-        await asyncio.gather(*coros)
-
-        sys.exit(0)
+            self._logger.info("Rescheduling flow runs...")
+            coros = [
+                reschedule_flow_run(process_info)
+                for process_info in self._flow_run_process_map.values()
+            ]
+            await asyncio.gather(*coros)
 
     async def _pause_schedules(self):
         """
