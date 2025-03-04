@@ -137,7 +137,7 @@ class WebsocketProxyConnect(connect):
                 cert_file = certifi.where()
             # Create a verified context with the certificate file
             ctx = ssl.create_default_context(cafile=cert_file)
-            self._kwargs.setdefault("verify", ctx)
+            self._kwargs.setdefault("ssl", ctx)
 
     async def _proxy_connect(self: Self) -> ClientConnection:
         if self._proxy:
