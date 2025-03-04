@@ -12,8 +12,7 @@ const verifyCronValue = (cronValue: string) => {
 		CronExpressionParser.parse(cronValue);
 		description = cronstrue.toString(cronValue);
 		isCronValid = true;
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	} catch (e) {
+	} catch {
 		isCronValid = false;
 		description = "Invalid expression";
 	}
