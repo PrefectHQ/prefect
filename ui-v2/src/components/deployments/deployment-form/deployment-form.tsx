@@ -1,4 +1,6 @@
 import { Deployment } from "@/api/deployments";
+import { SchemaForm } from "@/components/schemas";
+import type { PrefectSchemaObject } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
 import {
 	Form,
@@ -25,8 +27,15 @@ type DeploymentFormProps = {
 };
 
 export const DeploymentForm = ({ deployment }: DeploymentFormProps) => {
-	const { form, onSave } = useDeploymentForm(deployment);
+	const {
+		form,
+		onSave,
+		parameterFormErrors,
+		setParametersFormValues,
+		parametersFormValues,
+	} = useDeploymentForm(deployment);
 	const watchPoolName = form.watch("work_pool_name");
+	const parametersOpenAPISchema = form.getValues("parameter_openapi_schema");
 
 	return (
 		<Form {...form}>
@@ -148,6 +157,15 @@ export const DeploymentForm = ({ deployment }: DeploymentFormProps) => {
 					<Typography variant="h3" className="mb-4">
 						Parameters
 					</Typography>
+					{parametersOpenAPISchema && (
+						<SchemaForm
+							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
+							errors={parameterFormErrors}
+							values={parametersFormValues}
+							onValuesChange={setParametersFormValues}
+							kinds={["json"]}
+						/>
+					)}
 					<FormField
 						control={form.control}
 						name="enforce_parameter_schema"
