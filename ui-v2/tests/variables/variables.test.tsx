@@ -84,9 +84,10 @@ describe("Variables page", () => {
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await userEvent.type(screen.getByLabelText("Tags"), "tag1");
 			await user.click(screen.getByRole("button", { name: "Create" }));
-
-			expect(screen.getByText("Variable created")).toBeVisible();
-			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText("Variable created")).toBeVisible();
+				expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			});
 		});
 
 		it("should show validation errors", async () => {
@@ -190,7 +191,9 @@ describe("Variables page", () => {
 
 			await user.type(getByLabelText(dialog, "Name"), "new_name");
 			await user.click(screen.getByRole("button", { name: "Save" }));
-			expect(screen.getByText("Variable updated")).toBeVisible();
+			await waitFor(() => {
+				expect(screen.getByText("Variable updated")).toBeVisible();
+			});
 		});
 
 		it("should show an error when API call fails with detail", async () => {
