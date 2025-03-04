@@ -6,10 +6,14 @@ export async function validateSchemaValues(
 ) {
 	const { data } = await getQueryService().POST("/ui/schemas/validate", {
 		body: {
+			schema: json_schema,
 			json_schema,
 			values,
 		},
 	});
 
+	if (!data) {
+		throw new Error('"data" expected');
+	}
 	return data;
 }

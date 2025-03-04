@@ -1,4 +1,5 @@
 import { Deployment, useUpdateDeployment } from "@/api/deployments";
+import { useSchemaForm } from "@/components/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -16,7 +17,6 @@ const formSchema = z.object({
 		.object({ collision_strategy: z.enum(["ENQUEUE", "CANCEL_NEW"]) })
 		.nullable()
 		.optional(),
-	enforce_parameter_schema: z.boolean(),
 	job_variables: z.string().superRefine((val, ctx) => {
 		try {
 			if (!val) {
@@ -29,13 +29,25 @@ const formSchema = z.object({
 			return z.NEVER;
 		}
 	}),
+	enforce_parameter_schema: z.boolean(),
+	parameter_openapi_schema: z
+		.record(z.unknown())
+		.optional()
+		.nullable()
+		.readonly(),
 });
+
 export type DeploymentFormSchema = z.infer<typeof formSchema>;
 
 export const useDeploymentForm = (deployment: Deployment) => {
 	const navigate = useNavigate();
 	const form = useForm({ resolver: zodResolver(formSchema) });
-
+	const {
+		values: parametersFormValues,
+		setValues: setParametersFormValues,
+		errors: parameterFormErrors,
+		validateForm: validateParametersForm,
+	} = useSchemaForm();
 	const { updateDeployment } = useUpdateDeployment();
 
 	// syncs form state to deployment to update
@@ -46,34 +58,58 @@ export const useDeploymentForm = (deployment: Deployment) => {
 			work_queue_name,
 			tags,
 			concurrency_options,
+			parameter_openapi_schema,
 			enforce_parameter_schema,
 			job_variables,
 		} = deployment;
 
+		// nb: parameter form state and validation is handled separately using SchemaForm
+		// parameters has poor typings from openAPI
+		setParametersFormValues(deployment.parameters as Record<string, unknown>);
+
+		// nb: Handle remaining form fields using react-hook-form
 		form.reset({
 			description,
 			work_pool_name,
 			work_queue_name,
 			tags,
 			concurrency_options,
+			parameter_openapi_schema,
 			enforce_parameter_schema,
 			job_variables: job_variables ? JSON.stringify(job_variables) : "",
 		});
-	}, [form, deployment]);
+	}, [form, deployment, setParametersFormValues]);
 
-	const onSave = (values: DeploymentFormSchema) => {
+	const onSave = async (values: DeploymentFormSchema) => {
 		const {
 			job_variables,
 			description,
 			work_pool_name,
 			work_queue_name,
 			tags,
+			enforce_parameter_schema,
 			concurrency_options,
+			parameter_openapi_schema,
 		} = values;
 
 		const jobVariablesPayload = job_variables
 			? (JSON.parse(job_variables) as Record<string, unknown>)
 			: undefined;
+
+		if (parameter_openapi_schema && enforce_parameter_schema) {
+			try {
+				await validateParametersForm({ schema: parameter_openapi_schema });
+			} catch (err) {
+				const message = "Unknown error while updating validating schema.";
+				toast.error(message);
+				console.error(message, err);
+			}
+		}
+
+		// Early exit if there's errors
+		if (parameterFormErrors.length > 0) {
+			return;
+		}
 
 		updateDeployment(
 			{
@@ -82,9 +118,12 @@ export const useDeploymentForm = (deployment: Deployment) => {
 				description,
 				// If value is "", set as null
 				work_pool_name: work_pool_name || null,
-				// If value is "", set as nuill
+				// If value is "", set as null
 				work_queue_name: work_queue_name || null,
 				tags,
+				enforce_parameter_schema,
+				// @ts-expect-error Expecting TS error from poor openAPI typings
+				parameters: parametersFormValues,
 				concurrency_options,
 				// @ts-expect-error Expecting TS error from poor openAPI typings
 				job_variables: jobVariablesPayload,
@@ -101,10 +140,17 @@ export const useDeploymentForm = (deployment: Deployment) => {
 					const message =
 						error.message || "Unknown error while updating deployment.";
 					console.error(message);
+					toast.error(message);
 				},
 			},
 		);
 	};
 
-	return { form, onSave };
+	return {
+		form,
+		onSave,
+		parametersFormValues,
+		setParametersFormValues,
+		parameterFormErrors,
+	};
 };

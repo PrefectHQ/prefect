@@ -1,6 +1,6 @@
+import { Switch } from "@/components/ui/switch";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import { BooleanSubtype, SchemaObject } from "openapi-typescript";
-import { Checkbox } from "../ui/checkbox";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { asType } from "./utilities/asType";
@@ -34,5 +34,5 @@ export function SchemaFormInputBoolean({
 		);
 	}
 
-	return <Checkbox checked={value} onCheckedChange={onCheckedChange} id={id} />;
+	return <Switch checked={value} onCheckedChange={onCheckedChange} id={id} />;
 }
