@@ -141,7 +141,9 @@ class GitRepository:
         self._credentials = credentials
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
-        default_name = f"{repo_name}-{branch}" if branch else repo_name
+        # Replace forward slashes in branch names with hyphens to avoid path issues
+        safe_branch = branch.replace("/", "-") if branch else None
+        default_name = f"{repo_name}-{safe_branch}" if safe_branch else repo_name
         self._name = name or default_name
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
