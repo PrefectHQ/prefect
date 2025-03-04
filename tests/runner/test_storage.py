@@ -140,6 +140,13 @@ class TestGitRepository:
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
         assert repo._name == "custom-name"
 
+    def test_init_with_slashed_branch_name(self):
+        """Test that branch names with forward slashes are correctly sanitized in the destination path."""
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", branch="feature/test-branch"
+        )
+        assert repo._name == "repo-feature-test-branch"
+
     def test_destination_property(self, monkeypatch):
         monkeypatch.chdir("/tmp")
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
