@@ -17,6 +17,7 @@ from prefect.server.events.schemas.automations import (
     Posture,
     TriggeredAction,
     TriggerState,
+    CompoundTrigger,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
@@ -56,15 +57,20 @@ async def cleared_automations():
 def arachnophobia() -> Automation:
     return Automation(
         name="React immediately to spiders",
-        trigger=EventTrigger(
-            expect={"animal.walked"},
-            match={
-                "class": "Arachnida",
-                "order": "Araneae",
-            },
-            posture=Posture.Reactive,
-            threshold=1,
-        ),
+        trigger=CompoundTrigger(
+            require="all",
+            within=timedelta(seconds=0),
+            triggers=[
+                EventTrigger(
+                    expect={"animal.walked"},
+                    match={
+                        "class": "Arachnida",
+                        "order": "Araneae",
+                    },
+                    posture=Posture.Reactive,
+                    threshold=1,
+                )
+            ]),
         actions=[actions.DoNothing()],
     )
 
