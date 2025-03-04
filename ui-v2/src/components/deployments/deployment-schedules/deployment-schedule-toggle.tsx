@@ -6,7 +6,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type DeploymentScheduleToggleProps = {
 	deployment: Deployment;
@@ -15,7 +15,6 @@ type DeploymentScheduleToggleProps = {
 export const DeploymentScheduleToggle = ({
 	deployment,
 }: DeploymentScheduleToggleProps) => {
-	const { toast } = useToast();
 	const { updateDeployment } = useUpdateDeployment();
 
 	const handleChckedChange = (checked: boolean) => {
@@ -23,7 +22,7 @@ export const DeploymentScheduleToggle = ({
 			{ id: deployment.id, paused: !checked },
 			{
 				onSuccess: () => {
-					toast({ title: `Deployment ${checked ? "active" : "paused"}` });
+					toast.success(`Deployment ${checked ? "active" : "paused"}`);
 				},
 				onError: (error) => {
 					const message =

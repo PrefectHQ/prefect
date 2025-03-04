@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import type { ReactRenderer } from "@storybook/react";
 import type { DecoratorFunction } from "@storybook/types";
 

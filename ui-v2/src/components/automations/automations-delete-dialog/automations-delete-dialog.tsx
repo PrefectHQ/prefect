@@ -9,7 +9,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type AutomationsDeleteDialogProps = {
 	automation: Automation;
@@ -22,13 +22,12 @@ export const AutomationsDeleteDialog = ({
 	onOpenChange,
 	onDelete,
 }: AutomationsDeleteDialogProps) => {
-	const { toast } = useToast();
 	const { deleteAutomation, isPending } = useDeleteAutomation();
 
 	const handleOnClick = (id: string) => {
 		deleteAutomation(id, {
 			onSuccess: () => {
-				toast({ description: "Automation deleted" });
+				toast.success("Automation deleted");
 			},
 			onError: (error) => {
 				const message =

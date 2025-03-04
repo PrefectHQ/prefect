@@ -1,5 +1,5 @@
 import "./mocks";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { router } from "@/router";
 import { RouterProvider } from "@tanstack/react-router";
@@ -9,6 +9,7 @@ import {
 	getByText,
 	render,
 	screen,
+	waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
@@ -83,9 +84,10 @@ describe("Variables page", () => {
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await userEvent.type(screen.getByLabelText("Tags"), "tag1");
 			await user.click(screen.getByRole("button", { name: "Create" }));
-
-			expect(screen.getByText("Variable created")).toBeVisible();
-			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText("Variable created")).toBeVisible();
+				expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			});
 		});
 
 		it("should show validation errors", async () => {
@@ -189,7 +191,9 @@ describe("Variables page", () => {
 
 			await user.type(getByLabelText(dialog, "Name"), "new_name");
 			await user.click(screen.getByRole("button", { name: "Save" }));
-			expect(screen.getByText("Variable updated")).toBeVisible();
+			await waitFor(() => {
+				expect(screen.getByText("Variable updated")).toBeVisible();
+			});
 		});
 
 		it("should show an error when API call fails with detail", async () => {
@@ -543,7 +547,9 @@ describe("Variables page", () => {
 
 			await user.click(screen.getByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Delete"));
-			expect(screen.getByText("Variable deleted")).toBeVisible();
+			await waitFor(() => {
+				expect(screen.getByText("Variable deleted")).toBeVisible();
+			});
 		});
 
 		it("should handle filtering by name", async () => {

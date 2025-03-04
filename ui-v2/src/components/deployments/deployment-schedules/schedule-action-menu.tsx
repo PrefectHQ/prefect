@@ -9,7 +9,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useDeleteSchedule } from "./use-delete-schedule";
 
 type ScheduleActionMenuProps = {
@@ -21,11 +21,10 @@ export const ScheduleActionMenu = ({
 	deploymentSchedule,
 	onEditSchedule,
 }: ScheduleActionMenuProps) => {
-	const { toast } = useToast();
 	const [dialogState, confirmDelete] = useDeleteSchedule();
 	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	const handleDelete = () => confirmDelete(deploymentSchedule);

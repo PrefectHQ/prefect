@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Dialog } from "@/components/ui/dialog";
-import { Toaster } from "@/components/ui/toaster";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import {
@@ -13,7 +12,6 @@ import {
 
 const IntervalScheduleFormTest = (props: IntervalScheduleFormProps) => (
 	<>
-		<Toaster />
 		<Dialog>
 			<IntervalScheduleForm {...props} />
 		</Dialog>

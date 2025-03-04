@@ -1,9 +1,8 @@
 import { useDeleteFlowRun } from "@/api/flow-runs";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export const useDeleteFlowRunsDialog = () => {
-	const { toast } = useToast();
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 
 	const { mutateAsync } = useDeleteFlowRun();
@@ -28,13 +27,13 @@ export const useDeleteFlowRunsDialog = () => {
 				{ numFails: 0, numSuccess: 0 },
 			);
 			if (numFails > 1) {
-				toast({ title: `${numFails} flow runs failed to delete` });
+				toast.error(`${numFails} flow runs failed to delete`);
 			} else if (numFails === 1) {
-				toast({ title: "Flow run failed to delete" });
+				toast.error("Flow run failed to delete");
 			} else if (numSuccess > 1) {
-				toast({ title: `${numSuccess} flow runs deleted` });
+				toast.success(`${numSuccess} flow runs deleted`);
 			} else {
-				toast({ title: "Flow run deleted" });
+				toast.success("Flow run deleted");
 			}
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		} catch (error) {

@@ -18,7 +18,8 @@ exports[`property.type > boolean > base 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r2g:"
             >
               bool (Optional)
@@ -32,6 +33,7 @@ exports[`property.type > boolean > base 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2h:"
               type="button"
@@ -75,7 +77,8 @@ exports[`property.type > boolean > base 1`] = `
         <fieldset>
           <button
             aria-checked="false"
-            class="peer size-4 shrink-0 rounded-sm border border-primary shadow-sm focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            class="peer border-input data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+            data-slot="checkbox"
             data-state="unchecked"
             id=":r2g:"
             role="checkbox"
@@ -107,7 +110,8 @@ exports[`property.type > boolean > enum 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r2p:"
             >
               bool (Optional)
@@ -121,6 +125,7 @@ exports[`property.type > boolean > enum 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2q:"
               type="button"
@@ -168,6 +173,7 @@ exports[`property.type > boolean > enum 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r2p:"
             role="combobox"
@@ -219,7 +225,8 @@ exports[`property.type > boolean > with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r2m:"
             >
               bool (Optional)
@@ -233,6 +240,7 @@ exports[`property.type > boolean > with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2n:"
               type="button"
@@ -276,7 +284,8 @@ exports[`property.type > boolean > with default 1`] = `
         <fieldset>
           <button
             aria-checked="true"
-            class="peer size-4 shrink-0 rounded-sm border border-primary shadow-sm focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            class="peer border-input data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+            data-slot="checkbox"
             data-state="checked"
             id=":r2m:"
             role="checkbox"
@@ -284,23 +293,25 @@ exports[`property.type > boolean > with default 1`] = `
             value="on"
           >
             <span
-              class="flex items-center justify-center text-current"
+              class="flex items-center justify-center text-current transition-none"
+              data-slot="checkbox-indicator"
               data-state="checked"
               style="pointer-events: none;"
             >
               <svg
-                class="size-4"
+                class="lucide lucide-check size-3.5"
                 fill="none"
-                height="15"
-                viewBox="0 0 15 15"
-                width="15"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
-                  clip-rule="evenodd"
-                  d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z"
-                  fill="currentColor"
-                  fill-rule="evenodd"
+                  d="M20 6 9 17l-5-5"
                 />
               </svg>
             </span>
@@ -330,7 +341,8 @@ exports[`property.type > boolean > with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r2j:"
             >
               bool (Optional)
@@ -344,6 +356,7 @@ exports[`property.type > boolean > with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2k:"
               type="button"
@@ -387,7 +400,8 @@ exports[`property.type > boolean > with value 1`] = `
         <fieldset>
           <button
             aria-checked="true"
-            class="peer size-4 shrink-0 rounded-sm border border-primary shadow-sm focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            class="peer border-input data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+            data-slot="checkbox"
             data-state="checked"
             id=":r2j:"
             role="checkbox"
@@ -395,23 +409,25 @@ exports[`property.type > boolean > with value 1`] = `
             value="on"
           >
             <span
-              class="flex items-center justify-center text-current"
+              class="flex items-center justify-center text-current transition-none"
+              data-slot="checkbox-indicator"
               data-state="checked"
               style="pointer-events: none;"
             >
               <svg
-                class="size-4"
+                class="lucide lucide-check size-3.5"
                 fill="none"
-                height="15"
-                viewBox="0 0 15 15"
-                width="15"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
-                  clip-rule="evenodd"
-                  d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z"
-                  fill="currentColor"
-                  fill-rule="evenodd"
+                  d="M20 6 9 17l-5-5"
                 />
               </svg>
             </span>
@@ -441,7 +457,8 @@ exports[`property.type > integer > base 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r23:"
             >
               float (Optional)
@@ -455,6 +472,7 @@ exports[`property.type > integer > base 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r24:"
               type="button"
@@ -527,7 +545,8 @@ exports[`property.type > integer > enum 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r2c:"
             >
               float (Optional)
@@ -541,6 +560,7 @@ exports[`property.type > integer > enum 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2d:"
               type="button"
@@ -588,6 +608,7 @@ exports[`property.type > integer > enum 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r2c:"
             role="combobox"
@@ -639,7 +660,8 @@ exports[`property.type > integer > with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r29:"
             >
               float (Optional)
@@ -653,6 +675,7 @@ exports[`property.type > integer > with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2a:"
               type="button"
@@ -725,7 +748,8 @@ exports[`property.type > integer > with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r26:"
             >
               float (Optional)
@@ -739,6 +763,7 @@ exports[`property.type > integer > with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r27:"
               type="button"
@@ -811,7 +836,8 @@ exports[`property.type > null > base 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r2t:"
             >
               None (Optional)
@@ -825,6 +851,7 @@ exports[`property.type > null > base 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r2u:"
               type="button"
@@ -896,7 +923,8 @@ exports[`property.type > number > base 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1m:"
             >
               float (Optional)
@@ -910,6 +938,7 @@ exports[`property.type > number > base 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1n:"
               type="button"
@@ -982,7 +1011,8 @@ exports[`property.type > number > enum 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1v:"
             >
               float (Optional)
@@ -996,6 +1026,7 @@ exports[`property.type > number > enum 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r20:"
               type="button"
@@ -1043,6 +1074,7 @@ exports[`property.type > number > enum 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r1v:"
             role="combobox"
@@ -1094,7 +1126,8 @@ exports[`property.type > number > with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1s:"
             >
               float (Optional)
@@ -1108,6 +1141,7 @@ exports[`property.type > number > with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1t:"
               type="button"
@@ -1180,7 +1214,8 @@ exports[`property.type > number > with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1p:"
             >
               float (Optional)
@@ -1194,6 +1229,7 @@ exports[`property.type > number > with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1q:"
               type="button"
@@ -1266,7 +1302,8 @@ exports[`property.type > string >  1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r0:"
             >
               str (Optional)
@@ -1280,6 +1317,7 @@ exports[`property.type > string >  1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1:"
               type="button"
@@ -1322,7 +1360,8 @@ exports[`property.type > string >  1`] = `
         </div>
         <fieldset>
           <textarea
-            class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+            class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+            data-slot="textarea"
             id=":r0:"
             rows="1"
           />
@@ -1351,7 +1390,8 @@ exports[`property.type > string > enum 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1a:"
             >
               str (Optional)
@@ -1365,6 +1405,7 @@ exports[`property.type > string > enum 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1b:"
               type="button"
@@ -1412,6 +1453,7 @@ exports[`property.type > string > enum 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r1a:"
             role="combobox"
@@ -1463,7 +1505,8 @@ exports[`property.type > string > enum with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1i:"
             >
               str (Optional)
@@ -1477,6 +1520,7 @@ exports[`property.type > string > enum with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1j:"
               type="button"
@@ -1524,6 +1568,7 @@ exports[`property.type > string > enum with default 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r1i:"
             role="combobox"
@@ -1575,7 +1620,8 @@ exports[`property.type > string > enum with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r1e:"
             >
               str (Optional)
@@ -1589,6 +1635,7 @@ exports[`property.type > string > enum with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r1f:"
               type="button"
@@ -1636,6 +1683,7 @@ exports[`property.type > string > enum with value 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r1e:"
             role="combobox"
@@ -1687,7 +1735,8 @@ exports[`property.type > string > format:date 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r9:"
             >
               date (Optional)
@@ -1701,6 +1750,7 @@ exports[`property.type > string > format:date 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:ra:"
               type="button"
@@ -1747,6 +1797,7 @@ exports[`property.type > string > format:date 1`] = `
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full text-muted-foreground"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r9:"
             type="button"
@@ -1809,7 +1860,8 @@ exports[`property.type > string > format:date with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":rh:"
             >
               date (Optional)
@@ -1823,6 +1875,7 @@ exports[`property.type > string > format:date with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:ri:"
               type="button"
@@ -1869,6 +1922,7 @@ exports[`property.type > string > format:date with default 1`] = `
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":rh:"
             type="button"
@@ -1929,7 +1983,8 @@ exports[`property.type > string > format:date with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":rd:"
             >
               date (Optional)
@@ -1943,6 +1998,7 @@ exports[`property.type > string > format:date with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:re:"
               type="button"
@@ -1989,6 +2045,7 @@ exports[`property.type > string > format:date with value 1`] = `
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":rd:"
             type="button"
@@ -2049,7 +2106,8 @@ exports[`property.type > string > format:date-time 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":rl:"
             >
               date-time (Optional)
@@ -2063,6 +2121,7 @@ exports[`property.type > string > format:date-time 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:rm:"
               type="button"
@@ -2109,6 +2168,7 @@ exports[`property.type > string > format:date-time 1`] = `
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal text-muted-foreground"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":rl:"
             type="button"
@@ -2157,7 +2217,8 @@ exports[`property.type > string > format:date-time with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":rt:"
             >
               date-time (Optional)
@@ -2171,6 +2232,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:ru:"
               type="button"
@@ -2217,6 +2279,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":rt:"
             type="button"
@@ -2263,7 +2326,8 @@ exports[`property.type > string > format:date-time with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":rp:"
             >
               date-time (Optional)
@@ -2277,6 +2341,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:rq:"
               type="button"
@@ -2323,6 +2388,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":rp:"
             type="button"
@@ -2369,7 +2435,8 @@ exports[`property.type > string > format:json-string 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r11:"
             >
               json-string (Optional)
@@ -2383,6 +2450,7 @@ exports[`property.type > string > format:json-string 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r12:"
               type="button"
@@ -2535,7 +2603,8 @@ exports[`property.type > string > format:json-string with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r17:"
             >
               json-string (Optional)
@@ -2549,6 +2618,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r18:"
               type="button"
@@ -2707,7 +2777,8 @@ exports[`property.type > string > format:json-string with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r14:"
             >
               json-string (Optional)
@@ -2721,6 +2792,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r15:"
               type="button"
@@ -2879,7 +2951,8 @@ exports[`property.type > string > with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r6:"
             >
               str (Optional)
@@ -2893,6 +2966,7 @@ exports[`property.type > string > with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r7:"
               type="button"
@@ -2935,7 +3009,8 @@ exports[`property.type > string > with default 1`] = `
         </div>
         <fieldset>
           <textarea
-            class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+            class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+            data-slot="textarea"
             id=":r6:"
             rows="1"
           >
@@ -2966,7 +3041,8 @@ exports[`property.type > string > with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r3:"
             >
               str (Optional)
@@ -2980,6 +3056,7 @@ exports[`property.type > string > with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r4:"
               type="button"
@@ -3022,7 +3099,8 @@ exports[`property.type > string > with value 1`] = `
         </div>
         <fieldset>
           <textarea
-            class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+            class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+            data-slot="textarea"
             id=":r3:"
             rows="1"
           >
@@ -3053,7 +3131,8 @@ exports[`property.type > unknown > base 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r30:"
             >
               Field (Optional)
@@ -3067,6 +3146,7 @@ exports[`property.type > unknown > base 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r31:"
               type="button"
@@ -3219,7 +3299,8 @@ exports[`property.type > unknown > with default 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r37:"
             >
               Field (Optional)
@@ -3233,6 +3314,7 @@ exports[`property.type > unknown > with default 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r38:"
               type="button"
@@ -3385,7 +3467,8 @@ exports[`property.type > unknown > with value 1`] = `
             class="flex flex-col gap-1"
           >
             <label
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
               for=":r33:"
             >
               Field (Optional)
@@ -3399,6 +3482,7 @@ exports[`property.type > unknown > with value 1`] = `
               aria-haspopup="menu"
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
               data-open="false"
+              data-slot="dropdown-menu-trigger"
               data-state="closed"
               id="radix-:r34:"
               type="button"
@@ -3446,6 +3530,7 @@ exports[`property.type > unknown > with value 1`] = `
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            data-slot="popover-trigger"
             data-state="closed"
             id=":r33:"
             role="combobox"

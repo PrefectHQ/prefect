@@ -17,9 +17,9 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -46,8 +46,6 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 	onOpenChange,
 	onSubmit,
 }: TaskRunConcurrencyLimitsCreateDialogProps) => {
-	const { toast } = useToast();
-
 	const { createTaskRunConcurrencyLimit, isPending } =
 		useCreateTaskRunConcurrencyLimit();
 
@@ -59,7 +57,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 	const handleAddLimit = (values: z.infer<typeof formSchema>) => {
 		createTaskRunConcurrencyLimit(values, {
 			onSuccess: () => {
-				toast({ title: "Concurrency limit added" });
+				toast.success("Concurrency limit added");
 			},
 			onError: (error) => {
 				const message = error.message || "Unknown error while updating limit.";

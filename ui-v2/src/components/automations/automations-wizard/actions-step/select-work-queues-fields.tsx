@@ -110,7 +110,7 @@ export const SelectWorkQueuesFields = ({
 									onValueChange={setSearch}
 									placeholder="Search for a work queue..."
 								/>
-								<ComboboxCommandEmtpy>No work ueue found</ComboboxCommandEmtpy>
+								<ComboboxCommandEmtpy>No work queue found</ComboboxCommandEmtpy>
 								<ComboboxCommandList>
 									<ComboboxCommandGroup>
 										{isInferredOptionFiltered && (

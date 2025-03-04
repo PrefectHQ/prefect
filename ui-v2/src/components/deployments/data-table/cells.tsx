@@ -13,13 +13,13 @@ import {
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
-import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { CellContext } from "@tanstack/react-table";
 import { subSeconds } from "date-fns";
 import { secondsInWeek } from "date-fns/constants";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 	onDelete: (deployment: DeploymentWithFlow) => void;
@@ -27,7 +27,6 @@ type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 
 export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 	const id = row.original.id;
-	const { toast } = useToast();
 	const { onQuickRun, isPending } = useQuickRun();
 
 	if (!id) return null;
@@ -55,7 +54,7 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(id);
-							toast({ title: "ID copied" });
+							toast.success("ID copied");
 						}}
 					>
 						Copy ID

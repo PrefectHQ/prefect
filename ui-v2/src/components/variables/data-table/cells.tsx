@@ -15,10 +15,10 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { JsonInput } from "@/components/ui/json-input";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { useToast } from "@/hooks/use-toast";
 import { useDeleteVariable } from "@/hooks/variables";
 import type { CellContext } from "@tanstack/react-table";
 import { useRef } from "react";
+import { toast } from "sonner";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -29,16 +29,13 @@ type ActionsCellProps = CellContext<
 
 export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 	const id = row.original.id;
-	const { toast } = useToast();
 	const { deleteVariable } = useDeleteVariable();
 	if (!id) return null;
 
 	const onVariableDelete = () => {
 		deleteVariable(id, {
 			onSuccess: () => {
-				toast({
-					title: "Variable deleted",
-				});
+				toast.success("Variable deleted");
 			},
 		});
 	};
@@ -57,9 +54,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(id);
-							toast({
-								title: "ID copied",
-							});
+							toast.success("ID copied");
 						}}
 					>
 						Copy ID
@@ -67,9 +62,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(row.original.name);
-							toast({
-								title: "Name copied",
-							});
+							toast.success("Name copied");
 						}}
 					>
 						Copy Name
@@ -82,9 +75,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 									: row.original.value;
 							if (copyValue) {
 								void navigator.clipboard.writeText(copyValue);
-								toast({
-									title: "Value copied",
-								});
+								toast.success("Value copied");
 							}
 						}}
 					>

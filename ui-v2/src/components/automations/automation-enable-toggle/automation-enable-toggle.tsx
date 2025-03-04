@@ -1,6 +1,6 @@
 import { Automation, useUpdateAutomation } from "@/api/automations";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type AutomationEnableToggleProps = {
 	automation: Automation;
@@ -8,8 +8,6 @@ type AutomationEnableToggleProps = {
 export const AutomationEnableToggle = ({
 	automation,
 }: AutomationEnableToggleProps) => {
-	const { toast } = useToast();
-
 	const { updateAutomation } = useUpdateAutomation();
 
 	const handleCheckedChange = (checked: boolean, id: string) => {
@@ -20,9 +18,7 @@ export const AutomationEnableToggle = ({
 			},
 			{
 				onSuccess: () => {
-					toast({
-						description: `Automation ${checked ? "enabled" : "disabled"}`,
-					});
+					toast.success(`Automation ${checked ? "enabled" : "disabled"}`);
 				},
 				onError: (error) => {
 					const message =

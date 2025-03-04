@@ -1,13 +1,12 @@
 import { Deployment, useDeleteDeployment } from "@/api/deployments";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { useToast } from "@/hooks/use-toast";
 import { getRouteApi } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 const routeApi = getRouteApi("/deployments/");
 
 export const useDeleteDeploymentConfirmationDialog = () => {
 	const navigate = routeApi.useNavigate();
-	const { toast } = useToast();
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 
 	const { deleteDeployment } = useDeleteDeployment();
@@ -27,7 +26,7 @@ export const useDeleteDeploymentConfirmationDialog = () => {
 			onConfirm: () => {
 				deleteDeployment(deployment.id, {
 					onSuccess: () => {
-						toast({ title: "Deployment deleted" });
+						toast.success("Deployment deleted");
 						if (shouldNavigate) {
 							void navigate({ to: "/deployments" });
 						}

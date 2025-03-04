@@ -8,8 +8,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 type Props = {
 	id: string;
@@ -17,11 +17,9 @@ type Props = {
 };
 
 export const AutomationsActionsMenu = ({ id, onDelete }: Props) => {
-	const { toast } = useToast();
-
 	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	return (

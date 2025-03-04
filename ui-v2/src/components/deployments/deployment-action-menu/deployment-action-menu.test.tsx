@@ -1,6 +1,6 @@
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -51,7 +51,9 @@ describe("DeploymentActionMenu", () => {
 		await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
 
 		// ------------ Assert
-		expect(screen.getByText("ID copied")).toBeVisible();
+		await waitFor(() => {
+			expect(screen.getByText("ID copied")).toBeVisible();
+		});
 	});
 
 	it("calls delete option ", async () => {

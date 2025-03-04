@@ -7,7 +7,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type TaskRunConcurrencyLimitsActionsMenuProps = {
 	id: string;
@@ -20,11 +20,9 @@ export const TaskRunConcurrencyLimitsActionsMenu = ({
 	onDelete,
 	onReset,
 }: TaskRunConcurrencyLimitsActionsMenuProps) => {
-	const { toast } = useToast();
-
 	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	return (

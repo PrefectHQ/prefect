@@ -59,6 +59,7 @@
 		"humanize-duration": "^3.32.1",
 		"lodash.merge": "^4.6.2",
 		"lucide-react": "^0.477.0",
+		"next-themes": "^0.4.4",
 		"openapi-fetch": "^0.13.4",
 		"react": "19.0.0",
 		"react-code-blocks": "^0.1.6",
@@ -69,6 +70,7 @@
 		"recharts": "^2.15.1",
 		"remark-gfm": "^4.0.1",
 		"rrule": "^2.8.1",
+		"sonner": "^2.0.1",
 		"tailwind-merge": "^2.6.0",
 		"tailwindcss-animate": "^1.0.7",
 		"zod": "^3.24.2"

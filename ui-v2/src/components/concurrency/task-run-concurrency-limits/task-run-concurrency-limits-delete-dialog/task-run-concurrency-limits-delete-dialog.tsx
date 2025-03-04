@@ -12,7 +12,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type TaskRunConcurrencyLimitsDeleteDialogProps = {
 	data: TaskRunConcurrencyLimit;
@@ -25,14 +25,13 @@ export const TaskRunConcurrencyLimitsDeleteDialog = ({
 	onOpenChange,
 	onDelete,
 }: TaskRunConcurrencyLimitsDeleteDialogProps) => {
-	const { toast } = useToast();
 	const { deleteTaskRunConcurrencyLimit, isPending } =
 		useDeleteTaskRunConcurrencyLimit();
 
 	const handleOnClick = (id: string) => {
 		deleteTaskRunConcurrencyLimit(id, {
 			onSuccess: () => {
-				toast({ description: "Concurrency limit deleted" });
+				toast.success("Concurrency limit deleted");
 			},
 			onError: (error) => {
 				const message =

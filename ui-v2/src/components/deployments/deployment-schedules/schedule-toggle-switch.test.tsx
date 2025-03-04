@@ -1,6 +1,6 @@
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { faker } from "@faker-js/faker";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { expect, test } from "vitest";
@@ -38,5 +38,8 @@ test("AutomationEnableToggle can toggle switch", async () => {
 	await user.click(
 		screen.getByRole("switch", { name: /toggle every 1 hour/i }),
 	);
-	expect(screen.getByText(/Deployment schedule paused/i)).toBeVisible();
+
+	await waitFor(() => {
+		expect(screen.getByText(/Deployment schedule paused/i)).toBeVisible();
+	});
 });
