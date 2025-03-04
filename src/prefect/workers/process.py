@@ -16,7 +16,9 @@ checkout out the [Prefect docs](/concepts/work-pools/).
 
 from __future__ import annotations
 
+import contextlib
 import os
+import tempfile
 import threading
 from functools import partial
 from pathlib import Path
@@ -203,14 +205,20 @@ class ProcessWorker(
         configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:
-        process = await self._runner.execute_flow_run(
-            flow_run_id=flow_run.id,
-            command=configuration.command,
-            cwd=configuration.working_dir,
-            env=configuration.env,
-            stream_output=configuration.stream_output,
-            task_status=task_status,
+        working_dir_ctx = (
+            tempfile.TemporaryDirectory(suffix="prefect")
+            if not configuration.working_dir
+            else contextlib.nullcontext(configuration.working_dir)
         )
+        with working_dir_ctx as working_dir:
+            process = await self._runner.execute_flow_run(
+                flow_run_id=flow_run.id,
+                command=configuration.command,
+                cwd=working_dir,
+                env=configuration.env,
+                stream_output=configuration.stream_output,
+                task_status=task_status,
+            )
 
         if process is None or process.returncode is None:
             raise RuntimeError("Failed to start flow run process.")
