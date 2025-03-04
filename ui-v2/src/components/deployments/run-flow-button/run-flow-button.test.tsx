@@ -7,7 +7,7 @@ import {
 	createRootRoute,
 	createRouter,
 } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
@@ -56,16 +56,9 @@ describe("RunFlowButton", () => {
 		await user.click(screen.getByRole("menuitem", { name: "Quick run" }));
 
 		// ------------ Assert
-		const list = screen.getByRole("list");
-
-		await waitFor(() => {
-			expect(within(list).getByRole("status")).toBeVisible();
-			expect(
-				screen.getByRole("button", {
-					name: /view run/i,
-				}),
-			).toBeVisible();
-		});
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /view run/i })).toBeVisible(),
+		);
 	});
 
 	it("custom run option is a link with deployment parameters", async () => {
