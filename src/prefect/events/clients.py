@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 from urllib.request import proxy_bypass
 from uuid import UUID
 
+import certifi
 import orjson
 from cachetools import TTLCache
 from prometheus_client import Counter
@@ -38,6 +39,7 @@ from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
@@ -123,11 +125,18 @@ class WebsocketProxyConnect(connect):
         self._host = host
         self._port = port
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY and u.scheme == "wss":
             # Create an unverified context for insecure connections
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
+            self._kwargs.setdefault("ssl", ctx)
+        elif u.scheme == "wss":
+            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            if not cert_file:
+                cert_file = certifi.where()
+            # Create a verified context with the certificate file
+            ctx = ssl.create_default_context(cafile=cert_file)
             self._kwargs.setdefault("ssl", ctx)
 
     async def _proxy_connect(self: Self) -> ClientConnection:
