@@ -79,7 +79,8 @@
           "pages": [
             "v3/tutorials/platform",
             "v3/tutorials/debug",
-            "v3/tutorials/alerts"
+            "v3/tutorials/alerts",
+            "v3/tutorials/server-and-worker"
           ]
         }
       ],
