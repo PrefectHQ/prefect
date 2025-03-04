@@ -1,9 +1,9 @@
 import { Deployment, useUpdateDeployment } from "@/api/deployments";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -23,8 +23,8 @@ const formSchema = z.object({
 				return;
 			}
 			return JSON.parse(val) as Record<string, unknown>;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		} catch (e) {
+		} catch (err) {
+			console.error(err);
 			ctx.addIssue({ code: "custom", message: "Invalid JSON" });
 			return z.NEVER;
 		}
@@ -34,7 +34,6 @@ export type DeploymentFormSchema = z.infer<typeof formSchema>;
 
 export const useDeploymentForm = (deployment: Deployment) => {
 	const navigate = useNavigate();
-	const { toast } = useToast();
 	const form = useForm({ resolver: zodResolver(formSchema) });
 
 	const { updateDeployment } = useUpdateDeployment();
@@ -92,7 +91,7 @@ export const useDeploymentForm = (deployment: Deployment) => {
 			},
 			{
 				onSuccess: () => {
-					toast({ title: "Deployment updated" });
+					toast.success("Deployment updated");
 					void navigate({
 						to: "/deployments/deployment/$id",
 						params: { id: deployment.id },

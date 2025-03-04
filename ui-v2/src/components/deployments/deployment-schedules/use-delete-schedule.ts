@@ -1,11 +1,10 @@
 import { useDeleteDeploymentSchedule } from "@/api/deployments";
 import type { DeploymentSchedule } from "@/api/deployments";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { getScheduleTitle } from "./get-schedule-title";
 
 export const useDeleteSchedule = () => {
-	const { toast } = useToast();
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 
 	const { deleteDeploymentSchedule } = useDeleteDeploymentSchedule();
@@ -22,7 +21,7 @@ export const useDeleteSchedule = () => {
 				deleteDeploymentSchedule(
 					{ deployment_id, schedule_id: id },
 					{
-						onSuccess: () => toast({ title: "Schedule deleted" }),
+						onSuccess: () => toast.success("Schedule deleted"),
 						onError: (error) => {
 							const message =
 								error.message || "Unknown error while deleting schedule.";
