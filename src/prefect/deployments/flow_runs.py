@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
 
 import anyio
+from opentelemetry import trace
+from opentelemetry.instrumentation.utils import is_instrumentation_enabled
 
 import prefect
 from prefect._result_records import ResultRecordMetadata
@@ -12,9 +14,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
 from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
-from prefect.telemetry.run_telemetry import (
-    LABELS_TRACEPARENT_KEY,
-)
+from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY, RunTelemetry
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
@@ -164,6 +164,8 @@ async def run_deployment(
 
     if flow_run_ctx and flow_run_ctx.flow_run:
         traceparent = flow_run_ctx.flow_run.labels.get(LABELS_TRACEPARENT_KEY)
+    elif is_instrumentation_enabled():
+        traceparent = RunTelemetry.traceparent_from_span(span=trace.get_current_span())
     else:
         traceparent = None
 
