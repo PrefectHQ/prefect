@@ -1,53 +1,33 @@
-import { Meta, StoryObj } from '@storybook/react'
-import { RunGraph } from './flow-run-graph'
-import DemoData from './demo-data.json'
-import DemoEvents from './demo-events.json'
-import { isValid } from 'date-fns'
-import { parseISO } from 'date-fns'
-import { StateType } from '@prefecthq/graphs'
+import { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { http, HttpResponse } from "msw";
+import DemoData from "./demo-data.json";
+import DemoEvents from "./demo-events.json";
+import { RunGraph } from "./flow-run-graph";
 
 const meta = {
-  component: RunGraph,
-  title: 'Components/FlowRuns/FlowRunGraph',
-} satisfies Meta<typeof RunGraph>
+	component: RunGraph,
+	title: "Components/FlowRuns/FlowRunGraph",
+	parameters: {
+		msw: {
+			handlers: [
+				http.get(buildApiUrl("/flow_runs/foo/graph-v2"), () => {
+					return HttpResponse.json(DemoData);
+				}),
+				http.post(buildApiUrl("/events/filter"), () => {
+					return HttpResponse.json(DemoEvents);
+				}),
+			],
+		},
+	},
+} satisfies Meta<typeof RunGraph>;
 
-export default meta
+export default meta;
 
-type Story = StoryObj<typeof meta>
-
-function reviver(key: string, value: any): any {
-  if (typeof value === 'string') {
-    const date = parseISO(value)
-    if (isValid(date)) {
-      return date
-    }
-  }
-
-  if (key === 'nodes') {
-    return new Map(value)
-  }
-
-  return value
-}
-
-function parseJson(json: unknown): any {
-  return JSON.parse(JSON.stringify(json), reviver)
-}
-
-const stateTypeColors: Record<StateType, string> = {
-  COMPLETED: '#219D4B',
-  RUNNING: '#09439B',
-  SCHEDULED: '#E08504',
-  PENDING: '#554B58',
-  FAILED: '#DE0529',
-  CANCELLED: '#333333',
-  CANCELLING: '#333333',
-  CRASHED: '#EA580C',
-  PAUSED: '#554B58',
-}
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  args: {
-    flowRunId: 'foo',
-  },
-}
+	args: {
+		flowRunId: "foo",
+	},
+};

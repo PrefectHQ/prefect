@@ -1,8 +1,14 @@
-import { FlowRun } from "@/api/flow-runs";
+import { getQueryService } from "@/api/service";
 import {
 	GraphItemSelection,
 	RunGraphConfig,
 	RunGraphData,
+	RunGraphEvent,
+	RunGraphFetchEvents,
+	RunGraphFetchEventsContext,
+	RunGraphNode,
+	RunGraphStateEvent,
+	StateType,
 	ViewportDateRange,
 	centerViewport,
 	emitter,
@@ -12,9 +18,18 @@ import {
 	stop,
 	updateViewportFromDateRange,
 } from "@prefecthq/graphs";
-import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getQueryService } from "@/api/service";
-import { mapApiResponseToRunGraphData } from "./utilities";
+import {
+	CSSProperties,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import {
+	mapApiResponseToRunGraphData,
+	mapApiResponseToRunGraphEvents,
+} from "./utilities";
 
 type RunGraphProps = {
 	flowRunId: string;
@@ -28,17 +43,60 @@ type RunGraphProps = {
 	style?: CSSProperties;
 };
 
-const fetch = async (id: string): Promise<RunGraphData> => {
-  const { data } = await getQueryService().GET('/flow_runs/{id}/graph-v2', {
-    params: { path: { id } },
-  })
+const fetchFlowRunGraph = async (id: string): Promise<RunGraphData> => {
+	const { data } = await getQueryService().GET("/flow_runs/{id}/graph-v2", {
+		params: { path: { id } },
+	});
 
-  if (!data) {
-    throw new Error("No data returned from API")
-  }
+	if (!data) {
+		throw new Error("No data returned from API");
+	}
 
-  return mapApiResponseToRunGraphData(data)
-}
+	return mapApiResponseToRunGraphData(data);
+};
+
+const fetchFlowRunEvents: RunGraphFetchEvents = async ({
+	since,
+	until,
+	nodeId,
+}: RunGraphFetchEventsContext): Promise<RunGraphEvent[]> => {
+	const { data } = await getQueryService().POST("/events/filter", {
+		body: {
+			filter: {
+				any_resource: {
+					id: [`prefect.flow-run.${nodeId}`],
+				},
+				event: {
+					exclude_prefix: ["prefect.log.write", "prefect.task-run."],
+				},
+				occurred: {
+					since: since.toISOString(),
+					until: until.toISOString(),
+				},
+				order: "ASC",
+			},
+			limit: 200,
+		},
+	});
+
+	if (!data) {
+		throw new Error("No data returned from API");
+	}
+
+	return mapApiResponseToRunGraphEvents(data);
+};
+
+const stateTypeColors: Record<StateType, string> = {
+	COMPLETED: "#219D4B",
+	RUNNING: "#09439B",
+	SCHEDULED: "#E08504",
+	PENDING: "#554B58",
+	FAILED: "#DE0529",
+	CANCELLED: "#333333",
+	CANCELLING: "#333333",
+	CRASHED: "#EA580C",
+	PAUSED: "#554B58",
+};
 
 export function RunGraph({
 	flowRunId,
@@ -64,11 +122,23 @@ export function RunGraph({
 		[onFullscreenChange],
 	);
 
-  const config = useMemo<RunGraphConfig>(() => ({
-    runId: flowRunId,
-    fetch: (id) => fetch(id),
-    theme: 'dark',
-  }), [flowRunId])
+	const config = useMemo<RunGraphConfig>(
+		() => ({
+			runId: flowRunId,
+			fetch: fetchFlowRunGraph,
+			fetchEvents: fetchFlowRunEvents,
+			styles: () => ({
+				node: (node: RunGraphNode) => ({
+					background: stateTypeColors[node.state_type],
+				}),
+				state: (event: RunGraphStateEvent) => ({
+					background: stateTypeColors[event.type],
+				}),
+			}),
+			theme: "light",
+		}),
+		[flowRunId],
+	);
 
 	useEffect(() => {
 		setConfig(config);
@@ -110,12 +180,15 @@ export function RunGraph({
 			onViewportChange?.(range);
 		};
 
-		emitter.on("itemSelected", handleItemSelected);
-		emitter.on("viewportDateRangeUpdated", handleViewportUpdate);
+		const offItemSelected = emitter.on("itemSelected", handleItemSelected);
+		const offViewportDateRangeUpdated = emitter.on(
+			"viewportDateRangeUpdated",
+			handleViewportUpdate,
+		);
 
 		return () => {
-			emitter.off("itemSelected", handleItemSelected);
-			emitter.off("viewportDateRangeUpdated", handleViewportUpdate);
+			offItemSelected();
+			offViewportDateRangeUpdated();
 		};
 	}, [onSelectedChange, onViewportChange]);
 

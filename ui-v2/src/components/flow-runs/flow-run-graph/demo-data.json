@@ -73,6 +73,7 @@
 				"start_time": "2023-09-27T15:50:39.995728+00:00",
 				"end_time": "2023-09-27T15:50:40.532868+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
@@ -91,6 +92,7 @@
 				"start_time": "2023-09-27T15:50:40.001999+00:00",
 				"end_time": "2023-09-27T15:50:40.882539+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
@@ -109,6 +111,7 @@
 				"start_time": "2023-09-27T15:50:40.006757+00:00",
 				"end_time": "2023-09-27T15:50:40.994817+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
@@ -133,6 +136,7 @@
 				"start_time": "2023-09-27T15:50:40.007097+00:00",
 				"end_time": "2023-09-27T15:50:41.833768+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "2833a401-7a7b-45bc-a511-463a75b53fc4"
@@ -151,6 +155,7 @@
 				"start_time": "2023-09-27T15:50:40.030594+00:00",
 				"end_time": "2023-09-27T15:50:41.066734+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
@@ -203,6 +208,7 @@
 				"start_time": "2023-09-27T15:50:40.038511+00:00",
 				"end_time": "2023-09-27T15:50:41.433059+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
@@ -221,6 +227,7 @@
 				"start_time": "2023-09-27T15:50:40.039032+00:00",
 				"end_time": "2023-09-27T15:50:42.059288+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
@@ -265,6 +272,7 @@
 				"start_time": "2023-09-27T15:50:40.044275+00:00",
 				"end_time": "2023-09-27T15:50:41.357918+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": [
 					{
 						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
@@ -308,6 +316,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:41.253660+00:00",
 				"end_time": "2023-09-27T15:50:42.946805+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "809bac19-c0be-4ca8-a1f6-a4298f00640c"
@@ -348,6 +357,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:41.669868+00:00",
 				"end_time": "2023-09-27T15:50:42.163438+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "809bac19-c0be-4ca8-a1f6-a4298f00640c"
@@ -382,6 +392,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:42.301165+00:00",
 				"end_time": "2023-09-27T15:50:43.451392+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
@@ -410,6 +421,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:43.078230+00:00",
 				"end_time": "2023-09-27T15:50:44.003004+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
@@ -444,6 +456,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:43.103862+00:00",
 				"end_time": "2023-09-27T15:50:44.203555+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
@@ -478,6 +491,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:44.141843+00:00",
 				"end_time": "2023-09-27T15:50:45.131066+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
@@ -512,6 +526,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:44.383247+00:00",
 				"end_time": "2023-09-27T15:50:44.646715+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
@@ -540,6 +555,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:45.311508+00:00",
 				"end_time": "2023-09-27T15:50:47.084332+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
@@ -574,6 +590,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:47.223518+00:00",
 				"end_time": "2023-09-27T15:50:47.634178+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
@@ -608,6 +625,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:47.780233+00:00",
 				"end_time": "2023-09-27T15:50:49.284105+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
@@ -636,6 +654,7 @@
 				"state_type": "COMPLETED",
 				"start_time": "2023-09-27T15:50:49.886114+00:00",
 				"end_time": "2023-09-27T15:50:50.160592+00:00",
+				"artifacts": [],
 				"parents": [
 					{
 						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
@@ -685,6 +704,7 @@
 				"start_time": "2023-09-27T15:50:59.572224+00:00",
 				"end_time": "2023-09-27T15:51:08.999871+00:00",
 				"parents": [],
+				"artifacts": [],
 				"children": []
 			}
 		]
