@@ -12,12 +12,12 @@ from prefect.server.database import PrefectDBInterface
 from prefect.server.events import ResourceSpecification, actions, messaging
 from prefect.server.events.schemas.automations import (
     Automation,
+    CompoundTrigger,
     EventTrigger,
     Firing,
     Posture,
     TriggeredAction,
     TriggerState,
-    CompoundTrigger,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
@@ -87,7 +87,8 @@ def automation_triggered_by_compound_trigger() -> Automation:
                     posture=Posture.Reactive,
                     threshold=1,
                 )
-            ]),
+            ],
+        ),
         actions=[actions.DoNothing()],
     )
 
@@ -389,8 +390,8 @@ def email_me_when_that_dang_spider_comes(
 
 @pytest.fixture
 def action_from_compound_triggered_automation(
-        automation_triggered_by_compound_trigger: Automation,
-        daddy_long_legs_walked: ReceivedEvent,
+    automation_triggered_by_compound_trigger: Automation,
+    daddy_long_legs_walked: ReceivedEvent,
 ) -> TriggeredAction:
     firing = Firing(
         trigger=automation_triggered_by_compound_trigger.trigger,

@@ -59,10 +59,10 @@ async def test_reacts_to_messages(
 
 
 async def test_reacts_to_messages_of_compound_triggered_automation(
-        message_handler: MessageHandler,
-        act: mock.AsyncMock,
-        action_from_compound_triggered_automation: TriggeredAction,
-        caplog: pytest.LogCaptureFixture,
+    message_handler: MessageHandler,
+    act: mock.AsyncMock,
+    action_from_compound_triggered_automation: TriggeredAction,
+    caplog: pytest.LogCaptureFixture,
 ):
     with caplog.at_level("INFO"):
         await message_handler(
