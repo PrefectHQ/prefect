@@ -1,5 +1,5 @@
 import type { DeploymentWithFlow } from "@/api/deployments";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import {
 	createFakeFlowRun,
 	createFakeFlowRunWithDeploymentAndFlow,

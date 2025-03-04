@@ -1,5 +1,5 @@
 import "./mocks";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { router } from "@/router";
 import { RouterProvider } from "@tanstack/react-router";
