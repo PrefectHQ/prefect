@@ -141,7 +141,6 @@ class GitRepository:
         self._credentials = credentials
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
-        # Replace forward slashes in branch names with hyphens to avoid path issues
         safe_branch = branch.replace("/", "-") if branch else None
         default_name = f"{repo_name}-{safe_branch}" if safe_branch else repo_name
         self._name = name or default_name
