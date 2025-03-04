@@ -58,6 +58,26 @@ async def test_reacts_to_messages(
     )
 
 
+async def test_reacts_to_messages_of_compound_triggered_automation(
+        message_handler: MessageHandler,
+        act: mock.AsyncMock,
+        action_from_compound_triggered_automation: TriggeredAction,
+        caplog: pytest.LogCaptureFixture,
+):
+    with caplog.at_level("INFO"):
+        await message_handler(
+            MemoryMessage(
+                data=action_from_compound_triggered_automation.model_dump_json().encode(),
+                attributes=None,
+            )
+        )
+
+    act.assert_awaited_once_with(
+        actions.DoNothing(),  # this is the self on which act is called
+        action_from_compound_triggered_automation,
+    )
+
+
 async def test_acks_actions_that_raise_actionfailed(
     message_handler: MessageHandler,
     act: mock.AsyncMock,

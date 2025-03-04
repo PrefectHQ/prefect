@@ -57,6 +57,23 @@ async def cleared_automations():
 def arachnophobia() -> Automation:
     return Automation(
         name="React immediately to spiders",
+        trigger=EventTrigger(
+            expect={"animal.walked"},
+            match={
+                "class": "Arachnida",
+                "order": "Araneae",
+            },
+            posture=Posture.Reactive,
+            threshold=1,
+        ),
+        actions=[actions.DoNothing()],
+    )
+
+
+@pytest.fixture
+def automation_triggered_by_compound_trigger() -> Automation:
+    return Automation(
+        name="React immediately to spiders",
         trigger=CompoundTrigger(
             require="all",
             within=timedelta(seconds=0),
@@ -367,6 +384,28 @@ def email_me_when_that_dang_spider_comes(
         triggering_labels=firing.triggering_labels,
         triggering_event=firing.triggering_event,
         action=arachnophobia.actions[0],
+    )
+
+
+@pytest.fixture
+def action_from_compound_triggered_automation(
+        automation_triggered_by_compound_trigger: Automation,
+        daddy_long_legs_walked: ReceivedEvent,
+) -> TriggeredAction:
+    firing = Firing(
+        trigger=automation_triggered_by_compound_trigger.trigger,
+        trigger_states={TriggerState.Triggered},
+        triggered=pendulum.now("UTC"),
+        triggering_labels={"hello": "world"},
+        triggering_event=daddy_long_legs_walked,
+    )
+    return TriggeredAction(
+        automation=automation_triggered_by_compound_trigger,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
+        action=automation_triggered_by_compound_trigger.actions[0],
     )
 
 
