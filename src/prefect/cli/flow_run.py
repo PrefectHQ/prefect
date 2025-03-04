@@ -2,6 +2,8 @@
 Command line interface for working with flow runs
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import signal

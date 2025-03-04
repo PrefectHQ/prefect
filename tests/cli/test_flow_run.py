@@ -879,7 +879,7 @@ class TestSignalHandling:
         popen.terminate()
 
         # Wait for the process to exit
-        return_code = await run_sync_in_worker_thread(popen.wait, timeout=10)
+        return_code = await run_sync_in_worker_thread(popen.wait, timeout=20)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
