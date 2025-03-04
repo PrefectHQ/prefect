@@ -1,5 +1,5 @@
 import type { DeploymentWithFlow } from "@/api/deployments";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import {
 	createFakeFlowRun,
 	createFakeFlowRunWithDeploymentAndFlow,
@@ -11,7 +11,7 @@ import {
 	createRootRoute,
 	createRouter,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
@@ -170,8 +170,10 @@ describe("DeploymentsDataTable", () => {
 		const quickRunButton = screen.getByRole("menuitem", { name: "Quick Run" });
 		await userEvent.click(quickRunButton);
 
-		expect(screen.getByText("new-flow-run")).toBeVisible();
-		expect(screen.getByRole("button", { name: "View run" })).toBeVisible();
+		await waitFor(() => {
+			expect(screen.getByText("new-flow-run")).toBeVisible();
+			expect(screen.getByRole("button", { name: "View run" })).toBeVisible();
+		});
 	});
 
 	it("has an action menu item that links to create a custom run", async () => {
