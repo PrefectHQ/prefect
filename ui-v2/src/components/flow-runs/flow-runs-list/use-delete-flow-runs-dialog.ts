@@ -35,9 +35,8 @@ export const useDeleteFlowRunsDialog = () => {
 			} else {
 				toast.success("Flow run deleted");
 			}
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		} catch (error) {
-			console.error("Unknown error while deleting flow run.");
+		} catch (err) {
+			console.error("Unknown error while deleting flow run.", err);
 		} finally {
 			onConfirm();
 		}

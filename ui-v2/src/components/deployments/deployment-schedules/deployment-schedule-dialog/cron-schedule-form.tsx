@@ -36,8 +36,7 @@ const verifyCronValue = (cronValue: string) => {
 	try {
 		CronExpressionParser.parse(cronValue);
 		return true;
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	} catch (e) {
+	} catch {
 		return false;
 	}
 };
