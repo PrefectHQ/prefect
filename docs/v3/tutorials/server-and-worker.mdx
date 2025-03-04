@@ -22,18 +22,7 @@ In this tutorial, you'll learn how to deploy an [OSS Server](https://github.com/
 
 ### Set Up Your Environment
 
-1. Create and activate a new Python virtual environment:
-   ```bash
-   python -m venv server_venv
-   source server_venv/bin/activate
-   ```
-
-2. Install the latest Prefect client:
-   ```bash
-   pip install -U prefect
-   ```
-
-3. Create a new namespace to work from (all commands in this quick-start will use this namespace):
+Create a new namespace to work from (all commands in this quick-start will use this namespace):
    ```bash
    kubectl create namespace prefect-server
    kubectl config set-context --current --namespace=prefect-server
