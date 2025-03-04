@@ -63,7 +63,8 @@ In this tutorial, you'll learn how to deploy an [OSS Server](https://github.com/
    server:
      basicAuth:
        enabled: true
-       existingSecret: "server-auth-secret"  # Must pre-exist if existingSecret is used; use authString otherwise
+       # Must pre-exist if existingSecret is used; use authString otherwise
+       existingSecret: "server-auth-secret"  
      autoscaling:
        enabled: true
      livenessProbe:
