@@ -31,15 +31,15 @@ Let’s quickly recap on some important terms:
 - Deployment: A manifest around a flow, including where it should run, when it should run, and any variables it needs to be able to run. This can “schedule” your flows, creating runs when needed.
 - Work pool: A collection of hardware that Prefect can talk to in order to schedule a given flow-run.
 
-# 1. Create Prefect Account
+## Create Prefect Account
 
 Simply go to the [prefect sign-in page](https://app.prefect.cloud/auth/sign-in). We suggest using GitHub to manage your account, but any will do!
 
-# 2. Create Modal Account
+## Create Modal Account
 
 Simply go to the [modal sign-up page](https://modal.com/signup?next=%2Fapps). Easiest to use the same account, but that’s your call!
 
-# 3. Create your GitHub repo
+## Create your GitHub repo
 
 We’re going to create a simple GitHub repo with our prefect flows. You can follow along here: https://github.com/Ben-Epstein/prefect-modal 
 
@@ -171,7 +171,7 @@ def main(name: str = "world", goodbye: bool = False):
         print(f"Goodbye {name}!")
 ```
 
-# 4. Give prefect access to your github repo
+## Give Prefect access to your GitHub repository
 
 First, let’s auth into prefect: `uv run prefect auth login` — follow the instructions provided.
 
@@ -245,7 +245,7 @@ We can add more schedules as desired. Simply add another list element. This one 
 Because we reference the entrypoint as a module and not a path, it can be called from anywhere (so long as it’s installed). This is much more flexible
 </Info>
 
-## 5. Connect prefect and modal
+## Connect Prefect and Modal
 
 What we’re doing here is giving Prefect access to your modal account to provision a serverless instance to run your flows and tasks. Modal will be our `work pool` in Prefect terms, remaining off when unused, and spinning up the infrastructure we need when a new run of a flow is scheduled. Prefect makes this incredibly easy. 
 
@@ -283,7 +283,7 @@ When we deploy this to prefect, it will now know to schedule all of the flow run
 
 At this point, you could `git add . && git commit -m "prefect modal" && git push` to get our code into GitHub, and then `uv run prefect deploy --all` to get our deployment live, but we want to take the final step and automate Prefect deployments.
 
-# 6. Configure CI/CD
+## Configure CI/CD
 
 Our last step. Since our code must exist in GitHub in order for modal to download, install, and run it, we want github to also be our source of truth in terms of telling Prefect what to actually do with our code.
 
