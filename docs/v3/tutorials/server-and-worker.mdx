@@ -116,8 +116,8 @@ To connect a worker to your Prefect server in the same cluster:
      config:
        workPool: kube-test
      selfHostedServerApiConfig:
+       # <service>.<namespace> if in same cluster, or FQDN if external
        apiUrl: http://prefect-server.prefect-server.svc.cluster.local:4200/api
-       # apiUrl = <service>.<namespace> if in same cluster, or FQDN if external
      basicAuth:
        enabled: true
        existingSecret: worker-auth-secret
