@@ -964,7 +964,11 @@ class Runner:
         Reschedules all flow runs that are currently running.
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
-        from_sync.call_in_loop_thread(create_call(self._reschedule_flow_runs))
+        assert self._loop is not None
+        future = asyncio.run_coroutine_threadsafe(
+            self._reschedule_flow_runs(), self._loop
+        )
+        future.result()
         self._logger.info("Graceful shutdown complete")
 
         sys.exit(0)
@@ -979,10 +983,10 @@ class Runner:
             run_logger = self._get_flow_run_logger(flow_run)
             run_logger.info("Rescheduling flow run for resubmission...")
             try:
-                await self._kill_process(process_info["pid"])
                 await propose_state(
                     self._client, AwaitingRetry(), flow_run_id=flow_run.id
                 )
+                await self._kill_process(process_info["pid"])
                 run_logger.info("Rescheduled flow run for resubmission")
             except Abort as exc:
                 run_logger.info(
