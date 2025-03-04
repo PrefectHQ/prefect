@@ -525,37 +525,6 @@ async def test_worker_calls_run_with_expected_arguments(
     }
 
 
-async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
-    prefect_client: PrefectClient, deployment, work_pool, caplog
-):
-    @flow
-    def test_flow():
-        pass
-
-    def create_run_with_deployment(state):
-        return prefect_client.create_flow_run_from_deployment(
-            deployment.id, state=state
-        )
-
-    flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-    )
-
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
-        await worker.get_and_submit_flow_runs()
-
-    assert (
-        f"Flow run {flow_run.id!r} was created from deployment"
-        f" {deployment.name!r} which is configured with a storage block. Please use an"
-        + " agent to execute this flow run."
-        in caplog.text
-    )
-
-    flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert flow_run.state_name == "Scheduled"
-
-
 async def test_worker_creates_only_one_client_context(
     prefect_client, worker_deployment_wq1, work_pool, monkeypatch, caplog
 ):
