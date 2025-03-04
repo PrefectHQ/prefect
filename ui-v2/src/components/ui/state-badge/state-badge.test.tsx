@@ -68,7 +68,7 @@ describe("StateBadge", () => {
 			expect(screen.getByText(name)).toBeInTheDocument();
 
 			// Check if correct classes are applied based on the CLASSES mapping
-			const badge = screen.getByText(name).closest("div");
+			const badge = screen.getByText(name).closest("span");
 			const expectedClasses = {
 				COMPLETED: "bg-green-50 text-green-600 hover:bg-green-50",
 				FAILED: "bg-red-50 text-red-600 hover:bg-red-50",

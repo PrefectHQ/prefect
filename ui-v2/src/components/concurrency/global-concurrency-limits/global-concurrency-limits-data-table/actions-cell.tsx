@@ -8,8 +8,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
+import { toast } from "sonner";
 
 type ActionsCellProps = CellContext<GlobalConcurrencyLimit, unknown> & {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
@@ -21,11 +21,9 @@ export const ActionsCell = ({
 	onDeleteRow,
 	...props
 }: ActionsCellProps) => {
-	const { toast } = useToast();
-
 	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	const row = props.row.original;

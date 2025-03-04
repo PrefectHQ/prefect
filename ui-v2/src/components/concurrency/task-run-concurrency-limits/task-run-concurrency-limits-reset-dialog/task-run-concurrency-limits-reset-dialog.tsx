@@ -12,7 +12,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type TaskRunConcurrencyLimitsResetDialogProps = {
 	data: TaskRunConcurrencyLimit;
@@ -25,14 +25,13 @@ export const TaskRunConcurrencyLimitsResetDialog = ({
 	onOpenChange,
 	onReset,
 }: TaskRunConcurrencyLimitsResetDialogProps) => {
-	const { toast } = useToast();
 	const { resetTaskRunConcurrencyLimitTag, isPending } =
 		useResetTaskRunConcurrencyLimitTag();
 
 	const handleOnClick = (tag: string) => {
 		resetTaskRunConcurrencyLimitTag(tag, {
 			onSuccess: () => {
-				toast({ description: "Concurrency limit reset" });
+				toast.success("Concurrency limit reset");
 			},
 			onError: (error) => {
 				const message =

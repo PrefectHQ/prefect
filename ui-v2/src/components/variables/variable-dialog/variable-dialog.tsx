@@ -20,12 +20,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { JsonInput } from "@/components/ui/json-input";
 import { TagsInput } from "@/components/ui/tags-input";
-import { useToast } from "@/hooks/use-toast";
 import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
 import type { JSONValue } from "@/lib/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -51,8 +51,6 @@ export const VariableDialog = ({
 	open,
 	variableToEdit,
 }: VariableDialogProps) => {
-	const { toast } = useToast();
-
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
@@ -90,9 +88,7 @@ export const VariableDialog = ({
 					},
 					{
 						onSuccess: () => {
-							toast({
-								title: "Variable updated",
-							});
+							toast.success("Variable updated");
 							onOpenChange(false);
 						},
 						onError: (error) => {
@@ -113,9 +109,7 @@ export const VariableDialog = ({
 					},
 					{
 						onSuccess: () => {
-							toast({
-								title: "Variable created",
-							});
+							toast.success("Variable created");
 							onOpenChange(false);
 						},
 						onError: (error) => {

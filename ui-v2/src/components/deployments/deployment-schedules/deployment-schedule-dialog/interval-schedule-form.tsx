@@ -30,12 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const INTERVALS = [
@@ -117,8 +117,6 @@ export const IntervalScheduleForm = ({
 	scheduleToEdit,
 	onSubmit,
 }: IntervalScheduleFormProps) => {
-	const { toast } = useToast();
-
 	const { createDeploymentSchedule, isPending: createPending } =
 		useCreateDeploymentSchedule();
 	const { updateDeploymentSchedule, isPending: updatePending } =
@@ -173,7 +171,7 @@ export const IntervalScheduleForm = ({
 				},
 				{
 					onSuccess: () => {
-						toast({ title: "Deployment schedule updated" });
+						toast.success("Deployment schedule updated");
 					},
 					onError: (error) => {
 						const message =
@@ -199,7 +197,7 @@ export const IntervalScheduleForm = ({
 				},
 				{
 					onSuccess: () => {
-						toast({ title: "Deployment schedule created" });
+						toast.success("Deployment schedule created");
 					},
 					onError: (error) => {
 						const message =

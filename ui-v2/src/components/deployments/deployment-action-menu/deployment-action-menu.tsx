@@ -7,8 +7,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 export type DeploymentActionMenuProps = {
 	id: string;
@@ -19,11 +19,9 @@ export const DeploymentActionMenu = ({
 	id,
 	onDelete,
 }: DeploymentActionMenuProps) => {
-	const { toast } = useToast();
-
 	const handleCopyId = (_id: string) => {
 		void navigator.clipboard.writeText(_id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	return (

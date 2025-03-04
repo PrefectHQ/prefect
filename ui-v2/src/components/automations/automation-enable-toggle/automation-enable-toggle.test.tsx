@@ -1,6 +1,6 @@
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { createFakeAutomation } from "@/mocks";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { expect, test } from "vitest";
@@ -24,5 +24,8 @@ test("AutomationEnableToggle can toggle switch", async () => {
 	).toBeChecked();
 
 	await user.click(screen.getByRole("switch", { name: /toggle automation/i }));
-	expect(screen.getByText(/automation disabled/i)).toBeVisible();
+
+	await waitFor(() => {
+		expect(screen.getByText(/automation disabled/i)).toBeVisible();
+	});
 });

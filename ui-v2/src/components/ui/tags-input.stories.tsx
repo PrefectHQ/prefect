@@ -1,4 +1,4 @@
-import { TagsInput } from "@/components/ui/tags-input.tsx";
+import { TagsInput } from "@/components/ui/tags-input";
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, fn, userEvent, within } from "@storybook/test";
 import { type ComponentProps, useState } from "react";
@@ -16,7 +16,7 @@ export default {
 	},
 	// To control input value in Stories via useState()
 	render: function Render(args: ComponentProps<typeof TagsInput>) {
-		const [value, setValue] = useState(args.value as string[]);
+		const [value, setValue] = useState(args?.value as string[]);
 		return (
 			<TagsInput
 				{...args}
@@ -24,7 +24,7 @@ export default {
 				onChange={(x) => {
 					if (Array.isArray(x)) {
 						setValue(x);
-						args.onChange?.(x);
+						args?.onChange?.(x);
 					}
 				}}
 			/>

@@ -3,10 +3,10 @@ import {
 	useCreateGlobalConcurrencyLimit,
 	useUpdateGlobalConcurrencyLimit,
 } from "@/api/global-concurrency-limits";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -49,8 +49,6 @@ export const useCreateOrEditGlobalConcurrencyLimitForm = ({
 	limitToUpdate,
 	onSubmit,
 }: UseCreateOrEditGlobalConcurrencyLimitFormOptions) => {
-	const { toast } = useToast();
-
 	const { createGlobalConcurrencyLimit, status: createStatus } =
 		useCreateGlobalConcurrencyLimit();
 	const { updateGlobalConcurrencyLimit, status: updateStatus } =
@@ -86,7 +84,7 @@ export const useCreateOrEditGlobalConcurrencyLimitForm = ({
 				},
 				{
 					onSuccess: () => {
-						toast({ title: "Limit updated" });
+						toast.success("Limit updated");
 					},
 					onError: (error) => {
 						const message =
@@ -99,7 +97,7 @@ export const useCreateOrEditGlobalConcurrencyLimitForm = ({
 		} else {
 			createGlobalConcurrencyLimit(values, {
 				onSuccess: () => {
-					toast({ title: "Limit created" });
+					toast.success("Limit created");
 				},
 				onError: (error) => {
 					const message =
