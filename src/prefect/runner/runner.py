@@ -49,7 +49,6 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from types import FrameType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -238,6 +237,8 @@ class Runner:
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
         self.__flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
+        # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
+        self._rescheduling: bool = False
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
@@ -584,16 +585,24 @@ class Runner:
         Returns:
             The flow run process.
         """
-        # Set up signal handling to reschedule run on SIGTERM
-        if threading.current_thread() is threading.main_thread():
-            signal.signal(signal.SIGTERM, self._handle_execute_sigterm)
-
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
         async with context:
             if not self._acquire_limit_slot(flow_run_id):
                 return
+
+            # Set up signal handling to reschedule run on SIGTERM
+            on_sigterm = os.environ.get("PREFECT_RUNNER_ON_SIGTERM")
+            if (
+                threading.current_thread() is threading.main_thread()
+                and self._loop
+                and on_sigterm == "reschedule"
+            ):
+                self._loop.add_signal_handler(
+                    signal.SIGTERM,
+                    lambda: asyncio.create_task(self._handle_reschedule_sigterm()),
+                )
 
             async with anyio.create_task_group() as tg:
                 with anyio.CancelScope():
@@ -957,36 +966,25 @@ class Runner:
                 # process ended right after the check above.
                 return
 
-    def _handle_execute_sigterm(
-        self, signum: int, frame: FrameType | None = None
+    async def _handle_reschedule_sigterm(
+        self,
     ) -> None:
         """
         Reschedules all flow runs that are currently running.
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
-        assert self._loop is not None
-        future = asyncio.run_coroutine_threadsafe(
-            self._reschedule_flow_runs(), self._loop
-        )
-        future.result()
-        self._logger.info("Graceful shutdown complete")
-
-        sys.exit(0)
-
-    async def _reschedule_flow_runs(self) -> None:
-        """
-        Reschedules a flow run for resubmission.
-        """
+        self._rescheduling = True
 
         async def reschedule_flow_run(process_info: ProcessMapEntry) -> None:
             flow_run = process_info["flow_run"]
             run_logger = self._get_flow_run_logger(flow_run)
-            run_logger.info("Rescheduling flow run for resubmission...")
+            run_logger.info(
+                "Rescheduling flow run for resubmission in response to SIGTERM"
+            )
             try:
                 await propose_state(
                     self._client, AwaitingRetry(), flow_run_id=flow_run.id
                 )
-                await self._kill_process(process_info["pid"])
                 run_logger.info("Rescheduled flow run for resubmission")
             except Abort as exc:
                 run_logger.info(
@@ -1000,11 +998,14 @@ class Runner:
                     "Failed to reschedule flow run",
                 )
 
+        self._logger.info("Rescheduling flow runs...")
         coros = [
             reschedule_flow_run(process_info)
             for process_info in self._flow_run_process_map.values()
         ]
         await asyncio.gather(*coros)
+
+        sys.exit(0)
 
     async def _pause_schedules(self):
         """
@@ -1476,7 +1477,7 @@ class Runner:
             async with self._flow_run_process_map_lock:
                 self._flow_run_process_map.pop(flow_run.id, None)
 
-        if status_code != 0:
+        if status_code != 0 and not self._rescheduling:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
