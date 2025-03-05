@@ -1,6 +1,13 @@
+from __future__ import annotations
+
+import os
+import signal
+import subprocess
+from time import sleep
 from typing import Any, Awaitable, Callable
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 
 import prefect.exceptions
@@ -10,6 +17,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
+from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -37,6 +45,15 @@ def hello_flow():
 @flow(name="goodbye")
 def goodbye_flow():
     return "Goodbye"
+
+
+@flow()
+def tired_flow():
+    print("I am so tired...")
+
+    for _ in range(100):
+        print("zzzzz...")
+        sleep(5)
 
 
 async def assert_flow_run_is_deleted(prefect_client: PrefectClient, flow_run_id: UUID):
@@ -814,3 +831,68 @@ class TestFlowRunExecute:
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
+
+
+class TestSignalHandling:
+    @pytest.mark.parametrize("sigterm_handling", ["reschedule", None])
+    async def test_flow_run_execute_sigterm_handling(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        sigterm_handling: str | None,
+    ):
+        if sigterm_handling is not None:
+            monkeypatch.setenv(
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", sigterm_handling
+            )
+
+        # Create a flow run that will take a while to run
+        deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Run the flow run in a new process with a Runner
+        popen = subprocess.Popen(
+            [
+                "prefect",
+                "flow-run",
+                "execute",
+                str(flow_run.id),
+            ],
+            env=get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ,
+        )
+
+        assert popen.pid is not None
+
+        # Wait for the flow run to start
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+
+        # Send the SIGTERM signal
+        popen.terminate()
+
+        # Wait for the process to exit
+        return_code = popen.wait(timeout=10)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+
+        if sigterm_handling == "reschedule":
+            assert flow_run.state.is_scheduled(), (
+                "The flow run should have been rescheduled"
+            )
+            assert return_code == 0, "The process should have exited with a 0 exit code"
+        else:
+            assert flow_run.state.is_running(), (
+                "The flow run should be stuck in running"
+            )
+            assert return_code == -signal.SIGTERM.value, (
+                "The process should have exited with a SIGTERM exit code"
+            )
