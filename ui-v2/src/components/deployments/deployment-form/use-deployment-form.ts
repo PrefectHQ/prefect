@@ -1,4 +1,8 @@
-import { Deployment, useUpdateDeployment } from "@/api/deployments";
+import {
+	Deployment,
+	useCreateDeployment,
+	useUpdateDeployment,
+} from "@/api/deployments";
 import { useSchemaForm } from "@/components/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
@@ -7,52 +11,86 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const formSchema = z.object({
-	description: z.string().nullable().optional(),
-	work_pool_name: z.string().nullable().optional(),
-	work_queue_name: z.string().nullable().optional(),
-	tags: z.array(z.string()).optional(),
-	/** Coerce to solve common issue of transforming a string to undefined */
-	concurrency_options: z
-		.object({ collision_strategy: z.enum(["ENQUEUE", "CANCEL_NEW"]) })
-		.nullable()
-		.optional(),
-	job_variables: z.string().superRefine((val, ctx) => {
-		try {
-			if (!val) {
-				return;
+type FormMode = "edit" | "duplicate";
+
+const createFormSchema = (
+	deployment: Deployment,
+	{ mode }: { mode: FormMode },
+) =>
+	z.object({
+		name: z.string().refine(
+			(value) => {
+				if (mode === "edit") {
+					return true;
+				}
+				return value !== deployment.name;
+			},
+			{ message: "Name must be different from the original deployment" },
+		),
+		description: z.string().nullable().optional(),
+		work_pool_name: z.string().nullable().optional(),
+		work_queue_name: z.string().nullable().optional(),
+		tags: z.array(z.string()).optional(),
+		/** Coerce to solve common issue of transforming a string to undefined */
+		concurrency_options: z
+			.object({
+				collision_strategy: z.enum(["ENQUEUE", "CANCEL_NEW"]).optional(),
+			})
+			.nullable()
+			.optional(),
+		job_variables: z.string().superRefine((val, ctx) => {
+			try {
+				if (!val) {
+					return;
+				}
+				return JSON.parse(val) as Record<string, unknown>;
+			} catch (err) {
+				console.error(err);
+				ctx.addIssue({ code: "custom", message: "Invalid JSON" });
+				return z.NEVER;
 			}
-			return JSON.parse(val) as Record<string, unknown>;
-		} catch (err) {
-			console.error(err);
-			ctx.addIssue({ code: "custom", message: "Invalid JSON" });
-			return z.NEVER;
-		}
-	}),
-	enforce_parameter_schema: z.boolean(),
-	parameter_openapi_schema: z
-		.record(z.unknown())
-		.optional()
-		.nullable()
-		.readonly(),
-});
+		}),
+		enforce_parameter_schema: z.boolean(),
+		parameter_openapi_schema: z
+			.record(z.unknown())
+			.optional()
+			.nullable()
+			.readonly(),
+	});
 
-export type DeploymentFormSchema = z.infer<typeof formSchema>;
+export type DeploymentFormSchema = z.infer<ReturnType<typeof createFormSchema>>;
 
-export const useDeploymentForm = (deployment: Deployment) => {
+const DEFAULT_VALUES: DeploymentFormSchema = {
+	name: "",
+	description: "",
+	tags: [],
+	job_variables: "",
+	enforce_parameter_schema: true,
+};
+
+export const useDeploymentForm = (
+	deployment: Deployment,
+	{ mode }: { mode: FormMode },
+) => {
 	const navigate = useNavigate();
-	const form = useForm({ resolver: zodResolver(formSchema) });
+	const form = useForm({
+		resolver: zodResolver(createFormSchema(deployment, { mode })),
+		defaultValues: DEFAULT_VALUES,
+	});
 	const {
 		values: parametersFormValues,
 		setValues: setParametersFormValues,
 		errors: parameterFormErrors,
 		validateForm: validateParametersForm,
 	} = useSchemaForm();
+
+	const { createDeployment } = useCreateDeployment();
 	const { updateDeployment } = useUpdateDeployment();
 
 	// syncs form state to deployment to update
 	useEffect(() => {
 		const {
+			name,
 			description,
 			work_pool_name,
 			work_queue_name,
@@ -70,6 +108,7 @@ export const useDeploymentForm = (deployment: Deployment) => {
 		// nb: Handle remaining form fields using react-hook-form
 		form.reset({
 			description,
+			name,
 			work_pool_name,
 			work_queue_name,
 			tags,
@@ -82,6 +121,7 @@ export const useDeploymentForm = (deployment: Deployment) => {
 
 	const onSave = async (values: DeploymentFormSchema) => {
 		const {
+			name,
 			job_variables,
 			description,
 			work_pool_name,
@@ -111,39 +151,84 @@ export const useDeploymentForm = (deployment: Deployment) => {
 			return;
 		}
 
-		updateDeployment(
-			{
-				id: deployment.id,
-				paused: deployment.paused,
-				description,
-				// If value is "", set as null
-				work_pool_name: work_pool_name || null,
-				// If value is "", set as null
-				work_queue_name: work_queue_name || null,
-				tags,
-				enforce_parameter_schema,
-				// @ts-expect-error Expecting TS error from poor openAPI typings
-				parameters: parametersFormValues,
-				concurrency_options,
-				// @ts-expect-error Expecting TS error from poor openAPI typings
-				job_variables: jobVariablesPayload,
-			},
-			{
-				onSuccess: () => {
-					toast.success("Deployment updated");
-					void navigate({
-						to: "/deployments/deployment/$id",
-						params: { id: deployment.id },
-					});
-				},
-				onError: (error) => {
-					const message =
-						error.message || "Unknown error while updating deployment.";
-					console.error(message);
-					toast.error(message);
-				},
-			},
-		);
+		const concurrencyOptions = concurrency_options?.collision_strategy
+			? { collision_strategy: concurrency_options.collision_strategy }
+			: undefined;
+
+		switch (mode) {
+			case "duplicate":
+				createDeployment(
+					{
+						concurrency_options: concurrencyOptions,
+						description,
+						enforce_parameter_schema,
+						flow_id: deployment.flow_id,
+						// @ts-expect-error Expecting TS error from poor openAPI typings
+						job_variables: jobVariablesPayload,
+						name,
+						// @ts-expect-error Expecting TS error from poor openAPI typings
+						parameters: parametersFormValues,
+						parameter_openapi_schema,
+						paused: deployment.paused,
+						tags,
+						// If value is "", set as null
+						work_pool_name: work_pool_name || null,
+						// If value is "", set as null
+						work_queue_name: work_queue_name || null,
+					},
+					{
+						onSuccess: ({ id }) => {
+							toast.success("Deployment created");
+							void navigate({
+								to: "/deployments/deployment/$id",
+								params: { id },
+							});
+						},
+						onError: (error) => {
+							const message =
+								error.message || "Unknown error while creating deployment.";
+							console.error(message);
+							toast.error(message);
+						},
+					},
+				);
+				break;
+			case "edit":
+				updateDeployment(
+					{
+						concurrency_options: concurrencyOptions,
+						description,
+						enforce_parameter_schema,
+						id: deployment.id,
+						// @ts-expect-error Expecting TS error from poor openAPI typings
+						job_variables: jobVariablesPayload,
+						// @ts-expect-error Expecting TS error from poor openAPI typings
+						parameters: parametersFormValues,
+						paused: deployment.paused,
+						tags,
+						// If value is "", set as null
+						work_pool_name: work_pool_name || null,
+						// If value is "", set as null
+						work_queue_name: work_queue_name || null,
+					},
+					{
+						onSuccess: () => {
+							toast.success("Deployment updated");
+							void navigate({
+								to: "/deployments/deployment/$id",
+								params: { id: deployment.id },
+							});
+						},
+						onError: (error) => {
+							const message =
+								error.message || "Unknown error while updating deployment.";
+							console.error(message);
+							toast.error(message);
+						},
+					},
+				);
+				break;
+		}
 	};
 
 	return {
