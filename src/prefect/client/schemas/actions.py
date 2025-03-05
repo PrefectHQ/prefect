@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 import jsonschema
 from pydantic import Field, field_validator, model_validator
-from typing_extensions import Self
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -45,7 +44,6 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.annotations import freeze
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
@@ -279,27 +277,6 @@ class DeploymentCreate(ActionBaseModel):
 
             jsonschema.validate(self.job_variables, variables_schema)
 
-    @model_validator(mode="after")
-    def validate_parameters(self) -> Self:
-        """Update the parameter schema to mark frozen parameters as readonly."""
-        if not self.parameters:
-            return self
-
-        for key, value in self.parameters.items():
-            if isinstance(value, freeze):
-                raw_value = value.unfreeze()
-                if (
-                    self.parameter_openapi_schema is not None
-                    and key in self.parameter_openapi_schema.get("properties", {})
-                ):
-                    self.parameter_openapi_schema["properties"][key]["readOnly"] = True
-                    self.parameter_openapi_schema["properties"][key]["enum"] = [
-                        raw_value
-                    ]
-                    self.parameters[key] = raw_value
-
-        return self
-
 
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
@@ -373,27 +350,6 @@ class DeploymentUpdate(ActionBaseModel):
 
         if variables_schema is not None:
             jsonschema.validate(self.job_variables, variables_schema)
-
-    @model_validator(mode="after")
-    def validate_parameters(self) -> Self:
-        """Update the parameter schema to mark frozen parameters as readonly."""
-        if not self.parameters:
-            return self
-
-        for key, value in self.parameters.items():
-            if isinstance(value, freeze):
-                raw_value = value.unfreeze()
-                if (
-                    self.parameter_openapi_schema is not None
-                    and key in self.parameter_openapi_schema.get("properties", {})
-                ):
-                    self.parameter_openapi_schema["properties"][key]["readOnly"] = True
-                    self.parameter_openapi_schema["properties"][key]["enum"] = [
-                        raw_value
-                    ]
-                    self.parameters[key] = raw_value
-
-        return self
 
 
 class FlowRunUpdate(ActionBaseModel):

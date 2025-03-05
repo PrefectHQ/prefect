@@ -2533,7 +2533,7 @@ class TestRunnerDeployment:
             __file__,
             parameters={"value": freeze("test")},
         )
-        assert deployment_object.parameters == {"value": freeze("test")}
+        assert deployment_object.parameters == {"value": "test"}
         deployment_id = await deployment_object.apply()
 
         deployment = await prefect_client.read_deployment(deployment_id)
@@ -2560,7 +2560,7 @@ class TestRunnerDeployment:
             __file__,
             parameters={"number": freeze(42)},
         )
-        assert deployment_object.parameters == {"number": freeze(42)}
+        assert deployment_object.parameters == {"number": 42}
 
         deployment_id = await deployment_object.apply()
 

@@ -2,7 +2,8 @@ import warnings
 from operator import itemgetter
 from typing import Any, cast
 
-from pydantic_core import to_json
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import core_schema, to_json
 from typing_extensions import Self, TypeVar
 
 T = TypeVar("T", infer_variance=True)
@@ -138,3 +139,15 @@ class freeze(BaseAnnotation[T]):
     def unfreeze(self) -> T:
         """Return the unwrapped value."""
         return self.unwrap()
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[Any], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        return core_schema.no_info_after_validator_function(
+            cls,  # Use the class itself as the validator
+            core_schema.any_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda x: x.unfreeze()  # Serialize by unwrapping the value
+            ),
+        )
