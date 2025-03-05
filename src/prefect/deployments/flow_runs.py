@@ -19,7 +19,7 @@ from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 
 
-def is_instrumentation_enabled() -> bool:
+def _is_instrumentation_enabled() -> bool:
     try:
         from opentelemetry.instrumentation.utils import is_instrumentation_enabled
 
@@ -173,7 +173,7 @@ async def run_deployment(
 
     if flow_run_ctx and flow_run_ctx.flow_run:
         traceparent = flow_run_ctx.flow_run.labels.get(LABELS_TRACEPARENT_KEY)
-    elif is_instrumentation_enabled():
+    elif _is_instrumentation_enabled():
         traceparent = RunTelemetry.traceparent_from_span(span=trace.get_current_span())
     else:
         traceparent = None
