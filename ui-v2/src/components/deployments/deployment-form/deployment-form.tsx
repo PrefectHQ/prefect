@@ -1,4 +1,6 @@
 import { Deployment } from "@/api/deployments";
+import { SchemaForm } from "@/components/schemas";
+import type { PrefectSchemaObject } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
 import {
 	Form,
@@ -8,8 +10,8 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { JsonInput } from "@/components/ui/json-input";
-import { Label } from "@/components/ui/label";
 import { MarkdownInput } from "@/components/ui/markdown-input";
 import { Switch } from "@/components/ui/switch";
 import { TagsInput } from "@/components/ui/tags-input";
@@ -22,11 +24,19 @@ import { useDeploymentForm } from "./use-deployment-form";
 
 type DeploymentFormProps = {
 	deployment: Deployment;
+	mode: "edit" | "duplicate";
 };
 
-export const DeploymentForm = ({ deployment }: DeploymentFormProps) => {
-	const { form, onSave } = useDeploymentForm(deployment);
+export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
+	const {
+		form,
+		onSave,
+		parameterFormErrors,
+		setParametersFormValues,
+		parametersFormValues,
+	} = useDeploymentForm(deployment, { mode });
 	const watchPoolName = form.watch("work_pool_name");
+	const parametersOpenAPISchema = form.getValues("parameter_openapi_schema");
 
 	return (
 		<Form {...form}>
@@ -38,10 +48,23 @@ export const DeploymentForm = ({ deployment }: DeploymentFormProps) => {
 
 				<Typography variant="h3">General</Typography>
 
-				<Label>Name</Label>
-				<Typography className="text-muted-foreground">
-					{deployment.name}
-				</Typography>
+				<FormField
+					control={form.control}
+					name="name"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Name</FormLabel>
+							<FormControl>
+								<Input
+									{...field}
+									value={field.value}
+									disabled={mode === "edit"}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<FormField
 					control={form.control}
@@ -148,6 +171,15 @@ export const DeploymentForm = ({ deployment }: DeploymentFormProps) => {
 					<Typography variant="h3" className="mb-4">
 						Parameters
 					</Typography>
+					{parametersOpenAPISchema && (
+						<SchemaForm
+							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
+							errors={parameterFormErrors}
+							values={parametersFormValues}
+							onValuesChange={setParametersFormValues}
+							kinds={["json"]}
+						/>
+					)}
 					<FormField
 						control={form.control}
 						name="enforce_parameter_schema"
