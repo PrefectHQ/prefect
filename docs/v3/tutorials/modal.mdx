@@ -15,7 +15,7 @@ Here's an architecture diagram which shows what you'll build.
 
 You'll build a full serverless infrastructure framework for scheduling and provisioning workflows.
 GitHub will act as the source of truth, Prefect will be the orchestrator, and Modal will be the serverless infrastructure.
-You'll only pay for only the CPU time you use. 
+You'll only pay for the Modal CPU time you use. 
 
 First, here's a recap of some important terms:
 
@@ -251,7 +251,7 @@ Now, configure a few more options on the `deployment` to get it ready: `entrypoi
 
 ```yaml
   name: prefect-modal-example
-  description: "Your first flow which runs on Modal"
+  description: "Your first deployment which runs daily at 12:00 on Modal"
   entrypoint: prefect_modal.flows.flow1:main
   schedules:
   - cron: '0 12 * * *'
@@ -426,7 +426,7 @@ Go to the repository in **GitHub**, and then open **Actions** to verify that you
 
 You can see the flow run in Prefect Cloud as well.
 
-The flow will run automatically at 12 PM, but you can run it manually.
+The flow will run automatically at 12 PM, but you can also run it manually.
 
 In a new browser tab, open your [https://modal.com/apps/](Modal dashboard) alongside your Prefect Cloud dashboard.
 
