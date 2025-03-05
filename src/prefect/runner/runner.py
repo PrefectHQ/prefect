@@ -562,9 +562,9 @@ class Runner:
         flow_run_id: UUID,
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
-        task_status: anyio.abc.TaskStatus[int] | None = None,
+        task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
         stream_output: bool = True,
     ) -> anyio.abc.Process | None:
         """
@@ -588,7 +588,9 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    process: anyio.abc.Process = await self._runs_task_group.start(
+                    process: (
+                        anyio.abc.Process | Exception
+                    ) = await self._runs_task_group.start(
                         partial(
                             self._submit_run_and_capture_errors,
                             flow_run=flow_run,
@@ -599,8 +601,10 @@ class Runner:
                             stream_output=stream_output,
                         ),
                     )
-                    if task_status:
-                        task_status.started(process.pid)
+                    if isinstance(process, Exception):
+                        return
+
+                    task_status.started(process.pid)
 
                     if self.heartbeat_seconds is not None:
                         await self._emit_flow_run_heartbeat(flow_run)
@@ -749,10 +753,12 @@ class Runner:
     async def _run_process(
         self,
         flow_run: "FlowRun",
-        task_status: anyio.abc.TaskStatus[anyio.abc.Process] | None = None,
+        task_status: anyio.abc.TaskStatus[
+            anyio.abc.Process
+        ] = anyio.TASK_STATUS_IGNORED,
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
     ) -> anyio.abc.Process:
@@ -1401,7 +1407,7 @@ class Runner:
         task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
@@ -1419,12 +1425,12 @@ class Runner:
             )
             status_code = process.returncode
         except Exception as exc:
-            if task_status:
+            if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
                     f"Failed to start process for flow run '{flow_run.id}'."
                 )
-                # Mark the task as started to prevent agent crash
+                # Mark the task as started to prevent runner crash
                 task_status.started(exc)
                 message = f"Flow run process could not be started:\n{exc!r}"
                 await self._propose_crashed_state(flow_run, message)
