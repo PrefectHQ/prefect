@@ -108,6 +108,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -120,7 +121,7 @@ from prefect.utilities.asyncutils import (
     is_async_fn,
     sync_compatible,
 )
-from prefect.utilities.engine import propose_state
+from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.processutils import (
     get_sys_executable,
     run_process,
@@ -226,6 +227,7 @@ class Runner:
         )
         if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
             raise ValueError("Heartbeat must be 30 seconds or greater.")
+        self._heartbeat_task: asyncio.Task[None] | None = None
 
         self._limiter: anyio.CapacityLimiter | None = None
         self._client: PrefectClient = get_client()
@@ -236,6 +238,8 @@ class Runner:
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
         self.__flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
+        # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
+        self._rescheduling: bool = False
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
@@ -506,16 +510,6 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
-                if self.heartbeat_seconds is not None:
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=runner._emit_flow_run_heartbeats,
-                            interval=self.heartbeat_seconds,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                        )
-                    )
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
@@ -568,9 +562,9 @@ class Runner:
         flow_run_id: UUID,
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
-        task_status: anyio.abc.TaskStatus[int] | None = None,
+        task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
         stream_output: bool = True,
     ) -> anyio.abc.Process | None:
         """
@@ -594,7 +588,9 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    process: anyio.abc.Process = await self._runs_task_group.start(
+                    process: (
+                        anyio.abc.Process | Exception
+                    ) = await self._runs_task_group.start(
                         partial(
                             self._submit_run_and_capture_errors,
                             flow_run=flow_run,
@@ -605,8 +601,13 @@ class Runner:
                             stream_output=stream_output,
                         ),
                     )
-                    if task_status:
-                        task_status.started(process.pid)
+                    if isinstance(process, Exception):
+                        return
+
+                    task_status.started(process.pid)
+
+                    if self.heartbeat_seconds is not None:
+                        await self._emit_flow_run_heartbeat(flow_run)
 
                     async with self._flow_run_process_map_lock:
                         # Only add the process to the map if it is still running
@@ -632,15 +633,6 @@ class Runner:
                             jitter_range=0.3,
                         )
                     )
-                    if self.heartbeat_seconds is not None:
-                        tg.start_soon(
-                            partial(
-                                critical_service_loop,
-                                workload=self._emit_flow_run_heartbeats,
-                                interval=self.heartbeat_seconds,
-                                jitter_range=0.3,
-                            )
-                        )
 
                     return process
 
@@ -668,6 +660,9 @@ class Runner:
                 await self._propose_crashed_state(flow_run, msg)
                 raise RuntimeError(msg)
 
+            if self.heartbeat_seconds is not None:
+                await self._emit_flow_run_heartbeat(flow_run)
+
             self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
                 pid=process.pid, flow_run=flow_run
             )
@@ -683,16 +678,6 @@ class Runner:
                     )
                 )
             )
-            if self.heartbeat_seconds is not None:
-                tasks.append(
-                    asyncio.create_task(
-                        critical_service_loop(
-                            workload=self._emit_flow_run_heartbeats,
-                            interval=self.heartbeat_seconds,
-                            jitter_range=0.1,
-                        )
-                    )
-                )
 
             await anyio.to_thread.run_sync(process.join)
 
@@ -768,10 +753,12 @@ class Runner:
     async def _run_process(
         self,
         flow_run: "FlowRun",
-        task_status: anyio.abc.TaskStatus[anyio.abc.Process] | None = None,
+        task_status: anyio.abc.TaskStatus[
+            anyio.abc.Process
+        ] = anyio.TASK_STATUS_IGNORED,
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
     ) -> anyio.abc.Process:
@@ -950,6 +937,45 @@ class Runner:
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
                 return
+
+    def reschedule_current_flow_runs(
+        self,
+    ) -> None:
+        """
+        Reschedules all flow runs that are currently running.
+
+        This should only be called when the runner is shutting down because it kill all
+        child processes and short-circuit the crash detection logic.
+        """
+        self._rescheduling = True
+        # Create a new sync client because this will often run in a separate thread
+        # as part of a signal handler.
+        with get_client(sync_client=True) as client:
+            self._logger.info("Rescheduling flow runs...")
+            for process_info in self._flow_run_process_map.values():
+                flow_run = process_info["flow_run"]
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.info(
+                    "Rescheduling flow run for resubmission in response to SIGTERM"
+                )
+                try:
+                    propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
+                    os.kill(process_info["pid"], signal.SIGTERM)
+                    run_logger.info("Rescheduled flow run for resubmission")
+                except ProcessLookupError:
+                    # Process may have already exited
+                    pass
+                except Abort as exc:
+                    run_logger.info(
+                        (
+                            "Aborted submission of flow run. "
+                            f"Server sent an abort signal: {exc}"
+                        ),
+                    )
+                except Exception:
+                    run_logger.exception(
+                        "Failed to reschedule flow run",
+                    )
 
     async def _pause_schedules(self):
         """
@@ -1381,7 +1407,7 @@ class Runner:
         task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
@@ -1399,12 +1425,12 @@ class Runner:
             )
             status_code = process.returncode
         except Exception as exc:
-            if task_status:
+            if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
                     f"Failed to start process for flow run '{flow_run.id}'."
                 )
-                # Mark the task as started to prevent agent crash
+                # Mark the task as started to prevent runner crash
                 task_status.started(exc)
                 message = f"Flow run process could not be started:\n{exc!r}"
                 await self._propose_crashed_state(flow_run, message)
@@ -1421,7 +1447,7 @@ class Runner:
             async with self._flow_run_process_map_lock:
                 self._flow_run_process_map.pop(flow_run.id, None)
 
-        if status_code != 0:
+        if status_code != 0 and not self._rescheduling:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
@@ -1637,6 +1663,15 @@ class Runner:
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
+        if self.heartbeat_seconds is not None:
+            self._heartbeat_task = asyncio.create_task(
+                critical_service_loop(
+                    workload=self._emit_flow_run_heartbeats,
+                    interval=self.heartbeat_seconds,
+                    jitter_range=0.3,
+                )
+            )
+
         self.started = True
         return self
 
@@ -1657,6 +1692,13 @@ class Runner:
 
         shutil.rmtree(str(self._tmp_dir))
         del self._runs_task_group, self._loops_task_group
+
+        if self._heartbeat_task:
+            self._heartbeat_task.cancel()
+            try:
+                await self._heartbeat_task
+            except asyncio.CancelledError:
+                pass
 
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"

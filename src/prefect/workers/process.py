@@ -205,6 +205,9 @@ class ProcessWorker(
         configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:
+        if task_status is None:
+            task_status = anyio.TASK_STATUS_IGNORED
+
         working_dir_ctx = (
             tempfile.TemporaryDirectory(suffix="prefect")
             if not configuration.working_dir

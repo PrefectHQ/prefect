@@ -263,7 +263,7 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
         command=configuration.command,
         env=configuration.env,
         stream_output=configuration.stream_output,
-        task_status=None,
+        task_status=anyio.TASK_STATUS_IGNORED,
     )
 
     assert configuration.env["CONFIG_ENV_VAR"] == "from_job_configuration"
@@ -298,7 +298,7 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         cwd=configuration.working_dir,
         env=configuration.env,
         stream_output=configuration.stream_output,
-        task_status=None,
+        task_status=anyio.TASK_STATUS_IGNORED,
     )
     assert configuration.env["NEW_ENV_VAR"] == "from_deployment"
     assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
@@ -485,7 +485,7 @@ async def test_process_worker_executes_flow_run_with_runner(
             command=configuration.command,
             env=configuration.env,
             stream_output=configuration.stream_output,
-            task_status=None,
+            task_status=anyio.TASK_STATUS_IGNORED,
         )
 
 
@@ -514,7 +514,7 @@ async def test_process_worker_command_override(
             cwd=configuration.working_dir,
             env=configuration.env,
             stream_output=configuration.stream_output,
-            task_status=None,
+            task_status=anyio.TASK_STATUS_IGNORED,
         )
 
 

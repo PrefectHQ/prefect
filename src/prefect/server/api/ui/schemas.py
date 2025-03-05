@@ -29,6 +29,7 @@ async def validate_obj(
         ...,
         embed=True,
         alias="schema",
+        validation_alias="schema",
         json_schema_extra={"additionalProperties": True},
     ),
     values: dict[str, Any] = Body(
