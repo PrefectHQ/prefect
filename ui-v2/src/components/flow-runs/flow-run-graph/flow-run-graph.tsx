@@ -19,8 +19,8 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { fetchFlowRunEvents } from "../api";
-import { fetchFlowRunGraph } from "../api";
+import { fetchFlowRunEvents } from "./api";
+import { fetchFlowRunGraph } from "./api";
 import { stateTypeColors } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 
