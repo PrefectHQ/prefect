@@ -196,10 +196,8 @@ class VertexAIWorkerVariables(BaseVariables):
         default=False,
         title="Enable Dashboard Access",
         description=(
-            "Whether you want Vertex AI to enable access to the customized dashboard in the training chief container. If set to true, you can access the dashboard "
-            "in the Cloud Console UI. Inspect the Vertex AI in the Cloud Console UI, go to Training and then Custom Jobs. Click on the name of your "
-            "custom training job. On the page for your job, click `Launch web terminal` for `workerpool0-0:` + `port number` for dashboard access. "
-            "See https://cloud.google.com/vertex-ai/docs/training/monitor-debug-interactive-shell#get-uri"
+            "Whether to enable access to the customized dashboard in the training chief container. " 
+            "See https://cloud.google.com/vertex-ai/docs/training/monitor-debug-interactive-shell#get-uri for access instructions."
         ),
         examples=[True],
     )
