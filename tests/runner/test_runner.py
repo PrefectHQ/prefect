@@ -763,7 +763,7 @@ class TestRunner:
         asserting_events_worker: EventsWorker,
     ):
         """
-        Regressiong test for issue where multiple invocations of `execute_flow_run`
+        Regression test for issue where multiple invocations of `execute_flow_run`
         would result in multiple heartbeats being emitted for each flow run.
         """
         deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
