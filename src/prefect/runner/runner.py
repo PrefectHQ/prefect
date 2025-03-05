@@ -588,9 +588,7 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    process: (
-                        anyio.abc.Process | None
-                    ) = await self._runs_task_group.start(
+                    process: anyio.abc.Process = await self._runs_task_group.start(
                         partial(
                             self._submit_run_and_capture_errors,
                             flow_run=flow_run,
@@ -601,7 +599,7 @@ class Runner:
                             stream_output=stream_output,
                         ),
                     )
-                    if task_status and process:
+                    if task_status:
                         task_status.started(process.pid)
 
                     if self.heartbeat_seconds is not None:
@@ -609,7 +607,7 @@ class Runner:
 
                     async with self._flow_run_process_map_lock:
                         # Only add the process to the map if it is still running
-                        if process and process.returncode is None:
+                        if process.returncode is None:
                             self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
                                 pid=process.pid, flow_run=flow_run
                             )
@@ -1400,16 +1398,15 @@ class Runner:
     async def _submit_run_and_capture_errors(
         self,
         flow_run: "FlowRun",
-        task_status: anyio.abc.TaskStatus[anyio.abc.Process | None],
+        task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
         entrypoint: str | None = None,
         command: str | None = None,
         cwd: Path | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
-    ) -> int | None:
+    ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
-        process = None
         try:
             process = await self._run_process(
                 flow_run=flow_run,
@@ -1422,12 +1419,13 @@ class Runner:
             )
             status_code = process.returncode
         except Exception as exc:
-            if not process:
+            if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
                     f"Failed to start process for flow run '{flow_run.id}'."
                 )
-                task_status.started(None)
+                # Mark the task as started to prevent runner crash
+                task_status.started(exc)
                 message = f"Flow run process could not be started:\n{exc!r}"
                 await self._propose_crashed_state(flow_run, message)
             else:
@@ -1436,7 +1434,7 @@ class Runner:
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
                 )
-            return None
+            return exc
         finally:
             self._release_limit_slot(flow_run.id)
 
