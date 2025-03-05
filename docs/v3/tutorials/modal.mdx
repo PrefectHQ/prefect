@@ -320,31 +320,44 @@ But first, learn how to automate Prefect deployments.
 
 ## Configure CI/CD
 
-Our last step. Since our code must exist in GitHub in order for modal to download, install, and run it, we want github to also be our source of truth in terms of telling Prefect what to actually do with our code.
+Since the code must exist in GitHub in order for Modal to download, install, and run it, GitHub should also be the source of truth for telling Prefect what to do with the code.
 
-This is simple, with additional details here: https://docs.prefect.io/v3/deploy/infrastructure-concepts/deploy-ci-cd
+First, create two secrets to add to the GitHub repository: `PREFECT_API_KEY` and `PREFECT_API_URL`.
 
-We first need to add 2 secrets to our GitHub repo: `PREFECT_API_KEY` and `PREFECT_API_URL` 
+1. For `PREFECT_API_URL`, the format is as follows: `https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}`.
 
-For the PREFECT_API_URL, the format is as follows
+   Go to the Prefect Cloud Dashboard, and then extract the account ID and workspace ID from the URL.
 
-`https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}` 
+   <Note>
+   The Prefect console URL uses `/account` and `/workspace` but the API uses `/accounts` and `/workspaces`, respectively.
+   </Note>
 
-Go to your prefect dashboard and from the URL you will find the account it and the workspace id.
+2. For `PREFECT_API_KEY`, go to the [API keys](https://app.prefect.cloud/my/api-keys) page and create a new API key.
 
-**Note:** the prefect console url uses `/account` and `/workspace` but the api uses the plurals (see above).
+   ![image.png](/v3/img/tutorials/modal/modal%204.png)
 
-First, go to your [API Keys](https://app.prefect.cloud/my/api-keys) and generate a new set.
-
-![image.png](/v3/img/tutorials/modal/modal%204.png)
-
-Add this key as a secret in your github repo. Go to your repo, then `settings` → `secrets and variables` → `actions` 
+Go to your repository, and then **Settings** / **Secrets and variables** / **Actions**.
 
 ![image.png](/v3/img/tutorials/modal/modal%205.png)
 
-Now, we’ll add a simple github workflow. Create a new folder in the root of your github repo: `mkdir -p .github/workflows` and then create your workflow `touch .github/workflows/prefect_cd.yaml` and add the following
+Click **New repository secret** to add these secrets to your GitHub repository.
 
-```yaml
+Now, add a simple GitHub workflow.
+Create a new folder in the root of your GitHub repository:
+
+```bash
+mkdir -p .github/workflows
+```
+
+Create a workflow file.
+
+```bash
+touch .github/workflows/prefect_cd.yaml
+```
+
+Add the following code to this workflow.
+
+```yaml .github/workflows/prefect_cd.yaml
 name: Deploy Prefect flow
 
 on:
@@ -375,51 +388,75 @@ jobs:
 
 ```
 
-Now, what’s `make prefect-deploy`? We’re going to add a new command to our Makefile to keep things very easy
+The `make prefect-deploy` command is used to deploy the flows in your deployment.
 
-```makefile
+<Tip>
+You can run `make prefect-deploy` locally at any time to keep your deployment up to date.
+</Tip>
+
+Add the following command to your `Makefile`.
+
+```makefile Makefile
 prefect-deploy: setup
     uv run prefect deploy --prefect-file prefect.yaml --all
 ```
 
-You can also run that locally at any time to deploy the flows in your deployment. This keeps everything consistent.
-
-Before pushing our code, let’s run `make prefect-deploy` once to make sure everything works. Prefect will also suggest any changes to our prefect.yaml which we can accept before pushing.
+Before pushing your code, run `make prefect-deploy` once to make sure everything works.
+Prefect will suggest changes to `prefect.yaml`, which you should accept.
 
 ![image.png](/v3/img/tutorials/modal/modal%206.png)
 
-We said yes and let prefect override our deployment spec with a few changes. This will let our CD run without any interruptions or prompts. If we go to our Prefect console, we’ll now see it!
+You let Prefect override your deployment spec, which allowed your CD to run without any interruptions or prompts.
+If you go to the **Deployment** page in Prefect Cloud, you'll see your deployment!
 
 ![image.png](/v3/img/tutorials/modal/modal%207.png)
 
-There are no runs yet. We can see a command at the bottom of our terminal from `make prefect-deploy` to run our deployment-flow, but since our code isn’t in GitHub yet, this will fail. Let’s push up our code, and checkout the action, which should now pass!
+There are no runs yet.
+The output from `make prefect-deploy` shows the command to run your deployed flow.
+However, since the code isn’t in GitHub yet, this will fail.
+To fix this, push your code:
+
+```bash
+git push
+```
+
+Go to the repository in **GitHub**, and then open **Actions** to verify that your CI/CD is running successfully.
 
 ![image.png](/v3/img/tutorials/modal/modal%208.png)
 
-And we will see that in the Prefect console as well. 
+You can see the flow run in Prefect Cloud as well.
 
-Now, at 12pm the flow will run! But let’s see it run in realtime 😄
+The flow will run automatically at 12 PM, but you can run it manually.
 
-First, open up your modal dashboard: [https://modal.com/apps/](https://modal.com/apps/) on your screen next to your prefect dashboard of your flow:
+In a new browser tab, open your [https://modal.com/apps/](Modal dashboard) alongside your Prefect Cloud dashboard.
 
-Now, back at your terminal, run `uv run prefect deployment run main/prefect-modal-example` 
+In your terminal, run the following command:
 
-You should almost instantly see the run start in your Prefect dashboard. After 30 sec - 1 min, you should see it run in modal! You can click on it to see the logs.
+```bash
+uv run prefect deployment run main/prefect-modal-example
+```
+
+You should see the run start in your Prefect dashboard.
+In 30-60 seconds, you should see it run in Modal.
+You can click on the run to see the logs.
 
 ![image.png](/v3/img/tutorials/modal/modal%209.png)
 
-Clicking into the app and then clicking Logs on the left will show everything that’s happening inside the flow run!
+Click into the app and then click **App Logs** on the left to show everything that’s happening inside the flow run!
 
 ![image.png](/v3/img/tutorials/modal/modal%2010.png)
 
-You can click on a specific log line to get more details
+Click on a specific log line to get more details.
 
 ![image.png](/v3/img/tutorials/modal/modal%2011.png)
 
-If you copy the URL in that log, you’ll see the Prefect side
+If you open the URL in that log, you’ll see the corresponding logs in Prefect Cloud.
 
 ![image.png](/v3/img/tutorials/modal/modal%2012.png)
 
-You’re done! 🚀
+As you make changes to either the code or deployment file, Prefect will redeploy and Modal will automatically pick up changes.
+You've successfully built your first Prefect deployment that runs on Modal every hour!
 
-As you make changes to either the code or deployment file, prefect will redeploy and modal will automatically pick up changes. Schedule away!
+<Note>
+For more information about CI/CD in Prefect, see [Build deployments via CI/CD](https://docs.prefect.io/v3/deploy/infrastructure-concepts/deploy-ci-cd).
+</Note>
