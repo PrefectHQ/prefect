@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { createFakeDeployment, createFakeFlowRun } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
@@ -7,7 +7,7 @@ import {
 	createRootRoute,
 	createRouter,
 } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
@@ -56,13 +56,9 @@ describe("RunFlowButton", () => {
 		await user.click(screen.getByRole("menuitem", { name: "Quick run" }));
 
 		// ------------ Assert
-		const list = screen.getByRole("list");
-		expect(within(list).getByRole("status")).toBeVisible();
-		expect(
-			screen.getByRole("button", {
-				name: /view run/i,
-			}),
-		).toBeVisible();
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /view run/i })).toBeVisible(),
+		);
 	});
 
 	it("custom run option is a link with deployment parameters", async () => {
