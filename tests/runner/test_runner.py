@@ -835,7 +835,7 @@ class TestRunner:
             )
         )
 
-        # We should get 5 heartbeats since the flow should take about 5 seconds to run
+        # We should get at least 5 heartbeats since the flow should take about 5 seconds to run
         assert len(heartbeat_events) > 5
 
     @pytest.mark.usefixtures("use_hosted_api_server")

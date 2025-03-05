@@ -1310,8 +1310,6 @@ class Runner:
                         ),  # TODO: avoid relying on index
                     )
                 )
-                if self.heartbeat_seconds is not None:
-                    await self._emit_flow_run_heartbeat(flow_run)
             else:
                 break
 
