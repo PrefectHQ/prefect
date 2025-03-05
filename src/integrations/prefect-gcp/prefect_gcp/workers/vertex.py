@@ -188,7 +188,7 @@ class VertexAIWorkerVariables(BaseVariables):
         title="Enable Web Access",
         description=(
             "Whether you want Vertex AI to enable `interactive shell access` "
-            "See: https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform_v1.types.CustomJobSpec"
+            "See https://cloud.google.com/vertex-ai/docs/training/monitor-debug-interactive-shell for how to access your job via interactive console when running."
         ),
         examples=[True],
     )
