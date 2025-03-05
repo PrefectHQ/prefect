@@ -973,11 +973,11 @@ class Runner:
                 )
                 try:
                     propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
-                    try:
-                        os.kill(process_info["pid"], signal.SIGTERM)
-                    except ProcessLookupError:
-                        pass
+                    os.kill(process_info["pid"], signal.SIGTERM)
                     run_logger.info("Rescheduled flow run for resubmission")
+                except ProcessLookupError:
+                    # Process may have already exited
+                    pass
                 except Abort as exc:
                     run_logger.info(
                         (
