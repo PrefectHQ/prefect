@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker";
+import { randAnimal, randProductAdjective } from "@ngneat/falso";
 
 export const createFakeFlowRunName = () =>
-	`${faker.word.adjective()}-${faker.animal.type()}`;
+	`${randProductAdjective()}-${randAnimal({ maxCharCount: 6 })}`;
