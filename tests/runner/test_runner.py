@@ -1434,6 +1434,11 @@ class TestRunner:
         runner = Runner()
 
         deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
         await runner.execute_flow_run(flow_run_id=flow_run.id)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
