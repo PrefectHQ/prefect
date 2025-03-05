@@ -35,15 +35,14 @@ Add the Prefect Helm repository:
    helm repo add prefect https://prefecthq.github.io/prefect-helm
    ```
 
-<Expandable title="Deploying with Default Values">
+<Expandable title="Deploy withDefault Values / No Auth">
 For a basic deployment with default values, using the latest Prefect version and no auth:
    ```bash
    helm install prefect-server prefect/prefect-server
    ```
 </Expandable>
 
-
-<Expandable title="Deploying with Custom Values">
+<Expandable title="Deploy with Custom Values / With Auth">
 For a customized deployment, create a values.yaml file for Prefect Server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
 
 
@@ -67,7 +66,7 @@ Example `server-values.yaml` file for this tutorial:
        enabled: true
    ```
 
-Install Prefect Server with custom values:
+Install Prefect Server:
    ```bash
    helm install prefect-server prefect/prefect-server -f server-values.yaml
    ```
@@ -99,7 +98,7 @@ Navigate to `localhost:4200` and login with `admin:password123`.
 
 To connect a worker to your Prefect server in the same cluster:
 
-<Expandable title="With Default Values">
+<Expandable title="Deploy with Default Values / No Auth">
 
 Create a `worker-values.yaml` file for this tutorial:
 ```
@@ -118,7 +117,7 @@ Install the Prefect Worker:
    ```
 </Expandable>
 
-<Expandable title="With Custom Values">
+<Expandable title="Deploy with Custom Values / With Auth">
 
 Create a secret for the API basic auth:
    ```bash
