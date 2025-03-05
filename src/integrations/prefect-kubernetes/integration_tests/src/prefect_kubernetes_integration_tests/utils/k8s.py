@@ -1,30 +1,22 @@
 import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 from kubernetes import client, config
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from prefect import flow, get_client
-from prefect.client.schemas.objects import FlowRun
-from prefect.logging import get_logger
-from prefect.states import StateType
-
 console = Console()
-logger = get_logger()
-
 K8S_NAMESPACE = "default"
 
 
-def _init_k8s_client() -> client.CoreV1Api:
+def init_k8s_client() -> client.CoreV1Api:
     """Initialize the Kubernetes client."""
     config.load_kube_config()
     return client.CoreV1Api()
 
 
-def _ensure_kind_cluster(name: str = "prefect-test") -> None:
+def ensure_kind_cluster(name: str = "prefect-test") -> None:
     """Ensure a kind cluster is running."""
     try:
         clusters = subprocess.run(
@@ -41,7 +33,7 @@ def _ensure_kind_cluster(name: str = "prefect-test") -> None:
             console.log(f"Using existing Kind cluster: {name}")
 
         # Ensure namespace exists
-        v1 = _init_k8s_client()
+        v1 = init_k8s_client()
         try:
             v1.read_namespace(K8S_NAMESPACE)
         except client.ApiException:
@@ -50,11 +42,11 @@ def _ensure_kind_cluster(name: str = "prefect-test") -> None:
 
     except subprocess.CalledProcessError:
         subprocess.check_call(["kind", "create", "cluster", "--name", name])
-        v1 = _init_k8s_client()
+        v1 = init_k8s_client()
         v1.create_namespace(client.V1Namespace(metadata={"name": K8S_NAMESPACE}))
 
 
-def _ensure_evict_plugin() -> None:
+def ensure_evict_plugin() -> None:
     """Ensure kubectl-evict-pod plugin is installed."""
     try:
         subprocess.run(
@@ -76,7 +68,7 @@ def _ensure_evict_plugin() -> None:
         )
 
 
-def _get_job_name(flow_run_name: str, timeout: int = 60) -> str:
+def get_job_name(flow_run_name: str, timeout: int = 60) -> str:
     """Get the full job name for a flow run."""
     batch_v1 = client.BatchV1Api()
     start_time = time.time()
@@ -99,9 +91,9 @@ def _get_job_name(flow_run_name: str, timeout: int = 60) -> str:
     )
 
 
-def _wait_for_pod(job_name: str, timeout: int = 60) -> str:
+def wait_for_pod(job_name: str, timeout: int = 60) -> str:
     """Wait for a pod matching the job name to be running."""
-    v1 = _init_k8s_client()
+    v1 = init_k8s_client()
     start_time = time.time()
 
     with console.status(f"Waiting for pod for job: {job_name}..."):
@@ -134,9 +126,9 @@ def _wait_for_pod(job_name: str, timeout: int = 60) -> str:
     )
 
 
-def _evict_pod(pod_name: str) -> None:
+def evict_pod(pod_name: str) -> None:
     """Evict a specific pod."""
-    v1 = _init_k8s_client()
+    v1 = init_k8s_client()
 
     try:
         # Show initial pod state
@@ -172,118 +164,3 @@ def _evict_pod(pod_name: str) -> None:
     except (client.ApiException, subprocess.CalledProcessError) as e:
         console.print(f"[bold red]Failed to evict pod: {e}")
         raise
-
-
-async def _create_flow_run(
-    source: str,
-    entrypoint: str,
-    name: str,
-    work_pool_name: str = "k8s-test",
-) -> FlowRun:
-    # Create work pool if it doesn't exist
-    subprocess.check_call(
-        [
-            "prefect",
-            "work-pool",
-            "create",
-            work_pool_name,
-            "--type",
-            "kubernetes",
-            "--overwrite",
-        ]
-    )
-
-    remote_flow = await flow.from_source(source=source, entrypoint=entrypoint)
-    deployment_id = await remote_flow.deploy(name=name, work_pool_name=work_pool_name)
-
-    async with get_client() as client:
-        return await client.create_flow_run_from_deployment(deployment_id)
-
-
-def main() -> None:
-    import asyncio
-
-    _ensure_kind_cluster()
-    _ensure_evict_plugin()
-
-    console.print(Panel("[bold]Starting Pod Eviction Test", style="green"))
-
-    flow_run = asyncio.run(
-        _create_flow_run(
-            source="https://gist.github.com/772d095672484b76da40a4e6158187f0.git",
-            entrypoint="sleeping.py:sleepy",
-            name="pod-eviction-test",
-        )
-    )
-
-    console.print(
-        Panel(
-            f"[bold]Flow Run ID:[/bold] {flow_run.id}\n"
-            f"[bold]Flow Run Name:[/bold] {flow_run.name}",
-            title="Created Flow Run",
-            style="cyan",
-        )
-    )
-
-    # Start worker and handle pod eviction
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        worker_future = executor.submit(
-            lambda: subprocess.check_call(
-                ["prefect", "worker", "start", "--pool", "k8s-test", "--run-once"]
-            )
-        )
-
-        try:
-            job_name = _get_job_name(flow_run.name)
-            pod_name = _wait_for_pod(job_name, timeout=120)
-
-            _evict_pod(pod_name)
-
-        finally:
-            worker_future.result()
-
-        with get_client(sync_client=True) as client:
-            updated_flow_run = client.read_flow_run(flow_run.id)
-
-            # Display final flow run state
-            result_table = Table(title="Flow Run Final State")
-            result_table.add_column("Property", style="cyan")
-            result_table.add_column("Value", style="green")
-
-            result_table.add_row("State", updated_flow_run.state.type.name)
-            result_table.add_row("State Message", updated_flow_run.state.message)
-            result_table.add_row(
-                "Infrastructure PID", updated_flow_run.infrastructure_pid
-            )
-            result_table.add_row("Start Time", str(updated_flow_run.start_time))
-            result_table.add_row("End Time", str(updated_flow_run.end_time))
-            result_table.add_row("Total Run Time", str(updated_flow_run.total_run_time))
-
-            console.print(result_table)
-
-            # Test result
-            if not updated_flow_run.state:
-                console.print(
-                    Panel(
-                        "[bold red]✗ Test FAILED: Flow run state is not set",
-                        title="Test Result",
-                    )
-                )
-            elif updated_flow_run.state.type == StateType.CRASHED:
-                console.print(
-                    Panel(
-                        "[bold green]✓ Test PASSED: Flow run crashed as expected after pod eviction",
-                        title="Test Result",
-                    )
-                )
-            else:
-                console.print(
-                    Panel(
-                        f"[bold red]✗ Test FAILED: Flow run state is {updated_flow_run.state.type.name}, expected CRASHED",
-                        title="Test Result",
-                    )
-                )
-
-
-if __name__ == "__main__":
-    main()
