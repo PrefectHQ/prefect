@@ -82,6 +82,12 @@
             "v3/tutorials/alerts",
             "v3/tutorials/modal"
           ]
+        },
+        {
+          "group": "Navigating Off Airflow",
+          "pages": [
+            "v3/tutorials/airflow_monitoring"
+          ]
         }
       ],
       "version": "v3"
