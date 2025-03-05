@@ -752,6 +752,52 @@ class TestRunner:
             },
         ]
 
+    async def test_runner_does_not_duplicate_heartbeats(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
+        """
+        Regressiong test for issue where multiple invocations of `execute_flow_run`
+        would result in multiple heartbeats being emitted for each flow run.
+        """
+        runner = Runner(heartbeat_seconds=30, limit=None)
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run_1 = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        flow_run_2 = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        first_task = asyncio.create_task(runner.execute_flow_run(flow_run_1.id))
+        second_task = asyncio.create_task(runner.execute_flow_run(flow_run_2.id))
+
+        await asyncio.gather(first_task, second_task)
+
+        flow_run_1 = await prefect_client.read_flow_run(flow_run_id=flow_run_1.id)
+        assert flow_run_1.state
+        assert flow_run_1.state.is_completed()
+
+        flow_run_2 = await prefect_client.read_flow_run(flow_run_id=flow_run_2.id)
+        assert flow_run_2.state
+        assert flow_run_2.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 2
+        assert {e.resource.id for e in heartbeat_events} == {
+            f"prefect.flow-run.{flow_run_1.id}",
+            f"prefect.flow-run.{flow_run_2.id}",
+        }
+
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self,
