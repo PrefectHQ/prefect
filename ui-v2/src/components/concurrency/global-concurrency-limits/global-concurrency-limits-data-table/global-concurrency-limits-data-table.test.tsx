@@ -1,5 +1,5 @@
-import { Toaster } from "@/components/ui/toaster";
-import { render, screen } from "@testing-library/react";
+import { Toaster } from "@/components/ui/sonner";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
@@ -103,7 +103,11 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				name: /toggle active/i,
 			}),
 		);
-		expect(screen.getByText("Concurrency limit updated")).toBeVisible();
+
+		await waitFor(() => {
+			expect(screen.getByText("Concurrency limit updated")).toBeVisible();
+		});
+
 		rerender(
 			<Table
 				data={[{ ...MOCK_ROW, active: false }]}

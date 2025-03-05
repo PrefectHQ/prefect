@@ -243,6 +243,9 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
         configuration = await worker._get_configuration(flow_run)
+        assert configuration.working_dir is None, (
+            "This test assumes no configured working_dir"
+        )
         result = await worker.run(
             flow_run,
             configuration=configuration,
@@ -251,14 +254,18 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-    mock_runner_execute_flow_run.assert_awaited_once_with(
+    call_kwargs = mock_runner_execute_flow_run.call_args[1]
+
+    # should always execute in a tmp directory if working_dir not provided
+    assert "tmp" in call_kwargs.pop("cwd")
+    assert call_kwargs == dict(
         flow_run_id=flow_run.id,
         command=configuration.command,
-        cwd=configuration.working_dir,
         env=configuration.env,
         stream_output=configuration.stream_output,
-        task_status=None,
+        task_status=anyio.TASK_STATUS_IGNORED,
     )
+
     assert configuration.env["CONFIG_ENV_VAR"] == "from_job_configuration"
     assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
 
@@ -291,7 +298,7 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         cwd=configuration.working_dir,
         env=configuration.env,
         stream_output=configuration.stream_output,
-        task_status=None,
+        task_status=anyio.TASK_STATUS_IGNORED,
     )
     assert configuration.env["NEW_ENV_VAR"] == "from_deployment"
     assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
@@ -458,6 +465,9 @@ async def test_process_worker_executes_flow_run_with_runner(
 ):
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
         configuration = await worker._get_configuration(flow_run)
+        assert configuration.working_dir is None, (
+            "This test assumes no configured working_dir"
+        )
         result = await worker.run(
             flow_run=flow_run,
             configuration=configuration,
@@ -465,13 +475,17 @@ async def test_process_worker_executes_flow_run_with_runner(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        mock_runner_execute_flow_run.assert_awaited_once_with(
+
+        call_kwargs = mock_runner_execute_flow_run.call_args[1]
+
+        # should always execute in a tmp directory if working_dir not provided
+        assert "tmp" in call_kwargs.pop("cwd")
+        assert call_kwargs == dict(
             flow_run_id=flow_run.id,
             command=configuration.command,
-            cwd=configuration.working_dir,
             env=configuration.env,
             stream_output=configuration.stream_output,
-            task_status=None,
+            task_status=anyio.TASK_STATUS_IGNORED,
         )
 
 
@@ -500,7 +514,7 @@ async def test_process_worker_command_override(
             cwd=configuration.working_dir,
             env=configuration.env,
             stream_output=configuration.stream_output,
-            task_status=None,
+            task_status=anyio.TASK_STATUS_IGNORED,
         )
 
 
