@@ -217,7 +217,7 @@ class ProcessWorker(
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
                 command=configuration.command,
-                cwd=Path(working_dir),
+                cwd=working_dir,
                 env=configuration.env,
                 stream_output=configuration.stream_output,
                 task_status=task_status,

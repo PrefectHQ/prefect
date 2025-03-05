@@ -562,7 +562,7 @@ class Runner:
         flow_run_id: UUID,
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
         stream_output: bool = True,
@@ -758,7 +758,7 @@ class Runner:
         ] = anyio.TASK_STATUS_IGNORED,
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
     ) -> anyio.abc.Process:
@@ -1407,7 +1407,7 @@ class Runner:
         task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
         entrypoint: str | None = None,
         command: str | None = None,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
