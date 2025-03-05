@@ -1,4 +1,3 @@
-import datetime
 import uuid
 from unittest.mock import MagicMock
 
@@ -6,7 +5,6 @@ import pydantic
 import pytest
 from google.cloud.aiplatform_v1.types.custom_job import Scheduling
 from google.cloud.aiplatform_v1.types.job_state import JobState
-from google.protobuf.duration_pb2 import Duration
 from prefect_gcp.workers.vertex import (
     VertexAIWorker,
     VertexAIWorkerJobConfiguration,
@@ -47,6 +45,8 @@ def job_config(service_account_info, gcp_credentials):
                 "strategy": "FLEX_START",
                 "max_wait_duration": "1800s",
             },
+            "enable_web_access": True,
+            "enable_dashboard_access": True,
         },
     )
 
@@ -168,11 +168,14 @@ class TestVertexAIWorker:
             # Initialize scheduling parameters
             maximum_run_time_hours = job_config.job_spec["maximum_run_time_hours"]
             max_wait_duration = job_config.job_spec["scheduling"]["max_wait_duration"]
-            timeout = Duration()
-            timeout.FromTimedelta(td=datetime.timedelta(hours=maximum_run_time_hours))
+            timeout = str(maximum_run_time_hours * 60 * 60) + "s"
             scheduling = Scheduling(
                 timeout=timeout, max_wait_duration=max_wait_duration
             )
+
+            # Additional params
+            enable_web_access = job_config.job_spec["enable_web_access"]
+            enable_dashboard_access = job_config.job_spec["enable_dashboard_access"]
 
             job_config.prepare_for_flow_run(flow_run, None, None)
             result = await worker.run(flow_run=flow_run, configuration=job_config)
@@ -190,6 +193,9 @@ class TestVertexAIWorker:
                 custom_job_spec.scheduling.max_wait_duration
                 == scheduling.max_wait_duration
             )
+            # Assert additional parameters
+            assert custom_job_spec.enable_web_access == enable_web_access
+            assert custom_job_spec.enable_dashboard_access == enable_dashboard_access
 
             assert (
                 job_config.credentials.job_service_async_client.get_custom_job.call_count
