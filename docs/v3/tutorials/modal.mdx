@@ -224,7 +224,7 @@ pull:
 ```
 
 - Replace the `access_token` key name with `credentials`.
-- Change the repository name to yours.
+- Change the repository name to the name of your repository.
 
 Now, add the following section to configure how you install your package and what your working directory is:
 
@@ -251,7 +251,7 @@ Now, configure a few more options on the `deployment` to get it ready: `entrypoi
 
 ```yaml
   name: prefect-modal-example
-  description: "Our first flow which runs on modal"
+  description: "Your first flow which runs on Modal"
   entrypoint: prefect_modal.flows.flow1:main
   schedules:
   - cron: '0 12 * * *'
@@ -294,7 +294,7 @@ uv run prefect work-pool create --type modal:push --provision-infra pref-modal-p
 The name `pref-modal-pool` in the last command is custom, you can name it whatever you want.
 Take the work pool name and update your `prefect.yaml` file with it.
 
-```yaml prefect.yaml
+```yaml prefect.yaml {2}
 ...
 work_pool:
     name: "pref-modal-pool"
