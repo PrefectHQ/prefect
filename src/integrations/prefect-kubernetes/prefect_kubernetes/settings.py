@@ -13,6 +13,11 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         description="The name of the secret the worker's API key is stored in.",
     )
 
+    api_key_secret_key: Optional[str] = Field(
+        default=None,
+        description="The key of the secret the worker's API key is stored in.",
+    )
+
     create_secret_for_api_key: bool = Field(
         default=False,
         description="If `True`, the worker will create a secret in the same namespace as created Kubernetes jobs to store the Prefect API key.",
