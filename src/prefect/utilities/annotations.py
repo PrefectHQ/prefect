@@ -108,3 +108,25 @@ class NotSet:
     """
     Singleton to distinguish `None` from a value that is not provided by the user.
     """
+
+
+class freeze(BaseAnnotation[T]):
+    """
+    Wrapper for parameters in deployments.
+
+    Indicates that this parameter should be frozen in the UI and not editable
+    when creating flow runs from this deployment.
+
+    Example:
+    ```python
+    @flow
+    def my_flow(customer_id: str):
+        # flow logic
+
+    deployment = my_flow.deploy(parameters={"customer_id": freeze("customer123")})
+    ```
+    """
+
+    def unfreeze(self) -> T:
+        """Return the unwrapped value."""
+        return self.unwrap()

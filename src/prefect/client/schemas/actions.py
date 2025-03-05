@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Self, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -42,6 +44,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.utilities.annotations import freeze
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
@@ -275,6 +278,28 @@ class DeploymentCreate(ActionBaseModel):
 
             jsonschema.validate(self.job_variables, variables_schema)
 
+    @model_validator(mode="after")
+    def validate_parameters(self) -> Self:
+        """Update the parameter schema to mark frozen parameters as readonly."""
+        if not hasattr(self, "parameters") or not hasattr(
+            self, "parameter_openapi_schema"
+        ):
+            return self
+
+        for key, value in self.parameters.items():
+            if isinstance(value, freeze):
+                if (
+                    self.parameter_openapi_schema is not None
+                    and key in self.parameter_openapi_schema.get("properties", {})
+                ):
+                    self.parameter_openapi_schema["properties"][key]["readOnly"] = True
+                    self.parameter_openapi_schema["properties"][key]["enum"] = [
+                        value.unfreeze()
+                    ]
+                    self.parameters[key] = value.unfreeze()
+
+        return self
+
 
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
@@ -348,6 +373,35 @@ class DeploymentUpdate(ActionBaseModel):
 
         if variables_schema is not None:
             jsonschema.validate(self.job_variables, variables_schema)
+
+    @model_validator(mode="after")
+    def validate_parameters(self) -> Self:
+        """Update the parameter schema to mark frozen parameters as readonly."""
+        if not hasattr(self, "parameters") or not hasattr(
+            self, "parameter_openapi_schema"
+        ):
+            return self
+
+        parameters = self.parameters or {}
+
+        breakpoint()
+
+        for key, value in parameters.items():
+            if isinstance(value, freeze):
+                raw_value = value.unfreeze()
+                if (
+                    self.parameter_openapi_schema is not None
+                    and key in self.parameter_openapi_schema.get("properties", {})
+                ):
+                    self.parameter_openapi_schema["properties"][key]["readOnly"] = True
+                    self.parameter_openapi_schema["properties"][key]["enum"] = [
+                        raw_value
+                    ]
+                    parameters[key] = raw_value
+
+        self.parameters = parameters
+
+        return self
 
 
 class FlowRunUpdate(ActionBaseModel):

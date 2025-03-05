@@ -355,7 +355,7 @@ class RunnerDeployment(BaseModel):
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers"},
+            exclude={"storage", "name", "flow_name", "triggers", "parameters"},
         )
 
         if self.storage:
@@ -367,7 +367,9 @@ class RunnerDeployment(BaseModel):
         await client.update_deployment(
             deployment_id,
             deployment=DeploymentUpdate(
-                **update_payload, parameter_openapi_schema=parameter_openapi_schema
+                **update_payload,
+                parameter_openapi_schema=parameter_openapi_schema,
+                parameters=self.parameters,
             ),
         )
 
