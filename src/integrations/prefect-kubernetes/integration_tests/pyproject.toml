@@ -1,0 +1,28 @@
+[project]
+name = "prefect-kubernetes-integration-tests"
+version = "0.1.0"
+description = "Integration tests for Prefect Kubernetes"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "prefect-kubernetes",
+    "kubernetes",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+prefect-kubernetes = { workspace = true }
+
+[project.scripts]
+run-integration-tests = "prefect_kubernetes_integration_tests.scenarios.run:main"
+
+[tool.pytest.ini_options]
+testpaths = ["src/prefect_kubernetes_integration_tests"]
+python_files = ["test_*.py"]
+addopts = "-v -ra"
+asyncio_mode = "auto"
