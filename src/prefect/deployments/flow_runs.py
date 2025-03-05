@@ -18,11 +18,13 @@ from prefect.types._datetime import now
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 
-try:
-    from opentelemetry.instrumentation.utils import is_instrumentation_enabled
-except (ImportError, ModuleNotFoundError):
 
-    def is_instrumentation_enabled() -> bool:
+def is_instrumentation_enabled() -> bool:
+    try:
+        from opentelemetry.instrumentation.utils import is_instrumentation_enabled
+
+        return is_instrumentation_enabled()
+    except (ImportError, ModuleNotFoundError):
         return False
 
 
