@@ -30,24 +30,29 @@ Create a new namespace to work in (all commands in this quick-start will use thi
 
 ## Deploy Prefect Server with Helm
 
-1. Add the Prefect Helm repository:
+Add the Prefect Helm repository:
    ```bash
    helm repo add prefect https://prefecthq.github.io/prefect-helm
    ```
 
-2. For a basic deployment with default values, using the latest Prefect version and no auth:
+<Expandable title="Deploying with Default Values">
+For a basic deployment with default values, using the latest Prefect version and no auth:
    ```bash
    helm install prefect-server prefect/prefect-server
    ```
+</Expandable>
 
-3. For a customized deployment, create a values.yaml file for Prefect Server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
 
-4. Create a secret for the API basic auth:
+<Expandable title="Deploying with Custom Values">
+For a customized deployment, create a values.yaml file for Prefect Server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
+
+
+Create a secret for the API basic auth:
    ```bash
    kubectl create secret generic server-auth-secret --from-literal auth-string='admin:password123'
    ```
 
-5. Example `server-values.yaml` file for this tutorial:
+Example `server-values.yaml` file for this tutorial:
    ```yaml
    server:
      basicAuth:
@@ -62,10 +67,11 @@ Create a new namespace to work in (all commands in this quick-start will use thi
        enabled: true
    ```
 
-6. Install Prefect Server with custom values:
+Install Prefect Server with custom values:
    ```bash
    helm install prefect-server prefect/prefect-server -f server-values.yaml
    ```
+</Expandable>
 
    Expected output:
    ```
@@ -82,23 +88,44 @@ Create a new namespace to work in (all commands in this quick-start will use thi
    Visit http://localhost:4200 to use Prefect!
    ```
 
-7. Access the Prefect UI:
+Access the Prefect UI:
    ```bash
    kubectl --namespace prefect-server port-forward svc/prefect-server 4200:4200
    ```
 
-8. Navigate to `localhost:4200` and login with `admin:password123`.
+Navigate to `localhost:4200` and login with `admin:password123`.
 
 ## Deploy a Prefect Worker
 
 To connect a worker to your Prefect server in the same cluster:
 
-1. Create a secret for the API basic auth:
+<Expandable title="With Default Values">
+
+Create a `worker-values.yaml` file for this tutorial:
+```
+   worker:
+     apiConfig: selfHostedServer
+     config:
+       workPool: kube-test
+     selfHostedServerApiConfig:
+       # <service>.<namespace> if in same cluster, or FQDN if external
+       apiUrl: http://prefect-server.prefect-server.svc.cluster.local:4200/api
+```
+
+Install the Prefect Worker:
+   ```bash
+   helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
+   ```
+</Expandable>
+
+<Expandable title="With Custom Values">
+
+Create a secret for the API basic auth:
    ```bash
    kubectl create secret generic worker-auth-secret --from-literal auth-string='admin:password123'
    ```
 
-2. Create a `worker-values.yaml` file for this tutorial:
+Create a `worker-values.yaml` file for this tutorial:
    ```yaml
    worker:
      apiConfig: selfHostedServer
@@ -112,10 +139,11 @@ To connect a worker to your Prefect server in the same cluster:
        existingSecret: worker-auth-secret
    ```
 
-3. Install the Prefect Worker:
+Install the Prefect Worker:
    ```bash
    helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
    ```
+</Expandable>
 
    Expected output:
    ```
