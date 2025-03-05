@@ -288,15 +288,16 @@ class DeploymentCreate(ActionBaseModel):
 
         for key, value in self.parameters.items():
             if isinstance(value, freeze):
+                raw_value = value.unfreeze()
                 if (
                     self.parameter_openapi_schema is not None
                     and key in self.parameter_openapi_schema.get("properties", {})
                 ):
                     self.parameter_openapi_schema["properties"][key]["readOnly"] = True
                     self.parameter_openapi_schema["properties"][key]["enum"] = [
-                        value.unfreeze()
+                        raw_value
                     ]
-                    self.parameters[key] = value.unfreeze()
+                    self.parameters[key] = raw_value
 
         return self
 
