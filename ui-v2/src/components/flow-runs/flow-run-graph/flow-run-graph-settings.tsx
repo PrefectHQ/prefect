@@ -21,12 +21,7 @@ import { useCallback, useState } from "react";
 
 type LayoutOption = `${HorizontalMode}_${VerticalMode}`;
 
-type Option<T extends string> = {
-	value: T;
-	label: string;
-};
-
-const layoutOptions: Option<LayoutOption>[] = [
+const layoutOptions: { label: string; value: LayoutOption }[] = [
 	{
 		label: "Temporal dependency",
 		value: "temporal_nearest-parent",
