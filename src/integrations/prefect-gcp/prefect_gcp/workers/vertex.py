@@ -196,7 +196,7 @@ class VertexAIWorkerVariables(BaseVariables):
         default=False,
         title="Enable Dashboard Access",
         description=(
-            "Whether to enable access to the customized dashboard in the training chief container. " 
+            "Whether to enable access to the customized dashboard in the training chief container. "
             "See https://cloud.google.com/vertex-ai/docs/training/monitor-debug-interactive-shell#get-uri for access instructions."
         ),
         examples=[True],
