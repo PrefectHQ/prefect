@@ -4,7 +4,6 @@ from uuid import UUID
 
 import anyio
 from opentelemetry import trace
-from opentelemetry.instrumentation.utils import is_instrumentation_enabled
 
 import prefect
 from prefect._result_records import ResultRecordMetadata
@@ -18,6 +17,16 @@ from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY, RunTelemetry
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
+
+
+def _is_instrumentation_enabled() -> bool:
+    try:
+        from opentelemetry.instrumentation.utils import is_instrumentation_enabled
+
+        return is_instrumentation_enabled()
+    except (ImportError, ModuleNotFoundError):
+        return False
+
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -164,7 +173,7 @@ async def run_deployment(
 
     if flow_run_ctx and flow_run_ctx.flow_run:
         traceparent = flow_run_ctx.flow_run.labels.get(LABELS_TRACEPARENT_KEY)
-    elif is_instrumentation_enabled():
+    elif _is_instrumentation_enabled():
         traceparent = RunTelemetry.traceparent_from_span(span=trace.get_current_span())
     else:
         traceparent = None
