@@ -739,7 +739,7 @@ class TestRunner:
                 asserting_events_worker._client.events,
             )
         )
-        assert len(heartbeat_events) > 1
+        assert len(heartbeat_events) == 1
         assert heartbeat_events[0].resource.id == f"prefect.flow-run.{flow_run.id}"
 
         related = [dict(r.items()) for r in heartbeat_events[0].related]
