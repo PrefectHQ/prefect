@@ -981,7 +981,7 @@ class Runner:
                 except Abort as exc:
                     run_logger.info(
                         (
-                            f"Aborted submission of flow run. "
+                            "Aborted submission of flow run. "
                             f"Server sent an abort signal: {exc}"
                         ),
                     )
