@@ -27,18 +27,12 @@ import anyio.abc
 from anyio.streams.text import TextReceiveStream, TextSendStream
 from typing_extensions import TypeAlias, TypeVar
 
-from prefect.logging import get_logger
-
 if TYPE_CHECKING:
-    import logging
-
     from _typeshed import StrOrBytesPath
 
 TextSink: TypeAlias = Union[anyio.AsyncFile[AnyStr], TextIO, TextSendStream]
 PrintFn: TypeAlias = Callable[[str], object]
 T = TypeVar("T", infer_variance=True)
-
-logger: "logging.Logger" = get_logger(__name__)
 
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, c_int, c_uint, windll
