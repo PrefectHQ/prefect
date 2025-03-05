@@ -56,6 +56,10 @@ jobs:
           )
           echo "${HOME}/.krew/bin" >> $GITHUB_PATH
 
+      - name: Install evict-pod
+        run: |
+          kubectl krew install evict-pod
+
       - name: Start Prefect server
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
