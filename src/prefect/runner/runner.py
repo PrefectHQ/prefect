@@ -121,7 +121,7 @@ from prefect.utilities.asyncutils import (
     is_async_fn,
     sync_compatible,
 )
-from prefect.utilities.engine import propose_state
+from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.processutils import (
     get_sys_executable,
     run_process,
@@ -954,28 +954,29 @@ class Runner:
                 # process ended right after the check above.
                 return
 
-    async def reschedule_current_flow_runs(
+    def reschedule_current_flow_runs(
         self,
     ) -> None:
         """
         Reschedules all flow runs that are currently running.
         """
         self._rescheduling = True
-        # Create new a client because this will often run in a separate thread
+        # Create a new sync client because this will often run in a separate thread
         # as part of a signal handler.
-        async with get_client() as client:
-
-            async def reschedule_flow_run(process_info: ProcessMapEntry) -> None:
+        with get_client(sync_client=True) as client:
+            self._logger.info("Rescheduling flow runs...")
+            for process_info in self._flow_run_process_map.values():
                 flow_run = process_info["flow_run"]
                 run_logger = self._get_flow_run_logger(flow_run)
                 run_logger.info(
                     "Rescheduling flow run for resubmission in response to SIGTERM"
                 )
                 try:
-                    await propose_state(
-                        client, AwaitingRetry(), flow_run_id=flow_run.id
-                    )
-                    await self._kill_process(process_info["pid"])
+                    propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
+                    try:
+                        os.kill(process_info["pid"], signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
                     run_logger.info("Rescheduled flow run for resubmission")
                 except Abort as exc:
                     run_logger.info(
@@ -988,13 +989,6 @@ class Runner:
                     run_logger.exception(
                         "Failed to reschedule flow run",
                     )
-
-            self._logger.info("Rescheduling flow runs...")
-            coros = [
-                reschedule_flow_run(process_info)
-                for process_info in self._flow_run_process_map.values()
-            ]
-            await asyncio.gather(*coros)
 
     async def _pause_schedules(self):
         """

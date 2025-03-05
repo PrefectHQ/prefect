@@ -32,7 +32,6 @@ from prefect.logging import get_logger
 from prefect.runner import Runner
 from prefect.states import State
 from prefect.types._datetime import create_datetime_instance
-from prefect.utilities.asyncutils import run_coro_as_sync
 
 flow_run_app: PrefectTyper = PrefectTyper(
     name="flow-run", help="Interact with flow runs."
@@ -362,7 +361,7 @@ async def execute(
 
     def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
         logger.info("SIGTERM received, initiating graceful shutdown...")
-        run_coro_as_sync(runner.reschedule_current_flow_runs())
+        runner.reschedule_current_flow_runs()
         exit_with_success("Flow run successfully rescheduled.")
 
     # Set up signal handling to reschedule run on SIGTERM
