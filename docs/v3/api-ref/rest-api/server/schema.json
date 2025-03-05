@@ -14460,10 +14460,10 @@
             },
             "Body_validate_obj_ui_schemas_validate_post": {
                 "properties": {
-                    "json_schema": {
+                    "schema": {
                         "additionalProperties": true,
                         "type": "object",
-                        "title": "Json Schema"
+                        "title": "Schema"
                     },
                     "values": {
                         "additionalProperties": true,
@@ -14473,7 +14473,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "json_schema",
+                    "schema",
                     "values"
                 ],
                 "title": "Body_validate_obj_ui_schemas_validate_post"
