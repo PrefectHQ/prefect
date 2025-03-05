@@ -36,6 +36,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_SERVER_ANALYTICS_ENABLED,
+    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
     PREFECT_SERVER_API_PORT,
@@ -74,6 +75,11 @@ SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
 
 
 def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
+    if PREFECT_SERVER_API_BASE_PATH:
+        suffix = PREFECT_SERVER_API_BASE_PATH.value()
+    else:
+        suffix = "/api"
+
     blurb = textwrap.dedent(
         r"""
          ___ ___ ___ ___ ___ ___ _____
@@ -87,7 +93,7 @@ def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
 
         View the API reference documentation at {docs_url}
         """
-    ).format(api_url=base_url + "/api", docs_url=base_url + "/docs")
+    ).format(api_url=base_url + suffix, docs_url=base_url + "/docs")
 
     visit_dashboard = textwrap.dedent(
         f"""
