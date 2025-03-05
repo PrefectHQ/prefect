@@ -205,6 +205,9 @@ class ProcessWorker(
         configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:
+        if task_status is None:
+            task_status = anyio.TASK_STATUS_IGNORED
+
         working_dir_ctx = (
             tempfile.TemporaryDirectory(suffix="prefect")
             if not configuration.working_dir
@@ -214,7 +217,7 @@ class ProcessWorker(
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
                 command=configuration.command,
-                cwd=working_dir,
+                cwd=Path(working_dir),
                 env=configuration.env,
                 stream_output=configuration.stream_output,
                 task_status=task_status,
