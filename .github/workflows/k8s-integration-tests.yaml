@@ -55,11 +55,15 @@ jobs:
             ./"${KREW}" install krew
           )
           echo "${HOME}/.krew/bin" >> $GITHUB_PATH
-      
-      - name: Install kubectl-evict plugin
+
+      - name: Start Prefect server
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: |
-          kubectl krew install evict-pod
-      
+          prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
+          python ./scripts/wait-for-server.py
+
       
       - name: Create Prefect Kubernetes work pool
         run: |
@@ -71,6 +75,8 @@ jobs:
         run: |
           cd src/integrations/prefect-kubernetes/integration_tests
           uv run run-integration-tests
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
 
       
       - name: Delete Kind cluster
