@@ -10,7 +10,6 @@ import {
 	RunGraphStateEvent,
 	StateType,
 	ViewportDateRange,
-	centerViewport,
 	emitter,
 	selectItem,
 	setConfig,
@@ -28,7 +27,6 @@ import {
 } from "react";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 import {
-	isEventTargetInput,
 	mapApiResponseToRunGraphData,
 	mapApiResponseToRunGraphEvents,
 } from "./utilities";
@@ -184,40 +182,6 @@ export function RunGraph({
 		};
 	}, [onSelectedChange, onViewportChange]);
 
-	const toggleFullscreen = useCallback(() => {
-		updateFullscreen(!fullscreen);
-	}, [fullscreen, updateFullscreen]);
-
-	useEffect(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (isEventTargetInput(event.target) || event.metaKey || event.ctrlKey) {
-				return;
-			}
-
-			switch (event.key) {
-				case "c":
-					center();
-					break;
-				case "f":
-					toggleFullscreen();
-					break;
-				case "Escape":
-					if (fullscreen) {
-						toggleFullscreen();
-					}
-					break;
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown);
-
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [fullscreen, toggleFullscreen]);
-
-	const center = () => {
-		void centerViewport({ animate: true });
-	};
-
 	return (
 		<div
 			className={`${fullscreen ? "fixed h-screen w-screen z-20" : "relative h-[500px] w-full "} ${className ?? ""}`}
@@ -226,8 +190,8 @@ export function RunGraph({
 			<div ref={stageRef} className="size-full [&>canvas]:size-full" />
 			<div className="absolute bottom-0 right-0">
 				<FlowRunGraphActions
-					center={center}
-					toggleFullscreen={toggleFullscreen}
+					fullscreen={fullscreen}
+					onFullscreenChange={updateFullscreen}
 				/>
 			</div>
 		</div>
