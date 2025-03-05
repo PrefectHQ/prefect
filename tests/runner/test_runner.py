@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import datetime
 import os
@@ -1387,6 +1389,41 @@ class TestRunner:
         mock.assert_awaited_once()
         (_, kwargs) = mock.call_args
         assert kwargs.get("creationflags") is None
+
+    async def test_reschedule_flow_runs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        # Create a flow run that will take a while to run
+        deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        runner = Runner()
+
+        # Run the flow run in a new process with a Runner
+        execute_flow_run_task = asyncio.create_task(
+            runner.execute_flow_run(flow_run_id=flow_run.id)
+        )
+
+        # Wait for the flow run to start
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+
+        runner.reschedule_current_flow_runs()
+
+        await execute_flow_run_task
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_scheduled()
 
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
