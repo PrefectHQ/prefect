@@ -31,7 +31,7 @@ import {
 	mapApiResponseToRunGraphEvents,
 } from "./utilities";
 
-type RunGraphProps = {
+type FlowRunGraphProps = {
 	flowRunId: string;
 	viewport?: ViewportDateRange;
 	onViewportChange?: (viewport: ViewportDateRange) => void;
@@ -98,7 +98,7 @@ const stateTypeColors: Record<StateType, string> = {
 	PAUSED: "#554B58",
 };
 
-export function RunGraph({
+export function FlowRunGraph({
 	flowRunId,
 	viewport,
 	onViewportChange,
@@ -108,7 +108,7 @@ export function RunGraph({
 	style,
 	fullscreen: controlledFullscreen,
 	onFullscreenChange,
-}: RunGraphProps) {
+}: FlowRunGraphProps) {
 	const stageRef = useRef<HTMLDivElement>(null);
 	const [internalFullscreen, setInternalFullscreen] = useState(false);
 

@@ -5,12 +5,12 @@ import { http, HttpResponse } from "msw";
 import { ComponentProps } from "react";
 import DemoData from "./demo-data.json";
 import DemoEvents from "./demo-events.json";
-import { RunGraph } from "./flow-run-graph";
+import { FlowRunGraph } from "./flow-run-graph";
 
-function Wrapper(props: ComponentProps<typeof RunGraph>) {
+function Wrapper(props: ComponentProps<typeof FlowRunGraph>) {
 	return (
 		<TooltipProvider>
-			<RunGraph {...props} />
+			<FlowRunGraph {...props} />
 		</TooltipProvider>
 	);
 }
@@ -30,7 +30,7 @@ const meta = {
 			],
 		},
 	},
-} satisfies Meta<typeof RunGraph>;
+} satisfies Meta<typeof FlowRunGraph>;
 
 export default meta;
 
