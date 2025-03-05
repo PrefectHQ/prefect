@@ -990,6 +990,8 @@ class Runner:
                         "Failed to reschedule flow run",
                     )
 
+        self._rescheduling = False
+
     async def _pause_schedules(self):
         """
         Pauses all deployment schedules.
