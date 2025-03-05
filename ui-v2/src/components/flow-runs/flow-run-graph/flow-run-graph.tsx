@@ -1,14 +1,8 @@
-import { getQueryService } from "@/api/service";
 import {
 	GraphItemSelection,
 	RunGraphConfig,
-	RunGraphData,
-	RunGraphEvent,
-	RunGraphFetchEvents,
-	RunGraphFetchEventsContext,
 	RunGraphNode,
 	RunGraphStateEvent,
-	StateType,
 	ViewportDateRange,
 	emitter,
 	selectItem,
@@ -25,11 +19,10 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { fetchFlowRunEvents } from "../api";
+import { fetchFlowRunGraph } from "../api";
+import { stateTypeColors } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
-import {
-	mapApiResponseToRunGraphData,
-	mapApiResponseToRunGraphEvents,
-} from "./utilities";
 
 type FlowRunGraphProps = {
 	flowRunId: string;
@@ -41,61 +34,6 @@ type FlowRunGraphProps = {
 	onFullscreenChange?: (fullscreen: boolean) => void;
 	className?: string;
 	style?: CSSProperties;
-};
-
-const fetchFlowRunGraph = async (id: string): Promise<RunGraphData> => {
-	const { data } = await getQueryService().GET("/flow_runs/{id}/graph-v2", {
-		params: { path: { id } },
-	});
-
-	if (!data) {
-		throw new Error("No data returned from API");
-	}
-
-	return mapApiResponseToRunGraphData(data);
-};
-
-const fetchFlowRunEvents: RunGraphFetchEvents = async ({
-	since,
-	until,
-	nodeId,
-}: RunGraphFetchEventsContext): Promise<RunGraphEvent[]> => {
-	const { data } = await getQueryService().POST("/events/filter", {
-		body: {
-			filter: {
-				any_resource: {
-					id: [`prefect.flow-run.${nodeId}`],
-				},
-				event: {
-					exclude_prefix: ["prefect.log.write", "prefect.task-run."],
-				},
-				occurred: {
-					since: since.toISOString(),
-					until: until.toISOString(),
-				},
-				order: "ASC",
-			},
-			limit: 200,
-		},
-	});
-
-	if (!data) {
-		throw new Error("No data returned from API");
-	}
-
-	return mapApiResponseToRunGraphEvents(data);
-};
-
-const stateTypeColors: Record<StateType, string> = {
-	COMPLETED: "#219D4B",
-	RUNNING: "#09439B",
-	SCHEDULED: "#E08504",
-	PENDING: "#554B58",
-	FAILED: "#DE0529",
-	CANCELLED: "#333333",
-	CANCELLING: "#333333",
-	CRASHED: "#EA580C",
-	PAUSED: "#554B58",
 };
 
 export function FlowRunGraph({
