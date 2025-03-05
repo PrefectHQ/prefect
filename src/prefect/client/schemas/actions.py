@@ -282,9 +282,7 @@ class DeploymentCreate(ActionBaseModel):
     @model_validator(mode="after")
     def validate_parameters(self) -> Self:
         """Update the parameter schema to mark frozen parameters as readonly."""
-        if not hasattr(self, "parameters") or not hasattr(
-            self, "parameter_openapi_schema"
-        ):
+        if not self.parameters:
             return self
 
         for key, value in self.parameters.items():
@@ -379,14 +377,10 @@ class DeploymentUpdate(ActionBaseModel):
     @model_validator(mode="after")
     def validate_parameters(self) -> Self:
         """Update the parameter schema to mark frozen parameters as readonly."""
-        if not hasattr(self, "parameters") or not hasattr(
-            self, "parameter_openapi_schema"
-        ):
+        if not self.parameters:
             return self
 
-        parameters = self.parameters or {}
-
-        for key, value in parameters.items():
+        for key, value in self.parameters.items():
             if isinstance(value, freeze):
                 raw_value = value.unfreeze()
                 if (
@@ -397,9 +391,7 @@ class DeploymentUpdate(ActionBaseModel):
                     self.parameter_openapi_schema["properties"][key]["enum"] = [
                         raw_value
                     ]
-                    parameters[key] = raw_value
-
-        self.parameters = parameters
+                    self.parameters[key] = raw_value
 
         return self
 
