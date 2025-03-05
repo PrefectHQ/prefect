@@ -961,36 +961,39 @@ class Runner:
         Reschedules all flow runs that are currently running.
         """
         self._rescheduling = True
-        # Create a new sync client because this will often run in a separate thread
-        # as part of a signal handler.
-        with get_client(sync_client=True) as client:
-            self._logger.info("Rescheduling flow runs...")
-            for process_info in self._flow_run_process_map.values():
-                flow_run = process_info["flow_run"]
-                run_logger = self._get_flow_run_logger(flow_run)
-                run_logger.info(
-                    "Rescheduling flow run for resubmission in response to SIGTERM"
-                )
-                try:
-                    propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
-                    os.kill(process_info["pid"], signal.SIGTERM)
-                    run_logger.info("Rescheduled flow run for resubmission")
-                except ProcessLookupError:
-                    # Process may have already exited
-                    pass
-                except Abort as exc:
+        try:
+            # Create a new sync client because this will often run in a separate thread
+            # as part of a signal handler.
+            with get_client(sync_client=True) as client:
+                self._logger.info("Rescheduling flow runs...")
+                for process_info in self._flow_run_process_map.values():
+                    flow_run = process_info["flow_run"]
+                    run_logger = self._get_flow_run_logger(flow_run)
                     run_logger.info(
-                        (
-                            "Aborted submission of flow run. "
-                            f"Server sent an abort signal: {exc}"
-                        ),
+                        "Rescheduling flow run for resubmission in response to SIGTERM"
                     )
-                except Exception:
-                    run_logger.exception(
-                        "Failed to reschedule flow run",
-                    )
-
-        self._rescheduling = False
+                    try:
+                        propose_state_sync(
+                            client, AwaitingRetry(), flow_run_id=flow_run.id
+                        )
+                        os.kill(process_info["pid"], signal.SIGTERM)
+                        run_logger.info("Rescheduled flow run for resubmission")
+                    except ProcessLookupError:
+                        # Process may have already exited
+                        pass
+                    except Abort as exc:
+                        run_logger.info(
+                            (
+                                "Aborted submission of flow run. "
+                                f"Server sent an abort signal: {exc}"
+                            ),
+                        )
+                    except Exception:
+                        run_logger.exception(
+                            "Failed to reschedule flow run",
+                        )
+        finally:
+            self._rescheduling = False
 
     async def _pause_schedules(self):
         """
