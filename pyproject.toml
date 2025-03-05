@@ -328,6 +328,7 @@ ignore-words-list = [
     "nmme",
     "afterall",
     "medias",
+    "falso",
 ]
 
 check-hidden = true
