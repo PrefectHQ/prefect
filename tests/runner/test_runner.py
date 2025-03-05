@@ -778,7 +778,7 @@ class TestRunner:
             first_task = asyncio.create_task(runner.execute_flow_run(flow_run_1.id))
             second_task = asyncio.create_task(runner.execute_flow_run(flow_run_2.id))
 
-        await asyncio.gather(first_task, second_task)
+            await asyncio.gather(first_task, second_task)
 
         flow_run_1 = await prefect_client.read_flow_run(flow_run_id=flow_run_1.id)
         assert flow_run_1.state
