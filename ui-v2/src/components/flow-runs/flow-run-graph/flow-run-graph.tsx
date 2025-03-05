@@ -26,7 +26,9 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { FlowRunGraphActions } from "./flow-run-graph-actions";
 import {
+	isEventTargetInput,
 	mapApiResponseToRunGraphData,
 	mapApiResponseToRunGraphEvents,
 } from "./utilities";
@@ -160,30 +162,20 @@ export function RunGraph({
 	}, [config]);
 
 	useEffect(() => {
-		if (selected !== undefined) {
-			selectItem(selected);
-		}
+		selectItem(selected ?? null);
 	}, [selected]);
 
 	useEffect(() => {
-		if (viewport) {
-			void updateViewportFromDateRange(viewport);
-		}
+		void updateViewportFromDateRange(viewport);
 	}, [viewport]);
 
 	useEffect(() => {
-		const handleItemSelected = (nodeId: GraphItemSelection | null) => {
-			onSelectedChange?.(nodeId ?? undefined);
-		};
-
-		const handleViewportUpdate = (range: ViewportDateRange) => {
-			onViewportChange?.(range);
-		};
-
-		const offItemSelected = emitter.on("itemSelected", handleItemSelected);
+		const offItemSelected = emitter.on("itemSelected", (nodeId) =>
+			onSelectedChange?.(nodeId ?? undefined),
+		);
 		const offViewportDateRangeUpdated = emitter.on(
 			"viewportDateRangeUpdated",
-			handleViewportUpdate,
+			(range) => onViewportChange?.(range),
 		);
 
 		return () => {
@@ -218,6 +210,7 @@ export function RunGraph({
 		};
 
 		document.addEventListener("keydown", handleKeyDown);
+
 		return () => document.removeEventListener("keydown", handleKeyDown);
 	}, [fullscreen, toggleFullscreen]);
 
@@ -225,34 +218,17 @@ export function RunGraph({
 		void centerViewport({ animate: true });
 	};
 
-	const isEventTargetInput = (target: EventTarget | null): boolean => {
-		if (!target || !(target instanceof HTMLElement)) {
-			return false;
-		}
-		return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-	};
-
 	return (
 		<div
-			className={`relative h-[500px] w-full ${fullscreen ? "run-graph--fullscreen" : ""} ${className ?? ""}`}
+			className={`${fullscreen ? "fixed h-screen w-screen z-20" : "relative h-[500px] w-full "} ${className ?? ""}`}
 			style={style}
 		>
 			<div ref={stageRef} className="size-full [&>canvas]:size-full" />
-			<div className="run-graph__actions">
-				<button
-					title="Recenter graph (c)"
-					onClick={center}
-					className="p-button p-button--flat"
-				>
-					Recenter
-				</button>
-				<button
-					title="Toggle fullscreen (f)"
-					onClick={toggleFullscreen}
-					className="p-button p-button--flat"
-				>
-					Fullscreen
-				</button>
+			<div className="absolute bottom-0 right-0">
+				<FlowRunGraphActions
+					center={center}
+					toggleFullscreen={toggleFullscreen}
+				/>
 			</div>
 		</div>
 	);

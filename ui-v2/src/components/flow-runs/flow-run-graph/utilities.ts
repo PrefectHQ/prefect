@@ -9,6 +9,13 @@ import {
 } from "@prefecthq/graphs";
 import { parseISO } from "date-fns";
 
+export function isEventTargetInput(target: EventTarget | null): boolean {
+	if (!target || !(target instanceof HTMLElement)) {
+		return false;
+	}
+	return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
 type GraphResponse = components["schemas"]["Graph"];
 type GraphResponseNode = GraphResponse["nodes"][number];
 type GraphResponseArtifact = GraphResponse["artifacts"][number];
@@ -45,8 +52,6 @@ export function mapApiResponseToRunGraphEvents(
 			resource: event.resource as RunGraphEventResource,
 			payload: event.payload,
 			related: (event.related ?? []) as EventRelatedResource[],
-			account: "",
-			workspace: "",
 		};
 
 		return runGraphEvent;
