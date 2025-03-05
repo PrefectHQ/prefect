@@ -25,19 +25,18 @@ import { Icon } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
 import { Typography } from "@/components/ui/typography";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CronExpressionParser } from "cron-parser";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const verifyCronValue = (cronValue: string) => {
 	try {
 		CronExpressionParser.parse(cronValue);
 		return true;
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	} catch (e) {
+	} catch {
 		return false;
 	}
 };
@@ -74,8 +73,6 @@ export const CronScheduleForm = ({
 	scheduleToEdit,
 	onSubmit,
 }: CronScheduleFormProps) => {
-	const { toast } = useToast();
-
 	const { createDeploymentSchedule, isPending: createPending } =
 		useCreateDeploymentSchedule();
 	const { updateDeploymentSchedule, isPending: updatePending } =
@@ -121,7 +118,7 @@ export const CronScheduleForm = ({
 				},
 				{
 					onSuccess: () => {
-						toast({ title: "Deployment schedule updated" });
+						toast.success("Deployment schedule updated");
 					},
 					onError: (error) => {
 						const message =
@@ -140,7 +137,7 @@ export const CronScheduleForm = ({
 				},
 				{
 					onSuccess: () => {
-						toast({ title: "Deployment schedule created" });
+						toast.success("Deployment schedule created");
 					},
 					onError: (error) => {
 						const message =

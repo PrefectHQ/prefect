@@ -11,5 +11,8 @@ export async function validateSchemaValues(
 		},
 	});
 
+	if (!data) {
+		throw new Error('"data" expected');
+	}
 	return data;
 }
