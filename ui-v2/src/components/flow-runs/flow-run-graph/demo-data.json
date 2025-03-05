@@ -1,0 +1,712 @@
+{
+	"start_time": "2023-09-27T15:50:39.425118+00:00",
+	"end_time": "2023-09-27T15:51:08.999871+00:00",
+	"root_node_ids": [
+		"ea9d7c12-7418-4ea9-b33d-189f22f737af",
+		"7d93e182-e17f-40a2-a0c3-784d1d0e7ff5",
+		"809bac19-c0be-4ca8-a1f6-a4298f00640c",
+		"65b35f89-5439-46e5-8593-343bfd34e6cd",
+		"aaf0dd37-87a9-45f1-a4a0-26df1694d5b1",
+		"9c5a12e5-61e3-42b8-af3e-b99e37f4ff5e",
+		"8920bfa5-091c-4623-aca2-281572c69d91",
+		"213b9c4c-82a3-4616-aa86-048572432af8",
+		"cf818bc1-8698-4a88-8438-5fbfdd4eddcd",
+		"92e9b529-0671-4fa4-b41a-570e8e848946",
+		"68ba2fce-caac-4b07-9f1c-4cb25ff6a3ec",
+		"be920a79-18e9-4521-9c39-0f4883de34af"
+	],
+	"states": [
+		{
+			"id": "9bb2d2fb-6534-4810-a8d0-scheduled",
+			"timestamp": "2023-07-27T15:50:39.425118+00:00",
+			"type": "SCHEDULED",
+			"name": "Scheduled"
+		},
+		{
+			"id": "eab2f3de-91f2-4b29-b9de-pending",
+			"timestamp": "2023-09-27T15:50:38.000000+00:00",
+			"type": "PENDING",
+			"name": "Pending"
+		},
+		{
+			"id": "003d4c00-c30a-41c9-bb49-running",
+			"timestamp": "2023-09-27T15:50:39.425118+00:00",
+			"type": "RUNNING",
+			"name": "Running"
+		},
+		{
+			"id": "56912bb1-e172-4ea8-9be7-completed",
+			"timestamp": "2023-09-27T15:51:08.999871+00:00",
+			"type": "COMPLETED",
+			"name": "Completed"
+		}
+	],
+	"artifacts": [
+		{
+			"id": "ae8aab85-b3bd-44b7-90d0-8afc95bf1ba5",
+			"created": "2023-09-27T15:50:49.284105+00:00",
+			"key": "awesome-artifact-2",
+			"type": "markdown"
+		},
+		{
+			"id": "ae8aab85-b3bd-44b7-90d0-8afc95bf1ba4",
+			"created": "2023-09-27T15:50:50.160592+00:00",
+			"key": "awesome-artifact",
+			"type": "table"
+		},
+		{
+			"id": "ae8aab85-b3bd-44b7-90d0-8afc95bf1ba3",
+			"created": "2023-09-27T15:51:08.999871+00:00",
+			"key": "variable-data-link",
+			"type": "markdown"
+		}
+	],
+	"nodes": [
+		[
+			"ea9d7c12-7418-4ea9-b33d-189f22f737af",
+			{
+				"kind": "task-run",
+				"id": "ea9d7c12-7418-4ea9-b33d-189f22f737af",
+				"label": "random_number-1",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:39.995728+00:00",
+				"end_time": "2023-09-27T15:50:40.532868+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
+					}
+				]
+			}
+		],
+		[
+			"7d93e182-e17f-40a2-a0c3-784d1d0e7ff5",
+			{
+				"kind": "task-run",
+				"id": "7d93e182-e17f-40a2-a0c3-784d1d0e7ff5",
+				"label": "random_number-2",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.001999+00:00",
+				"end_time": "2023-09-27T15:50:40.882539+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
+					}
+				]
+			}
+		],
+		[
+			"809bac19-c0be-4ca8-a1f6-a4298f00640c",
+			{
+				"kind": "task-run",
+				"id": "809bac19-c0be-4ca8-a1f6-a4298f00640c",
+				"label": "random_number-0",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.006757+00:00",
+				"end_time": "2023-09-27T15:50:40.994817+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
+					}
+				]
+			}
+		],
+		[
+			"65b35f89-5439-46e5-8593-343bfd34e6cd",
+			{
+				"kind": "task-run",
+				"id": "65b35f89-5439-46e5-8593-343bfd34e6cd",
+				"label": "random_number-4",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.007097+00:00",
+				"end_time": "2023-09-27T15:50:41.833768+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "2833a401-7a7b-45bc-a511-463a75b53fc4"
+					}
+				]
+			}
+		],
+		[
+			"aaf0dd37-87a9-45f1-a4a0-26df1694d5b1",
+			{
+				"kind": "task-run",
+				"id": "aaf0dd37-87a9-45f1-a4a0-26df1694d5b1",
+				"label": "random_number-7",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.030594+00:00",
+				"end_time": "2023-09-27T15:50:41.066734+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
+					}
+				]
+			}
+		],
+		[
+			"9c5a12e5-61e3-42b8-af3e-b99e37f4ff5e",
+			{
+				"kind": "task-run",
+				"id": "9c5a12e5-61e3-42b8-af3e-b99e37f4ff5e",
+				"label": "random_number-9",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.038379+00:00",
+				"end_time": "2023-09-27T15:50:42.014724+00:00",
+				"parents": [],
+				"artifacts": [
+					{
+						"id": "cae8b622-6742-4615-a02f-700323eaeb41",
+						"created": "2023-09-27T15:50:42.014724+00:00",
+						"key": "personalized-reachout",
+						"type": "progress",
+						"data": 33
+					},
+					{
+						"id": "cae8b622-6742-4615-a02f-700323eaeb42",
+						"created": "2023-09-27T15:50:42.014724+00:00",
+						"key": "personalized-reachout-2",
+						"type": "progress",
+						"data": 66
+					}
+				],
+				"children": [
+					{
+						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
+					}
+				]
+			}
+		],
+		[
+			"8920bfa5-091c-4623-aca2-281572c69d91",
+			{
+				"kind": "task-run",
+				"id": "8920bfa5-091c-4623-aca2-281572c69d91",
+				"label": "random_number-3",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.038511+00:00",
+				"end_time": "2023-09-27T15:50:41.433059+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
+					}
+				]
+			}
+		],
+		[
+			"213b9c4c-82a3-4616-aa86-048572432af8",
+			{
+				"kind": "task-run",
+				"id": "213b9c4c-82a3-4616-aa86-048572432af8",
+				"label": "random_number-8",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.039032+00:00",
+				"end_time": "2023-09-27T15:50:42.059288+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
+					}
+				]
+			}
+		],
+		[
+			"cf818bc1-8698-4a88-8438-5fbfdd4eddcd",
+			{
+				"kind": "task-run",
+				"id": "cf818bc1-8698-4a88-8438-5fbfdd4eddcd",
+				"label": "random_number-10",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.041340+00:00",
+				"end_time": "2023-09-27T15:50:41.925548+00:00",
+				"parents": [],
+				"artifacts": [
+					{
+						"id": "d86b507d-c784-4bf2-b12c-ff6953026257",
+						"created": "2023-09-27T15:50:41.925548+00:00",
+						"key": "variable-data-link",
+						"type": "markdown"
+					}
+				],
+				"children": [
+					{
+						"id": "b00e48b1-be37-4d22-a3e9-e6c69847f3da"
+					}
+				]
+			}
+		],
+		[
+			"92e9b529-0671-4fa4-b41a-570e8e848946",
+			{
+				"kind": "task-run",
+				"id": "92e9b529-0671-4fa4-b41a-570e8e848946",
+				"label": "random_number-6",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.044275+00:00",
+				"end_time": "2023-09-27T15:50:41.357918+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
+					}
+				]
+			}
+		],
+		[
+			"68ba2fce-caac-4b07-9f1c-4cb25ff6a3ec",
+			{
+				"kind": "task-run",
+				"id": "68ba2fce-caac-4b07-9f1c-4cb25ff6a3ec",
+				"label": "random_number-5",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:40.049282+00:00",
+				"end_time": "2023-09-27T15:50:42.004911+00:00",
+				"parents": [],
+				"artifacts": [
+					{
+						"id": "c922b8ce-78e4-459c-8549-b5f6adf5342d",
+						"created": "2023-09-27T15:50:42.004911+00:00",
+						"key": "gtm-markdown-report",
+						"type": "markdown"
+					}
+				],
+				"children": [
+					{
+						"id": "518d7e9f-54c9-407f-aac5-26b653afa947"
+					}
+				]
+			}
+		],
+		[
+			"d9742b2c-acd7-4b4a-81ea-f5237a473816",
+			{
+				"kind": "task-run",
+				"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816",
+				"label": "add-0",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:41.253660+00:00",
+				"end_time": "2023-09-27T15:50:42.946805+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "809bac19-c0be-4ca8-a1f6-a4298f00640c"
+					},
+					{
+						"id": "ea9d7c12-7418-4ea9-b33d-189f22f737af"
+					}
+				],
+				"children": [
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
+					},
+					{
+						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
+					},
+					{
+						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
+					}
+				]
+			}
+		],
+		[
+			"004e28e4-0705-4342-a9e3-569357ecf92a",
+			{
+				"kind": "task-run",
+				"id": "004e28e4-0705-4342-a9e3-569357ecf92a",
+				"label": "add-2",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:41.669868+00:00",
+				"end_time": "2023-09-27T15:50:42.163438+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "809bac19-c0be-4ca8-a1f6-a4298f00640c"
+					},
+					{
+						"id": "8920bfa5-091c-4623-aca2-281572c69d91"
+					}
+				],
+				"children": [
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "518d7e9f-54c9-407f-aac5-26b653afa947"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "518d7e9f-54c9-407f-aac5-26b653afa947"
+					}
+				]
+			}
+		],
+		[
+			"518d7e9f-54c9-407f-aac5-26b653afa947",
+			{
+				"kind": "task-run",
+				"id": "518d7e9f-54c9-407f-aac5-26b653afa947",
+				"label": "add-4",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:42.301165+00:00",
+				"end_time": "2023-09-27T15:50:43.451392+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
+					},
+					{
+						"id": "68ba2fce-caac-4b07-9f1c-4cb25ff6a3ec"
+					}
+				],
+				"children": [
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"bb4eb820-568d-4a54-ae4d-b1c6a9da4858",
+			{
+				"kind": "task-run",
+				"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858",
+				"label": "add-5",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:43.078230+00:00",
+				"end_time": "2023-09-27T15:50:44.003004+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
+					},
+					{
+						"id": "92e9b529-0671-4fa4-b41a-570e8e848946"
+					}
+				],
+				"children": [
+					{
+						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"53d142c5-96ee-4f08-966b-b731ca787f32",
+			{
+				"kind": "task-run",
+				"id": "53d142c5-96ee-4f08-966b-b731ca787f32",
+				"label": "add-1",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:43.103862+00:00",
+				"end_time": "2023-09-27T15:50:44.203555+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
+					},
+					{
+						"id": "7d93e182-e17f-40a2-a0c3-784d1d0e7ff5"
+					}
+				],
+				"children": [
+					{
+						"id": "2833a401-7a7b-45bc-a511-463a75b53fc4"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "2833a401-7a7b-45bc-a511-463a75b53fc4"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"4223393e-0cc5-46ae-803f-0f3bbfb136f7",
+			{
+				"kind": "task-run",
+				"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7",
+				"label": "add-6",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:44.141843+00:00",
+				"end_time": "2023-09-27T15:50:45.131066+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
+					},
+					{
+						"id": "aaf0dd37-87a9-45f1-a4a0-26df1694d5b1"
+					}
+				],
+				"children": [
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
+					}
+				]
+			}
+		],
+		[
+			"2833a401-7a7b-45bc-a511-463a75b53fc4",
+			{
+				"kind": "task-run",
+				"id": "2833a401-7a7b-45bc-a511-463a75b53fc4",
+				"label": "add-3",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:44.383247+00:00",
+				"end_time": "2023-09-27T15:50:44.646715+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
+					},
+					{
+						"id": "65b35f89-5439-46e5-8593-343bfd34e6cd"
+					}
+				],
+				"children": [
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"bf12a66d-ab6a-4cbe-9c55-8e22af8430ba",
+			{
+				"kind": "task-run",
+				"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba",
+				"label": "add-7",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:45.311508+00:00",
+				"end_time": "2023-09-27T15:50:47.084332+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
+					},
+					{
+						"id": "213b9c4c-82a3-4616-aa86-048572432af8"
+					}
+				],
+				"children": [
+					{
+						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"4ebe79ac-1453-42bf-b20d-86ef56a2af88",
+			{
+				"kind": "task-run",
+				"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88",
+				"label": "add-8",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:47.223518+00:00",
+				"end_time": "2023-09-27T15:50:47.634178+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
+					},
+					{
+						"id": "9c5a12e5-61e3-42b8-af3e-b99e37f4ff5e"
+					}
+				],
+				"children": [
+					{
+						"id": "b00e48b1-be37-4d22-a3e9-e6c69847f3da"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "b00e48b1-be37-4d22-a3e9-e6c69847f3da"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"b00e48b1-be37-4d22-a3e9-e6c69847f3da",
+			{
+				"kind": "task-run",
+				"id": "b00e48b1-be37-4d22-a3e9-e6c69847f3da",
+				"label": "add-9",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:47.780233+00:00",
+				"end_time": "2023-09-27T15:50:49.284105+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
+					},
+					{
+						"id": "cf818bc1-8698-4a88-8438-5fbfdd4eddcd"
+					}
+				],
+				"children": [
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					},
+					{
+						"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0"
+					}
+				]
+			}
+		],
+		[
+			"41d010f5-9311-4474-8dfd-93270bd9d9d0",
+			{
+				"kind": "flow-run",
+				"id": "41d010f5-9311-4474-8dfd-93270bd9d9d0",
+				"label": "tangerine-mussel",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:49.886114+00:00",
+				"end_time": "2023-09-27T15:50:50.160592+00:00",
+				"artifacts": [],
+				"parents": [
+					{
+						"id": "4ebe79ac-1453-42bf-b20d-86ef56a2af88"
+					},
+					{
+						"id": "2833a401-7a7b-45bc-a511-463a75b53fc4"
+					},
+					{
+						"id": "bb4eb820-568d-4a54-ae4d-b1c6a9da4858"
+					},
+					{
+						"id": "518d7e9f-54c9-407f-aac5-26b653afa947"
+					},
+					{
+						"id": "809bac19-c0be-4ca8-a1f6-a4298f00640c"
+					},
+					{
+						"id": "d9742b2c-acd7-4b4a-81ea-f5237a473816"
+					},
+					{
+						"id": "004e28e4-0705-4342-a9e3-569357ecf92a"
+					},
+					{
+						"id": "53d142c5-96ee-4f08-966b-b731ca787f32"
+					},
+					{
+						"id": "bf12a66d-ab6a-4cbe-9c55-8e22af8430ba"
+					},
+					{
+						"id": "4223393e-0cc5-46ae-803f-0f3bbfb136f7"
+					},
+					{
+						"id": "b00e48b1-be37-4d22-a3e9-e6c69847f3da"
+					}
+				],
+				"children": []
+			}
+		],
+		[
+			"be920a79-18e9-4521-9c39-0f4883de34af",
+			{
+				"kind": "flow-run",
+				"id": "be920a79-18e9-4521-9c39-0f4883de34af",
+				"label": "burrowing-rooster",
+				"state_name": "Completed",
+				"state_type": "COMPLETED",
+				"start_time": "2023-09-27T15:50:59.572224+00:00",
+				"end_time": "2023-09-27T15:51:08.999871+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": []
+			}
+		]
+	]
+}
