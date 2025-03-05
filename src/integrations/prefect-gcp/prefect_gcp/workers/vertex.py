@@ -55,8 +55,6 @@ try:
     )
     from google.cloud.aiplatform_v1.types.job_state import JobState
     from google.cloud.aiplatform_v1.types.machine_resources import DiskSpec, MachineSpec
-
-    # from google.protobuf.duration_pb2 import Duration # Remove unused import
     from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
 except ModuleNotFoundError:
     pass
