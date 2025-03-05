@@ -108,6 +108,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -120,7 +121,7 @@ from prefect.utilities.asyncutils import (
     is_async_fn,
     sync_compatible,
 )
-from prefect.utilities.engine import propose_state
+from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.processutils import (
     get_sys_executable,
     run_process,
@@ -237,6 +238,8 @@ class Runner:
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
         self.__flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
+        # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
+        self._rescheduling: bool = False
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
@@ -929,6 +932,45 @@ class Runner:
                 # process ended right after the check above.
                 return
 
+    def reschedule_current_flow_runs(
+        self,
+    ) -> None:
+        """
+        Reschedules all flow runs that are currently running.
+
+        This should only be called when the runner is shutting down because it kill all
+        child processes and short-circuit the crash detection logic.
+        """
+        self._rescheduling = True
+        # Create a new sync client because this will often run in a separate thread
+        # as part of a signal handler.
+        with get_client(sync_client=True) as client:
+            self._logger.info("Rescheduling flow runs...")
+            for process_info in self._flow_run_process_map.values():
+                flow_run = process_info["flow_run"]
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.info(
+                    "Rescheduling flow run for resubmission in response to SIGTERM"
+                )
+                try:
+                    propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
+                    os.kill(process_info["pid"], signal.SIGTERM)
+                    run_logger.info("Rescheduled flow run for resubmission")
+                except ProcessLookupError:
+                    # Process may have already exited
+                    pass
+                except Abort as exc:
+                    run_logger.info(
+                        (
+                            "Aborted submission of flow run. "
+                            f"Server sent an abort signal: {exc}"
+                        ),
+                    )
+                except Exception:
+                    run_logger.exception(
+                        "Failed to reschedule flow run",
+                    )
+
     async def _pause_schedules(self):
         """
         Pauses all deployment schedules.
@@ -1399,7 +1441,7 @@ class Runner:
             async with self._flow_run_process_map_lock:
                 self._flow_run_process_map.pop(flow_run.id, None)
 
-        if status_code != 0:
+        if status_code != 0 and not self._rescheduling:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",

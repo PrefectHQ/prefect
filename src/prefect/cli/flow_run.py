@@ -2,8 +2,13 @@
 Command line interface for working with flow runs
 """
 
+from __future__ import annotations
+
 import logging
 import os
+import signal
+import threading
+from types import FrameType
 from typing import List, Optional
 from uuid import UUID
 
@@ -352,4 +357,19 @@ async def execute(
     if id is None:
         exit_with_error("Could not determine the ID of the flow run to execute.")
 
-    await Runner().execute_flow_run(id)
+    runner = Runner()
+
+    def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
+        logger.info("SIGTERM received, initiating graceful shutdown...")
+        runner.reschedule_current_flow_runs()
+        exit_with_success("Flow run successfully rescheduled.")
+
+    # Set up signal handling to reschedule run on SIGTERM
+    on_sigterm = os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
+    if (
+        threading.current_thread() is threading.main_thread()
+        and on_sigterm == "reschedule"
+    ):
+        signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
+
+    await runner.execute_flow_run(id)
