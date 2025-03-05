@@ -31,9 +31,9 @@ First, here's a recap of some important terms:
 - A free [Prefect Cloud](https://app.prefect.cloud/auth/sign-in) account.
 - A free [Modal](https://modal.com/signup?next=%2Fapps) account.
 
-## Create your GitHub repo
+## Create a GitHub repository
 
-Create a GitHub repo containing your Prefect flows.
+Create a GitHub repository containing your Prefect flows.
 You can reference the [Ben-Epstein/prefect-modal](https://github.com/Ben-Epstein/prefect-modal) repository for a complete example.
 Your repository should have a `prefect.yaml` deployment configuration file, standard Python tooling, and CI/CD.
 
@@ -99,7 +99,7 @@ Your repository should have a `prefect.yaml` deployment configuration file, stan
 
    ![image.png](/v3/img/tutorials/modal/modal%201.png)
 
-1. Because this is meant to be a scalable repo, create a submodule just for your workflows.
+1. Because this is meant to be a scalable repository, create a submodule just for your workflows.
 
    ```bash
    mkdir src/prefect_modal/flows
@@ -146,7 +146,7 @@ deployments:
     job_variables: {}
 ```
 
-The important sections here are `pull`, which defines the repo and branch to pull from, as well as `deployments`, which define the `flows` that will be `run` at some `schedule` on a `work_pool`.
+The important sections here are `pull`, which defines the repository and branch to pull from, as well as `deployments`, which define the `flows` that will be `run` at some `schedule` on a `work_pool`.
 The work pool will be set to modal later in this tutorial.
 
 Finally, create your flow.
