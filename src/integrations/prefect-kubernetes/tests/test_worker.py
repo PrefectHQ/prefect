@@ -205,11 +205,14 @@ def enable_store_api_key_in_secret(monkeypatch):
 
 
 @pytest.fixture
-def mock_api_key_secret_name(monkeypatch):
+def mock_api_key_secret_name_and_key(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(
         "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_KEY_SECRET_NAME", "test-secret"
     )
-    return "test-secret"
+    monkeypatch.setenv(
+        "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_KEY_SECRET_KEY", "value"
+    )
+    return "test-secret", "value"
 
 
 from_template_and_values_cases = [
@@ -1637,8 +1640,11 @@ class TestKubernetesWorker:
         mock_watch,
         mock_pods_stream_that_returns_running_pod,
         mock_batch_client,
-        mock_api_key_secret_name,
+        mock_api_key_secret_name_and_key: tuple[str, str],
     ):
+        mock_api_key_secret_name, mock_api_key_secret_key = (
+            mock_api_key_secret_name_and_key
+        )
         mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
 
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -1673,7 +1679,7 @@ class TestKubernetesWorker:
                     "valueFrom": {
                         "secretKeyRef": {
                             "name": mock_api_key_secret_name,
-                            "key": "value",
+                            "key": mock_api_key_secret_key,
                         }
                     },
                 } in env
@@ -1685,9 +1691,12 @@ class TestKubernetesWorker:
         mock_watch,
         mock_pods_stream_that_returns_running_pod,
         mock_batch_client,
-        mock_api_key_secret_name,
+        mock_api_key_secret_name_and_key: tuple[str, str],
         enable_store_api_key_in_secret,
     ):
+        mock_api_key_secret_name, mock_api_key_secret_key = (
+            mock_api_key_secret_name_and_key
+        )
         mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
 
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -1722,7 +1731,7 @@ class TestKubernetesWorker:
                     "valueFrom": {
                         "secretKeyRef": {
                             "name": mock_api_key_secret_name,
-                            "key": "value",
+                            "key": mock_api_key_secret_key,
                         }
                     },
                 } in env
