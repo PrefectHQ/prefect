@@ -29,6 +29,7 @@ class PodEvictionScenario(BaseScenario):
             entrypoint=self.flow_entrypoint,
             name=self.flow_name,
             work_pool_name=self.work_pool_name,
+            job_variables={"image": "prefecthq/prefect:3-latest"},
         )
 
         display.print_flow_run_created(self.flow_run)

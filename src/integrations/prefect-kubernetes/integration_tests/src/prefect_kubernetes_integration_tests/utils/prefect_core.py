@@ -1,4 +1,5 @@
 import subprocess
+from typing import Any
 
 from rich.console import Console
 
@@ -14,6 +15,7 @@ async def create_flow_run(
     entrypoint: str,
     name: str,
     work_pool_name: str = "k8s-test",
+    job_variables: dict[str, Any] | None = None,
 ) -> FlowRun:
     """Create a flow run from a remote source."""
     # Create work pool if it doesn't exist
@@ -30,7 +32,11 @@ async def create_flow_run(
     )
 
     remote_flow = await flow.from_source(source=source, entrypoint=entrypoint)
-    deployment_id = await remote_flow.deploy(name=name, work_pool_name=work_pool_name)
+    deployment_id = await remote_flow.deploy(
+        name=name,
+        work_pool_name=work_pool_name,
+        job_variables=job_variables,
+    )
 
     async with get_client() as client:
         return await client.create_flow_run_from_deployment(deployment_id)
