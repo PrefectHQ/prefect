@@ -68,6 +68,7 @@ from prefect.settings import (
 from prefect.states import Cancelling
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities import processutils
+from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
@@ -2518,6 +2519,65 @@ class TestRunnerDeployment:
             dummy_flow_1, name="flow-from-my.python.module"
         )
         assert deployment2.name == "flow-from-my.python.module"
+
+    async def test_from_flow_with_frozen_parameters(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that frozen parameters are properly handled in deployment creation."""
+
+        @flow
+        def dummy_flow_4(value: Any): ...
+
+        deployment_object = RunnerDeployment.from_flow(
+            dummy_flow_4,
+            __file__,
+            parameters={"value": freeze("test")},
+        )
+        assert deployment_object.parameters == {"value": "test"}
+        deployment_id = await deployment_object.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.parameters == {"value": "test"}
+        assert (
+            deployment.parameter_openapi_schema["properties"]["value"]["readOnly"]
+            is True
+        )
+        assert deployment.parameter_openapi_schema["properties"]["value"]["enum"] == [
+            "test"
+        ]
+
+    async def test_from_flow_with_frozen_parameters_preserves_type(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that frozen parameters preserve their type information."""
+
+        @flow
+        def dummy_flow_5(number: int): ...
+
+        deployment_object = RunnerDeployment.from_flow(
+            dummy_flow_5,
+            __file__,
+            parameters={"number": freeze(42)},
+        )
+        assert deployment_object.parameters == {"number": 42}
+
+        deployment_id = await deployment_object.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.parameters == {"number": 42}
+        assert (
+            deployment.parameter_openapi_schema["properties"]["number"]["type"]
+            == "integer"
+        )
+        assert (
+            deployment.parameter_openapi_schema["properties"]["number"]["readOnly"]
+            is True
+        )
+        assert deployment.parameter_openapi_schema["properties"]["number"]["enum"] == [
+            42
+        ]
 
 
 class TestServer:

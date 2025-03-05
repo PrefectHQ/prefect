@@ -2,6 +2,8 @@ import warnings
 from operator import itemgetter
 from typing import Any, cast
 
+from pydantic import GetCoreSchemaHandler
+from pydantic_core import core_schema, to_json
 from typing_extensions import Self, TypeVar
 
 T = TypeVar("T", infer_variance=True)
@@ -108,3 +110,44 @@ class NotSet:
     """
     Singleton to distinguish `None` from a value that is not provided by the user.
     """
+
+
+class freeze(BaseAnnotation[T]):
+    """
+    Wrapper for parameters in deployments.
+
+    Indicates that this parameter should be frozen in the UI and not editable
+    when creating flow runs from this deployment.
+
+    Example:
+    ```python
+    @flow
+    def my_flow(customer_id: str):
+        # flow logic
+
+    deployment = my_flow.deploy(parameters={"customer_id": freeze("customer123")})
+    ```
+    """
+
+    def __new__(cls, value: T) -> Self:
+        try:
+            to_json(value)
+        except Exception:
+            raise ValueError("Value must be JSON serializable")
+        return super().__new__(cls, value)
+
+    def unfreeze(self) -> T:
+        """Return the unwrapped value."""
+        return self.unwrap()
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[Any], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        return core_schema.no_info_after_validator_function(
+            cls,  # Use the class itself as the validator
+            core_schema.any_schema(),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda x: x.unfreeze()  # Serialize by unwrapping the value
+            ),
+        )
