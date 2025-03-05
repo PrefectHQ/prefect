@@ -37,6 +37,9 @@ const meta = {
 				http.patch(buildApiUrl("/deployments/id"), () => {
 					return HttpResponse.json(createFakeDeployment());
 				}),
+				http.post(buildApiUrl("/deployments"), () => {
+					return HttpResponse.json(createFakeDeployment());
+				}),
 			],
 		},
 	},
@@ -44,6 +47,12 @@ const meta = {
 
 export default meta;
 
-export const story: StoryObj = {
-	name: "DeploymentForm",
+type Story = StoryObj<typeof DeploymentForm>;
+
+export const Edit: Story = {
+	args: { mode: "edit" },
+};
+
+export const Duplicate: Story = {
+	args: { mode: "duplicate" },
 };

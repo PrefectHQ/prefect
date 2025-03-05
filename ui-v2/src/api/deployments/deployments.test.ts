@@ -11,6 +11,7 @@ import {
 	buildFilterDeploymentsQuery,
 	buildPaginateDeploymentsQuery,
 	queryKeyFactory,
+	useCreateDeployment,
 	useCreateDeploymentSchedule,
 	useDeleteDeployment,
 	useDeleteDeploymentSchedule,
@@ -175,6 +176,55 @@ describe("deployments api", () => {
 
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual(mockResponse);
+		});
+	});
+
+	describe("useCreateDeployment", () => {
+		const mockCreateDeploymentAPI = (deployment: Deployment) => {
+			server.use(
+				http.post(buildApiUrl("/deployments"), () => {
+					return HttpResponse.json(deployment);
+				}),
+			);
+		};
+
+		it("invalidates cache and fetches updated value", async () => {
+			const mockDeployment = createFakeDeployment();
+			mockFetchDeploymentsAPI([mockDeployment]);
+			mockCreateDeploymentAPI(mockDeployment);
+			const queryClient = new QueryClient();
+
+			queryClient.setQueryData(queryKeyFactory["lists-filter"](), [
+				mockDeployment,
+			]);
+
+			const { result: useListDeploymentsResult } = renderHook(
+				() => useQuery(buildPaginateDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useCreateDeploymentResult } = renderHook(
+				useCreateDeployment,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useCreateDeploymentResult.current.createDeployment({
+					enforce_parameter_schema: mockDeployment.enforce_parameter_schema,
+					flow_id: mockDeployment.flow_id,
+					name: mockDeployment.name,
+					paused: mockDeployment.paused,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useCreateDeploymentResult.current.isSuccess).toBe(true),
+			);
+			expect(useListDeploymentsResult.current.data?.count).toEqual(1);
+			const newDeployment = useListDeploymentsResult.current.data?.results.find(
+				(deployment) => deployment.id === mockDeployment.id,
+			);
+			expect(newDeployment).toEqual(mockDeployment);
 		});
 	});
 
