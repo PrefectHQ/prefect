@@ -183,8 +183,8 @@ class VertexAIWorkerVariables(BaseVariables):
             "and required if a service account cannot be detected in GCP credentials."
         ),
     )
-    enable_web_access: Optional[bool] = Field(
-        default=None,
+    enable_web_access: bool = Field(
+        default=False,
         title="Enable Web Access",
         description=(
             "Whether you want Vertex AI to enable `interactive shell access` "
