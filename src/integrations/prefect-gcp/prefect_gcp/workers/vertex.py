@@ -192,8 +192,8 @@ class VertexAIWorkerVariables(BaseVariables):
         ),
         examples=[True],
     )
-    enable_dashboard_access: Optional[bool] = Field(
-        default=None,
+    enable_dashboard_access: bool = Field(
+        default=False,
         title="Enable Dashboard Access",
         description=(
             "Whether you want Vertex AI to enable access to the customized dashboard in training "
