@@ -67,6 +67,7 @@ from prefect.settings import (
 )
 from prefect.states import Cancelling
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities import processutils
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
@@ -1424,6 +1425,30 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
         assert flow_run.state.is_scheduled()
+
+    async def test_runner_handles_output_stream_errors(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17316
+        """
+        # Simulate stream output error
+        mock = AsyncMock(side_effect=Exception("Test error"))
+        monkeypatch.setattr(processutils, "consume_process_output", mock)
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Runner shouldn't crash
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
 
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)

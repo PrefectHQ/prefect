@@ -326,12 +326,9 @@ async def run_process(
             task_status.started(value)
 
         if stream_output:
-            try:
-                await consume_process_output(
-                    process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
-                )
-            except Exception:
-                logger.exception("Error consuming process output")
+            await consume_process_output(
+                process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
+            )
 
         await process.wait()
 
