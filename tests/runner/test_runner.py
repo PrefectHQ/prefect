@@ -1331,7 +1331,7 @@ class TestRunner:
             if flow_run.state.is_running():
                 break
 
-        await runner.reschedule_current_flow_runs()
+        runner.reschedule_current_flow_runs()
 
         await execute_flow_run_task
 
