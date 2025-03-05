@@ -199,6 +199,47 @@ export const buildDeploymentDetailsQuery = (id: string) =>
 // ----------------------------
 
 /**
+ * Hook for creating a deployment
+ *
+ * @returns Mutation object for creating a deployment with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createDeployment } = useCreateDeployment();
+ *
+ * // Create a deployment
+ * createDeployment('deployment-id', {
+ *   onSuccess: () => {
+ *     // Handle successful creation
+ *     console.log('Deployment created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create deployment:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useCreateDeployment = () => {
+	const queryClient = useQueryClient();
+	const { mutate: createDeployment, ...rest } = useMutation({
+		mutationFn: async (body: components["schemas"]["DeploymentCreate"]) => {
+			const res = await getQueryService().POST("/deployments/", { body });
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onSettled: async () => {
+			return await queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return { createDeployment, ...rest };
+};
+
+/**
  * Hook for updating a deployment
  *
  * @returns Mutation object for updating a deployment with loading/error states and trigger function
