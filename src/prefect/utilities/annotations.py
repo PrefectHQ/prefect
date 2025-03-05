@@ -2,6 +2,7 @@ import warnings
 from operator import itemgetter
 from typing import Any, cast
 
+from pydantic_core import to_json
 from typing_extensions import Self, TypeVar
 
 T = TypeVar("T", infer_variance=True)
@@ -126,6 +127,13 @@ class freeze(BaseAnnotation[T]):
     deployment = my_flow.deploy(parameters={"customer_id": freeze("customer123")})
     ```
     """
+
+    def __new__(cls, value: T) -> Self:
+        try:
+            to_json(value)
+        except Exception:
+            raise ValueError("Value must be JSON serializable")
+        return super().__new__(cls, value)
 
     def unfreeze(self) -> T:
         """Return the unwrapped value."""
