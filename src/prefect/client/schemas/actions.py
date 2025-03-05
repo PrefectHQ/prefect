@@ -384,8 +384,6 @@ class DeploymentUpdate(ActionBaseModel):
 
         parameters = self.parameters or {}
 
-        breakpoint()
-
         for key, value in parameters.items():
             if isinstance(value, freeze):
                 raw_value = value.unfreeze()
