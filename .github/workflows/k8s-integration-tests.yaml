@@ -30,7 +30,7 @@ jobs:
           cache-dependency-glob: "src/integrations/prefect-kubernetes/integration_tests/pyproject.toml"
       
       - name: Install dependencies
-        run: cd src/integrations/prefect-kubernetes/integration_tests && uv sync
+        run: cd src/integrations/prefect-kubernetes/integration_tests && uv sync --active
 
       
       - name: Set up Kind cluster
