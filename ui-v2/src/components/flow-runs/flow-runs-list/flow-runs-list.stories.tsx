@@ -6,7 +6,7 @@ import {
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import { faker } from "@faker-js/faker";
+import { randNumber } from "@ngneat/falso";
 import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
@@ -41,11 +41,11 @@ const MOCK_DATA = [
 ];
 
 const MOCK_FLOW_RUNS_TASK_COUNT = {
-	"0": faker.number.int({ min: 0, max: 5 }),
-	"1": faker.number.int({ min: 0, max: 5 }),
-	"2": faker.number.int({ min: 0, max: 5 }),
-	"3": faker.number.int({ min: 0, max: 5 }),
-	"4": faker.number.int({ min: 0, max: 5 }),
+	"0": randNumber({ min: 0, max: 5 }),
+	"1": randNumber({ min: 0, max: 5 }),
+	"2": randNumber({ min: 0, max: 5 }),
+	"3": randNumber({ min: 0, max: 5 }),
+	"4": randNumber({ min: 0, max: 5 }),
 };
 
 const meta = {

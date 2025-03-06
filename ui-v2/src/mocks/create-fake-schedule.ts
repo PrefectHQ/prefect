@@ -1,19 +1,28 @@
-import { faker } from "@faker-js/faker";
+import {
+	rand,
+	randBoolean,
+	randFutureDate,
+	randNumber,
+	randRecentDate,
+	randUuid,
+} from "@ngneat/falso";
+import { randTimeZone } from "@ngneat/falso";
 import type { components } from "../../src/api/prefect";
+import { randCron } from "./create-fake-cron";
 
 export function generateRandomCronSchedule(): components["schemas"]["CronSchedule"] {
 	return {
-		cron: faker.system.cron(),
-		timezone: faker.location.timeZone(),
-		day_or: faker.datatype.boolean(),
+		cron: randCron(),
+		timezone: randTimeZone(),
+		day_or: randBoolean(),
 	};
 }
 
 export function generateRandomIntervalSchedule(): components["schemas"]["IntervalSchedule"] {
 	return {
-		interval: faker.number.int({ min: 1, max: 100_000 }),
-		anchor_date: faker.date.recent().toISOString(),
-		timezone: faker.location.timeZone(),
+		interval: randNumber({ min: 1, max: 100_000 }),
+		anchor_date: randRecentDate().toISOString(),
+		timezone: randTimeZone(),
 	};
 }
 
@@ -21,14 +30,15 @@ const frequencies = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"];
 const weekdays = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 
 const getRandomWeekdays = () => {
-	const shuffled = faker.helpers.shuffle(weekdays);
-	const count = faker.number.int({ min: 1, max: 7 });
-	return shuffled.slice(0, count).join(",");
+	return rand(weekdays, {
+		length: randNumber({ min: 1, max: 7 }),
+		unique: true,
+	}).join(",");
 };
 
 export function generateRandomRRuleSchedule(): components["schemas"]["RRuleSchedule"] {
-	const freq = faker.helpers.arrayElement(frequencies);
-	const interval = faker.number.int({ min: 1, max: 10 });
+	const freq = rand(frequencies);
+	const interval = randNumber({ min: 1, max: 10 });
 	const rruleComponents = [`FREQ=${freq}`, `INTERVAL=${interval}`];
 
 	switch (freq) {
@@ -42,20 +52,20 @@ export function generateRandomRRuleSchedule(): components["schemas"]["RRuleSched
 			break;
 		}
 		case "MONTHLY": {
-			if (faker.datatype.boolean()) {
-				const monthDay = faker.number.int({ min: 1, max: 28 });
+			if (randBoolean()) {
+				const monthDay = randNumber({ min: 1, max: 28 });
 				rruleComponents.push(`BYMONTHDAY=${monthDay}`);
 			} else {
-				const nth = faker.helpers.arrayElement(["1", "2", "3", "4", "-1"]);
-				const day = faker.helpers.arrayElement(weekdays);
+				const nth = rand(["1", "2", "3", "4", "-1"]);
+				const day = rand(weekdays);
 				rruleComponents.push(`BYDAY=${nth}${day}`);
 			}
 			addCountOrUntil(rruleComponents);
 			break;
 		}
 		case "YEARLY": {
-			const month = faker.number.int({ min: 1, max: 12 });
-			const monthDay = faker.number.int({ min: 1, max: 28 });
+			const month = randNumber({ min: 1, max: 12 });
+			const monthDay = randNumber({ min: 1, max: 28 });
 			rruleComponents.push(`BYMONTH=${month}`, `BYMONTHDAY=${monthDay}`);
 			addCountOrUntil(rruleComponents);
 			break;
@@ -67,16 +77,16 @@ export function generateRandomRRuleSchedule(): components["schemas"]["RRuleSched
 	const rruleString = rruleComponents.join(";");
 	return {
 		rrule: rruleString,
-		timezone: faker.location.timeZone(),
+		timezone: randTimeZone(),
 	};
 }
 
 function addCountOrUntil(rruleComponents: string[]) {
-	if (faker.datatype.boolean()) {
-		const count = faker.number.int({ min: 1, max: 100 });
+	if (randBoolean()) {
+		const count = randNumber({ min: 1, max: 100 });
 		rruleComponents.push(`COUNT=${count}`);
 	} else {
-		const untilDate = faker.date.future();
+		const untilDate = randFutureDate();
 		const formattedUntil = formatDate(untilDate);
 		rruleComponents.push(`UNTIL=${formattedUntil}`);
 	}
@@ -96,13 +106,12 @@ const scheduleGenerators = [
 ];
 
 export function createFakeSchedule(): components["schemas"]["DeploymentSchedule"] {
-	const selectedScheduleGenerator =
-		faker.helpers.arrayElement(scheduleGenerators);
+	const selectedScheduleGenerator = rand(scheduleGenerators);
 	return {
-		id: faker.string.uuid(),
-		created: faker.date.recent().toISOString(),
-		updated: faker.date.recent().toISOString(),
+		id: randUuid(),
+		created: randRecentDate().toISOString(),
+		updated: randRecentDate().toISOString(),
 		schedule: selectedScheduleGenerator(),
-		active: faker.datatype.boolean(),
+		active: randBoolean(),
 	};
 }

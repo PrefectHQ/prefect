@@ -6,14 +6,14 @@ import {
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { createFakeDeployment } from "@/mocks";
-import { faker } from "@faker-js/faker";
+import { randRecentDate, randUuid } from "@ngneat/falso";
 import { DeploymentSchedules } from "./deployment-schedules";
 
 const baseDeploymentSchedule = {
-	id: faker.string.uuid(),
-	created: faker.date.recent().toISOString(),
-	updated: faker.date.recent().toISOString(),
-	deployment_id: faker.string.uuid(),
+	id: randUuid(),
+	created: randRecentDate().toISOString(),
+	updated: randRecentDate().toISOString(),
+	deployment_id: randUuid(),
 	active: true,
 	max_scheduled_runs: null,
 };

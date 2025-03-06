@@ -1,25 +1,31 @@
 import type { components } from "@/api/prefect";
-import { faker } from "@faker-js/faker";
+import {
+	randAlphaNumeric,
+	randPastDate,
+	randSentence,
+	randUuid,
+	randWord,
+} from "@ngneat/falso";
 
 export const createFakeArtifact = (
 	overrides?: Partial<components["schemas"]["Artifact"]>,
 ): components["schemas"]["Artifact"] => {
 	return {
-		id: faker.string.uuid(),
-		created: faker.date.past().toISOString(),
-		updated: faker.date.past().toISOString(),
-		key: `key-${faker.string.alphanumeric({ length: 10 })}`,
+		id: randUuid(),
+		created: randPastDate().toISOString(),
+		updated: randPastDate().toISOString(),
+		key: `key-${randAlphaNumeric({ length: 10 }).join()}`,
 		type: "result",
-		description: faker.lorem.sentence(),
+		description: randSentence(),
 		data: {
-			arr: faker.helpers.uniqueArray([faker.word.sample()], 5),
+			arr: randWord({ length: 5 }),
 		},
 		metadata_: {
-			key: faker.lorem.word(),
-			[faker.lorem.word()]: faker.lorem.word(),
+			key: randWord(),
+			[randWord()]: randWord(),
 		},
-		flow_run_id: faker.string.uuid(),
-		task_run_id: faker.string.uuid(),
+		flow_run_id: randUuid(),
+		task_run_id: randUuid(),
 		...overrides,
 	};
 };

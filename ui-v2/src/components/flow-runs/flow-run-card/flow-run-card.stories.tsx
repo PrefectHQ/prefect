@@ -7,7 +7,7 @@ import {
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import { faker } from "@faker-js/faker";
+import { randNumber } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
@@ -21,7 +21,7 @@ const MOCK_DATA_WITH_DEPLOYMENT = createFakeFlowRunWithDeploymentAndFlow({
 	id: "0",
 });
 const MOCK_FLOW_RUNS_TASK_COUNT = {
-	"0": faker.number.int({ min: 0, max: 5 }),
+	"0": randNumber({ min: 0, max: 5 }),
 };
 
 const meta = {
