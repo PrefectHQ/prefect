@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import datetime
 import os
@@ -65,6 +67,8 @@ from prefect.settings import (
 )
 from prefect.states import Cancelling
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities import processutils
+from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
@@ -1388,6 +1392,84 @@ class TestRunner:
         (_, kwargs) = mock.call_args
         assert kwargs.get("creationflags") is None
 
+    async def test_reschedule_flow_runs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        # Create a flow run that will take a while to run
+        deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        runner = Runner()
+
+        # Run the flow run in a new process with a Runner
+        execute_flow_run_task = asyncio.create_task(
+            runner.execute_flow_run(flow_run_id=flow_run.id)
+        )
+
+        # Wait for the flow run to start
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+
+        runner.reschedule_current_flow_runs()
+
+        await execute_flow_run_task
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_scheduled()
+
+    async def test_runner_marks_flow_run_as_crashed_when_unabled_to_start_process(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock = AsyncMock(side_effect=Exception("Test error"))
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock)
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_crashed()
+
+    async def test_runner_handles_output_stream_errors(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17316
+        """
+        # Simulate stream output error
+        mock = AsyncMock(side_effect=Exception("Test error"))
+        monkeypatch.setattr(processutils, "consume_process_output", mock)
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Runner shouldn't crash
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
         def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
@@ -2437,6 +2519,65 @@ class TestRunnerDeployment:
             dummy_flow_1, name="flow-from-my.python.module"
         )
         assert deployment2.name == "flow-from-my.python.module"
+
+    async def test_from_flow_with_frozen_parameters(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that frozen parameters are properly handled in deployment creation."""
+
+        @flow
+        def dummy_flow_4(value: Any): ...
+
+        deployment_object = RunnerDeployment.from_flow(
+            dummy_flow_4,
+            __file__,
+            parameters={"value": freeze("test")},
+        )
+        assert deployment_object.parameters == {"value": "test"}
+        deployment_id = await deployment_object.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.parameters == {"value": "test"}
+        assert (
+            deployment.parameter_openapi_schema["properties"]["value"]["readOnly"]
+            is True
+        )
+        assert deployment.parameter_openapi_schema["properties"]["value"]["enum"] == [
+            "test"
+        ]
+
+    async def test_from_flow_with_frozen_parameters_preserves_type(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that frozen parameters preserve their type information."""
+
+        @flow
+        def dummy_flow_5(number: int): ...
+
+        deployment_object = RunnerDeployment.from_flow(
+            dummy_flow_5,
+            __file__,
+            parameters={"number": freeze(42)},
+        )
+        assert deployment_object.parameters == {"number": 42}
+
+        deployment_id = await deployment_object.apply()
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert deployment.parameters == {"number": 42}
+        assert (
+            deployment.parameter_openapi_schema["properties"]["number"]["type"]
+            == "integer"
+        )
+        assert (
+            deployment.parameter_openapi_schema["properties"]["number"]["readOnly"]
+            is True
+        )
+        assert deployment.parameter_openapi_schema["properties"]["number"]["enum"] == [
+            42
+        ]
 
 
 class TestServer:

@@ -18,20 +18,19 @@ export const DeploymentScheduleItem = ({
 	onEditSchedule,
 }: DeploymentScheduleItemProps) => {
 	return (
-		<Card className="p-3 flex items-center justify-between">
-			<Typography>{getScheduleTitle(deploymentSchedule)}</Typography>
-			<div className="flex items-baseline gap-2">
-				<div>
+		<Card className="p-3">
+			<div className="flex items-center justify-between gap-2">
+				<Typography>{getScheduleTitle(deploymentSchedule)}</Typography>
+				<div className="flex items-baseline gap-2">
 					<ScheduleToggleSwitch
 						deploymentSchedule={deploymentSchedule}
 						disabled={disabled}
 					/>
+					<ScheduleActionMenu
+						deploymentSchedule={deploymentSchedule}
+						onEditSchedule={onEditSchedule}
+					/>
 				</div>
-				<div></div>
-				<ScheduleActionMenu
-					deploymentSchedule={deploymentSchedule}
-					onEditSchedule={onEditSchedule}
-				/>
 			</div>
 		</Card>
 	);

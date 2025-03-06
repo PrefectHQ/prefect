@@ -635,7 +635,7 @@ class Firing(PrefectBaseModel):
 
     id: UUID = Field(default_factory=uuid4)
 
-    trigger: Union[ServerTriggerTypes, CompositeTrigger] = Field(
+    trigger: ServerTriggerTypes = Field(
         default=..., description="The trigger that is firing"
     )
     trigger_states: Set[TriggerState] = Field(

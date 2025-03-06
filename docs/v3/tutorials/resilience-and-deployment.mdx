@@ -2,6 +2,7 @@
 title: Deploy resilient pipelines to serverless infrastructure
 description: Learn how to handle pipeline failures and deploy to serverless infrastructure. 
 ---
+import { Arcade } from '/snippets/arcade.mdx'
 
 This tutorial builds off the Major League Baseball (MLB) flow created [in the S3 and MotherDuck tutorial](/docs/v3/tutorials/s3-motherduck).
 Here you'll experiment with adding failure handling and data quality checks to the flow, and deploy it with Prefect Cloud's [Managed Execution work pool](/v3/deploy/infrastructure-examples/managed#run-flows-on-prefect-managed-infrastructure).
@@ -449,16 +450,7 @@ rrule="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=16;BYMINUTE=0"
 #### Add a schedule with the Prefect Cloud UI
 If you'd like to add a schedule to a deployment using the Prefect Cloud UI, navigate to the deployment and click **+ Schedule**.
 
-<iframe 
-width="560" 
-height="315" 
-src="https://demo.arcade.software/XYwssAx9RdPJ1EcPcsCd?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true" 
-title="Arcade player" 
-frameborder="0" 
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-referrerpolicy="strict-origin-when-cross-origin" 
-allowfullscreen>
-</iframe>
+<Arcade src={"https://demo.arcade.software/XYwssAx9RdPJ1EcPcsCd"} title={"Mastering Deployment Scheduling for Optimal Performance"} />
 
 ## Next steps
 In this tutorial, you learned how to:
