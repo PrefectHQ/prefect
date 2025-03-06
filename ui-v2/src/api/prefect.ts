@@ -620,6 +620,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/task_runs/paginate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paginate Task Runs
+         * @description Pagination query for task runs.
+         */
+        post: operations["paginate_task_runs_task_runs_paginate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/task_runs/{id}/set_state": {
         parameters: {
             query?: never;
@@ -4284,6 +4304,25 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["FlowSort"];
+            /**
+             * Limit
+             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_paginate_task_runs_task_runs_paginate_post */
+        Body_paginate_task_runs_task_runs_paginate_post: {
+            /** @default ID_DESC */
+            sort: components["schemas"]["TaskRunSort"];
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -8869,6 +8908,19 @@ export interface components {
              */
             is_null_?: boolean | null;
         };
+        /** TaskRunPaginationResponse */
+        TaskRunPaginationResponse: {
+            /** Results */
+            results: components["schemas"]["TaskRunResponse"][];
+            /** Count */
+            count: number;
+            /** Limit */
+            limit: number;
+            /** Pages */
+            pages: number;
+            /** Page */
+            page: number;
+        };
         /**
          * TaskRunPolicy
          * @description Defines of how a task run should retry.
@@ -8903,6 +8955,69 @@ export interface components {
              * @description Determines the amount a retry should jitter
              */
             retry_jitter_factor?: number | null;
+        };
+        /** TaskRunResponse */
+        TaskRunResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the task run. Defaults to a random slug if not specified.
+             */
+            name?: string;
+            /**
+             * Flow Run Id
+             * @description The id of the flow run this task run belongs to.
+             */
+            flow_run_id?: string | null;
+            /**
+             * Task Key
+             * @description The key of the task this run represents.
+             */
+            task_key: string;
+            /**
+             * State Id
+             * @description The id of the task run's current state.
+             */
+            state_id?: string | null;
+            /** @description The current state of the task run. */
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Task Version
+             * @description The version of the task executed in this task run.
+             */
+            task_version?: string | null;
+            /**
+             * Parameters
+             * @description Parameters for the task run.
+             */
+            parameters?: Record<string, never>;
+            /**
+             * Task Inputs
+             * @description Inputs provided to the task run.
+             */
+            task_inputs?: {
+                [key: string]: components["schemas"]["TaskRunResult"][];
+            };
+            /**
+             * Context
+             * @description Additional context for the task run.
+             */
+            context?: Record<string, never>;
+            /** @description The task run's empirical retry policy. */
+            empirical_policy?: components["schemas"]["TaskRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags for the task run.
+             */
+            tags?: string[];
         };
         /**
          * TaskRunResult
@@ -10890,6 +11005,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskRun"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    paginate_task_runs_task_runs_paginate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_paginate_task_runs_task_runs_paginate_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskRunPaginationResponse"];
                 };
             };
             /** @description Validation Error */
