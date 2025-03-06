@@ -1,5 +1,12 @@
 import type { components } from "@/api/prefect";
-import { faker } from "@faker-js/faker";
+import {
+	randAlphaNumeric,
+	randNumber,
+	randPastDate,
+	randUuid,
+	randVerb,
+	randWord,
+} from "@ngneat/falso";
 import { createFakeState } from "./create-fake-state";
 
 export const createFakeTaskRun = (
@@ -8,13 +15,13 @@ export const createFakeTaskRun = (
 	const { stateType, stateName } = createFakeState();
 
 	return {
-		id: faker.string.uuid(),
-		created: faker.date.past().toISOString(),
-		updated: faker.date.past().toISOString(),
-		name: `${faker.word.verb()}-task-${faker.string.alphanumeric({ length: 3 })}`,
-		flow_run_id: faker.string.uuid(),
+		id: randUuid(),
+		created: randPastDate().toISOString(),
+		updated: randPastDate().toISOString(),
+		name: `${randVerb()}-task-${randAlphaNumeric({ length: 3 }).join()}`,
+		flow_run_id: randUuid(),
 		task_key: "say_hello-6b199e75",
-		dynamic_key: faker.string.uuid(),
+		dynamic_key: randUuid(),
 		cache_key: null,
 		cache_expiration: null,
 		task_version: null,
@@ -25,33 +32,33 @@ export const createFakeTaskRun = (
 			retry_delay: 0,
 			retry_jitter_factor: null,
 		},
-		tags: [...faker.word.words({ count: { min: 0, max: 6 } })],
+		tags: randWord({ length: randNumber({ min: 0, max: 6 }) }),
 		labels: {},
-		state_id: faker.string.uuid(),
+		state_id: randUuid(),
 		task_inputs: {
 			name: [],
 		},
 		state_type: stateType,
 		state_name: stateName,
-		run_count: faker.number.int({ max: 20 }),
-		flow_run_run_count: faker.number.int({ max: 5 }),
-		expected_start_time: faker.date.past().toISOString(),
+		run_count: randNumber({ max: 20 }),
+		flow_run_run_count: randNumber({ max: 5 }),
+		expected_start_time: randPastDate().toISOString(),
 		next_scheduled_start_time: null,
-		start_time: faker.date.past().toISOString(),
+		start_time: randPastDate().toISOString(),
 		end_time: null,
 		total_run_time: 0,
-		estimated_run_time: faker.number.float({ max: 30 }),
-		estimated_start_time_delta: faker.number.float({ max: 30 }),
+		estimated_run_time: randNumber({ max: 30, precision: 2 }),
+		estimated_start_time_delta: randNumber({ max: 30, precision: 2 }),
 		state: {
-			id: faker.string.uuid(),
+			id: randUuid(),
 			type: stateType,
 			name: stateName,
-			timestamp: faker.date.past().toISOString(),
+			timestamp: randPastDate().toISOString(),
 			message: "",
 			data: null,
 			state_details: {
-				flow_run_id: faker.string.uuid(),
-				task_run_id: faker.string.uuid(),
+				flow_run_id: randUuid(),
+				task_run_id: randUuid(),
 				child_flow_run_id: null,
 				scheduled_time: null,
 				cache_key: null,

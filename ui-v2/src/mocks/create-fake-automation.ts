@@ -1,16 +1,22 @@
 import type { components } from "@/api/prefect";
-import { faker } from "@faker-js/faker";
+import {
+	randBoolean,
+	randPastDate,
+	randProductAdjective,
+	randProductName,
+	randUuid,
+} from "@ngneat/falso";
 
 export const createFakeAutomation = (
 	overrides?: Partial<components["schemas"]["Automation"]>,
 ): components["schemas"]["Automation"] => {
 	return {
-		name: `${faker.word.adjective()} automation`,
-		description: `${faker.word.adjective()} ${faker.word.noun()}`,
-		enabled: faker.datatype.boolean(),
+		name: `${randProductAdjective()} automation`,
+		description: `${randProductAdjective()} ${randProductName()}`,
+		enabled: randBoolean(),
 		trigger: {
 			type: "event",
-			id: faker.string.uuid(),
+			id: randUuid(),
 			match: {
 				"prefect.resource.id": "prefect.deployment.*",
 			},
@@ -29,9 +35,9 @@ export const createFakeAutomation = (
 		],
 		actions_on_trigger: [],
 		actions_on_resolve: [],
-		id: faker.string.uuid(),
-		created: faker.date.past().toISOString(),
-		updated: faker.date.past().toISOString(),
+		id: randUuid(),
+		created: randPastDate().toISOString(),
+		updated: randPastDate().toISOString(),
 		...overrides,
 	};
 };
