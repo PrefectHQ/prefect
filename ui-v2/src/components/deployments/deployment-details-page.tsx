@@ -1,8 +1,7 @@
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
@@ -82,11 +81,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 							onAddSchedule={handleAddSchedule}
 							onEditSchedule={handleEditSchedule}
 						/>
-
-						<Suspense fallback={<LoadingSkeleton numSkeletons={2} />}>
-							<DeploymentTriggers deployment={deployment} />
-						</Suspense>
-
+						<DeploymentTriggers deployment={deployment} />
 						<hr />
 						<DeploymentMetadata deployment={deployment} />
 					</div>
@@ -104,16 +99,3 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 		</>
 	);
 };
-
-type LoadingSkeletonProps = {
-	numSkeletons?: number;
-};
-const LoadingSkeleton = ({ numSkeletons = 1 }: LoadingSkeletonProps) => (
-	<ul className="flex flex-col gap-1">
-		{Array.from({ length: numSkeletons }).map((_, i) => (
-			<li key={i}>
-				<Skeleton className="h-4 w-full" />
-			</li>
-		))}
-	</ul>
-);
