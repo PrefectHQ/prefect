@@ -41,7 +41,21 @@ const formSchema = z.object({
 		message: z.string().optional(),
 		state_details: z
 			.object({
-				scheduled_time: z.string().optional(),
+				scheduled_time: z
+					.string()
+					.nullable()
+					.refine(
+						(val) => {
+							// nb: null value represents to run now
+							if (!val) {
+								return true;
+							}
+							const now = new Date();
+							const selectedDateTime = new Date(val);
+							return now.getTime() < selectedDateTime.getTime();
+						},
+						{ message: "Selected time must be set to the future" },
+					),
 				/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
 				pause_reschedule: z.literal(false).readonly(),
 				/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
@@ -77,6 +91,7 @@ const DEFAULT_VALUES: CreateFlowRunSchema = {
 		message: "",
 		type: "SCHEDULED",
 		state_details: {
+			scheduled_time: null,
 			pause_reschedule: false,
 			deferred: false,
 			untrackable_result: false,
