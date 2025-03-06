@@ -1,4 +1,5 @@
 import { buildFilterWorkPoolsQuery } from "@/api/work-pools";
+import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -15,8 +16,9 @@ function RouteComponent() {
 	);
 
 	return (
-		<div>
-			<h1>Work Pools</h1>
+		// TODO: Should we just standardize a layout for all pages?
+		<div className="flex flex-col gap-4">
+			<WorkPoolsPageHeader />
 			<pre>{JSON.stringify(workPools, null, 2)}</pre>
 		</div>
 	);
