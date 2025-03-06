@@ -15444,6 +15444,7 @@
                         "description": "The parameter schema of the flow, including defaults."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
@@ -15605,6 +15606,7 @@
                         "title": "Entrypoint"
                     },
                     "job_variables": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
