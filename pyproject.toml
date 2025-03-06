@@ -79,7 +79,7 @@ dependencies = [
     "typing_extensions>=4.5.0,<5.0.0",
     "ujson>=5.8.0,<6.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
-    "websockets>=10.4,<14.0",
+    "websockets>=13.0,<16.0",
     "uv>=0.6.0",
 ]
 [project.urls]
@@ -287,9 +287,11 @@ ignore_errors = true
 
 [tool.ruff]
 src = ["src"]
+
+[tool.ruff.lint]
 extend-select = ["I"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "F401", "I"]
 "main.py" = ["E402", "F401", "I"]
 "src/prefect/utilities/compat.py" = ["F401", "I"]
@@ -297,9 +299,8 @@ extend-select = ["I"]
 "src/prefect/runtime/*" = ["F822"]
 "src/prefect/server/database/migrations/**/*" = ["E501"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-third-party = []
-
 
 [tool.codespell]
 skip = [
@@ -327,6 +328,7 @@ ignore-words-list = [
     "nmme",
     "afterall",
     "medias",
+    "falso",
 ]
 
 check-hidden = true

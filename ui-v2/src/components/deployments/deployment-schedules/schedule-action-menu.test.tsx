@@ -1,17 +1,16 @@
-import { Toaster } from "@/components/ui/toaster";
-import { faker } from "@faker-js/faker";
+import { Toaster } from "@/components/ui/sonner";
+import { randRecentDate, randUuid } from "@ngneat/falso";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-
 import { createWrapper } from "@tests/utils";
+import { describe, expect, it, vi } from "vitest";
 import { ScheduleActionMenu } from "./schedule-action-menu";
 
 const MOCK_DEPLOYMENT_SCHEDULE = {
-	id: faker.string.uuid(),
-	created: faker.date.recent().toISOString(),
-	updated: faker.date.recent().toISOString(),
-	deployment_id: faker.string.uuid(),
+	id: randUuid(),
+	created: randRecentDate().toISOString(),
+	updated: randRecentDate().toISOString(),
+	deployment_id: randUuid(),
 	active: true,
 	max_scheduled_runs: null,
 	schedule: {
@@ -43,7 +42,9 @@ describe("ScheduleActionMenu", () => {
 		await user.click(screen.getByRole("menuitem", { name: "Copy ID" }));
 
 		// ------------ Assert
-		expect(screen.getByText("ID copied")).toBeVisible();
+		await waitFor(() => {
+			expect(screen.getByText("ID copied")).toBeVisible();
+		});
 	});
 
 	it("calls edit option", async () => {
@@ -52,7 +53,6 @@ describe("ScheduleActionMenu", () => {
 		const mockOnEditScheduleFn = vi.fn();
 		render(
 			<>
-				<Toaster />
 				<ScheduleActionMenu
 					deploymentSchedule={MOCK_DEPLOYMENT_SCHEDULE}
 					onEditSchedule={mockOnEditScheduleFn}

@@ -839,6 +839,7 @@ class KubernetesWorker(
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
         secret_name: Optional[str] = None,
+        secret_key: Optional[str] = None,
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
         manifest_env = configuration.job_manifest["spec"]["template"]["spec"][
@@ -867,9 +868,11 @@ class KubernetesWorker(
                 configuration
             )
         if secret_name:
+            if not secret_key:
+                secret_key = "value"
             new_api_env_entry = {
                 "name": "PREFECT_API_KEY",
-                "valueFrom": {"secretKeyRef": {"name": secret_name, "key": "value"}},
+                "valueFrom": {"secretKeyRef": {"name": secret_name, "key": secret_key}},
             }
             manifest_env = [
                 entry if entry.get("name") != "PREFECT_API_KEY" else new_api_env_entry
@@ -900,6 +903,7 @@ class KubernetesWorker(
                 configuration=configuration,
                 client=client,
                 secret_name=settings.worker.api_key_secret_name,
+                secret_key=settings.worker.api_key_secret_key,
             )
         elif settings.worker.create_secret_for_api_key:
             await self._replace_api_key_with_secret(
@@ -1205,9 +1209,9 @@ class KubernetesWorker(
             )
             most_recent_pod = pods.items[0] if pods.items else None
             first_container_status = (
-                most_recent_pod.status.container_statuses[0]
-                if most_recent_pod
-                else None
+                getattr(most_recent_pod, "status", None)
+                and getattr(most_recent_pod.status, "container_statuses", None)
+                and most_recent_pod.status.container_statuses[0]
             )
 
         if not first_container_status:

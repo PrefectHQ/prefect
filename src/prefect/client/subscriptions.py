@@ -5,6 +5,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 import orjson
 import websockets
+import websockets.asyncio.client
 import websockets.exceptions
 from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
@@ -45,7 +46,7 @@ class Subscription(Generic[S]):
         return self
 
     @property
-    def websocket(self) -> websockets.WebSocketClientProtocol:
+    def websocket(self) -> websockets.asyncio.client.ClientConnection:
         if not self._websocket:
             raise RuntimeError("Subscription is not connected")
         return self._websocket

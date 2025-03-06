@@ -11,7 +11,6 @@ import sys
 from typing import Any, TypedDict
 
 import cloudpickle
-import uv
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
@@ -21,6 +20,13 @@ from prefect.flows import Flow
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
+
+try:
+    import uv
+
+    uv_path = uv.find_uv_bin()
+except (ImportError, ModuleNotFoundError):
+    uv_path = "uv"
 
 
 class SerializedBundle(TypedDict):
@@ -73,7 +79,7 @@ def create_bundle_for_flow_run(
         "flow_run": flow_run.model_dump(mode="json"),
         "dependencies": subprocess.check_output(
             [
-                uv.find_uv_bin(),
+                uv_path,
                 "pip",
                 "freeze",
                 # Exclude editable installs because we won't be able to install them in the execution environment
@@ -148,7 +154,7 @@ def execute_bundle_in_subprocess(
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
         subprocess.check_call(
-            [uv.find_uv_bin(), "pip", "install", *dependencies.split("\n")],
+            [uv_path, "pip", "install", *dependencies.split("\n")],
             # Copy the current environment to ensure we install into the correct venv
             env=os.environ,
         )

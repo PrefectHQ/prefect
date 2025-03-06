@@ -1,14 +1,14 @@
 import type { DeploymentSchedule } from "@/api/deployments";
-import { faker } from "@faker-js/faker";
+import { randRecentDate, randUuid } from "@ngneat/falso";
 import { describe, expect, it } from "vitest";
 import { getScheduleTitle } from "./get-schedule-title";
 
 describe("getScheduleTitle()", () => {
 	const baseDeploymentSchedule = {
-		id: faker.string.uuid(),
-		created: faker.date.recent().toISOString(),
-		updated: faker.date.recent().toISOString(),
-		deployment_id: faker.string.uuid(),
+		id: randUuid(),
+		created: randRecentDate().toISOString(),
+		updated: randRecentDate().toISOString(),
+		deployment_id: randUuid(),
 		active: true,
 		max_scheduled_runs: null,
 	};
@@ -18,7 +18,7 @@ describe("getScheduleTitle()", () => {
 			...baseDeploymentSchedule,
 			schedule: {
 				interval: 3600,
-				anchor_date: faker.date.recent().toISOString(),
+				anchor_date: randRecentDate().toISOString(),
 				timezone: "UTC",
 			},
 		};

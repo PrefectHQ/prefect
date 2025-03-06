@@ -18,7 +18,7 @@ import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
 from typing_extensions import ParamSpec, Self, TypeVar
-from websockets.exceptions import InvalidStatusCode
+from websockets.exceptions import InvalidStatus
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -181,8 +181,8 @@ class TaskWorker:
             logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
-            except InvalidStatusCode as exc:
-                if exc.status_code == 403:
+            except InvalidStatus as exc:
+                if exc.response.status_code == 403:
                     logger.error(
                         "403: Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
                         f" endpoint found at:\n\n {PREFECT_API_URL.value()}"

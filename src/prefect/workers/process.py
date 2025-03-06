@@ -18,15 +18,11 @@ from __future__ import annotations
 
 import contextlib
 import os
-import signal
-import socket
-import subprocess
-import sys
 import tempfile
 import threading
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import anyio
 import anyio.abc
@@ -34,26 +30,9 @@ from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterId,
-    FlowRunFilterState,
-    FlowRunFilterStateName,
-    FlowRunFilterStateType,
-    WorkPoolFilter,
-    WorkPoolFilterName,
-    WorkQueueFilter,
-    WorkQueueFilterName,
-)
-from prefect.client.schemas.objects import StateType
-from prefect.events.utilities import emit_event
-from prefect.exceptions import (
-    InfrastructureNotAvailable,
-    InfrastructureNotFound,
-    ObjectNotFound,
-)
+from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
-from prefect.utilities.processutils import get_sys_executable, run_process
+from prefect.utilities.processutils import get_sys_executable
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -65,20 +44,6 @@ from prefect.workers.base import (
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow
     from prefect.client.schemas.responses import DeploymentResponse
-
-if sys.platform == "win32":
-    # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
-    STATUS_CONTROL_C_EXIT = 0xC000013A
-
-
-def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
-    hostname = socket.gethostname()
-    return f"{hostname}:{process.pid}"
-
-
-def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
-    hostname, pid = infrastructure_pid.split(":")
-    return hostname, int(pid)
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
@@ -107,7 +72,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
             else self.command
         )
 
-    def _base_flow_run_command(self) -> str:
+    @staticmethod
+    def _base_flow_run_command() -> str:
         """
         Override the base flow run command because enhanced cancellation doesn't
         work with the process worker.
@@ -205,16 +171,6 @@ class ProcessWorker(
                             backoff=4,
                         )
                     )
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.check_for_cancelled_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value() * 2,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
 
                     self._started_event = await self._emit_worker_started_event()
 
@@ -249,20 +205,8 @@ class ProcessWorker(
         configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:
-        command = configuration.command
-        if not command:
-            command = f"{get_sys_executable()} -m prefect.engine"
-
-        flow_run_logger = self.get_flow_run_logger(flow_run)
-
-        # We must add creationflags to a dict so it is only passed as a function
-        # parameter on Windows, because the presence of creationflags causes
-        # errors on Unix even if set to None
-        kwargs: Dict[str, object] = {}
-        if sys.platform == "win32":
-            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-
-        flow_run_logger.info("Opening process...")
+        if task_status is None:
+            task_status = anyio.TASK_STATUS_IGNORED
 
         working_dir_ctx = (
             tempfile.TemporaryDirectory(suffix="prefect")
@@ -270,258 +214,28 @@ class ProcessWorker(
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            flow_run_logger.debug(
-                f"Process running command: {command} in {working_dir}"
-            )
-            process = await run_process(
-                command.split(" "),
-                stream_output=configuration.stream_output,
-                task_status=task_status,
-                task_status_handler=_infrastructure_pid_from_process,
+            process = await self._runner.execute_flow_run(
+                flow_run_id=flow_run.id,
+                command=configuration.command,
                 cwd=working_dir,
                 env=configuration.env,
-                **kwargs,
+                stream_output=configuration.stream_output,
+                task_status=task_status,
             )
 
-        # Use the pid for display if no name was given
-        display_name = f" {process.pid}"
-
-        if process.returncode:
-            help_message = None
-            if process.returncode == -9:
-                help_message = (
-                    "This indicates that the process exited due to a SIGKILL signal. "
-                    "Typically, this is either caused by manual cancellation or "
-                    "high memory usage causing the operating system to "
-                    "terminate the process."
-                )
-            if process.returncode == -15:
-                help_message = (
-                    "This indicates that the process exited due to a SIGTERM signal. "
-                    "Typically, this is caused by manual cancellation."
-                )
-            elif process.returncode == 247:
-                help_message = (
-                    "This indicates that the process was terminated due to high "
-                    "memory usage."
-                )
-            elif (
-                sys.platform == "win32" and process.returncode == STATUS_CONTROL_C_EXIT
-            ):
-                help_message = (
-                    "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
-                    "Typically, this is caused by manual cancellation."
-                )
-
-            flow_run_logger.error(
-                f"Process{display_name} exited with status code: {process.returncode}"
-                + (f"; {help_message}" if help_message else "")
-            )
-        else:
-            flow_run_logger.info(f"Process{display_name} exited cleanly.")
+        if process is None or process.returncode is None:
+            raise RuntimeError("Failed to start flow run process.")
 
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
 
-    async def kill_process(
-        self,
-        infrastructure_pid: str,
-        grace_seconds: int = 30,
-    ) -> None:
-        hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
-
-        if hostname != socket.gethostname():
-            raise InfrastructureNotAvailable(
-                f"Unable to kill process {pid!r}: The process is running on a different"
-                f" host {hostname!r}."
-            )
-
-        # In a non-windows environment first send a SIGTERM, then, after
-        # `grace_seconds` seconds have passed subsequent send SIGKILL. In
-        # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
-        # https://bugs.python.org/issue26350
-        if sys.platform == "win32":
-            try:
-                os.kill(pid, signal.CTRL_BREAK_EVENT)
-            except (ProcessLookupError, WindowsError):
-                raise InfrastructureNotFound(
-                    f"Unable to kill process {pid!r}: The process was not found."
-                )
-        else:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                raise InfrastructureNotFound(
-                    f"Unable to kill process {pid!r}: The process was not found."
-                )
-
-            # Throttle how often we check if the process is still alive to keep
-            # from making too many system calls in a short period of time.
-            check_interval = max(grace_seconds / 10, 1)
-
-            with anyio.move_on_after(grace_seconds):
-                while True:
-                    await anyio.sleep(check_interval)
-
-                    # Detect if the process is still alive. If not do an early
-                    # return as the process respected the SIGTERM from above.
-                    try:
-                        os.kill(pid, 0)
-                    except ProcessLookupError:
-                        return
-
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except OSError:
-                # We shouldn't ever end up here, but it's possible that the
-                # process ended right after the check above.
-                return
-
-    async def check_for_cancelled_flow_runs(self) -> list["FlowRun"]:
-        if not self.is_setup:
-            raise RuntimeError(
-                "Worker is not set up. Please make sure you are running this worker "
-                "as an async context manager."
-            )
-
-        self._logger.debug("Checking for cancelled flow runs...")
-
-        work_queue_filter = (
-            WorkQueueFilter(name=WorkQueueFilterName(any_=list(self._work_queues)))
-            if self._work_queues
-            else None
+    async def __aenter__(self) -> ProcessWorker:
+        await super().__aenter__()
+        self._runner = await self._exit_stack.enter_async_context(
+            Runner(pause_on_shutdown=False, limit=None)
         )
+        return self
 
-        named_cancelling_flow_runs = await self._client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
-                    name=FlowRunFilterStateName(any_=["Cancelling"]),
-                ),
-                # Avoid duplicate cancellation calls
-                id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
-            ),
-            work_queue_filter=work_queue_filter,
-        )
-
-        typed_cancelling_flow_runs = await self._client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
-                ),
-                # Avoid duplicate cancellation calls
-                id=FlowRunFilterId(not_any_=list(self._cancelling_flow_run_ids)),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
-            ),
-            work_queue_filter=work_queue_filter,
-        )
-
-        cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
-
-        if cancelling_flow_runs:
-            self._logger.info(
-                f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
-            )
-
-        for flow_run in cancelling_flow_runs:
-            self._cancelling_flow_run_ids.add(flow_run.id)
-            self._runs_task_group.start_soon(self.cancel_run, flow_run)
-
-        return cancelling_flow_runs
-
-    async def cancel_run(self, flow_run: "FlowRun") -> None:
-        run_logger = self.get_flow_run_logger(flow_run)
-
-        try:
-            configuration = await self._get_configuration(flow_run)
-        except ObjectNotFound:
-            self._logger.warning(
-                f"Flow run {flow_run.id!r} cannot be cancelled by this worker:"
-                f" associated deployment {flow_run.deployment_id!r} does not exist."
-            )
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates={
-                    "message": (
-                        "This flow run is missing infrastructure configuration information"
-                        " and cancellation cannot be guaranteed."
-                    )
-                },
-            )
-            return
-        else:
-            if configuration.is_using_a_runner:
-                self._logger.info(
-                    f"Skipping cancellation because flow run {str(flow_run.id)!r} is"
-                    " using enhanced cancellation. A dedicated runner will handle"
-                    " cancellation."
-                )
-                return
-
-        if not flow_run.infrastructure_pid:
-            run_logger.error(
-                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
-                " attached. Cancellation cannot be guaranteed."
-            )
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates={
-                    "message": (
-                        "This flow run is missing infrastructure tracking information"
-                        " and cancellation cannot be guaranteed."
-                    )
-                },
-            )
-            return
-
-        try:
-            await self.kill_process(
-                infrastructure_pid=flow_run.infrastructure_pid,
-            )
-        except NotImplementedError:
-            self._logger.error(
-                f"Worker type {self.type!r} does not support killing created "
-                "infrastructure. Cancellation cannot be guaranteed."
-            )
-        except InfrastructureNotFound as exc:
-            self._logger.warning(f"{exc} Marking flow run as cancelled.")
-            await self._mark_flow_run_as_cancelled(flow_run)
-        except InfrastructureNotAvailable as exc:
-            self._logger.warning(f"{exc} Flow run cannot be cancelled by this worker.")
-        except Exception:
-            run_logger.exception(
-                "Encountered exception while killing infrastructure for flow run "
-                f"'{flow_run.id}'. Flow run may not be cancelled."
-            )
-            # We will try again on generic exceptions
-            self._cancelling_flow_run_ids.remove(flow_run.id)
-            return
-        else:
-            self._emit_flow_run_cancelled_event(
-                flow_run=flow_run, configuration=configuration
-            )
-            await self._mark_flow_run_as_cancelled(flow_run)
-            run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
-
-    def _emit_flow_run_cancelled_event(
-        self, flow_run: "FlowRun", configuration: BaseJobConfiguration
-    ):
-        related = self._event_related_resources(configuration=configuration)
-
-        for resource in related:
-            if resource.role == "flow-run":
-                resource["prefect.infrastructure.identifier"] = str(
-                    flow_run.infrastructure_pid
-                )
-
-        emit_event(
-            event="prefect.worker.cancelled-flow-run",
-            resource=self._event_resource(),
-            related=related,
-        )
+    async def __aexit__(self, *exc_info: Any) -> None:
+        await super().__aexit__(*exc_info)

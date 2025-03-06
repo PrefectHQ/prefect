@@ -1,6 +1,3 @@
-import React, { useRef, useEffect } from "react";
-
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { json } from "@codemirror/lang-json";
 import {
@@ -8,6 +5,8 @@ import {
 	EditorView,
 	useCodeMirror,
 } from "@uiw/react-codemirror";
+import React, { useRef, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "./button";
 import { Icon } from "./icons";
 
@@ -23,6 +22,10 @@ type JsonInputProps = React.ComponentProps<"div"> & {
 	copy?: boolean;
 };
 
+// the JsonInput's types for onChange are probably wrong but this makes it work
+export type JsonInputOnChange = React.FormEventHandler<HTMLDivElement> &
+	((value: string) => void);
+
 export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 	(
 		{
@@ -37,7 +40,6 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		},
 		forwardedRef,
 	) => {
-		const { toast } = useToast();
 		const editor = useRef<HTMLDivElement | null>(null);
 		// Setting `basicSetup` messes up the tab order. We only change the basic setup
 		// if the input is disabled, so we leave it undefined to maintain the tab order.
@@ -68,7 +70,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		}, [setContainer]);
 
 		const handleCopy = (_value: string) => {
-			toast({ title: "Copied to clipboard" });
+			toast.success("Copied to clipboard");
 			void navigator.clipboard.writeText(_value);
 		};
 

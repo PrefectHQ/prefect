@@ -22,7 +22,6 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.base import determine_server_type
 from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
-from prefect.exceptions import ObjectNotFound
 from prefect.settings import ProfilesCollection
 from prefect.utilities.collections import AutoEnum
 
@@ -293,13 +292,16 @@ def show_profile_changes(
 @profile_app.command()
 def populate_defaults():
     """Populate the profiles configuration with default base profiles, preserving existing user profiles."""
-    user_path = prefect.settings.PREFECT_PROFILES_PATH.value()
-    default_profiles = prefect.settings.profiles._read_profiles_from(
-        prefect.settings.DEFAULT_PROFILES_PATH
+    from prefect.settings.profiles import (
+        _read_profiles_from,  # type: ignore[reportPrivateUsage]
+        _write_profiles_to,  # type: ignore[reportPrivateUsage]
     )
 
+    user_path = prefect.settings.PREFECT_PROFILES_PATH.value()
+    default_profiles = _read_profiles_from(prefect.settings.DEFAULT_PROFILES_PATH)
+
     if user_path.exists():
-        user_profiles = prefect.settings.profiles._read_profiles_from(user_path)
+        user_profiles = _read_profiles_from(user_path)
 
         if not show_profile_changes(user_profiles, default_profiles):
             return
@@ -324,7 +326,7 @@ def populate_defaults():
         if name not in user_profiles:
             user_profiles.add_profile(profile)
 
-    prefect.settings.profiles._write_profiles_to(user_path, user_profiles)
+    _write_profiles_to(user_path, user_profiles)
     app.console.print(f"\nProfiles updated in [green]{user_path}[/green]")
     app.console.print(
         "\nUse with [green]prefect profile use[/green] [blue][PROFILE-NAME][/blue]"
@@ -348,27 +350,32 @@ class ConnectionStatus(AutoEnum):
 async def check_server_connection() -> ConnectionStatus:
     httpx_settings = dict(timeout=3)
     try:
-        # attempt to infer Cloud 2.0 API from the connection URL
-        cloud_client = get_cloud_client(
-            httpx_settings=httpx_settings, infer_cloud_url=True
-        )
-        async with cloud_client:
-            await cloud_client.api_healthcheck()
-        return ConnectionStatus.CLOUD_CONNECTED
-    except CloudUnauthorizedError:
-        # if the Cloud 2.0 API exists and fails to authenticate, notify the user
-        return ConnectionStatus.CLOUD_UNAUTHORIZED
-    except ObjectNotFound:
-        # if the route does not exist, attempt to connect as a hosted Prefect
-        # instance
+        # First determine the server type based on the URL
+        server_type = determine_server_type()
+
+        # Only try to connect to Cloud if the URL looks like a Cloud URL
+        if server_type == ServerType.CLOUD:
+            try:
+                cloud_client = get_cloud_client(
+                    httpx_settings=httpx_settings, infer_cloud_url=True
+                )
+                async with cloud_client:
+                    await cloud_client.api_healthcheck()
+                return ConnectionStatus.CLOUD_CONNECTED
+            except CloudUnauthorizedError:
+                # if the Cloud API exists and fails to authenticate, notify the user
+                return ConnectionStatus.CLOUD_UNAUTHORIZED
+            except (httpx.HTTPStatusError, Exception):
+                return ConnectionStatus.CLOUD_ERROR
+
+        # For non-Cloud URLs, try to connect as a hosted Prefect instance
+        if server_type == ServerType.EPHEMERAL:
+            return ConnectionStatus.EPHEMERAL
+        elif server_type == ServerType.UNCONFIGURED:
+            return ConnectionStatus.UNCONFIGURED
+
+        # Try to connect to the server
         try:
-            # inform the user if Prefect API endpoints exist, but there are
-            # connection issues
-            server_type = determine_server_type()
-            if server_type == ServerType.EPHEMERAL:
-                return ConnectionStatus.EPHEMERAL
-            elif server_type == ServerType.UNCONFIGURED:
-                return ConnectionStatus.UNCONFIGURED
             client = get_client(httpx_settings=httpx_settings)
             async with client:
                 connect_error = await client.api_healthcheck()
@@ -378,8 +385,6 @@ async def check_server_connection() -> ConnectionStatus:
                 return ConnectionStatus.SERVER_CONNECTED
         except Exception:
             return ConnectionStatus.SERVER_ERROR
-    except httpx.HTTPStatusError:
-        return ConnectionStatus.CLOUD_ERROR
     except TypeError:
         # if no Prefect API URL has been set, httpx will throw a TypeError
         try:

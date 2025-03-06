@@ -57,6 +57,11 @@ async def create_variable(
     variable: actions.VariableCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Variable:
+    """
+    Create a variable.
+
+    For more information, see https://docs.prefect.io/v3/develop/variables.
+    """
     async with db.session_context(begin_transaction=True) as session:
         try:
             model = await models.variables.create_variable(

@@ -27,6 +27,8 @@ async def create_flow(
 ) -> schemas.core.Flow:
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
+
+    For more information, see https://docs.prefect.io/v3/develop/write-flows.
     """
     # hydrate the input model into a full flow model
     flow = schemas.core.Flow(**flow.model_dump())

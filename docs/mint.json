@@ -69,7 +69,9 @@
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
             "v3/tutorials/scraping",
-            "v3/tutorials/ml"
+            "v3/tutorials/ml",
+            "v3/tutorials/s3-motherduck",
+            "v3/tutorials/resilience-and-deployment"
           ]
         },
         {
@@ -77,7 +79,9 @@
           "pages": [
             "v3/tutorials/platform",
             "v3/tutorials/debug",
-            "v3/tutorials/alerts"
+            "v3/tutorials/alerts",
+            "v3/tutorials/modal",
+            "v3/tutorials/server-and-worker"
           ]
         }
       ],
@@ -244,6 +248,7 @@
     {
       "group": "Migrate",
       "pages": [
+        "v3/tutorials/airflow",
         "v3/resources/upgrade-to-prefect-3",
         "v3/resources/upgrade-agents-to-workers"
       ],

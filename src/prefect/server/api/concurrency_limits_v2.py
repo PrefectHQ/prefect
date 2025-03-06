@@ -21,6 +21,11 @@ async def create_concurrency_limit_v2(
     concurrency_limit: actions.ConcurrencyLimitV2Create,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimitV2:
+    """
+    Create a task run concurrency limit.
+
+    For more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.
+    """
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits_v2.create_concurrency_limit(
             session=session, concurrency_limit=concurrency_limit

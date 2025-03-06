@@ -8,6 +8,7 @@ import os
 import traceback
 import uuid
 import urllib.parse
+import warnings
 import webbrowser
 from contextlib import asynccontextmanager
 from typing import (
@@ -131,7 +132,18 @@ async def serve_login_api(
     try:
         # Yield the server object
         task_status.started(server)
-        await server.serve()
+        with warnings.catch_warnings():
+            # Uvicorn uses the deprecated pieces of websockets, filter out
+            # the warnings until uvicorn has its dependencies updated
+            warnings.filterwarnings(
+                "ignore", category=DeprecationWarning, module="websockets"
+            )
+            warnings.filterwarnings(
+                "ignore",
+                category=DeprecationWarning,
+                module="uvicorn.protocols.websockets",
+            )
+            await server.serve()
     except anyio.get_cancelled_exc_class():
         pass  # Already cancelled, do not cancel again
     except SystemExit as exc:

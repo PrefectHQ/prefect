@@ -2162,6 +2162,14 @@ def serve(
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
+        if deployment.work_pool_name:
+            warnings.warn(
+                "Work pools are not necessary for served deployments - "
+                "the `work_pool_name` argument will be ignored. Omit the "
+                f"`work_pool_name` argument from `to_deployment` for {deployment.name!r}.",
+                UserWarning,
+            )
+            deployment.work_pool_name = None
         runner.add_deployment(deployment)
 
     if print_starting_message:
@@ -2353,7 +2361,9 @@ async def load_flow_from_flow_run(
         from prefect.deployments.steps.core import StepExecutionError, run_steps
 
         try:
-            output = await run_steps(deployment.pull_steps)
+            output = await run_steps(
+                deployment.pull_steps, print_function=run_logger.info
+            )
         except StepExecutionError as e:
             e = e.__cause__ or e
             run_logger.error(str(e))

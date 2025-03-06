@@ -933,40 +933,32 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
         )
 
-    async def _check_flow_run(self, flow_run: "FlowRun") -> None:
-        """
-        Performs a check on a submitted flow run to warn the user if the flow run
-        was created from a deployment with a storage block.
-        """
-        if flow_run.deployment_id:
-            assert self._client and self._client._started, (
-                "Client must be started to check flow run deployment."
-            )
-            deployment = await self._client.read_deployment(flow_run.deployment_id)
-            if deployment.storage_document_id:
-                raise ValueError(
-                    f"Flow run {flow_run.id!r} was created from deployment"
-                    f" {deployment.name!r} which is configured with a storage block."
-                    " Please use an agent to execute this flow run."
-                )
-
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
         Submits a given flow run for execution by the worker.
         """
         run_logger = self.get_flow_run_logger(flow_run)
 
+        if flow_run.deployment_id:
+            assert self._client and self._client._started, (
+                "Client must be started to check flow run deployment."
+            )
+
         try:
-            await self._check_flow_run(flow_run)
-        except (ValueError, ObjectNotFound):
+            await self._client.read_deployment(flow_run.deployment_id)
+        except ObjectNotFound:
             self._logger.exception(
-                (
-                    "Flow run %s did not pass checks and will not be submitted for"
-                    " execution"
-                ),
-                flow_run.id,
+                f"Deployment {flow_run.deployment_id} no longer exists. "
+                f"Flow run {flow_run.id} will not be submitted for"
+                " execution"
             )
             self._submitting_flow_run_ids.remove(flow_run.id)
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates=dict(
+                    message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
+                ),
+            )
             return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
@@ -1085,7 +1077,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
-    ) -> BaseJobConfiguration:
+    ) -> C:
         deployment = (
             deployment
             if deployment

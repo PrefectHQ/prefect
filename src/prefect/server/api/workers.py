@@ -161,6 +161,8 @@ async def create_work_pool(
     """
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
+
+    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.
     """
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
@@ -373,6 +375,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_work_queues_ready,
+        db=db,
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -383,6 +386,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_deployments_ready,
+        db=db,
         work_queue_ids=[wq.id for wq in work_queues],
     )
 
@@ -408,6 +412,8 @@ async def create_work_queue(
     """
     Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
+
+    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
     """
 
     try:

@@ -74,6 +74,8 @@ async def create_flow_run(
     idempotency key already exists, the existing flow run will be returned.
 
     If no state is provided, the flow run will be created in a PENDING state.
+
+    For more information, see https://docs.prefect.io/v3/develop/write-flows.
     """
     # hydrate the input model into a full flow run / state model
     flow_run_object = schemas.core.FlowRun(
