@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import pytest
 
@@ -8,19 +9,41 @@ from prefect_kubernetes_integration_tests.utils import display, k8s, prefect_cor
 
 
 @pytest.mark.usefixtures("kind_cluster")
-async def test_pod_eviction(work_pool_name: str, capsys: pytest.CaptureFixture[str]):
-    """Test that flow runs properly handle pod evictions."""
+@pytest.mark.parametrize(
+    "sigterm_behavior,expected_state",
+    [
+        (None, StateType.CRASHED),  # Default behavior - crash
+        ("reschedule", StateType.SCHEDULED),  # New behavior - reschedule
+    ],
+)
+async def test_pod_eviction(
+    work_pool_name: str,
+    sigterm_behavior: str | None,
+    expected_state: StateType,
+    capsys: pytest.CaptureFixture[str],
+):
+    """Test that flow runs properly handle pod evictions.
+
+    With default behavior (no SIGTERM handling), evicted pods should crash.
+    With PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR=reschedule, evicted pods should be rescheduled.
+    """
     # Default source is a simple flow that sleeps
     flow_source = "https://gist.github.com/772d095672484b76da40a4e6158187f0.git"
     flow_entrypoint = "sleeping.py:sleepy"
     flow_name = "pod-eviction-test"
+
+    job_variables: dict[str, Any] = {"image": "prefecthq/prefect:3-latest"}
+    if sigterm_behavior is not None:
+        job_variables["env"] = {
+            "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": sigterm_behavior
+        }
 
     flow_run = await prefect_core.create_flow_run(
         source=flow_source,
         entrypoint=flow_entrypoint,
         name=flow_name,
         work_pool_name=work_pool_name,
-        job_variables={"image": "prefecthq/prefect:3-latest"},
+        job_variables=job_variables,
     )
 
     display.print_flow_run_created(flow_run)
@@ -43,12 +66,13 @@ async def test_pod_eviction(work_pool_name: str, capsys: pytest.CaptureFixture[s
 
         async with get_client() as client:
             updated_flow_run = await client.read_flow_run(flow_run.id)
+            # assert updated_flow_run.job_variables == job_variables
 
             assert updated_flow_run.state is not None, (
                 "Flow run state should not be None"
             )
-            assert updated_flow_run.state.type == StateType.CRASHED, (
-                f"Expected flow run state to be CRASHED, got {updated_flow_run.state.type}"
+            assert updated_flow_run.state.type == expected_state, (
+                f"Expected flow run state to be {expected_state}, got {updated_flow_run.state.type}"
             )
 
             display.print_flow_run_result(updated_flow_run)

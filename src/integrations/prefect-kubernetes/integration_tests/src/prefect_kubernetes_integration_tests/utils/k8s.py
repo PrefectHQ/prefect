@@ -28,9 +28,38 @@ def ensure_kind_cluster(name: str = "prefect-test") -> None:
 
         if name not in clusters:
             console.log(f"Creating Kind cluster: {name}")
-            subprocess.check_call(["kind", "create", "cluster", "--name", name])
+            try:
+                subprocess.check_call(["kind", "create", "cluster", "--name", name])
+            except subprocess.CalledProcessError as e:
+                console.print(f"[bold red]Failed to create Kind cluster: {e}")
+                raise
         else:
             console.log(f"Using existing Kind cluster: {name}")
+            # Check if cluster is running
+            try:
+                subprocess.run(
+                    ["kubectl", "cluster-info", "--context", f"kind-{name}"],
+                    check=True,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError:
+                console.log(f"Starting existing Kind cluster: {name}")
+                try:
+                    subprocess.check_call(["kind", "start", "cluster", "--name", name])
+                except subprocess.CalledProcessError as e:
+                    console.print(f"[bold red]Failed to start Kind cluster: {e}")
+                    # If we can't start the cluster, try to delete and recreate it
+                    console.log(f"Attempting to delete and recreate cluster: {name}")
+                    try:
+                        subprocess.check_call(
+                            ["kind", "delete", "cluster", "--name", name]
+                        )
+                        subprocess.check_call(
+                            ["kind", "create", "cluster", "--name", name]
+                        )
+                    except subprocess.CalledProcessError as e:
+                        console.print(f"[bold red]Failed to recreate Kind cluster: {e}")
+                        raise
 
         # Ensure namespace exists
         v1 = init_k8s_client()
@@ -40,10 +69,9 @@ def ensure_kind_cluster(name: str = "prefect-test") -> None:
             v1.create_namespace(client.V1Namespace(metadata={"name": K8S_NAMESPACE}))
             console.log(f"Created namespace: {K8S_NAMESPACE}")
 
-    except subprocess.CalledProcessError:
-        subprocess.check_call(["kind", "create", "cluster", "--name", name])
-        v1 = init_k8s_client()
-        v1.create_namespace(client.V1Namespace(metadata={"name": K8S_NAMESPACE}))
+    except subprocess.CalledProcessError as e:
+        console.print(f"[bold red]Failed to manage Kind cluster: {e}")
+        raise
 
 
 def ensure_evict_plugin() -> None:
