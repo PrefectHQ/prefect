@@ -2,6 +2,7 @@
 title: Integrate with cloud storage and data warehouses
 description: Build an ETL pipeline that stores data in S3 and MotherDuck. 
 ---
+import { Arcade } from '/snippets/arcade.mdx'
 
 In this tutorial, you'll create an ETL pipeline which processes and stores Major League Baseball (MLB) game data in S3 and MotherDuck.
 
@@ -78,16 +79,8 @@ Make sure you have `prefect-aws` installed in your environment before running th
 
   </Tab>
   <Tab title="Prefect Cloud UI method">
-    <iframe 
-    width="560" 
-    height="315" 
-    src="https://demo.arcade.software/hNTXKvOyX8d36VBRX7rB?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true" 
-    title="Arcade player" 
-    frameborder="0" 
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-    referrerpolicy="strict-origin-when-cross-origin" 
-    allowfullscreen>
-    </iframe>
+    <Arcade src={"https://demo.arcade.software/hNTXKvOyX8d36VBRX7rB"} title={"Create an AWS Credentials Block"} />
+
 
   </Tab>
 </Tabs>
@@ -120,16 +113,7 @@ Important: Make sure you have `prefect-aws` installed in your environment before
 
   </Tab>
   <Tab title="Prefect Cloud UI method">
-<iframe 
-width="560" 
-height="315" 
-src="https://demo.arcade.software/7NAcl1fsMxLsvxI3Wsv0?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true"
-title="Arcade player" 
-frameborder="0" 
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-referrerpolicy="strict-origin-when-cross-origin" 
-allowfullscreen>
-</iframe>
+    <Arcade src={"https://demo.arcade.software/7NAcl1fsMxLsvxI3Wsv0"} title={"Create an S3 Bucket block"} />
 
   </Tab>
 </Tabs>
@@ -164,17 +148,8 @@ Secret(
 
   </Tab>
   <Tab title="Prefect Cloud UI method">
-<iframe 
-width="560" 
-height="315" 
-src="https://demo.arcade.software/lkmbR08gd2qhoCqPtLGs?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true"
-title="Arcade player" 
-frameborder="0" 
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-referrerpolicy="strict-origin-when-cross-origin" 
-allowfullscreen>
-</iframe>
-
+    <Arcade src={"https://demo.arcade.software/lkmbR08gd2qhoCqPtLGs"} title={"Create a Secret Block"} />
+    
   </Tab>
 </Tabs>
 
@@ -637,18 +612,7 @@ if __name__ == "__main__":
 </Expandable>
 
 After adding the new code, run the updated flow to see the markdown artifact!
-
-<iframe 
-width="560" 
-height="315" 
-src="https://demo.arcade.software/LHzqGzfl1r3AF3Nbcwvp?embed&embed_mobile=tab&embed_desktop=inline&show_copy_link=true"
-title="Arcade player" 
-frameborder="0" 
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-referrerpolicy="strict-origin-when-cross-origin" 
-allowfullscreen>
-</iframe>
-
+<Arcade src={"https://demo.arcade.software/LHzqGzfl1r3AF3Nbcwvp"} title={"MLB Flow Run with Artifact"} />
 
 ## Next steps
 
