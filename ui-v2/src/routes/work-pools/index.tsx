@@ -1,5 +1,6 @@
 import { buildFilterWorkPoolsQuery } from "@/api/work-pools";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
+import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -8,7 +9,7 @@ export const Route = createFileRoute("/work-pools/")({
 });
 
 function RouteComponent() {
-	const { data: workPools } = useQuery(
+	const { data: workPools = [] } = useQuery(
 		buildFilterWorkPoolsQuery({
 			limit: 10,
 			offset: 0,
@@ -19,7 +20,11 @@ function RouteComponent() {
 		// TODO: Should we just standardize a layout for all pages?
 		<div className="flex flex-col gap-4">
 			<WorkPoolsPageHeader />
-			<pre>{JSON.stringify(workPools, null, 2)}</pre>
+			<div className="flex flex-col gap-4">
+				{workPools.map((workPool) => (
+					<WorkPoolCard key={workPool.id} workPool={workPool} />
+				))}
+			</div>
 		</div>
 	);
 }
