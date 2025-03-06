@@ -362,6 +362,279 @@ class TestReadTaskRuns:
         assert response.json()[0]["id"] == str(task_run.id)
 
 
+class TestPaginateTaskRuns:
+    async def test_paginate_task_runs_basic(self, task_run, client):
+        """Test basic pagination functionality with default parameters."""
+        response = await client.post("/task_runs/paginate")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run.id)
+        assert data["results"][0]["flow_run_id"] == str(task_run.flow_run_id)
+
+    async def test_paginate_task_runs_response_structure(self, task_run, client):
+        """Test that the pagination response structure is correct."""
+        response = await client.post("/task_runs/paginate")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert "results" in data
+        assert "count" in data
+        assert "limit" in data
+        assert "pages" in data
+        assert "page" in data
+
+        assert data["count"] == 1
+        assert data["page"] == 1
+        assert data["pages"] == 1
+        assert data["limit"] > 0
+
+    async def test_paginate_task_runs_with_custom_page_and_limit(
+        self, flow_run, session, client
+    ):
+        """Test pagination with custom page size and page number."""
+        # Create multiple task runs
+        now = pendulum.now("UTC")
+        task_runs = []
+
+        for i in range(5):
+            task_run = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.core.TaskRun(
+                    name=f"Task Run {i}",
+                    flow_run_id=flow_run.id,
+                    task_key="my-key",
+                    expected_start_time=now.add(minutes=i),
+                    dynamic_key=str(i),
+                ),
+            )
+            task_runs.append(task_run)
+
+        await session.commit()
+
+        # Test with limit=2, page=1
+        response = await client.post("/task_runs/paginate", json=dict(limit=2, page=1))
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 2
+        assert data["count"] == 5
+        assert data["limit"] == 2
+        assert data["pages"] == 3
+        assert data["page"] == 1
+
+        # Test with limit=2, page=2
+        response = await client.post("/task_runs/paginate", json=dict(limit=2, page=2))
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 2
+        assert data["page"] == 2
+
+        # Test with limit=2, page=3
+        response = await client.post("/task_runs/paginate", json=dict(limit=2, page=3))
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1  # Only one item on the last page
+        assert data["page"] == 3
+
+    async def test_paginate_task_runs_with_task_run_filter(self, task_run, client):
+        """Test pagination with task run filter."""
+        task_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[task_run.id])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=task_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run.id)
+        assert data["count"] == 1
+
+        # Test with a non-matching filter
+        bad_task_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[uuid4()])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=bad_task_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 0
+        assert data["count"] == 0
+
+    async def test_paginate_task_runs_with_flow_run_filter(self, task_run, client):
+        """Test pagination with flow run filter."""
+        flow_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[task_run.flow_run_id])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=flow_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run.id)
+        assert data["count"] == 1
+
+        # Test with a non-matching filter
+        bad_flow_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[uuid4()])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=bad_flow_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 0
+        assert data["count"] == 0
+
+    async def test_paginate_task_runs_with_flow_filter(self, flow, task_run, client):
+        """Test pagination with flow filter."""
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run.id)
+        assert data["count"] == 1
+
+        # Test with a non-matching filter
+        bad_flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[uuid4()])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=bad_flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 0
+        assert data["count"] == 0
+
+    async def test_paginate_task_runs_applies_sort(self, flow_run, session, client):
+        """Test pagination with sorting."""
+        now = pendulum.now("UTC")
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                name="Task Run 1",
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                expected_start_time=now.subtract(minutes=5),
+                dynamic_key="0",
+            ),
+        )
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                name="Task Run 2",
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                expected_start_time=now.add(minutes=5),
+                dynamic_key="1",
+            ),
+        )
+        await session.commit()
+
+        # Test expected_start_time descending
+        response = await client.post(
+            "/task_runs/paginate",
+            json=dict(
+                limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run_2.id)
+        assert data["pages"] == 2
+
+        # Test getting the second page
+        response = await client.post(
+            "/task_runs/paginate",
+            json=dict(
+                limit=1,
+                page=2,
+                sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run_1.id)
+
+        # Test name ascending
+        response = await client.post(
+            "/task_runs/paginate",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.NAME_ASC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run_1.id)
+
+        # Test name descending
+        response = await client.post(
+            "/task_runs/paginate",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.NAME_DESC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run_2.id)
+
+    @pytest.mark.parametrize(
+        "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
+    )
+    async def test_paginate_task_runs_succeeds_for_all_sort_values(
+        self, sort, task_run, client
+    ):
+        """Test pagination with all sort values."""
+        response = await client.post("/task_runs/paginate", json=dict(sort=sort))
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run.id)
+
+    async def test_paginate_task_runs_with_invalid_page(self, client):
+        """Test pagination with invalid page parameter."""
+        response = await client.post("/task_runs/paginate", json=dict(page=0))
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+        response = await client.post("/task_runs/paginate", json=dict(page=-1))
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
 class TestDeleteTaskRuns:
     async def test_delete_task_runs(self, task_run, client, session):
         # delete the task run
