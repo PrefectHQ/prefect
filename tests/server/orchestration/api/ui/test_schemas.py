@@ -30,7 +30,7 @@ class TestUISchemasValidate:
                 "values": {"param": 1},
             },
         )
-        assert res.status_code == 422
+        assert res.status_code == 422, res.text
         res = res.json()
         assert (
             res["detail"]
@@ -55,7 +55,7 @@ class TestUISchemasValidate:
                 "values": {"param": 1},
             },
         )
-        assert res.status_code == 200
+        assert res.status_code == 200, res.text
         res = res.json()
         assert "errors" in res and len(res["errors"]) == 0
         assert "valid" in res and res["valid"] is True
@@ -78,7 +78,7 @@ class TestUISchemasValidate:
                 "values": {"param": "not an int"},
             },
         )
-        assert res.status_code == 200
+        assert res.status_code == 200, res.text
         res = res.json()
         assert res["errors"] == [
             {
@@ -125,7 +125,7 @@ class TestUISchemasValidate:
                 "values": {"param": "maybe a city, but we'll never know"},
             },
         )
-        assert res.status_code == 422
+        assert res.status_code == 422, res.text
         res = res.json()
         assert (
             res["detail"]

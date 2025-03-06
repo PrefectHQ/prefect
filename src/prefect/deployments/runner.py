@@ -47,6 +47,7 @@ from pydantic import (
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
+from typing_extensions import Self
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.compatibility.async_dispatch import async_dispatch
@@ -84,6 +85,7 @@ from prefect.settings import (
 )
 from prefect.types import ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities.annotations import freeze
 from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
@@ -135,7 +137,9 @@ class RunnerDeployment(BaseModel):
         _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        arbitrary_types_allowed=True, validate_assignment=True
+    )
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -250,14 +254,30 @@ class RunnerDeployment(BaseModel):
                 trigger.name = f"{self.name}__automation_{i}"
         return self
 
+    @model_validator(mode="after")
+    def validate_deployment_parameters(self) -> Self:
+        """Update the parameter schema to mark frozen parameters as readonly."""
+        if not self.parameters:
+            return self
+
+        for key, value in self.parameters.items():
+            if isinstance(value, freeze):
+                raw_value = value.unfreeze()
+                if key in self._parameter_openapi_schema.properties:
+                    self._parameter_openapi_schema.properties[key]["readOnly"] = True
+                    self._parameter_openapi_schema.properties[key]["enum"] = [raw_value]
+                    self.parameters[key] = raw_value
+
+        return self
+
     @model_validator(mode="before")
     @classmethod
-    def reconcile_paused(cls, values):
+    def reconcile_paused(cls, values: dict[str, Any]) -> dict[str, Any]:
         return reconcile_paused_deployment(values)
 
     @model_validator(mode="before")
     @classmethod
-    def reconcile_schedules(cls, values):
+    def reconcile_schedules(cls, values: dict[str, Any]) -> dict[str, Any]:
         return reconcile_schedules_runner(values)
 
     async def _create(
@@ -367,7 +387,8 @@ class RunnerDeployment(BaseModel):
         await client.update_deployment(
             deployment_id,
             deployment=DeploymentUpdate(
-                **update_payload, parameter_openapi_schema=parameter_openapi_schema
+                **update_payload,
+                parameter_openapi_schema=parameter_openapi_schema,
             ),
         )
 

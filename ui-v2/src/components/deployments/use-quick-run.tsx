@@ -1,7 +1,7 @@
 import { useDeploymentCreateFlowRun } from "@/api/flow-runs";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 const DEPLOYMENT_QUICK_RUN_PAYLOAD = {
 	state: {
@@ -29,7 +29,7 @@ export const useQuickRun = () => {
 			},
 			{
 				onSuccess: (res) => {
-					toast({
+					toast.success("Flow run created", {
 						action: (
 							<Link to="/runs/flow-run/$id" params={{ id: res.id }}>
 								<Button size="sm">View run</Button>

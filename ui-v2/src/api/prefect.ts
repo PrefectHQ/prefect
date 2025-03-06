@@ -4780,8 +4780,8 @@ export interface components {
         };
         /** Body_validate_obj_ui_schemas_validate_post */
         Body_validate_obj_ui_schemas_validate_post: {
-            /** Json Schema */
-            json_schema: {
+            /** Schema */
+            schema: {
                 [key: string]: unknown;
             };
             /** Values */
