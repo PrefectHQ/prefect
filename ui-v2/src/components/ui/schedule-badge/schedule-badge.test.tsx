@@ -1,5 +1,5 @@
 import * as useIsOverflowingModule from "@/hooks/use-is-overflowing";
-import { faker } from "@faker-js/faker";
+import { randUuid } from "@ngneat/falso";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -189,7 +189,7 @@ describe("ScheduleBadgeGroup", () => {
 			.mockReturnValue(true);
 		const user = userEvent.setup();
 		const schedules = Array.from({ length: 10 }, () => ({
-			id: faker.string.uuid(),
+			id: randUuid(),
 			created: new Date().toISOString(),
 			updated: new Date().toISOString(),
 			active: true,

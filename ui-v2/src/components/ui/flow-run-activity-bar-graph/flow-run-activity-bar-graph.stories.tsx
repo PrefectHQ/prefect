@@ -1,10 +1,9 @@
+import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
+import { routerDecorator } from "@/storybook/utils";
+import { randPastDate } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
 import { FlowRunActivityBarChart } from ".";
-
-import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
-import { routerDecorator } from "@/storybook/utils";
-import { faker } from "@faker-js/faker";
 
 export default {
 	title: "UI/FlowRunActivityBarChart",
@@ -30,7 +29,7 @@ type Story = StoryObj<typeof FlowRunActivityBarChart>;
 
 export const Randomized: Story = {
 	args: {
-		startDate: faker.date.past(),
+		startDate: randPastDate(),
 		endDate: new Date(),
 		enrichedFlowRuns: Array.from(
 			{ length: 18 },
