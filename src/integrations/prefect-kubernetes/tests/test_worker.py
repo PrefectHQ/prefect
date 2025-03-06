@@ -296,6 +296,19 @@ from_template_and_values_cases = [
                 "spec": {
                     "backoffLimit": 0,
                     "template": {
+                        "metadata": {
+                            "labels": {
+                                "prefect.io/flow-run-id": str(flow_run.id),
+                                "prefect.io/flow-run-name": flow_run.name,
+                                "prefect.io/version": _slugify_label_value(
+                                    prefect.__version__.split("+")[0]
+                                ),
+                                "prefect.io/deployment-id": str(deployment.id),
+                                "prefect.io/deployment-name": deployment.name,
+                                "prefect.io/flow-id": str(flow.id),
+                                "prefect.io/flow-name": flow.name,
+                            },
+                        },
                         "spec": {
                             "parallelism": 1,
                             "completions": 1,
@@ -326,7 +339,7 @@ from_template_and_values_cases = [
                                     ],
                                 }
                             ],
-                        }
+                        },
                     },
                 },
             },
@@ -581,6 +594,19 @@ from_template_and_values_cases = [
                 "spec": {
                     "backoffLimit": 0,
                     "template": {
+                        "metadata": {
+                            "labels": {
+                                "prefect.io/flow-run-id": str(flow_run.id),
+                                "prefect.io/flow-run-name": flow_run.name,
+                                "prefect.io/version": _slugify_label_value(
+                                    prefect.__version__.split("+")[0]
+                                ),
+                                "prefect.io/deployment-id": str(deployment.id),
+                                "prefect.io/deployment-name": deployment.name,
+                                "prefect.io/flow-id": str(flow.id),
+                                "prefect.io/flow-name": flow.name,
+                            },
+                        },
                         "spec": {
                             "parallelism": 1,
                             "completions": 1,
@@ -620,7 +646,7 @@ from_template_and_values_cases = [
                                     ],
                                 }
                             ],
-                        }
+                        },
                     },
                 },
             },
@@ -742,6 +768,20 @@ from_template_and_values_cases = [
                     "backoffLimit": 0,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
+                        "metadata": {
+                            "labels": {
+                                "prefect.io/flow-run-id": str(flow_run.id),
+                                "prefect.io/flow-run-name": flow_run.name,
+                                "prefect.io/version": _slugify_label_value(
+                                    prefect.__version__.split("+")[0]
+                                ),
+                                "prefect.io/deployment-id": str(deployment.id),
+                                "prefect.io/deployment-name": deployment.name,
+                                "prefect.io/flow-id": str(flow.id),
+                                "prefect.io/flow-name": flow.name,
+                                "test_label": "test-label",
+                            },
+                        },
                         "spec": {
                             "parallelism": 1,
                             "completions": 1,
@@ -773,7 +813,7 @@ from_template_and_values_cases = [
                                     "args": ["echo", "hello"],
                                 }
                             ],
-                        }
+                        },
                     },
                 },
             },
@@ -797,6 +837,12 @@ from_template_and_values_cases = [
                     "kind": "Job",
                     "spec": {
                         "template": {
+                            "metadata": {
+                                "other_metadata": "other-metadata",
+                                "labels": {
+                                    "label_from_template": "label-from-template",
+                                },
+                            },
                             "spec": {
                                 "parallelism": 1,
                                 "completions": 1,
@@ -813,7 +859,7 @@ from_template_and_values_cases = [
                                         },
                                     }
                                 ],
-                            }
+                            },
                         }
                     },
                 },
@@ -951,6 +997,12 @@ from_template_and_values_cases = [
                 "kind": "Job",
                 "spec": {
                     "template": {
+                        "metadata": {
+                            "other_metadata": "other-metadata",
+                            "labels": {
+                                "label_from_template": "label-from-template",
+                            },
+                        },
                         "spec": {
                             "parallelism": 1,
                             "completions": 1,
@@ -971,7 +1023,7 @@ from_template_and_values_cases = [
                                     },
                                 },
                             ],
-                        }
+                        },
                     }
                 },
             },
@@ -1020,6 +1072,22 @@ from_template_and_values_cases = [
                 },
                 "spec": {
                     "template": {
+                        "metadata": {
+                            "other_metadata": "other-metadata",
+                            "labels": {
+                                "prefect.io/flow-run-id": str(flow_run.id),
+                                "prefect.io/flow-run-name": flow_run.name,
+                                "prefect.io/version": _slugify_label_value(
+                                    prefect.__version__.split("+")[0]
+                                ),
+                                "prefect.io/deployment-id": str(deployment.id),
+                                "prefect.io/deployment-name": deployment.name,
+                                "prefect.io/flow-id": str(flow.id),
+                                "prefect.io/flow-name": flow.name,
+                                "test_label": "test-label",
+                                "label_from_template": "label-from-template",
+                            },
+                        },
                         "spec": {
                             "parallelism": 1,
                             "completions": 1,
@@ -1058,7 +1126,7 @@ from_template_and_values_cases = [
                                     },
                                 }
                             ],
-                        }
+                        },
                     }
                 },
             },

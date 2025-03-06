@@ -389,6 +389,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
+        self._propagate_labels_to_pod()
 
     def _populate_env_in_manifest(self):
         """
@@ -511,6 +512,18 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             if not generate_name:
                 generate_name = "prefect-job"
             self.job_manifest["metadata"]["generateName"] = f"{generate_name}-"
+
+    def _propagate_labels_to_pod(self):
+        """Propagates Prefect-specific labels to the pod in the job manifest."""
+        current_pod_metadata = self.job_manifest["spec"]["template"].get("metadata", {})
+        current_pod_labels = current_pod_metadata.get("labels", {})
+        all_labels = {**current_pod_labels, **self.labels}
+
+        current_pod_metadata["labels"] = {
+            _slugify_label_key(k): _slugify_label_value(v)
+            for k, v in all_labels.items()
+        }
+        self.job_manifest["spec"]["template"]["metadata"] = current_pod_metadata
 
 
 class KubernetesWorkerVariables(BaseVariables):
