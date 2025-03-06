@@ -360,6 +360,7 @@ class Consumer(_Consumer):
                     await self.subscription.retry(message)
                 raise  # Propagate to task group
             except Exception:
+                logger.exception("Failed in consume_loop")
                 await self.subscription.retry(message)
 
 
