@@ -80,7 +80,6 @@
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@eslint/js": "^9.21.0",
-		"@faker-js/faker": "^9.5.1",
 		"@storybook/addon-a11y": "^8.6.3",
 		"@storybook/addon-essentials": "^8.6.3",
 		"@storybook/addon-interactions": "^8.6.3",
