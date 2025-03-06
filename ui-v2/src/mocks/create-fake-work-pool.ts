@@ -1,7 +1,7 @@
 import type { components } from "@/api/prefect";
 import { faker } from "@faker-js/faker";
 
-const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED", null] as const;
+const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED"] as const;
 
 export const createFakeWorkPool = (
 	overrides?: Partial<components["schemas"]["WorkPool"]>,
