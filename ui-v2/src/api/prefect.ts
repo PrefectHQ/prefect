@@ -5308,7 +5308,9 @@ export interface components {
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Tags
              * @description A list of deployment tags.
