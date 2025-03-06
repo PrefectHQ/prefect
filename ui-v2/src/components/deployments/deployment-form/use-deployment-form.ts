@@ -163,10 +163,8 @@ export const useDeploymentForm = (
 						description,
 						enforce_parameter_schema,
 						flow_id: deployment.flow_id,
-						// @ts-expect-error Expecting TS error from poor openAPI typings
 						job_variables: jobVariablesPayload,
 						name,
-						// @ts-expect-error Expecting TS error from poor openAPI typings
 						parameters: parametersFormValues,
 						parameter_openapi_schema,
 						paused: deployment.paused,
