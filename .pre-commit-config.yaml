@@ -54,6 +54,27 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_schema.py
           )$
+      - id: service-sync-ui-v2-openapi
+        name: Sync UI v2 OpenAPI
+        language: system
+        entry: sh
+        args:
+          [
+            "-c",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run service-sync",
+          ]
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              .pre-commit-config.yaml|
+              src/prefect/server/api/.*|
+              src/prefect/server/schemas/.*|
+              src/prefect/server/events/.*|
+              src/prefect/server/utilities/schemas/.*|
+              ui-v2/package.json
+          )$
+        pass_filenames: false
+
       - id: generate-settings-ref
         name: Generating Settings Reference
         language: system
@@ -93,25 +114,5 @@ repos:
           (?x)^(
               .pre-commit-config.yaml|
               ui-v2/.*
-          )$
-        pass_filenames: false
-      - id: service-sync-ui-v2-openapi
-        name: Sync UI v2 OpenAPI
-        language: system
-        entry: sh
-        args:
-          [
-            "-c",
-            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run service-sync",
-          ]
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              .pre-commit-config.yaml|
-              src/prefect/server/api/.*|
-              src/prefect/server/schemas/.*|
-              src/prefect/server/events/.*|
-              src/prefect/server/utilities/schemas/.*|
-              ui-v2/package.json
           )$
         pass_filenames: false
