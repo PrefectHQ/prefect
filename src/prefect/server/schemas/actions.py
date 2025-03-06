@@ -225,6 +225,7 @@ class DeploymentCreate(ActionBaseModel):
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides for the flow's infrastructure configuration.",
+        json_schema_extra={"additionalProperties": True},
     )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:

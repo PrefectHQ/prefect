@@ -15605,6 +15605,7 @@
                         "title": "Entrypoint"
                     },
                     "job_variables": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."

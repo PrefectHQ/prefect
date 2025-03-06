@@ -5346,7 +5346,9 @@ export interface components {
              * Job Variables
              * @description Overrides for the flow's infrastructure configuration.
              */
-            job_variables?: Record<string, never>;
+            job_variables?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * DeploymentFilter
