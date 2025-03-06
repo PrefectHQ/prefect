@@ -80,7 +80,7 @@ Storybook is integrated into this project for component development and document
 npm run storybook
 ```
 
-This will launch Storybook locally, at http://localhost:6006.
+This will launch Storybook locally at http://localhost:6006 (if something is already running on this port the command may fail).
 
 #### Creating a new story
 
@@ -129,7 +129,7 @@ export const AnotherVariant: Story = {
 - **Use decorators**: Wrap your components in decorators to provide context where needed
 - **Add controls**: Enable Storybook controls to let users interact with your component
 
-The project uses a custom Prefect theme configured in `.storybook/prefect-theme.ts` and global decorators set up in `.storybook/preview.ts`.
+This project uses a custom theme configured in `.storybook/prefect-theme.ts` and global decorators set up in `.storybook/preview.ts`.
 
 #### Building Storybook for deployment
 
@@ -139,5 +139,5 @@ To build a static version of Storybook for deployment:
 npm run build-storybook
 ```
 
-This will generate a static Storybook site in the `storybook-static` directory, which can be deployed to any static hosting service.
+This will generate a static Storybook site in the `storybook-static` directory.
 
