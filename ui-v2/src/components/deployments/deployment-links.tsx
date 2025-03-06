@@ -19,10 +19,12 @@ export const DeploymentLinks = ({ deployment }: DeploymentLinksProps) => {
 				<WorkPoolLink workPoolName={deployment.work_pool_name} />
 			)}
 			{deployment.work_pool_name && deployment.work_queue_name && (
-				<WorkQueueLink
-					workPoolName={deployment.work_pool_name}
-					workQueueName={deployment.work_queue_name}
-				/>
+				<Suspense fallback={<Skeleton className="h-4 w-full" />}>
+					<WorkQueueLink
+						workPoolName={deployment.work_pool_name}
+						workQueueName={deployment.work_queue_name}
+					/>
+				</Suspense>
 			)}
 		</div>
 	);

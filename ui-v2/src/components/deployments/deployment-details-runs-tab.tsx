@@ -13,10 +13,10 @@ import {
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
 import { FLOW_RUN_STATES_NO_SCHEDULED } from "@/components/flow-runs/flow-runs-list";
-import { Typography } from "@/components/ui/typography";
+import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
 import { getRouteApi } from "@tanstack/react-router";
-import { useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -27,6 +27,47 @@ type DeploymentDetailsRunsTabProps = {
 export const DeploymentDetailsRunsTab = ({
 	deployment,
 }: DeploymentDetailsRunsTabProps) => {
+	return (
+		<div className="flex flex-col gap-2">
+			<Suspense fallback={<Spinner />}>
+				<NextRunCard deployment={deployment} />
+			</Suspense>
+			<Suspense fallback={<Spinner />}>
+				<FlowRunsListView deployment={deployment} />
+			</Suspense>
+		</div>
+	);
+};
+
+function NextRunCard({ deployment }: { deployment: Deployment }) {
+	const { data } = useFilterFlowRunswithFlows({
+		deployments: { id: { any_: [deployment.id] }, operator: "and_" },
+		flow_runs: {
+			state: { name: { any_: ["Scheduled"] }, operator: "and_" },
+			operator: "and_",
+		},
+		sort: "EXPECTED_START_TIME_ASC",
+		limit: 1,
+		offset: 0,
+	});
+
+	const nextRun = useMemo(() => {
+		if (!data || !data[0]) {
+			return undefined;
+		}
+		return {
+			...data[0],
+			deployment,
+		};
+	}, [data, deployment]);
+
+	if (!nextRun) {
+		return null;
+	}
+	return <FlowRunCard flowRun={nextRun} />;
+}
+
+function FlowRunsListView({ deployment }: { deployment: Deployment }) {
 	const [selectedRows, setSelectedRows, { clearSet, onSelectRow }] =
 		useFlowRunsSelectedRows();
 	const [pagination, onChangePagination] = usePagination();
@@ -72,74 +113,49 @@ export const DeploymentDetailsRunsTab = ({
 				clearSet();
 			};
 
-	const nextRun = useGetNextRun(deployment);
-
 	return (
 		<div className="flex flex-col gap-2">
-			{nextRun && (
-				<div className="flex flex-col gap-2 border-b py-2">
-					<Typography variant="bodyLarge">Next Run</Typography>
-					<FlowRunCard flowRun={nextRun} />
-				</div>
-			)}
-			<div className="flex flex-col gap-2">
-				<div className="flex items-center justify-between">
-					<FlowRunsRowCount
-						count={dataWithDeployment?.count}
-						results={dataWithDeployment?.results}
-						selectedRows={selectedRows}
-						setSelectedRows={setSelectedRows}
-					/>
-					<FlowRunsFilters
-						search={{ value: search, onChange: setSearch }}
-						sort={{ value: sort, onSelect: setSort }}
-						stateFilter={{
-							value: new Set(filter),
-							onSelect: setFilter,
-						}}
-					/>
-				</div>
-				<FlowRunsList
-					flowRuns={dataWithDeployment?.results}
+			<div className="flex items-center justify-between">
+				<FlowRunsRowCount
+					count={dataWithDeployment?.count}
+					results={dataWithDeployment?.results}
 					selectedRows={selectedRows}
-					onSelect={onSelectRow}
-					onClearFilters={handleResetFilters}
+					setSelectedRows={setSelectedRows}
 				/>
-
-				{dataWithDeployment && (
-					<FlowRunsPagination
-						count={dataWithDeployment.count}
-						pagination={pagination}
-						onChangePagination={onChangePagination}
-						pages={dataWithDeployment.pages}
-					/>
-				)}
+				<FlowRunsFilters
+					search={{ value: search, onChange: setSearch }}
+					sort={{ value: sort, onSelect: setSort }}
+					stateFilter={{
+						value: new Set(filter),
+						onSelect: setFilter,
+					}}
+				/>
 			</div>
+			<FlowRunsList
+				flowRuns={dataWithDeployment?.results}
+				selectedRows={selectedRows}
+				onSelect={onSelectRow}
+				onClearFilters={handleResetFilters}
+			/>
+
+			{dataWithDeployment && (
+				<FlowRunsPagination
+					count={dataWithDeployment.count}
+					pagination={pagination}
+					onChangePagination={onChangePagination}
+					pages={dataWithDeployment.pages}
+				/>
+			)}
 		</div>
 	);
-};
+}
 
-function useGetNextRun(deployment: Deployment) {
-	const { data } = useFilterFlowRunswithFlows({
-		deployments: { id: { any_: [deployment.id] }, operator: "and_" },
-		flow_runs: {
-			state: { name: { any_: ["Scheduled"] }, operator: "and_" },
-			operator: "and_",
-		},
-		sort: "EXPECTED_START_TIME_ASC",
-		limit: 1,
-		offset: 0,
-	});
-
-	return useMemo(() => {
-		if (!data || !data[0]) {
-			return undefined;
-		}
-		return {
-			...data[0],
-			deployment,
-		};
-	}, [data, deployment]);
+function Spinner() {
+	return (
+		<div className="flex flex-row min-h-screen justify-center items-center">
+			<Icon id="Loader2" className="size-16 animate-spin" />
+		</div>
+	);
 }
 
 function useResetFilters() {

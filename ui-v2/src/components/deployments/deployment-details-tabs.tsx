@@ -2,8 +2,9 @@ import { Deployment } from "@/api/deployments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DeploymentDetailsTabOptions } from "@/routes/deployments/deployment.$id";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { type JSX, useMemo } from "react";
+import { type JSX, Suspense, useMemo } from "react";
 
+import { Icon } from "@/components/ui/icons";
 import { DeploymentConfiguration } from "./deployment-configuration";
 import { DeploymentDescription } from "./deployment-description";
 import { DeploymentDetailsRunsTab } from "./deployment-details-runs-tab";
@@ -68,7 +69,9 @@ function useBuildTabOptions(deployment: Deployment) {
 					),
 					ViewComponent: () => (
 						<TabsContent value="Upcoming">
-							<DeploymentDetailsUpcomingTab deployment={deployment} />
+							<Suspense fallback={<Spinner />}>
+								<DeploymentDetailsUpcomingTab deployment={deployment} />
+							</Suspense>
 						</TabsContent>
 					),
 				},
@@ -115,3 +118,9 @@ function useBuildTabOptions(deployment: Deployment) {
 		[deployment],
 	);
 }
+
+const Spinner = () => (
+	<div className="flex flex-row min-h-screen justify-center items-center">
+		<Icon id="Loader2" className="size-16 animate-spin" />
+	</div>
+);

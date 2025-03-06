@@ -1,6 +1,6 @@
 import { FlowRunsFilter, buildFilterFlowRunsQuery } from "@/api/flow-runs";
-import { Flow, buildListFlowsQuery } from "@/api/flows";
-import { useQuery } from "@tanstack/react-query";
+import { buildListFlowsQuery } from "@/api/flows";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 /**
@@ -9,18 +9,15 @@ import { useMemo } from "react";
  * @returns a simplified query object that joins a flow run's pagination data with it's parent flow
  */
 export const useFilterFlowRunswithFlows = (filter: FlowRunsFilter) => {
-	const { data: flowRunsData, error: flowRunsError } = useQuery(
+	const { data: flowRunsData, error: flowRunsError } = useSuspenseQuery(
 		buildFilterFlowRunsQuery(filter),
 	);
 
 	const flowIds = useMemo(() => {
-		if (!flowRunsData) {
-			return [];
-		}
 		return flowRunsData.map((flowRun) => flowRun.flow_id);
 	}, [flowRunsData]);
 
-	const { data: flows, error: flowsError } = useQuery(
+	const { data: flows, error: flowsError } = useSuspenseQuery(
 		buildListFlowsQuery(
 			{
 				flows: { id: { any_: flowIds }, operator: "and_" },
@@ -32,14 +29,11 @@ export const useFilterFlowRunswithFlows = (filter: FlowRunsFilter) => {
 	);
 
 	const flowMap = useMemo(() => {
-		if (!flows) {
-			return new Map<string, Flow>();
-		}
 		return new Map(flows.map((flow) => [flow.id, flow]));
 	}, [flows]);
 
 	// If there's no results from the query, return empty
-	if (flowRunsData && flowRunsData.length === 0) {
+	if (flowRunsData.length === 0) {
 		return {
 			status: "success" as const,
 			error: null,

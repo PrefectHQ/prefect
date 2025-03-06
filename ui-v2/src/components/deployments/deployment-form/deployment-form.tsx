@@ -19,6 +19,7 @@ import { Typography } from "@/components/ui/typography";
 import { WorkPoolSelect } from "@/components/work-pools/work-pool-select";
 import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
 import { Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { LimitCollissionStrategySelect } from "./limit-collision-strategy-select";
 import { useDeploymentForm } from "./use-deployment-form";
 
@@ -91,11 +92,13 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 						<FormItem>
 							<FormLabel>Work Pool (Optional)</FormLabel>
 							<FormControl>
-								<WorkPoolSelect
-									presetOptions={[{ label: "None", value: "" }]}
-									onSelect={field.onChange}
-									selected={field.value}
-								/>
+								<Suspense>
+									<WorkPoolSelect
+										presetOptions={[{ label: "None", value: "" }]}
+										onSelect={field.onChange}
+										selected={field.value}
+									/>
+								</Suspense>
 							</FormControl>
 							<FormMessage />
 						</FormItem>
@@ -110,12 +113,14 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 							<FormItem>
 								<FormLabel>Work Queue (Optional)</FormLabel>
 								<FormControl>
-									<WorkQueueSelect
-										workPoolName={watchPoolName}
-										presetOptions={[{ label: "None", value: "" }]}
-										onSelect={field.onChange}
-										selected={field.value}
-									/>
+									<Suspense>
+										<WorkQueueSelect
+											workPoolName={watchPoolName}
+											presetOptions={[{ label: "None", value: "" }]}
+											onSelect={field.onChange}
+											selected={field.value}
+										/>
+									</Suspense>
 								</FormControl>
 								<FormMessage />
 							</FormItem>

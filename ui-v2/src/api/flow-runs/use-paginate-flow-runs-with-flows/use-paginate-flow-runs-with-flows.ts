@@ -3,8 +3,8 @@ import {
 	type FlowRunsPaginateFilter,
 	buildPaginateFlowRunsQuery,
 } from "@/api/flow-runs";
-import { Flow, buildListFlowsQuery } from "@/api/flows";
-import { useQuery } from "@tanstack/react-query";
+import { buildListFlowsQuery } from "@/api/flows";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 /**
@@ -15,18 +15,14 @@ import { useMemo } from "react";
 export const usePaginateFlowRunswithFlows = (
 	filter: FlowRunsPaginateFilter,
 ) => {
-	const { data: paginateFlowRunsData, error: paginateFlowRunsError } = useQuery(
-		buildPaginateFlowRunsQuery(filter),
-	);
+	const { data: paginateFlowRunsData, error: paginateFlowRunsError } =
+		useSuspenseQuery(buildPaginateFlowRunsQuery(filter));
 
 	const flowIds = useMemo(() => {
-		if (!paginateFlowRunsData) {
-			return [];
-		}
 		return paginateFlowRunsData.results.map((flowRun) => flowRun.flow_id);
 	}, [paginateFlowRunsData]);
 
-	const { data: flows, error: flowsError } = useQuery(
+	const { data: flows, error: flowsError } = useSuspenseQuery(
 		buildListFlowsQuery(
 			{
 				flows: { id: { any_: flowIds }, operator: "and_" },
@@ -38,14 +34,11 @@ export const usePaginateFlowRunswithFlows = (
 	);
 
 	const flowMap = useMemo(() => {
-		if (!flows) {
-			return new Map<string, Flow>();
-		}
 		return new Map(flows.map((flow) => [flow.id, flow]));
 	}, [flows]);
 
 	// If there's no results from the query, return empty
-	if (paginateFlowRunsData && paginateFlowRunsData.results.length === 0) {
+	if (paginateFlowRunsData.results.length === 0) {
 		return {
 			status: "success" as const,
 			error: null,

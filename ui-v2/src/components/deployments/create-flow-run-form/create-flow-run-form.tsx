@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
 import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
 import { Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { FlowRunNameInput } from "./flow-run-name-input";
 import { FlowRunStartInput } from "./flow-run-start-input";
 import { useCreateFlowRunForm } from "./use-create-flow-run-form";
@@ -177,11 +178,13 @@ export const CreateFlowRunForm = ({
 												Work Queue for {work_pool_name} (Optional)
 											</FormLabel>
 											<FormControl>
-												<WorkQueueSelect
-													workPoolName={work_pool_name}
-													selected={field.value}
-													onSelect={field.onChange}
-												/>
+												<Suspense>
+													<WorkQueueSelect
+														workPoolName={work_pool_name}
+														selected={field.value}
+														onSelect={field.onChange}
+													/>
+												</Suspense>
 											</FormControl>
 											<FormMessage />
 										</FormItem>
