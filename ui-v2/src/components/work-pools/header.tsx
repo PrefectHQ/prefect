@@ -9,7 +9,7 @@ export const WorkPoolsPageHeader = () => (
 		<Breadcrumb>
 			<BreadcrumbList>
 				<BreadcrumbItem className="text-xl font-semibold">
-					Work Pools
+					Work pools
 				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>
