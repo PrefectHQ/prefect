@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Gracefully creates a new saved search from the provided schema.
@@ -17,101 +14,120 @@ replaced.
  * @summary Create Saved Search
  */
 export const createSavedSearchSavedSearchesPutHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const createSavedSearchSavedSearchesPutBody = zod.object({
-  "name": zod.string(),
-  "filters": zod.array(zod.object({
-  "object": zod.string(),
-  "property": zod.string(),
-  "type": zod.string(),
-  "operation": zod.string(),
-  "value": zod.any()
-})).optional()
-})
+	name: zod.string(),
+	filters: zod
+		.array(
+			zod.object({
+				object: zod.string(),
+				property: zod.string(),
+				type: zod.string(),
+				operation: zod.string(),
+				value: zod.any(),
+			}),
+		)
+		.optional(),
+});
 
 export const createSavedSearchSavedSearchesPutResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "filters": zod.array(zod.object({
-  "object": zod.string(),
-  "property": zod.string(),
-  "type": zod.string(),
-  "operation": zod.string(),
-  "value": zod.any()
-})).optional()
-})
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string(),
+	filters: zod
+		.array(
+			zod.object({
+				object: zod.string(),
+				property: zod.string(),
+				type: zod.string(),
+				operation: zod.string(),
+				value: zod.any(),
+			}),
+		)
+		.optional(),
+});
 
 /**
  * Get a saved search by id.
  * @summary Read Saved Search
  */
 export const readSavedSearchSavedSearchesIdGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readSavedSearchSavedSearchesIdGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readSavedSearchSavedSearchesIdGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "filters": zod.array(zod.object({
-  "object": zod.string(),
-  "property": zod.string(),
-  "type": zod.string(),
-  "operation": zod.string(),
-  "value": zod.any()
-})).optional()
-})
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string(),
+	filters: zod
+		.array(
+			zod.object({
+				object: zod.string(),
+				property: zod.string(),
+				type: zod.string(),
+				operation: zod.string(),
+				value: zod.any(),
+			}),
+		)
+		.optional(),
+});
 
 /**
  * Delete a saved search by id.
  * @summary Delete Saved Search
  */
 export const deleteSavedSearchSavedSearchesIdDeleteParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const deleteSavedSearchSavedSearchesIdDeleteHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 /**
  * Query for saved searches.
  * @summary Read Saved Searches
  */
 export const readSavedSearchesSavedSearchesFilterPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readSavedSearchesSavedSearchesFilterPostBodyOffsetDefault = 0;
 export const readSavedSearchesSavedSearchesFilterPostBodyOffsetMin = 0;
 
-
 export const readSavedSearchesSavedSearchesFilterPostBody = zod.object({
-  "offset": zod.number().min(readSavedSearchesSavedSearchesFilterPostBodyOffsetMin).optional(),
-  "limit": zod.number().optional()
-})
+	offset: zod
+		.number()
+		.min(readSavedSearchesSavedSearchesFilterPostBodyOffsetMin)
+		.optional(),
+	limit: zod.number().optional(),
+});
 
 export const readSavedSearchesSavedSearchesFilterPostResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "filters": zod.array(zod.object({
-  "object": zod.string(),
-  "property": zod.string(),
-  "type": zod.string(),
-  "operation": zod.string(),
-  "value": zod.any()
-})).optional()
-})
-export const readSavedSearchesSavedSearchesFilterPostResponse = zod.array(readSavedSearchesSavedSearchesFilterPostResponseItem)
-
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string(),
+	filters: zod
+		.array(
+			zod.object({
+				object: zod.string(),
+				property: zod.string(),
+				type: zod.string(),
+				operation: zod.string(),
+				value: zod.any(),
+			}),
+		)
+		.optional(),
+});
+export const readSavedSearchesSavedSearchesFilterPostResponse = zod.array(
+	readSavedSearchesSavedSearchesFilterPostResponseItem,
+);

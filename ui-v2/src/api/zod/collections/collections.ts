@@ -4,24 +4,18 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Reads the content of a view from the prefect-collection-registry.
  * @summary Read View Content
  */
 export const readViewContentCollectionsViewsViewGetParams = zod.object({
-  "view": zod.string()
-})
+	view: zod.string(),
+});
 
 export const readViewContentCollectionsViewsViewGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readViewContentCollectionsViewsViewGetResponse = zod.object({
-
-})
-
+export const readViewContentCollectionsViewsViewGetResponse = zod.object({});

@@ -5,9 +5,12 @@ import { defineConfig } from "vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-	plugins: [react(), TanStackRouterVite({
-		autoCodeSplitting: true,
-	})],
+	plugins: [
+		react(),
+		TanStackRouterVite({
+			autoCodeSplitting: true,
+		}),
+	],
 	test: {
 		globals: true,
 		environment: "jsdom",

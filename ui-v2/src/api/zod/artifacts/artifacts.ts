@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Create an artifact.
@@ -16,950 +13,1675 @@ For more information, see https://docs.prefect.io/v3/develop/artifacts.
  * @summary Create Artifact
  */
 export const createArtifactArtifactsPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const createArtifactArtifactsPostBody = zod.object({
-  "key": zod.string().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional()
-})
+	key: zod.string().or(zod.null()).optional(),
+	type: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+	metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+	flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+	task_run_id: zod.string().uuid().or(zod.null()).optional(),
+});
 
 export const createArtifactArtifactsPostResponse = zod.object({
-  "id": zod.string().uuid().optional(),
-  "created": zod.string().datetime().or(zod.null()).optional(),
-  "updated": zod.string().datetime().or(zod.null()).optional(),
-  "key": zod.string().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional()
-})
+	id: zod.string().uuid().optional(),
+	created: zod.string().datetime().or(zod.null()).optional(),
+	updated: zod.string().datetime().or(zod.null()).optional(),
+	key: zod.string().or(zod.null()).optional(),
+	type: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+	metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+	flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+	task_run_id: zod.string().uuid().or(zod.null()).optional(),
+});
 
 /**
  * Retrieve an artifact from the database.
  * @summary Read Artifact
  */
 export const readArtifactArtifactsIdGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readArtifactArtifactsIdGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readArtifactArtifactsIdGetResponse = zod.object({
-  "id": zod.string().uuid().optional(),
-  "created": zod.string().datetime().or(zod.null()).optional(),
-  "updated": zod.string().datetime().or(zod.null()).optional(),
-  "key": zod.string().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional()
-})
+	id: zod.string().uuid().optional(),
+	created: zod.string().datetime().or(zod.null()).optional(),
+	updated: zod.string().datetime().or(zod.null()).optional(),
+	key: zod.string().or(zod.null()).optional(),
+	type: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+	metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+	flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+	task_run_id: zod.string().uuid().or(zod.null()).optional(),
+});
 
 /**
  * Update an artifact in the database.
  * @summary Update Artifact
  */
 export const updateArtifactArtifactsIdPatchParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const updateArtifactArtifactsIdPatchHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const updateArtifactArtifactsIdPatchBody = zod.object({
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional()
-})
+	data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+});
 
 /**
  * Delete an artifact from the database.
  * @summary Delete Artifact
  */
 export const deleteArtifactArtifactsIdDeleteParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const deleteArtifactArtifactsIdDeleteHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 /**
  * Retrieve the latest artifact from the artifact table.
  * @summary Read Latest Artifact
  */
 export const readLatestArtifactArtifactsKeyLatestGetParams = zod.object({
-  "key": zod.string()
-})
+	key: zod.string(),
+});
 
 export const readLatestArtifactArtifactsKeyLatestGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readLatestArtifactArtifactsKeyLatestGetResponse = zod.object({
-  "id": zod.string().uuid().optional(),
-  "created": zod.string().datetime().or(zod.null()).optional(),
-  "updated": zod.string().datetime().or(zod.null()).optional(),
-  "key": zod.string().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional()
-})
+	id: zod.string().uuid().optional(),
+	created: zod.string().datetime().or(zod.null()).optional(),
+	updated: zod.string().datetime().or(zod.null()).optional(),
+	key: zod.string().or(zod.null()).optional(),
+	type: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+	metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+	flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+	task_run_id: zod.string().uuid().or(zod.null()).optional(),
+});
 
 /**
  * Retrieve artifacts from the database.
  * @summary Read Artifacts
  */
 export const readArtifactsArtifactsFilterPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readArtifactsArtifactsFilterPostBodyOffsetDefault = 0;
 export const readArtifactsArtifactsFilterPostBodyOffsetMin = 0;
 export const readArtifactsArtifactsFilterPostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const readArtifactsArtifactsFilterPostBody = zod.object({
-  "sort": zod.enum(['CREATED_DESC', 'UPDATED_DESC', 'ID_DESC', 'KEY_DESC', 'KEY_ASC']).optional(),
-  "offset": zod.number().min(readArtifactsArtifactsFilterPostBodyOffsetMin).optional(),
-  "artifacts": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional(),
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "limit": zod.number().optional()
-})
+	sort: zod
+		.enum(["CREATED_DESC", "UPDATED_DESC", "ID_DESC", "KEY_DESC", "KEY_ASC"])
+		.optional(),
+	offset: zod
+		.number()
+		.min(readArtifactsArtifactsFilterPostBodyOffsetMin)
+		.optional(),
+	artifacts: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			task_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	limit: zod.number().optional(),
+});
 
 export const readArtifactsArtifactsFilterPostResponseItem = zod.object({
-  "id": zod.string().uuid().optional(),
-  "created": zod.string().datetime().or(zod.null()).optional(),
-  "updated": zod.string().datetime().or(zod.null()).optional(),
-  "key": zod.string().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional()
-})
-export const readArtifactsArtifactsFilterPostResponse = zod.array(readArtifactsArtifactsFilterPostResponseItem)
+	id: zod.string().uuid().optional(),
+	created: zod.string().datetime().or(zod.null()).optional(),
+	updated: zod.string().datetime().or(zod.null()).optional(),
+	key: zod.string().or(zod.null()).optional(),
+	type: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+	metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+	flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+	task_run_id: zod.string().uuid().or(zod.null()).optional(),
+});
+export const readArtifactsArtifactsFilterPostResponse = zod.array(
+	readArtifactsArtifactsFilterPostResponseItem,
+);
 
 /**
  * Retrieve artifacts from the database.
  * @summary Read Latest Artifacts
  */
 export const readLatestArtifactsArtifactsLatestFilterPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readLatestArtifactsArtifactsLatestFilterPostBodyOffsetDefault = 0;
 export const readLatestArtifactsArtifactsLatestFilterPostBodyOffsetMin = 0;
 export const readLatestArtifactsArtifactsLatestFilterPostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const readLatestArtifactsArtifactsLatestFilterPostBody = zod.object({
-  "sort": zod.enum(['CREATED_DESC', 'UPDATED_DESC', 'ID_DESC', 'KEY_DESC', 'KEY_ASC']).optional(),
-  "offset": zod.number().min(readLatestArtifactsArtifactsLatestFilterPostBodyOffsetMin).optional(),
-  "artifacts": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "latest_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional(),
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "limit": zod.number().optional()
-})
+	sort: zod
+		.enum(["CREATED_DESC", "UPDATED_DESC", "ID_DESC", "KEY_DESC", "KEY_ASC"])
+		.optional(),
+	offset: zod
+		.number()
+		.min(readLatestArtifactsArtifactsLatestFilterPostBodyOffsetMin)
+		.optional(),
+	artifacts: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			latest_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			task_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	limit: zod.number().optional(),
+});
 
-export const readLatestArtifactsArtifactsLatestFilterPostResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "key": zod.string(),
-  "latest_id": zod.string().uuid(),
-  "type": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "data": zod.object({
-
-}).or(zod.any()).or(zod.null()).optional(),
-  "metadata_": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional()
-})
-export const readLatestArtifactsArtifactsLatestFilterPostResponse = zod.array(readLatestArtifactsArtifactsLatestFilterPostResponseItem)
+export const readLatestArtifactsArtifactsLatestFilterPostResponseItem =
+	zod.object({
+		id: zod.string().uuid(),
+		created: zod.string().datetime().or(zod.null()),
+		updated: zod.string().datetime().or(zod.null()),
+		key: zod.string(),
+		latest_id: zod.string().uuid(),
+		type: zod.string().or(zod.null()).optional(),
+		description: zod.string().or(zod.null()).optional(),
+		data: zod.object({}).or(zod.any()).or(zod.null()).optional(),
+		metadata_: zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
+		flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+		task_run_id: zod.string().uuid().or(zod.null()).optional(),
+	});
+export const readLatestArtifactsArtifactsLatestFilterPostResponse = zod.array(
+	readLatestArtifactsArtifactsLatestFilterPostResponseItem,
+);
 
 /**
  * Count artifacts from the database.
  * @summary Count Artifacts
  */
 export const countArtifactsArtifactsCountPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const countArtifactsArtifactsCountPostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const countArtifactsArtifactsCountPostBody = zod.object({
-  "artifacts": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional(),
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional()
-})
+	artifacts: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			task_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+});
 
-export const countArtifactsArtifactsCountPostResponse = zod.number()
+export const countArtifactsArtifactsCountPostResponse = zod.number();
 
 /**
  * Count artifacts from the database.
  * @summary Count Latest Artifacts
  */
 export const countLatestArtifactsArtifactsLatestCountPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const countLatestArtifactsArtifactsLatestCountPostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const countLatestArtifactsArtifactsLatestCountPostBody = zod.object({
-  "artifacts": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "latest_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional(),
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_run_id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional()
-})
+	artifacts: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			latest_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			task_run_id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+});
 
-export const countLatestArtifactsArtifactsLatestCountPostResponse = zod.number()
-
+export const countLatestArtifactsArtifactsLatestCountPostResponse =
+	zod.number();

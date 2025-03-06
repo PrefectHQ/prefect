@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Get the current Prefect REST API settings.
@@ -16,60 +13,59 @@ Secret setting values will be obfuscated.
  * @summary Read Settings
  */
 export const readSettingsAdminSettingsGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readSettingsAdminSettingsGetResponse = zod.any()
+export const readSettingsAdminSettingsGetResponse = zod.any();
 
 /**
  * Returns the Prefect version number
  * @summary Read Version
  */
 export const readVersionAdminVersionGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readVersionAdminVersionGetResponse = zod.string()
+export const readVersionAdminVersionGetResponse = zod.string();
 
 /**
  * Clear all database tables without dropping them.
  * @summary Clear Database
  */
 export const clearDatabaseAdminDatabaseClearPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const clearDatabaseAdminDatabaseClearPostBodyConfirmDefault = false;
 
 export const clearDatabaseAdminDatabaseClearPostBody = zod.object({
-  "confirm": zod.boolean().optional()
-})
+	confirm: zod.boolean().optional(),
+});
 
 /**
  * Drop all database objects.
  * @summary Drop Database
  */
 export const dropDatabaseAdminDatabaseDropPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const dropDatabaseAdminDatabaseDropPostBodyConfirmDefault = false;
 
 export const dropDatabaseAdminDatabaseDropPostBody = zod.object({
-  "confirm": zod.boolean().optional()
-})
+	confirm: zod.boolean().optional(),
+});
 
 /**
  * Create all database objects.
  * @summary Create Database
  */
 export const createDatabaseAdminDatabaseCreatePostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const createDatabaseAdminDatabaseCreatePostBodyConfirmDefault = false;
 
 export const createDatabaseAdminDatabaseCreatePostBody = zod.object({
-  "confirm": zod.boolean().optional()
-})
-
+	confirm: zod.boolean().optional(),
+});

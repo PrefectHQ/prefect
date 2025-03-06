@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Read active task workers. Optionally filter by task keys.
@@ -16,19 +13,23 @@ For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
  * @summary Read Task Workers
  */
 export const readTaskWorkersTaskWorkersFilterPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readTaskWorkersTaskWorkersFilterPostBody = zod.object({
-  "task_worker_filter": zod.object({
-  "task_keys": zod.array(zod.string())
-}).or(zod.null()).optional()
-})
+	task_worker_filter: zod
+		.object({
+			task_keys: zod.array(zod.string()),
+		})
+		.or(zod.null())
+		.optional(),
+});
 
 export const readTaskWorkersTaskWorkersFilterPostResponseItem = zod.object({
-  "identifier": zod.string(),
-  "task_keys": zod.array(zod.string()),
-  "timestamp": zod.string().datetime()
-})
-export const readTaskWorkersTaskWorkersFilterPostResponse = zod.array(readTaskWorkersTaskWorkersFilterPostResponseItem)
-
+	identifier: zod.string(),
+	task_keys: zod.array(zod.string()),
+	timestamp: zod.string().datetime(),
+});
+export const readTaskWorkersTaskWorkersFilterPostResponse = zod.array(
+	readTaskWorkersTaskWorkersFilterPostResponseItem,
+);

@@ -4,37 +4,33 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * @summary Health Check
  */
-export const healthCheckHealthGetResponse = zod.boolean()
+export const healthCheckHealthGetResponse = zod.boolean();
 
 /**
  * @summary Server Version
  */
-export const serverVersionVersionGetResponse = zod.string()
+export const serverVersionVersionGetResponse = zod.string();
 
 /**
  * Say hello!
  * @summary Hello
  */
 export const helloHelloGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const helloHelloGetResponse = zod.string()
+export const helloHelloGetResponse = zod.string();
 
 /**
  * @summary Perform Readiness Check
  */
 export const performReadinessCheckReadyGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const performReadinessCheckReadyGetResponse = zod.any()
-
+export const performReadinessCheckReadyGetResponse = zod.any();

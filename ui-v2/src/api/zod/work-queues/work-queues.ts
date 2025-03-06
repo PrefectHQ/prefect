@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Creates a new work queue.
@@ -19,313 +16,441 @@ For more information, see https://docs.prefect.io/v3/deploy/infrastructure-conce
  * @summary Create Work Queue
  */
 export const createWorkQueueWorkQueuesPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const createWorkQueueWorkQueuesPostBodyNameRegExp = new RegExp('^[^/%&><]+$');
-export const createWorkQueueWorkQueuesPostBodyDescriptionDefault = "";export const createWorkQueueWorkQueuesPostBodyIsPausedDefault = false;export const createWorkQueueWorkQueuesPostBodyConcurrencyLimitMinOne = 0;
-
+export const createWorkQueueWorkQueuesPostBodyNameRegExp = new RegExp(
+	"^[^/%&><]+$",
+);
+export const createWorkQueueWorkQueuesPostBodyDescriptionDefault = "";
+export const createWorkQueueWorkQueuesPostBodyIsPausedDefault = false;
+export const createWorkQueueWorkQueuesPostBodyConcurrencyLimitMinOne = 0;
 
 export const createWorkQueueWorkQueuesPostBody = zod.object({
-  "name": zod.string().regex(createWorkQueueWorkQueuesPostBodyNameRegExp),
-  "description": zod.string().or(zod.null()).optional(),
-  "is_paused": zod.boolean().optional(),
-  "concurrency_limit": zod.number().min(createWorkQueueWorkQueuesPostBodyConcurrencyLimitMinOne).or(zod.null()).optional(),
-  "priority": zod.number().or(zod.null()).optional(),
-  "filter": zod.object({
-  "tags": zod.array(zod.string()).or(zod.null()).optional(),
-  "deployment_ids": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-})
+	name: zod.string().regex(createWorkQueueWorkQueuesPostBodyNameRegExp),
+	description: zod.string().or(zod.null()).optional(),
+	is_paused: zod.boolean().optional(),
+	concurrency_limit: zod
+		.number()
+		.min(createWorkQueueWorkQueuesPostBodyConcurrencyLimitMinOne)
+		.or(zod.null())
+		.optional(),
+	priority: zod.number().or(zod.null()).optional(),
+	filter: zod
+		.object({
+			tags: zod.array(zod.string()).or(zod.null()).optional(),
+			deployment_ids: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+});
 
 /**
  * Updates an existing work queue.
  * @summary Update Work Queue
  */
 export const updateWorkQueueWorkQueuesIdPatchParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const updateWorkQueueWorkQueuesIdPatchHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const updateWorkQueueWorkQueuesIdPatchBodyIsPausedDefault = false;export const updateWorkQueueWorkQueuesIdPatchBodyConcurrencyLimitMinOne = 0;
-
+export const updateWorkQueueWorkQueuesIdPatchBodyIsPausedDefault = false;
+export const updateWorkQueueWorkQueuesIdPatchBodyConcurrencyLimitMinOne = 0;
 
 export const updateWorkQueueWorkQueuesIdPatchBody = zod.object({
-  "name": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "is_paused": zod.boolean().optional(),
-  "concurrency_limit": zod.number().min(updateWorkQueueWorkQueuesIdPatchBodyConcurrencyLimitMinOne).or(zod.null()).optional(),
-  "priority": zod.number().or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "filter": zod.object({
-  "tags": zod.array(zod.string()).or(zod.null()).optional(),
-  "deployment_ids": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-})
+	name: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	is_paused: zod.boolean().optional(),
+	concurrency_limit: zod
+		.number()
+		.min(updateWorkQueueWorkQueuesIdPatchBodyConcurrencyLimitMinOne)
+		.or(zod.null())
+		.optional(),
+	priority: zod.number().or(zod.null()).optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	filter: zod
+		.object({
+			tags: zod.array(zod.string()).or(zod.null()).optional(),
+			deployment_ids: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+});
 
 /**
  * Get a work queue by id.
  * @summary Read Work Queue
  */
 export const readWorkQueueWorkQueuesIdGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readWorkQueueWorkQueuesIdGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readWorkQueueWorkQueuesIdGetResponseNameRegExp = new RegExp('^[^/%&><]+$');
-export const readWorkQueueWorkQueuesIdGetResponseDescriptionDefault = "";export const readWorkQueueWorkQueuesIdGetResponseIsPausedDefault = false;export const readWorkQueueWorkQueuesIdGetResponseConcurrencyLimitMinOne = 0;
+export const readWorkQueueWorkQueuesIdGetResponseNameRegExp = new RegExp(
+	"^[^/%&><]+$",
+);
+export const readWorkQueueWorkQueuesIdGetResponseDescriptionDefault = "";
+export const readWorkQueueWorkQueuesIdGetResponseIsPausedDefault = false;
+export const readWorkQueueWorkQueuesIdGetResponseConcurrencyLimitMinOne = 0;
 export const readWorkQueueWorkQueuesIdGetResponsePriorityDefault = 1;
 
 export const readWorkQueueWorkQueuesIdGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().regex(readWorkQueueWorkQueuesIdGetResponseNameRegExp),
-  "description": zod.string().or(zod.null()).optional(),
-  "is_paused": zod.boolean().optional(),
-  "concurrency_limit": zod.number().min(readWorkQueueWorkQueuesIdGetResponseConcurrencyLimitMinOne).or(zod.null()).optional(),
-  "priority": zod.number().default(readWorkQueueWorkQueuesIdGetResponsePriorityDefault),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "filter": zod.object({
-  "tags": zod.array(zod.string()).or(zod.null()).optional(),
-  "deployment_ids": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY', 'PAUSED']).or(zod.null()).optional()
-})
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string().regex(readWorkQueueWorkQueuesIdGetResponseNameRegExp),
+	description: zod.string().or(zod.null()).optional(),
+	is_paused: zod.boolean().optional(),
+	concurrency_limit: zod
+		.number()
+		.min(readWorkQueueWorkQueuesIdGetResponseConcurrencyLimitMinOne)
+		.or(zod.null())
+		.optional(),
+	priority: zod
+		.number()
+		.default(readWorkQueueWorkQueuesIdGetResponsePriorityDefault),
+	work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+	filter: zod
+		.object({
+			tags: zod.array(zod.string()).or(zod.null()).optional(),
+			deployment_ids: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	status: zod.enum(["READY", "NOT_READY", "PAUSED"]).or(zod.null()).optional(),
+});
 
 /**
  * Delete a work queue by id.
  * @summary Delete Work Queue
  */
 export const deleteWorkQueueWorkQueuesIdDeleteParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const deleteWorkQueueWorkQueuesIdDeleteHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 /**
  * Get a work queue by id.
  * @summary Read Work Queue By Name
  */
 export const readWorkQueueByNameWorkQueuesNameNameGetParams = zod.object({
-  "name": zod.string()
-})
+	name: zod.string(),
+});
 
 export const readWorkQueueByNameWorkQueuesNameNameGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readWorkQueueByNameWorkQueuesNameNameGetResponseNameRegExp = new RegExp('^[^/%&><]+$');
-export const readWorkQueueByNameWorkQueuesNameNameGetResponseDescriptionDefault = "";export const readWorkQueueByNameWorkQueuesNameNameGetResponseIsPausedDefault = false;export const readWorkQueueByNameWorkQueuesNameNameGetResponseConcurrencyLimitMinOne = 0;
+export const readWorkQueueByNameWorkQueuesNameNameGetResponseNameRegExp =
+	new RegExp("^[^/%&><]+$");
+export const readWorkQueueByNameWorkQueuesNameNameGetResponseDescriptionDefault =
+	"";
+export const readWorkQueueByNameWorkQueuesNameNameGetResponseIsPausedDefault = false;
+export const readWorkQueueByNameWorkQueuesNameNameGetResponseConcurrencyLimitMinOne = 0;
 export const readWorkQueueByNameWorkQueuesNameNameGetResponsePriorityDefault = 1;
 
 export const readWorkQueueByNameWorkQueuesNameNameGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().regex(readWorkQueueByNameWorkQueuesNameNameGetResponseNameRegExp),
-  "description": zod.string().or(zod.null()).optional(),
-  "is_paused": zod.boolean().optional(),
-  "concurrency_limit": zod.number().min(readWorkQueueByNameWorkQueuesNameNameGetResponseConcurrencyLimitMinOne).or(zod.null()).optional(),
-  "priority": zod.number().default(readWorkQueueByNameWorkQueuesNameNameGetResponsePriorityDefault),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "filter": zod.object({
-  "tags": zod.array(zod.string()).or(zod.null()).optional(),
-  "deployment_ids": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY', 'PAUSED']).or(zod.null()).optional()
-})
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod
+		.string()
+		.regex(readWorkQueueByNameWorkQueuesNameNameGetResponseNameRegExp),
+	description: zod.string().or(zod.null()).optional(),
+	is_paused: zod.boolean().optional(),
+	concurrency_limit: zod
+		.number()
+		.min(readWorkQueueByNameWorkQueuesNameNameGetResponseConcurrencyLimitMinOne)
+		.or(zod.null())
+		.optional(),
+	priority: zod
+		.number()
+		.default(readWorkQueueByNameWorkQueuesNameNameGetResponsePriorityDefault),
+	work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+	filter: zod
+		.object({
+			tags: zod.array(zod.string()).or(zod.null()).optional(),
+			deployment_ids: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	status: zod.enum(["READY", "NOT_READY", "PAUSED"]).or(zod.null()).optional(),
+});
 
 /**
  * Get flow runs from the work queue.
  * @summary Read Work Queue Runs
  */
 export const readWorkQueueRunsWorkQueuesIdGetRunsPostParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readWorkQueueRunsWorkQueuesIdGetRunsPostHeaderXPrefectUiDefault = false;
 
 export const readWorkQueueRunsWorkQueuesIdGetRunsPostHeader = zod.object({
-  "x-prefect-ui": zod.boolean().or(zod.null()).optional(),
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-ui": zod.boolean().or(zod.null()).optional(),
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readWorkQueueRunsWorkQueuesIdGetRunsPostBody = zod.object({
-  "scheduled_before": zod.string().datetime().optional(),
-  "limit": zod.number().optional()
-})
+	scheduled_before: zod.string().datetime().optional(),
+	limit: zod.number().optional(),
+});
 
-export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEmpiricalPolicyMaxRetriesDefault = 0;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEmpiricalPolicyRetryDelaySecondsDefault = 0;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEmpiricalPolicyResumingDefault = false;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseRunCountDefault = 0;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseTotalRunTimeDefault = 0;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEstimatedRunTimeDefault = 0;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEstimatedStartTimeDeltaDefault = 0;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseAutoScheduledDefault = false;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseStateStateDetailsDeferredDefault = false;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseStateStateDetailsUntrackableResultDefault = false;export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseStateStateDetailsPauseRescheduleDefault = false;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEmpiricalPolicyMaxRetriesDefault = 0;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEmpiricalPolicyRetryDelaySecondsDefault = 0;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEmpiricalPolicyResumingDefault = false;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseRunCountDefault = 0;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseTotalRunTimeDefault = 0;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEstimatedRunTimeDefault = 0;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseEstimatedStartTimeDeltaDefault = 0;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseAutoScheduledDefault = false;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseStateStateDetailsDeferredDefault = false;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseStateStateDetailsUntrackableResultDefault = false;
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseStateStateDetailsPauseRescheduleDefault = false;
 
 export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().optional(),
-  "flow_id": zod.string().uuid(),
-  "state_id": zod.string().uuid().or(zod.null()).optional(),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "deployment_version": zod.string().or(zod.null()).optional(),
-  "work_queue_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "flow_version": zod.string().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "idempotency_key": zod.string().or(zod.null()).optional(),
-  "context": zod.object({
-
-}).optional(),
-  "empirical_policy": zod.object({
-  "max_retries": zod.number().optional(),
-  "retry_delay_seconds": zod.number().optional(),
-  "retries": zod.number().or(zod.null()).optional(),
-  "retry_delay": zod.number().or(zod.null()).optional(),
-  "pause_keys": zod.array(zod.string()).or(zod.null()).optional(),
-  "resuming": zod.boolean().or(zod.null()).optional(),
-  "retry_type": zod.enum(['in_process', 'reschedule']).or(zod.null()).optional()
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "parent_task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "state_type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']).or(zod.null()).optional(),
-  "state_name": zod.string().or(zod.null()).optional(),
-  "run_count": zod.number().optional(),
-  "expected_start_time": zod.string().datetime().or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.string().datetime().or(zod.null()).optional(),
-  "start_time": zod.string().datetime().or(zod.null()).optional(),
-  "end_time": zod.string().datetime().or(zod.null()).optional(),
-  "total_run_time": zod.number().optional(),
-  "estimated_run_time": zod.number().optional(),
-  "estimated_start_time_delta": zod.number().optional(),
-  "auto_scheduled": zod.boolean().optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_pid": zod.string().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "state": zod.object({
-  "id": zod.string().uuid(),
-  "type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']),
-  "name": zod.string().or(zod.null()).optional(),
-  "timestamp": zod.string().datetime().optional(),
-  "message": zod.string().or(zod.null()).optional(),
-  "data": zod.any().or(zod.null()).optional(),
-  "state_details": zod.object({
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "child_flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "scheduled_time": zod.string().datetime().or(zod.null()).optional(),
-  "cache_key": zod.string().or(zod.null()).optional(),
-  "cache_expiration": zod.string().datetime().or(zod.null()).optional(),
-  "deferred": zod.boolean().or(zod.null()).optional(),
-  "untrackable_result": zod.boolean().optional(),
-  "pause_timeout": zod.string().datetime().or(zod.null()).optional(),
-  "pause_reschedule": zod.boolean().optional(),
-  "pause_key": zod.string().or(zod.null()).optional(),
-  "run_input_keyset": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "refresh_cache": zod.boolean().or(zod.null()).optional(),
-  "retriable": zod.boolean().or(zod.null()).optional(),
-  "transition_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_parameters_id": zod.string().uuid().or(zod.null()).optional(),
-  "traceparent": zod.string().or(zod.null()).optional()
-}).optional()
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).or(zod.null()).optional()
-})
-export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponse = zod.array(readWorkQueueRunsWorkQueuesIdGetRunsPostResponseItem)
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string().optional(),
+	flow_id: zod.string().uuid(),
+	state_id: zod.string().uuid().or(zod.null()).optional(),
+	deployment_id: zod.string().uuid().or(zod.null()).optional(),
+	deployment_version: zod.string().or(zod.null()).optional(),
+	work_queue_id: zod.string().uuid().or(zod.null()).optional(),
+	work_queue_name: zod.string().or(zod.null()).optional(),
+	flow_version: zod.string().or(zod.null()).optional(),
+	parameters: zod.object({}).optional(),
+	idempotency_key: zod.string().or(zod.null()).optional(),
+	context: zod.object({}).optional(),
+	empirical_policy: zod
+		.object({
+			max_retries: zod.number().optional(),
+			retry_delay_seconds: zod.number().optional(),
+			retries: zod.number().or(zod.null()).optional(),
+			retry_delay: zod.number().or(zod.null()).optional(),
+			pause_keys: zod.array(zod.string()).or(zod.null()).optional(),
+			resuming: zod.boolean().or(zod.null()).optional(),
+			retry_type: zod
+				.enum(["in_process", "reschedule"])
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	tags: zod.array(zod.string()).optional(),
+	labels: zod
+		.record(
+			zod.string(),
+			zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+		)
+		.optional(),
+	parent_task_run_id: zod.string().uuid().or(zod.null()).optional(),
+	state_type: zod
+		.enum([
+			"SCHEDULED",
+			"PENDING",
+			"RUNNING",
+			"COMPLETED",
+			"FAILED",
+			"CANCELLED",
+			"CRASHED",
+			"PAUSED",
+			"CANCELLING",
+		])
+		.or(zod.null())
+		.optional(),
+	state_name: zod.string().or(zod.null()).optional(),
+	run_count: zod.number().optional(),
+	expected_start_time: zod.string().datetime().or(zod.null()).optional(),
+	next_scheduled_start_time: zod.string().datetime().or(zod.null()).optional(),
+	start_time: zod.string().datetime().or(zod.null()).optional(),
+	end_time: zod.string().datetime().or(zod.null()).optional(),
+	total_run_time: zod.number().optional(),
+	estimated_run_time: zod.number().optional(),
+	estimated_start_time_delta: zod.number().optional(),
+	auto_scheduled: zod.boolean().optional(),
+	infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+	infrastructure_pid: zod.string().or(zod.null()).optional(),
+	created_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	state: zod
+		.object({
+			id: zod.string().uuid(),
+			type: zod.enum([
+				"SCHEDULED",
+				"PENDING",
+				"RUNNING",
+				"COMPLETED",
+				"FAILED",
+				"CANCELLED",
+				"CRASHED",
+				"PAUSED",
+				"CANCELLING",
+			]),
+			name: zod.string().or(zod.null()).optional(),
+			timestamp: zod.string().datetime().optional(),
+			message: zod.string().or(zod.null()).optional(),
+			data: zod.any().or(zod.null()).optional(),
+			state_details: zod
+				.object({
+					flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+					task_run_id: zod.string().uuid().or(zod.null()).optional(),
+					child_flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+					scheduled_time: zod.string().datetime().or(zod.null()).optional(),
+					cache_key: zod.string().or(zod.null()).optional(),
+					cache_expiration: zod.string().datetime().or(zod.null()).optional(),
+					deferred: zod.boolean().or(zod.null()).optional(),
+					untrackable_result: zod.boolean().optional(),
+					pause_timeout: zod.string().datetime().or(zod.null()).optional(),
+					pause_reschedule: zod.boolean().optional(),
+					pause_key: zod.string().or(zod.null()).optional(),
+					run_input_keyset: zod
+						.record(zod.string(), zod.string())
+						.or(zod.null())
+						.optional(),
+					refresh_cache: zod.boolean().or(zod.null()).optional(),
+					retriable: zod.boolean().or(zod.null()).optional(),
+					transition_id: zod.string().uuid().or(zod.null()).optional(),
+					task_parameters_id: zod.string().uuid().or(zod.null()).optional(),
+					traceparent: zod.string().or(zod.null()).optional(),
+				})
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	job_variables: zod.object({}).or(zod.null()).optional(),
+});
+export const readWorkQueueRunsWorkQueuesIdGetRunsPostResponse = zod.array(
+	readWorkQueueRunsWorkQueuesIdGetRunsPostResponseItem,
+);
 
 /**
  * Query for work queues.
  * @summary Read Work Queues
  */
 export const readWorkQueuesWorkQueuesFilterPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readWorkQueuesWorkQueuesFilterPostBodyOffsetDefault = 0;
 export const readWorkQueuesWorkQueuesFilterPostBodyOffsetMin = 0;
 
-
 export const readWorkQueuesWorkQueuesFilterPostBody = zod.object({
-  "offset": zod.number().min(readWorkQueuesWorkQueuesFilterPostBodyOffsetMin).optional(),
-  "work_queues": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "startswith_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).optional(),
-  "limit": zod.number().optional()
-})
+	offset: zod
+		.number()
+		.min(readWorkQueuesWorkQueuesFilterPostBodyOffsetMin)
+		.optional(),
+	work_queues: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					startswith_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.optional(),
+	limit: zod.number().optional(),
+});
 
-export const readWorkQueuesWorkQueuesFilterPostResponseNameRegExp = new RegExp('^[^/%&><]+$');
-export const readWorkQueuesWorkQueuesFilterPostResponseDescriptionDefault = "";export const readWorkQueuesWorkQueuesFilterPostResponseIsPausedDefault = false;export const readWorkQueuesWorkQueuesFilterPostResponseConcurrencyLimitMinOne = 0;
+export const readWorkQueuesWorkQueuesFilterPostResponseNameRegExp = new RegExp(
+	"^[^/%&><]+$",
+);
+export const readWorkQueuesWorkQueuesFilterPostResponseDescriptionDefault = "";
+export const readWorkQueuesWorkQueuesFilterPostResponseIsPausedDefault = false;
+export const readWorkQueuesWorkQueuesFilterPostResponseConcurrencyLimitMinOne = 0;
 export const readWorkQueuesWorkQueuesFilterPostResponsePriorityDefault = 1;
 
 export const readWorkQueuesWorkQueuesFilterPostResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().regex(readWorkQueuesWorkQueuesFilterPostResponseNameRegExp),
-  "description": zod.string().or(zod.null()).optional(),
-  "is_paused": zod.boolean().optional(),
-  "concurrency_limit": zod.number().min(readWorkQueuesWorkQueuesFilterPostResponseConcurrencyLimitMinOne).or(zod.null()).optional(),
-  "priority": zod.number().default(readWorkQueuesWorkQueuesFilterPostResponsePriorityDefault),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "filter": zod.object({
-  "tags": zod.array(zod.string()).or(zod.null()).optional(),
-  "deployment_ids": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY', 'PAUSED']).or(zod.null()).optional()
-})
-export const readWorkQueuesWorkQueuesFilterPostResponse = zod.array(readWorkQueuesWorkQueuesFilterPostResponseItem)
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod
+		.string()
+		.regex(readWorkQueuesWorkQueuesFilterPostResponseNameRegExp),
+	description: zod.string().or(zod.null()).optional(),
+	is_paused: zod.boolean().optional(),
+	concurrency_limit: zod
+		.number()
+		.min(readWorkQueuesWorkQueuesFilterPostResponseConcurrencyLimitMinOne)
+		.or(zod.null())
+		.optional(),
+	priority: zod
+		.number()
+		.default(readWorkQueuesWorkQueuesFilterPostResponsePriorityDefault),
+	work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+	filter: zod
+		.object({
+			tags: zod.array(zod.string()).or(zod.null()).optional(),
+			deployment_ids: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	status: zod.enum(["READY", "NOT_READY", "PAUSED"]).or(zod.null()).optional(),
+});
+export const readWorkQueuesWorkQueuesFilterPostResponse = zod.array(
+	readWorkQueuesWorkQueuesFilterPostResponseItem,
+);
 
 /**
  * Get the status of a work queue.
  * @summary Read Work Queue Status
  */
 export const readWorkQueueStatusWorkQueuesIdStatusGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readWorkQueueStatusWorkQueuesIdStatusGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readWorkQueueStatusWorkQueuesIdStatusGetResponseLateRunsCountDefault = 0;export const readWorkQueueStatusWorkQueuesIdStatusGetResponseHealthCheckPolicyMaximumLateRunsDefault = 0;export const readWorkQueueStatusWorkQueuesIdStatusGetResponseHealthCheckPolicyMaximumSecondsSinceLastPolledDefault = 60;
+export const readWorkQueueStatusWorkQueuesIdStatusGetResponseLateRunsCountDefault = 0;
+export const readWorkQueueStatusWorkQueuesIdStatusGetResponseHealthCheckPolicyMaximumLateRunsDefault = 0;
+export const readWorkQueueStatusWorkQueuesIdStatusGetResponseHealthCheckPolicyMaximumSecondsSinceLastPolledDefault = 60;
 
 export const readWorkQueueStatusWorkQueuesIdStatusGetResponse = zod.object({
-  "healthy": zod.boolean(),
-  "late_runs_count": zod.number().optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "health_check_policy": zod.object({
-  "maximum_late_runs": zod.number().or(zod.null()).optional(),
-  "maximum_seconds_since_last_polled": zod.number().or(zod.null()).default(readWorkQueueStatusWorkQueuesIdStatusGetResponseHealthCheckPolicyMaximumSecondsSinceLastPolledDefault)
-})
-})
-
+	healthy: zod.boolean(),
+	late_runs_count: zod.number().optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	health_check_policy: zod.object({
+		maximum_late_runs: zod.number().or(zod.null()).optional(),
+		maximum_seconds_since_last_polled: zod
+			.number()
+			.or(zod.null())
+			.default(
+				readWorkQueueStatusWorkQueuesIdStatusGetResponseHealthCheckPolicyMaximumSecondsSinceLastPolledDefault,
+			),
+	}),
+});

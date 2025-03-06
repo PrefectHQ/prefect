@@ -4,29 +4,25 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Create or update a CSRF token for a client
  * @summary Create Csrf Token
  */
 export const createCsrfTokenCsrfTokenGetQueryParams = zod.object({
-  "client": zod.string()
-})
+	client: zod.string(),
+});
 
 export const createCsrfTokenCsrfTokenGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const createCsrfTokenCsrfTokenGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "token": zod.string(),
-  "client": zod.string(),
-  "expiration": zod.string().datetime()
-})
-
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	token: zod.string(),
+	client: zod.string(),
+	expiration: zod.string().datetime(),
+});

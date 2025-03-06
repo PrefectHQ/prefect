@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Gracefully creates a new deployment from the provided schema. If a deployment with
@@ -20,1298 +17,2343 @@ For more information, see https://docs.prefect.io/v3/deploy.
  * @summary Create Deployment
  */
 export const createDeploymentDeploymentsPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const createDeploymentDeploymentsPostBodyPausedDefault = false;export const createDeploymentDeploymentsPostBodySchedulesItemActiveDefault = true;export const createDeploymentDeploymentsPostBodySchedulesItemScheduleDayOrDefault = true;export const createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSix = "UTC";export const createDeploymentDeploymentsPostBodyEnforceParameterSchemaDefault = true;
+export const createDeploymentDeploymentsPostBodyPausedDefault = false;
+export const createDeploymentDeploymentsPostBodySchedulesItemActiveDefault = true;
+export const createDeploymentDeploymentsPostBodySchedulesItemScheduleDayOrDefault = true;
+export const createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
+export const createDeploymentDeploymentsPostBodyEnforceParameterSchemaDefault = true;
 
 export const createDeploymentDeploymentsPostBody = zod.object({
-  "name": zod.string(),
-  "flow_id": zod.string().uuid(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "active": zod.boolean().default(createDeploymentDeploymentsPostBodySchedulesItemActiveDefault),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(createDeploymentDeploymentsPostBodySchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneRegExpSeven).default(createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSix)
-})),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
+	name: zod.string(),
+	flow_id: zod.string().uuid(),
+	paused: zod.boolean().optional(),
+	schedules: zod
+		.array(
+			zod.object({
+				active: zod
+					.boolean()
+					.default(
+						createDeploymentDeploymentsPostBodySchedulesItemActiveDefault,
+					),
+				schedule: zod
+					.object({
+						interval: zod.number(),
+						anchor_date: zod.string().datetime().optional(),
+						timezone: zod.string().or(zod.null()).optional(),
+					})
+					.or(
+						zod.object({
+							cron: zod.string(),
+							timezone: zod.string().or(zod.null()).optional(),
+							day_or: zod
+								.boolean()
+								.default(
+									createDeploymentDeploymentsPostBodySchedulesItemScheduleDayOrDefault,
+								),
+						}),
+					)
+					.or(
+						zod.object({
+							rrule: zod.string(),
+							timezone: zod
+								.string()
+								.regex(
+									createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneRegExpSeven,
+								)
+								.default(
+									createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSeven,
+								)
+								.or(zod.null())
+								.default(
+									createDeploymentDeploymentsPostBodySchedulesItemScheduleTimezoneDefaultSix,
+								),
+						}),
+					),
+				max_scheduled_runs: zod.number().or(zod.null()).optional(),
+				parameters: zod.object({}).optional(),
+				slug: zod.string().or(zod.null()).optional(),
+			}),
+		)
+		.optional(),
+	concurrency_limit: zod.number().or(zod.null()).optional(),
+	concurrency_options: zod
+		.object({
+			collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+		})
+		.or(zod.null())
+		.optional(),
+	enforce_parameter_schema: zod
+		.boolean()
+		.default(createDeploymentDeploymentsPostBodyEnforceParameterSchemaDefault),
+	parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+	parameters: zod.record(zod.string(), zod.any()).optional(),
+	tags: zod.array(zod.string()).optional(),
+	labels: zod
+		.record(
+			zod.string(),
+			zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+		)
+		.or(zod.null())
+		.optional(),
+	pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+	work_queue_name: zod.string().or(zod.null()).optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+	infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	path: zod.string().or(zod.null()).optional(),
+	version: zod.string().or(zod.null()).optional(),
+	entrypoint: zod.string().or(zod.null()).optional(),
+	job_variables: zod.record(zod.string(), zod.any()).optional(),
+});
 
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "enforce_parameter_schema": zod.boolean().default(createDeploymentDeploymentsPostBodyEnforceParameterSchemaDefault),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "version": zod.string().or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).optional()
-})
-
-export const createDeploymentDeploymentsPostResponsePausedDefault = false;export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleDayOrDefault = true;export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSix = "UTC";export const createDeploymentDeploymentsPostResponseSchedulesItemActiveDefault = true;export const createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitActiveDefault = true;export const createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;export const createDeploymentDeploymentsPostResponseStatusDefault = "NOT_READY";export const createDeploymentDeploymentsPostResponseEnforceParameterSchemaDefault = true;
+export const createDeploymentDeploymentsPostResponsePausedDefault = false;
+export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleDayOrDefault = true;
+export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
+export const createDeploymentDeploymentsPostResponseSchedulesItemActiveDefault = true;
+export const createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitActiveDefault = true;
+export const createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;
+export const createDeploymentDeploymentsPostResponseStatusDefault = "NOT_READY";
+export const createDeploymentDeploymentsPostResponseEnforceParameterSchemaDefault = true;
 
 export const createDeploymentDeploymentsPostResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "version": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "flow_id": zod.string().uuid(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(createDeploymentDeploymentsPostResponseSchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneRegExpSeven).default(createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSix)
-})),
-  "active": zod.boolean().default(createDeploymentDeploymentsPostResponseSchedulesItemActiveDefault),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "global_concurrency_limit": zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "active": zod.boolean().default(createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitActiveDefault),
-  "name": zod.string(),
-  "limit": zod.number(),
-  "active_slots": zod.number(),
-  "slot_decay_per_second": zod.number().default(createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault)
-}).or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "updated_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY']).or(zod.null()).default(createDeploymentDeploymentsPostResponseStatusDefault),
-  "enforce_parameter_schema": zod.boolean().default(createDeploymentDeploymentsPostResponseEnforceParameterSchemaDefault)
-})
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string(),
+	version: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	flow_id: zod.string().uuid(),
+	paused: zod.boolean().optional(),
+	schedules: zod
+		.array(
+			zod.object({
+				id: zod.string().uuid(),
+				created: zod.string().datetime().or(zod.null()),
+				updated: zod.string().datetime().or(zod.null()),
+				deployment_id: zod.string().uuid().or(zod.null()).optional(),
+				schedule: zod
+					.object({
+						interval: zod.number(),
+						anchor_date: zod.string().datetime().optional(),
+						timezone: zod.string().or(zod.null()).optional(),
+					})
+					.or(
+						zod.object({
+							cron: zod.string(),
+							timezone: zod.string().or(zod.null()).optional(),
+							day_or: zod
+								.boolean()
+								.default(
+									createDeploymentDeploymentsPostResponseSchedulesItemScheduleDayOrDefault,
+								),
+						}),
+					)
+					.or(
+						zod.object({
+							rrule: zod.string(),
+							timezone: zod
+								.string()
+								.regex(
+									createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneRegExpSeven,
+								)
+								.default(
+									createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSeven,
+								)
+								.or(zod.null())
+								.default(
+									createDeploymentDeploymentsPostResponseSchedulesItemScheduleTimezoneDefaultSix,
+								),
+						}),
+					),
+				active: zod
+					.boolean()
+					.default(
+						createDeploymentDeploymentsPostResponseSchedulesItemActiveDefault,
+					),
+				max_scheduled_runs: zod.number().or(zod.null()).optional(),
+				parameters: zod.object({}).optional(),
+				slug: zod.string().or(zod.null()).optional(),
+			}),
+		)
+		.optional(),
+	concurrency_limit: zod.number().or(zod.null()).optional(),
+	global_concurrency_limit: zod
+		.object({
+			id: zod.string().uuid(),
+			created: zod.string().datetime().or(zod.null()),
+			updated: zod.string().datetime().or(zod.null()),
+			active: zod
+				.boolean()
+				.default(
+					createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitActiveDefault,
+				),
+			name: zod.string(),
+			limit: zod.number(),
+			active_slots: zod.number(),
+			slot_decay_per_second: zod
+				.number()
+				.default(
+					createDeploymentDeploymentsPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault,
+				),
+		})
+		.or(zod.null())
+		.optional(),
+	concurrency_options: zod
+		.object({
+			collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+		})
+		.or(zod.null())
+		.optional(),
+	job_variables: zod.object({}).optional(),
+	parameters: zod.object({}).optional(),
+	tags: zod.array(zod.string()).optional(),
+	labels: zod
+		.record(
+			zod.string(),
+			zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+		)
+		.optional(),
+	work_queue_name: zod.string().or(zod.null()).optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+	path: zod.string().or(zod.null()).optional(),
+	pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+	entrypoint: zod.string().or(zod.null()).optional(),
+	storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+	infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+	created_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	updated_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	status: zod
+		.enum(["READY", "NOT_READY"])
+		.or(zod.null())
+		.default(createDeploymentDeploymentsPostResponseStatusDefault),
+	enforce_parameter_schema: zod
+		.boolean()
+		.default(
+			createDeploymentDeploymentsPostResponseEnforceParameterSchemaDefault,
+		),
+});
 
 /**
  * @summary Update Deployment
  */
 export const updateDeploymentDeploymentsIdPatchParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const updateDeploymentDeploymentsIdPatchHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const updateDeploymentDeploymentsIdPatchBodyPausedDefault = false;export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleDayOrDefault = true;export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSix = "UTC";
+export const updateDeploymentDeploymentsIdPatchBodyPausedDefault = false;
+export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleDayOrDefault = true;
+export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
 
 export const updateDeploymentDeploymentsIdPatchBody = zod.object({
-  "version": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "active": zod.boolean().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneRegExpSeven).default(updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSix)
-})).or(zod.null()).optional(),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).or(zod.null()).optional(),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "enforce_parameter_schema": zod.boolean().or(zod.null()).optional()
-})
+	version: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	paused: zod.boolean().optional(),
+	schedules: zod
+		.array(
+			zod.object({
+				active: zod.boolean().or(zod.null()).optional(),
+				schedule: zod
+					.object({
+						interval: zod.number(),
+						anchor_date: zod.string().datetime().optional(),
+						timezone: zod.string().or(zod.null()).optional(),
+					})
+					.or(
+						zod.object({
+							cron: zod.string(),
+							timezone: zod.string().or(zod.null()).optional(),
+							day_or: zod
+								.boolean()
+								.default(
+									updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleDayOrDefault,
+								),
+						}),
+					)
+					.or(
+						zod.object({
+							rrule: zod.string(),
+							timezone: zod
+								.string()
+								.regex(
+									updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneRegExpSeven,
+								)
+								.default(
+									updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSeven,
+								)
+								.or(zod.null())
+								.default(
+									updateDeploymentDeploymentsIdPatchBodySchedulesItemScheduleTimezoneDefaultSix,
+								),
+						}),
+					)
+					.or(zod.null())
+					.optional(),
+				max_scheduled_runs: zod.number().or(zod.null()).optional(),
+				parameters: zod.object({}).optional(),
+				slug: zod.string().or(zod.null()).optional(),
+			}),
+		)
+		.optional(),
+	concurrency_limit: zod.number().or(zod.null()).optional(),
+	concurrency_options: zod
+		.object({
+			collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+		})
+		.or(zod.null())
+		.optional(),
+	parameters: zod.object({}).or(zod.null()).optional(),
+	parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+	tags: zod.array(zod.string()).optional(),
+	work_queue_name: zod.string().or(zod.null()).optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	path: zod.string().or(zod.null()).optional(),
+	job_variables: zod.object({}).or(zod.null()).optional(),
+	pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+	entrypoint: zod.string().or(zod.null()).optional(),
+	storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+	infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+	enforce_parameter_schema: zod.boolean().or(zod.null()).optional(),
+});
 
 /**
  * Get a deployment by id.
  * @summary Read Deployment
  */
 export const readDeploymentDeploymentsIdGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readDeploymentDeploymentsIdGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readDeploymentDeploymentsIdGetResponsePausedDefault = false;export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleDayOrDefault = true;export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSix = "UTC";export const readDeploymentDeploymentsIdGetResponseSchedulesItemActiveDefault = true;export const readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitActiveDefault = true;export const readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;export const readDeploymentDeploymentsIdGetResponseStatusDefault = "NOT_READY";export const readDeploymentDeploymentsIdGetResponseEnforceParameterSchemaDefault = true;
+export const readDeploymentDeploymentsIdGetResponsePausedDefault = false;
+export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleDayOrDefault = true;
+export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
+export const readDeploymentDeploymentsIdGetResponseSchedulesItemActiveDefault = true;
+export const readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitActiveDefault = true;
+export const readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;
+export const readDeploymentDeploymentsIdGetResponseStatusDefault = "NOT_READY";
+export const readDeploymentDeploymentsIdGetResponseEnforceParameterSchemaDefault = true;
 
 export const readDeploymentDeploymentsIdGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "version": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "flow_id": zod.string().uuid(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneRegExpSeven).default(readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSix)
-})),
-  "active": zod.boolean().default(readDeploymentDeploymentsIdGetResponseSchedulesItemActiveDefault),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "global_concurrency_limit": zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "active": zod.boolean().default(readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitActiveDefault),
-  "name": zod.string(),
-  "limit": zod.number(),
-  "active_slots": zod.number(),
-  "slot_decay_per_second": zod.number().default(readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault)
-}).or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "updated_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY']).or(zod.null()).default(readDeploymentDeploymentsIdGetResponseStatusDefault),
-  "enforce_parameter_schema": zod.boolean().default(readDeploymentDeploymentsIdGetResponseEnforceParameterSchemaDefault)
-})
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string(),
+	version: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	flow_id: zod.string().uuid(),
+	paused: zod.boolean().optional(),
+	schedules: zod
+		.array(
+			zod.object({
+				id: zod.string().uuid(),
+				created: zod.string().datetime().or(zod.null()),
+				updated: zod.string().datetime().or(zod.null()),
+				deployment_id: zod.string().uuid().or(zod.null()).optional(),
+				schedule: zod
+					.object({
+						interval: zod.number(),
+						anchor_date: zod.string().datetime().optional(),
+						timezone: zod.string().or(zod.null()).optional(),
+					})
+					.or(
+						zod.object({
+							cron: zod.string(),
+							timezone: zod.string().or(zod.null()).optional(),
+							day_or: zod
+								.boolean()
+								.default(
+									readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleDayOrDefault,
+								),
+						}),
+					)
+					.or(
+						zod.object({
+							rrule: zod.string(),
+							timezone: zod
+								.string()
+								.regex(
+									readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneRegExpSeven,
+								)
+								.default(
+									readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSeven,
+								)
+								.or(zod.null())
+								.default(
+									readDeploymentDeploymentsIdGetResponseSchedulesItemScheduleTimezoneDefaultSix,
+								),
+						}),
+					),
+				active: zod
+					.boolean()
+					.default(
+						readDeploymentDeploymentsIdGetResponseSchedulesItemActiveDefault,
+					),
+				max_scheduled_runs: zod.number().or(zod.null()).optional(),
+				parameters: zod.object({}).optional(),
+				slug: zod.string().or(zod.null()).optional(),
+			}),
+		)
+		.optional(),
+	concurrency_limit: zod.number().or(zod.null()).optional(),
+	global_concurrency_limit: zod
+		.object({
+			id: zod.string().uuid(),
+			created: zod.string().datetime().or(zod.null()),
+			updated: zod.string().datetime().or(zod.null()),
+			active: zod
+				.boolean()
+				.default(
+					readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitActiveDefault,
+				),
+			name: zod.string(),
+			limit: zod.number(),
+			active_slots: zod.number(),
+			slot_decay_per_second: zod
+				.number()
+				.default(
+					readDeploymentDeploymentsIdGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault,
+				),
+		})
+		.or(zod.null())
+		.optional(),
+	concurrency_options: zod
+		.object({
+			collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+		})
+		.or(zod.null())
+		.optional(),
+	job_variables: zod.object({}).optional(),
+	parameters: zod.object({}).optional(),
+	tags: zod.array(zod.string()).optional(),
+	labels: zod
+		.record(
+			zod.string(),
+			zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+		)
+		.optional(),
+	work_queue_name: zod.string().or(zod.null()).optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+	path: zod.string().or(zod.null()).optional(),
+	pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+	entrypoint: zod.string().or(zod.null()).optional(),
+	storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+	infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+	created_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	updated_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	status: zod
+		.enum(["READY", "NOT_READY"])
+		.or(zod.null())
+		.default(readDeploymentDeploymentsIdGetResponseStatusDefault),
+	enforce_parameter_schema: zod
+		.boolean()
+		.default(
+			readDeploymentDeploymentsIdGetResponseEnforceParameterSchemaDefault,
+		),
+});
 
 /**
  * Delete a deployment by id.
  * @summary Delete Deployment
  */
 export const deleteDeploymentDeploymentsIdDeleteParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const deleteDeploymentDeploymentsIdDeleteHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 /**
  * Get a deployment using the name of the flow and the deployment.
  * @summary Read Deployment By Name
  */
-export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetParams = zod.object({
-  "flow_name": zod.string(),
-  "deployment_name": zod.string()
-})
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetParams =
+	zod.object({
+		flow_name: zod.string(),
+		deployment_name: zod.string(),
+	});
 
-export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponsePausedDefault = false;export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleDayOrDefault = true;export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSix = "UTC";export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemActiveDefault = true;export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitActiveDefault = true;export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseStatusDefault = "NOT_READY";export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseEnforceParameterSchemaDefault = true;
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponsePausedDefault = false;
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleDayOrDefault = true;
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemActiveDefault = true;
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitActiveDefault = true;
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseStatusDefault =
+	"NOT_READY";
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseEnforceParameterSchemaDefault = true;
 
-export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "version": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "flow_id": zod.string().uuid(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneRegExpSeven).default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSix)
-})),
-  "active": zod.boolean().default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemActiveDefault),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "global_concurrency_limit": zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "active": zod.boolean().default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitActiveDefault),
-  "name": zod.string(),
-  "limit": zod.number(),
-  "active_slots": zod.number(),
-  "slot_decay_per_second": zod.number().default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault)
-}).or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "updated_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY']).or(zod.null()).default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseStatusDefault),
-  "enforce_parameter_schema": zod.boolean().default(readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseEnforceParameterSchemaDefault)
-})
+export const readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponse =
+	zod.object({
+		id: zod.string().uuid(),
+		created: zod.string().datetime().or(zod.null()),
+		updated: zod.string().datetime().or(zod.null()),
+		name: zod.string(),
+		version: zod.string().or(zod.null()).optional(),
+		description: zod.string().or(zod.null()).optional(),
+		flow_id: zod.string().uuid(),
+		paused: zod.boolean().optional(),
+		schedules: zod
+			.array(
+				zod.object({
+					id: zod.string().uuid(),
+					created: zod.string().datetime().or(zod.null()),
+					updated: zod.string().datetime().or(zod.null()),
+					deployment_id: zod.string().uuid().or(zod.null()).optional(),
+					schedule: zod
+						.object({
+							interval: zod.number(),
+							anchor_date: zod.string().datetime().optional(),
+							timezone: zod.string().or(zod.null()).optional(),
+						})
+						.or(
+							zod.object({
+								cron: zod.string(),
+								timezone: zod.string().or(zod.null()).optional(),
+								day_or: zod
+									.boolean()
+									.default(
+										readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleDayOrDefault,
+									),
+							}),
+						)
+						.or(
+							zod.object({
+								rrule: zod.string(),
+								timezone: zod
+									.string()
+									.regex(
+										readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneRegExpSeven,
+									)
+									.default(
+										readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSeven,
+									)
+									.or(zod.null())
+									.default(
+										readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemScheduleTimezoneDefaultSix,
+									),
+							}),
+						),
+					active: zod
+						.boolean()
+						.default(
+							readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseSchedulesItemActiveDefault,
+						),
+					max_scheduled_runs: zod.number().or(zod.null()).optional(),
+					parameters: zod.object({}).optional(),
+					slug: zod.string().or(zod.null()).optional(),
+				}),
+			)
+			.optional(),
+		concurrency_limit: zod.number().or(zod.null()).optional(),
+		global_concurrency_limit: zod
+			.object({
+				id: zod.string().uuid(),
+				created: zod.string().datetime().or(zod.null()),
+				updated: zod.string().datetime().or(zod.null()),
+				active: zod
+					.boolean()
+					.default(
+						readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitActiveDefault,
+					),
+				name: zod.string(),
+				limit: zod.number(),
+				active_slots: zod.number(),
+				slot_decay_per_second: zod
+					.number()
+					.default(
+						readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault,
+					),
+			})
+			.or(zod.null())
+			.optional(),
+		concurrency_options: zod
+			.object({
+				collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+			})
+			.or(zod.null())
+			.optional(),
+		job_variables: zod.object({}).optional(),
+		parameters: zod.object({}).optional(),
+		tags: zod.array(zod.string()).optional(),
+		labels: zod
+			.record(
+				zod.string(),
+				zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+			)
+			.optional(),
+		work_queue_name: zod.string().or(zod.null()).optional(),
+		last_polled: zod.string().datetime().or(zod.null()).optional(),
+		parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+		path: zod.string().or(zod.null()).optional(),
+		pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+		entrypoint: zod.string().or(zod.null()).optional(),
+		storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+		infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+		created_by: zod
+			.object({
+				id: zod.string().uuid().or(zod.null()).optional(),
+				type: zod.string().or(zod.null()).optional(),
+				display_value: zod.string().or(zod.null()).optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		updated_by: zod
+			.object({
+				id: zod.string().uuid().or(zod.null()).optional(),
+				type: zod.string().or(zod.null()).optional(),
+				display_value: zod.string().or(zod.null()).optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		work_pool_name: zod.string().or(zod.null()).optional(),
+		status: zod
+			.enum(["READY", "NOT_READY"])
+			.or(zod.null())
+			.default(
+				readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseStatusDefault,
+			),
+		enforce_parameter_schema: zod
+			.boolean()
+			.default(
+				readDeploymentByNameDeploymentsNameFlowNameDeploymentNameGetResponseEnforceParameterSchemaDefault,
+			),
+	});
 
 /**
  * Query for deployments.
  * @summary Read Deployments
  */
 export const readDeploymentsDeploymentsFilterPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const readDeploymentsDeploymentsFilterPostBodyOffsetDefault = 0;
 export const readDeploymentsDeploymentsFilterPostBodyOffsetMin = 0;
 export const readDeploymentsDeploymentsFilterPostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const readDeploymentsDeploymentsFilterPostBody = zod.object({
-  "offset": zod.number().min(readDeploymentsDeploymentsFilterPostBodyOffsetMin).optional(),
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pools": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_queues": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "startswith_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "sort": zod.enum(['CREATED_DESC', 'UPDATED_DESC', 'NAME_ASC', 'NAME_DESC']).optional(),
-  "limit": zod.number().optional()
-})
+	offset: zod
+		.number()
+		.min(readDeploymentsDeploymentsFilterPostBodyOffsetMin)
+		.optional(),
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pools: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_queues: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					startswith_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	sort: zod
+		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
+		.optional(),
+	limit: zod.number().optional(),
+});
 
-export const readDeploymentsDeploymentsFilterPostResponsePausedDefault = false;export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleDayOrDefault = true;export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSix = "UTC";export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemActiveDefault = true;export const readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitActiveDefault = true;export const readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;export const readDeploymentsDeploymentsFilterPostResponseStatusDefault = "NOT_READY";export const readDeploymentsDeploymentsFilterPostResponseEnforceParameterSchemaDefault = true;
+export const readDeploymentsDeploymentsFilterPostResponsePausedDefault = false;
+export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleDayOrDefault = true;
+export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
+export const readDeploymentsDeploymentsFilterPostResponseSchedulesItemActiveDefault = true;
+export const readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitActiveDefault = true;
+export const readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;
+export const readDeploymentsDeploymentsFilterPostResponseStatusDefault =
+	"NOT_READY";
+export const readDeploymentsDeploymentsFilterPostResponseEnforceParameterSchemaDefault = true;
 
 export const readDeploymentsDeploymentsFilterPostResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "version": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "flow_id": zod.string().uuid(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneRegExpSeven).default(readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSix)
-})),
-  "active": zod.boolean().default(readDeploymentsDeploymentsFilterPostResponseSchedulesItemActiveDefault),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "global_concurrency_limit": zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "active": zod.boolean().default(readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitActiveDefault),
-  "name": zod.string(),
-  "limit": zod.number(),
-  "active_slots": zod.number(),
-  "slot_decay_per_second": zod.number().default(readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault)
-}).or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "updated_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY']).or(zod.null()).default(readDeploymentsDeploymentsFilterPostResponseStatusDefault),
-  "enforce_parameter_schema": zod.boolean().default(readDeploymentsDeploymentsFilterPostResponseEnforceParameterSchemaDefault)
-})
-export const readDeploymentsDeploymentsFilterPostResponse = zod.array(readDeploymentsDeploymentsFilterPostResponseItem)
+	id: zod.string().uuid(),
+	created: zod.string().datetime().or(zod.null()),
+	updated: zod.string().datetime().or(zod.null()),
+	name: zod.string(),
+	version: zod.string().or(zod.null()).optional(),
+	description: zod.string().or(zod.null()).optional(),
+	flow_id: zod.string().uuid(),
+	paused: zod.boolean().optional(),
+	schedules: zod
+		.array(
+			zod.object({
+				id: zod.string().uuid(),
+				created: zod.string().datetime().or(zod.null()),
+				updated: zod.string().datetime().or(zod.null()),
+				deployment_id: zod.string().uuid().or(zod.null()).optional(),
+				schedule: zod
+					.object({
+						interval: zod.number(),
+						anchor_date: zod.string().datetime().optional(),
+						timezone: zod.string().or(zod.null()).optional(),
+					})
+					.or(
+						zod.object({
+							cron: zod.string(),
+							timezone: zod.string().or(zod.null()).optional(),
+							day_or: zod
+								.boolean()
+								.default(
+									readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleDayOrDefault,
+								),
+						}),
+					)
+					.or(
+						zod.object({
+							rrule: zod.string(),
+							timezone: zod
+								.string()
+								.regex(
+									readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneRegExpSeven,
+								)
+								.default(
+									readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSeven,
+								)
+								.or(zod.null())
+								.default(
+									readDeploymentsDeploymentsFilterPostResponseSchedulesItemScheduleTimezoneDefaultSix,
+								),
+						}),
+					),
+				active: zod
+					.boolean()
+					.default(
+						readDeploymentsDeploymentsFilterPostResponseSchedulesItemActiveDefault,
+					),
+				max_scheduled_runs: zod.number().or(zod.null()).optional(),
+				parameters: zod.object({}).optional(),
+				slug: zod.string().or(zod.null()).optional(),
+			}),
+		)
+		.optional(),
+	concurrency_limit: zod.number().or(zod.null()).optional(),
+	global_concurrency_limit: zod
+		.object({
+			id: zod.string().uuid(),
+			created: zod.string().datetime().or(zod.null()),
+			updated: zod.string().datetime().or(zod.null()),
+			active: zod
+				.boolean()
+				.default(
+					readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitActiveDefault,
+				),
+			name: zod.string(),
+			limit: zod.number(),
+			active_slots: zod.number(),
+			slot_decay_per_second: zod
+				.number()
+				.default(
+					readDeploymentsDeploymentsFilterPostResponseGlobalConcurrencyLimitSlotDecayPerSecondDefault,
+				),
+		})
+		.or(zod.null())
+		.optional(),
+	concurrency_options: zod
+		.object({
+			collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+		})
+		.or(zod.null())
+		.optional(),
+	job_variables: zod.object({}).optional(),
+	parameters: zod.object({}).optional(),
+	tags: zod.array(zod.string()).optional(),
+	labels: zod
+		.record(
+			zod.string(),
+			zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+		)
+		.optional(),
+	work_queue_name: zod.string().or(zod.null()).optional(),
+	last_polled: zod.string().datetime().or(zod.null()).optional(),
+	parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+	path: zod.string().or(zod.null()).optional(),
+	pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+	entrypoint: zod.string().or(zod.null()).optional(),
+	storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+	infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+	created_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	updated_by: zod
+		.object({
+			id: zod.string().uuid().or(zod.null()).optional(),
+			type: zod.string().or(zod.null()).optional(),
+			display_value: zod.string().or(zod.null()).optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_name: zod.string().or(zod.null()).optional(),
+	status: zod
+		.enum(["READY", "NOT_READY"])
+		.or(zod.null())
+		.default(readDeploymentsDeploymentsFilterPostResponseStatusDefault),
+	enforce_parameter_schema: zod
+		.boolean()
+		.default(
+			readDeploymentsDeploymentsFilterPostResponseEnforceParameterSchemaDefault,
+		),
+});
+export const readDeploymentsDeploymentsFilterPostResponse = zod.array(
+	readDeploymentsDeploymentsFilterPostResponseItem,
+);
 
 /**
  * Pagination query for flow runs.
  * @summary Paginate Deployments
  */
 export const paginateDeploymentsDeploymentsPaginatePostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const paginateDeploymentsDeploymentsPaginatePostBodyPageDefault = 1;export const paginateDeploymentsDeploymentsPaginatePostBodyTaskRunsFlowRunIdIsNullDefault = false;
+export const paginateDeploymentsDeploymentsPaginatePostBodyPageDefault = 1;
+export const paginateDeploymentsDeploymentsPaginatePostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const paginateDeploymentsDeploymentsPaginatePostBody = zod.object({
-  "page": zod.number().min(1).default(paginateDeploymentsDeploymentsPaginatePostBodyPageDefault),
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pools": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_queues": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "startswith_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "sort": zod.enum(['CREATED_DESC', 'UPDATED_DESC', 'NAME_ASC', 'NAME_DESC']).optional(),
-  "limit": zod.number().optional()
-})
+	page: zod
+		.number()
+		.min(1)
+		.default(paginateDeploymentsDeploymentsPaginatePostBodyPageDefault),
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pools: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_queues: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					startswith_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	sort: zod
+		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
+		.optional(),
+	limit: zod.number().optional(),
+});
 
-export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemPausedDefault = false;export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleDayOrDefault = true;export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSeven = "UTC";export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSix = "UTC";export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemActiveDefault = true;export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitActiveDefault = true;export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemStatusDefault = "NOT_READY";export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemEnforceParameterSchemaDefault = true;
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemPausedDefault = false;
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleDayOrDefault = true;
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSeven =
+	"UTC";
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSix =
+	"UTC";
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemActiveDefault = true;
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitActiveDefault = true;
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitSlotDecayPerSecondDefault = 2;
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemStatusDefault =
+	"NOT_READY";
+export const paginateDeploymentsDeploymentsPaginatePostResponseResultsItemEnforceParameterSchemaDefault = true;
 
 export const paginateDeploymentsDeploymentsPaginatePostResponse = zod.object({
-  "results": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string(),
-  "version": zod.string().or(zod.null()).optional(),
-  "description": zod.string().or(zod.null()).optional(),
-  "flow_id": zod.string().uuid(),
-  "paused": zod.boolean().optional(),
-  "schedules": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneRegExpSeven).default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSeven).or(zod.null()).default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSix)
-})),
-  "active": zod.boolean().default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemActiveDefault),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})).optional(),
-  "concurrency_limit": zod.number().or(zod.null()).optional(),
-  "global_concurrency_limit": zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "active": zod.boolean().default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitActiveDefault),
-  "name": zod.string(),
-  "limit": zod.number(),
-  "active_slots": zod.number(),
-  "slot_decay_per_second": zod.number().default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitSlotDecayPerSecondDefault)
-}).or(zod.null()).optional(),
-  "concurrency_options": zod.object({
-  "collision_strategy": zod.enum(['ENQUEUE', 'CANCEL_NEW'])
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional(),
-  "parameter_openapi_schema": zod.object({
-
-}).or(zod.null()).optional(),
-  "path": zod.string().or(zod.null()).optional(),
-  "pull_steps": zod.array(zod.object({
-
-})).or(zod.null()).optional(),
-  "entrypoint": zod.string().or(zod.null()).optional(),
-  "storage_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "updated_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "status": zod.enum(['READY', 'NOT_READY']).or(zod.null()).default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemStatusDefault),
-  "enforce_parameter_schema": zod.boolean().default(paginateDeploymentsDeploymentsPaginatePostResponseResultsItemEnforceParameterSchemaDefault)
-})),
-  "count": zod.number(),
-  "limit": zod.number(),
-  "pages": zod.number(),
-  "page": zod.number()
-})
+	results: zod.array(
+		zod.object({
+			id: zod.string().uuid(),
+			created: zod.string().datetime().or(zod.null()),
+			updated: zod.string().datetime().or(zod.null()),
+			name: zod.string(),
+			version: zod.string().or(zod.null()).optional(),
+			description: zod.string().or(zod.null()).optional(),
+			flow_id: zod.string().uuid(),
+			paused: zod.boolean().optional(),
+			schedules: zod
+				.array(
+					zod.object({
+						id: zod.string().uuid(),
+						created: zod.string().datetime().or(zod.null()),
+						updated: zod.string().datetime().or(zod.null()),
+						deployment_id: zod.string().uuid().or(zod.null()).optional(),
+						schedule: zod
+							.object({
+								interval: zod.number(),
+								anchor_date: zod.string().datetime().optional(),
+								timezone: zod.string().or(zod.null()).optional(),
+							})
+							.or(
+								zod.object({
+									cron: zod.string(),
+									timezone: zod.string().or(zod.null()).optional(),
+									day_or: zod
+										.boolean()
+										.default(
+											paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleDayOrDefault,
+										),
+								}),
+							)
+							.or(
+								zod.object({
+									rrule: zod.string(),
+									timezone: zod
+										.string()
+										.regex(
+											paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneRegExpSeven,
+										)
+										.default(
+											paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSeven,
+										)
+										.or(zod.null())
+										.default(
+											paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemScheduleTimezoneDefaultSix,
+										),
+								}),
+							),
+						active: zod
+							.boolean()
+							.default(
+								paginateDeploymentsDeploymentsPaginatePostResponseResultsItemSchedulesItemActiveDefault,
+							),
+						max_scheduled_runs: zod.number().or(zod.null()).optional(),
+						parameters: zod.object({}).optional(),
+						slug: zod.string().or(zod.null()).optional(),
+					}),
+				)
+				.optional(),
+			concurrency_limit: zod.number().or(zod.null()).optional(),
+			global_concurrency_limit: zod
+				.object({
+					id: zod.string().uuid(),
+					created: zod.string().datetime().or(zod.null()),
+					updated: zod.string().datetime().or(zod.null()),
+					active: zod
+						.boolean()
+						.default(
+							paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitActiveDefault,
+						),
+					name: zod.string(),
+					limit: zod.number(),
+					active_slots: zod.number(),
+					slot_decay_per_second: zod
+						.number()
+						.default(
+							paginateDeploymentsDeploymentsPaginatePostResponseResultsItemGlobalConcurrencyLimitSlotDecayPerSecondDefault,
+						),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_options: zod
+				.object({
+					collision_strategy: zod.enum(["ENQUEUE", "CANCEL_NEW"]),
+				})
+				.or(zod.null())
+				.optional(),
+			job_variables: zod.object({}).optional(),
+			parameters: zod.object({}).optional(),
+			tags: zod.array(zod.string()).optional(),
+			labels: zod
+				.record(
+					zod.string(),
+					zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+				)
+				.optional(),
+			work_queue_name: zod.string().or(zod.null()).optional(),
+			last_polled: zod.string().datetime().or(zod.null()).optional(),
+			parameter_openapi_schema: zod.object({}).or(zod.null()).optional(),
+			path: zod.string().or(zod.null()).optional(),
+			pull_steps: zod.array(zod.object({})).or(zod.null()).optional(),
+			entrypoint: zod.string().or(zod.null()).optional(),
+			storage_document_id: zod.string().uuid().or(zod.null()).optional(),
+			infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+			created_by: zod
+				.object({
+					id: zod.string().uuid().or(zod.null()).optional(),
+					type: zod.string().or(zod.null()).optional(),
+					display_value: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			updated_by: zod
+				.object({
+					id: zod.string().uuid().or(zod.null()).optional(),
+					type: zod.string().or(zod.null()).optional(),
+					display_value: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_pool_name: zod.string().or(zod.null()).optional(),
+			status: zod
+				.enum(["READY", "NOT_READY"])
+				.or(zod.null())
+				.default(
+					paginateDeploymentsDeploymentsPaginatePostResponseResultsItemStatusDefault,
+				),
+			enforce_parameter_schema: zod
+				.boolean()
+				.default(
+					paginateDeploymentsDeploymentsPaginatePostResponseResultsItemEnforceParameterSchemaDefault,
+				),
+		}),
+	),
+	count: zod.number(),
+	limit: zod.number(),
+	pages: zod.number(),
+	page: zod.number(),
+});
 
 /**
  * Get scheduled runs for a set of deployments. Used by a runner to poll for work.
  * @summary Get Scheduled Flow Runs For Deployments
  */
-export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostBody = zod.object({
-  "deployment_ids": zod.array(zod.string().uuid()),
-  "scheduled_before": zod.string().datetime().optional(),
-  "limit": zod.number().optional()
-})
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostBody =
+	zod.object({
+		deployment_ids: zod.array(zod.string().uuid()),
+		scheduled_before: zod.string().datetime().optional(),
+		limit: zod.number().optional(),
+	});
 
-export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEmpiricalPolicyMaxRetriesDefault = 0;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEmpiricalPolicyRetryDelaySecondsDefault = 0;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEmpiricalPolicyResumingDefault = false;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseRunCountDefault = 0;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseTotalRunTimeDefault = 0;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEstimatedRunTimeDefault = 0;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEstimatedStartTimeDeltaDefault = 0;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseAutoScheduledDefault = false;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseStateStateDetailsDeferredDefault = false;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseStateStateDetailsUntrackableResultDefault = false;export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseStateStateDetailsPauseRescheduleDefault = false;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEmpiricalPolicyMaxRetriesDefault = 0;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEmpiricalPolicyRetryDelaySecondsDefault = 0;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEmpiricalPolicyResumingDefault = false;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseRunCountDefault = 0;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseTotalRunTimeDefault = 0;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEstimatedRunTimeDefault = 0;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseEstimatedStartTimeDeltaDefault = 0;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseAutoScheduledDefault = false;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseStateStateDetailsDeferredDefault = false;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseStateStateDetailsUntrackableResultDefault = false;
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseStateStateDetailsPauseRescheduleDefault = false;
 
-export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().optional(),
-  "flow_id": zod.string().uuid(),
-  "state_id": zod.string().uuid().or(zod.null()).optional(),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "deployment_version": zod.string().or(zod.null()).optional(),
-  "work_queue_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "flow_version": zod.string().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "idempotency_key": zod.string().or(zod.null()).optional(),
-  "context": zod.object({
-
-}).optional(),
-  "empirical_policy": zod.object({
-  "max_retries": zod.number().optional(),
-  "retry_delay_seconds": zod.number().optional(),
-  "retries": zod.number().or(zod.null()).optional(),
-  "retry_delay": zod.number().or(zod.null()).optional(),
-  "pause_keys": zod.array(zod.string()).or(zod.null()).optional(),
-  "resuming": zod.boolean().or(zod.null()).optional(),
-  "retry_type": zod.enum(['in_process', 'reschedule']).or(zod.null()).optional()
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "parent_task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "state_type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']).or(zod.null()).optional(),
-  "state_name": zod.string().or(zod.null()).optional(),
-  "run_count": zod.number().optional(),
-  "expected_start_time": zod.string().datetime().or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.string().datetime().or(zod.null()).optional(),
-  "start_time": zod.string().datetime().or(zod.null()).optional(),
-  "end_time": zod.string().datetime().or(zod.null()).optional(),
-  "total_run_time": zod.number().optional(),
-  "estimated_run_time": zod.number().optional(),
-  "estimated_start_time_delta": zod.number().optional(),
-  "auto_scheduled": zod.boolean().optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_pid": zod.string().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "state": zod.object({
-  "id": zod.string().uuid(),
-  "type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']),
-  "name": zod.string().or(zod.null()).optional(),
-  "timestamp": zod.string().datetime().optional(),
-  "message": zod.string().or(zod.null()).optional(),
-  "data": zod.any().or(zod.null()).optional(),
-  "state_details": zod.object({
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "child_flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "scheduled_time": zod.string().datetime().or(zod.null()).optional(),
-  "cache_key": zod.string().or(zod.null()).optional(),
-  "cache_expiration": zod.string().datetime().or(zod.null()).optional(),
-  "deferred": zod.boolean().or(zod.null()).optional(),
-  "untrackable_result": zod.boolean().optional(),
-  "pause_timeout": zod.string().datetime().or(zod.null()).optional(),
-  "pause_reschedule": zod.boolean().optional(),
-  "pause_key": zod.string().or(zod.null()).optional(),
-  "run_input_keyset": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "refresh_cache": zod.boolean().or(zod.null()).optional(),
-  "retriable": zod.boolean().or(zod.null()).optional(),
-  "transition_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_parameters_id": zod.string().uuid().or(zod.null()).optional(),
-  "traceparent": zod.string().or(zod.null()).optional()
-}).optional()
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).or(zod.null()).optional()
-})
-export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponse = zod.array(getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseItem)
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseItem =
+	zod.object({
+		id: zod.string().uuid(),
+		created: zod.string().datetime().or(zod.null()),
+		updated: zod.string().datetime().or(zod.null()),
+		name: zod.string().optional(),
+		flow_id: zod.string().uuid(),
+		state_id: zod.string().uuid().or(zod.null()).optional(),
+		deployment_id: zod.string().uuid().or(zod.null()).optional(),
+		deployment_version: zod.string().or(zod.null()).optional(),
+		work_queue_id: zod.string().uuid().or(zod.null()).optional(),
+		work_queue_name: zod.string().or(zod.null()).optional(),
+		flow_version: zod.string().or(zod.null()).optional(),
+		parameters: zod.object({}).optional(),
+		idempotency_key: zod.string().or(zod.null()).optional(),
+		context: zod.object({}).optional(),
+		empirical_policy: zod
+			.object({
+				max_retries: zod.number().optional(),
+				retry_delay_seconds: zod.number().optional(),
+				retries: zod.number().or(zod.null()).optional(),
+				retry_delay: zod.number().or(zod.null()).optional(),
+				pause_keys: zod.array(zod.string()).or(zod.null()).optional(),
+				resuming: zod.boolean().or(zod.null()).optional(),
+				retry_type: zod
+					.enum(["in_process", "reschedule"])
+					.or(zod.null())
+					.optional(),
+			})
+			.optional(),
+		tags: zod.array(zod.string()).optional(),
+		labels: zod
+			.record(
+				zod.string(),
+				zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+			)
+			.optional(),
+		parent_task_run_id: zod.string().uuid().or(zod.null()).optional(),
+		state_type: zod
+			.enum([
+				"SCHEDULED",
+				"PENDING",
+				"RUNNING",
+				"COMPLETED",
+				"FAILED",
+				"CANCELLED",
+				"CRASHED",
+				"PAUSED",
+				"CANCELLING",
+			])
+			.or(zod.null())
+			.optional(),
+		state_name: zod.string().or(zod.null()).optional(),
+		run_count: zod.number().optional(),
+		expected_start_time: zod.string().datetime().or(zod.null()).optional(),
+		next_scheduled_start_time: zod
+			.string()
+			.datetime()
+			.or(zod.null())
+			.optional(),
+		start_time: zod.string().datetime().or(zod.null()).optional(),
+		end_time: zod.string().datetime().or(zod.null()).optional(),
+		total_run_time: zod.number().optional(),
+		estimated_run_time: zod.number().optional(),
+		estimated_start_time_delta: zod.number().optional(),
+		auto_scheduled: zod.boolean().optional(),
+		infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+		infrastructure_pid: zod.string().or(zod.null()).optional(),
+		created_by: zod
+			.object({
+				id: zod.string().uuid().or(zod.null()).optional(),
+				type: zod.string().or(zod.null()).optional(),
+				display_value: zod.string().or(zod.null()).optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+		work_pool_name: zod.string().or(zod.null()).optional(),
+		state: zod
+			.object({
+				id: zod.string().uuid(),
+				type: zod.enum([
+					"SCHEDULED",
+					"PENDING",
+					"RUNNING",
+					"COMPLETED",
+					"FAILED",
+					"CANCELLED",
+					"CRASHED",
+					"PAUSED",
+					"CANCELLING",
+				]),
+				name: zod.string().or(zod.null()).optional(),
+				timestamp: zod.string().datetime().optional(),
+				message: zod.string().or(zod.null()).optional(),
+				data: zod.any().or(zod.null()).optional(),
+				state_details: zod
+					.object({
+						flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+						task_run_id: zod.string().uuid().or(zod.null()).optional(),
+						child_flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+						scheduled_time: zod.string().datetime().or(zod.null()).optional(),
+						cache_key: zod.string().or(zod.null()).optional(),
+						cache_expiration: zod.string().datetime().or(zod.null()).optional(),
+						deferred: zod.boolean().or(zod.null()).optional(),
+						untrackable_result: zod.boolean().optional(),
+						pause_timeout: zod.string().datetime().or(zod.null()).optional(),
+						pause_reschedule: zod.boolean().optional(),
+						pause_key: zod.string().or(zod.null()).optional(),
+						run_input_keyset: zod
+							.record(zod.string(), zod.string())
+							.or(zod.null())
+							.optional(),
+						refresh_cache: zod.boolean().or(zod.null()).optional(),
+						retriable: zod.boolean().or(zod.null()).optional(),
+						transition_id: zod.string().uuid().or(zod.null()).optional(),
+						task_parameters_id: zod.string().uuid().or(zod.null()).optional(),
+						traceparent: zod.string().or(zod.null()).optional(),
+					})
+					.optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		job_variables: zod.object({}).or(zod.null()).optional(),
+	});
+export const getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponse =
+	zod.array(
+		getScheduledFlowRunsForDeploymentsDeploymentsGetScheduledFlowRunsPostResponseItem,
+	);
 
 /**
  * Count deployments.
  * @summary Count Deployments
  */
 export const countDeploymentsDeploymentsCountPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const countDeploymentsDeploymentsCountPostBodyTaskRunsFlowRunIdIsNullDefault = false;
 
 export const countDeploymentsDeploymentsCountPostBody = zod.object({
-  "flows": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployment_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_version": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "end_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "parent_task_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "idempotency_key": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "not_any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "task_runs": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "state": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING'])).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "expected_start_time": zod.object({
-  "before_": zod.string().datetime().or(zod.null()).optional(),
-  "after_": zod.string().datetime().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "subflow_runs": zod.object({
-  "exists_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_run_id": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "deployments": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "flow_or_deployment_name": zod.object({
-  "like_": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "paused": zod.object({
-  "eq_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "tags": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "all_": zod.array(zod.string()).or(zod.null()).optional(),
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_queue_name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "concurrency_limit": zod.object({
-  "ge_": zod.number().or(zod.null()).optional(),
-  "le_": zod.number().or(zod.null()).optional(),
-  "is_null_": zod.boolean().or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pools": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "type": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_queues": zod.object({
-  "operator": zod.enum(['and_', 'or_']).optional(),
-  "id": zod.object({
-  "any_": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "name": zod.object({
-  "any_": zod.array(zod.string()).or(zod.null()).optional(),
-  "startswith_": zod.array(zod.string()).or(zod.null()).optional()
-}).or(zod.null()).optional()
-}).or(zod.null()).optional()
-})
+	flows: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	flow_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			deployment_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+							not_any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+							not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_version: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			end_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			next_scheduled_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			parent_task_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			idempotency_key: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					not_any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	task_runs: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			state: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					type: zod
+						.object({
+							any_: zod
+								.array(
+									zod.enum([
+										"SCHEDULED",
+										"PENDING",
+										"RUNNING",
+										"COMPLETED",
+										"FAILED",
+										"CANCELLED",
+										"CRASHED",
+										"PAUSED",
+										"CANCELLING",
+									]),
+								)
+								.or(zod.null())
+								.optional(),
+						})
+						.or(zod.null())
+						.optional(),
+					name: zod
+						.object({
+							any_: zod.array(zod.string()).or(zod.null()).optional(),
+						})
+						.or(zod.null())
+						.optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			expected_start_time: zod
+				.object({
+					before_: zod.string().datetime().or(zod.null()).optional(),
+					after_: zod.string().datetime().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			subflow_runs: zod
+				.object({
+					exists_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_run_id: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	deployments: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			flow_or_deployment_name: zod
+				.object({
+					like_: zod.string().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			paused: zod
+				.object({
+					eq_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			tags: zod
+				.object({
+					operator: zod.enum(["and_", "or_"]).optional(),
+					all_: zod.array(zod.string()).or(zod.null()).optional(),
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			work_queue_name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			concurrency_limit: zod
+				.object({
+					ge_: zod.number().or(zod.null()).optional(),
+					le_: zod.number().or(zod.null()).optional(),
+					is_null_: zod.boolean().or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pools: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			type: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+	work_pool_queues: zod
+		.object({
+			operator: zod.enum(["and_", "or_"]).optional(),
+			id: zod
+				.object({
+					any_: zod.array(zod.string().uuid()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+			name: zod
+				.object({
+					any_: zod.array(zod.string()).or(zod.null()).optional(),
+					startswith_: zod.array(zod.string()).or(zod.null()).optional(),
+				})
+				.or(zod.null())
+				.optional(),
+		})
+		.or(zod.null())
+		.optional(),
+});
 
-export const countDeploymentsDeploymentsCountPostResponse = zod.number()
+export const countDeploymentsDeploymentsCountPostResponse = zod.number();
 
 /**
  * Schedule runs for a deployment. For backfills, provide start/end times in the past.
@@ -1328,51 +2370,59 @@ will be respected.
  * @summary Schedule Deployment
  */
 export const scheduleDeploymentDeploymentsIdSchedulePostParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const scheduleDeploymentDeploymentsIdSchedulePostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const scheduleDeploymentDeploymentsIdSchedulePostBody = zod.object({
-  "start_time": zod.string().datetime().optional(),
-  "end_time": zod.string().datetime().optional(),
-  "min_time": zod.number().optional(),
-  "min_runs": zod.number().optional(),
-  "max_runs": zod.number().optional()
-})
+	start_time: zod.string().datetime().optional(),
+	end_time: zod.string().datetime().optional(),
+	min_time: zod.number().optional(),
+	min_runs: zod.number().optional(),
+	max_runs: zod.number().optional(),
+});
 
-export const scheduleDeploymentDeploymentsIdSchedulePostResponse = zod.any()
+export const scheduleDeploymentDeploymentsIdSchedulePostResponse = zod.any();
 
 /**
  * Set a deployment schedule to active. Runs will be scheduled immediately.
  * @summary Resume Deployment
  */
-export const resumeDeploymentDeploymentsIdResumeDeploymentPostParams = zod.object({
-  "id": zod.string().uuid()
-})
+export const resumeDeploymentDeploymentsIdResumeDeploymentPostParams =
+	zod.object({
+		id: zod.string().uuid(),
+	});
 
-export const resumeDeploymentDeploymentsIdResumeDeploymentPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const resumeDeploymentDeploymentsIdResumeDeploymentPostHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const resumeDeploymentDeploymentsIdResumeDeploymentPostResponse = zod.any()
+export const resumeDeploymentDeploymentsIdResumeDeploymentPostResponse =
+	zod.any();
 
 /**
  * Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
 state will be deleted.
  * @summary Pause Deployment
  */
-export const pauseDeploymentDeploymentsIdPauseDeploymentPostParams = zod.object({
-  "id": zod.string().uuid()
-})
+export const pauseDeploymentDeploymentsIdPauseDeploymentPostParams = zod.object(
+	{
+		id: zod.string().uuid(),
+	},
+);
 
-export const pauseDeploymentDeploymentsIdPauseDeploymentPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const pauseDeploymentDeploymentsIdPauseDeploymentPostHeader = zod.object(
+	{
+		"x-prefect-api-version": zod.string().optional(),
+	},
+);
 
-export const pauseDeploymentDeploymentsIdPauseDeploymentPostResponse = zod.any()
+export const pauseDeploymentDeploymentsIdPauseDeploymentPostResponse =
+	zod.any();
 
 /**
  * Create a flow run from a deployment.
@@ -1383,154 +2433,238 @@ If tags are not provided, the deployment's tags will be used.
 If no state is provided, the flow run will be created in a SCHEDULED state.
  * @summary Create Flow Run From Deployment
  */
-export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostParams = zod.object({
-  "id": zod.string().uuid()
-})
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostParams =
+	zod.object({
+		id: zod.string().uuid(),
+	});
 
-export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyStateStateDetailsDeferredDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyStateStateDetailsUntrackableResultDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyStateStateDetailsPauseRescheduleDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyEmpiricalPolicyMaxRetriesDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyEmpiricalPolicyRetryDelaySecondsDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyEmpiricalPolicyResumingDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyStateStateDetailsDeferredDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyStateStateDetailsUntrackableResultDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyStateStateDetailsPauseRescheduleDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyEmpiricalPolicyMaxRetriesDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyEmpiricalPolicyRetryDelaySecondsDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBodyEmpiricalPolicyResumingDefault = false;
 
-export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBody = zod.object({
-  "state": zod.object({
-  "type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']),
-  "name": zod.string().or(zod.null()).optional(),
-  "message": zod.string().or(zod.null()).optional(),
-  "data": zod.any().or(zod.null()).optional(),
-  "state_details": zod.object({
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "child_flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "scheduled_time": zod.string().datetime().or(zod.null()).optional(),
-  "cache_key": zod.string().or(zod.null()).optional(),
-  "cache_expiration": zod.string().datetime().or(zod.null()).optional(),
-  "deferred": zod.boolean().or(zod.null()).optional(),
-  "untrackable_result": zod.boolean().optional(),
-  "pause_timeout": zod.string().datetime().or(zod.null()).optional(),
-  "pause_reschedule": zod.boolean().optional(),
-  "pause_key": zod.string().or(zod.null()).optional(),
-  "run_input_keyset": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "refresh_cache": zod.boolean().or(zod.null()).optional(),
-  "retriable": zod.boolean().or(zod.null()).optional(),
-  "transition_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_parameters_id": zod.string().uuid().or(zod.null()).optional(),
-  "traceparent": zod.string().or(zod.null()).optional()
-}).optional()
-}).or(zod.null()).optional(),
-  "name": zod.string().optional(),
-  "parameters": zod.object({
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBody =
+	zod.object({
+		state: zod
+			.object({
+				type: zod.enum([
+					"SCHEDULED",
+					"PENDING",
+					"RUNNING",
+					"COMPLETED",
+					"FAILED",
+					"CANCELLED",
+					"CRASHED",
+					"PAUSED",
+					"CANCELLING",
+				]),
+				name: zod.string().or(zod.null()).optional(),
+				message: zod.string().or(zod.null()).optional(),
+				data: zod.any().or(zod.null()).optional(),
+				state_details: zod
+					.object({
+						flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+						task_run_id: zod.string().uuid().or(zod.null()).optional(),
+						child_flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+						scheduled_time: zod.string().datetime().or(zod.null()).optional(),
+						cache_key: zod.string().or(zod.null()).optional(),
+						cache_expiration: zod.string().datetime().or(zod.null()).optional(),
+						deferred: zod.boolean().or(zod.null()).optional(),
+						untrackable_result: zod.boolean().optional(),
+						pause_timeout: zod.string().datetime().or(zod.null()).optional(),
+						pause_reschedule: zod.boolean().optional(),
+						pause_key: zod.string().or(zod.null()).optional(),
+						run_input_keyset: zod
+							.record(zod.string(), zod.string())
+							.or(zod.null())
+							.optional(),
+						refresh_cache: zod.boolean().or(zod.null()).optional(),
+						retriable: zod.boolean().or(zod.null()).optional(),
+						transition_id: zod.string().uuid().or(zod.null()).optional(),
+						task_parameters_id: zod.string().uuid().or(zod.null()).optional(),
+						traceparent: zod.string().or(zod.null()).optional(),
+					})
+					.optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		name: zod.string().optional(),
+		parameters: zod.object({}).optional(),
+		enforce_parameter_schema: zod.boolean().or(zod.null()).optional(),
+		context: zod.object({}).optional(),
+		infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+		empirical_policy: zod
+			.object({
+				max_retries: zod.number().optional(),
+				retry_delay_seconds: zod.number().optional(),
+				retries: zod.number().or(zod.null()).optional(),
+				retry_delay: zod.number().or(zod.null()).optional(),
+				pause_keys: zod.array(zod.string()).or(zod.null()).optional(),
+				resuming: zod.boolean().or(zod.null()).optional(),
+				retry_type: zod
+					.enum(["in_process", "reschedule"])
+					.or(zod.null())
+					.optional(),
+			})
+			.optional(),
+		tags: zod.array(zod.string()).optional(),
+		idempotency_key: zod.string().or(zod.null()).optional(),
+		labels: zod
+			.record(
+				zod.string(),
+				zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+			)
+			.or(zod.null())
+			.optional(),
+		parent_task_run_id: zod.string().uuid().or(zod.null()).optional(),
+		work_queue_name: zod.string().or(zod.null()).optional(),
+		job_variables: zod.object({}).or(zod.null()).optional(),
+	});
 
-}).optional(),
-  "enforce_parameter_schema": zod.boolean().or(zod.null()).optional(),
-  "context": zod.object({
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEmpiricalPolicyMaxRetriesDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEmpiricalPolicyRetryDelaySecondsDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEmpiricalPolicyResumingDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseRunCountDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseTotalRunTimeDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEstimatedRunTimeDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEstimatedStartTimeDeltaDefault = 0;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseAutoScheduledDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseStateStateDetailsDeferredDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseStateStateDetailsUntrackableResultDefault = false;
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseStateStateDetailsPauseRescheduleDefault = false;
 
-}).optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "empirical_policy": zod.object({
-  "max_retries": zod.number().optional(),
-  "retry_delay_seconds": zod.number().optional(),
-  "retries": zod.number().or(zod.null()).optional(),
-  "retry_delay": zod.number().or(zod.null()).optional(),
-  "pause_keys": zod.array(zod.string()).or(zod.null()).optional(),
-  "resuming": zod.boolean().or(zod.null()).optional(),
-  "retry_type": zod.enum(['in_process', 'reschedule']).or(zod.null()).optional()
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "idempotency_key": zod.string().or(zod.null()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).or(zod.null()).optional(),
-  "parent_task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).or(zod.null()).optional()
-})
-
-export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEmpiricalPolicyMaxRetriesDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEmpiricalPolicyRetryDelaySecondsDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEmpiricalPolicyResumingDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseRunCountDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseTotalRunTimeDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEstimatedRunTimeDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseEstimatedStartTimeDeltaDefault = 0;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseAutoScheduledDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseStateStateDetailsDeferredDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseStateStateDetailsUntrackableResultDefault = false;export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponseStateStateDetailsPauseRescheduleDefault = false;
-
-export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponse = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().optional(),
-  "flow_id": zod.string().uuid(),
-  "state_id": zod.string().uuid().or(zod.null()).optional(),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "deployment_version": zod.string().or(zod.null()).optional(),
-  "work_queue_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_queue_name": zod.string().or(zod.null()).optional(),
-  "flow_version": zod.string().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "idempotency_key": zod.string().or(zod.null()).optional(),
-  "context": zod.object({
-
-}).optional(),
-  "empirical_policy": zod.object({
-  "max_retries": zod.number().optional(),
-  "retry_delay_seconds": zod.number().optional(),
-  "retries": zod.number().or(zod.null()).optional(),
-  "retry_delay": zod.number().or(zod.null()).optional(),
-  "pause_keys": zod.array(zod.string()).or(zod.null()).optional(),
-  "resuming": zod.boolean().or(zod.null()).optional(),
-  "retry_type": zod.enum(['in_process', 'reschedule']).or(zod.null()).optional()
-}).optional(),
-  "tags": zod.array(zod.string()).optional(),
-  "labels": zod.record(zod.string(), zod.boolean().or(zod.number()).or(zod.number()).or(zod.string())).optional(),
-  "parent_task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "state_type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']).or(zod.null()).optional(),
-  "state_name": zod.string().or(zod.null()).optional(),
-  "run_count": zod.number().optional(),
-  "expected_start_time": zod.string().datetime().or(zod.null()).optional(),
-  "next_scheduled_start_time": zod.string().datetime().or(zod.null()).optional(),
-  "start_time": zod.string().datetime().or(zod.null()).optional(),
-  "end_time": zod.string().datetime().or(zod.null()).optional(),
-  "total_run_time": zod.number().optional(),
-  "estimated_run_time": zod.number().optional(),
-  "estimated_start_time_delta": zod.number().optional(),
-  "auto_scheduled": zod.boolean().optional(),
-  "infrastructure_document_id": zod.string().uuid().or(zod.null()).optional(),
-  "infrastructure_pid": zod.string().or(zod.null()).optional(),
-  "created_by": zod.object({
-  "id": zod.string().uuid().or(zod.null()).optional(),
-  "type": zod.string().or(zod.null()).optional(),
-  "display_value": zod.string().or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "work_pool_name": zod.string().or(zod.null()).optional(),
-  "state": zod.object({
-  "id": zod.string().uuid(),
-  "type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']),
-  "name": zod.string().or(zod.null()).optional(),
-  "timestamp": zod.string().datetime().optional(),
-  "message": zod.string().or(zod.null()).optional(),
-  "data": zod.any().or(zod.null()).optional(),
-  "state_details": zod.object({
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "child_flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "scheduled_time": zod.string().datetime().or(zod.null()).optional(),
-  "cache_key": zod.string().or(zod.null()).optional(),
-  "cache_expiration": zod.string().datetime().or(zod.null()).optional(),
-  "deferred": zod.boolean().or(zod.null()).optional(),
-  "untrackable_result": zod.boolean().optional(),
-  "pause_timeout": zod.string().datetime().or(zod.null()).optional(),
-  "pause_reschedule": zod.boolean().optional(),
-  "pause_key": zod.string().or(zod.null()).optional(),
-  "run_input_keyset": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "refresh_cache": zod.boolean().or(zod.null()).optional(),
-  "retriable": zod.boolean().or(zod.null()).optional(),
-  "transition_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_parameters_id": zod.string().uuid().or(zod.null()).optional(),
-  "traceparent": zod.string().or(zod.null()).optional()
-}).optional()
-}).or(zod.null()).optional(),
-  "job_variables": zod.object({
-
-}).or(zod.null()).optional()
-})
+export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostResponse =
+	zod.object({
+		id: zod.string().uuid(),
+		created: zod.string().datetime().or(zod.null()),
+		updated: zod.string().datetime().or(zod.null()),
+		name: zod.string().optional(),
+		flow_id: zod.string().uuid(),
+		state_id: zod.string().uuid().or(zod.null()).optional(),
+		deployment_id: zod.string().uuid().or(zod.null()).optional(),
+		deployment_version: zod.string().or(zod.null()).optional(),
+		work_queue_id: zod.string().uuid().or(zod.null()).optional(),
+		work_queue_name: zod.string().or(zod.null()).optional(),
+		flow_version: zod.string().or(zod.null()).optional(),
+		parameters: zod.object({}).optional(),
+		idempotency_key: zod.string().or(zod.null()).optional(),
+		context: zod.object({}).optional(),
+		empirical_policy: zod
+			.object({
+				max_retries: zod.number().optional(),
+				retry_delay_seconds: zod.number().optional(),
+				retries: zod.number().or(zod.null()).optional(),
+				retry_delay: zod.number().or(zod.null()).optional(),
+				pause_keys: zod.array(zod.string()).or(zod.null()).optional(),
+				resuming: zod.boolean().or(zod.null()).optional(),
+				retry_type: zod
+					.enum(["in_process", "reschedule"])
+					.or(zod.null())
+					.optional(),
+			})
+			.optional(),
+		tags: zod.array(zod.string()).optional(),
+		labels: zod
+			.record(
+				zod.string(),
+				zod.boolean().or(zod.number()).or(zod.number()).or(zod.string()),
+			)
+			.optional(),
+		parent_task_run_id: zod.string().uuid().or(zod.null()).optional(),
+		state_type: zod
+			.enum([
+				"SCHEDULED",
+				"PENDING",
+				"RUNNING",
+				"COMPLETED",
+				"FAILED",
+				"CANCELLED",
+				"CRASHED",
+				"PAUSED",
+				"CANCELLING",
+			])
+			.or(zod.null())
+			.optional(),
+		state_name: zod.string().or(zod.null()).optional(),
+		run_count: zod.number().optional(),
+		expected_start_time: zod.string().datetime().or(zod.null()).optional(),
+		next_scheduled_start_time: zod
+			.string()
+			.datetime()
+			.or(zod.null())
+			.optional(),
+		start_time: zod.string().datetime().or(zod.null()).optional(),
+		end_time: zod.string().datetime().or(zod.null()).optional(),
+		total_run_time: zod.number().optional(),
+		estimated_run_time: zod.number().optional(),
+		estimated_start_time_delta: zod.number().optional(),
+		auto_scheduled: zod.boolean().optional(),
+		infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),
+		infrastructure_pid: zod.string().or(zod.null()).optional(),
+		created_by: zod
+			.object({
+				id: zod.string().uuid().or(zod.null()).optional(),
+				type: zod.string().or(zod.null()).optional(),
+				display_value: zod.string().or(zod.null()).optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+		work_pool_name: zod.string().or(zod.null()).optional(),
+		state: zod
+			.object({
+				id: zod.string().uuid(),
+				type: zod.enum([
+					"SCHEDULED",
+					"PENDING",
+					"RUNNING",
+					"COMPLETED",
+					"FAILED",
+					"CANCELLED",
+					"CRASHED",
+					"PAUSED",
+					"CANCELLING",
+				]),
+				name: zod.string().or(zod.null()).optional(),
+				timestamp: zod.string().datetime().optional(),
+				message: zod.string().or(zod.null()).optional(),
+				data: zod.any().or(zod.null()).optional(),
+				state_details: zod
+					.object({
+						flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+						task_run_id: zod.string().uuid().or(zod.null()).optional(),
+						child_flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+						scheduled_time: zod.string().datetime().or(zod.null()).optional(),
+						cache_key: zod.string().or(zod.null()).optional(),
+						cache_expiration: zod.string().datetime().or(zod.null()).optional(),
+						deferred: zod.boolean().or(zod.null()).optional(),
+						untrackable_result: zod.boolean().optional(),
+						pause_timeout: zod.string().datetime().or(zod.null()).optional(),
+						pause_reschedule: zod.boolean().optional(),
+						pause_key: zod.string().or(zod.null()).optional(),
+						run_input_keyset: zod
+							.record(zod.string(), zod.string())
+							.or(zod.null())
+							.optional(),
+						refresh_cache: zod.boolean().or(zod.null()).optional(),
+						retriable: zod.boolean().or(zod.null()).optional(),
+						transition_id: zod.string().uuid().or(zod.null()).optional(),
+						task_parameters_id: zod.string().uuid().or(zod.null()).optional(),
+						traceparent: zod.string().or(zod.null()).optional(),
+					})
+					.optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		job_variables: zod.object({}).or(zod.null()).optional(),
+	});
 
 /**
  * Get list of work-queues that are able to pick up the specified deployment.
@@ -1543,157 +2677,292 @@ between work queues and deployments.
  * @deprecated
  * @summary Work Queue Check For Deployment
  */
-export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetParams =
+	zod.object({
+		id: zod.string().uuid(),
+	});
 
-export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseNameRegExp = new RegExp('^[^/%&><]+$');
-export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseDescriptionDefault = "";export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseIsPausedDefault = false;export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseConcurrencyLimitMinOne = 0;
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseNameRegExp =
+	new RegExp("^[^/%&><]+$");
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseDescriptionDefault =
+	"";
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseIsPausedDefault = false;
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseConcurrencyLimitMinOne = 0;
 export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponsePriorityDefault = 1;
 
-export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "name": zod.string().regex(workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseNameRegExp),
-  "description": zod.string().or(zod.null()).optional(),
-  "is_paused": zod.boolean().optional(),
-  "concurrency_limit": zod.number().min(workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseConcurrencyLimitMinOne).or(zod.null()).optional(),
-  "priority": zod.number().default(workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponsePriorityDefault),
-  "work_pool_id": zod.string().uuid().or(zod.null()).optional(),
-  "filter": zod.object({
-  "tags": zod.array(zod.string()).or(zod.null()).optional(),
-  "deployment_ids": zod.array(zod.string().uuid()).or(zod.null()).optional()
-}).or(zod.null()).optional(),
-  "last_polled": zod.string().datetime().or(zod.null()).optional()
-})
-export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponse = zod.array(workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseItem)
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseItem =
+	zod.object({
+		id: zod.string().uuid(),
+		created: zod.string().datetime().or(zod.null()),
+		updated: zod.string().datetime().or(zod.null()),
+		name: zod
+			.string()
+			.regex(
+				workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseNameRegExp,
+			),
+		description: zod.string().or(zod.null()).optional(),
+		is_paused: zod.boolean().optional(),
+		concurrency_limit: zod
+			.number()
+			.min(
+				workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseConcurrencyLimitMinOne,
+			)
+			.or(zod.null())
+			.optional(),
+		priority: zod
+			.number()
+			.default(
+				workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponsePriorityDefault,
+			),
+		work_pool_id: zod.string().uuid().or(zod.null()).optional(),
+		filter: zod
+			.object({
+				tags: zod.array(zod.string()).or(zod.null()).optional(),
+				deployment_ids: zod
+					.array(zod.string().uuid())
+					.or(zod.null())
+					.optional(),
+			})
+			.or(zod.null())
+			.optional(),
+		last_polled: zod.string().datetime().or(zod.null()).optional(),
+	});
+export const workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponse =
+	zod.array(
+		workQueueCheckForDeploymentDeploymentsIdWorkQueueCheckGetResponseItem,
+	);
 
 /**
  * @summary Read Deployment Schedules
  */
-export const readDeploymentSchedulesDeploymentsIdSchedulesGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetParams =
+	zod.object({
+		id: zod.string().uuid(),
+	});
 
-export const readDeploymentSchedulesDeploymentsIdSchedulesGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleDayOrDefault = true;export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSeven = "UTC";export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSix = "UTC";export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseActiveDefault = true;
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleDayOrDefault = true;
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSeven =
+	"UTC";
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSix =
+	"UTC";
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseActiveDefault = true;
 
-export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "created": zod.string().datetime().or(zod.null()),
-  "updated": zod.string().datetime().or(zod.null()),
-  "deployment_id": zod.string().uuid().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneRegExpSeven).default(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSeven).or(zod.null()).default(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSix)
-})),
-  "active": zod.boolean().default(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseActiveDefault),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})
-export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponse = zod.array(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseItem)
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponseItem =
+	zod.object({
+		id: zod.string().uuid(),
+		created: zod.string().datetime().or(zod.null()),
+		updated: zod.string().datetime().or(zod.null()),
+		deployment_id: zod.string().uuid().or(zod.null()).optional(),
+		schedule: zod
+			.object({
+				interval: zod.number(),
+				anchor_date: zod.string().datetime().optional(),
+				timezone: zod.string().or(zod.null()).optional(),
+			})
+			.or(
+				zod.object({
+					cron: zod.string(),
+					timezone: zod.string().or(zod.null()).optional(),
+					day_or: zod
+						.boolean()
+						.default(
+							readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleDayOrDefault,
+						),
+				}),
+			)
+			.or(
+				zod.object({
+					rrule: zod.string(),
+					timezone: zod
+						.string()
+						.regex(
+							readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneRegExpSeven,
+						)
+						.default(
+							readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSeven,
+						)
+						.or(zod.null())
+						.default(
+							readDeploymentSchedulesDeploymentsIdSchedulesGetResponseScheduleTimezoneDefaultSix,
+						),
+				}),
+			),
+		active: zod
+			.boolean()
+			.default(
+				readDeploymentSchedulesDeploymentsIdSchedulesGetResponseActiveDefault,
+			),
+		max_scheduled_runs: zod.number().or(zod.null()).optional(),
+		parameters: zod.object({}).optional(),
+		slug: zod.string().or(zod.null()).optional(),
+	});
+export const readDeploymentSchedulesDeploymentsIdSchedulesGetResponse =
+	zod.array(readDeploymentSchedulesDeploymentsIdSchedulesGetResponseItem);
 
 /**
  * @summary Create Deployment Schedules
  */
-export const createDeploymentSchedulesDeploymentsIdSchedulesPostParams = zod.object({
-  "id": zod.string().uuid()
-})
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostParams =
+	zod.object({
+		id: zod.string().uuid(),
+	});
 
-export const createDeploymentSchedulesDeploymentsIdSchedulesPostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyActiveDefault = true;export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleDayOrDefault = true;export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSeven = "UTC";export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSix = "UTC";
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyActiveDefault = true;
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleDayOrDefault = true;
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSeven =
+	"UTC";
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSix =
+	"UTC";
 
-export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyItem = zod.object({
-  "active": zod.boolean().default(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyActiveDefault),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneRegExpSeven).default(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSeven).or(zod.null()).default(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSix)
-})),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})
-export const createDeploymentSchedulesDeploymentsIdSchedulesPostBody = zod.array(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyItem)
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBodyItem =
+	zod.object({
+		active: zod
+			.boolean()
+			.default(
+				createDeploymentSchedulesDeploymentsIdSchedulesPostBodyActiveDefault,
+			),
+		schedule: zod
+			.object({
+				interval: zod.number(),
+				anchor_date: zod.string().datetime().optional(),
+				timezone: zod.string().or(zod.null()).optional(),
+			})
+			.or(
+				zod.object({
+					cron: zod.string(),
+					timezone: zod.string().or(zod.null()).optional(),
+					day_or: zod
+						.boolean()
+						.default(
+							createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleDayOrDefault,
+						),
+				}),
+			)
+			.or(
+				zod.object({
+					rrule: zod.string(),
+					timezone: zod
+						.string()
+						.regex(
+							createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneRegExpSeven,
+						)
+						.default(
+							createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSeven,
+						)
+						.or(zod.null())
+						.default(
+							createDeploymentSchedulesDeploymentsIdSchedulesPostBodyScheduleTimezoneDefaultSix,
+						),
+				}),
+			),
+		max_scheduled_runs: zod.number().or(zod.null()).optional(),
+		parameters: zod.object({}).optional(),
+		slug: zod.string().or(zod.null()).optional(),
+	});
+export const createDeploymentSchedulesDeploymentsIdSchedulesPostBody =
+	zod.array(createDeploymentSchedulesDeploymentsIdSchedulesPostBodyItem);
 
 /**
  * @summary Update Deployment Schedule
  */
-export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchParams = zod.object({
-  "id": zod.string().uuid(),
-  "schedule_id": zod.string().uuid()
-})
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchParams =
+	zod.object({
+		id: zod.string().uuid(),
+		schedule_id: zod.string().uuid(),
+	});
 
-export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});
 
-export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleDayOrDefault = true;export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSeven = "UTC";export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneRegExpSeven = new RegExp('Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu');
-export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSix = "UTC";
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleDayOrDefault = true;
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSeven =
+	"UTC";
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneRegExpSeven =
+	new RegExp(
+		"Africa/Abidjan|Africa/Accra|Africa/Addis_Ababa|Africa/Algiers|Africa/Asmara|Africa/Asmera|Africa/Bamako|Africa/Bangui|Africa/Banjul|Africa/Bissau|Africa/Blantyre|Africa/Brazzaville|Africa/Bujumbura|Africa/Cairo|Africa/Casablanca|Africa/Ceuta|Africa/Conakry|Africa/Dakar|Africa/Dar_es_Salaam|Africa/Djibouti|Africa/Douala|Africa/El_Aaiun|Africa/Freetown|Africa/Gaborone|Africa/Harare|Africa/Johannesburg|Africa/Juba|Africa/Kampala|Africa/Khartoum|Africa/Kigali|Africa/Kinshasa|Africa/Lagos|Africa/Libreville|Africa/Lome|Africa/Luanda|Africa/Lubumbashi|Africa/Lusaka|Africa/Malabo|Africa/Maputo|Africa/Maseru|Africa/Mbabane|Africa/Mogadishu|Africa/Monrovia|Africa/Nairobi|Africa/Ndjamena|Africa/Niamey|Africa/Nouakchott|Africa/Ouagadougou|Africa/Porto-Novo|Africa/Sao_Tome|Africa/Timbuktu|Africa/Tripoli|Africa/Tunis|Africa/Windhoek|America/Adak|America/Anchorage|America/Anguilla|America/Antigua|America/Araguaina|America/Argentina/Buenos_Aires|America/Argentina/Catamarca|America/Argentina/ComodRivadavia|America/Argentina/Cordoba|America/Argentina/Jujuy|America/Argentina/La_Rioja|America/Argentina/Mendoza|America/Argentina/Rio_Gallegos|America/Argentina/Salta|America/Argentina/San_Juan|America/Argentina/San_Luis|America/Argentina/Tucuman|America/Argentina/Ushuaia|America/Aruba|America/Asuncion|America/Atikokan|America/Atka|America/Bahia|America/Bahia_Banderas|America/Barbados|America/Belem|America/Belize|America/Blanc-Sablon|America/Boa_Vista|America/Bogota|America/Boise|America/Buenos_Aires|America/Cambridge_Bay|America/Campo_Grande|America/Cancun|America/Caracas|America/Catamarca|America/Cayenne|America/Cayman|America/Chicago|America/Chihuahua|America/Ciudad_Juarez|America/Coral_Harbour|America/Cordoba|America/Costa_Rica|America/Creston|America/Cuiaba|America/Curacao|America/Danmarkshavn|America/Dawson|America/Dawson_Creek|America/Denver|America/Detroit|America/Dominica|America/Edmonton|America/Eirunepe|America/El_Salvador|America/Ensenada|America/Fort_Nelson|America/Fort_Wayne|America/Fortaleza|America/Glace_Bay|America/Godthab|America/Goose_Bay|America/Grand_Turk|America/Grenada|America/Guadeloupe|America/Guatemala|America/Guayaquil|America/Guyana|America/Halifax|America/Havana|America/Hermosillo|America/Indiana/Indianapolis|America/Indiana/Knox|America/Indiana/Marengo|America/Indiana/Petersburg|America/Indiana/Tell_City|America/Indiana/Vevay|America/Indiana/Vincennes|America/Indiana/Winamac|America/Indianapolis|America/Inuvik|America/Iqaluit|America/Jamaica|America/Jujuy|America/Juneau|America/Kentucky/Louisville|America/Kentucky/Monticello|America/Knox_IN|America/Kralendijk|America/La_Paz|America/Lima|America/Los_Angeles|America/Louisville|America/Lower_Princes|America/Maceio|America/Managua|America/Manaus|America/Marigot|America/Martinique|America/Matamoros|America/Mazatlan|America/Mendoza|America/Menominee|America/Merida|America/Metlakatla|America/Mexico_City|America/Miquelon|America/Moncton|America/Monterrey|America/Montevideo|America/Montreal|America/Montserrat|America/Nassau|America/New_York|America/Nipigon|America/Nome|America/Noronha|America/North_Dakota/Beulah|America/North_Dakota/Center|America/North_Dakota/New_Salem|America/Nuuk|America/Ojinaga|America/Panama|America/Pangnirtung|America/Paramaribo|America/Phoenix|America/Port-au-Prince|America/Port_of_Spain|America/Porto_Acre|America/Porto_Velho|America/Puerto_Rico|America/Punta_Arenas|America/Rainy_River|America/Rankin_Inlet|America/Recife|America/Regina|America/Resolute|America/Rio_Branco|America/Rosario|America/Santa_Isabel|America/Santarem|America/Santiago|America/Santo_Domingo|America/Sao_Paulo|America/Scoresbysund|America/Shiprock|America/Sitka|America/St_Barthelemy|America/St_Johns|America/St_Kitts|America/St_Lucia|America/St_Thomas|America/St_Vincent|America/Swift_Current|America/Tegucigalpa|America/Thule|America/Thunder_Bay|America/Tijuana|America/Toronto|America/Tortola|America/Vancouver|America/Virgin|America/Whitehorse|America/Winnipeg|America/Yakutat|America/Yellowknife|Antarctica/Casey|Antarctica/Davis|Antarctica/DumontDUrville|Antarctica/Macquarie|Antarctica/Mawson|Antarctica/McMurdo|Antarctica/Palmer|Antarctica/Rothera|Antarctica/South_Pole|Antarctica/Syowa|Antarctica/Troll|Antarctica/Vostok|Arctic/Longyearbyen|Asia/Aden|Asia/Almaty|Asia/Amman|Asia/Anadyr|Asia/Aqtau|Asia/Aqtobe|Asia/Ashgabat|Asia/Ashkhabad|Asia/Atyrau|Asia/Baghdad|Asia/Bahrain|Asia/Baku|Asia/Bangkok|Asia/Barnaul|Asia/Beirut|Asia/Bishkek|Asia/Brunei|Asia/Calcutta|Asia/Chita|Asia/Choibalsan|Asia/Chongqing|Asia/Chungking|Asia/Colombo|Asia/Dacca|Asia/Damascus|Asia/Dhaka|Asia/Dili|Asia/Dubai|Asia/Dushanbe|Asia/Famagusta|Asia/Gaza|Asia/Harbin|Asia/Hebron|Asia/Ho_Chi_Minh|Asia/Hong_Kong|Asia/Hovd|Asia/Irkutsk|Asia/Istanbul|Asia/Jakarta|Asia/Jayapura|Asia/Jerusalem|Asia/Kabul|Asia/Kamchatka|Asia/Karachi|Asia/Kashgar|Asia/Kathmandu|Asia/Katmandu|Asia/Khandyga|Asia/Kolkata|Asia/Krasnoyarsk|Asia/Kuala_Lumpur|Asia/Kuching|Asia/Kuwait|Asia/Macao|Asia/Macau|Asia/Magadan|Asia/Makassar|Asia/Manila|Asia/Muscat|Asia/Nicosia|Asia/Novokuznetsk|Asia/Novosibirsk|Asia/Omsk|Asia/Oral|Asia/Phnom_Penh|Asia/Pontianak|Asia/Pyongyang|Asia/Qatar|Asia/Qostanay|Asia/Qyzylorda|Asia/Rangoon|Asia/Riyadh|Asia/Saigon|Asia/Sakhalin|Asia/Samarkand|Asia/Seoul|Asia/Shanghai|Asia/Singapore|Asia/Srednekolymsk|Asia/Taipei|Asia/Tashkent|Asia/Tbilisi|Asia/Tehran|Asia/Tel_Aviv|Asia/Thimbu|Asia/Thimphu|Asia/Tokyo|Asia/Tomsk|Asia/Ujung_Pandang|Asia/Ulaanbaatar|Asia/Ulan_Bator|Asia/Urumqi|Asia/Ust-Nera|Asia/Vientiane|Asia/Vladivostok|Asia/Yakutsk|Asia/Yangon|Asia/Yekaterinburg|Asia/Yerevan|Atlantic/Azores|Atlantic/Bermuda|Atlantic/Canary|Atlantic/Cape_Verde|Atlantic/Faeroe|Atlantic/Faroe|Atlantic/Jan_Mayen|Atlantic/Madeira|Atlantic/Reykjavik|Atlantic/South_Georgia|Atlantic/St_Helena|Atlantic/Stanley|Australia/ACT|Australia/Adelaide|Australia/Brisbane|Australia/Broken_Hill|Australia/Canberra|Australia/Currie|Australia/Darwin|Australia/Eucla|Australia/Hobart|Australia/LHI|Australia/Lindeman|Australia/Lord_Howe|Australia/Melbourne|Australia/NSW|Australia/North|Australia/Perth|Australia/Queensland|Australia/South|Australia/Sydney|Australia/Tasmania|Australia/Victoria|Australia/West|Australia/Yancowinna|Brazil/Acre|Brazil/DeNoronha|Brazil/East|Brazil/West|CET|CST6CDT|Canada/Atlantic|Canada/Central|Canada/Eastern|Canada/Mountain|Canada/Newfoundland|Canada/Pacific|Canada/Saskatchewan|Canada/Yukon|Chile/Continental|Chile/EasterIsland|Cuba|EET|EST|EST5EDT|Egypt|Eire|Etc/GMT|Etc/GMT+0|Etc/GMT+1|Etc/GMT+10|Etc/GMT+11|Etc/GMT+12|Etc/GMT+2|Etc/GMT+3|Etc/GMT+4|Etc/GMT+5|Etc/GMT+6|Etc/GMT+7|Etc/GMT+8|Etc/GMT+9|Etc/GMT-0|Etc/GMT-1|Etc/GMT-10|Etc/GMT-11|Etc/GMT-12|Etc/GMT-13|Etc/GMT-14|Etc/GMT-2|Etc/GMT-3|Etc/GMT-4|Etc/GMT-5|Etc/GMT-6|Etc/GMT-7|Etc/GMT-8|Etc/GMT-9|Etc/GMT0|Etc/Greenwich|Etc/UCT|Etc/UTC|Etc/Universal|Etc/Zulu|Europe/Amsterdam|Europe/Andorra|Europe/Astrakhan|Europe/Athens|Europe/Belfast|Europe/Belgrade|Europe/Berlin|Europe/Bratislava|Europe/Brussels|Europe/Bucharest|Europe/Budapest|Europe/Busingen|Europe/Chisinau|Europe/Copenhagen|Europe/Dublin|Europe/Gibraltar|Europe/Guernsey|Europe/Helsinki|Europe/Isle_of_Man|Europe/Istanbul|Europe/Jersey|Europe/Kaliningrad|Europe/Kiev|Europe/Kirov|Europe/Kyiv|Europe/Lisbon|Europe/Ljubljana|Europe/London|Europe/Luxembourg|Europe/Madrid|Europe/Malta|Europe/Mariehamn|Europe/Minsk|Europe/Monaco|Europe/Moscow|Europe/Nicosia|Europe/Oslo|Europe/Paris|Europe/Podgorica|Europe/Prague|Europe/Riga|Europe/Rome|Europe/Samara|Europe/San_Marino|Europe/Sarajevo|Europe/Saratov|Europe/Simferopol|Europe/Skopje|Europe/Sofia|Europe/Stockholm|Europe/Tallinn|Europe/Tirane|Europe/Tiraspol|Europe/Ulyanovsk|Europe/Uzhgorod|Europe/Vaduz|Europe/Vatican|Europe/Vienna|Europe/Vilnius|Europe/Volgograd|Europe/Warsaw|Europe/Zagreb|Europe/Zaporozhye|Europe/Zurich|Factory|GB|GB-Eire|GMT|GMT+0|GMT-0|GMT0|Greenwich|HST|Hongkong|Iceland|Indian/Antananarivo|Indian/Chagos|Indian/Christmas|Indian/Cocos|Indian/Comoro|Indian/Kerguelen|Indian/Mahe|Indian/Maldives|Indian/Mauritius|Indian/Mayotte|Indian/Reunion|Iran|Israel|Jamaica|Japan|Kwajalein|Libya|MET|MST|MST7MDT|Mexico/BajaNorte|Mexico/BajaSur|Mexico/General|NZ|NZ-CHAT|Navajo|PRC|PST8PDT|Pacific/Apia|Pacific/Auckland|Pacific/Bougainville|Pacific/Chatham|Pacific/Chuuk|Pacific/Easter|Pacific/Efate|Pacific/Enderbury|Pacific/Fakaofo|Pacific/Fiji|Pacific/Funafuti|Pacific/Galapagos|Pacific/Gambier|Pacific/Guadalcanal|Pacific/Guam|Pacific/Honolulu|Pacific/Johnston|Pacific/Kanton|Pacific/Kiritimati|Pacific/Kosrae|Pacific/Kwajalein|Pacific/Majuro|Pacific/Marquesas|Pacific/Midway|Pacific/Nauru|Pacific/Niue|Pacific/Norfolk|Pacific/Noumea|Pacific/Pago_Pago|Pacific/Palau|Pacific/Pitcairn|Pacific/Pohnpei|Pacific/Ponape|Pacific/Port_Moresby|Pacific/Rarotonga|Pacific/Saipan|Pacific/Samoa|Pacific/Tahiti|Pacific/Tarawa|Pacific/Tongatapu|Pacific/Truk|Pacific/Wake|Pacific/Wallis|Pacific/Yap|Poland|Portugal|ROC|ROK|Singapore|Turkey|UCT|US/Alaska|US/Aleutian|US/Arizona|US/Central|US/East-Indiana|US/Eastern|US/Hawaii|US/Indiana-Starke|US/Michigan|US/Mountain|US/Pacific|US/Samoa|UTC|Universal|W-SU|WET|Zulu",
+	);
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSix =
+	"UTC";
 
-export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBody = zod.object({
-  "active": zod.boolean().or(zod.null()).optional(),
-  "schedule": zod.object({
-  "interval": zod.number(),
-  "anchor_date": zod.string().datetime().optional(),
-  "timezone": zod.string().or(zod.null()).optional()
-}).or(zod.object({
-  "cron": zod.string(),
-  "timezone": zod.string().or(zod.null()).optional(),
-  "day_or": zod.boolean().default(updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleDayOrDefault)
-})).or(zod.object({
-  "rrule": zod.string(),
-  "timezone": zod.string().regex(updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneRegExpSeven).default(updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSeven).or(zod.null()).default(updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSix)
-})).or(zod.null()).optional(),
-  "max_scheduled_runs": zod.number().or(zod.null()).optional(),
-  "parameters": zod.object({
-
-}).optional(),
-  "slug": zod.string().or(zod.null()).optional()
-})
+export const updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBody =
+	zod.object({
+		active: zod.boolean().or(zod.null()).optional(),
+		schedule: zod
+			.object({
+				interval: zod.number(),
+				anchor_date: zod.string().datetime().optional(),
+				timezone: zod.string().or(zod.null()).optional(),
+			})
+			.or(
+				zod.object({
+					cron: zod.string(),
+					timezone: zod.string().or(zod.null()).optional(),
+					day_or: zod
+						.boolean()
+						.default(
+							updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleDayOrDefault,
+						),
+				}),
+			)
+			.or(
+				zod.object({
+					rrule: zod.string(),
+					timezone: zod
+						.string()
+						.regex(
+							updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneRegExpSeven,
+						)
+						.default(
+							updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSeven,
+						)
+						.or(zod.null())
+						.default(
+							updateDeploymentScheduleDeploymentsIdSchedulesScheduleIdPatchBodyScheduleTimezoneDefaultSix,
+						),
+				}),
+			)
+			.or(zod.null())
+			.optional(),
+		max_scheduled_runs: zod.number().or(zod.null()).optional(),
+		parameters: zod.object({}).optional(),
+		slug: zod.string().or(zod.null()).optional(),
+	});
 
 /**
  * @summary Delete Deployment Schedule
  */
-export const deleteDeploymentScheduleDeploymentsIdSchedulesScheduleIdDeleteParams = zod.object({
-  "id": zod.string().uuid(),
-  "schedule_id": zod.string().uuid()
-})
+export const deleteDeploymentScheduleDeploymentsIdSchedulesScheduleIdDeleteParams =
+	zod.object({
+		id: zod.string().uuid(),
+		schedule_id: zod.string().uuid(),
+	});
 
-export const deleteDeploymentScheduleDeploymentsIdSchedulesScheduleIdDeleteHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
-
+export const deleteDeploymentScheduleDeploymentsIdSchedulesScheduleIdDeleteHeader =
+	zod.object({
+		"x-prefect-api-version": zod.string().optional(),
+	});

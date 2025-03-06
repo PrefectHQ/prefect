@@ -4,10 +4,7 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * Get a flow run state by id.
@@ -16,83 +13,118 @@ For more information, see https://docs.prefect.io/v3/develop/write-flows#final-s
  * @summary Read Flow Run State
  */
 export const readFlowRunStateFlowRunStatesIdGetParams = zod.object({
-  "id": zod.string().uuid()
-})
+	id: zod.string().uuid(),
+});
 
 export const readFlowRunStateFlowRunStatesIdGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readFlowRunStateFlowRunStatesIdGetResponseStateDetailsDeferredDefault = false;export const readFlowRunStateFlowRunStatesIdGetResponseStateDetailsUntrackableResultDefault = false;export const readFlowRunStateFlowRunStatesIdGetResponseStateDetailsPauseRescheduleDefault = false;
+export const readFlowRunStateFlowRunStatesIdGetResponseStateDetailsDeferredDefault = false;
+export const readFlowRunStateFlowRunStatesIdGetResponseStateDetailsUntrackableResultDefault = false;
+export const readFlowRunStateFlowRunStatesIdGetResponseStateDetailsPauseRescheduleDefault = false;
 
 export const readFlowRunStateFlowRunStatesIdGetResponse = zod.object({
-  "id": zod.string().uuid(),
-  "type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']),
-  "name": zod.string().or(zod.null()).optional(),
-  "timestamp": zod.string().datetime().optional(),
-  "message": zod.string().or(zod.null()).optional(),
-  "data": zod.any().or(zod.null()).optional(),
-  "state_details": zod.object({
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "child_flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "scheduled_time": zod.string().datetime().or(zod.null()).optional(),
-  "cache_key": zod.string().or(zod.null()).optional(),
-  "cache_expiration": zod.string().datetime().or(zod.null()).optional(),
-  "deferred": zod.boolean().or(zod.null()).optional(),
-  "untrackable_result": zod.boolean().optional(),
-  "pause_timeout": zod.string().datetime().or(zod.null()).optional(),
-  "pause_reschedule": zod.boolean().optional(),
-  "pause_key": zod.string().or(zod.null()).optional(),
-  "run_input_keyset": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "refresh_cache": zod.boolean().or(zod.null()).optional(),
-  "retriable": zod.boolean().or(zod.null()).optional(),
-  "transition_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_parameters_id": zod.string().uuid().or(zod.null()).optional(),
-  "traceparent": zod.string().or(zod.null()).optional()
-}).optional()
-})
+	id: zod.string().uuid(),
+	type: zod.enum([
+		"SCHEDULED",
+		"PENDING",
+		"RUNNING",
+		"COMPLETED",
+		"FAILED",
+		"CANCELLED",
+		"CRASHED",
+		"PAUSED",
+		"CANCELLING",
+	]),
+	name: zod.string().or(zod.null()).optional(),
+	timestamp: zod.string().datetime().optional(),
+	message: zod.string().or(zod.null()).optional(),
+	data: zod.any().or(zod.null()).optional(),
+	state_details: zod
+		.object({
+			flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+			task_run_id: zod.string().uuid().or(zod.null()).optional(),
+			child_flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+			scheduled_time: zod.string().datetime().or(zod.null()).optional(),
+			cache_key: zod.string().or(zod.null()).optional(),
+			cache_expiration: zod.string().datetime().or(zod.null()).optional(),
+			deferred: zod.boolean().or(zod.null()).optional(),
+			untrackable_result: zod.boolean().optional(),
+			pause_timeout: zod.string().datetime().or(zod.null()).optional(),
+			pause_reschedule: zod.boolean().optional(),
+			pause_key: zod.string().or(zod.null()).optional(),
+			run_input_keyset: zod
+				.record(zod.string(), zod.string())
+				.or(zod.null())
+				.optional(),
+			refresh_cache: zod.boolean().or(zod.null()).optional(),
+			retriable: zod.boolean().or(zod.null()).optional(),
+			transition_id: zod.string().uuid().or(zod.null()).optional(),
+			task_parameters_id: zod.string().uuid().or(zod.null()).optional(),
+			traceparent: zod.string().or(zod.null()).optional(),
+		})
+		.optional(),
+});
 
 /**
  * Get states associated with a flow run.
  * @summary Read Flow Run States
  */
 export const readFlowRunStatesFlowRunStatesGetQueryParams = zod.object({
-  "flow_run_id": zod.string().uuid()
-})
+	flow_run_id: zod.string().uuid(),
+});
 
 export const readFlowRunStatesFlowRunStatesGetHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
-export const readFlowRunStatesFlowRunStatesGetResponseStateDetailsDeferredDefault = false;export const readFlowRunStatesFlowRunStatesGetResponseStateDetailsUntrackableResultDefault = false;export const readFlowRunStatesFlowRunStatesGetResponseStateDetailsPauseRescheduleDefault = false;
+export const readFlowRunStatesFlowRunStatesGetResponseStateDetailsDeferredDefault = false;
+export const readFlowRunStatesFlowRunStatesGetResponseStateDetailsUntrackableResultDefault = false;
+export const readFlowRunStatesFlowRunStatesGetResponseStateDetailsPauseRescheduleDefault = false;
 
 export const readFlowRunStatesFlowRunStatesGetResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "type": zod.enum(['SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'CRASHED', 'PAUSED', 'CANCELLING']),
-  "name": zod.string().or(zod.null()).optional(),
-  "timestamp": zod.string().datetime().optional(),
-  "message": zod.string().or(zod.null()).optional(),
-  "data": zod.any().or(zod.null()).optional(),
-  "state_details": zod.object({
-  "flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "child_flow_run_id": zod.string().uuid().or(zod.null()).optional(),
-  "scheduled_time": zod.string().datetime().or(zod.null()).optional(),
-  "cache_key": zod.string().or(zod.null()).optional(),
-  "cache_expiration": zod.string().datetime().or(zod.null()).optional(),
-  "deferred": zod.boolean().or(zod.null()).optional(),
-  "untrackable_result": zod.boolean().optional(),
-  "pause_timeout": zod.string().datetime().or(zod.null()).optional(),
-  "pause_reschedule": zod.boolean().optional(),
-  "pause_key": zod.string().or(zod.null()).optional(),
-  "run_input_keyset": zod.record(zod.string(), zod.string()).or(zod.null()).optional(),
-  "refresh_cache": zod.boolean().or(zod.null()).optional(),
-  "retriable": zod.boolean().or(zod.null()).optional(),
-  "transition_id": zod.string().uuid().or(zod.null()).optional(),
-  "task_parameters_id": zod.string().uuid().or(zod.null()).optional(),
-  "traceparent": zod.string().or(zod.null()).optional()
-}).optional()
-})
-export const readFlowRunStatesFlowRunStatesGetResponse = zod.array(readFlowRunStatesFlowRunStatesGetResponseItem)
-
+	id: zod.string().uuid(),
+	type: zod.enum([
+		"SCHEDULED",
+		"PENDING",
+		"RUNNING",
+		"COMPLETED",
+		"FAILED",
+		"CANCELLED",
+		"CRASHED",
+		"PAUSED",
+		"CANCELLING",
+	]),
+	name: zod.string().or(zod.null()).optional(),
+	timestamp: zod.string().datetime().optional(),
+	message: zod.string().or(zod.null()).optional(),
+	data: zod.any().or(zod.null()).optional(),
+	state_details: zod
+		.object({
+			flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+			task_run_id: zod.string().uuid().or(zod.null()).optional(),
+			child_flow_run_id: zod.string().uuid().or(zod.null()).optional(),
+			scheduled_time: zod.string().datetime().or(zod.null()).optional(),
+			cache_key: zod.string().or(zod.null()).optional(),
+			cache_expiration: zod.string().datetime().or(zod.null()).optional(),
+			deferred: zod.boolean().or(zod.null()).optional(),
+			untrackable_result: zod.boolean().optional(),
+			pause_timeout: zod.string().datetime().or(zod.null()).optional(),
+			pause_reschedule: zod.boolean().optional(),
+			pause_key: zod.string().or(zod.null()).optional(),
+			run_input_keyset: zod
+				.record(zod.string(), zod.string())
+				.or(zod.null())
+				.optional(),
+			refresh_cache: zod.boolean().or(zod.null()).optional(),
+			retriable: zod.boolean().or(zod.null()).optional(),
+			transition_id: zod.string().uuid().or(zod.null()).optional(),
+			task_parameters_id: zod.string().uuid().or(zod.null()).optional(),
+			traceparent: zod.string().or(zod.null()).optional(),
+		})
+		.optional(),
+});
+export const readFlowRunStatesFlowRunStatesGetResponse = zod.array(
+	readFlowRunStatesFlowRunStatesGetResponseItem,
+);

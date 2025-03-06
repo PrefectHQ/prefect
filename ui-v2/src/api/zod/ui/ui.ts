@@ -4,37 +4,56 @@
  * Prefect Prefect REST API
  * OpenAPI spec version: 0.1.0
  */
-import {
-  z as zod
-} from 'zod';
-
+import { z as zod } from "zod";
 
 /**
  * @summary Validate Obj
  */
 export const validateObjUiSchemasValidatePostHeader = zod.object({
-  "x-prefect-api-version": zod.string().optional()
-})
+	"x-prefect-api-version": zod.string().optional(),
+});
 
 export const validateObjUiSchemasValidatePostBody = zod.object({
-  "json_schema": zod.record(zod.string(), zod.any()),
-  "values": zod.record(zod.string(), zod.any())
-})
+	schema: zod.record(zod.string(), zod.any()),
+	values: zod.record(zod.string(), zod.any()),
+});
 
 export const validateObjUiSchemasValidatePostResponse = zod.object({
-  "errors": zod.array(zod.string().or(zod.object({
-  "property": zod.string(),
-  "errors": zod.array(zod.string().or(zod.any()).or(zod.object({
-  "index": zod.number(),
-  "errors": zod.array(zod.string().or(zod.any()).or(zod.any()))
-})))
-})).or(zod.object({
-  "index": zod.number(),
-  "errors": zod.array(zod.string().or(zod.object({
-  "property": zod.string(),
-  "errors": zod.array(zod.string().or(zod.any()).or(zod.any()))
-})).or(zod.any()))
-}))),
-  "valid": zod.boolean()
-})
-
+	errors: zod.array(
+		zod
+			.string()
+			.or(
+				zod.object({
+					property: zod.string(),
+					errors: zod.array(
+						zod
+							.string()
+							.or(zod.any())
+							.or(
+								zod.object({
+									index: zod.number(),
+									errors: zod.array(zod.string().or(zod.any()).or(zod.any())),
+								}),
+							),
+					),
+				}),
+			)
+			.or(
+				zod.object({
+					index: zod.number(),
+					errors: zod.array(
+						zod
+							.string()
+							.or(
+								zod.object({
+									property: zod.string(),
+									errors: zod.array(zod.string().or(zod.any()).or(zod.any())),
+								}),
+							)
+							.or(zod.any()),
+					),
+				}),
+			),
+	),
+	valid: zod.boolean(),
+});
