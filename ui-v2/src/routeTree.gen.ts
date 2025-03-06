@@ -37,6 +37,7 @@ import { Route as BlocksBlockIdImport } from './routes/blocks/block.$id'
 import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
 import { Route as ArtifactsKeyKeyImport } from './routes/artifacts/key.$key'
 import { Route as ArtifactsArtifactIdImport } from './routes/artifacts/artifact.$id'
+import { Route as EventsEventDateEventIdImport } from './routes/events_.event.$date.$eventId'
 import { Route as DeploymentsDeploymentIdRunImport } from './routes/deployments/deployment_.$id.run'
 import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
@@ -200,6 +201,12 @@ const ArtifactsKeyKeyRoute = ArtifactsKeyKeyImport.update({
 const ArtifactsArtifactIdRoute = ArtifactsArtifactIdImport.update({
   id: '/artifacts/artifact/$id',
   path: '/artifacts/artifact/$id',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const EventsEventDateEventIdRoute = EventsEventDateEventIdImport.update({
+  id: '/events_/event/$date/$eventId',
+  path: '/events/event/$date/$eventId',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -453,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeploymentsDeploymentIdRunImport
       parentRoute: typeof rootRoute
     }
+    '/events_/event/$date/$eventId': {
+      id: '/events_/event/$date/$eventId'
+      path: '/events/event/$date/$eventId'
+      fullPath: '/events/event/$date/$eventId'
+      preLoaderRoute: typeof EventsEventDateEventIdImport
+      parentRoute: typeof rootRoute
+    }
     '/work-pools/work-pool/$workPoolName/queue/$workQueueName': {
       id: '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
       path: '/queue/$workQueueName'
@@ -540,6 +554,7 @@ export interface FileRoutesByFullPath {
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$date/$eventId': typeof EventsEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -573,6 +588,7 @@ export interface FileRoutesByTo {
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$date/$eventId': typeof EventsEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -608,6 +624,7 @@ export interface FileRoutesById {
   '/deployments/deployment_/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment_/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events_/event/$date/$eventId': typeof EventsEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -644,6 +661,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
+    | '/events/event/$date/$eventId'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -676,6 +694,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
+    | '/events/event/$date/$eventId'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   id:
     | '__root__'
@@ -709,6 +728,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment_/$id/duplicate'
     | '/deployments/deployment_/$id/edit'
     | '/deployments/deployment_/$id/run'
+    | '/events_/event/$date/$eventId'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesById: FileRoutesById
 }
@@ -740,6 +760,7 @@ export interface RootRouteChildren {
   DeploymentsDeploymentIdDuplicateRoute: typeof DeploymentsDeploymentIdDuplicateRoute
   DeploymentsDeploymentIdEditRoute: typeof DeploymentsDeploymentIdEditRoute
   DeploymentsDeploymentIdRunRoute: typeof DeploymentsDeploymentIdRunRoute
+  EventsEventDateEventIdRoute: typeof EventsEventDateEventIdRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -771,6 +792,7 @@ const rootRouteChildren: RootRouteChildren = {
   DeploymentsDeploymentIdDuplicateRoute: DeploymentsDeploymentIdDuplicateRoute,
   DeploymentsDeploymentIdEditRoute: DeploymentsDeploymentIdEditRoute,
   DeploymentsDeploymentIdRunRoute: DeploymentsDeploymentIdRunRoute,
+  EventsEventDateEventIdRoute: EventsEventDateEventIdRoute,
 }
 
 export const routeTree = rootRoute
@@ -808,7 +830,8 @@ export const routeTree = rootRoute
         "/work-pools/work-pool/$workPoolName",
         "/deployments/deployment_/$id/duplicate",
         "/deployments/deployment_/$id/edit",
-        "/deployments/deployment_/$id/run"
+        "/deployments/deployment_/$id/run",
+        "/events_/event/$date/$eventId"
       ]
     },
     "/": {
@@ -915,6 +938,9 @@ export const routeTree = rootRoute
     },
     "/deployments/deployment_/$id/run": {
       "filePath": "deployments/deployment_.$id.run.tsx"
+    },
+    "/events_/event/$date/$eventId": {
+      "filePath": "events_.event.$date.$eventId.tsx"
     },
     "/work-pools/work-pool/$workPoolName/queue/$workQueueName": {
       "filePath": "work-pools/work-pool.$workPoolName.queue.$workQueueName.tsx",
