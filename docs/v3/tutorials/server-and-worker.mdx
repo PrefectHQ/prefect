@@ -1,0 +1,216 @@
+---
+title: Deploy a Prefect Server and Worker with Helm
+description: Deploy a Prefect OSS Server and Worker with Helm.
+---
+
+In this tutorial, you'll learn how to deploy an [OSS Server](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server) and [Worker](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) with Helm.
+
+## Prerequisites
+
+- A Kubernetes cluster
+- Install the [Helm CLI](https://helm.sh/docs/intro/install/)
+
+## Get started
+
+<Warning>
+Configuring ingress or publicly exposing Prefect from the cluster is business dependent and not covered in this tutorial.
+For details on Ingress configuration, consult the [Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/).
+</Warning>
+
+### Set up your environment
+
+Create a new namespace for this tutorial (all commands will use this namespace):
+   ```bash
+   kubectl create namespace prefect
+   kubectl config set-context --current --namespace=prefect
+   ```
+
+## Deploy Prefect Server with Helm
+
+Add the Prefect Helm repository:
+```bash
+helm repo add prefect https://prefecthq.github.io/prefect-helm
+```
+
+<Expandable title="Default values (no auth)">
+For a basic deployment with default values, using the latest Prefect version and no auth:
+```bash
+helm install prefect-server prefect/prefect-server
+```
+</Expandable>
+
+<Expandable title="Custom values (with auth)">
+For a customized deployment, create a `values.yaml` file for Prefect Server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
+
+
+Create a secret for the API basic auth:
+```bash
+kubectl create secret generic server-auth-secret --from-literal auth-string='admin:password123'
+```
+
+Example `server-values.yaml` file for this tutorial:
+```yaml
+server:
+  basicAuth:
+    enabled: true
+    # Must pre-exist if existingSecret is used; use authString otherwise
+    existingSecret: "server-auth-secret"  
+  autoscaling:
+    enabled: true
+  livenessProbe:
+    enabled: true
+  readinessProbe:
+    enabled: true
+```
+
+Install Prefect Server:
+```bash
+helm install prefect-server prefect/prefect-server -f server-values.yaml
+```
+</Expandable>
+
+Expected output:
+```
+NAME: prefect-server
+LAST DEPLOYED: Tue Mar  4 09:08:07 2025
+NAMESPACE: prefect
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+Run the following command to port-forward the UI to your localhost:
+$ kubectl --namespace prefect-server port-forward svc/prefect-server 4200:4200
+
+Visit http://localhost:4200 to use Prefect!
+```
+
+Access the Prefect UI:
+```bash
+kubectl --namespace prefect-server port-forward svc/prefect-server 4200:4200
+```
+
+Open `localhost:4200` in your browser and sign in with `admin:password123`.
+
+## Deploy a Prefect Worker
+
+To connect a worker to your Prefect server in the same cluster:
+
+<Expandable title="Default values (no auth)">
+
+Create a `worker-values.yaml` file for this tutorial:
+```
+worker:
+  apiConfig: selfHostedServer
+  config:
+    workPool: kube-test
+  selfHostedServerApiConfig:
+    # SERVICE.NAMESPACE if in same cluster, or FQDN if external
+    apiUrl: http://prefect-server.prefect-server.svc.cluster.local:4200/api
+```
+
+Install the Prefect Worker:
+```bash
+helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
+```
+</Expandable>
+
+<Expandable title="Custom values (with auth)">
+
+Create a secret for the API basic auth:
+```bash
+kubectl create secret generic worker-auth-secret --from-literal auth-string='admin:password123'
+```
+
+Create a `worker-values.yaml` file for this tutorial:
+```yaml
+worker:
+  apiConfig: selfHostedServer
+  config:
+    workPool: kube-test
+  selfHostedServerApiConfig:
+    # SERVICE.NAMESPACE if in same cluster, or FQDN if external
+    apiUrl: http://prefect-server.prefect-server.svc.cluster.local:4200/api
+  basicAuth:
+    enabled: true
+    existingSecret: worker-auth-secret
+```
+
+Install the Prefect Worker:
+```bash
+helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
+```
+</Expandable>
+
+Expected output:
+```
+Release "prefect-worker" has been upgraded. Happy Helming!
+NAME: prefect-worker
+LAST DEPLOYED: Tue Mar  4 11:26:21 2025
+NAMESPACE: prefect
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+```
+
+## Cleanup
+
+To uninstall the Prefect Server and Worker:
+
+```bash
+helm uninstall prefect-worker
+helm uninstall prefect-server
+```
+
+## Troubleshooting
+
+<Expandable title="Container creation error">
+If you see this error:
+```
+Error from server (BadRequest): container "prefect-server" in pod "prefect-server-7c87b7f7cf-sgqj2" is waiting to start: CreateContainerConfigError
+```
+
+Run `kubectl events` and confirm that the `authString` is correct.
+</Expandable>
+
+<Expandable title="Authentication error">
+If you see this error:
+```
+prefect.exceptions.PrefectHTTPStatusError: Client error '401 Unauthorized' for url 'http://prefect-server.prefect-server.svc.cluster.local:4200/api/work_pools/kube-test'
+Response: {'exception_message': 'Unauthorized'}
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+An exception occurred.
+```
+
+Ensure `basicAuth` is configured in the `worker-values.yaml` file.
+</Expandable>
+
+<Expandable title="Connection error">
+If you see this error:
+```
+File "/usr/local/lib/python3.11/site-packages/httpcore/_backends/anyio.py", line 113, in connect_tcp
+  with map_exceptions(exc_map):
+File "/usr/local/lib/python3.11/contextlib.py", line 158, in __exit__
+  self.gen.throw(typ, value, traceback)
+File "/usr/local/lib/python3.11/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+  raise to_exc(exc) from exc
+httpcore.ConnectError: [Errno -2] Name or service not known
+```
+
+Ensure the `PREFECT_API_URL` environment variable is properly templated by running the following command:
+```bash
+helm template prefect-worker prefect/prefect-worker -f worker-values.yaml
+```
+
+The URL format should look like the following:
+
+```
+http://prefect-server.prefect-server.svc.cluster.local:4200/api
+```
+
+<Note>
+If the worker is not in the same cluster and namespace, the precise format will vary.
+</Note>
+
+For additional troubleshooting and configuration, review the [Prefect Helm Worker Chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker).
+</Expandable>
