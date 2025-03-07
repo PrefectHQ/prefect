@@ -36,6 +36,7 @@ function RouteComponent() {
 				JSON.stringify(workPool.base_job_template),
 				workPool.id,
 				workPool.default_queue_id,
+				workPool.status,
 			]
 				.join(" ")
 				.toLowerCase()
