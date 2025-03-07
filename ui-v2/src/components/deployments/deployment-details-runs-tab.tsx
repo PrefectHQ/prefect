@@ -14,7 +14,6 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { FLOW_RUN_STATES_NO_SCHEDULED } from "@/components/flow-runs/flow-runs-list";
 import { Typography } from "@/components/ui/typography";
-import useDebounce from "@/hooks/use-debounce";
 import { getRouteApi } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 
@@ -35,15 +34,13 @@ export const DeploymentDetailsRunsTab = ({
 	const [filter, setFilter] = useFilter();
 	const resetFilters = useResetFilters();
 
-	const debouncedSearch = useDebounce(search, 400);
-
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
 			operator: "and_",
 			id: { any_: [deployment.id] },
 		},
 		flow_runs: {
-			name: { like_: debouncedSearch || undefined },
+			name: { like_: search || undefined },
 			state: {
 				name: { any_: filter.length === 0 ? undefined : filter },
 				operator: "or_",
