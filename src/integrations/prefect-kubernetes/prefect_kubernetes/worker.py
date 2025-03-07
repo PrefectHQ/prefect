@@ -176,7 +176,7 @@ from prefect_kubernetes.utilities import (
 )
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import FlowRun
+    from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.flows import Flow
 
@@ -363,8 +363,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["APIFlow"] = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "APIFlow | None" = None,
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -384,6 +386,8 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         self._update_prefect_api_url_if_local_server()
         self._populate_env_in_manifest()
         # Update labels in job manifest
+        self._add_work_pool_labels(work_pool)
+        self._add_worker_name_label(worker_name)
         self._slugify_labels()
         # Add defaults to job manifest if necessary
         self._populate_image_if_not_present()
@@ -602,7 +606,7 @@ class KubernetesWorker(
         self,
         flow_run: "FlowRun",
         configuration: KubernetesWorkerJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
+        task_status: anyio.abc.TaskStatus[int] | None = None,
     ) -> KubernetesWorkerResult:
         """
         Executes a flow run within a Kubernetes Job and waits for the flow run
@@ -736,7 +740,10 @@ class KubernetesWorker(
             values=job_variables,
             client=self._client,
         )
-        configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=api_flow,
+        )
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
@@ -838,8 +845,8 @@ class KubernetesWorker(
         self,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-        secret_name: Optional[str] = None,
-        secret_key: Optional[str] = None,
+        secret_name: str | None = None,
+        secret_key: str | None = None,
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
         manifest_env = configuration.job_manifest["spec"]["template"]["spec"][
@@ -1254,7 +1261,7 @@ class KubernetesWorker(
         job_id: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> Optional["V1Job"]:
+    ) -> "V1Job | None":
         """Get a Kubernetes job by id."""
 
         try:
@@ -1273,13 +1280,13 @@ class KubernetesWorker(
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> Optional["V1Pod"]:
+    ) -> "V1Pod | None":
         """Get the first running pod for a job."""
 
         watch = kubernetes_asyncio.watch.Watch()
         logger.info(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
-        last_pod_name: Optional[str] = None
+        last_pod_name: str | None = None
         core_client = CoreV1Api(client)
         async with watch:
             async for event in watch.stream(
@@ -1312,7 +1319,7 @@ class KubernetesWorker(
         self,
         logger: logging.Logger,
         job_name: str,
-        pod_name: Optional[str],
+        pod_name: str | None,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:
