@@ -22,7 +22,7 @@ function RouteComponent() {
 
 	const { data: workPools = [] } = useQuery(
 		buildFilterWorkPoolsQuery({
-			limit: 10,
+			limit: 200,
 			offset: 0,
 		}),
 	);
