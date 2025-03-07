@@ -202,3 +202,23 @@ export const deleteWorkPool = (name: string) =>
 			}
 		},
 	});
+
+/**
+ * Builds a query configuration for getting a work pool details
+ *
+ * @param name - Work pool name to get details of
+ * @returns Query configuration object for use with TanStack Query
+ */
+export const buildGetWorkPoolQuery = (name: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(name),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/work_pools/{name}", {
+				params: { path: { name } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+	});
