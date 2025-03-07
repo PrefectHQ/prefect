@@ -22,7 +22,10 @@ async def test_default_pod_eviction(
         entrypoint=flow_entrypoint,
         name=flow_name,
         work_pool_name=work_pool_name,
-        job_variables={"image": "prefecthq/prefect:3.2.11-python3.12"},
+        job_variables={
+            "image": "prefecthq/prefect:3.2.11-python3.12",
+            "env": {"PREFECT_API_URL": "http://host.k8s.local:4200/api"},
+        },
     )
 
     display.print_flow_run_created(flow_run)
