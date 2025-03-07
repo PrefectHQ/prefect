@@ -64,10 +64,17 @@ def get_flow_run_state(flow_run_id: UUID) -> tuple[StateType | None, str | None]
         return flow_run.state.type, flow_run.state.message
 
 
-def wait_for_flow_run_state(flow_run_id: UUID, target_state: StateType) -> None:
+def wait_for_flow_run_state(
+    flow_run_id: UUID, target_state: StateType, timeout: int = 10
+) -> None:
     """Wait for a flow run to reach a specific state."""
+    start_time = time.time()
     while True:
         state, _message = get_flow_run_state(flow_run_id)
         if state == target_state:
             return
         time.sleep(1)
+        if time.time() - start_time > timeout:
+            raise TimeoutError(
+                f"Flow run {flow_run_id} did not reach state {target_state} within {timeout} seconds"
+            )

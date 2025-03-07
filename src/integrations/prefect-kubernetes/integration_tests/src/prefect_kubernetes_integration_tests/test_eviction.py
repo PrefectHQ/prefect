@@ -24,7 +24,7 @@ async def test_default_pod_eviction(
         work_pool_name=work_pool_name,
         job_variables={
             "image": "prefecthq/prefect:3.2.11-python3.12",
-            "env": {"PREFECT_API_URL": "http://host.docker.internal:4200/api"},
+            "env": {"PREFECT_API_URL": "http://172.17.0.1:4200/api"},
         },
     )
 
