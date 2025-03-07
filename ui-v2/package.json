@@ -13,7 +13,7 @@
 		"format:check": "biome check",
 		"format": "biome check --write",
 		"preview": "vite preview",
-		"service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && rm oss_schema.json",
+		"service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && npx orval --config ./orval.config.cjs && rm oss_schema.json",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build",
 		"validate:types": "tsc -b --noEmit"
