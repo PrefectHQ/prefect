@@ -7,12 +7,19 @@ type WorkPoolTypeBadgeProps = {
 	type: WorkPool["type"];
 };
 
+const getWorkPoolTypeLabel = (type: WorkPool["type"]) => {
+	return WORK_POOL_TYPE_LABELS[type] ?? type;
+};
+
+const getWorkPoolTypeIcon = (type: WorkPool["type"]) => {
+	return WORK_POOL_TYPE_ICONS[type] ?? "Cpu";
+};
+
 export const WorkPoolTypeBadge = ({ type }: WorkPoolTypeBadgeProps) => {
-	console.log(type);
 	return (
 		<Badge>
-			<Icon id={WORK_POOL_TYPE_ICONS[type]} />
-			{WORK_POOL_TYPE_LABELS[type]}
+			<Icon id={getWorkPoolTypeIcon(type)} />
+			{getWorkPoolTypeLabel(type)}
 		</Badge>
 	);
 };
