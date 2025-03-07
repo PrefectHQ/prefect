@@ -40,7 +40,7 @@ helm install prefect-server prefect/prefect-server
 </Expandable>
 
 <Expandable title="Custom values (with auth)">
-For a customized deployment, create a `values.yaml` file for the server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
+For a customized deployment, create a `server-values.yaml` file for the server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
 
 
 Create a secret for the API basic authentication username and password:
@@ -54,10 +54,6 @@ server:
   basicAuth:
     enabled: true
     existingSecret: server-auth-secret
-  livenessProbe:
-    enabled: true
-  readinessProbe:
-    enabled: true
 ```
 
 Install the server:
