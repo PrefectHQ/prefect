@@ -584,8 +584,10 @@ class KubernetesWorkerVariables(BaseVariables):
         default=0,
         ge=0,
         title="Backoff Limit",
-        description="The number of times Kubernetes will retry a job after pod eviction. If set to 0, "
-        "Prefect will reschedule the flow run when the pod is evicted.",
+        description=(
+            "The number of times Kubernetes will retry a job after pod eviction. "
+            "If set to 0, Prefect will reschedule the flow run when the pod is evicted."
+        ),
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,
