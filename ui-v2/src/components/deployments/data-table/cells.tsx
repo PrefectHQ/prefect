@@ -26,7 +26,7 @@ type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 };
 
 export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
-	const id = row.original.id;
+	const { id, parameters } = row.original;
 	const { onQuickRun, isPending } = useQuickRun();
 
 	if (!id) return null;
@@ -46,7 +46,11 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 						Quick Run
 					</DropdownMenuItem>
 					<DropdownMenuItem>
-						<Link to="/deployments/deployment/$id/run" params={{ id }}>
+						<Link
+							to="/deployments/deployment/$id/run"
+							params={{ id }}
+							search={{ parameters }}
+						>
 							Custom Run
 						</Link>
 					</DropdownMenuItem>

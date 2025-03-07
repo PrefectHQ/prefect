@@ -13,7 +13,7 @@
 		"format:check": "biome check",
 		"format": "biome check --write",
 		"preview": "vite preview",
-		"service-sync": "uv run --with-editable ../. ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && rm oss_schema.json",
+		"service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && npx orval --config ./orval.config.cjs && rm oss_schema.json",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build",
 		"validate:types": "tsc -b --noEmit"
@@ -24,6 +24,7 @@
 		"@hookform/resolvers": "^4.1.3",
 		"@ngneat/falso": "^7.3.0",
 		"@prefecthq/graphs": "^3.0.5",
+		"@radix-ui/react-accordion": "^1.2.3",
 		"@radix-ui/react-alert-dialog": "^1.1.6",
 		"@radix-ui/react-avatar": "^1.1.3",
 		"@radix-ui/react-checkbox": "^1.1.4",
@@ -79,7 +80,6 @@
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@eslint/js": "^9.21.0",
-		"@faker-js/faker": "^9.5.1",
 		"@storybook/addon-a11y": "^8.6.3",
 		"@storybook/addon-essentials": "^8.6.3",
 		"@storybook/addon-interactions": "^8.6.3",

@@ -19,6 +19,7 @@ export const FlowRunNameInput = ({
 				variant="ghost"
 				size="icon"
 				onClick={() => onClickGenerate(createFakeFlowRunName())}
+				type="button"
 			>
 				<Icon id="RefreshCw" className="size-4" />
 			</Button>

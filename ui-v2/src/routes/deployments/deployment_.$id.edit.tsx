@@ -1,6 +1,5 @@
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import { DeploymentForm } from "@/components/deployments/deployment-form";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { DeploymentEditPage } from "@/components/deployments/deployment-edit-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/deployments/deployment_/$id/edit")({
@@ -12,7 +11,6 @@ export const Route = createFileRoute("/deployments/deployment_/$id/edit")({
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
 
-	return <DeploymentForm deployment={data} mode="edit" />;
+	return <DeploymentEditPage id={id} />;
 }

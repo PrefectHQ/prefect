@@ -860,7 +860,8 @@
         "/api/flow_runs/{id}/graph": {
             "get": {
                 "tags": [
-                    "Flow Runs"
+                    "Flow Runs",
+                    "Flow Run Graph"
                 ],
                 "summary": "Read Flow Run Graph V1",
                 "description": "Get a task run dependency map for a given flow run.",
@@ -919,7 +920,8 @@
         "/api/flow_runs/{id}/graph-v2": {
             "get": {
                 "tags": [
-                    "Flow Runs"
+                    "Flow Runs",
+                    "Flow Run Graph"
                 ],
                 "summary": "Read Flow Run Graph V2",
                 "description": "Get a graph of the tasks and subflow runs for the given flow run",
@@ -15444,6 +15446,7 @@
                         "description": "The parameter schema of the flow, including defaults."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
@@ -15605,6 +15608,7 @@
                         "title": "Entrypoint"
                     },
                     "job_variables": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
@@ -15960,6 +15964,7 @@
                         ]
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters"
                     },
@@ -16087,6 +16092,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Job Variables"
                     }
                 },

@@ -197,6 +197,7 @@ class DeploymentCreate(ActionBaseModel):
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
+        json_schema_extra={"additionalProperties": True},
     )
     tags: List[str] = Field(
         default_factory=list,
@@ -225,6 +226,7 @@ class DeploymentCreate(ActionBaseModel):
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides for the flow's infrastructure configuration.",
+        json_schema_extra={"additionalProperties": True},
     )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
@@ -591,7 +593,10 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         ),
         examples=["my-flow-run"],
     )
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        json_schema_extra={"additionalProperties": True},
+    )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description="Whether or not to enforce the parameter schema on this run.",
@@ -621,7 +626,10 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     )
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        json_schema_extra={"additionalProperties": True},
+    )
 
     @field_validator("name", mode="before")
     @classmethod
