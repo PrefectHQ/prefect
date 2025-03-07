@@ -183,3 +183,22 @@ export const resumeWorkPool = (name: string) =>
 			}
 		},
 	});
+
+/**
+ * Deletes a work pool
+ *
+ * @param name - Work pool name to delete
+ * @returns Query configuration object for use with TanStack Query
+ */
+export const deleteWorkPool = (name: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(name),
+		queryFn: async () => {
+			const res = await getQueryService().DELETE("/work_pools/{name}", {
+				params: { path: { name } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+		},
+	});

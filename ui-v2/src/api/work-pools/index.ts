@@ -7,4 +7,5 @@ export {
 	buildWorkPoolDetailsQuery,
 	pauseWorkPool,
 	resumeWorkPool,
+	deleteWorkPool,
 } from "./work-pools";

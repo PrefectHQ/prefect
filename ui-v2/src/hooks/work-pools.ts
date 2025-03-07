@@ -64,3 +64,28 @@ export const useResumeWorkPool = () => {
 		},
 	});
 };
+
+/**
+ * Hook for deleting a work pool
+ * @returns Mutation for deleting a work pool
+ */
+export const useDeleteWorkPool = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (name: string) => {
+			await getQueryService().DELETE("/work_pools/{name}", {
+				params: { path: { name } },
+			});
+		},
+		onSuccess: (_, name) => {
+			void queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() });
+			toast.success(`${name} deleted`);
+		},
+		onError: (error) => {
+			toast.error(
+				`Failed to delete work pool: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		},
+	});
+};

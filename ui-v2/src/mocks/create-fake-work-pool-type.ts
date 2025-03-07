@@ -4,7 +4,7 @@ const WORK_POOL_TYPES = [
 	"kubernetes",
 	"process",
 	"docker",
-	"google-vertex-ai",
+	"vertex-ai",
 	"ecs",
 	"azure-container-instance",
 	"cloud-run",
