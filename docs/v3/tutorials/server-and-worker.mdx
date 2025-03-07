@@ -43,7 +43,7 @@ helm install prefect-server prefect/prefect-server
 For a customized deployment, create a `values.yaml` file for the server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
 
 
-Create a secret for the API basic authentication:
+Create a secret for the API basic authentication username and password:
 ```bash
 kubectl create secret generic server-auth-secret --from-literal auth-string='admin:password123'
 ```
@@ -112,7 +112,7 @@ helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
 
 <Expandable title="Custom values (with auth)">
 
-Create a secret for the API basic authentication:
+Create a secret for the API basic authentication username and password:
 ```bash
 kubectl create secret generic worker-auth-secret --from-literal auth-string='admin:password123'
 ```
