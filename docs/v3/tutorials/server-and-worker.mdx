@@ -1,9 +1,9 @@
 ---
-title: Deploy a Prefect Server and Worker with Helm
-description: Deploy a Prefect OSS Server and Worker with Helm.
+title: Deploy a Self Hosted Prefect Server and Prefect Worker with Helm
+description: Deploy a Self Hosted Prefect Server and Prefect Worker with Helm.
 ---
 
-In this tutorial, you'll learn how to deploy an [OSS Server](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server) and [Worker](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) with Helm.
+In this tutorial, you'll learn how to deploy a [Self Hosted Server](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server) and [Worker](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) with Helm.
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ Create a new namespace for this tutorial (all commands will use this namespace):
    kubectl config set-context --current --namespace=prefect
    ```
 
-## Deploy Prefect Server with Helm
+## Deploy the Server with Helm
 
 Add the Prefect Helm repository:
 ```bash
@@ -40,10 +40,10 @@ helm install prefect-server prefect/prefect-server
 </Expandable>
 
 <Expandable title="Custom values (with auth)">
-For a customized deployment, create a `values.yaml` file for Prefect Server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
+For a customized deployment, create a `values.yaml` file for the server (see [values.yaml template](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml)).
 
 
-Create a secret for the API basic auth:
+Create a secret for the API basic authentication:
 ```bash
 kubectl create secret generic server-auth-secret --from-literal auth-string='admin:password123'
 ```
@@ -53,17 +53,14 @@ Example `server-values.yaml` file for this tutorial:
 server:
   basicAuth:
     enabled: true
-    # Must pre-exist if existingSecret is used; use authString otherwise
-    existingSecret: "server-auth-secret"  
-  autoscaling:
-    enabled: true
+    existingSecret: server-auth-secret
   livenessProbe:
     enabled: true
   readinessProbe:
     enabled: true
 ```
 
-Install Prefect Server:
+Install the server:
 ```bash
 helm install prefect-server prefect/prefect-server -f server-values.yaml
 ```
@@ -79,36 +76,35 @@ REVISION: 1
 TEST SUITE: None
 NOTES:
 Run the following command to port-forward the UI to your localhost:
-$ kubectl --namespace prefect-server port-forward svc/prefect-server 4200:4200
+$ kubectl --namespace prefect port-forward svc/prefect-server 4200:4200
 
 Visit http://localhost:4200 to use Prefect!
 ```
 
 Access the Prefect UI:
 ```bash
-kubectl --namespace prefect-server port-forward svc/prefect-server 4200:4200
+kubectl --namespace prefect port-forward svc/prefect-server 4200:4200
 ```
 
-Open `localhost:4200` in your browser and sign in with `admin:password123`.
+Open `localhost:4200` in your browser. If using basic authentication, sign in with `admin:password123`.
 
-## Deploy a Prefect Worker
+## Deploy a Worker with Helm
 
-To connect a worker to your Prefect server in the same cluster:
+To connect a worker to your Self Hosted Prefect Server in the same cluster:
 
 <Expandable title="Default values (no auth)">
 
 Create a `worker-values.yaml` file for this tutorial:
-```
+```yaml
 worker:
   apiConfig: selfHostedServer
   config:
     workPool: kube-test
   selfHostedServerApiConfig:
-    # SERVICE.NAMESPACE if in same cluster, or FQDN if external
-    apiUrl: http://prefect-server.prefect-server.svc.cluster.local:4200/api
+    apiUrl: http://prefect-server.prefect.svc.cluster.local:4200/api
 ```
 
-Install the Prefect Worker:
+Install the worker:
 ```bash
 helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
 ```
@@ -116,7 +112,7 @@ helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
 
 <Expandable title="Custom values (with auth)">
 
-Create a secret for the API basic auth:
+Create a secret for the API basic authentication:
 ```bash
 kubectl create secret generic worker-auth-secret --from-literal auth-string='admin:password123'
 ```
@@ -128,14 +124,13 @@ worker:
   config:
     workPool: kube-test
   selfHostedServerApiConfig:
-    # SERVICE.NAMESPACE if in same cluster, or FQDN if external
-    apiUrl: http://prefect-server.prefect-server.svc.cluster.local:4200/api
-  basicAuth:
-    enabled: true
-    existingSecret: worker-auth-secret
+    apiUrl: http://prefect-server.prefect.svc.cluster.local:4200/api
+    basicAuth:
+      enabled: true
+      existingSecret: worker-auth-secret
 ```
 
-Install the Prefect Worker:
+Install the worker:
 ```bash
 helm install prefect-worker prefect/prefect-worker -f worker-values.yaml
 ```
@@ -155,7 +150,7 @@ NOTES:
 
 ## Cleanup
 
-To uninstall the Prefect Server and Worker:
+To uninstall the Self Hosted Prefect Server and Prefect Worker:
 
 ```bash
 helm uninstall prefect-worker
