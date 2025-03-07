@@ -8,6 +8,9 @@ build/
 dist/
 sdist/
 
+# uv (consider committing later)
+src/integrations/**/uv.lock
+
 # Build metadata
 src/prefect/_build_info.py
 src/prefect/_version.py
