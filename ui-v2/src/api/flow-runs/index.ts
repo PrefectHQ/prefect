@@ -23,6 +23,8 @@ export type FlowRunsFilter =
 export type FlowRunsPaginateFilter =
 	components["schemas"]["Body_paginate_flow_runs_flow_runs_paginate_post"];
 
+export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
+
 /**
  * Query key factory for flows-related queries
  *
@@ -164,7 +166,7 @@ export const useDeleteFlowRun = () => {
 
 type MutateCreateFlowRun = {
 	id: string;
-} & components["schemas"]["DeploymentFlowRunCreate"];
+} & CreateNewFlowRun;
 /**
  * Hook for creating a new flow run from an automation
  *

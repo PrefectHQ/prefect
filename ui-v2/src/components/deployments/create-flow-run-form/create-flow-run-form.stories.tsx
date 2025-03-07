@@ -1,5 +1,6 @@
 import {
 	createFakeDeployment,
+	createFakeFlowRun,
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
@@ -21,7 +22,9 @@ const meta = {
 	title: "Components/Deployments/CreateFlowRunForm",
 	decorators: [routerDecorator, toastDecorator, reactQueryDecorator],
 	component: CreateFlowRunForm,
-	args: { deployment: createFakeDeployment() },
+	args: {
+		deployment: createFakeDeployment({ work_pool_name: "my-work-pool" }),
+	},
 	parameters: {
 		msw: {
 			handlers: [
@@ -34,6 +37,9 @@ const meta = {
 						return HttpResponse.json(MOCK_WORK_QUEUES_DATA);
 					},
 				),
+				http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+					return HttpResponse.json(createFakeFlowRun());
+				}),
 			],
 		},
 	},

@@ -1,6 +1,5 @@
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import { DeploymentForm } from "@/components/deployments/deployment-form";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { DeploymentDuplicatePage } from "@/components/deployments/deployment-duplicate-page";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/deployments/deployment_/$id/duplicate")({
@@ -12,7 +11,5 @@ export const Route = createFileRoute("/deployments/deployment_/$id/duplicate")({
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
-
-	return <DeploymentForm deployment={data} mode="duplicate" />;
+	return <DeploymentDuplicatePage id={id} />;
 }
