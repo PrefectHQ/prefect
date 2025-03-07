@@ -313,7 +313,7 @@ async def read_flow_run(
         )
 
 
-@router.get("/{id}/graph")
+@router.get("/{id}/graph", tags=["Flow Run Graph"])
 async def read_flow_run_graph_v1(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -327,7 +327,7 @@ async def read_flow_run_graph_v1(
         )
 
 
-@router.get("/{id:uuid}/graph-v2")
+@router.get("/{id:uuid}/graph-v2", tags=["Flow Run Graph"])
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     since: DateTime = Query(

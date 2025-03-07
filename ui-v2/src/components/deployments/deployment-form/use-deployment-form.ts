@@ -31,7 +31,6 @@ const createFormSchema = (
 		work_pool_name: z.string().nullable().optional(),
 		work_queue_name: z.string().nullable().optional(),
 		tags: z.array(z.string()).optional(),
-		/** Coerce to solve common issue of transforming a string to undefined */
 		concurrency_options: z
 			.object({
 				collision_strategy: z.enum(["ENQUEUE", "CANCEL_NEW"]).optional(),
@@ -163,10 +162,8 @@ export const useDeploymentForm = (
 						description,
 						enforce_parameter_schema,
 						flow_id: deployment.flow_id,
-						// @ts-expect-error Expecting TS error from poor openAPI typings
 						job_variables: jobVariablesPayload,
 						name,
-						// @ts-expect-error Expecting TS error from poor openAPI typings
 						parameters: parametersFormValues,
 						parameter_openapi_schema,
 						paused: deployment.paused,

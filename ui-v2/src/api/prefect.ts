@@ -5308,7 +5308,9 @@ export interface components {
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Tags
              * @description A list of deployment tags.
@@ -5346,7 +5348,9 @@ export interface components {
              * Job Variables
              * @description Overrides for the flow's infrastructure configuration.
              */
-            job_variables?: Record<string, never>;
+            job_variables?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * DeploymentFilter
@@ -5485,7 +5489,9 @@ export interface components {
              */
             name?: string;
             /** Parameters */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Enforce Parameter Schema
              * @description Whether or not to enforce the parameter schema on this run.
@@ -5519,7 +5525,9 @@ export interface components {
             /** Work Queue Name */
             work_queue_name?: string | null;
             /** Job Variables */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
         };
         /**
          * DeploymentOrFlowNameFilter
