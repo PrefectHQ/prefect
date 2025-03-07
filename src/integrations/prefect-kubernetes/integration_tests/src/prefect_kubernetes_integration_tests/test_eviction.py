@@ -24,7 +24,7 @@ async def test_default_pod_eviction(
         work_pool_name=work_pool_name,
         job_variables={
             "image": "prefecthq/prefect:3.2.11-python3.12",
-            "env": {"PREFECT_API_URL": "http://host.k8s.local:4200/api"},
+            "env": {"PREFECT_API_URL": "http://host.docker.internal:4200/api"},
         },
     )
 
@@ -58,11 +58,8 @@ async def test_default_pod_eviction(
                 "Expected flow run not be marked as CRASHED, but it was"
             )
             # Might be pending or scheduled depending on if the worker was able to pick up the run before our check
-            assert (
-                updated_flow_run.state.type == StateType.PENDING
-                or updated_flow_run.state.type == StateType.SCHEDULED
-            ), (
-                "Expected flow run to be marked as PENDING or SCHEDULED. Got "
+            assert updated_flow_run.state.type == StateType.SCHEDULED, (
+                "Expected flow run to be SCHEDULED. Got "
                 f"{updated_flow_run.state.type} instead."
             )
 
