@@ -56,7 +56,6 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.deployments import initialize_project
 from prefect.deployments.base import (
-    _format_deployment_for_saving_to_prefect_file,
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.runner import RunnerDeployment
@@ -820,12 +819,7 @@ async def _run_single_deploy(
         )
         app.console.print(message, soft_wrap=True)
 
-    identical_deployment_exists_in_prefect_file = (
-        _check_if_identical_deployment_in_prefect_file(
-            deploy_config_before_templating, prefect_file
-        )
-    )
-    if should_prompt_for_save and not identical_deployment_exists_in_prefect_file:
+    if should_prompt_for_save:
         if confirm(
             (
                 "Would you like to save configuration for this deployment for faster"
@@ -1683,31 +1677,6 @@ def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
                         existing_deployment.get("entrypoint")
                         == deploy_config.get("entrypoint")
                     ):
-                        return True
-    return False
-
-
-def _check_if_identical_deployment_in_prefect_file(
-    untemplated_deploy_config: dict[str, Any], prefect_file: Path = Path("prefect.yaml")
-) -> bool:
-    """
-    Check if the given deploy config is identical to an existing deploy config in the
-    prefect.yaml file, meaning that there have been no updates and prompting to save is unnecessary.
-
-    Args:
-        untemplated_deploy_config: A deploy config that has not been templated.
-    """
-
-    user_specified_deploy_config = _format_deployment_for_saving_to_prefect_file(
-        untemplated_deploy_config
-    )
-    if prefect_file.exists():
-        with prefect_file.open(mode="r") as f:
-            parsed_prefect_file_contents = yaml.safe_load(f)
-            existing_deployments = parsed_prefect_file_contents.get("deployments")
-            if existing_deployments is not None:
-                for deploy_config in existing_deployments:
-                    if deploy_config == user_specified_deploy_config:
                         return True
     return False
 
