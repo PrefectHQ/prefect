@@ -1,15 +1,9 @@
-import { WorkPool } from "@/api/work-pools";
+import { WorkPool, deleteWorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Switch } from "@/components/ui/switch";
-import {
-	useDeleteWorkPool,
-	usePauseWorkPool,
-	useResumeWorkPool,
-} from "@/hooks/work-pools";
-import { useState } from "react";
 import { WorkPoolContextMenu } from "./components/work-pool-context-menu";
 import { WorkPoolName } from "./components/work-pool-name";
+import { WorkPoolPauseResumeToggle } from "./components/work-pool-pause-resume-toggle";
 import { WorkPoolTypeBadge } from "./components/work-pool-type-badge";
 
 type WorkPoolCardProps = {
@@ -17,28 +11,6 @@ type WorkPoolCardProps = {
 };
 
 export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
-	const [isPaused, setIsPaused] = useState(workPool.status === "PAUSED");
-
-	const pauseWorkPoolMutation = usePauseWorkPool();
-	const resumeWorkPoolMutation = useResumeWorkPool();
-
-	const { mutate: deleteWorkPool } = useDeleteWorkPool();
-
-	const isUpdating =
-		pauseWorkPoolMutation.isPending || resumeWorkPoolMutation.isPending;
-
-	const handleTogglePause = () => {
-		if (isPaused) {
-			resumeWorkPoolMutation.mutate(workPool.name, {
-				onSuccess: () => setIsPaused(false),
-			});
-		} else {
-			pauseWorkPoolMutation.mutate(workPool.name, {
-				onSuccess: () => setIsPaused(true),
-			});
-		}
-	};
-
 	return (
 		<Card className="gap-2">
 			<CardHeader className="flex flex-row items-center justify-between">
@@ -47,15 +19,7 @@ export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 					{workPool.status && <StatusBadge status={workPool.status} />}
 				</CardTitle>
 				<div className="flex items-center gap-2">
-					<span className="text-sm text-muted-foreground">
-						{isPaused ? "Paused" : "Active"}
-					</span>
-					<Switch
-						checked={!isPaused}
-						onCheckedChange={handleTogglePause}
-						disabled={isUpdating}
-						aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
-					/>
+					<WorkPoolPauseResumeToggle workPool={workPool} />
 					<WorkPoolContextMenu
 						workPool={workPool}
 						onDelete={() => deleteWorkPool(workPool.name)}
