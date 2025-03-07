@@ -1,6 +1,10 @@
 import type { Deployment } from "@/api/deployments";
-import { useDeploymentCreateFlowRun } from "@/api/flow-runs";
+import {
+	type CreateNewFlowRun,
+	useDeploymentCreateFlowRun,
+} from "@/api/flow-runs";
 import { useSchemaForm } from "@/components/schemas";
+import type { SchemaFormValues } from "@/components/schemas/types/values";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,32 +16,31 @@ import { z } from "zod";
 import { createFakeFlowRunName } from "./create-fake-flow-run-name";
 
 const formSchema = z.object({
-	empirical_policy: z.object({
-		retries: z.number().nullable(),
-		retry_delay: z.number().nullable(),
-		/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-		resuming: z.literal(false).readonly(),
-		/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-		max_retries: z.literal(0).readonly(),
-		/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-		retry_delay_seconds: z.literal(0).readonly(),
-	}),
-	name: z.string(),
-	job_variables: z.string().superRefine((val, ctx) => {
-		try {
-			if (!val) {
-				return;
+	empirical_policy: z
+		.object({
+			/** Coerce to solve common issue of transforming a string number to a number type */
+			retries: z.number().or(z.string()).pipe(z.coerce.number()).optional(),
+			/** Coerce to solve common issue of transforming a string number to a number type */
+			retry_delay: z.number().or(z.string()).pipe(z.coerce.number()).optional(),
+		})
+		.optional(),
+	name: z.string().nonempty(),
+	job_variables: z
+		.string()
+		.superRefine((val, ctx) => {
+			try {
+				if (!val) {
+					return;
+				}
+				return JSON.parse(val) as Record<string, unknown>;
+			} catch (err) {
+				console.error(err);
+				ctx.addIssue({ code: "custom", message: "Invalid JSON" });
+				return z.NEVER;
 			}
-			return JSON.parse(val) as Record<string, unknown>;
-		} catch (err) {
-			console.error(err);
-			ctx.addIssue({ code: "custom", message: "Invalid JSON" });
-			return z.NEVER;
-		}
-	}),
+		})
+		.optional(),
 	state: z.object({
-		/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-		type: z.literal("SCHEDULED").readonly(),
 		message: z.string().optional(),
 		state_details: z
 			.object({
@@ -56,12 +59,6 @@ const formSchema = z.object({
 						},
 						{ message: "Selected time must be set to the future" },
 					),
-				/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-				pause_reschedule: z.literal(false).readonly(),
-				/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-				deferred: z.literal(false).readonly(),
-				/** nb: due to poor openAPI typing, need add this to schema. This will not be set, but just passed in the payload using the default value */
-				untrackable_result: z.literal(false).readonly(),
 			})
 			.optional(),
 	}),
@@ -77,36 +74,30 @@ const formSchema = z.object({
 
 export type CreateFlowRunSchema = z.infer<typeof formSchema>;
 
-const DEFAULT_VALUES: CreateFlowRunSchema = {
+const createDefaultValues = (): CreateFlowRunSchema => ({
 	empirical_policy: {
-		retries: null,
-		retry_delay: null,
-		resuming: false,
-		max_retries: 0,
-		retry_delay_seconds: 0,
+		retries: 0,
+		retry_delay: 0,
 	},
 	name: createFakeFlowRunName(),
 	job_variables: "",
 	state: {
 		message: "",
-		type: "SCHEDULED",
-		state_details: {
-			scheduled_time: null,
-			pause_reschedule: false,
-			deferred: false,
-			untrackable_result: false,
-		},
+		state_details: { scheduled_time: null },
 	},
 	tags: [],
 	enforce_parameter_schema: true,
 	parameter_openapi_schema: {},
-};
+});
 
-export const useCreateFlowRunForm = (deployment: Deployment) => {
+export const useCreateFlowRunForm = (
+	deployment: Deployment,
+	overrideParameters: Record<string, unknown> | undefined,
+) => {
 	const navigate = useNavigate();
 	const form = useForm({
 		resolver: zodResolver(formSchema),
-		defaultValues: DEFAULT_VALUES,
+		defaultValues: createDefaultValues(),
 	});
 	const {
 		values: parametersFormValues,
@@ -128,8 +119,8 @@ export const useCreateFlowRunForm = (deployment: Deployment) => {
 		} = deployment;
 
 		// nb: parameter form state and validation is handled separately using SchemaForm
-		// parameters has poor typings from openAPI
-		setParametersFormValues(deployment.parameters as Record<string, unknown>);
+		// Use parameters from an external source, if they're undefined, default to the deployment parameters
+		setParametersFormValues(overrideParameters ?? deployment.parameters ?? {});
 
 		// nb: Handle remaining form fields using react-hook-form
 		form.reset({
@@ -139,27 +130,14 @@ export const useCreateFlowRunForm = (deployment: Deployment) => {
 			enforce_parameter_schema,
 			job_variables: job_variables ? JSON.stringify(job_variables) : "",
 		});
-	}, [form, deployment, setParametersFormValues]);
+	}, [form, deployment, setParametersFormValues, overrideParameters]);
 
 	const onCreate = async (values: CreateFlowRunSchema) => {
-		const {
-			empirical_policy,
-			enforce_parameter_schema,
-			job_variables,
-			name,
-			parameter_openapi_schema,
-			state,
-			tags,
-			work_queue_name,
-		} = values;
-
-		const jobVariablesPayload = job_variables
-			? (JSON.parse(job_variables) as Record<string, unknown>)
-			: undefined;
-
-		if (parameter_openapi_schema && enforce_parameter_schema) {
+		if (values.parameter_openapi_schema && values.enforce_parameter_schema) {
 			try {
-				await validateParametersForm({ schema: parameter_openapi_schema });
+				await validateParametersForm({
+					schema: values.parameter_openapi_schema,
+				});
 			} catch (err) {
 				const message = "Unknown error while updating validating schema.";
 				toast.error(message);
@@ -174,40 +152,24 @@ export const useCreateFlowRunForm = (deployment: Deployment) => {
 
 		createDeploymentFlowRun(
 			{
-				enforce_parameter_schema,
-				empirical_policy,
-				state,
-				flow_id: deployment.flow_id,
-				// @ts-expect-error Expecting TS error from poor openAPI typings
-				job_variables: jobVariablesPayload,
-				name,
-				// @ts-expect-error Expecting TS error from poor openAPI typings
-				parameters: parametersFormValues,
-				parameter_openapi_schema,
-				tags,
-				// If value is "", set as null
-				work_queue_name: work_queue_name || null,
+				id: deployment.id,
+				...createPayload(parametersFormValues, values),
 			},
 			{
 				onSuccess: (res) => {
-					const message = `${name} scheduled to start ${state.state_details?.scheduled_time ? formatDate(state.state_details?.scheduled_time, "dateTime") : "now"}`;
+					const message = `${values.name} scheduled to start ${values.state.state_details?.scheduled_time ? formatDate(values.state.state_details.scheduled_time, "dateTime") : "now"}`;
 					toast.success(message, {
 						action: (
 							<Link to="/runs/flow-run/$id" params={{ id: res.id }}>
 								<Button size="sm">View run</Button>
 							</Link>
 						),
-						description: (
-							<p>
-								<span className="font-bold">{res.name}</span> scheduled to start{" "}
-								<span className="font-bold">now</span>
-							</p>
-						),
 					});
 					void navigate({
 						to: "/deployments/deployment/$id",
 						params: { id: deployment.id },
 					});
+					form.reset(createDefaultValues());
 				},
 				onError: (error) => {
 					const message =
@@ -227,3 +189,49 @@ export const useCreateFlowRunForm = (deployment: Deployment) => {
 		parameterFormErrors,
 	};
 };
+
+// nb: Used to fill in default values required from poor openAPI typings. Not used in form
+const DEFAULT_EMPIRICAL_POLICY = {
+	resuming: false,
+	max_retries: 0,
+	retry_delay_seconds: 0,
+};
+
+// nb: Used to fill in default values required from poor openAPI typings. Not used in form
+const DEFAULT_STATE = {
+	type: "SCHEDULED" as const,
+	state_details: {
+		pause_reschedule: false,
+		deferred: false,
+		untrackable_result: false,
+	},
+};
+
+function createPayload(
+	parameterValues: SchemaFormValues,
+	formValues: CreateFlowRunSchema,
+): CreateNewFlowRun {
+	const jobVariablesPayload = formValues.job_variables
+		? (JSON.parse(formValues.job_variables) as Record<string, unknown>)
+		: undefined;
+
+	return {
+		name: formValues.name,
+		work_queue_name: formValues.work_queue_name || null,
+		empirical_policy: {
+			...DEFAULT_EMPIRICAL_POLICY,
+			...formValues.empirical_policy,
+		},
+		state: {
+			...DEFAULT_STATE,
+			...formValues.state,
+			state_details: {
+				...DEFAULT_STATE.state_details,
+				...formValues.state.state_details,
+			},
+		},
+		job_variables: jobVariablesPayload,
+		enforce_parameter_schema: formValues.enforce_parameter_schema,
+		parameters: parameterValues,
+	};
+}

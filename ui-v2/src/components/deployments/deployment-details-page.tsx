@@ -4,12 +4,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useMemo, useState } from "react";
 
-import { FlowLink } from "@/components/flows/flow-link";
-import { WorkPoolLink } from "@/components/work-pools/work-pool-link";
-import { WorkQueueLink } from "@/components/work-pools/work-queue-link";
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
 import { DeploymentDetailsTabs } from "./deployment-details-tabs";
+import { DeploymentLinks } from "./deployment-links";
 import { DeploymentMetadata } from "./deployment-metadata";
 import { DeploymentScheduleDialog } from "./deployment-schedules/deployment-schedule-dialog";
 import { DeploymentSchedules } from "./deployment-schedules/deployment-schedules";
@@ -62,20 +60,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				<div className="flex align-middle justify-between">
 					<div className="flex flex-col gap-2">
 						<DeploymentDetailsHeader deployment={deployment} />
-						<div className="flex items-center gap-4">
-							<Suspense fallback={<LoadingSkeleton numSkeletons={1} />}>
-								<FlowLink flowId={deployment.flow_id} />
-							</Suspense>
-							{deployment.work_pool_name && (
-								<WorkPoolLink workPoolName={deployment.work_pool_name} />
-							)}
-							{deployment.work_pool_name && deployment.work_queue_name && (
-								<WorkQueueLink
-									workPoolName={deployment.work_pool_name}
-									workQueueName={deployment.work_queue_name}
-								/>
-							)}
-						</div>
+						<DeploymentLinks deployment={deployment} />
 					</div>
 					<div className="flex align-middle gap-2">
 						<RunFlowButton deployment={deployment} />

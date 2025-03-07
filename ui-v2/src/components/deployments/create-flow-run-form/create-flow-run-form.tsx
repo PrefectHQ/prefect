@@ -1,6 +1,12 @@
 import { Deployment } from "@/api/deployments";
 import { SchemaForm } from "@/components/schemas";
 import type { PrefectSchemaObject } from "@/components/schemas";
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
 	Form,
@@ -10,8 +16,13 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { JsonInput } from "@/components/ui/json-input";
 import { Switch } from "@/components/ui/switch";
+import { TagsInput } from "@/components/ui/tags-input";
+import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
+import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
 import { Link } from "@tanstack/react-router";
 import { FlowRunNameInput } from "./flow-run-name-input";
 import { FlowRunStartInput } from "./flow-run-start-input";
@@ -19,17 +30,23 @@ import { useCreateFlowRunForm } from "./use-create-flow-run-form";
 
 type CreateFlowRunFormProps = {
 	deployment: Deployment;
+	overrideParameters: Record<string, unknown> | undefined;
 };
 
-export const CreateFlowRunForm = ({ deployment }: CreateFlowRunFormProps) => {
+export const CreateFlowRunForm = ({
+	deployment,
+	overrideParameters,
+}: CreateFlowRunFormProps) => {
 	const {
 		form,
 		onCreate,
 		parameterFormErrors,
 		setParametersFormValues,
 		parametersFormValues,
-	} = useCreateFlowRunForm(deployment);
+	} = useCreateFlowRunForm(deployment, overrideParameters);
 	const parametersOpenAPISchema = form.getValues("parameter_openapi_schema");
+
+	const { id, work_pool_name } = deployment;
 
 	return (
 		<Form {...form}>
@@ -53,11 +70,12 @@ export const CreateFlowRunForm = ({ deployment }: CreateFlowRunFormProps) => {
 					)}
 				/>
 
-				<div className="pt-4 border-t">
-					<Typography variant="h3" className="mb-4">
-						Parameters
-					</Typography>
-					{parametersOpenAPISchema && (
+				{parametersOpenAPISchema && (
+					<div className="pt-4 border-t">
+						<Typography variant="h3" className="mb-4">
+							Parameters
+						</Typography>
+
 						<SchemaForm
 							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
 							errors={parameterFormErrors}
@@ -65,25 +83,26 @@ export const CreateFlowRunForm = ({ deployment }: CreateFlowRunFormProps) => {
 							onValuesChange={setParametersFormValues}
 							kinds={["json"]}
 						/>
-					)}
-					<FormField
-						control={form.control}
-						name="enforce_parameter_schema"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Enforce Parameter Schema</FormLabel>
-								<FormControl>
-									<Switch
-										className="block"
-										checked={field.value}
-										onCheckedChange={field.onChange}
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				</div>
+
+						<FormField
+							control={form.control}
+							name="enforce_parameter_schema"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Enforce Parameter Schema</FormLabel>
+									<FormControl>
+										<Switch
+											className="block"
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				)}
 
 				<div className="pt-4 border-t">
 					<FormField
@@ -92,7 +111,7 @@ export const CreateFlowRunForm = ({ deployment }: CreateFlowRunFormProps) => {
 						render={({ field }) => (
 							<FormItem>
 								<FormLabel>
-									<Typography variant="h3" className="mb-4">
+									<Typography variant="bodyLarge" className="mb-4">
 										Start
 									</Typography>
 								</FormLabel>
@@ -108,8 +127,126 @@ export const CreateFlowRunForm = ({ deployment }: CreateFlowRunFormProps) => {
 					/>
 				</div>
 
+				<Accordion type="single" collapsible>
+					<AccordionItem value="item-1">
+						<AccordionTrigger>
+							<Typography variant="bodyLarge">Additional Options</Typography>
+						</AccordionTrigger>
+						<AccordionContent className="flex flex-col gap-4">
+							<FormField
+								control={form.control}
+								name="state.message"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Message (Optional)</FormLabel>
+										<FormControl>
+											<Textarea
+												placeholder="Created from the Prefect UI"
+												className="resize-none"
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="tags"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Tags (Optional)</FormLabel>
+										<FormControl>
+											<TagsInput {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							{work_pool_name && (
+								<FormField
+									control={form.control}
+									name="work_queue_name"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>
+												Work Queue for {work_pool_name} (Optional)
+											</FormLabel>
+											<FormControl>
+												<WorkQueueSelect
+													workPoolName={work_pool_name}
+													selected={field.value}
+													onSelect={field.onChange}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							)}
+
+							<div className="flex gap-4">
+								<div className="w-full">
+									<FormField
+										control={form.control}
+										name="empirical_policy.retries"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Retries (Optional)</FormLabel>
+												<FormControl>
+													<Input type="number" {...field} />
+												</FormControl>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								</div>
+								<div className="w-full">
+									<FormField
+										control={form.control}
+										name="empirical_policy.retry_delay"
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Retries (Optional)</FormLabel>
+												<div className="flex items-center">
+													<FormControl>
+														<Input
+															className="border-r-0 rounded-r-none"
+															type="number"
+															{...field}
+														/>
+													</FormControl>
+													<Typography className="border rounded-sm rounded-l-none p-1.25">
+														Seconds
+													</Typography>
+												</div>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+								</div>
+							</div>
+
+							<FormField
+								control={form.control}
+								name="job_variables"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Job Variables (Optional)</FormLabel>
+										<FormControl>
+											<JsonInput {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</AccordionContent>
+					</AccordionItem>
+				</Accordion>
+
 				<div className="flex gap-3 justify-end">
-					<Link to="/deployments/deployment/$id" params={{ id: deployment.id }}>
+					<Link to="/deployments/deployment/$id" params={{ id }}>
 						<Button variant="secondary">Cancel</Button>
 					</Link>
 					<Button type="submit">Submit</Button>
