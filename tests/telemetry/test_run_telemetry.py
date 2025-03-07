@@ -1006,7 +1006,6 @@ async def test_span_name_with_string_template(
 async def test_no_span_when_telemetry_disabled(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
-    monkeypatch,
 ):
     """Test that no spans are created when telemetry is disabled"""
     # Disable telemetry
