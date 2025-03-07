@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          depth: 0
+          fetch-depth: 0
           persist-credentials: false
       
       - name: Set up uv
