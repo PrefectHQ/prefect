@@ -91,3 +91,6 @@ timeout = 30
 
 [tool.uv.sources]
 prefect = { path = "../../../" }
+
+[tool.uv.workspace]
+members = ["integration_tests"]
