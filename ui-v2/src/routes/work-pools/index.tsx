@@ -55,19 +55,21 @@ function RouteComponent() {
 			<WorkPoolsPageHeader />
 			{workPoolCount === 0 && <WorkPoolsEmptyState />}
 			{workPoolCount > 0 && (
-				<div className="flex justify-between">
-					<div className="text-sm text-muted-foreground">
-						{workPoolCount} {pluralize(workPoolCount, "work pool")}
-					</div>
-					<div className="flex gap-2">
-						<div className="relative">
-							<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-							<Input
-								placeholder="Search work pools..."
-								className="pl-8 w-[250px]"
-								value={searchTerm}
-								onChange={handleSearchChange}
-							/>
+				<>
+					<div className="flex justify-between">
+						<div className="text-sm text-muted-foreground">
+							{workPoolCount} {pluralize(workPoolCount, "work pool")}
+						</div>
+						<div className="flex gap-2">
+							<div className="relative">
+								<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+								<Input
+									placeholder="Search work pools..."
+									className="pl-8 w-[250px]"
+									value={searchTerm}
+									onChange={handleSearchChange}
+								/>
+							</div>
 						</div>
 					</div>
 					<div className="flex flex-col gap-4">
@@ -75,7 +77,7 @@ function RouteComponent() {
 							<WorkPoolCard key={workPool.id} workPool={workPool} />
 						))}
 					</div>
-				</div>
+				</>
 			)}
 		</div>
 	);

@@ -2,8 +2,13 @@ import { WorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Switch } from "@/components/ui/switch";
-import { usePauseWorkPool, useResumeWorkPool } from "@/hooks/work-pools";
+import {
+	useDeleteWorkPool,
+	usePauseWorkPool,
+	useResumeWorkPool,
+} from "@/hooks/work-pools";
 import { useState } from "react";
+import { WorkPoolContextMenu } from "./components/work-pool-context-menu";
 import { WorkPoolName } from "./components/work-pool-name";
 import { WorkPoolTypeBadge } from "./components/work-pool-type-badge";
 
@@ -16,6 +21,8 @@ export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 
 	const pauseWorkPoolMutation = usePauseWorkPool();
 	const resumeWorkPoolMutation = useResumeWorkPool();
+
+	const { mutate: deleteWorkPool } = useDeleteWorkPool();
 
 	const isUpdating =
 		pauseWorkPoolMutation.isPending || resumeWorkPoolMutation.isPending;
@@ -48,6 +55,10 @@ export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 						onCheckedChange={handleTogglePause}
 						disabled={isUpdating}
 						aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
+					/>
+					<WorkPoolContextMenu
+						workPool={workPool}
+						onDelete={() => deleteWorkPool(workPool.name)}
 					/>
 				</div>
 			</CardHeader>
