@@ -1,9 +1,9 @@
 ---
-title: Deploy a Self Hosted Prefect Server and Prefect Worker with Helm
-description: Learn how to deploy a self hosted Prefect server and connect a Prefect worker to it using Helm.
+title: Deploy a Self-Hosted Prefect Server and Prefect Worker with Helm
+description: Learn how to deploy a self-hosted Prefect server and connect a Prefect worker to it using Helm.
 ---
 
-In this tutorial, you'll learn how to deploy a [Self Hosted Server](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server) and [Worker](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) with Helm.
+In this tutorial, you'll learn how to deploy a [self-hosted server](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server) and [worker](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker) with Helm.
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ Create a new namespace for this tutorial (all commands will use this namespace):
    kubectl config set-context --current --namespace=prefect
    ```
 
-## Deploy the Server with Helm
+## Deploy the server with Helm
 
 Add the Prefect Helm repository:
 ```bash
@@ -84,9 +84,9 @@ kubectl --namespace prefect port-forward svc/prefect-server 4200:4200
 
 Open `localhost:4200` in your browser. If using basic authentication, sign in with `admin:password123`.
 
-## Deploy a Worker with Helm
+## Deploy a worker with Helm
 
-To connect a worker to your Self Hosted Prefect Server in the same cluster:
+To connect a worker to your self-hosted Prefect server in the same cluster:
 
 <Expandable title="Default values (no auth)">
 
@@ -146,7 +146,7 @@ NOTES:
 
 ## Cleanup
 
-To uninstall the Self Hosted Prefect Server and Prefect Worker:
+To uninstall the self-hosted Prefect server and Prefect worker:
 
 ```bash
 helm uninstall prefect-worker
