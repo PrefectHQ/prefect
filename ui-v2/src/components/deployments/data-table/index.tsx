@@ -227,7 +227,10 @@ export const DeploymentsDataTable = ({
 				</div>
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
 					<Select value={sort} onValueChange={onSortChange}>
-						<SelectTrigger aria-label="Deployment sort order">
+						<SelectTrigger
+							aria-label="Deployment sort order"
+							className="w-full"
+						>
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>
 						<SelectContent>

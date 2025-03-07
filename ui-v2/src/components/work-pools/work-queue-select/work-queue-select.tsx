@@ -11,9 +11,8 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, useDeferredValue, useMemo, useState } from "react";
 
 type PresetOption = {
 	label: string;
@@ -33,17 +32,32 @@ export const WorkQueueSelect = ({
 	onSelect,
 	workPoolName,
 }: WorkQueueSelectProps) => {
+	return (
+		<Suspense>
+			<WorkQueueSelecImplementation
+				presetOptions={presetOptions}
+				selected={selected}
+				onSelect={onSelect}
+				workPoolName={workPoolName}
+			/>
+		</Suspense>
+	);
+};
+
+const WorkQueueSelecImplementation = ({
+	presetOptions = [],
+	selected,
+	onSelect,
+	workPoolName,
+}: WorkQueueSelectProps) => {
 	const [search, setSearch] = useState("");
-	const { data, isSuccess } = useQuery(
+	const { data } = useSuspenseQuery(
 		buildFilterWorkPoolWorkQueuesQuery({ work_pool_name: workPoolName }),
 	);
 
 	// nb: because work queues API does not have filtering _like by name, do client-side filtering
 	const deferredSearch = useDeferredValue(search);
 	const filteredData = useMemo(() => {
-		if (!data) {
-			return [];
-		}
 		return data.filter((workQueue) =>
 			workQueue.name.toLowerCase().includes(deferredSearch.toLowerCase()),
 		);
@@ -86,34 +100,22 @@ export const WorkQueueSelect = ({
 								{option.label}
 							</ComboboxCommandItem>
 						))}
-						{isSuccess ? (
-							filteredData.map((workQueue) => (
-								<ComboboxCommandItem
-									key={workQueue.id}
-									selected={selected === workQueue.name}
-									onSelect={(value) => {
-										onSelect(value);
-										setSearch("");
-									}}
-									value={workQueue.name}
-								>
-									{workQueue.name}
-								</ComboboxCommandItem>
-							))
-						) : (
-							<LoadingSelectState />
-						)}
+						{filteredData.map((workQueue) => (
+							<ComboboxCommandItem
+								key={workQueue.id}
+								selected={selected === workQueue.name}
+								onSelect={(value) => {
+									onSelect(value);
+									setSearch("");
+								}}
+								value={workQueue.name}
+							>
+								{workQueue.name}
+							</ComboboxCommandItem>
+						))}
 					</ComboboxCommandGroup>
 				</ComboboxCommandList>
 			</ComboboxContent>
 		</Combobox>
 	);
 };
-
-type LoadingSelectStateProps = {
-	length?: number;
-};
-const LoadingSelectState = ({ length = 4 }: LoadingSelectStateProps) =>
-	Array.from({ length }, (_, index) => (
-		<Skeleton key={index} className="mt-2 p-4 h-2 w-full" />
-	));

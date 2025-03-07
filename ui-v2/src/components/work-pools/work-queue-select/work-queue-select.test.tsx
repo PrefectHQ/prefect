@@ -1,6 +1,6 @@
 import type { WorkQueue } from "@/api/work-queues";
 import { createFakeWorkQueue } from "@/mocks";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
@@ -49,6 +49,12 @@ describe("WorkQueueSelect", () => {
 			{ wrapper: createWrapper() },
 		);
 
+		await waitFor(() =>
+			expect(
+				screen.getByRole("combobox", { name: /select a work queue/i }),
+			).toBeVisible(),
+		);
+
 		// ------------ Act
 		await user.click(
 			screen.getByRole("combobox", { name: /select a work queue/i }),
@@ -86,6 +92,12 @@ describe("WorkQueueSelect", () => {
 			{ wrapper: createWrapper() },
 		);
 
+		await waitFor(() =>
+			expect(
+				screen.getByRole("combobox", { name: /select a work queue/i }),
+			).toBeVisible(),
+		);
+
 		// ------------ Act
 		await user.click(
 			screen.getByRole("combobox", { name: /select a work queue/i }),
@@ -96,7 +108,7 @@ describe("WorkQueueSelect", () => {
 		expect(mockOnSelect).toHaveBeenLastCalledWith(undefined);
 	});
 
-	it("has the selected value displayed", () => {
+	it("has the selected value displayed", async () => {
 		mockListWorkPoolWorkQueuesAPI([
 			createFakeWorkQueue({
 				work_pool_name: WORK_POOL_NAME,
@@ -120,6 +132,8 @@ describe("WorkQueueSelect", () => {
 		);
 
 		// ------------ Assert
-		expect(screen.getByText("my work pool 0")).toBeVisible();
+		await waitFor(() =>
+			expect(screen.getByText("my work pool 0")).toBeVisible(),
+		);
 	});
 });

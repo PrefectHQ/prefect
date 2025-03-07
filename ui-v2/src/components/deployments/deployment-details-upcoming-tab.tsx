@@ -12,7 +12,6 @@ import {
 	SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
-import useDebounce from "@/hooks/use-debounce";
 import { useCallback, useMemo } from "react";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
@@ -32,15 +31,13 @@ export const DeploymentDetailsUpcomingTab = ({
 	const [filter, setFilter] = useFilter();
 	const resetFilters = useResetFilters();
 
-	const debouncedSearch = useDebounce(search, 400);
-
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
 			operator: "and_",
 			id: { any_: [deployment.id] },
 		},
 		flow_runs: {
-			name: { like_: debouncedSearch || undefined },
+			name: { like_: search || undefined },
 			state: {
 				name: { any_: filter.length === 0 ? undefined : filter },
 				operator: "or_",
