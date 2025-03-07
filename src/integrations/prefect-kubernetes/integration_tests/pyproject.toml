@@ -16,7 +16,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv.sources]
-prefect-kubernetes = { workspace = true }
+prefect-kubernetes = { path = "../" }
 
 [project.scripts]
 run-integration-tests = "prefect_kubernetes_integration_tests.scenarios.run:main"
