@@ -2496,7 +2496,7 @@ export const createFlowRunFromDeploymentDeploymentsIdCreateFlowRunPostBody =
 			.or(zod.null())
 			.optional(),
 		name: zod.string().optional(),
-		parameters: zod.object({}).optional(),
+		parameters: zod.record(zod.string(), zod.any()).optional(),
 		enforce_parameter_schema: zod.boolean().or(zod.null()).optional(),
 		context: zod.object({}).optional(),
 		infrastructure_document_id: zod.string().uuid().or(zod.null()).optional(),

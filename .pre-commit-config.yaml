@@ -30,6 +30,19 @@ repos:
           )$
   - repo: local
     hooks:
+      # https://docs.astral.sh/uv/concepts/projects/sync/#checking-if-the-lockfile-is-up-to-date
+      - id: check-uv-lock
+        name: Check uv.lock
+        language: system
+        entry: uv lock --check
+        pass_filenames: false
+        files: |
+          (?x)^(
+            uv.lock
+          )$
+
+  - repo: local
+    hooks:
       - id: generate-mintlify-openapi-docs
         name: Generating OpenAPI docs for Mintlify
         language: system
