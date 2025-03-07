@@ -15962,6 +15962,7 @@
                         ]
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters"
                     },
@@ -16089,6 +16090,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Job Variables"
                     }
                 },

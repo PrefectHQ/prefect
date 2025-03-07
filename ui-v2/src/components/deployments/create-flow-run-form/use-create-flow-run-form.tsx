@@ -4,7 +4,7 @@ import {
 	useDeploymentCreateFlowRun,
 } from "@/api/flow-runs";
 import { useSchemaForm } from "@/components/schemas";
-import { SchemaFormValues } from "@/components/schemas/types/values";
+import type { SchemaFormValues } from "@/components/schemas/types/values";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/utils/date";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -120,9 +120,7 @@ export const useCreateFlowRunForm = (
 
 		// nb: parameter form state and validation is handled separately using SchemaForm
 		// Use parameters from an external source, if they're undefined, default to the deployment parameters
-		setParametersFormValues(
-			overrideParameters ?? (deployment.parameters as Record<string, unknown>),
-		);
+		setParametersFormValues(overrideParameters ?? deployment.parameters ?? {});
 
 		// nb: Handle remaining form fields using react-hook-form
 		form.reset({
@@ -232,10 +230,8 @@ function createPayload(
 				...formValues.state.state_details,
 			},
 		},
-		// @ts-expect-error Expecting TS error from poor openAPI typings
 		job_variables: jobVariablesPayload,
 		enforce_parameter_schema: formValues.enforce_parameter_schema,
-		// @ts-expect-error Expecting TS error from poor openAPI typings
 		parameters: parameterValues,
 	};
 }

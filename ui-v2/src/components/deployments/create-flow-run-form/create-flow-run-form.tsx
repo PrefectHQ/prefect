@@ -70,42 +70,39 @@ export const CreateFlowRunForm = ({
 					)}
 				/>
 
-				{parametersOpenAPISchema &&
-					Object.keys(parametersFormValues).length > 0 && (
-						<div className="pt-4 border-t">
-							<Typography variant="h3" className="mb-4">
-								Parameters
-							</Typography>
+				{parametersOpenAPISchema && (
+					<div className="pt-4 border-t">
+						<Typography variant="h3" className="mb-4">
+							Parameters
+						</Typography>
 
-							<SchemaForm
-								schema={
-									parametersOpenAPISchema as unknown as PrefectSchemaObject
-								}
-								errors={parameterFormErrors}
-								values={parametersFormValues}
-								onValuesChange={setParametersFormValues}
-								kinds={["json"]}
-							/>
+						<SchemaForm
+							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
+							errors={parameterFormErrors}
+							values={parametersFormValues}
+							onValuesChange={setParametersFormValues}
+							kinds={["json"]}
+						/>
 
-							<FormField
-								control={form.control}
-								name="enforce_parameter_schema"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Enforce Parameter Schema</FormLabel>
-										<FormControl>
-											<Switch
-												className="block"
-												checked={field.value}
-												onCheckedChange={field.onChange}
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
-					)}
+						<FormField
+							control={form.control}
+							name="enforce_parameter_schema"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Enforce Parameter Schema</FormLabel>
+									<FormControl>
+										<Switch
+											className="block"
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				)}
 
 				<div className="pt-4 border-t">
 					<FormField
