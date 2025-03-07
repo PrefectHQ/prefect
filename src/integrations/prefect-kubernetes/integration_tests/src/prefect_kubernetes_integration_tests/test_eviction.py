@@ -8,7 +8,9 @@ from prefect_kubernetes_integration_tests.utils import display, k8s, prefect_cor
 
 
 @pytest.mark.usefixtures("kind_cluster")
-async def test_pod_eviction(work_pool_name: str, capsys: pytest.CaptureFixture[str]):
+async def test_default_pod_eviction(
+    work_pool_name: str, capsys: pytest.CaptureFixture[str]
+):
     """Test that flow runs properly handle pod evictions."""
     # Default source is a simple flow that sleeps
     flow_source = "https://gist.github.com/772d095672484b76da40a4e6158187f0.git"
@@ -47,8 +49,16 @@ async def test_pod_eviction(work_pool_name: str, capsys: pytest.CaptureFixture[s
             assert updated_flow_run.state is not None, (
                 "Flow run state should not be None"
             )
-            assert updated_flow_run.state.type == StateType.CRASHED, (
-                f"Expected flow run state to be CRASHED, got {updated_flow_run.state.type}"
+            assert updated_flow_run.state.type != StateType.CRASHED, (
+                "Expected flow run not be marked as CRASHED, but it was"
+            )
+            # Might be pending or scheduled depending on if the worker was able to pick up the run before our check
+            assert (
+                updated_flow_run.state.type == StateType.PENDING
+                or updated_flow_run.state.type == StateType.SCHEDULED
+            ), (
+                "Expected flow run to be marked as PENDING or SCHEDULED. Got "
+                f"{updated_flow_run.state.type} instead."
             )
 
             display.print_flow_run_result(updated_flow_run)
