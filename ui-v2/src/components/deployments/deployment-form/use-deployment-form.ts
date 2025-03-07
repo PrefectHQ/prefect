@@ -31,7 +31,6 @@ const createFormSchema = (
 		work_pool_name: z.string().nullable().optional(),
 		work_queue_name: z.string().nullable().optional(),
 		tags: z.array(z.string()).optional(),
-		/** Coerce to solve common issue of transforming a string to undefined */
 		concurrency_options: z
 			.object({
 				collision_strategy: z.enum(["ENQUEUE", "CANCEL_NEW"]).optional(),

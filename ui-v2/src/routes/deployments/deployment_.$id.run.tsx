@@ -1,3 +1,6 @@
+import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { buildFilterWorkPoolWorkQueuesQuery } from "@/api/work-queues";
+import { CustomRunPage } from "@/components/deployments/custom-run-page";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -16,8 +19,26 @@ const searchParams = z
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
+	loader: async ({ params, context: { queryClient } }) => {
+		// ---- Critical data
+		const res = await queryClient.ensureQueryData(
+			buildDeploymentDetailsQuery(params.id),
+		);
+
+		// ---- Deferred data
+		if (res.work_pool_name) {
+			void queryClient.prefetchQuery(
+				buildFilterWorkPoolWorkQueuesQuery({
+					work_pool_name: res.work_pool_name,
+				}),
+			);
+		}
+	},
+	wrapInSuspense: true,
 });
 
 function RouteComponent() {
-	return "🚧🚧 Pardon our dust! 🚧🚧";
+	const { id } = Route.useParams();
+	const search = Route.useSearch();
+	return <CustomRunPage id={id} overrideParameters={search?.parameters} />;
 }
