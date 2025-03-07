@@ -860,7 +860,8 @@
         "/api/flow_runs/{id}/graph": {
             "get": {
                 "tags": [
-                    "Flow Runs"
+                    "Flow Runs",
+                    "Flow Run Graph"
                 ],
                 "summary": "Read Flow Run Graph V1",
                 "description": "Get a task run dependency map for a given flow run.",
@@ -919,7 +920,8 @@
         "/api/flow_runs/{id}/graph-v2": {
             "get": {
                 "tags": [
-                    "Flow Runs"
+                    "Flow Runs",
+                    "Flow Run Graph"
                 ],
                 "summary": "Read Flow Run Graph V2",
                 "description": "Get a graph of the tasks and subflow runs for the given flow run",
