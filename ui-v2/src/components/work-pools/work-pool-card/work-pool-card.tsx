@@ -1,6 +1,7 @@
-import { WorkPool, deleteWorkPool } from "@/api/work-pools";
+import { WorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useDeleteWorkPool } from "@/hooks/work-pools";
 import { WorkPoolContextMenu } from "./components/work-pool-context-menu";
 import { WorkPoolName } from "./components/work-pool-name";
 import { WorkPoolPauseResumeToggle } from "./components/work-pool-pause-resume-toggle";
@@ -11,6 +12,8 @@ type WorkPoolCardProps = {
 };
 
 export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
+	const { mutate: deleteWorkPool } = useDeleteWorkPool();
+
 	return (
 		<Card className="gap-2">
 			<CardHeader className="flex flex-row items-center justify-between">
