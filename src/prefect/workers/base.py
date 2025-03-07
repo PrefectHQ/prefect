@@ -1150,9 +1150,19 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             values=job_variables,
             client=self.client,
         )
-        configuration.prepare_for_flow_run(
-            flow_run=flow_run, deployment=deployment, flow=flow
-        )
+        try:
+            configuration.prepare_for_flow_run(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                work_pool=self.work_pool,
+                worker_name=self.name,
+            )
+        except TypeError:
+            # Handle older subclasses that don't accept work_pool and worker_name
+            configuration.prepare_for_flow_run(
+                flow_run=flow_run, deployment=deployment, flow=flow
+            )
         return configuration
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:

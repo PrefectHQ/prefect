@@ -386,8 +386,6 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         self._update_prefect_api_url_if_local_server()
         self._populate_env_in_manifest()
         # Update labels in job manifest
-        self._add_work_pool_labels(work_pool)
-        self._add_worker_name_label(worker_name)
         self._slugify_labels()
         # Add defaults to job manifest if necessary
         self._populate_image_if_not_present()
@@ -743,6 +741,8 @@ class KubernetesWorker(
         configuration.prepare_for_flow_run(
             flow_run=flow_run,
             flow=api_flow,
+            work_pool=self._work_pool,
+            worker_name=self.name,
         )
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
