@@ -10,6 +10,10 @@ from prefect import flow, task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.flows import Flow
+from prefect.settings import (
+    PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY,
+    temporary_settings,
+)
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY
 
@@ -997,3 +1001,35 @@ async def test_span_name_with_string_template(
     expected_name = f"task-{test_value}"
     assert span.name == expected_name
     assert span.attributes["prefect.run.name"] == expected_name
+
+
+async def test_no_span_when_telemetry_disabled(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+    monkeypatch,
+):
+    """Test that no spans are created when telemetry is disabled"""
+    # Disable telemetry
+    with temporary_settings({PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY: False}):
+
+        @task(task_run_name="test-task")
+        async def async_task(x: int, y: int):
+            return x + y
+
+        @task(task_run_name="test-task")
+        def sync_task(x: int, y: int):
+            return x + y
+
+        task_fn = async_task if engine_type == "async" else sync_task
+        task_run_id = uuid4()
+
+        await run_task(
+            task_fn,
+            task_run_id=task_run_id,
+            parameters={"x": 1, "y": 2},
+            engine_type=engine_type,
+        )
+
+        # Verify no spans were created
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 0
