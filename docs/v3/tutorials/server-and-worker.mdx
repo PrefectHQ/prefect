@@ -171,7 +171,7 @@ Run `kubectl events` and confirm that the `authString` is correct.
 <Expandable title="Authentication error">
 If you see this error:
 ```
-prefect.exceptions.PrefectHTTPStatusError: Client error '401 Unauthorized' for url 'http://prefect-server.prefect-server.svc.cluster.local:4200/api/work_pools/kube-test'
+prefect.exceptions.PrefectHTTPStatusError: Client error '401 Unauthorized' for url 'http://prefect-server.prefect.svc.cluster.local:4200/api/work_pools/kube-test'
 Response: {'exception_message': 'Unauthorized'}
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
 An exception occurred.
