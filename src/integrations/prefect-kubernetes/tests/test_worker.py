@@ -261,6 +261,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -316,6 +317,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
                                         },
                                     ],
                                     "image": get_prefect_image_name(),
@@ -546,6 +551,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -601,6 +607,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
                                         },
                                         {
                                             "name": "TEST_ENV",
@@ -704,6 +714,7 @@ from_template_and_values_cases = [
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
                 "TEST_ENV": "test",
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -767,6 +778,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "TEST_ENV",
                                             "value": "test",
+                                        },
+                                        {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
                                         },
                                     ],
                                     "image": "test-image:latest",
