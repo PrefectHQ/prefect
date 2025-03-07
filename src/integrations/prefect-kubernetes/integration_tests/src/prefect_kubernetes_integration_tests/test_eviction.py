@@ -1,3 +1,4 @@
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -83,11 +84,11 @@ async def test_pod_eviction_with_backoff_limit(
 
     display.print_flow_run_created(flow_run)
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        worker_future = executor.submit(
-            lambda: prefect_core.start_worker(work_pool_name, run_once=True)
-        )
-
+    with subprocess.Popen(
+        ["prefect", "worker", "start", "--pool", work_pool_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ) as worker_process:
         try:
             job_name = k8s.get_job_name(flow_run.name, timeout=120)
             pod_name = k8s.wait_for_pod(job_name, timeout=120)
@@ -96,23 +97,25 @@ async def test_pod_eviction_with_backoff_limit(
 
             k8s.evict_pod(pod_name)
 
+            prefect_core.wait_for_flow_run_state(
+                flow_run.id, StateType.COMPLETED, timeout=30
+            )
+
         finally:
-            worker_future.result()
+            worker_process.terminate()
 
-        assert "evicted successfully" in capsys.readouterr().out
+    assert "evicted successfully" in capsys.readouterr().out
 
-        async with get_client() as client:
-            updated_flow_run = await client.read_flow_run(flow_run.id)
+    async with get_client() as client:
+        updated_flow_run = await client.read_flow_run(flow_run.id)
 
-            assert updated_flow_run.state is not None, (
-                "Flow run state should not be None"
-            )
-            assert updated_flow_run.state.type != StateType.CRASHED, (
-                "Expected flow run not be marked as CRASHED, but it was"
-            )
-            assert updated_flow_run.state.type == StateType.COMPLETED, (
-                "Expected flow run to be COMPLETED. Got "
-                f"{updated_flow_run.state.type} instead."
-            )
+        assert updated_flow_run.state is not None, "Flow run state should not be None"
+        assert updated_flow_run.state.type != StateType.CRASHED, (
+            "Expected flow run not be marked as CRASHED, but it was"
+        )
+        assert updated_flow_run.state.type == StateType.COMPLETED, (
+            "Expected flow run to be COMPLETED. Got "
+            f"{updated_flow_run.state.type} instead."
+        )
 
-            display.print_flow_run_result(updated_flow_run)
+        display.print_flow_run_result(updated_flow_run)
