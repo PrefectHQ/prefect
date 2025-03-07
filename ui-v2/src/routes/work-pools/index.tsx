@@ -7,21 +7,33 @@ import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
 import { pluralize } from "@/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/work-pools/")({
 	component: RouteComponent,
+	loader: ({ context }) => {
+		void context.queryClient.ensureQueryData(buildCountWorkPoolsQuery());
+		void context.queryClient.ensureQueryData(
+			buildFilterWorkPoolsQuery({
+				limit: 200,
+				offset: 0,
+			}),
+		);
+	},
+	wrapInSuspense: true,
 });
 
 function RouteComponent() {
 	const [searchTerm, setSearchTerm] = useState("");
 
-	const { data: workPoolCount = 0 } = useQuery(buildCountWorkPoolsQuery());
+	const { data: workPoolCount = 0 } = useSuspenseQuery(
+		buildCountWorkPoolsQuery(),
+	);
 
-	const { data: workPools = [] } = useQuery(
+	const { data: workPools = [] } = useSuspenseQuery(
 		buildFilterWorkPoolsQuery({
 			limit: 200,
 			offset: 0,
@@ -56,7 +68,7 @@ function RouteComponent() {
 			{workPoolCount === 0 && <WorkPoolsEmptyState />}
 			{workPoolCount > 0 && (
 				<>
-					<div className="flex justify-between">
+					<div className="flex items-end justify-between">
 						<div className="text-sm text-muted-foreground">
 							{workPoolCount} {pluralize(workPoolCount, "work pool")}
 						</div>
