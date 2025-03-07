@@ -201,7 +201,7 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
             "generateName": "{{ name }}-",
         },
         "spec": {
-            "backoffLimit": 0,
+            "backoffLimit": "{{ backoff_limit }}",
             "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
             "template": {
                 "spec": {
@@ -579,6 +579,13 @@ class KubernetesWorkerVariables(BaseVariables):
     image_pull_policy: Literal["IfNotPresent", "Always", "Never"] = Field(
         default=KubernetesImagePullPolicy.IF_NOT_PRESENT,
         description="The Kubernetes image pull policy to use for job containers.",
+    )
+    backoff_limit: int = Field(
+        default=0,
+        ge=0,
+        title="Backoff Limit",
+        description="The number of times to retry a job after it fails. If not set, "
+        "the job will be retried indefinitely.",
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,

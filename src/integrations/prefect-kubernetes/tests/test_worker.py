@@ -641,7 +641,7 @@ from_template_and_values_cases = [
         ),
     ),
     (
-        # default base template with no values
+        # default base template with values
         KubernetesWorker.get_default_base_job_template(),
         {
             "name": "test",
@@ -660,6 +660,7 @@ from_template_and_values_cases = [
             "image": "test-image:latest",
             "finished_job_ttl": 60,
             "namespace": "test-namespace",
+            "backoff_limit": 6,
         },
         KubernetesWorkerJobConfiguration(
             command="echo hello",
@@ -680,7 +681,7 @@ from_template_and_values_cases = [
                     "generateName": "test-",
                 },
                 "spec": {
-                    "backoffLimit": 0,
+                    "backoffLimit": 6,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
                         "spec": {
@@ -714,7 +715,6 @@ from_template_and_values_cases = [
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
                 "TEST_ENV": "test",
-                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -750,7 +750,7 @@ from_template_and_values_cases = [
                     },
                 },
                 "spec": {
-                    "backoffLimit": 0,
+                    "backoffLimit": 6,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
                         "spec": {
@@ -778,10 +778,6 @@ from_template_and_values_cases = [
                                         {
                                             "name": "TEST_ENV",
                                             "value": "test",
-                                        },
-                                        {
-                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
-                                            "value": "reschedule",
                                         },
                                     ],
                                     "image": "test-image:latest",
@@ -1105,7 +1101,7 @@ class TestKubernetesWorkerJobConfiguration:
         ids=[
             "default base template with no values",
             "default base template with custom env",
-            "default base template with no values",
+            "default base template with values",
             "custom template with values",
         ],
     )

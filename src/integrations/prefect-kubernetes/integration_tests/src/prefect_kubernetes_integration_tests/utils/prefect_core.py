@@ -20,6 +20,7 @@ async def create_flow_run(
     name: str,
     work_pool_name: str = "k8s-test",
     job_variables: dict[str, Any] | None = None,
+    parameters: dict[str, Any] | None = None,
 ) -> FlowRun:
     """Create a flow run from a remote source."""
     # Create work pool if it doesn't exist
@@ -40,6 +41,7 @@ async def create_flow_run(
         name=name,
         work_pool_name=work_pool_name,
         job_variables=job_variables,
+        parameters=parameters,
     )
 
     async with get_client() as client:
