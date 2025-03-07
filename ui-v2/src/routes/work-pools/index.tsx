@@ -73,8 +73,8 @@ function RouteComponent() {
 						</div>
 						<div className="flex gap-2">
 							<SearchInput
-								defaultValue={searchTerm}
 								placeholder="Search work pools..."
+								value={searchTerm}
 								onChange={handleSearchChange}
 							/>
 						</div>

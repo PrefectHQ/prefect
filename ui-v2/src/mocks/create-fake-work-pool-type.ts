@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker";
+import { rand } from "@ngneat/falso";
 
 const WORK_POOL_TYPES = [
 	"kubernetes",
@@ -12,5 +12,5 @@ const WORK_POOL_TYPES = [
 ] as const;
 
 export const createFakeWorkPoolType = () => {
-	return faker.helpers.arrayElement(WORK_POOL_TYPES);
+	return rand(WORK_POOL_TYPES);
 };
