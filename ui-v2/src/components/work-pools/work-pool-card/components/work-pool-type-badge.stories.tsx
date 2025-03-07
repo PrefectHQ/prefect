@@ -15,7 +15,7 @@ const meta: Meta<typeof WorkPoolTypeBadge> = {
 				"docker",
 				"cloud-run",
 				"cloud-run-v2",
-				"vertex-ai",
+				"google-vertex-ai",
 				"kubernetes",
 			],
 			description: "The type of work pool to display a badge for",
@@ -46,7 +46,7 @@ export const Docker: Story = {
 
 export const VertexAI: Story = {
 	args: {
-		type: "vertex-ai",
+		type: "google-vertex-ai",
 	},
 };
 

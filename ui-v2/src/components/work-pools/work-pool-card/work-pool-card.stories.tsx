@@ -59,7 +59,7 @@ export const VertexAI: Story = {
 	args: {
 		workPool: {
 			...createFakeWorkPool(),
-			type: "vertex-ai",
+			type: "google-vertex-ai",
 		},
 	},
 };

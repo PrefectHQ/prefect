@@ -1,6 +1,6 @@
 import type { components } from "@/api/prefect";
 import { faker } from "@faker-js/faker";
-
+import { createFakeWorkPoolType } from "./create-fake-work-pool-type";
 const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED"] as const;
 
 export const createFakeWorkPool = (
@@ -17,7 +17,7 @@ export const createFakeWorkPool = (
 		default_queue_id: faker.string.uuid(),
 		is_paused: faker.datatype.boolean(),
 		status: faker.helpers.arrayElement(STATUS_TYPE_VALUES),
-		type: "process",
+		type: createFakeWorkPoolType(),
 		...overrides,
 	};
 };
