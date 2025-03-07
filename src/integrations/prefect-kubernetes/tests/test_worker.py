@@ -2024,6 +2024,7 @@ class TestKubernetesWorker:
                     **configuration._base_flow_run_environment(flow_run),
                     "foo": "FOO",
                     "bar": "BAR",
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 }.items()
             ]
 
