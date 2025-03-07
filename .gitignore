@@ -7,8 +7,9 @@ __pycache__/
 build/
 dist/
 sdist/
-# We likely ought to eventually include uv.lock
-uv.lock
+
+# uv (consider committing later)
+src/integrations/**/uv.lock
 
 # Build metadata
 src/prefect/_build_info.py
