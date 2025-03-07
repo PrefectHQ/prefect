@@ -20,11 +20,13 @@ export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 				<div className="flex items-center gap-1">
 					<WorkPoolTypeBadge type={workPool.type} />
 				</div>
-				<div className="text-sm">
+				<div className="text-sm text-muted-foreground">
 					Concurrency:{" "}
-					{workPool.concurrency_limit
-						? workPool.concurrency_limit
-						: "Unlimited"}
+					<span className="text-foreground">
+						{workPool.concurrency_limit
+							? workPool.concurrency_limit
+							: "Unlimited"}
+					</span>
 				</div>
 			</CardContent>
 		</Card>
