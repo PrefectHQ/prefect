@@ -11,9 +11,8 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, useDeferredValue, useMemo, useState } from "react";
 
 type PresetOption = {
 	label: string;
@@ -31,15 +30,28 @@ export const WorkPoolSelect = ({
 	selected,
 	onSelect,
 }: WorkPoolSelectProps) => {
+	return (
+		<Suspense>
+			<WorkPoolSelectImplementation
+				presetOptions={presetOptions}
+				selected={selected}
+				onSelect={onSelect}
+			/>
+		</Suspense>
+	);
+};
+
+const WorkPoolSelectImplementation = ({
+	presetOptions = [],
+	selected,
+	onSelect,
+}: WorkPoolSelectProps) => {
 	const [search, setSearch] = useState("");
-	const { data, isSuccess } = useQuery(buildFilterWorkPoolsQuery());
+	const { data } = useSuspenseQuery(buildFilterWorkPoolsQuery());
 
 	// nb: because work pools API does not have filtering _like by name, do client-side filtering
 	const deferredSearch = useDeferredValue(search);
 	const filteredData = useMemo(() => {
-		if (!data) {
-			return [];
-		}
 		return data.filter((workPool) =>
 			workPool.name.toLowerCase().includes(deferredSearch.toLowerCase()),
 		);
@@ -82,34 +94,22 @@ export const WorkPoolSelect = ({
 								{option.label}
 							</ComboboxCommandItem>
 						))}
-						{isSuccess ? (
-							filteredData.map((workPool) => (
-								<ComboboxCommandItem
-									key={workPool.id}
-									selected={selected === workPool.name}
-									onSelect={(value) => {
-										onSelect(value);
-										setSearch("");
-									}}
-									value={workPool.name}
-								>
-									{workPool.name}
-								</ComboboxCommandItem>
-							))
-						) : (
-							<LoadingSelectState />
-						)}
+						{filteredData.map((workPool) => (
+							<ComboboxCommandItem
+								key={workPool.id}
+								selected={selected === workPool.name}
+								onSelect={(value) => {
+									onSelect(value);
+									setSearch("");
+								}}
+								value={workPool.name}
+							>
+								{workPool.name}
+							</ComboboxCommandItem>
+						))}
 					</ComboboxCommandGroup>
 				</ComboboxCommandList>
 			</ComboboxContent>
 		</Combobox>
 	);
 };
-
-type LoadingSelectStateProps = {
-	length?: number;
-};
-const LoadingSelectState = ({ length = 4 }: LoadingSelectStateProps) =>
-	Array.from({ length }, (_, index) => (
-		<Skeleton key={index} className="mt-2 p-4 h-2 w-full" />
-	));

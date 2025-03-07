@@ -3,14 +3,26 @@ import { buildListAutomationsRelatedQuery } from "@/api/automations/automations"
 import type { Deployment } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 
 type DeploymentTriggersProps = {
 	deployment: Deployment;
 };
 
 export const DeploymentTriggers = ({ deployment }: DeploymentTriggersProps) => {
+	return (
+		<Suspense fallback={<LoadingSkeleton numSkeletons={2} />}>
+			<DeploymentTriggersImplementation deployment={deployment} />
+		</Suspense>
+	);
+};
+
+export const DeploymentTriggersImplementation = ({
+	deployment,
+}: DeploymentTriggersProps) => {
 	const { data: automations } = useSuspenseQuery(
 		buildListAutomationsRelatedQuery(`prefect.deployment.${deployment.id}`),
 	);
@@ -60,3 +72,16 @@ const RelatedDeployments = ({ automations }: RelatedDeploymentsProps) => {
 		</ul>
 	);
 };
+
+type LoadingSkeletonProps = {
+	numSkeletons?: number;
+};
+const LoadingSkeleton = ({ numSkeletons = 1 }: LoadingSkeletonProps) => (
+	<ul className="flex flex-col gap-1">
+		{Array.from({ length: numSkeletons }).map((_, i) => (
+			<li key={i}>
+				<Skeleton className="h-4 w-full" />
+			</li>
+		))}
+	</ul>
+);

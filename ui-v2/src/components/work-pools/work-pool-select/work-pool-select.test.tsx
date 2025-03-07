@@ -1,7 +1,7 @@
 import type { WorkPool } from "@/api/work-pools";
 
 import { createFakeWorkPool } from "@/mocks";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
@@ -34,6 +34,12 @@ describe("WorkPoolSelect", () => {
 			wrapper: createWrapper(),
 		});
 
+		await waitFor(() =>
+			expect(
+				screen.getByRole("combobox", { name: /select a work pool/i }),
+			).toBeVisible(),
+		);
+
 		// ------------ Act
 		await user.click(
 			screen.getByRole("combobox", { name: /select a work pool/i }),
@@ -64,6 +70,12 @@ describe("WorkPoolSelect", () => {
 			{ wrapper: createWrapper() },
 		);
 
+		await waitFor(() =>
+			expect(
+				screen.getByRole("combobox", { name: /select a work pool/i }),
+			).toBeVisible(),
+		);
+
 		// ------------ Act
 		await user.click(
 			screen.getByRole("combobox", { name: /select a work pool/i }),
@@ -74,7 +86,7 @@ describe("WorkPoolSelect", () => {
 		expect(mockOnSelect).toHaveBeenLastCalledWith(undefined);
 	});
 
-	it("has the selected value displayed", () => {
+	it("has the selected value displayed", async () => {
 		mockListWorkPoolsAPI([
 			createFakeWorkPool({ name: "my work pool 0" }),
 			createFakeWorkPool({ name: "my work pool 1" }),
@@ -92,6 +104,8 @@ describe("WorkPoolSelect", () => {
 		);
 
 		// ------------ Assert
-		expect(screen.getByText("my work pool 0")).toBeVisible();
+		await waitFor(() =>
+			expect(screen.getByText("my work pool 0")).toBeVisible(),
+		);
 	});
 });
