@@ -35,6 +35,8 @@ async def test_default_pod_eviction(
         try:
             job_name = k8s.get_job_name(flow_run.name, timeout=120)
             pod_name = k8s.wait_for_pod(job_name, timeout=120)
+            # Wait for the flow run to be running
+            prefect_core.wait_for_flow_run_state(flow_run.id, StateType.RUNNING)
 
             k8s.evict_pod(pod_name)
 

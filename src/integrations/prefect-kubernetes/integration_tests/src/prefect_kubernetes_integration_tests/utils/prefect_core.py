@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import subprocess
+import time
 from typing import Any
+from uuid import UUID
 
 from rich.console import Console
 
@@ -51,10 +55,19 @@ def start_worker(work_pool_name: str, run_once: bool = True) -> int:
     return subprocess.check_call(args)
 
 
-def get_flow_run_state(flow_run_id: str) -> tuple[StateType, str]:
+def get_flow_run_state(flow_run_id: UUID) -> tuple[StateType | None, str | None]:
     """Get the current state of a flow run."""
     with get_client(sync_client=True) as client:
         flow_run = client.read_flow_run(flow_run_id)
         if not flow_run.state:
             return None, "No state found"
         return flow_run.state.type, flow_run.state.message
+
+
+def wait_for_flow_run_state(flow_run_id: UUID, target_state: StateType) -> None:
+    """Wait for a flow run to reach a specific state."""
+    while True:
+        state, _message = get_flow_run_state(flow_run_id)
+        if state == target_state:
+            return
+        time.sleep(1)
