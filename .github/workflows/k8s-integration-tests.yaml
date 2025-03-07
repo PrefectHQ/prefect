@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          depth: 0
+          persist-credentials: false
       
       - name: Set up uv
         uses: astral-sh/setup-uv@v5

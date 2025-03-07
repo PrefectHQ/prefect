@@ -5,7 +5,6 @@ description = "Integration tests for Prefect Kubernetes"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "prefect",
     "prefect-kubernetes",
     "kubernetes",
     "pytest>=7.0.0",
