@@ -1,11 +1,12 @@
 import subprocess
 import sys
+import os
 from unittest import mock
 
 import pytest
 
 import prefect.utilities.processutils
-from prefect.utilities.processutils import open_process, run_process
+from prefect.utilities.processutils import open_process, run_process, get_sys_executable
 
 
 class TestRunProcess:
@@ -135,3 +136,14 @@ class TestOpenProcess:
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
         )
         mock_set_console_ctrl_handler.assert_called_once_with(mock_ctrl_c_handler, 1)
+
+class TestGetExecutablePath:
+    def test_get_executable_path(self):
+        executable_path = get_sys_executable()
+        assert executable_path == sys.executable
+
+    def test_get_executable_path_with_env(self):
+        with mock.patch.dict("os.environ", {"EXECUTABLE_PATH": "/opt/.venv/bin/python"}, clear=True):
+            assert os.environ["EXECUTABLE_PATH"] == "/opt/.venv/bin/python"
+            executable_path = get_sys_executable()
+            assert executable_path == "/opt/.venv/bin/python"
