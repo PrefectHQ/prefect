@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from typing import Any, Dict, Optional, Type
 from unittest import mock
@@ -18,7 +20,6 @@ from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import (
-    Deployment,
     Flow,
     FlowRun,
     Integration,
@@ -33,6 +34,7 @@ from prefect.exceptions import (
 from prefect.flows import flow
 from prefect.server import models
 from prefect.server.schemas.actions import WorkPoolUpdate as ServerWorkPoolUpdate
+from prefect.server.schemas.core import Deployment
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
@@ -2111,7 +2113,10 @@ async def test_worker_removes_flow_run_from_submitting_when_not_ready(
 
 class TestBackwardsCompatibility:
     async def test_backwards_compatibility_with_old_prepare_for_flow_run(
-        self, work_pool: WorkPool
+        self,
+        work_pool: WorkPool,
+        worker_deployment_wq1: Deployment,
+        prefect_client: PrefectClient,
     ):
         class OldStyleJobConfiguration(BaseJobConfiguration):
             def prepare_for_flow_run(
@@ -2126,7 +2131,7 @@ class TestBackwardsCompatibility:
             pass
 
         class OldStyleWorker(
-            BaseWorker["OldStyleJobConfiguration", Any, InfrastructureResult]
+            BaseWorker[OldStyleJobConfiguration, Any, InfrastructureResult]
         ):
             type = "old-style"
             job_configuration = OldStyleJobConfiguration
@@ -2139,7 +2144,11 @@ class TestBackwardsCompatibility:
             ):
                 return InfrastructureResult(identifier="test", status_code=0)
 
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id
+        )
+
         # Should warn and not raise an error
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
-                await worker._get_configuration(flow_run=FlowRun())
+                await worker._get_configuration(flow_run=flow_run)
