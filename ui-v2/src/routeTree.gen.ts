@@ -13,13 +13,13 @@
 import { Route as rootRoute } from './routes/__root'
 import { Route as VariablesImport } from './routes/variables'
 import { Route as SettingsImport } from './routes/settings'
-import { Route as EventsImport } from './routes/events'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as BlocksImport } from './routes/blocks'
 import { Route as IndexImport } from './routes/index'
 import { Route as WorkPoolsIndexImport } from './routes/work-pools/index'
 import { Route as RunsIndexImport } from './routes/runs/index'
 import { Route as FlowsIndexImport } from './routes/flows/index'
+import { Route as EventsIndexImport } from './routes/events/index'
 import { Route as DeploymentsIndexImport } from './routes/deployments/index'
 import { Route as ConcurrencyLimitsIndexImport } from './routes/concurrency-limits/index'
 import { Route as BlocksIndexImport } from './routes/blocks/index'
@@ -42,6 +42,7 @@ import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
 import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameImport } from './routes/work-pools/work-pool.$workPoolName.queue.$workQueueName'
+import { Route as EventsEventDateEventIdImport } from './routes/events/_.event.$date.$eventId'
 
 // Create/Update Routes
 
@@ -54,12 +55,6 @@ const VariablesRoute = VariablesImport.update({
 const SettingsRoute = SettingsImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const EventsRoute = EventsImport.update({
-  id: '/events',
-  path: '/events',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -96,6 +91,12 @@ const RunsIndexRoute = RunsIndexImport.update({
 const FlowsIndexRoute = FlowsIndexImport.update({
   id: '/flows/',
   path: '/flows/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const EventsIndexRoute = EventsIndexImport.update({
+  id: '/events/',
+  path: '/events/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -239,6 +240,12 @@ const WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute =
     getParentRoute: () => WorkPoolsWorkPoolWorkPoolNameRoute,
   } as any)
 
+const EventsEventDateEventIdRoute = EventsEventDateEventIdImport.update({
+  id: '/events/_/event/$date/$eventId',
+  path: '/events/event/$date/$eventId',
+  getParentRoute: () => rootRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -262,13 +269,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardImport
-      parentRoute: typeof rootRoute
-    }
-    '/events': {
-      id: '/events'
-      path: '/events'
-      fullPath: '/events'
-      preLoaderRoute: typeof EventsImport
       parentRoute: typeof rootRoute
     }
     '/settings': {
@@ -332,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/deployments'
       fullPath: '/deployments'
       preLoaderRoute: typeof DeploymentsIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/events/': {
+      id: '/events/'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsIndexImport
       parentRoute: typeof rootRoute
     }
     '/flows/': {
@@ -453,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeploymentsDeploymentIdRunImport
       parentRoute: typeof rootRoute
     }
+    '/events/_/event/$date/$eventId': {
+      id: '/events/_/event/$date/$eventId'
+      path: '/events/event/$date/$eventId'
+      fullPath: '/events/event/$date/$eventId'
+      preLoaderRoute: typeof EventsEventDateEventIdImport
+      parentRoute: typeof rootRoute
+    }
     '/work-pools/work-pool/$workPoolName/queue/$workQueueName': {
       id: '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
       path: '/queue/$workQueueName'
@@ -513,7 +527,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/blocks': typeof BlocksRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/events': typeof EventsRoute
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -523,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/blocks/': typeof BlocksIndexRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
   '/deployments': typeof DeploymentsIndexRoute
+  '/events': typeof EventsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
@@ -540,13 +554,13 @@ export interface FileRoutesByFullPath {
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$date/$eventId': typeof EventsEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/events': typeof EventsRoute
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -556,6 +570,7 @@ export interface FileRoutesByTo {
   '/blocks': typeof BlocksIndexRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
   '/deployments': typeof DeploymentsIndexRoute
+  '/events': typeof EventsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
@@ -573,6 +588,7 @@ export interface FileRoutesByTo {
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$date/$eventId': typeof EventsEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -581,7 +597,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/blocks': typeof BlocksRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/events': typeof EventsRoute
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -591,6 +606,7 @@ export interface FileRoutesById {
   '/blocks/': typeof BlocksIndexRoute
   '/concurrency-limits/': typeof ConcurrencyLimitsIndexRoute
   '/deployments/': typeof DeploymentsIndexRoute
+  '/events/': typeof EventsIndexRoute
   '/flows/': typeof FlowsIndexRoute
   '/runs/': typeof RunsIndexRoute
   '/work-pools/': typeof WorkPoolsIndexRoute
@@ -608,6 +624,7 @@ export interface FileRoutesById {
   '/deployments/deployment_/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment_/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/_/event/$date/$eventId': typeof EventsEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 
@@ -617,7 +634,6 @@ export interface FileRouteTypes {
     | '/'
     | '/blocks'
     | '/dashboard'
-    | '/events'
     | '/settings'
     | '/variables'
     | '/automations/create'
@@ -627,6 +643,7 @@ export interface FileRouteTypes {
     | '/blocks/'
     | '/concurrency-limits'
     | '/deployments'
+    | '/events'
     | '/flows'
     | '/runs'
     | '/work-pools'
@@ -644,12 +661,12 @@ export interface FileRouteTypes {
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
+    | '/events/event/$date/$eventId'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
-    | '/events'
     | '/settings'
     | '/variables'
     | '/automations/create'
@@ -659,6 +676,7 @@ export interface FileRouteTypes {
     | '/blocks'
     | '/concurrency-limits'
     | '/deployments'
+    | '/events'
     | '/flows'
     | '/runs'
     | '/work-pools'
@@ -676,13 +694,13 @@ export interface FileRouteTypes {
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
+    | '/events/event/$date/$eventId'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   id:
     | '__root__'
     | '/'
     | '/blocks'
     | '/dashboard'
-    | '/events'
     | '/settings'
     | '/variables'
     | '/automations/create'
@@ -692,6 +710,7 @@ export interface FileRouteTypes {
     | '/blocks/'
     | '/concurrency-limits/'
     | '/deployments/'
+    | '/events/'
     | '/flows/'
     | '/runs/'
     | '/work-pools/'
@@ -709,6 +728,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment_/$id/duplicate'
     | '/deployments/deployment_/$id/edit'
     | '/deployments/deployment_/$id/run'
+    | '/events/_/event/$date/$eventId'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesById: FileRoutesById
 }
@@ -717,7 +737,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BlocksRoute: typeof BlocksRouteWithChildren
   DashboardRoute: typeof DashboardRoute
-  EventsRoute: typeof EventsRoute
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   AutomationsCreateRoute: typeof AutomationsCreateRoute
@@ -725,6 +744,7 @@ export interface RootRouteChildren {
   AutomationsIndexRoute: typeof AutomationsIndexRoute
   ConcurrencyLimitsIndexRoute: typeof ConcurrencyLimitsIndexRoute
   DeploymentsIndexRoute: typeof DeploymentsIndexRoute
+  EventsIndexRoute: typeof EventsIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
   WorkPoolsIndexRoute: typeof WorkPoolsIndexRoute
@@ -740,13 +760,13 @@ export interface RootRouteChildren {
   DeploymentsDeploymentIdDuplicateRoute: typeof DeploymentsDeploymentIdDuplicateRoute
   DeploymentsDeploymentIdEditRoute: typeof DeploymentsDeploymentIdEditRoute
   DeploymentsDeploymentIdRunRoute: typeof DeploymentsDeploymentIdRunRoute
+  EventsEventDateEventIdRoute: typeof EventsEventDateEventIdRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BlocksRoute: BlocksRouteWithChildren,
   DashboardRoute: DashboardRoute,
-  EventsRoute: EventsRoute,
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   AutomationsCreateRoute: AutomationsCreateRoute,
@@ -754,6 +774,7 @@ const rootRouteChildren: RootRouteChildren = {
   AutomationsIndexRoute: AutomationsIndexRoute,
   ConcurrencyLimitsIndexRoute: ConcurrencyLimitsIndexRoute,
   DeploymentsIndexRoute: DeploymentsIndexRoute,
+  EventsIndexRoute: EventsIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
   WorkPoolsIndexRoute: WorkPoolsIndexRoute,
@@ -771,6 +792,7 @@ const rootRouteChildren: RootRouteChildren = {
   DeploymentsDeploymentIdDuplicateRoute: DeploymentsDeploymentIdDuplicateRoute,
   DeploymentsDeploymentIdEditRoute: DeploymentsDeploymentIdEditRoute,
   DeploymentsDeploymentIdRunRoute: DeploymentsDeploymentIdRunRoute,
+  EventsEventDateEventIdRoute: EventsEventDateEventIdRoute,
 }
 
 export const routeTree = rootRoute
@@ -786,7 +808,6 @@ export const routeTree = rootRoute
         "/",
         "/blocks",
         "/dashboard",
-        "/events",
         "/settings",
         "/variables",
         "/automations/create",
@@ -794,6 +815,7 @@ export const routeTree = rootRoute
         "/automations/",
         "/concurrency-limits/",
         "/deployments/",
+        "/events/",
         "/flows/",
         "/runs/",
         "/work-pools/",
@@ -808,7 +830,8 @@ export const routeTree = rootRoute
         "/work-pools/work-pool/$workPoolName",
         "/deployments/deployment_/$id/duplicate",
         "/deployments/deployment_/$id/edit",
-        "/deployments/deployment_/$id/run"
+        "/deployments/deployment_/$id/run",
+        "/events/_/event/$date/$eventId"
       ]
     },
     "/": {
@@ -824,9 +847,6 @@ export const routeTree = rootRoute
     },
     "/dashboard": {
       "filePath": "dashboard.tsx"
-    },
-    "/events": {
-      "filePath": "events.tsx"
     },
     "/settings": {
       "filePath": "settings.tsx"
@@ -856,6 +876,9 @@ export const routeTree = rootRoute
     },
     "/deployments/": {
       "filePath": "deployments/index.tsx"
+    },
+    "/events/": {
+      "filePath": "events/index.tsx"
     },
     "/flows/": {
       "filePath": "flows/index.tsx"
@@ -915,6 +938,9 @@ export const routeTree = rootRoute
     },
     "/deployments/deployment_/$id/run": {
       "filePath": "deployments/deployment_.$id.run.tsx"
+    },
+    "/events/_/event/$date/$eventId": {
+      "filePath": "events/_.event.$date.$eventId.tsx"
     },
     "/work-pools/work-pool/$workPoolName/queue/$workQueueName": {
       "filePath": "work-pools/work-pool.$workPoolName.queue.$workQueueName.tsx",
