@@ -11,9 +11,8 @@ module.exports = {
 		input: {
 			target: "./oss_schema.json",
 			filters: {
-				mode: "exclude",
-				// See https://github.com/orval-labs/orval/issues/1961
-				tags: ["Flow Run Graph"],
+				mode: "include",
+				tags: ["Events"],
 			},
 		},
 	},
