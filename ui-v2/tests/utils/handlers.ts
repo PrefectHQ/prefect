@@ -57,6 +57,12 @@ const deploymentsHandlers = [
 	}),
 ];
 
+const eventsHandlers = [
+	http.post(buildApiUrl("/events/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+];
+
 const flowHandlers = [
 	http.post(buildApiUrl("/flows/paginate"), () => {
 		return HttpResponse.json({
@@ -173,4 +179,5 @@ export const handlers = [
 	...versionHandlers,
 	...workPoolsHandlers,
 	...workeQueuesHandlers,
+	...eventsHandlers,
 ];
