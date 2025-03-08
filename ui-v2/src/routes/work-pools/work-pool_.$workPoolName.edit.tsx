@@ -1,7 +1,9 @@
 import { buildGetWorkPoolQuery } from "@/api/work-pools/work-pools";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
+export const Route = createFileRoute(
+	"/work-pools/work-pool_/$workPoolName/edit",
+)({
 	component: RouteComponent,
 	loader: async ({ context, params }) => {
 		const { workPoolName } = params;
@@ -18,5 +20,5 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 function RouteComponent() {
 	const { workPool } = Route.useLoaderData();
 
-	return <div>Work pool: {workPool.name}</div>;
+	return <div>Editing work pool: {workPool.name}</div>;
 }
