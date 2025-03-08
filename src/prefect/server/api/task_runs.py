@@ -16,6 +16,7 @@ from fastapi import (
     WebSocket,
     status,
 )
+from fastapi.responses import ORJSONResponse
 from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
@@ -27,7 +28,11 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.core_policy import CoreTaskPolicy
 from prefect.server.orchestration.policies import TaskRunOrchestrationPolicy
-from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.schemas.responses import (
+    OrchestrationResult,
+    TaskRunPaginationResponse,
+    TaskRunResponse,
+)
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
@@ -211,6 +216,51 @@ async def read_task_runs(
             offset=offset,
             limit=limit,
             sort=sort,
+        )
+
+
+@router.post("/paginate", response_class=ORJSONResponse)
+async def paginate_task_runs(
+    sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
+    limit: int = dependencies.LimitBody(),
+    page: int = Body(1, ge=1),
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> TaskRunPaginationResponse:
+    """
+    Pagination query for task runs.
+    """
+    offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        runs = await models.task_runs.read_task_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+        )
+
+        total_count = await models.task_runs.count_task_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )
+
+        return TaskRunPaginationResponse(
+            results=[TaskRunResponse.model_validate(run) for run in runs],
+            count=total_count,
+            limit=limit,
+            pages=(total_count + limit - 1) // limit,
+            page=page,
         )
 
 
