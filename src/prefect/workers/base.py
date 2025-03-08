@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import threading
+import warnings
 from contextlib import AsyncExitStack
 from functools import partial
 from typing import (
@@ -26,6 +27,7 @@ from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, Self, TypeVar
 
 import prefect
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
@@ -1159,6 +1161,13 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 worker_name=self.name,
             )
         except TypeError:
+            warnings.warn(
+                "This worker is missing the `work_pool` and `worker_name` arguments "
+                "in its JobConfiguration.prepare_for_flow_run method. Please update "
+                "the worker's JobConfiguration  class to accept these arguments to "
+                "avoid this warning.",
+                category=PrefectDeprecationWarning,
+            )
             # Handle older subclasses that don't accept work_pool and worker_name
             configuration.prepare_for_flow_run(
                 flow_run=flow_run, deployment=deployment, flow=flow
