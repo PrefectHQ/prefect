@@ -261,6 +261,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -316,6 +317,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
                                         },
                                     ],
                                     "image": get_prefect_image_name(),
@@ -546,6 +551,7 @@ from_template_and_values_cases = [
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -603,6 +609,10 @@ from_template_and_values_cases = [
                                             "value": str(flow_run.id),
                                         },
                                         {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
+                                        },
+                                        {
                                             "name": "TEST_ENV",
                                             "valueFrom": {
                                                 "secretKeyRef": {
@@ -631,7 +641,7 @@ from_template_and_values_cases = [
         ),
     ),
     (
-        # default base template with no values
+        # default base template with values
         KubernetesWorker.get_default_base_job_template(),
         {
             "name": "test",
@@ -650,6 +660,7 @@ from_template_and_values_cases = [
             "image": "test-image:latest",
             "finished_job_ttl": 60,
             "namespace": "test-namespace",
+            "backoff_limit": 6,
         },
         KubernetesWorkerJobConfiguration(
             command="echo hello",
@@ -670,7 +681,7 @@ from_template_and_values_cases = [
                     "generateName": "test-",
                 },
                 "spec": {
-                    "backoffLimit": 0,
+                    "backoffLimit": 6,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
                         "spec": {
@@ -739,7 +750,7 @@ from_template_and_values_cases = [
                     },
                 },
                 "spec": {
-                    "backoffLimit": 0,
+                    "backoffLimit": 6,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
                         "spec": {
@@ -1090,7 +1101,7 @@ class TestKubernetesWorkerJobConfiguration:
         ids=[
             "default base template with no values",
             "default base template with custom env",
-            "default base template with no values",
+            "default base template with values",
             "custom template with values",
         ],
     )
@@ -2009,6 +2020,7 @@ class TestKubernetesWorker:
                     **configuration._base_flow_run_environment(flow_run),
                     "foo": "FOO",
                     "bar": "BAR",
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 }.items()
             ]
 

@@ -16,11 +16,14 @@ jobs:
   integration-tests:
     name: Run Kubernetes Integration Tests
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
