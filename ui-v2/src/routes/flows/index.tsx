@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import type { components } from "@/api/prefect"; // Typescript types generated from the Prefect API
 import { getQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
 
-import FlowsTable from "@/components/flows/data-table";
-
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { Flow, buildCountFlowsFilteredQuery } from "@/api/flows";
+import FlowsPage from "@/components/flows/flows-page";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
@@ -28,6 +27,7 @@ const searchParams = z
 			.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 			.optional()
 			.default("CREATED_DESC"),
+		offset: z.number().int().min(0).optional().default(0),
 	})
 	.optional()
 	.default({});
@@ -53,16 +53,37 @@ const flowsQueryParams = (search: z.infer<typeof searchParams>) => ({
 const FlowsRoute = () => {
 	const search = Route.useSearch();
 	const { data } = useSuspenseQuery(flowsQueryParams(search));
-	return (
-		<FlowsTable flows={data.data?.results as components["schemas"]["Flow"][]} />
+	const { data: count } = useQuery(
+		buildCountFlowsFilteredQuery({
+			offset: search.offset,
+			sort: search.sort,
+			flows: {
+				operator: "and_",
+				name: { like_: search.name },
+			},
+			limit: search.limit,
+		}),
 	);
+	return <FlowsPage flows={data.data?.results as Flow[]} count={count ?? 0} />;
 };
 
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
 	loaderDeps: ({ search }) => search,
-	loader: async ({ deps: search, context }) =>
-		await context.queryClient.ensureQueryData(flowsQueryParams(search)),
+	loader: async ({ deps: search, context }) => {
+		await context.queryClient.ensureQueryData(flowsQueryParams(search));
+		void context.queryClient.ensureQueryData(
+			buildCountFlowsFilteredQuery({
+				offset: search.offset,
+				sort: search.sort,
+				flows: {
+					operator: "and_",
+					name: { like_: search.name },
+				},
+				limit: search.limit,
+			}),
+		);
+	},
 	wrapInSuspense: true,
 });
