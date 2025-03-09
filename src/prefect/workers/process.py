@@ -29,7 +29,6 @@ import anyio.abc
 from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
-from prefect.client.schemas import FlowRun
 from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.utilities.processutils import get_sys_executable
@@ -42,7 +41,7 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Flow
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
 
@@ -60,10 +59,12 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["Flow"] = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "Flow | None" = None,
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
     ) -> None:
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
@@ -201,7 +202,7 @@ class ProcessWorker(
 
     async def run(
         self,
-        flow_run: FlowRun,
+        flow_run: "FlowRun",
         configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:

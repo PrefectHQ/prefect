@@ -62,9 +62,8 @@ except ModuleNotFoundError:
 _DISALLOWED_GCP_LABEL_CHARACTERS = re.compile(r"[^-a-zA-Z0-9_]+")
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import DeploymentResponse
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.responses import DeploymentResponse
 
 
 class VertexAIWorkerVariables(BaseVariables):
@@ -322,8 +321,10 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
+        work_pool: Optional["WorkPool"] = None,
+        worker_name: Optional[str] = None,
     ):
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         self._inject_formatted_env_vars()
         self._inject_formatted_command()

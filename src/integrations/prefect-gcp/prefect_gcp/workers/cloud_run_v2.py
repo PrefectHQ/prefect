@@ -28,9 +28,8 @@ from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelecto
 from prefect_gcp.utilities import slugify_name
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import DeploymentResponse
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.responses import DeploymentResponse
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -164,6 +163,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
+        work_pool: Optional["WorkPool"] = None,
+        worker_name: Optional[str] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -176,11 +177,15 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             deployment: The deployment associated with the flow run used for
                 preparation.
             flow: The flow associated with the flow run used for preparation.
+            work_pool: The work pool associated with the flow run used for preparation.
+            worker_name: The worker name associated with the flow run used for preparation.
         """
         super().prepare_for_flow_run(
             flow_run=flow_run,
             deployment=deployment,
             flow=flow,
+            work_pool=work_pool,
+            worker_name=worker_name,
         )
 
         self._populate_env()

@@ -161,8 +161,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from uuid import uuid4
 
 import anyio
+import anyio.abc
 import googleapiclient
-from anyio.abc import TaskStatus  # noqa
 from google.api_core.client_options import ClientOptions
 from googleapiclient import discovery
 from googleapiclient.discovery import Resource
@@ -182,9 +182,8 @@ from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.utilities import Execution, Job, slugify_name
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import DeploymentResponse
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.responses import DeploymentResponse
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -320,6 +319,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
+        work_pool: Optional["WorkPool"] = None,
+        worker_name: Optional[str] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -333,7 +334,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
                 preparation.
             flow: The flow associated with the flow run used for preparation.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         self._populate_envs()
         self._populate_or_format_command()

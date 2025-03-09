@@ -37,7 +37,7 @@ FAKE_BASE_URL = "my-url"
 
 @pytest.fixture(autouse=True)
 def bypass_api_check(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("PREFECT_DOCKER_TEST_MODE", True)
+    monkeypatch.setenv("PREFECT_DOCKER_TEST_MODE", "True")
 
 
 @pytest.fixture
@@ -1146,7 +1146,9 @@ async def test_emits_events(
 
     worker_resource = worker._event_resource()
     worker_resource["prefect.resource.role"] = "worker"
-    worker_related_resource = RelatedResource(worker_resource)
+    related_resources = worker._event_related_resources() + [
+        RelatedResource(worker_resource)
+    ]
 
     mock_emit.assert_has_calls(
         [
@@ -1156,7 +1158,7 @@ async def test_emits_events(
                     "prefect.resource.id": "prefect.docker.container.fake-id",
                     "prefect.resource.name": "fake-name",
                 },
-                related=[worker_related_resource],
+                related=related_resources,
                 follows=None,
             ),
             call(
@@ -1165,7 +1167,7 @@ async def test_emits_events(
                     "prefect.resource.id": "prefect.docker.container.fake-id",
                     "prefect.resource.name": "fake-name",
                 },
-                related=[worker_related_resource],
+                related=related_resources,
                 follows=1,
             ),
             call(
@@ -1174,7 +1176,7 @@ async def test_emits_events(
                     "prefect.resource.id": "prefect.docker.container.fake-id",
                     "prefect.resource.name": "fake-name",
                 },
-                related=[worker_related_resource],
+                related=related_resources,
                 follows=2,
             ),
         ]
@@ -1205,5 +1207,5 @@ async def test_emits_event_container_creation_failure(
         mock_emit.assert_called_once_with(
             event="prefect.docker.container.creation-failed",
             resource=worker_resource,
-            related=[],
+            related=worker._event_related_resources(),
         )
