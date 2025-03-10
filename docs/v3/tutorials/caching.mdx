@@ -7,6 +7,7 @@ In this tutorial, you'll learn how to add caching to your workflows. In Prefect,
 
 Let's start with a Python script that fetches the schedule of a Major League Baseball team during a certain time frame.
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import task
 from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
@@ -27,6 +28,7 @@ def get_recent_games(team_name, start_date, end_date):
 
 1. Add the **cache_policy** keyword to the task decorator.
 
+{/* pmd-metadata: notest */}
 ```python 
 from prefect import task
 from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
@@ -45,6 +47,7 @@ def get_recent_games(team_name, start_date, end_date):
 
 2. Add in your chosen cache policy to the task decorator
 
+{/* pmd-metadata: notest */}
 ```python 
 from prefect import task
 from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
@@ -69,6 +72,7 @@ If you want your cache to expire after a certain amount of time, we can add that
 Although I used the **default** cache policy in the example below, you can add a time expiration to any of the five cache policies.
 </Note>
 
+{/* pmd-metadata: notest */}
 ```python 
 from prefect import task
 from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
