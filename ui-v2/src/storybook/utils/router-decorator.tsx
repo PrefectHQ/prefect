@@ -67,7 +67,6 @@ export const storyRouter = createRouter({
 export function routerDecorator(storyFn: () => ReactNode) {
 	return (
 		<CurrentStoryContext.Provider value={storyFn}>
-			{/** @ts-expect-error Ignoring for now to get decorator working */}
 			<RouterProvider router={storyRouter} />
 		</CurrentStoryContext.Provider>
 	);
