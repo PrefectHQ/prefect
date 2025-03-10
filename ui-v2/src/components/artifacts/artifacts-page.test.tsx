@@ -24,7 +24,6 @@ const ArtifactsPageRouter = (props: ArtifactsPageProps) => {
 		}),
 		context: { queryClient: new QueryClient() },
 	});
-	// @ts-expect-error - Type error from using a test router
 	return <RouterProvider router={router} />;
 };
 
