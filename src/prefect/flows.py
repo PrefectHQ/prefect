@@ -1490,10 +1490,10 @@ class Flow(Generic[P, R]):
             _sla=_sla,
         )
 
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(to_deployment_coro)
-
-        deployment = await to_deployment_coro
+        if inspect.isawaitable(to_deployment_coro):
+            deployment = await to_deployment_coro
+        else:
+            deployment = to_deployment_coro
 
         from prefect.deployments.runner import deploy
 
