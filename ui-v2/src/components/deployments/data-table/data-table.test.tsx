@@ -22,6 +22,18 @@ import { DeploymentsDataTable, type DeploymentsDataTableProps } from ".";
 
 describe("DeploymentsDataTable", () => {
 	beforeEach(() => {
+		// Mocks away getRouteApi dependency in `useDeleteDeploymentConfirmationDialog`
+		// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
+		vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
+			const mod = await importOriginal();
+			return {
+				...mod,
+				getRouteApi: () => ({
+					useNavigate: vi.fn,
+				}),
+			};
+		});
+
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const { limit } = (await request.json()) as { limit: number };
