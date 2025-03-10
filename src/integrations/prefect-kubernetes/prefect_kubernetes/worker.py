@@ -201,7 +201,7 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
             "generateName": "{{ name }}-",
         },
         "spec": {
-            "backoffLimit": 0,
+            "backoffLimit": "{{ backoff_limit }}",
             "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
             "template": {
                 "spec": {
@@ -382,6 +382,8 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         """
 
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        # Configure eviction handling
+        self._configure_eviction_handling()
         # Update configuration env and job manifest env
         self._update_prefect_api_url_if_local_server()
         self._populate_env_in_manifest()
@@ -391,6 +393,46 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
+
+    def _configure_eviction_handling(self):
+        """
+        Configures eviction handling for the job pod. Needs to run before
+
+        If `backoffLimit` is set to 0, we'll tell the Runner to reschedule
+        its flow run when it receives a SIGTERM.
+
+        If `backoffLimit` is set to a positive number, we'll ensure that the
+        reschedule SIGTERM handling is not set. Having both a `backoffLimit` and
+        reschedule handling set can cause duplicate flow run execution.
+        """
+        # If backoffLimit is set to 0, we'll tell the Runner to reschedule
+        # its flow run when it receives a SIGTERM.
+        if self.job_manifest["spec"].get("backoffLimit") == 0:
+            if isinstance(self.env, dict):
+                self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
+            elif not any(
+                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                for v in self.env
+            ):
+                self.env.append(
+                    {
+                        "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                        "value": "reschedule",
+                    }
+                )
+        # Otherwise, we'll ensure that the reschedule SIGTERM handling is not set.
+        else:
+            if isinstance(self.env, dict):
+                self.env.pop("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", None)
+            elif any(
+                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                for v in self.env
+            ):
+                self.env = [
+                    v
+                    for v in self.env
+                    if v.get("name") != "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                ]
 
     def _populate_env_in_manifest(self):
         """
@@ -539,6 +581,15 @@ class KubernetesWorkerVariables(BaseVariables):
     image_pull_policy: Literal["IfNotPresent", "Always", "Never"] = Field(
         default=KubernetesImagePullPolicy.IF_NOT_PRESENT,
         description="The Kubernetes image pull policy to use for job containers.",
+    )
+    backoff_limit: int = Field(
+        default=0,
+        ge=0,
+        title="Backoff Limit",
+        description=(
+            "The number of times Kubernetes will retry a job after pod eviction. "
+            "If set to 0, Prefect will reschedule the flow run when the pod is evicted."
+        ),
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,
