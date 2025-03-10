@@ -1,0 +1,99 @@
+---
+title: Set up caching for your workflows
+description: Give your data team the ability to cache results
+---
+
+In this tutorial, you'll learn how to add caching to your workflows. In Prefect, we have five different cache policies to get the exact caching behavior that you want.  If you want to read more about each policy, check them out [here](/v3/develop/task-caching). 
+
+Let's start with a Python script that fetches the schedule of a Major League Baseball team during a certain time frame.
+
+```python
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+import statsapi
+
+@task()
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    for game in schedule:
+        print(game["game_id"])
+```
+
+## Applying Cache to a Flow
+
+1. Add the **cache_policy** keyword to the task decorator.
+
+```python 
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+import statsapi
+
+@task(cache_policy=)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    for game in schedule:
+        print(game["game_id"])
+```
+
+2. Add in your chosen cache policy to the task decorator
+
+```python 
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+import statsapi
+
+@task(cache_policy=INSERT_CHOSEN_CACHE_POLICY_HERE)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    for game in schedule:
+        print(game["game_id"])
+```
+
+## Applying an Expiration to the Cache 
+
+If you want your cache to expire after a certain amount of time, we can add that to the task decorator as well. 
+
+<Note>
+Although I used the **default** cache policy in the example below, you can add a time expiration to any of the five cache policies.
+</Note>
+
+```python 
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+import statsapi
+
+@task(cache_policy=DEFAULT, cache_expiration=timedelta(days=1))
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    for game in schedule:
+        print(game["game_id"])
+```
+
+<Tip>
+    The cache in the example above expires in 1 day. You can set the cache to expire in any increments of days, seconds, microseconds, milliseconds, minutes, hours, and weeks. You can read more about how to do that [here](https://docs.python.org/3/library/datetime.html#timedelta-objects).
+</Tip>
+
+## Next Steps
+
+The tutorial above helps to add caching to your tasks, however there are still [more customization options](/v3/develop/task-caching) for caching:
+
+- Configure custom cache policy logic through the use of cache key functions
+- Store cache records separately from task results.
+- Configure cache isolation to control how concurrent task runs interact with cache records.
+- Setup an option in the task definition to force ignore the cache.
