@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
+import anyio.abc
 import httpx
 import pendulum
 import pytest
@@ -12,11 +15,18 @@ from starlette import status
 
 import prefect
 import prefect.client.schemas as schemas
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas import FlowRun
-from prefect.client.schemas.objects import Integration, StateType, WorkerMetadata
+from prefect.client.schemas.objects import (
+    Flow,
+    FlowRun,
+    Integration,
+    StateType,
+    WorkerMetadata,
+    WorkPool,
+)
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -24,7 +34,7 @@ from prefect.exceptions import (
 from prefect.flows import flow
 from prefect.server import models
 from prefect.server.schemas.actions import WorkPoolUpdate as ServerWorkPoolUpdate
-from prefect.server.schemas.core import Deployment, Flow, WorkPool
+from prefect.server.schemas.core import Deployment
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
@@ -46,6 +56,7 @@ from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
     BaseWorker,
+    BaseWorkerResult,
 )
 
 
@@ -2098,3 +2109,46 @@ async def test_worker_removes_flow_run_from_submitting_when_not_ready(
         await worker.get_and_submit_flow_runs()
         # Verify the flow run was removed from _submitting_flow_run_ids
         assert flow_run.id not in worker._submitting_flow_run_ids
+
+
+class TestBackwardsCompatibility:
+    async def test_backwards_compatibility_with_old_prepare_for_flow_run(
+        self,
+        work_pool: WorkPool,
+        worker_deployment_wq1: Deployment,
+        prefect_client: PrefectClient,
+    ):
+        class OldStyleJobConfiguration(BaseJobConfiguration):
+            def prepare_for_flow_run(
+                self,
+                flow_run: FlowRun,
+                deployment: Deployment | None = None,
+                flow: Flow | None = None,
+            ):
+                pass
+
+        class InfrastructureResult(BaseWorkerResult):
+            pass
+
+        class OldStyleWorker(
+            BaseWorker[OldStyleJobConfiguration, Any, InfrastructureResult]
+        ):
+            type = "old-style"
+            job_configuration = OldStyleJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return InfrastructureResult(identifier="test", status_code=0)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id
+        )
+
+        # Should warn and not raise an error
+        with pytest.warns(PrefectDeprecationWarning):
+            async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
+                await worker._get_configuration(flow_run=flow_run)
