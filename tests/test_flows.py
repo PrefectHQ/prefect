@@ -4935,6 +4935,33 @@ class TestFlowDeploy:
 
         assert not capsys.readouterr().out
 
+    async def test_deploy_from_within_flow(
+        self, mock_deploy, local_flow, work_pool, prefect_client
+    ):
+        """regression test for 17434"""
+
+        @flow
+        def hello_flow():
+            local_flow.deploy(
+                name="my-deployment",
+                work_pool_name=work_pool.name,
+            )
+
+        hello_flow()
+
+        assert mock_deploy.call_count == 1
+        mock_deploy.assert_called_once_with(
+            await local_flow.to_deployment(
+                name="my-deployment",
+            ),
+            work_pool_name=work_pool.name,
+            image=None,
+            build=True,
+            push=True,
+            print_next_steps_message=False,
+            ignore_warnings=False,
+        )
+
 
 class TestLoadFlowFromFlowRun:
     async def test_load_flow_from_module_entrypoint(
