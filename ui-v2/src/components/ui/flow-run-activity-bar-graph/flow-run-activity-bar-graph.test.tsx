@@ -65,7 +65,6 @@ describe("FlowRunActivityBarChart", () => {
 			},
 		});
 
-		// @ts-expect-error - Type error from using a test router
 		render(<RouterProvider router={router} />);
 
 		const bar = screen.getByTestId("bar-rect-test-flow-run-1");
