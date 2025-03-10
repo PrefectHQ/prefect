@@ -22,6 +22,8 @@ def get_recent_games(team_name, start_date, end_date):
     )
     for game in schedule:
         print(game["game_id"])
+
+get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
 
 ## Applying Cache to a Flow
@@ -43,6 +45,8 @@ def get_recent_games(team_name, start_date, end_date):
     )
     for game in schedule:
         print(game["game_id"])
+
+get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
 
 2. Add in your chosen cache policy to the task decorator
@@ -62,6 +66,8 @@ def get_recent_games(team_name, start_date, end_date):
     )
     for game in schedule:
         print(game["game_id"])
+
+get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
 
 ## Applying an Expiration to the Cache 
@@ -87,6 +93,8 @@ def get_recent_games(team_name, start_date, end_date):
     )
     for game in schedule:
         print(game["game_id"])
+
+get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
 
 <Tip>
