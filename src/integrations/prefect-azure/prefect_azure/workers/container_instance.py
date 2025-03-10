@@ -73,7 +73,7 @@ import datetime
 import sys
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import anyio
 import dateutil.parser
@@ -92,9 +92,6 @@ from pydantic import Field, SecretStr
 from slugify import slugify
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas import FlowRun
-from prefect.server.schemas.core import Flow
-from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -105,6 +102,10 @@ from prefect.workers.base import (
 )
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.credentials import AzureContainerInstanceCredentials
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.responses import DeploymentResponse
 
 # import aio Azure container instance client
 
@@ -235,11 +236,13 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
+        work_pool: Optional["WorkPool"] = None,
+        worker_name: Optional[str] = None,
     ):
         """
         Prepares the job configuration for a flow run.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         # expectations:
         # - the first resource in the template is the container group
@@ -530,7 +533,7 @@ class AzureContainerWorker(BaseWorker):
 
     async def run(
         self,
-        flow_run: FlowRun,
+        flow_run: "FlowRun",
         configuration: AzureContainerJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ):

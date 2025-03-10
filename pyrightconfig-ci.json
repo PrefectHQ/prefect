@@ -84,9 +84,6 @@
 		"src/prefect/telemetry/services.py",
 		"src/prefect/testing/",
 		"src/prefect/types/__init__.py",
-		"src/prefect/workers/__init__.py",
-		"src/prefect/workers/base.py",
-		"src/prefect/workers/process.py",
 		"src/prefect/artifacts.py",
 		"src/prefect/automations.py",
 		"src/prefect/context.py",
@@ -106,7 +103,7 @@
 		"src/prefect/tasks.py",
 		"src/prefect/transactions.py",
 		"tests/",
-		"client/",
+		"client/"
 	],
 	"reportUnnecessaryTypeIgnoreComments": true
 }
