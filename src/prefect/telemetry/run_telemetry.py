@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from opentelemetry import propagate, trace
 from opentelemetry.context import Context
@@ -60,7 +60,7 @@ class RunTelemetry:
         run: FlowOrTaskRun,
         client: PrefectClient,
         parameters: dict[str, Any] | None = None,
-    ) -> Optional[Span]:
+    ) -> Span | None:
         if not self._enabled:
             return None
         traceparent, span = self._start_span(run, parameters)
@@ -78,7 +78,7 @@ class RunTelemetry:
         run: FlowOrTaskRun,
         client: SyncPrefectClient,
         parameters: dict[str, Any] | None = None,
-    ) -> Optional[Span]:
+    ) -> Span | None:
         if not self._enabled:
             return None
 
