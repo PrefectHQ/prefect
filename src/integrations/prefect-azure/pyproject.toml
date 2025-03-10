@@ -32,11 +32,13 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[dependency-groups]
+[project.optional-dependencies]
 blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
 ml_datastore = ["azureml-core"]
 all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core"]
+
+[dependency-groups]
 dev = [
   "aiohttp",
   "azure-cosmos",

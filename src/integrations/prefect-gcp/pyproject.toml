@@ -32,7 +32,7 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[dependency-groups]
+[project.optional-dependencies]
 cloud_storage = ["google-cloud-storage"]
 bigquery = ["google-cloud-bigquery", "google-cloud-bigquery-storage"]
 secret_manager = ["google-cloud-secret-manager"]
@@ -44,6 +44,8 @@ all_extras = [
   "google-cloud-secret-manager",
   "google-cloud-aiplatform",
 ]
+
+[dependency-groups]
 dev = [
   "coverage",
   "google-cloud-aiplatform",
