@@ -256,7 +256,11 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="prefect flow-run execute",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -273,6 +277,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
             },
             name=flow_run.name,
             namespace="default",
@@ -292,6 +299,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                     },
                 },
                 "spec": {
@@ -546,7 +556,11 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="prefect flow-run execute",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -563,6 +577,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
             },
             name=flow_run.name,
             namespace="default",
@@ -582,6 +599,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                     },
                 },
                 "spec": {
@@ -709,7 +729,11 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=False,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="echo hello",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -726,6 +750,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
                 "TEST_LABEL": "test label",
             },
             name="test",
@@ -746,6 +773,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                         "test_label": "test-label",
                     },
                 },
@@ -991,7 +1021,11 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=True,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="echo hello",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -1006,6 +1040,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
                 "TEST_LABEL": "test label",
             },
             name="test",
@@ -1026,6 +1063,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                         "test_label": "test-label",
                     },
                 },
@@ -1092,6 +1132,10 @@ class TestKubernetesWorkerJobConfiguration:
         return DeploymentResponse(name="my-deployment-name", flow_id=uuid.uuid4())
 
     @pytest.fixture
+    def work_pool(self):
+        return WorkPool(name="my-work-pool-name", type="kubernetes")
+
+    @pytest.fixture
     def flow(self):
         return Flow(name="my-flow-name")
 
@@ -1114,6 +1158,7 @@ class TestKubernetesWorkerJobConfiguration:
         flow_run,
         deployment,
         flow,
+        work_pool,
     ):
         """Tests that the job configuration is correctly templated and prepared."""
         result = await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -1123,11 +1168,23 @@ class TestKubernetesWorkerJobConfiguration:
         # comparing dictionaries produces cleaner diffs
         assert result.model_dump() == expected_after_template.model_dump()
 
-        result.prepare_for_flow_run(flow_run=flow_run, deployment=deployment, flow=flow)
+        result.prepare_for_flow_run(
+            flow_run=flow_run,
+            deployment=deployment,
+            flow=flow,
+            work_pool=work_pool,
+            worker_name="test-worker",
+        )
 
         assert (
             result.model_dump()
-            == expected_after_preparation(flow_run, deployment, flow).model_dump()
+            == expected_after_preparation(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                work_pool=work_pool,
+                worker_name="test-worker",
+            ).model_dump()
         )
 
     async def test_validates_against_an_empty_job(self):

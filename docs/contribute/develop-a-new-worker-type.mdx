@@ -57,9 +57,9 @@ Here's an example `prepare_for_flow_run` method that adds a label to the executi
 
 ```python
 def prepare_for_flow_run(
-    self, flow_run, deployment = None, flow = None,
+    self, flow_run, deployment = None, flow = None, work_pool = None, worker_name = None
 ):  
-    super().prepare_for_flow_run(flow_run, deployment, flow)  
+    super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)  
     self.labels.append("my-custom-label")
 ```
 
