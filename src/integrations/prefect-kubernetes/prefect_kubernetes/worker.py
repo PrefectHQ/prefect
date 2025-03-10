@@ -381,7 +381,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             flow: The flow associated with the flow run used for preparation.
         """
 
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
         # Update configuration env and job manifest env
         self._update_prefect_api_url_if_local_server()
         self._populate_env_in_manifest()

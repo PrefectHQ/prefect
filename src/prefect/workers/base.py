@@ -229,6 +229,8 @@ class BaseJobConfiguration(BaseModel):
             flow_run: The flow run to be executed.
             deployment: The deployment that the flow run is associated with.
             flow: The flow that the flow run is associated with.
+            work_pool: The work pool that the flow run is running in.
+            worker_name: The name of the worker that is submitting the flow run.
         """
 
         self._related_objects = {
