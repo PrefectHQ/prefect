@@ -24,6 +24,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from uuid import UUID
 
@@ -1525,6 +1526,32 @@ async def run_generator_task_async(
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
         await engine.result()
+
+
+@overload
+def run_task(
+    task: "Task[P, R]",
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
+    return_type: Literal["state"] = "state",
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
+) -> State[R]: ...
+
+
+@overload
+def run_task(
+    task: "Task[P, R]",
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
+    return_type: Literal["result"] = "result",
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
+) -> R: ...
 
 
 def run_task(
