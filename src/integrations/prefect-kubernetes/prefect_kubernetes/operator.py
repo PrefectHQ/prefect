@@ -48,7 +48,7 @@ def replicate_pod_event(
                 "restart_count": status.get("restart_count", 0),
             },
             sort_keys=True,
-        ).encode(),
+        ),
     )
 
     # Check if a corresponding event already exists. If so, we don't need to emit a new one.
