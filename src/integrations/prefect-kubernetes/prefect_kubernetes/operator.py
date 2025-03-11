@@ -26,7 +26,6 @@ def replicate_pod_event(
     namespace: str,
     labels: kopf.Labels,
     status: kopf.Status,
-    logger: kopf.Logger,
     **kwargs: Any,
 ):
     """
