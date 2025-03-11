@@ -1046,10 +1046,9 @@ class Flow(Generic[P, R]):
         if not name:
             name = self.name
         else:
-            # Handling for my_flow.serve(__file__)
-            # Will set name to name of file where my_flow.serve() without the extension
-            # Non filepath strings will pass through unchanged
-            name = Path(name).stem
+            # Only strip extension if it is a file path
+            if (p := Path(name)).is_file():
+                name = p.stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = runner.add_flow(
