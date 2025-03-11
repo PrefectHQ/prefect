@@ -15,13 +15,97 @@ from prefect.utilities.slugify import slugify
 _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
 
 
-def _pod_as_resource(uid: str, name: str, namespace: str) -> dict[str, str]:
-    """Convert a pod to a resource dictionary"""
-    return {
+@kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # pyright: ignore
+def replicate_pod_event(
+    event: kopf.RawEvent,
+    uid: str,
+    name: str,
+    namespace: str,
+    labels: kopf.Labels,
+    status: kopf.Status,
+    **kwargs: Any,
+):
+    """
+    Replicate a pod event to the Prefect event system.
+
+    This handler is resilient to restarts of the operator and allows
+    multiple instances of the operator to coexist without duplicate events.
+    """
+    event_type = event["type"]
+    phase = status["phase"]
+
+    # Create a deterministic event ID based on the pod's ID, phase, and restart count.
+    # This ensures that the event ID is the same for the same pod in the same phase and restart count
+    # and Prefect's event system will be able to deduplicate events.
+    event_id = uuid.uuid5(
+        uuid.NAMESPACE_URL,
+        json.dumps(
+            {
+                "uid": uid,
+                "phase": phase,
+                "restart_count": status.get("restart_count", 0),
+            },
+            sort_keys=True,
+        ).encode(),
+    )
+
+    # Check if a corresponding event already exists. If so, we don't need to emit a new one.
+    # This handles the case where the operator is restarted and we don't want to emit duplicate events
+    # and the case where you're moving from an older version of the worker without the operator to a newer version with the operator.
+    if event_type is None:
+        with get_client(sync_client=True) as client:
+            response = client.request(
+                "POST",
+                "/events/filter",
+                json=EventFilter(
+                    event=EventNameFilter(
+                        name=[f"prefect.kubernetes.pod.{phase.lower()}"]
+                    ),
+                    resource=EventResourceFilter(
+                        id=[f"prefect.kubernetes.pod.{uid}"],
+                    ),
+                ).model_dump(exclude_unset=True),
+            )
+            # If the event already exists, we don't need to emit a new one.
+            if response.json()["events"]:
+                return
+
+    resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
         "prefect.resource.name": name,
         "kubernetes.namespace": namespace,
     }
+    # Add eviction reason if the pod was evicted for debugging purposes
+    if event_type == "MODIFIED" and phase == "Failed":
+        for container_status in status.get("container_statuses", []):
+            if (
+                terminated := container_status.get("state", {}).get("terminated", {})
+            ) and (reason := terminated.get("reason")):
+                phase = "evicted"
+                resource["kubernetes.reason"] = reason
+                break
+
+    emitted_event = emit_event(
+        event=f"prefect.kubernetes.pod.{phase.lower()}",
+        resource=resource,
+        id=event_id,
+        related=_related_resources_from_labels(labels),
+        follows=_last_event_cache.get(uid),
+    )
+    if emitted_event is not None:
+        _last_event_cache[uid] = emitted_event
+
+
+EVICTED_REASONS = {
+    "OOMKilled",
+    "CrashLoopBackoff",
+    "Error",
+    "Completed",
+    "DeadlineExceeded",
+    "ImageGCFailed",
+    "NodeLost",
+    "NodeOutOfDisk",
+}
 
 
 def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]:
@@ -82,58 +166,12 @@ def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]
     return related
 
 
-@kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})
-def on_pod_event(
-    event: kopf.RawEvent,
-    uid: str,
-    name: str,
-    namespace: str,
-    labels: kopf.Labels,
-    status: kopf.Status,
-    **kwargs: Any,
-):
-    resource = _pod_as_resource(uid, name, namespace)
-    phase = status["phase"]
-
-    event_id = uuid.uuid5(
-        uuid.NAMESPACE_URL,
-        json.dumps({"uid": uid, "status": dict(status)}, sort_keys=True).encode(),
-    )
-
-    if event["type"] is None:
-        with get_client(sync_client=True) as client:
-            response = client.request(
-                "POST",
-                "/events/filter",
-                json=EventFilter(
-                    event=EventNameFilter(
-                        name=[f"prefect.kubernetes.pod.{phase.lower()}"]
-                    ),
-                    resource=EventResourceFilter(
-                        id=[f"prefect.kubernetes.pod.{uid}"],
-                    ),
-                ).model_dump(exclude_unset=True),
-            )
-            if response.json()["events"]:
-                return
-
-    emitted_event = emit_event(
-        event=f"prefect.kubernetes.pod.{phase.lower()}",
-        resource=resource,
-        id=event_id,
-        related=_related_resources_from_labels(labels),
-        follows=_last_event_cache.get(uid),
-    )
-    if emitted_event is not None:
-        _last_event_cache[uid] = emitted_event
-
-
 _operator_task: asyncio.Task[None] | None = None
 _operator_thread: threading.Thread | None = None
 
 
 def _operator_thread_entry():
-    global _operator_task, _operator_thread
+    global _operator_task
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     _operator_task = loop.create_task(kopf.operator(clusterwide=True))
@@ -146,18 +184,27 @@ def _operator_thread_entry():
 
 
 def start_operator():
+    """
+    Start the operator in a separate thread.
+    """
     global _operator_thread
+    if _operator_thread is not None:
+        return
     _operator_thread = threading.Thread(
         target=_operator_thread_entry, name="prefect-kubernetes-operator"
     )
     _operator_thread.start()
 
 
-def stop_operator():
+async def stop_operator():
+    """
+    Stop the operator thread.
+    """
     global _operator_task
     global _operator_thread
     if _operator_task:
         _operator_task.cancel()
+        await _operator_task
         _operator_task = None
     if _operator_thread:
         _operator_thread.join()
