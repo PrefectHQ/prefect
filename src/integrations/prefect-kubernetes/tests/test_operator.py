@@ -1,4 +1,5 @@
 import uuid
+from time import sleep
 from unittest.mock import ANY, MagicMock
 
 import pytest
@@ -233,7 +234,7 @@ class TestReplicatePodEvent:
 
 class TestStartAndStopOperator:
     @pytest.mark.timeout(10)
-    async def test_start_and_stop(self, monkeypatch: pytest.MonkeyPatch):
+    def test_start_and_stop(self, monkeypatch: pytest.MonkeyPatch):
         """
         Test that the operator can be started and stopped without errors
         and without hanging.
@@ -250,4 +251,5 @@ class TestStartAndStopOperator:
         monkeypatch.setattr("prefect_kubernetes.operator.get_client", mock_get_client)
 
         start_operator()
+        sleep(1)
         stop_operator()

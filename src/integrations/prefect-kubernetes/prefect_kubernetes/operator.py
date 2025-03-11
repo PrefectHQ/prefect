@@ -168,21 +168,15 @@ def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]
     return related
 
 
-_operator_task: asyncio.Task[None] | None = None
 _operator_thread: threading.Thread | None = None
+_stop_flag: threading.Event | None = None
 
 
 def _operator_thread_entry():
-    global _operator_task
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    _operator_task = loop.create_task(kopf.operator(clusterwide=True))
-    try:
-        loop.run_until_complete(_operator_task)
-    except asyncio.CancelledError:
-        pass
-    finally:
-        loop.close()
+    global _stop_flag
+    _stop_flag = threading.Event()
+
+    asyncio.run(kopf.operator(clusterwide=True, stop_flag=_stop_flag))
 
 
 def start_operator():
@@ -190,6 +184,20 @@ def start_operator():
     Start the operator in a separate thread.
     """
     global _operator_thread
+
+    import logging
+
+    # Suppress the warning about running the operator in a non-main thread. The starter of the operator
+    # will handle the OS signals.
+    class ThreadWarningFilter(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            return (
+                "OS signals are ignored: running not in the main thread"
+                not in record.getMessage()
+            )
+
+    logging.getLogger("kopf._core.reactor.running").addFilter(ThreadWarningFilter())
+
     if _operator_thread is not None:
         return
     _operator_thread = threading.Thread(
@@ -202,11 +210,11 @@ def stop_operator():
     """
     Stop the operator thread.
     """
-    global _operator_task
+    global _stop_flag
     global _operator_thread
-    if _operator_task:
-        _operator_task.cancel()
-        _operator_task = None
+    if _stop_flag:
+        _stop_flag.set()
     if _operator_thread:
         _operator_thread.join()
-        _operator_thread = None
+    _operator_thread = None
+    _stop_flag = None
