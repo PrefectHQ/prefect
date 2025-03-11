@@ -90,7 +90,7 @@ def my_flow():
     ...
 ```
 
-This flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
+This flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://<head_node_host>:10001`.
 
 ```python
 from prefect import flow
@@ -98,7 +98,7 @@ from prefect_ray.task_runners import RayTaskRunner
 
 @flow(
     task_runner=RayTaskRunner(
-        address="ray://192.0.2.255:8786",
+        address="ray://<head_node_host>:10001",
         init_kwargs={"runtime_env": {"pip": ["prefect-ray"]}},
     )
 )
