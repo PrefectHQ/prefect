@@ -166,7 +166,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_kubernetes.credentials import KubernetesClusterConfig
-from prefect_kubernetes.events import KubernetesEventsReplicator
+from prefect_kubernetes.operator import start_operator, stop_operator
 from prefect_kubernetes.settings import KubernetesSettings
 from prefect_kubernetes.utilities import (
     KeepAliveClientRequest,
@@ -695,21 +695,9 @@ class KubernetesWorker(
             if task_status is not None:
                 task_status.started(pid)
 
-            # Monitor the job until completion
-            events_replicator = KubernetesEventsReplicator(
-                client=client,
-                job_name=job.metadata.name,
-                namespace=configuration.namespace,
-                worker_resource=self._event_resource(),
-                related_resources=self._event_related_resources(
-                    configuration=configuration
-                ),
-                timeout_seconds=configuration.pod_watch_timeout_seconds,
+            status_code = await self._watch_job(
+                logger, job.metadata.name, configuration, client
             )
-            async with events_replicator:
-                status_code = await self._watch_job(
-                    logger, job.metadata.name, configuration, client
-                )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
@@ -1438,3 +1426,11 @@ class KubernetesWorker(
                 and event.involved_object.name == pod_name
             ):
                 log_event(event)
+
+    async def __aenter__(self):
+        start_operator()
+        return await super().__aenter__()
+
+    async def __aexit__(self, *exc_info: Any):
+        stop_operator()
+        await super().__aexit__(*exc_info)
