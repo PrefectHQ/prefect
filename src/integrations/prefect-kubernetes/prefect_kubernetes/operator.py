@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import threading
 import uuid
 from typing import Any
@@ -17,7 +18,7 @@ from prefect.utilities.slugify import slugify
 _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
 
 
-@kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # pyright: ignore
+@kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})
 def replicate_pod_event(
     event: kopf.RawEvent,
     uid: str,
@@ -25,6 +26,7 @@ def replicate_pod_event(
     namespace: str,
     labels: kopf.Labels,
     status: kopf.Status,
+    logger: kopf.Logger,
     **kwargs: Any,
 ):
     """
@@ -170,13 +172,18 @@ def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]
 
 _operator_thread: threading.Thread | None = None
 _stop_flag: threading.Event | None = None
+_ready_flag: threading.Event | None = None
 
 
 def _operator_thread_entry():
     global _stop_flag
+    global _ready_flag
     _stop_flag = threading.Event()
+    _ready_flag = threading.Event()
 
-    asyncio.run(kopf.operator(clusterwide=True, stop_flag=_stop_flag))
+    asyncio.run(
+        kopf.operator(clusterwide=True, stop_flag=_stop_flag, ready_flag=_ready_flag)
+    )
 
 
 def start_operator():
@@ -184,8 +191,7 @@ def start_operator():
     Start the operator in a separate thread.
     """
     global _operator_thread
-
-    import logging
+    global _ready_flag
 
     # Suppress the warning about running the operator in a non-main thread. The starter of the operator
     # will handle the OS signals.
@@ -204,12 +210,16 @@ def start_operator():
         target=_operator_thread_entry, name="prefect-kubernetes-operator"
     )
     _operator_thread.start()
+    if _ready_flag:
+        _ready_flag.wait()
+        _ready_flag = None
 
 
 def stop_operator():
     """
     Stop the operator thread.
     """
+    print("Stopping operator")
     global _stop_flag
     global _operator_thread
     if _stop_flag:

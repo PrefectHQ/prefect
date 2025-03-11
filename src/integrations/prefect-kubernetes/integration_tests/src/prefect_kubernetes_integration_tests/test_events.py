@@ -9,7 +9,6 @@ from prefect_kubernetes_integration_tests.utils import display, prefect_core
 
 DEFAULT_JOB_VARIABLES = {
     "image": "prefecthq/prefect:3.2.11-python3.12",
-    "env": {"PREFECT_API_URL": "http://172.17.0.1:4200/api"},
 }
 DEFAULT_PARAMETERS = {"n": 5}
 # Default source is a simple flow that sleeps
