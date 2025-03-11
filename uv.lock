@@ -4059,7 +4059,7 @@ dependencies = [
 requires-dist = [
     { name = "exceptiongroup" },
     { name = "kubernetes-asyncio", specifier = ">=32.0.0" },
-    { name = "prefect", directory = "." },
+    { name = "prefect", editable = "." },
     { name = "pyopenssl", specifier = ">=24.1.0" },
     { name = "tenacity", specifier = ">=8.2.3" },
 ]
