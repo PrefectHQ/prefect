@@ -1426,6 +1426,8 @@ class Task(Generic[P, R]):
         else:
             return futures
 
+    # Background task methods
+
     def apply_async(
         self,
         args: Optional[tuple[Any, ...]] = None,
