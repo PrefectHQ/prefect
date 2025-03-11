@@ -54,6 +54,40 @@ class TestReplicatePodEvent:
             follows=None,
         )
 
+    def test_deterministic_event_id(self, mock_emit_event: MagicMock):
+        """Test that the event ID is deterministic"""
+        pod_id = uuid.uuid4()
+        replicate_pod_event(
+            event={"type": "ADDED", "status": {"phase": "Running"}},
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Running"},
+        )
+
+        first_event_id = mock_emit_event.call_args[1]["id"]
+        mock_emit_event.reset_mock()
+
+        # Call the function again
+        replicate_pod_event(
+            event={"type": "ADDED", "status": {"phase": "Running"}},
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Running"},
+        )
+
+        second_event_id = mock_emit_event.call_args[1]["id"]
+        assert first_event_id == second_event_id
+
     def test_evicted_pod(self, mock_emit_event: MagicMock):
         """Test handling of evicted pods"""
         pod_id = uuid.uuid4()
