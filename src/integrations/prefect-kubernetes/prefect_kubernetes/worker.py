@@ -1432,5 +1432,5 @@ class KubernetesWorker(
         return await super().__aenter__()
 
     async def __aexit__(self, *exc_info: Any):
-        await stop_operator()
+        stop_operator()
         await super().__aexit__(*exc_info)

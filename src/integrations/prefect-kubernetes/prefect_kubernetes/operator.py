@@ -196,7 +196,7 @@ def start_operator():
     _operator_thread.start()
 
 
-async def stop_operator():
+def stop_operator():
     """
     Stop the operator thread.
     """
@@ -204,7 +204,6 @@ async def stop_operator():
     global _operator_thread
     if _operator_task:
         _operator_task.cancel()
-        await _operator_task
         _operator_task = None
     if _operator_thread:
         _operator_thread.join()
