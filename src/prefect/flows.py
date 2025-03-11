@@ -1046,7 +1046,7 @@ class Flow(Generic[P, R]):
         if not name:
             name = self.name
         else:
-            # Only strip extension if it looks like a file path
+            # Only strip extension if it is a file path
             if (p := Path(name)).is_file():
                 name = p.stem
 
