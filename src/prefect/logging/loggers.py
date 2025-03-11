@@ -146,10 +146,11 @@ def get_run_logger(
             **kwargs,
         )
     elif (
-        get_logger("prefect.flow_run").disabled
-        and get_logger("prefect.task_run").disabled
+        get_logger("prefect.flow_runs").disabled
+        and get_logger("prefect.task_runs").disabled
     ):
         logger = logging.getLogger("null")
+        logger.disabled = True
     else:
         raise MissingContextError("There is no active flow or task run context.")
 
@@ -280,9 +281,9 @@ def disable_run_logger():
     """
     Gets both `prefect.flow_run` and `prefect.task_run` and disables them
     within the context manager. Upon exiting the context manager, both loggers
-    are returned to its original state.
+    are returned to their original state.
     """
-    with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
+    with disable_logger("prefect.flow_runs"), disable_logger("prefect.task_runs"):
         yield
 
 
