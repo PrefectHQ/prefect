@@ -54,6 +54,13 @@ FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
 
 
+@pytest.fixture(autouse=True)
+def mock_operator_start(monkeypatch: pytest.MonkeyPatch):
+    mock = MagicMock()
+    monkeypatch.setattr("prefect_kubernetes.worker.start_operator", mock)
+    return mock
+
+
 @pytest.fixture
 def mock_watch(monkeypatch):
     mock = MagicMock(return_value=AsyncMock())
@@ -3028,7 +3035,6 @@ class TestKubernetesWorker:
                     yield item
 
             stream_return = [
-                mock_stream(),
                 mock_stream(),
                 ApiException(status=410),
                 mock_stream(),
