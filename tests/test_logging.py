@@ -1728,26 +1728,66 @@ def test_disable_logger(caplog: pytest.LogCaptureFixture):
     assert caplog.record_tuples == []
 
 
-def test_disable_run_logger(caplog: pytest.LogCaptureFixture):
+def test_disable_run_logger_with_task(caplog: pytest.LogCaptureFixture):
     @task
     def task_with_run_logger():
         logger = get_run_logger()
         logger.critical("won't show")
-        return 42
 
-    flow_run_logger = get_logger("prefect.flow_run")
-    task_run_logger = get_logger("prefect.task_run")
-    task_run_logger.disabled = True
+    flow_run_logger = get_logger("prefect.flow_runs")
+    task_run_logger = get_logger("prefect.task_runs")
 
+    # Can call the task as normal and the underlying function without issue inside the context manager
     with disable_run_logger():
-        num = task_with_run_logger.fn()
-        assert num == 42
+        task_with_run_logger()
+        task_with_run_logger.fn()
         assert flow_run_logger.disabled
         assert task_run_logger.disabled
 
+    # Loggers should return to normal state and the disabled logs should not be in the caplog
     assert not flow_run_logger.disabled
-    assert task_run_logger.disabled  # was already disabled beforehand
-    assert caplog.record_tuples == [("null", logging.CRITICAL, "won't show")]
+    assert not task_run_logger.disabled
+    assert "won't show" not in caplog.text
+
+    caplog.clear()
+
+    # Should operate normally outside of the context manager
+    task_with_run_logger()
+    assert "won't show" in caplog.text
+
+    with pytest.raises(MissingContextError):
+        task_with_run_logger.fn()
+
+
+def test_disable_run_logger_with_flow(caplog: pytest.LogCaptureFixture):
+    @flow
+    def test_flow():
+        logger = get_run_logger()
+        logger.critical("won't show")
+
+    flow_run_logger = get_logger("prefect.flow_runs")
+    task_run_logger = get_logger("prefect.task_runs")
+
+    # Can call the flow as normal and the underlying function without issue inside the context manager
+    with disable_run_logger():
+        test_flow()
+        test_flow.fn()
+        assert flow_run_logger.disabled
+        assert task_run_logger.disabled
+
+    # Loggers should return to normal state and the disabled logs should not be in the caplog
+    assert not flow_run_logger.disabled
+    assert not task_run_logger.disabled
+    assert "won't show" not in caplog.text
+
+    caplog.clear()
+
+    # Should operate normally outside of the context manager
+    test_flow()
+    assert "won't show" in caplog.text
+
+    with pytest.raises(MissingContextError):
+        test_flow.fn()
 
 
 def test_patch_print_writes_to_stdout_without_run_context(
