@@ -30,34 +30,19 @@ get_recent_games("marlins", "06/01/2024", "06/30/2024")
 
 1. Add the **cache_policy** keyword to the task decorator.
 
-{/* pmd-metadata: notest */}
-```python 
-from prefect import task
-from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
-import statsapi
-
-@task(cache_policy=)
-def get_recent_games(team_name, start_date, end_date):
-    """This task will fetch the schedule for the provided team and date range and return the game ids."""
-    team = statsapi.lookup_team(team_name)
-    schedule = statsapi.schedule(
-        team=team[0]["id"], start_date=start_date, end_date=end_date
-    )
-    for game in schedule:
-        print(game["game_id"])
-
-get_recent_games("marlins", "06/01/2024", "06/30/2024")
-```
+Insert **cache_policy=** into your task decorator
 
 2. Add in your chosen cache policy to the task decorator
 
-{/* pmd-metadata: notest */}
+<Tabs>
+  <Tab title="Default">
+    {/* pmd-metadata: notest */}
 ```python 
 from prefect import task
 from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
 import statsapi
 
-@task(cache_policy=INSERT_CHOSEN_CACHE_POLICY_HERE)
+@task(cache_policy=DEFAULT)
 def get_recent_games(team_name, start_date, end_date):
     """This task will fetch the schedule for the provided team and date range and return the game ids."""
     team = statsapi.lookup_team(team_name)
@@ -69,6 +54,90 @@ def get_recent_games(team_name, start_date, end_date):
 
 get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
+  </Tab>
+  <Tab title="Inputs">
+    {/* pmd-metadata: notest */}
+```python 
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+import statsapi
+
+@task(cache_policy=INPUTS)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    for game in schedule:
+        print(game["game_id"])
+
+get_recent_games("marlins", "06/01/2024", "06/30/2024")
+```
+  </Tab>
+  <Tab title="Task Source">
+    {/* pmd-metadata: notest */}
+```python 
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+import statsapi
+
+@task(cache_policy=TASK_SOURCE)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    for game in schedule:
+        print(game["game_id"])
+
+get_recent_games("marlins", "06/01/2024", "06/30/2024")
+```
+  </Tab>
+  <Tab title="Flow Parameters">
+    {/* pmd-metadata: notest */}
+    ```python 
+    from prefect import task
+    from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+    import statsapi
+
+    @task(cache_policy=FLOW_PARAMETERS)
+    def get_recent_games(team_name, start_date, end_date):
+        """This task will fetch the schedule for the provided team and date range and return the game ids."""
+        team = statsapi.lookup_team(team_name)
+        schedule = statsapi.schedule(
+            team=team[0]["id"], start_date=start_date, end_date=end_date
+        )
+        for game in schedule:
+            print(game["game_id"])
+
+    get_recent_games("marlins", "06/01/2024", "06/30/2024")
+    ```
+  </Tab>
+  <Tab title="No Cache">
+    {/* pmd-metadata: notest */}
+    ```python 
+    from prefect import task
+    from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+    import statsapi
+
+    @task(cache_policy=NO_CACHE)
+    def get_recent_games(team_name, start_date, end_date):
+        """This task will fetch the schedule for the provided team and date range and return the game ids."""
+        team = statsapi.lookup_team(team_name)
+        schedule = statsapi.schedule(
+            team=team[0]["id"], start_date=start_date, end_date=end_date
+        )
+        for game in schedule:
+            print(game["game_id"])
+
+    get_recent_games("marlins", "06/01/2024", "06/30/2024")
+    ```
+  </Tab>
+</Tabs>
+
+
 
 ## Applying an Expiration to the Cache 
 
