@@ -99,6 +99,7 @@
 		"src/prefect/task_worker.py",
 		"src/prefect/tasks.py",
 		"src/prefect/transactions.py",
+		"src/prefect/versioning.py",
 		"tests/",
 		"client/"
 	],

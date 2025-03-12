@@ -5437,6 +5437,8 @@ export interface components {
             job_variables?: {
                 [key: string]: unknown;
             };
+            /** @description A description of this version of the deployment. */
+            version_info?: components["schemas"]["VersionInfo"] | null;
         };
         /**
          * DeploymentFilter
@@ -9503,6 +9505,21 @@ export interface components {
              * @description A list of variable tags
              */
             tags?: string[] | null;
+        };
+        /** VersionInfo */
+        VersionInfo: {
+            /**
+             * Type
+             * @description The type of version info.
+             */
+            type: string;
+            /**
+             * Version
+             * @description The version of the deployment.
+             */
+            version: string;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * WorkPool
