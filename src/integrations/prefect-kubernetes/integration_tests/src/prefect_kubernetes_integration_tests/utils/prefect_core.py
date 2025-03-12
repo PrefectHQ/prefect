@@ -19,24 +19,11 @@ async def create_flow_run(
     source: str,
     entrypoint: str,
     name: str,
-    work_pool_name: str = "k8s-test",
+    work_pool_name: str,
     job_variables: dict[str, Any] | None = None,
     parameters: dict[str, Any] | None = None,
 ) -> FlowRun:
     """Create a flow run from a remote source."""
-    # Create work pool if it doesn't exist
-    subprocess.check_call(
-        [
-            "prefect",
-            "work-pool",
-            "create",
-            work_pool_name,
-            "--type",
-            "kubernetes",
-            "--overwrite",
-        ]
-    )
-
     remote_flow = await flow.from_source(source=source, entrypoint=entrypoint)
     deployment_id = await remote_flow.deploy(
         name=name,

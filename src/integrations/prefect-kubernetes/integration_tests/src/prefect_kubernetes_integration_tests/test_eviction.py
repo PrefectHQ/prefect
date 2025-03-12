@@ -1,5 +1,7 @@
+import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import pytest
 
@@ -7,14 +9,14 @@ from prefect import get_client
 from prefect.states import StateType
 from prefect_kubernetes_integration_tests.utils import display, k8s, prefect_core
 
-DEFAULT_JOB_VARIABLES = {
+DEFAULT_JOB_VARIABLES: dict[str, Any] = {
     "image": "prefecthq/prefect:3.2.11-python3.12",
-    "env": {"PREFECT_API_URL": "http://172.17.0.1:4200/api"},
 }
+if os.environ.get("CI", False):
+    DEFAULT_JOB_VARIABLES["env"] = {"PREFECT_API_URL": "http://172.17.0.1:4200/api"}
 # Default source is a simple flow that sleeps
 DEFAULT_FLOW_SOURCE = "https://gist.github.com/772d095672484b76da40a4e6158187f0.git"
 DEFAULT_FLOW_ENTRYPOINT = "sleeping.py:sleepy"
-DEFAULT_FLOW_NAME = "pod-eviction-test"
 
 
 @pytest.mark.usefixtures("kind_cluster")
@@ -25,7 +27,7 @@ async def test_default_pod_eviction(
     flow_run = await prefect_core.create_flow_run(
         source=DEFAULT_FLOW_SOURCE,
         entrypoint=DEFAULT_FLOW_ENTRYPOINT,
-        name=DEFAULT_FLOW_NAME,
+        name="default-pod-eviction",
         work_pool_name=work_pool_name,
         job_variables=DEFAULT_JOB_VARIABLES,
     )
@@ -76,7 +78,7 @@ async def test_pod_eviction_with_backoff_limit(
     flow_run = await prefect_core.create_flow_run(
         source=DEFAULT_FLOW_SOURCE,
         entrypoint=DEFAULT_FLOW_ENTRYPOINT,
-        name=DEFAULT_FLOW_NAME,
+        name="pod-eviction-with-backoff-limit",
         work_pool_name=work_pool_name,
         job_variables=DEFAULT_JOB_VARIABLES | {"backoff_limit": 6},
         # Set short sleep because we want this flow to finish after eviction
