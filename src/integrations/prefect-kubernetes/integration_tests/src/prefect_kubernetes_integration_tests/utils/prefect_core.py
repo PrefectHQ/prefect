@@ -22,9 +22,14 @@ async def create_flow_run(
     work_pool_name: str,
     job_variables: dict[str, Any] | None = None,
     parameters: dict[str, Any] | None = None,
+    flow_run_name: str | None = None,
 ) -> FlowRun:
     """Create a flow run from a remote source."""
     remote_flow = await flow.from_source(source=source, entrypoint=entrypoint)
+
+    if flow_run_name:
+        remote_flow = remote_flow.with_options(name=flow_run_name)
+
     deployment_id = await remote_flow.deploy(
         name=name,
         work_pool_name=work_pool_name,

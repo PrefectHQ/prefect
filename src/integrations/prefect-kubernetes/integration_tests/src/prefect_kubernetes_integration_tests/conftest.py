@@ -68,6 +68,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _check_k8s_deps():
+def _check_k8s_deps():  # pyright: ignore[reportUnusedFunction]
     """Ensure required kubernetes tools are available."""
     k8s.ensure_evict_plugin()
+
+
+@pytest.fixture(autouse=True)
+def clean_up_pods() -> Generator[None, None, None]:
+    """Clean up pods after tests."""
+    yield
+    k8s.delete_pods()

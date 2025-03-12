@@ -32,6 +32,7 @@ async def test_default_pod_eviction(
         name="default-pod-eviction",
         work_pool_name=work_pool_name,
         job_variables=DEFAULT_JOB_VARIABLES,
+        flow_run_name="default-pod-eviction-test",
     )
 
     display.print_flow_run_created(flow_run)
@@ -102,6 +103,7 @@ async def test_pod_eviction_with_backoff_limit(
         job_variables=DEFAULT_JOB_VARIABLES | {"backoff_limit": 6},
         # Set short sleep because we want this flow to finish after eviction
         parameters={"n": 10},
+        flow_run_name="pod-eviction-test-backoff-limit",
     )
 
     display.print_flow_run_created(flow_run)

@@ -102,7 +102,6 @@ checkout out the [Prefect docs](https://docs.prefect.io/concepts/work-pools/).
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import enum
 import json
@@ -111,7 +110,6 @@ import shlex
 import tempfile
 import warnings
 from contextlib import asynccontextmanager
-from datetime import datetime
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -123,7 +121,6 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
-    cast,
 )
 
 import anyio
@@ -136,13 +133,9 @@ from kubernetes_asyncio.client import (
     BatchV1Api,
     CoreV1Api,
     V1Job,
-    V1Pod,
-    V1PodList,
 )
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
-    CoreV1Event,
-    CoreV1EventList,
     V1ObjectMeta,
     V1Secret,
 )
@@ -1085,53 +1078,96 @@ class KubernetesWorker(
         cluster_uid = namespace.metadata.uid
         return cluster_uid
 
-    async def _stream_job_logs(
+    async def _watch_job(
         self,
         logger: logging.Logger,
-        pod_name: str,
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
-        client,
-    ):
-        core_client = CoreV1Api(client)
+        client: "ApiClient",
+    ) -> int:
+        """
+        Watch a job until completion.
+        Return 0 if the job completes successfully, -1 if it fails or cannot be monitored.
+        """
+        logger.debug(f"Job {job_name!r}: Monitoring job...")
 
-        logs = await core_client.read_namespaced_pod_log(
-            pod_name,
-            configuration.namespace,
-            follow=True,
-            _preload_content=False,
-            container="prefect-job",
+        job = await self._get_job(logger, job_name, configuration, client)
+        if not job:
+            return -1
+
+        async with self._get_batch_client(client) as batch_client:
+            try:
+                with timeout_async(seconds=configuration.job_watch_timeout_seconds):
+                    await self._monitor_job_events(
+                        batch_client,
+                        job_name,
+                        logger,
+                        configuration,
+                    )
+            except TimeoutError:
+                logger.error(
+                    f"Job {job_name!r}: Job did not complete within "
+                    f"timeout of {configuration.job_watch_timeout_seconds}s."
+                )
+                return -1
+
+            # Get final job status
+            try:
+                job = await batch_client.read_namespaced_job(
+                    name=job_name, namespace=configuration.namespace
+                )
+                if job.status.succeeded:
+                    return 0
+                return -1
+            except Exception:
+                logger.error(f"Job {job_name!r}: Could not determine final job status.")
+                return -1
+
+    async def _monitor_job_events(
+        self,
+        batch_client: BatchV1Api,
+        job_name: str,
+        logger: logging.Logger,
+        configuration: KubernetesWorkerJobConfiguration,
+    ):
+        """Monitor job events until completion."""
+        watch_kwargs = (
+            {"timeout_seconds": configuration.job_watch_timeout_seconds}
+            if configuration.job_watch_timeout_seconds
+            else {}
         )
-        try:
-            async for line in logs.content:
-                if not line:
-                    break
-                print(line.decode().rstrip())
-        except Exception:
-            logger.warning(
-                (
-                    "Error occurred while streaming logs - "
-                    "Job will continue to run but logs will "
-                    "no longer be streamed to stdout."
-                ),
-                exc_info=True,
-            )
+
+        async for event in self._job_events(
+            batch_client,
+            job_name,
+            configuration.namespace,
+            watch_kwargs,
+        ):
+            if event["type"] == "DELETED":
+                logger.error(f"Job {job_name!r}: Job has been deleted.")
+                return
+            elif event["object"].status.completion_time:
+                return
+            elif (
+                event["object"].spec.backoff_limit is not None
+                and event["object"].status.failed is not None
+                and event["object"].status.failed > event["object"].spec.backoff_limit
+            ):
+                logger.error(f"Job {job_name!r}: Job reached backoff limit.")
+                return
+            elif (
+                not event["object"].spec.backoff_limit and event["object"].status.failed
+            ):
+                return
 
     async def _job_events(
         self,
         batch_client: BatchV1Api,
         job_name: str,
         namespace: str,
-        watch_kwargs: dict,
+        watch_kwargs: dict[str, Any],
     ):
-        """
-        Stream job events.
-
-        Pick up from the current resource version returned by the API
-        in the case of a 410.
-
-        See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
-        """
+        """Stream job events until completion."""
         watch = kubernetes_asyncio.watch.Watch()
         resource_version = None
         async with watch:
@@ -1150,177 +1186,10 @@ class KubernetesWorker(
                             namespace=namespace,
                             field_selector=f"metadata.name={job_name}",
                         )
-
                         resource_version = job_list.metadata.resource_version
                         watch_kwargs["resource_version"] = resource_version
                     else:
                         raise
-
-    async def _monitor_job_events(self, batch_client, job_name, logger, configuration):
-        job = await batch_client.read_namespaced_job(
-            name=job_name, namespace=configuration.namespace
-        )
-        completed = job.status.completion_time is not None
-        watch_kwargs = (
-            {"timeout_seconds": configuration.job_watch_timeout_seconds}
-            if configuration.job_watch_timeout_seconds
-            else {}
-        )
-
-        while not completed:
-            async for event in self._job_events(
-                batch_client,
-                job_name,
-                configuration.namespace,
-                watch_kwargs,
-            ):
-                if event["type"] == "DELETED":
-                    logger.error(f"Job {job_name!r}: Job has been deleted.")
-                    completed = True
-                elif event["object"].status.completion_time:
-                    if not event["object"].status.succeeded:
-                        # Job failed, exit while loop and return pod exit code
-                        logger.error(f"Job {job_name!r}: Job failed.")
-                    completed = True
-                # Check if the job has reached its backoff limit
-                # and stop watching if it has
-                elif (
-                    event["object"].spec.backoff_limit is not None
-                    and event["object"].status.failed is not None
-                    and event["object"].status.failed
-                    > event["object"].spec.backoff_limit
-                ):
-                    logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                    completed = True
-                # If the job has no backoff limit, check if it has failed
-                # and stop watching if it has
-                elif (
-                    not event["object"].spec.backoff_limit
-                    and event["object"].status.failed
-                ):
-                    completed = True
-                if completed:
-                    break
-
-    async def _watch_job(
-        self,
-        logger: logging.Logger,
-        job_name: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        client: "ApiClient",
-        flow_run: "FlowRun",
-    ) -> int:
-        """
-        Watch a job.
-
-        Return the final status code of the first container.
-        """
-
-        logger.debug(f"Job {job_name!r}: Monitoring job...")
-
-        job = await self._get_job(logger, job_name, configuration, client)
-        if not job:
-            return -1
-
-        pod = await self._get_job_pod(logger, job_name, configuration, client)
-        if not pod:
-            return -1
-
-        # Create a list of tasks to run concurrently
-        async with self._get_batch_client(client) as batch_client:
-            tasks = [
-                self._monitor_job_events(
-                    batch_client,
-                    job_name,
-                    logger,
-                    configuration,
-                )
-            ]
-            try:
-                with timeout_async(seconds=configuration.job_watch_timeout_seconds):
-                    if configuration.stream_output:
-                        tasks.append(
-                            self._stream_job_logs(
-                                logger,
-                                pod.metadata.name,
-                                job_name,
-                                configuration,
-                                client,
-                            )
-                        )
-
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    if any(isinstance(result, Exception) for result in results):
-                        for result in results:
-                            if isinstance(result, Exception):
-                                logger.error(
-                                    f"Error during task execution: {result}",
-                                    exc_info=True,
-                                )
-            except TimeoutError:
-                logger.error(
-                    f"Job {job_name!r}: Job did not complete within "
-                    f"timeout of {configuration.job_watch_timeout_seconds}s."
-                )
-                return -1
-
-            core_client = CoreV1Api(client)
-            # Get all pods for the job
-            pods: V1PodList = await core_client.list_namespaced_pod(
-                namespace=configuration.namespace, label_selector=f"job-name={job_name}"
-            )
-            # Get the status for only the most recently used pod
-            pods.items.sort(
-                key=lambda pod: pod.metadata.creation_timestamp, reverse=True
-            )
-            most_recent_pod: V1Pod | None = (
-                cast(V1Pod, pods.items[0]) if pods.items else None
-            )
-            first_container_status = (
-                getattr(most_recent_pod, "status", None)
-                and getattr(most_recent_pod.status, "container_statuses", None)
-                and most_recent_pod.status.container_statuses[0]
-            )
-
-        if not first_container_status:
-            assert self._client is not None
-            up_to_date_flow_run = await self._client.read_flow_run(
-                flow_run.id,
-            )
-            if up_to_date_flow_run.state and up_to_date_flow_run.state.is_scheduled():
-                return 0
-            logger.error(f"Job {job_name!r}: Unable to determine container status.")
-            return -1
-
-        # In some cases, the pod will still be running at this point.
-        # We can assume that the job is still running and return 0 to prevent marking the flow run as crashed
-        elif first_container_status.state and (
-            first_container_status.state.running is not None
-            or first_container_status.state.waiting is not None
-        ):
-            logger.warning(
-                f"The worker's watch for job {job_name!r} has exited early. Check the logs for more information."
-                " The job is still running, but the worker will not wait for it to complete."
-            )
-            # Return 0 to prevent marking the flow run as crashed
-            return 0
-
-        # In some cases, such as spot instance evictions, the pod will be forcibly
-        # terminated and not report a status correctly.
-        elif (
-            first_container_status.state is None
-            or first_container_status.state.terminated is None
-            or first_container_status.state.terminated.exit_code is None
-        ):
-            logger.error(
-                f"Could not determine exit code for {job_name!r}."
-                "Exit code will be reported as -1."
-                f"First container status info did not report an exit code."
-                f"First container info: {first_container_status}."
-            )
-            return -1
-
-        return first_container_status.state.terminated.exit_code
 
     async def _get_job(
         self,
@@ -1340,107 +1209,6 @@ class KubernetesWorker(
             logger.error(f"Job {job_id!r} was removed.", exc_info=True)
             return None
         return job
-
-    async def _get_job_pod(
-        self,
-        logger: logging.Logger,
-        job_name: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        client: "ApiClient",
-    ) -> "V1Pod | None":
-        """Get the first running pod for a job."""
-
-        watch = kubernetes_asyncio.watch.Watch()
-        logger.info(f"Job {job_name!r}: Starting watch for pod start...")
-        last_phase = None
-        last_pod_name: str | None = None
-        core_client = CoreV1Api(client)
-        async with watch:
-            async for event in watch.stream(
-                func=core_client.list_namespaced_pod,
-                namespace=configuration.namespace,
-                label_selector=f"job-name={job_name}",
-                timeout_seconds=configuration.pod_watch_timeout_seconds,
-            ):
-                pod: V1Pod = event["object"]
-                last_pod_name = pod.metadata.name
-                phase = pod.status.phase
-                if phase != last_phase:
-                    logger.info(f"Job {job_name!r}: Pod has status {phase!r}.")
-
-                if phase != "Pending":
-                    return pod
-
-                last_phase = phase
-            # If we've gotten here, we never found the Pod that was created for the flow run
-            # Job, so let's inspect the situation and log what we can find.  It's possible
-            # that the Job ran into scheduling constraints it couldn't satisfy, like
-            # memory/CPU requests, or a volume that wasn't available, or a node with an
-            # available GPU.
-            logger.error(f"Job {job_name!r}: Pod never started.")
-            await self._log_recent_events(
-                logger, job_name, last_pod_name, configuration, client
-            )
-
-    async def _log_recent_events(
-        self,
-        logger: logging.Logger,
-        job_name: str,
-        pod_name: str | None,
-        configuration: KubernetesWorkerJobConfiguration,
-        client: "ApiClient",
-    ) -> None:
-        """Look for reasons why a Job may not have been able to schedule a Pod, or why
-        a Pod may not have been able to start and log them to the provided logger."""
-
-        def best_event_time(event: CoreV1Event) -> datetime:
-            """Choose the best timestamp from a Kubernetes event"""
-            return event.event_time or event.last_timestamp
-
-        def log_event(event: CoreV1Event):
-            """Log an event in one of a few formats to the provided logger"""
-            if event.count and event.count > 1:
-                logger.info(
-                    "%s event %r (%s times) at %s: %s",
-                    event.involved_object.kind,
-                    event.reason,
-                    event.count,
-                    best_event_time(event),
-                    event.message,
-                )
-            else:
-                logger.info(
-                    "%s event %r at %s: %s",
-                    event.involved_object.kind,
-                    event.reason,
-                    best_event_time(event),
-                    event.message,
-                )
-
-        core_client = CoreV1Api(client)
-
-        events: CoreV1EventList = await core_client.list_namespaced_event(
-            configuration.namespace
-        )
-
-        event: CoreV1Event
-        for event in sorted(events.items, key=best_event_time):
-            if (
-                event.involved_object.api_version == "batch/v1"
-                and event.involved_object.kind == "Job"
-                and event.involved_object.namespace == configuration.namespace
-                and event.involved_object.name == job_name
-            ):
-                log_event(event)
-
-            if (
-                pod_name
-                and event.involved_object.api_version == "v1"
-                and event.involved_object.kind == "Pod"
-                and event.involved_object.namespace == configuration.namespace
-                and event.involved_object.name == pod_name
-            ):
-                log_event(event)
 
     async def __aenter__(self):
         start_operator()

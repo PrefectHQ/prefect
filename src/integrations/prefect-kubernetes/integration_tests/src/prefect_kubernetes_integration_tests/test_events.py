@@ -33,6 +33,7 @@ async def test_happy_path_events(
         work_pool_name=work_pool_name,
         job_variables=DEFAULT_JOB_VARIABLES,
         parameters=DEFAULT_PARAMETERS,
+        flow_run_name="happy-path-events",
     )
 
     display.print_flow_run_created(flow_run)
