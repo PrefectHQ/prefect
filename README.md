@@ -82,7 +82,7 @@ def github_stars(repos: list[str]):
 
 
 # run the flow!
-if __name__=="__main__":
+if __name__ == "__main__":
     github_stars(["PrefectHQ/Prefect"])
 ```
 
