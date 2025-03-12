@@ -70,6 +70,7 @@
             "v3/tutorials/pipelines",
             "v3/tutorials/scraping",
             "v3/tutorials/ml",
+            "v3/tutorials/caching",
             "v3/tutorials/s3-motherduck",
             "v3/tutorials/resilience-and-deployment"
           ]
@@ -80,7 +81,6 @@
             "v3/tutorials/platform",
             "v3/tutorials/debug",
             "v3/tutorials/alerts",
-            "v3/tutorials/caching",
             "v3/tutorials/modal",
             "v3/tutorials/server-and-worker"
           ]

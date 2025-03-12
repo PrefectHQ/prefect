@@ -3,14 +3,28 @@ title: Set up caching for your workflows
 description: Give your data team the ability to cache results
 ---
 
-In this tutorial, you'll learn how to add caching to your workflows. In Prefect, we have five different cache policies to get the exact caching behavior that you want.  If you want to read more about each policy, check them out [here](/v3/develop/task-caching). 
+In this tutorial, you'll learn how to add caching to your workflows. We'll be using MLB baseball data to demonstrate the different caching policies. Below is a video that you can follow along with that walks through caching in Prefect.
 
-Let's start with a Python script that fetches the schedule of a Major League Baseball team during a certain time frame.
+<iframe 
+    width="560" 
+    height="315" 
+    src="https://www.youtube.com/embed/wzosc6NeVho?si=WulsCkaHU7gyb3vG" 
+    title="YouTube video player" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" 
+    allowfullscreen>
+</iframe>
 
+In Prefect, we have five different cache policies to get the exact caching behavior that you want.  If you want to read more about each policy, check them out [here](/v3/develop/task-caching). 
+
+Let's start with a Python script that fetches the schedule of a Major League Baseball team during a certain time frame. 
+
+<Note>
+To run this script, we'll need to install the `statsapi` package with `pip install MLB-StatsAPI`.
+</Note>
 {/* pmd-metadata: notest */}
 ```python
 from prefect import task
-from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
 import statsapi
 
 @task()
@@ -22,44 +36,17 @@ def get_recent_games(team_name, start_date, end_date):
     )
     for game in schedule:
         print(game["game_id"])
+    return [game["game_id"] for game in schedule]
 
 get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
+## Add Caching to a Task
+To add caching to this task, we'll need to add the `cache_policy` keyword to the task decorator.
 
-## Applying Cache to a Flow
-
-1. Add the **cache_policy** keyword to the task decorator.
-
-Insert **cache_policy=** into your task decorator
-
-2. Add in your chosen cache policy to the task decorator
-
-<Tabs>
-  <Tab title="Default">
-    {/* pmd-metadata: notest */}
-```python 
+{/* pmd-metadata: notest */}
+```python
 from prefect import task
-from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
-import statsapi
-
-@task(cache_policy=DEFAULT)
-def get_recent_games(team_name, start_date, end_date):
-    """This task will fetch the schedule for the provided team and date range and return the game ids."""
-    team = statsapi.lookup_team(team_name)
-    schedule = statsapi.schedule(
-        team=team[0]["id"], start_date=start_date, end_date=end_date
-    )
-    for game in schedule:
-        print(game["game_id"])
-
-get_recent_games("marlins", "06/01/2024", "06/30/2024")
-```
-  </Tab>
-  <Tab title="Inputs">
-    {/* pmd-metadata: notest */}
-```python 
-from prefect import task
-from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+from prefect.cache_policies import INPUTS
 import statsapi
 
 @task(cache_policy=INPUTS)
@@ -71,80 +58,189 @@ def get_recent_games(team_name, start_date, end_date):
     )
     for game in schedule:
         print(game["game_id"])
+    return [game["game_id"] for game in schedule]
 
 get_recent_games("marlins", "06/01/2024", "06/30/2024")
 ```
-  </Tab>
-  <Tab title="Task Source">
+
+Now, if we run this task the first time, it will fetch the data from the MLB API and store the results in the cache. If we run it again, it will use the cached results and we will not hit the API again and thus will not see any output.
+
+If we change the inputs - for instance, changing the team name - then the task will fetch the data from the API again and store the results in the cache.
+
+## Applying Cache to a Flow
+Now that we have caching working for a single task, let's apply it to a flow. Here we'll just add a second task that prints the game ids. In our `get_recent_games` task, we'll print out a message to indicate that we are calling the MLB Stats API. That way we can see the difference in behavior between the different cache policies.
+
+Insert **cache_policy=** into your task decorator with your desired policy - you can read more about each policy below, or see the full documentation [here](/v3/develop/task-caching).
+
+<Tabs>
+  <Tab title="Default">
+  The default cache policy will cache the results of the task based on the inputs, code definition, and flow run ID.
     {/* pmd-metadata: notest */}
 ```python 
-from prefect import task
-from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
+from prefect import task, flow
+from prefect.cache_policies import DEFAULT
+import statsapi
+
+@task(cache_policy=DEFAULT)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    print("Calling the MLB Stats API...")
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    
+    return [game["game_id"] for game in schedule]
+
+@task()
+def print_game_ids(game_ids):
+    print(game_ids)
+
+@flow()
+def get_game_ids():
+    game_ids = get_recent_games("orioles", "06/01/2024", "06/30/2024")
+    print_game_ids(game_ids)
+
+if __name__ == "__main__":
+    get_game_ids()
+```
+  </Tab>
+  <Tab title="Inputs">
+    The inputs cache policy will cache the results of the task based on the inputs to the task.
+    {/* pmd-metadata: notest */}
+```python 
+from prefect import task, flow
+from prefect.cache_policies import INPUTS
+import statsapi
+
+@task(cache_policy=INPUTS)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    print("Calling the MLB Stats API...")
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    
+    return [game["game_id"] for game in schedule]
+
+@task()
+def print_game_ids(game_ids):
+    print(game_ids)
+
+@flow()
+def get_game_ids():
+    game_ids = get_recent_games("orioles", "06/01/2024", "06/30/2024")
+    print_game_ids(game_ids)
+
+if __name__ == "__main__":
+    get_game_ids()
+```
+  </Tab>
+  <Tab title="Task Source">
+    The task source cache policy will cache the results of the task based on the source code of the specific task.
+    {/* pmd-metadata: notest */}
+```python 
+from prefect import task, flow
+from prefect.cache_policies import TASK_SOURCE
 import statsapi
 
 @task(cache_policy=TASK_SOURCE)
 def get_recent_games(team_name, start_date, end_date):
     """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    print("Calling the MLB Stats API...")
     team = statsapi.lookup_team(team_name)
     schedule = statsapi.schedule(
         team=team[0]["id"], start_date=start_date, end_date=end_date
     )
-    for game in schedule:
-        print(game["game_id"])
+    
+    return [game["game_id"] for game in schedule]
 
-get_recent_games("marlins", "06/01/2024", "06/30/2024")
+@task()
+def print_game_ids(game_ids):
+    print(game_ids)
+
+@flow()
+def get_game_ids():
+    game_ids = get_recent_games("orioles", "06/01/2024", "06/30/2024")
+    print_game_ids(game_ids)
+
+if __name__ == "__main__":
+    get_game_ids()
 ```
   </Tab>
   <Tab title="Flow Parameters">
+    The flow parameters cache policy will cache the results of the task based on the parent flow's parameters.
     {/* pmd-metadata: notest */}
-    ```python 
-    from prefect import task
-    from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
-    import statsapi
+```python 
+from prefect import task, flow
+from prefect.cache_policies import FLOW_PARAMETERS
+import statsapi
 
-    @task(cache_policy=FLOW_PARAMETERS)
-    def get_recent_games(team_name, start_date, end_date):
-        """This task will fetch the schedule for the provided team and date range and return the game ids."""
-        team = statsapi.lookup_team(team_name)
-        schedule = statsapi.schedule(
-            team=team[0]["id"], start_date=start_date, end_date=end_date
-        )
-        for game in schedule:
-            print(game["game_id"])
+@task(cache_policy=FLOW_PARAMETERS)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    print("Calling the MLB Stats API...")
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    
+    return [game["game_id"] for game in schedule]
 
-    get_recent_games("marlins", "06/01/2024", "06/30/2024")
-    ```
+@task()
+def print_game_ids(game_ids):
+    print(game_ids)
+
+@flow()
+def get_game_ids():
+    game_ids = get_recent_games("orioles", "06/01/2024", "06/30/2024")
+    print_game_ids(game_ids)
+
+if __name__ == "__main__":
+    get_game_ids()
+```
   </Tab>
   <Tab title="No Cache">
+    The no cache policy will not cache the results of the task.
     {/* pmd-metadata: notest */}
-    ```python 
-    from prefect import task
-    from prefect.cache_policies import INPUTS, TASK_SOURCE, FLOW_PARAMETERS, NONE
-    import statsapi
+```python 
+from prefect import task, flow
+from prefect.cache_policies import NONE
+import statsapi
 
-    @task(cache_policy=NO_CACHE)
-    def get_recent_games(team_name, start_date, end_date):
-        """This task will fetch the schedule for the provided team and date range and return the game ids."""
-        team = statsapi.lookup_team(team_name)
-        schedule = statsapi.schedule(
-            team=team[0]["id"], start_date=start_date, end_date=end_date
-        )
-        for game in schedule:
-            print(game["game_id"])
+@task(cache_policy=NONE)
+def get_recent_games(team_name, start_date, end_date):
+    """This task will fetch the schedule for the provided team and date range and return the game ids."""
+    print("Calling the MLB Stats API...")
+    team = statsapi.lookup_team(team_name)
+    schedule = statsapi.schedule(
+        team=team[0]["id"], start_date=start_date, end_date=end_date
+    )
+    
+    return [game["game_id"] for game in schedule]
 
-    get_recent_games("marlins", "06/01/2024", "06/30/2024")
-    ```
+@task()
+def print_game_ids(game_ids):
+    print(game_ids)
+
+@flow()
+def get_game_ids():
+    game_ids = get_recent_games("orioles", "06/01/2024", "06/30/2024")
+    print_game_ids(game_ids)
+
+if __name__ == "__main__":
+    get_game_ids()
+```
   </Tab>
 </Tabs>
-
-
 
 ## Applying an Expiration to the Cache 
 
 If you want your cache to expire after a certain amount of time, we can add that to the task decorator as well. 
 
 <Note>
-Although I used the **default** cache policy in the example below, you can add a time expiration to any of the five cache policies.
+Although we use the **default** cache policy in the example below, you can add a time expiration to any of the five cache policies.
 </Note>
 
 {/* pmd-metadata: notest */}
@@ -172,9 +268,9 @@ get_recent_games("marlins", "06/01/2024", "06/30/2024")
 
 ## Next Steps
 
-The tutorial above helps to add caching to your tasks, however there are still [more customization options](/v3/develop/task-caching) for caching:
+The tutorial above helps to add caching to your tasks, however there are still [more customization options](/v3/develop/task-caching) for caching including:
 
-- Configure custom cache policy logic through the use of cache key functions
-- Store cache records separately from task results.
-- Configure cache isolation to control how concurrent task runs interact with cache records.
-- Setup an option in the task definition to force ignore the cache.
+- Configure [custom cache policy](/v3/develop/task-caching#cache-key-functions) logic through the use of cache key functions
+- [Store cache records](/v3/develop/task-caching#cache-storage) separately from task results.
+- Configure [cache isolation](/v3/develop/task-caching#cache-isolation) to control how concurrent task runs interact with cache records.
+- Setup an option in the task definition to [force ignore the cache](/v3/develop/task-caching#force-ignore-the-cache).
