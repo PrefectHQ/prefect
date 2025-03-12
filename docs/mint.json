@@ -1438,6 +1438,10 @@
       "source": "/v3/manage/cloud/terraform-provider"
     },
     {
+      "destination": "/v3/deploy/infrastructure-examples/modal",
+      "source": "/v3/tutorials/modal"
+    },
+    {
       "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
     },
