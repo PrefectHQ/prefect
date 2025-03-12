@@ -1432,6 +1432,8 @@ class KubernetesWorker(
         return await super().__aenter__()
 
     async def __aexit__(self, *exc_info: Any):
-        await super().__aexit__(*exc_info)
-        # Need to run after the runs task group exits
-        stop_operator()
+        try:
+            await super().__aexit__(*exc_info)
+        finally:
+            # Need to run after the runs task group exits
+            stop_operator()

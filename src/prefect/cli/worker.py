@@ -149,7 +149,7 @@ async def start(
 
     worker_process_id = os.getpid()
     setup_signal_handlers_worker(
-        worker_process_id, f"the {worker_type} worker", app.console.print
+        worker_process_id, f"the {worker_cls.type} worker", app.console.print
     )
 
     template_contents = None

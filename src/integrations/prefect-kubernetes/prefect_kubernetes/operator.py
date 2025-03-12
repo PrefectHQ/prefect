@@ -218,7 +218,6 @@ def stop_operator():
     """
     Stop the operator thread.
     """
-    print("Stopping operator")
     global _stop_flag
     global _operator_thread
     if _stop_flag:

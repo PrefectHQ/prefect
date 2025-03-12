@@ -53,3 +53,8 @@ async def test_happy_path_events(
             events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
             await asyncio.sleep(1)
     assert len(events) == 3, "Expected 3 events"
+    assert {event.event for event in events} == {
+        "prefect.kubernetes.pod.pending",
+        "prefect.kubernetes.pod.running",
+        "prefect.kubernetes.pod.succeeded",
+    }, "Expected events to be Pending, Running, and Succeeded"

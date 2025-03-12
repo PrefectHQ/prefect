@@ -42,11 +42,12 @@ async def create_flow_run(
         name=name,
         work_pool_name=work_pool_name,
         job_variables=job_variables,
-        parameters=parameters,
     )
 
     async with get_client() as client:
-        return await client.create_flow_run_from_deployment(deployment_id)
+        return await client.create_flow_run_from_deployment(
+            deployment_id, parameters=parameters
+        )
 
 
 def start_worker(work_pool_name: str, run_once: bool = True) -> int:
