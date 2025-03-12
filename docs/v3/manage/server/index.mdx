@@ -1,12 +1,7 @@
 ---
-title: Host Prefect server
-sidebarTitle: Prefect server
-description: Learn how to self-host your own Prefect server instance.
+title: Prefect server overview
+description: Self-host your own Prefect server instance.
 ---
-
-<Note>
-To self-host a Prefect server instance on Kubernetes, check out the prefect-server [Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-server).
-</Note>
 
 After installing Prefect, you have a Python SDK client that can communicate with 
 either [Prefect Cloud](/v3/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
@@ -15,60 +10,11 @@ Prefect Cloud and self-hosted Prefect server share a common set of capabilities.
 Prefect Cloud provides the additional features required by organizations such as RBAC, Audit logs, and SSO. 
 See the [Prefect Cloud overview](/v3/manage/cloud/) for more information.
 
-## Self-host a Prefect server
-
 <Warning>
 We recommend using the same version of `prefect` for the client and server.
 Old clients are compatible with new servers, but new clients can be incompatible with old servers as new fields are added to the REST API.
 The server will typically return a 422 status code if any issues occur.
 </Warning>
-
-
-1. Spin up a self-hosted Prefect server instance UI with the `prefect server start` CLI command in the terminal:
-
-```bash
-prefect server start
-```
-
-2. Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
-
-![Viewing the dashboard in the Prefect UI.](/v3/img/ui/self-hosted-server-dashboard.png)
-
-3. Shut down the Prefect server with ctrl  +  c in the terminal.
-
-### Configure self-hosted Prefect server
-
-Go to your terminal session and run this command to set the API URL to point to a self-hosted Prefect server instance:
-
-```bash
-prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
-```
-
-<Info>
-You must set the API server address, `PREFECT_API_URL`, to use Prefect within a container, such as a Docker container.
-</Info>
-
-You can save the API server address in a Prefect profile. 
-Whenever that profile is active, the API endpoint is at that address.
-See [Profiles and configuration](/v3/develop/settings-and-profiles/) for more information on profiles and configurable Prefect settings.
-
-### Run a server in a Docker container
-
-If you're running a server in a Docker container, you will need to:
-- Port forward the server to your local machine (e.g. `-p 4200:4200`)
-- Set the `--host` flag on the `prefect server start` command to `0.0.0.0`
-
-For example:
-
-```bash
-docker run -p 4200:4200 -d --rm prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
-```
-
-<Tip>
-The `-d` flag runs the container in detached mode (i.e. in the background) and the `--rm` flag removes the container once it is stopped.
-</Tip>
-
-For more information, see the Docker topic about [Networking using the host network](https://docs.docker.com/network/network-tutorial-host/).
 
 ## The Prefect database
 

@@ -240,7 +240,20 @@
           ],
           "version": "v3"
         },
-        "v3/manage/self-host",
+        {
+          "group": "Prefect server",
+          "pages": [
+            "v3/manage/server/index",
+            {
+              "group": "Self-hosting examples",
+              "pages": [
+                "v3/manage/server/examples/cli",
+                "v3/manage/server/examples/docker",
+                "v3/manage/server/examples/helm"
+              ]
+            }
+          ]
+        },
         "v3/manage/infrastructure-as-code"
       ],
       "version": "v3"
