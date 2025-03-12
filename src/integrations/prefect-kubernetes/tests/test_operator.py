@@ -4,7 +4,7 @@ from unittest.mock import ANY, MagicMock
 
 import pytest
 from prefect_kubernetes.operator import (
-    replicate_pod_event,
+    _replicate_pod_event,
     start_operator,
     stop_operator,
 )
@@ -23,7 +23,7 @@ class TestReplicatePodEvent:
         flow_run_id = uuid.uuid4()
         pod_id = uuid.uuid4()
 
-        replicate_pod_event(
+        _replicate_pod_event(
             event={"type": "ADDED", "status": {"phase": "Running"}},
             uid=str(pod_id),
             name="test",
@@ -58,7 +58,7 @@ class TestReplicatePodEvent:
     def test_deterministic_event_id(self, mock_emit_event: MagicMock):
         """Test that the event ID is deterministic"""
         pod_id = uuid.uuid4()
-        replicate_pod_event(
+        _replicate_pod_event(
             event={"type": "ADDED", "status": {"phase": "Running"}},
             uid=str(pod_id),
             name="test",
@@ -74,7 +74,7 @@ class TestReplicatePodEvent:
         mock_emit_event.reset_mock()
 
         # Call the function again
-        replicate_pod_event(
+        _replicate_pod_event(
             event={"type": "ADDED", "status": {"phase": "Running"}},
             uid=str(pod_id),
             name="test",
@@ -93,7 +93,7 @@ class TestReplicatePodEvent:
         """Test handling of evicted pods"""
         pod_id = uuid.uuid4()
 
-        replicate_pod_event(
+        _replicate_pod_event(
             event={"type": "MODIFIED"},
             uid=str(pod_id),
             name="test",
@@ -131,7 +131,7 @@ class TestReplicatePodEvent:
         work_pool_id = uuid.uuid4()
         pod_id = uuid.uuid4()
 
-        replicate_pod_event(
+        _replicate_pod_event(
             event={"type": "ADDED"},
             uid=str(pod_id),
             name="test",
@@ -192,7 +192,7 @@ class TestReplicatePodEvent:
         monkeypatch.setattr("prefect_kubernetes.operator.get_client", mock_get_client)
 
         pod_id = uuid.uuid4()
-        replicate_pod_event(
+        _replicate_pod_event(
             # Event types with None are received when reading current cluster state
             event={"type": None},
             uid=str(pod_id),
@@ -222,7 +222,7 @@ class TestReplicatePodEvent:
         }
 
         mock_emit_event.reset_mock()
-        replicate_pod_event(
+        _replicate_pod_event(
             **base_args,
             status={"phase": phase},
         )

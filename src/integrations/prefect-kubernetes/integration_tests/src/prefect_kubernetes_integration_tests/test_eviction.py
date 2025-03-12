@@ -58,9 +58,6 @@ async def test_default_pod_eviction(
                 assert updated_flow_run.state is not None, (
                     "Flow run state should not be None"
                 )
-                assert updated_flow_run.state.type != StateType.CRASHED, (
-                    "Expected flow run not be marked as CRASHED, but it was"
-                )
                 assert updated_flow_run.state.type == StateType.SCHEDULED, (
                     "Expected flow run to be SCHEDULED. Got "
                     f"{updated_flow_run.state.type} instead."
@@ -114,9 +111,6 @@ async def test_pod_eviction_with_backoff_limit(
         updated_flow_run = await client.read_flow_run(flow_run.id)
 
         assert updated_flow_run.state is not None, "Flow run state should not be None"
-        assert updated_flow_run.state.type != StateType.CRASHED, (
-            "Expected flow run not be marked as CRASHED, but it was"
-        )
         assert updated_flow_run.state.type == StateType.COMPLETED, (
             "Expected flow run to be COMPLETED. Got "
             f"{updated_flow_run.state.type} instead."

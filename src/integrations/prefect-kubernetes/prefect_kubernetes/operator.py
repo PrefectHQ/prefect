@@ -19,7 +19,7 @@ _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
 
 
 @kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})
-def replicate_pod_event(
+def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     uid: str,
     name: str,
@@ -29,7 +29,7 @@ def replicate_pod_event(
     **kwargs: Any,
 ):
     """
-    Replicate a pod event to the Prefect event system.
+    Replicates a pod event to the Prefect event system.
 
     This handler is resilient to restarts of the operator and allows
     multiple instances of the operator to coexist without duplicate events.
