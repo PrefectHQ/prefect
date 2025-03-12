@@ -9,6 +9,7 @@ from rich.console import Console
 
 from prefect import flow, get_client
 from prefect.client.schemas.objects import FlowRun
+from prefect.events.schemas.events import Event
 from prefect.states import StateType
 
 console = Console()
@@ -41,11 +42,12 @@ async def create_flow_run(
         name=name,
         work_pool_name=work_pool_name,
         job_variables=job_variables,
-        parameters=parameters,
     )
 
     async with get_client() as client:
-        return await client.create_flow_run_from_deployment(deployment_id)
+        return await client.create_flow_run_from_deployment(
+            deployment_id, parameters=parameters
+        )
 
 
 def start_worker(work_pool_name: str, run_once: bool = True) -> int:
@@ -80,3 +82,21 @@ def wait_for_flow_run_state(
             raise TimeoutError(
                 f"Flow run {flow_run_id} did not reach state {target_state} within {timeout} seconds"
             )
+
+
+async def read_pod_events_for_flow_run(flow_run_id: UUID) -> list[Event]:
+    """Read events for a flow run."""
+    async with get_client() as client:
+        response = await client.request(
+            "POST",
+            "/events/filter",
+            json={
+                "filter": {
+                    "event": {"prefix": ["prefect.kubernetes.pod"]},
+                    "related": {
+                        "id": [f"prefect.flow-run.{flow_run_id}"],
+                    },
+                },
+            },
+        )
+        return [Event.model_validate(event) for event in response.json()["events"]]
