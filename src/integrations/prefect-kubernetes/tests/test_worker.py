@@ -48,6 +48,7 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
+from prefect.states import Running
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CLUSTER = "fake-cluster"
@@ -2873,6 +2874,10 @@ class TestKubernetesWorker:
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                k8s_worker._client = AsyncMock()
+                mock_flow_run = MagicMock(spec=FlowRun)
+                mock_flow_run.state = Running()
+                k8s_worker._client.read_flow_run.return_value = mock_flow_run
                 result = await k8s_worker.run(flow_run, default_configuration)
 
             assert result.status_code == -1
