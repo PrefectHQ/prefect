@@ -54,6 +54,13 @@ FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
 
 
+@pytest.fixture(autouse=True)
+def mock_operator_start(monkeypatch: pytest.MonkeyPatch):
+    mock = MagicMock()
+    monkeypatch.setattr("prefect_kubernetes.worker.start_operator", mock)
+    return mock
+
+
 @pytest.fixture
 def mock_watch(monkeypatch):
     mock = MagicMock(return_value=AsyncMock())
@@ -318,6 +325,9 @@ from_template_and_values_cases = [
                                 "prefect.io/deployment-name": deployment.name,
                                 "prefect.io/flow-id": str(flow.id),
                                 "prefect.io/flow-name": flow.name,
+                                "prefect.io/worker-name": worker_name,
+                                "prefect.io/work-pool-name": work_pool.name,
+                                "prefect.io/work-pool-id": str(work_pool.id),
                             },
                         },
                         "spec": {
@@ -631,6 +641,9 @@ from_template_and_values_cases = [
                                 "prefect.io/deployment-name": deployment.name,
                                 "prefect.io/flow-id": str(flow.id),
                                 "prefect.io/flow-name": flow.name,
+                                "prefect.io/worker-name": worker_name,
+                                "prefect.io/work-pool-name": work_pool.name,
+                                "prefect.io/work-pool-id": str(work_pool.id),
                             },
                         },
                         "spec": {
@@ -820,6 +833,9 @@ from_template_and_values_cases = [
                                 "prefect.io/deployment-name": deployment.name,
                                 "prefect.io/flow-id": str(flow.id),
                                 "prefect.io/flow-name": flow.name,
+                                "prefect.io/worker-name": worker_name,
+                                "prefect.io/work-pool-name": work_pool.name,
+                                "prefect.io/work-pool-id": str(work_pool.id),
                                 "test_label": "test-label",
                             },
                         },
@@ -1135,6 +1151,9 @@ from_template_and_values_cases = [
                                 "prefect.io/deployment-name": deployment.name,
                                 "prefect.io/flow-id": str(flow.id),
                                 "prefect.io/flow-name": flow.name,
+                                "prefect.io/worker-name": worker_name,
+                                "prefect.io/work-pool-name": work_pool.name,
+                                "prefect.io/work-pool-id": str(work_pool.id),
                                 "test_label": "test-label",
                                 "label_from_template": "label-from-template",
                             },
@@ -3016,7 +3035,6 @@ class TestKubernetesWorker:
                     yield item
 
             stream_return = [
-                mock_stream(),
                 mock_stream(),
                 ApiException(status=410),
                 mock_stream(),

@@ -9,7 +9,7 @@ dependencies = [
     "tenacity>=8.2.3",
     "exceptiongroup",
     "pyopenssl>=24.1.0",
-
+    "kopf>=1.37.4",
 ]
 name = "prefect-kubernetes"
 description = "Prefect integrations for interacting with Kubernetes."
