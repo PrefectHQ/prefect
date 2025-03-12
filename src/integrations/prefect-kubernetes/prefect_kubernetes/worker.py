@@ -123,6 +123,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    cast,
 )
 
 import anyio
@@ -136,6 +137,7 @@ from kubernetes_asyncio.client import (
     CoreV1Api,
     V1Job,
     V1Pod,
+    V1PodList,
 )
 from kubernetes_asyncio.client.exceptions import ApiException
 from kubernetes_asyncio.client.models import (
@@ -696,7 +698,11 @@ class KubernetesWorker(
                 task_status.started(pid)
 
             status_code = await self._watch_job(
-                logger, job.metadata.name, configuration, client
+                logger=logger,
+                job_name=job.metadata.name,
+                configuration=configuration,
+                client=client,
+                flow_run=flow_run,
             )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
@@ -1260,14 +1266,16 @@ class KubernetesWorker(
 
             core_client = CoreV1Api(client)
             # Get all pods for the job
-            pods = await core_client.list_namespaced_pod(
+            pods: V1PodList = await core_client.list_namespaced_pod(
                 namespace=configuration.namespace, label_selector=f"job-name={job_name}"
             )
             # Get the status for only the most recently used pod
             pods.items.sort(
                 key=lambda pod: pod.metadata.creation_timestamp, reverse=True
             )
-            most_recent_pod = pods.items[0] if pods.items else None
+            most_recent_pod: V1Pod | None = (
+                cast(V1Pod, pods.items[0]) if pods.items else None
+            )
             first_container_status = (
                 getattr(most_recent_pod, "status", None)
                 and getattr(most_recent_pod.status, "container_statuses", None)
