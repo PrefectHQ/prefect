@@ -1453,6 +1453,10 @@
       "source": "/v3/tutorials/modal"
     },
     {
+      "destination": "/v3/manage/server/examples/helm",
+      "source": "/v3/tutorials/server-and-worker"
+    },
+    {
       "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
     },
