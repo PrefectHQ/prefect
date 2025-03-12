@@ -707,7 +707,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
                     raise
-                except (Abort, Pause):
+                except (Abort, Pause) as exc:
+                    if getattr(exc, "state", None):
+                        # we set attribute explicitly because
+                        # internals will have already called the state change API
+                        self.flow_run.state = exc.state
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -722,9 +726,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
                     self.logger.log(
-                        level=logging.INFO
-                        if self.state.is_completed()
-                        else logging.ERROR,
+                        level=logging.INFO,
                         msg=f"Finished in state {display_state}",
                     )
 
