@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import os
@@ -404,8 +406,8 @@ def propose_state_sync(
     client: "SyncPrefectClient",
     state: State[Any],
     force: bool = False,
-    task_run_id: Optional[UUID] = None,
-    flow_run_id: Optional[UUID] = None,
+    task_run_id: Optional[UUID | str] = None,
+    flow_run_id: Optional[UUID | str] = None,
 ) -> State[Any]:
     """
     Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
