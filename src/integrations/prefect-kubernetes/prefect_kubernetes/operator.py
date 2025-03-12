@@ -206,7 +206,7 @@ def start_operator():
     if _operator_thread is not None:
         return
     _operator_thread = threading.Thread(
-        target=_operator_thread_entry, name="prefect-kubernetes-operator"
+        target=_operator_thread_entry, name="prefect-kubernetes-operator", daemon=True
     )
     _operator_thread.start()
     if _ready_flag:
