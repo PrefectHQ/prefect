@@ -345,7 +345,7 @@ class SPCSWorker(BaseWorker):
             The result of the flow run.
 
         """
-        run_start_time = datetime.now(datetime.timezone.utc)
+        run_start_time = datetime.datetime.now(datetime.timezone.utc)
 
         # If SNOWFLAKE_HOST is defined, we're probably running in Snowflake.
         # That means we can run as the service account.
