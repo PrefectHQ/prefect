@@ -1,7 +1,6 @@
 import asyncio
 import os
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import anyio
@@ -35,11 +34,11 @@ async def test_default_pod_eviction(
 
     display.print_flow_run_created(flow_run)
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        worker_future = executor.submit(
-            lambda: prefect_core.start_worker(work_pool_name, run_once=True)
-        )
-
+    with subprocess.Popen(
+        ["prefect", "worker", "start", "--pool", work_pool_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ) as worker_process:
         try:
             job_name = k8s.get_job_name(flow_run.name, timeout=120)
             pod_name = k8s.wait_for_pod(job_name, timeout=120)
@@ -48,44 +47,52 @@ async def test_default_pod_eviction(
 
             k8s.evict_pod(pod_name)
 
+            # Wait for the flow run to be scheduled
+            prefect_core.wait_for_flow_run_state(
+                flow_run.id, StateType.SCHEDULED, timeout=30
+            )
+
+            # Wait for the pod to finish to ensure we get all events
+            k8s.wait_for_pod(job_name, phase="Succeeded", timeout=120)
+
         finally:
-            worker_future.result()
+            worker_process.terminate()
 
-        assert "evicted successfully" in capsys.readouterr().out
+    assert "evicted successfully" in capsys.readouterr().out
 
-        async with get_client() as client:
-            updated_flow_run = await client.read_flow_run(flow_run.id)
+    async with get_client() as client:
+        updated_flow_run = await client.read_flow_run(flow_run.id)
 
-            display.print_flow_run_result(updated_flow_run)
-            try:
-                assert updated_flow_run.state is not None, (
-                    "Flow run state should not be None"
-                )
-                assert updated_flow_run.state.type == StateType.SCHEDULED, (
-                    "Expected flow run to be SCHEDULED. Got "
-                    f"{updated_flow_run.state.type} instead."
-                )
+        display.print_flow_run_result(updated_flow_run)
+        try:
+            assert updated_flow_run.state is not None, (
+                "Flow run state should not be None"
+            )
+            assert updated_flow_run.state.type == StateType.SCHEDULED, (
+                "Expected flow run to be SCHEDULED. Got "
+                f"{updated_flow_run.state.type} instead."
+            )
 
-                events = []
-                with anyio.move_on_after(10):
-                    while len(events) < 3:
-                        events = await prefect_core.read_pod_events_for_flow_run(
-                            flow_run.id
-                        )
-                        await asyncio.sleep(1)
-                assert len(events) == 3, "Expected 3 events"
-                assert (
-                    {event.event for event in events}
-                    == {
-                        "prefect.kubernetes.pod.pending",
-                        "prefect.kubernetes.pod.running",
-                        "prefect.kubernetes.pod.succeeded",  # Will be succeed because the container will exit with 0 status code after rescheduling
-                    }
-                ), "Expected events to be Pending, Running, and Succeeded"
+            events = []
+            with anyio.move_on_after(10):
+                while len(events) < 3:
+                    events = await prefect_core.read_pod_events_for_flow_run(
+                        flow_run.id
+                    )
+                    await asyncio.sleep(1)
+            assert len(events) == 3, "Expected 3 events"
+            assert (
+                {event.event for event in events}
+                == {
+                    "prefect.kubernetes.pod.pending",
+                    "prefect.kubernetes.pod.running",
+                    "prefect.kubernetes.pod.succeeded",  # Will be succeed because the container will exit with 0 status code after rescheduling
+                }
+            ), "Expected events to be Pending, Running, and Succeeded"
 
-            finally:
-                # Delete the flow run to avoid other tests from trying to use it
-                await client.delete_flow_run(updated_flow_run.id)
+        finally:
+            # Delete the flow run to avoid other tests from trying to use it
+            await client.delete_flow_run(updated_flow_run.id)
 
 
 @pytest.mark.usefixtures("kind_cluster")
