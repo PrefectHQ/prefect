@@ -11,9 +11,7 @@ from prefect import get_client
 from prefect.states import StateType
 from prefect_kubernetes_integration_tests.utils import display, k8s, prefect_core
 
-DEFAULT_JOB_VARIABLES: dict[str, Any] = {
-    "image": "prefecthq/prefect:3.2.11-python3.12",
-}
+DEFAULT_JOB_VARIABLES: dict[str, Any] = {"image": "prefecthq/prefect:3.2.11-python3.12"}
 if os.environ.get("CI", False):
     DEFAULT_JOB_VARIABLES["env"] = {"PREFECT_API_URL": "http://172.17.0.1:4200/api"}
 # Default source is a simple flow that sleeps

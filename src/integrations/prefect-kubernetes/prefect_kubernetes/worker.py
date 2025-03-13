@@ -105,7 +105,6 @@ from __future__ import annotations
 import base64
 import enum
 import json
-import logging
 import shlex
 import tempfile
 import warnings
@@ -153,7 +152,6 @@ from prefect.states import Pending
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
-from prefect.utilities.timeout import timeout_async
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -161,7 +159,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_kubernetes.credentials import KubernetesClusterConfig
-from prefect_kubernetes.operator import start_operator, stop_operator
+from prefect_kubernetes.observer import start_observer, stop_observer
 from prefect_kubernetes.settings import KubernetesSettings
 from prefect_kubernetes.utilities import (
     KeepAliveClientRequest,
@@ -679,24 +677,23 @@ class KubernetesWorker(
             KubernetesWorkerResult: A result object containing information about the
                 final state of the flow run
         """
+        status_code = 0
         logger = self.get_flow_run_logger(flow_run)
         async with self._get_configured_kubernetes_client(configuration) as client:
             logger.info("Creating Kubernetes job...")
 
-            job = await self._create_job(configuration, client)
+            job = None
+            try:
+                job = await self._create_job(configuration, client)
+            except Exception as e:
+                status_code = -1
+                logger.error(f"Failed to create Kubernetes job: {e}")
 
+            assert job, "Job should be created"
             pid = await self._get_infrastructure_pid(job, client)
             # Indicate that the job has started
             if task_status is not None:
                 task_status.started(pid)
-
-            status_code = await self._watch_job(
-                logger=logger,
-                job_name=job.metadata.name,
-                configuration=configuration,
-                client=client,
-                flow_run=flow_run,
-            )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
@@ -1078,140 +1075,8 @@ class KubernetesWorker(
         cluster_uid = namespace.metadata.uid
         return cluster_uid
 
-    async def _watch_job(
-        self,
-        logger: logging.Logger,
-        job_name: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        client: "ApiClient",
-    ) -> int:
-        """
-        Watch a job until completion.
-        Return 0 if the job completes successfully, -1 if it fails or cannot be monitored.
-        """
-        logger.debug(f"Job {job_name!r}: Monitoring job...")
-
-        job = await self._get_job(logger, job_name, configuration, client)
-        if not job:
-            return -1
-
-        async with self._get_batch_client(client) as batch_client:
-            try:
-                with timeout_async(seconds=configuration.job_watch_timeout_seconds):
-                    await self._monitor_job_events(
-                        batch_client,
-                        job_name,
-                        logger,
-                        configuration,
-                    )
-            except TimeoutError:
-                logger.error(
-                    f"Job {job_name!r}: Job did not complete within "
-                    f"timeout of {configuration.job_watch_timeout_seconds}s."
-                )
-                return -1
-
-            # Get final job status
-            try:
-                job = await batch_client.read_namespaced_job(
-                    name=job_name, namespace=configuration.namespace
-                )
-                if job.status.succeeded:
-                    return 0
-                return -1
-            except Exception:
-                logger.error(f"Job {job_name!r}: Could not determine final job status.")
-                return -1
-
-    async def _monitor_job_events(
-        self,
-        batch_client: BatchV1Api,
-        job_name: str,
-        logger: logging.Logger,
-        configuration: KubernetesWorkerJobConfiguration,
-    ):
-        """Monitor job events until completion."""
-        watch_kwargs = (
-            {"timeout_seconds": configuration.job_watch_timeout_seconds}
-            if configuration.job_watch_timeout_seconds
-            else {}
-        )
-
-        async for event in self._job_events(
-            batch_client,
-            job_name,
-            configuration.namespace,
-            watch_kwargs,
-        ):
-            if event["type"] == "DELETED":
-                logger.error(f"Job {job_name!r}: Job has been deleted.")
-                return
-            elif event["object"].status.completion_time:
-                return
-            elif (
-                event["object"].spec.backoff_limit is not None
-                and event["object"].status.failed is not None
-                and event["object"].status.failed > event["object"].spec.backoff_limit
-            ):
-                logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                return
-            elif (
-                not event["object"].spec.backoff_limit and event["object"].status.failed
-            ):
-                return
-
-    async def _job_events(
-        self,
-        batch_client: BatchV1Api,
-        job_name: str,
-        namespace: str,
-        watch_kwargs: dict[str, Any],
-    ):
-        """Stream job events until completion."""
-        watch = kubernetes_asyncio.watch.Watch()
-        resource_version = None
-        async with watch:
-            while True:
-                try:
-                    async for event in watch.stream(
-                        func=batch_client.list_namespaced_job,
-                        namespace=namespace,
-                        field_selector=f"metadata.name={job_name}",
-                        **watch_kwargs,
-                    ):
-                        yield event
-                except ApiException as e:
-                    if e.status == 410:
-                        job_list = await batch_client.list_namespaced_job(
-                            namespace=namespace,
-                            field_selector=f"metadata.name={job_name}",
-                        )
-                        resource_version = job_list.metadata.resource_version
-                        watch_kwargs["resource_version"] = resource_version
-                    else:
-                        raise
-
-    async def _get_job(
-        self,
-        logger: logging.Logger,
-        job_id: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        client: "ApiClient",
-    ) -> "V1Job | None":
-        """Get a Kubernetes job by id."""
-
-        try:
-            batch_client = BatchV1Api(client)
-            job = await batch_client.read_namespaced_job(
-                name=job_id, namespace=configuration.namespace
-            )
-        except kubernetes_asyncio.client.exceptions.ApiException:
-            logger.error(f"Job {job_id!r} was removed.", exc_info=True)
-            return None
-        return job
-
     async def __aenter__(self):
-        start_operator()
+        start_observer()
         return await super().__aenter__()
 
     async def __aexit__(self, *exc_info: Any):
@@ -1219,4 +1084,4 @@ class KubernetesWorker(
             await super().__aexit__(*exc_info)
         finally:
             # Need to run after the runs task group exits
-            stop_operator()
+            stop_observer()
