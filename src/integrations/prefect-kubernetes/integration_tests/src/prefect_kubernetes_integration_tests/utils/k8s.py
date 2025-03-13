@@ -91,8 +91,8 @@ def get_job_name(flow_run_name: str, timeout: int = 60) -> str:
     )
 
 
-def wait_for_pod(job_name: str, timeout: int = 60) -> str:
-    """Wait for a pod matching the job name to be running."""
+def wait_for_pod(job_name: str, phase: str = "Running", timeout: int = 60) -> str:
+    """Wait for a pod matching the job name to be in a given phase."""
     v1 = init_k8s_client()
     start_time = time.time()
 
@@ -112,8 +112,8 @@ def wait_for_pod(job_name: str, timeout: int = 60) -> str:
                 )
 
                 for pod in sorted_pods:
-                    if pod.status.phase == "Running":
-                        console.log(f"[green]Found running pod: {pod.metadata.name}")
+                    if pod.status.phase == phase:
+                        console.log(f"[green]Found pod: {pod.metadata.name}")
                         return pod.metadata.name
 
             except client.ApiException as e:
