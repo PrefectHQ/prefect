@@ -29,7 +29,7 @@
     "autoprefixer": "10.4.20",
     "eslint": "^8.57.1",
     "ts-node": "10.9.2",
-    "typescript": "^5.7.3",
+    "typescript": "^5.8.2",
     "vite": "^6.2.1",
     "vue-tsc": "^2.2.8"
   }
