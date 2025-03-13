@@ -11,7 +11,6 @@ import sys
 import textwrap
 import time
 from functools import partial
-from string import Template
 from typing import Optional
 
 import anyio
@@ -382,27 +381,3 @@ def container(
     finally:
         print("\nStopping container...")
         container.stop()
-
-
-@dev_app.command()
-def kubernetes_manifest():
-    """
-    Generates a Kubernetes manifest for development.
-
-    Example:
-        $ prefect dev kubernetes-manifest | kubectl apply -f -
-    """
-    exit_with_error_if_not_editable_install()
-
-    template = Template(
-        (
-            prefect.__module_path__ / "cli" / "templates" / "kubernetes-dev.yaml"
-        ).read_text()
-    )
-    manifest = template.substitute(
-        {
-            "prefect_root_directory": prefect.__development_base_path__,
-            "image_name": get_prefect_image_name(),
-        }
-    )
-    print(manifest)
