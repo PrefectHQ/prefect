@@ -25,7 +25,7 @@ DEFAULT_FLOW_ENTRYPOINT = "sleeping.py:sleepy"
 async def test_happy_path_events(
     work_pool_name: str,
 ):
-    """Test that flow runs properly handle pod evictions."""
+    """Test that we get the expected events when a flow run is successful."""
     flow_run = await prefect_core.create_flow_run(
         source=DEFAULT_FLOW_SOURCE,
         entrypoint=DEFAULT_FLOW_ENTRYPOINT,
