@@ -252,6 +252,7 @@ class DeploymentCreate(ActionBaseModel):
     description: Optional[str] = Field(default=None)
     path: Optional[str] = Field(default=None)
     version: Optional[str] = Field(default=None)
+    version_info: Optional[dict[str, Any]] = Field(default=None)
     entrypoint: Optional[str] = Field(default=None)
     job_variables: dict[str, Any] = Field(
         default_factory=dict,
@@ -287,6 +288,7 @@ class DeploymentUpdate(ActionBaseModel):
         return remove_old_deployment_fields(values)
 
     version: Optional[str] = Field(default=None)
+    version_info: Optional[dict[str, Any]] = Field(default=None)
     description: Optional[str] = Field(default=None)
     parameters: Optional[dict[str, Any]] = Field(
         default=None,

@@ -308,6 +308,11 @@ class DeploymentResponse(ObjectBaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
+    version_info: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Version information for the deployment, minimally including"
+        " 'type', 'branch', 'version', and 'url'.",
+    )
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
     )
