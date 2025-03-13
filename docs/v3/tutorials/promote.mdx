@@ -1,0 +1,54 @@
+---
+title: Promote changes to production
+description: Use branch-based deployments to do CI/CD with your Prefect flows.
+---
+
+When you make a change to a flow, you should test the change before promoting it to production.
+In this tutorial, you'll use branch-based deployments in Prefect Cloud to test a GitHub PR.
+
+## Prerequisites
+
+- A Prefect Cloud account
+- Fork the demo repository to an org where you have admin access
+
+## Install the GitHub App
+
+- Install the Prefect GitHub App from the GitHub Marketplace
+
+## Install the GitHub Action
+
+- Generate Prefect secrets
+- Set the secrets on the GitHub repository
+- Install the GitHub Action
+- Pass the secrets to the GitHub Action as environment variables
+
+## Propose changes to a flow
+
+- Clone your fork of the demo repository
+- Create a new branch
+- Make a change to the flow and commit it to the branch
+- Push the branch to GitHub
+- Create a PR
+
+## Test your changes
+
+- Click **View deployment** to open the deployment for this branch in Prefect
+- Perform a test run of the deployment
+- Wait for the run to finish
+- Go back to the PR and confirm that the deployment succeeded
+
+## Merge your changes
+
+- Click **Merge PR**
+- Go back to Prefect Cloud and confirm that a new deployment version was created
+
+NOTE: The ephemeral deployment was deleted when the PR was merged
+
+## Make your changes live
+
+- In Prefect Cloud, go to the deployment and set the latest version as active.
+- Run the deployment (this will automatically run the active version)
+
+Once the deployment is complete, your changes are effectively live.
+Now you know how to promote changes to production with Prefect Cloud.
+
