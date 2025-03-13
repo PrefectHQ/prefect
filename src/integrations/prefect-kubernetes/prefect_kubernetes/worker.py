@@ -695,7 +695,11 @@ class KubernetesWorker(
             )
             async with events_replicator:
                 status_code = await self._watch_job(
-                    logger, job.metadata.name, configuration, client
+                    logger=logger,
+                    job_name=job.metadata.name,
+                    configuration=configuration,
+                    client=client,
+                    flow_run=flow_run,
                 )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
@@ -1201,6 +1205,7 @@ class KubernetesWorker(
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
+        flow_run: "FlowRun",
     ) -> int:
         """
         Watch a job.
@@ -1273,7 +1278,13 @@ class KubernetesWorker(
             )
 
         if not first_container_status:
-            logger.error(f"Job {job_name!r}: No pods found for job.")
+            assert self._client is not None
+            up_to_date_flow_run = await self._client.read_flow_run(
+                flow_run.id,
+            )
+            if up_to_date_flow_run.state and up_to_date_flow_run.state.is_scheduled():
+                return 0
+            logger.error(f"Job {job_name!r}: Unable to determine container status.")
             return -1
 
         # In some cases, the pod will still be running at this point.
