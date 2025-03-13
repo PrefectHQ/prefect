@@ -117,7 +117,7 @@ async def test_backoff_limit_exhausted(
         while len(events) < 6:
             events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
             await asyncio.sleep(1)
-    assert len(events) == 6, "Expected 1 event"
+    assert len(events) == 6, "Expected 6 events"
     # Pod never fully starts, so we don't get a "running" or "succeeded" event
     assert [event.event for event in events] == [
         "prefect.kubernetes.pod.failed",
