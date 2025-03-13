@@ -67,7 +67,7 @@ def wait_for_flow_run_state(
         time.sleep(1)
         if time.time() - start_time > timeout:
             raise TimeoutError(
-                f"Flow run {flow_run_id} did not reach state {target_state} within {timeout} seconds"
+                f"Flow run {flow_run_id} did not reach state {target_state!r} within {timeout} seconds. Final state: {state!r}"
             )
 
 

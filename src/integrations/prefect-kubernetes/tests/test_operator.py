@@ -33,6 +33,7 @@ class TestReplicatePodEvent:
                 "prefect.io/flow-run-name": "test",
             },
             status={"phase": "Running"},
+            logger=MagicMock(),
         )
 
         mock_emit_event.assert_called_once_with(
@@ -68,6 +69,7 @@ class TestReplicatePodEvent:
                 "prefect.io/flow-run-name": "test-run",
             },
             status={"phase": "Running"},
+            logger=MagicMock(),
         )
 
         first_event_id = mock_emit_event.call_args[1]["id"]
@@ -84,6 +86,7 @@ class TestReplicatePodEvent:
                 "prefect.io/flow-run-name": "test-run",
             },
             status={"phase": "Running"},
+            logger=MagicMock(),
         )
 
         second_event_id = mock_emit_event.call_args[1]["id"]
@@ -108,6 +111,7 @@ class TestReplicatePodEvent:
                     {"state": {"terminated": {"reason": "OOMKilled"}}}
                 ],
             },
+            logger=MagicMock(),
         )
 
         mock_emit_event.assert_called_once_with(
@@ -148,6 +152,7 @@ class TestReplicatePodEvent:
                 "prefect.io/worker-name": "test-worker",
             },
             status={"phase": "Running"},
+            logger=MagicMock(),
         )
 
         mock_emit_event.assert_called_once()
@@ -200,6 +205,7 @@ class TestReplicatePodEvent:
             namespace="test",
             labels={"prefect.io/flow-run-id": str(uuid.uuid4())},
             status={"phase": "Running"},
+            logger=MagicMock(),
         )
 
         # Verify no event was emitted since one already existed
@@ -210,21 +216,19 @@ class TestReplicatePodEvent:
         """Test handling of different pod phases"""
         pod_id = uuid.uuid4()
         flow_run_id = uuid.uuid4()
-        base_args = {
-            "event": {"type": "ADDED"},
-            "uid": str(pod_id),
-            "name": "test",
-            "namespace": "test",
-            "labels": {
-                "prefect.io/flow-run-id": str(flow_run_id),
-                "prefect.io/flow-run-name": "test-run",
-            },
-        }
 
         mock_emit_event.reset_mock()
         _replicate_pod_event(
-            **base_args,
+            event={"type": "ADDED"},
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
             status={"phase": phase},
+            logger=MagicMock(),
         )
 
         mock_emit_event.assert_called_once()
