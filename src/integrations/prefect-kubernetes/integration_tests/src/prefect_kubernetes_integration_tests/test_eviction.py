@@ -1,8 +1,10 @@
+import asyncio
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+import anyio
 import pytest
 
 from prefect import get_client
@@ -65,6 +67,23 @@ async def test_default_pod_eviction(
                     f"{updated_flow_run.state.type} instead."
                 )
 
+                events = []
+                with anyio.move_on_after(10):
+                    while len(events) < 3:
+                        events = await prefect_core.read_pod_events_for_flow_run(
+                            flow_run.id
+                        )
+                        await asyncio.sleep(1)
+                assert len(events) == 3, "Expected 3 events"
+                assert (
+                    {event.event for event in events}
+                    == {
+                        "prefect.kubernetes.pod.pending",
+                        "prefect.kubernetes.pod.running",
+                        "prefect.kubernetes.pod.succeeded",  # Will be succeed because the container will exit with 0 status code after rescheduling
+                    }
+                ), "Expected events to be Pending, Running, and Succeeded"
+
             finally:
                 # Delete the flow run to avoid other tests from trying to use it
                 await client.delete_flow_run(updated_flow_run.id)
@@ -104,6 +123,9 @@ async def test_pod_eviction_with_backoff_limit(
                 flow_run.id, StateType.COMPLETED, timeout=30
             )
 
+            # Wait for the pod to finish to ensure we get all events
+            k8s.wait_for_pod(job_name, phase="Succeeded", timeout=120)
+
         finally:
             worker_process.terminate()
 
@@ -119,3 +141,21 @@ async def test_pod_eviction_with_backoff_limit(
         )
 
         display.print_flow_run_result(updated_flow_run)
+
+        events = []
+        with anyio.move_on_after(10):
+            while len(events) < 6:
+                events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
+                await asyncio.sleep(1)
+        assert len(events) == 6, (
+            f"Expected 6 events, got {[event.event for event in events]}"
+        )
+        # Events come back in reverse order of creation
+        assert [event.event for event in events] == [
+            "prefect.kubernetes.pod.succeeded",
+            "prefect.kubernetes.pod.running",
+            "prefect.kubernetes.pod.pending",
+            "prefect.kubernetes.pod.failed",
+            "prefect.kubernetes.pod.running",
+            "prefect.kubernetes.pod.pending",
+        ], "Expected events to be Pending, Running, Failed, and Succeeded"
