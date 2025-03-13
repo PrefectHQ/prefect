@@ -25,7 +25,7 @@ DEFAULT_FLOW_ENTRYPOINT = "sleeping.py:sleepy"
 async def test_default_pod_eviction(
     work_pool_name: str, capsys: pytest.CaptureFixture[str]
 ):
-    """Test that flow runs properly handle pod evictions."""
+    """Test that flow runs properly handle pod evictions with the default configuration."""
     flow_run = await prefect_core.create_flow_run(
         source=DEFAULT_FLOW_SOURCE,
         entrypoint=DEFAULT_FLOW_ENTRYPOINT,
@@ -93,7 +93,7 @@ async def test_default_pod_eviction(
 async def test_pod_eviction_with_backoff_limit(
     work_pool_name: str, capsys: pytest.CaptureFixture[str]
 ):
-    """Test that flow runs properly handle pod evictions."""
+    """Test that flow runs properly handle pod evictions when the backoff limit is set."""
     flow_run = await prefect_core.create_flow_run(
         source=DEFAULT_FLOW_SOURCE,
         entrypoint=DEFAULT_FLOW_ENTRYPOINT,

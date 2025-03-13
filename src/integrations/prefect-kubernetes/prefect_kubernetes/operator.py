@@ -5,17 +5,22 @@ import json
 import logging
 import threading
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import kopf
 from cachetools import LRUCache
 
 from prefect import __version__, get_client
-from prefect.events import Event, RelatedResource, emit_event
+from prefect.events import RelatedResource, emit_event
 from prefect.events.filters import EventFilter, EventNameFilter, EventResourceFilter
 from prefect.utilities.slugify import slugify
 
-_last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
+if TYPE_CHECKING:
+    from prefect.events import Event, RelatedResource
+
+_last_event_cache: LRUCache[str, "Event"] = LRUCache(maxsize=1000)
+
+logger = logging.getLogger("kopf").setLevel(logging.INFO)
 
 
 @kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})
@@ -26,6 +31,7 @@ def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     namespace: str,
     labels: kopf.Labels,
     status: kopf.Status,
+    logger: logging.Logger,
     **kwargs: Any,
 ):
     """
@@ -96,6 +102,7 @@ def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         follows=_last_event_cache.get(uid),
     )
     if emitted_event is not None:
+        logger.debug(f"Emitted {phase} event for pod {name} in namespace {namespace}")
         _last_event_cache[uid] = emitted_event
 
 
@@ -111,7 +118,7 @@ EVICTED_REASONS = {
 }
 
 
-def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]:
+def _related_resources_from_labels(labels: kopf.Labels) -> list["RelatedResource"]:
     """Convert labels to related resources"""
     related: list[RelatedResource] = []
     if flow_run_id := labels.get("prefect.io/flow-run-id"):
