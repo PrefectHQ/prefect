@@ -255,7 +255,6 @@ class SPCSServiceTemplateVariables(BaseVariables):
         description="The names of the external access integrations that the service should be created with.",
     )
     compute_pool: str = Field(
-        default=None,
         description="The fully-qualified name of the compute pool to run services in.",
         examples=["common.compute.my_compute_pool"],
     )
