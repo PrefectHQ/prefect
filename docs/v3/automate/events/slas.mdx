@@ -54,13 +54,50 @@ deployments:
         ]
     )
 ```
-</Accordion>    
+</Accordion>
 
 <Accordion title="Defining SLAs with the Prefect CLI">
 ```bash CLI SLA
 prefect deploy --sla '{"name": "my-time-to-completion-sla", "duration": 10, "severity": "high"}'
 ```
 </Accordion>
+
+<Accordion title="Defining SLAs with Terraform">
+```hcl Terraform Provider
+provider "prefect" {}
+
+resource "prefect_flow" "my_flow" {
+  name = "my-flow"
+}
+
+resource "prefect_deployment" "my_deployment" {
+  name    = "my-deployment"
+  flow_id = prefect_flow.my_flow.id
+}
+
+resource "prefect_resource_sla" "slas" {
+  resource_id = "prefect.deployment.${prefect_deployment.my_deployment.id}"
+  slas = [
+    {
+      name     = "my-time-to-completion-sla"
+      severity = "high"
+      duration = 30
+    },
+    {
+      name     = "my-lateness"
+      severity = "high"
+      within   = 600
+    },
+    {
+      name        = "my-frequency-sla"
+      severity    = "high"
+      stale_after = 3600
+    }
+  ]
+}
+```
+</Accordion>
+
 </AccordionGroup>
 
 ## Types of SLAs
