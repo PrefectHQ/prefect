@@ -76,6 +76,7 @@ prefect.yaml
 
 # Deployment recipes
 !src/prefect/deployments/recipes/*/**
+!src/prefect/deployments/templates/prefect.yaml
 
 # For development doc server if link
 libcairo.2.dylib
