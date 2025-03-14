@@ -73,7 +73,7 @@ jobs:
       - name: Run integration tests
         run: |
           cd src/integrations/prefect-kubernetes/integration_tests
-          uv run pytest -n auto --maxprocesses 6
+          uv run pytest
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
 
