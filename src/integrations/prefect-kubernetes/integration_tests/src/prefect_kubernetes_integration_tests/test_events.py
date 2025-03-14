@@ -22,6 +22,7 @@ DEFAULT_FLOW_SOURCE = "https://gist.github.com/772d095672484b76da40a4e6158187f0.
 DEFAULT_FLOW_ENTRYPOINT = "sleeping.py:sleepy"
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.usefixtures("kind_cluster")
 async def test_happy_path_events(
     work_pool_name: str,

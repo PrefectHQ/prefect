@@ -23,7 +23,7 @@ from prefect.utilities.slugify import slugify
 
 _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
 
-logging.getLogger("kopf.objects").setLevel(logging.DEBUG)
+logging.getLogger("kopf.objects").setLevel(logging.INFO)
 
 
 @kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # type: ignore
@@ -224,10 +224,7 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
                     flow_run_id=uuid.UUID(flow_run_id)
                 )
                 assert flow_run.state is not None, "Expected flow run state to be set"
-                if (
-                    not (flow_run.state.is_pending() or flow_run.state.is_scheduled())
-                    or has_other_active_job
-                ):
+                if not flow_run.state.is_pending() or has_other_active_job:
                     break
 
                 logger.info(

@@ -206,6 +206,7 @@ async def test_default_pod_eviction(
     )
 
 
+@pytest.mark.timeout(120)
 @pytest.mark.usefixtures("kind_cluster")
 async def test_pod_eviction_with_backoff_limit(
     work_pool_name: str, capsys: pytest.CaptureFixture[str]
