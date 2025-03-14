@@ -1,5 +1,5 @@
 import { Automation, buildGetAutomationQuery } from "@/api/automations";
-import { buildFilterBlockDocumentsQuery } from "@/api/block-documents";
+import { buildListFilterBlockDocumentsQuery } from "@/api/block-documents";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { buildFilterWorkPoolsQuery } from "@/api/work-pools";
 import { buildFilterWorkQueuesQuery } from "@/api/work-queues";
@@ -47,7 +47,7 @@ export const useGetAutomationActionResources = (automation: Automation) => {
 	// Need to do deployments filter API
 	const remainingQueries = useQueries({
 		queries: [
-			buildFilterBlockDocumentsQuery(
+			buildListFilterBlockDocumentsQuery(
 				{
 					offset: 0,
 					sort: "BLOCK_TYPE_AND_NAME_ASC",
