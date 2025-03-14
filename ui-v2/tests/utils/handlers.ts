@@ -31,6 +31,16 @@ const blocksHandlers = [
 	}),
 ];
 
+const blockDocumentsHandlers = [
+	http.post(buildApiUrl("/block_documents/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/block_documents/count"), () => {
+		return HttpResponse.json(0);
+	}),
+];
+
 const deploymentsHandlers = [
 	http.post(buildApiUrl("/deployments/filter"), () => {
 		return HttpResponse.json([]);
@@ -163,6 +173,7 @@ const workeQueuesHandlers = [
 export const handlers = [
 	...automationsHandlers,
 	...blocksHandlers,
+	...blockDocumentsHandlers,
 	...deploymentsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,
