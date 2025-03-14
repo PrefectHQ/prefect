@@ -5,7 +5,6 @@ import contextlib
 import os
 import signal
 import time
-import uuid
 from collections.abc import Awaitable, Callable, Generator
 from functools import partial
 from logging import Logger
@@ -407,8 +406,8 @@ def propose_state_sync(
     client: "SyncPrefectClient",
     state: State[Any],
     force: bool = False,
-    task_run_id: Optional[UUID | str] = None,
-    flow_run_id: Optional[UUID | str] = None,
+    task_run_id: Optional[UUID] = None,
+    flow_run_id: Optional[UUID] = None,
 ) -> State[Any]:
     """
     Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
@@ -472,9 +471,7 @@ def propose_state_sync(
 
     # Attempt to set the state
     if task_run_id:
-        set_state = partial(
-            client.set_task_run_state, uuid.UUID(task_run_id), state, force=force
-        )
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
         response = set_state_and_handle_waits(set_state)
     elif flow_run_id:
         set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
