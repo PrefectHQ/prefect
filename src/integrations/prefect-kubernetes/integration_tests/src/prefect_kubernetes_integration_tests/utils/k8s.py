@@ -171,3 +171,9 @@ def evict_pod(pod_name: str) -> None:
     except (client.ApiException, subprocess.CalledProcessError) as e:
         console.print(f"[bold red]Failed to evict pod: {e}")
         raise
+
+
+def delete_pods() -> None:
+    """Delete all pods in the default namespace."""
+    v1 = init_k8s_client()
+    v1.delete_collection_namespaced_pod(K8S_NAMESPACE)
