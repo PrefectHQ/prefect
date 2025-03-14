@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import subprocess
+from typing import Any
 
 import pytest
 
@@ -8,7 +10,10 @@ from prefect import get_client
 from prefect.states import StateType
 from prefect_kubernetes_integration_tests.utils import display, prefect_core
 
-DEFAULT_JOB_VARIABLES = {"image": "prefecthq/prefect:3.2.11-python3.12"}
+DEFAULT_JOB_VARIABLES: dict[str, Any] = {"image": "prefecthq/prefect:3.2.11-python3.12"}
+if os.environ.get("CI", False):
+    DEFAULT_JOB_VARIABLES["env"] = {"PREFECT_API_URL": "http://172.17.0.1:4200/api"}
+
 DEFAULT_PARAMETERS = {"n": 5}  # Short sleep time for faster tests
 # Default source is a simple flow that sleeps
 DEFAULT_FLOW_SOURCE = "https://gist.github.com/772d095672484b76da40a4e6158187f0.git"
