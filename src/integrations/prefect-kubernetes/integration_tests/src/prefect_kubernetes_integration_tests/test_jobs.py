@@ -36,8 +36,6 @@ async def test_successful_job_completion(
     # Start worker and wait for completion
     with subprocess.Popen(
         ["prefect", "worker", "start", "--pool", work_pool_name],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
     ) as worker_process:
         try:
             # Wait for the flow run to complete

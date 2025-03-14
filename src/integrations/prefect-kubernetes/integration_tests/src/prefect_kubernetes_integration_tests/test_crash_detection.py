@@ -103,8 +103,6 @@ async def test_backoff_limit_exhausted(
 
     with subprocess.Popen(
         ["prefect", "worker", "start", "--pool", work_pool_name],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
     ) as worker_process:
         try:
             job = k8s.get_job_for_flow_run(flow_run.name, timeout=120)

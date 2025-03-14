@@ -46,8 +46,6 @@ async def test_default_pod_eviction(
     # Start a worker that runs continuously
     with subprocess.Popen(
         ["prefect", "worker", "start", "--pool", work_pool_name],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
     ) as worker_process:
         try:
             job_name = k8s.get_job_name(flow_run.name, timeout=120)
@@ -231,8 +229,6 @@ async def test_pod_eviction_with_backoff_limit(
     # Start a worker that runs continuously
     with subprocess.Popen(
         ["prefect", "worker", "start", "--pool", work_pool_name],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
     ) as worker_process:
         try:
             job_name = k8s.get_job_name(flow_run.name, timeout=120)

@@ -41,8 +41,6 @@ async def test_happy_path_events(
 
     with subprocess.Popen(
         ["prefect", "worker", "start", "--pool", work_pool_name],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
     ) as worker_process:
         try:
             prefect_core.wait_for_flow_run_state(
