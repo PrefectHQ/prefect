@@ -65,14 +65,29 @@ def wait_for_flow_run_state(
 ) -> None:
     """Wait for a flow run to reach a specific state."""
     start_time = time.time()
+    previous_state = None
+
+    print(f"Waiting for flow run {flow_run_id} to reach state {target_state}")
     while True:
-        state, _message = get_flow_run_state(flow_run_id)
+        state, message = get_flow_run_state(flow_run_id)
+
+        # Log state transitions to help with debugging
+        if state != previous_state:
+            print(f"Flow run {flow_run_id} state: {state} - {message}")
+            previous_state = state
+
         if state == target_state:
+            print(f"Flow run {flow_run_id} reached target state {target_state}")
             return
+
         time.sleep(1)
+
+        # Log timeout with clear message
         if time.time() - start_time > timeout:
+            elapsed = int(time.time() - start_time)
             raise TimeoutError(
-                f"Flow run {flow_run_id} did not reach state {target_state!r} within {timeout} seconds. Final state: {state!r}"
+                f"Flow run {flow_run_id} did not reach state {target_state!r} within {timeout} seconds. "
+                f"Final state: {state!r} after {elapsed}s. Message: {message}"
             )
 
 
