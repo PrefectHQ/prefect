@@ -6,7 +6,7 @@ import {
 	createRootRoute,
 	createRouter,
 } from "@tanstack/react-router";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import {
@@ -37,14 +37,11 @@ describe("ArtifactDetailPage", () => {
 			data: "# Title\n\nThis is a test markdown",
 		});
 
-		const { getByTestId } = render(
-			<ArtifactDetailPageRouter artifact={artifact} />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		render(<ArtifactDetailPageRouter artifact={artifact} />, {
+			wrapper: createWrapper(),
+		});
 
-		expect(getByTestId("markdown-display")).toBeTruthy();
+		expect(screen.getByTestId("markdown-display")).toBeTruthy();
 	});
 
 	it("renders artifact detail for image", () => {
@@ -54,14 +51,11 @@ describe("ArtifactDetailPage", () => {
 			data: url,
 		});
 
-		const { getByTestId } = render(
-			<ArtifactDetailPageRouter artifact={artifact} />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		render(<ArtifactDetailPageRouter artifact={artifact} />, {
+			wrapper: createWrapper(),
+		});
 
-		expect(getByTestId(url)).toBeTruthy();
+		expect(screen.getByTestId(url)).toBeTruthy();
 	});
 
 	it("renders artifact detail for progress", () => {
@@ -70,14 +64,11 @@ describe("ArtifactDetailPage", () => {
 			data: 50,
 		});
 
-		const { getByTestId } = render(
-			<ArtifactDetailPageRouter artifact={artifact} />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		render(<ArtifactDetailPageRouter artifact={artifact} />, {
+			wrapper: createWrapper(),
+		});
 
-		expect(getByTestId("progress-display")).toBeTruthy();
+		expect(screen.getByTestId("progress-display")).toBeTruthy();
 	});
 
 	it("renders artifact detail for table with data", () => {
@@ -89,14 +80,11 @@ describe("ArtifactDetailPage", () => {
 			]),
 		});
 
-		const { getByTestId } = render(
-			<ArtifactDetailPageRouter artifact={artifact} />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		render(<ArtifactDetailPageRouter artifact={artifact} />, {
+			wrapper: createWrapper(),
+		});
 
-		expect(getByTestId("table-display")).toBeTruthy();
+		expect(screen.getByTestId("table-display")).toBeTruthy();
 	});
 
 	it("renders artifact detail for link as markdown", () => {
@@ -105,13 +93,10 @@ describe("ArtifactDetailPage", () => {
 			data: "[test](https://example.com)",
 		});
 
-		const { getByTestId } = render(
-			<ArtifactDetailPageRouter artifact={artifact} />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		render(<ArtifactDetailPageRouter artifact={artifact} />, {
+			wrapper: createWrapper(),
+		});
 
-		expect(getByTestId("markdown-display")).toBeTruthy();
+		expect(screen.getByTestId("markdown-display")).toBeTruthy();
 	});
 });
