@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 from typing import Any
 
 import anyio
@@ -38,23 +39,39 @@ async def test_happy_path_events(
 
     display.print_flow_run_created(flow_run)
 
-    prefect_core.start_worker(work_pool_name, run_once=True)
+    with subprocess.Popen(
+        ["prefect", "worker", "start", "--pool", work_pool_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ) as worker_process:
+        try:
+            prefect_core.wait_for_flow_run_state(
+                flow_run.id, StateType.COMPLETED, timeout=30
+            )
 
-    prefect_core.wait_for_flow_run_state(flow_run.id, StateType.COMPLETED, timeout=30)
+            async with get_client() as client:
+                updated_flow_run = await client.read_flow_run(flow_run.id)
 
-    async with get_client() as client:
-        updated_flow_run = await client.read_flow_run(flow_run.id)
+            display.print_flow_run_result(updated_flow_run)
 
-    display.print_flow_run_result(updated_flow_run)
+            # Collect events while worker is still running
+            events = []
+            with anyio.move_on_after(30):
+                while len(events) < 3:
+                    events = await prefect_core.read_pod_events_for_flow_run(
+                        flow_run.id
+                    )
+                    await asyncio.sleep(1)
+        finally:
+            worker_process.terminate()
 
-    events = []
-    with anyio.move_on_after(10):
-        while len(events) < 3:
-            events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
-            await asyncio.sleep(1)
-    assert len(events) == 3, "Expected 3 events"
+    assert len(events) == 3, (
+        f"Expected 3 events, got {len(events)}: {[event.event for event in events]}"
+    )
     assert {event.event for event in events} == {
         "prefect.kubernetes.pod.pending",
         "prefect.kubernetes.pod.running",
         "prefect.kubernetes.pod.succeeded",
-    }, "Expected events to be Pending, Running, and Succeeded"
+    }, (
+        f"Expected events to be Pending, Running, and Succeeded, got: {[event.event for event in events]}"
+    )

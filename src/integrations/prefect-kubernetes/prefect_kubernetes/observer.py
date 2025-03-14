@@ -31,6 +31,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     namespace: str,
     labels: kopf.Labels,
     status: kopf.Status,
+    logger: logging.Logger,
     **kwargs: Any,
 ):
     """
@@ -41,6 +42,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     """
     event_type = event["type"]
     phase = status["phase"]
+
+    logger.debug(f"Pod event received - type: {event_type}, phase: {phase}, uid: {uid}")
 
     # Create a deterministic event ID based on the pod's ID, phase, and restart count.
     # This ensures that the event ID is the same for the same pod in the same phase and restart count
@@ -147,7 +150,7 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
     name: str,
     labels: kopf.Labels,
     status: kopf.Status,
-    logger: kopf.Logger,
+    logger: logging.Logger,
     **kwargs: Any,
 ):
     """
@@ -160,25 +163,43 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
     if not (flow_run_id := labels.get("prefect.io/flow-run-id")):
         return
 
+    logger.debug(
+        f"Job event received - name: {name}, flow_run_id: {flow_run_id}, status: {status}"
+    )
+
     # Get the flow run to check its state
     async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(flow_run_id=uuid.UUID(flow_run_id))
         except ObjectNotFound:
-            logger.warning(f"Flow run {flow_run_id} not found, skipping")
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
             return
 
         assert flow_run.state is not None, "Expected flow run state to be set"
 
         # Exit early for terminal/final/scheduled states
         if flow_run.state.is_final() or flow_run.state.is_scheduled():
-            logger.debug("Flow run is in final or scheduled state, skipping")
+            logger.debug(
+                f"Flow run {flow_run_id} is in final or scheduled state, skipping"
+            )
             return
 
         # Check current job status from the event
         current_job_succeeded = status.get("succeeded", 0) > 0
         current_job_failed = status.get("failed", 0) > 0
         current_job_active = status.get("active", 0) > 0
+
+        # Special handling for image pull errors - if job doesn't have any status yet,
+        # consider it active if it's not failed/succeeded
+        if (
+            not (current_job_active or current_job_succeeded or current_job_failed)
+            and status
+        ):
+            current_job_active = True
+
+        logger.debug(
+            f"Job {name} status - succeeded: {current_job_succeeded}, failed: {current_job_failed}, active: {current_job_active}"
+        )
 
         # If the job is still active or has succeeded, don't mark as crashed
         if current_job_active or current_job_succeeded:
@@ -198,6 +219,10 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
             (job.status and job.status.succeeded)  # type: ignore
             or (job.status and job.status.active and job.status.active > 0)  # type: ignore
             for job in other_jobs
+        )
+
+        logger.debug(
+            f"Other jobs status - count: {len(other_jobs)}, has_active: {has_other_active_job}"
         )
 
         # Only mark as crashed if:

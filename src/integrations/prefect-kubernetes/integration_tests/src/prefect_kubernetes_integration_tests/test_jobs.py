@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from prefect import get_client
@@ -32,15 +34,28 @@ async def test_successful_job_completion(
     display.print_flow_run_created(flow_run)
 
     # Start worker and wait for completion
-    prefect_core.start_worker(work_pool_name)
+    with subprocess.Popen(
+        ["prefect", "worker", "start", "--pool", work_pool_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ) as worker_process:
+        try:
+            # Wait for the flow run to complete
+            prefect_core.wait_for_flow_run_state(
+                flow_run.id, StateType.COMPLETED, timeout=30
+            )
 
-    async with get_client() as client:
-        updated_flow_run = await client.read_flow_run(flow_run.id)
+            async with get_client() as client:
+                updated_flow_run = await client.read_flow_run(flow_run.id)
 
-        assert updated_flow_run.state is not None, "Flow run state should not be None"
-        assert updated_flow_run.state.type == StateType.COMPLETED, (
-            "Expected flow run to be COMPLETED. Got "
-            f"{updated_flow_run.state.type} instead."
-        )
+                assert updated_flow_run.state is not None, (
+                    "Flow run state should not be None"
+                )
+                assert updated_flow_run.state.type == StateType.COMPLETED, (
+                    "Expected flow run to be COMPLETED. Got "
+                    f"{updated_flow_run.state.type} instead."
+                )
 
-        display.print_flow_run_result(updated_flow_run)
+                display.print_flow_run_result(updated_flow_run)
+        finally:
+            worker_process.terminate()

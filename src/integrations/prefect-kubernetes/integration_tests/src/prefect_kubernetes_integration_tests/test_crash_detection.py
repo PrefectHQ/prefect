@@ -40,23 +40,26 @@ async def test_failed_pod_start(
 
     display.print_flow_run_created(flow_run)
 
+    # Just use run_once here since we're looking for a crash detection
     prefect_core.start_worker(work_pool_name, run_once=True)
 
+    # After worker finishes, verify the flow run reached CRASHED state
     prefect_core.wait_for_flow_run_state(flow_run.id, StateType.CRASHED, timeout=120)
 
     async with get_client() as client:
         updated_flow_run = await client.read_flow_run(flow_run.id)
-
     assert updated_flow_run.state is not None
     assert updated_flow_run.state.type == StateType.CRASHED
 
     display.print_flow_run_result(updated_flow_run)
 
+    # Get events after worker has finished
     events = []
     with anyio.move_on_after(10):
         while len(events) < 1:
             events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
             await asyncio.sleep(1)
+
     assert len(events) == 1, "Expected 1 event"
     # Pod never fully starts, so we don't get a "running" or "succeeded" event
     assert {event.event for event in events} == {
