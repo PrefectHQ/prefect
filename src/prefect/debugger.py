@@ -42,7 +42,7 @@ class RemotePDB(pdb.Pdb):
         self.command_receiver = PDBInput.receive(
             flow_run_id=self.flow_run_id,
             key_prefix="prefect-remote-debugger-command",
-            timeout=0.5,
+            timeout=1,
         )
 
     def _handle_communication(self):
@@ -103,3 +103,11 @@ class RemotePDB(pdb.Pdb):
 def remote_pdb_breakpoint():
     debugger = RemotePDB()
     debugger.set_trace(sys._getframe().f_back)
+
+
+def start_remote_debugger_at_exception():
+    logger = get_run_logger()
+    logger.error("Exception caught in, starting remote debugger")
+    debugger = RemotePDB()
+    _, _, exc_traceback = sys.exc_info()
+    debugger.interaction(None, exc_traceback)

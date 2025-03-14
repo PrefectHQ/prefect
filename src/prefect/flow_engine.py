@@ -47,6 +47,7 @@ from prefect.context import (
     hydrated_context,
     serialize_context,
 )
+from prefect.debugger import start_remote_debugger_at_exception
 from prefect.engine import handle_engine_signals
 from prefect.exceptions import (
     Abort,
@@ -387,6 +388,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        if self.flow.remote_debug_on_exception:
+            start_remote_debugger_at_exception()
+
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -953,6 +957,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         result_store: Optional[ResultStore] = None,
     ) -> State:
         context = FlowRunContext.get()
+
+        if self.flow.remote_debug_on_exception:
+            start_remote_debugger_at_exception()
+
         terminal_state = cast(
             State,
             await exception_to_failed_state(

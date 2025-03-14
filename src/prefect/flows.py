@@ -218,6 +218,7 @@ class Flow(Generic[P, R]):
         on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        remote_debug_on_exception: bool = False,
     ):
         if name is not None and not isinstance(name, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
@@ -380,6 +381,7 @@ class Flow(Generic[P, R]):
         self.on_cancellation_hooks: list[FlowStateHook[P, R]] = on_cancellation or []
         self.on_crashed_hooks: list[FlowStateHook[P, R]] = on_crashed or []
         self.on_running_hooks: list[FlowStateHook[P, R]] = on_running or []
+        self.remote_debug_on_exception = remote_debug_on_exception
 
         # Used for flows loaded from remote storage
         self._storage: Optional["RunnerStorage"] = None
@@ -438,6 +440,7 @@ class Flow(Generic[P, R]):
         on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        remote_debug_on_exception: bool = False,
     ) -> "Flow[P, R]":
         """
         Create a new flow from the current object, updating provided options.
@@ -541,6 +544,7 @@ class Flow(Generic[P, R]):
             on_cancellation=on_cancellation or self.on_cancellation_hooks,
             on_crashed=on_crashed or self.on_crashed_hooks,
             on_running=on_running or self.on_running_hooks,
+            remote_debug_on_exception=remote_debug_on_exception,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
@@ -1739,6 +1743,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
+        remote_debug_on_exception: bool = False,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     @overload
@@ -1765,6 +1770,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
+        remote_debug_on_exception: bool = False,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     def __call__(
@@ -1790,6 +1796,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
+        remote_debug_on_exception: bool = False,
     ) -> Union[Flow[P, R], Callable[[Callable[P, R]], Flow[P, R]]]:
         """
         Decorator to designate a function as a Prefect workflow.
@@ -1921,6 +1928,7 @@ class FlowDecorator:
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
                 on_running=on_running,
+                remote_debug_on_exception=remote_debug_on_exception,
             )
         else:
             return cast(
@@ -1946,6 +1954,7 @@ class FlowDecorator:
                     on_cancellation=on_cancellation,
                     on_crashed=on_crashed,
                     on_running=on_running,
+                    remote_debug_on_exception=remote_debug_on_exception,
                 ),
             )
 
