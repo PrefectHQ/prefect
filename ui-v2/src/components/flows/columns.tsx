@@ -8,6 +8,7 @@ import {
 	FlowLastRun,
 	FlowName,
 	FlowNextRun,
+	FlowsTableHeaderCell,
 } from "./cells";
 
 type Flow = components["schemas"]["Flow"];
@@ -20,6 +21,7 @@ export const columns: ColumnDef<Flow>[] = [
 				checked={table.getIsAllPageRowsSelected()}
 				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
 				aria-label="Select all"
+				className="m-2"
 			/>
 		),
 		cell: ({ row }) => (
@@ -27,34 +29,36 @@ export const columns: ColumnDef<Flow>[] = [
 				checked={row.getIsSelected()}
 				onCheckedChange={(value) => row.toggleSelected(!!value)}
 				aria-label="Select row"
+				className="m-2"
 			/>
 		),
 		enableSorting: false,
 		enableHiding: false,
+		maxSize: 10,
 	},
 	{
 		accessorKey: "name",
-		header: "Name",
+		header: () => <FlowsTableHeaderCell content="Flow" />,
 		cell: FlowName,
 	},
 	{
 		accessorKey: "lastRuns",
-		header: "Last Run",
+		header: () => <FlowsTableHeaderCell content="Last Run" />,
 		cell: FlowLastRun,
 	},
 	{
 		accessorKey: "nextRuns",
-		header: "Next Run",
+		header: () => <FlowsTableHeaderCell content="Next Run" />,
 		cell: FlowNextRun,
 	},
 	{
 		accessorKey: "deployments",
-		header: "Deployments",
+		header: () => <FlowsTableHeaderCell content="Deployments" />,
 		cell: FlowDeploymentCount,
 	},
 	{
 		accessorKey: "activity",
-		header: "Activity",
+		header: () => <FlowsTableHeaderCell content="Activity" />,
 		cell: FlowActivity,
 	},
 	{
