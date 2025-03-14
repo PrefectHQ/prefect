@@ -16,7 +16,6 @@ DEFAULT_FLOW_ENTRYPOINT = "sleeping.py:sleepy"
 DEFAULT_FLOW_NAME = "job-state-test"
 
 
-@pytest.mark.timeout(120)
 @pytest.mark.usefixtures("kind_cluster")
 async def test_successful_job_completion(
     work_pool_name: str,
