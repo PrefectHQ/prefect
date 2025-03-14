@@ -1,6 +1,7 @@
 import { SearchInput } from "@/components/ui/input";
 import {
 	Table,
+	TableBody,
 	TableCell,
 	TableHead,
 	TableHeader,
@@ -39,23 +40,27 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 			<div className="rounded-md border">
 				<Table>
 					<TableHeader className="bg-gray-100">
-						{headers.map((header, index) => {
+						<TableRow>
+							{headers.map((header, index) => {
+								return (
+									<TableHead key={index} className="py-2 text-black">
+										{header}
+									</TableHead>
+								);
+							})}
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{filteredTable.map((row, index) => {
 							return (
-								<TableHead key={index} className="py-2 text-black">
-									{header}
-								</TableHead>
+								<TableRow key={index}>
+									{headers.map((header, index) => {
+										return <TableCell key={index}>{row[header]}</TableCell>;
+									})}
+								</TableRow>
 							);
 						})}
-					</TableHeader>
-					{filteredTable.map((row, index) => {
-						return (
-							<TableRow key={index}>
-								{headers.map((header, index) => {
-									return <TableCell key={index}>{row[header]}</TableCell>;
-								})}
-							</TableRow>
-						);
-					})}
+					</TableBody>
 				</Table>
 			</div>
 		</div>
