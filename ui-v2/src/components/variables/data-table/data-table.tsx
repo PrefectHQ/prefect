@@ -174,7 +174,7 @@ export const VariablesDataTable = ({
 				</div>
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
 					<Select value={sorting} onValueChange={onSortingChange}>
-						<SelectTrigger aria-label="Variable sort order">
+						<SelectTrigger aria-label="Variable sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>
 						<SelectContent>

@@ -7,8 +7,9 @@ import { components } from "@/api/prefect";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 
 import {
-	buildCountQuery,
-	buildVariablesQuery,
+	buildFilterCountQuery,
+	buildFilterVariablesQuery,
+	buillAllCountQuery,
 	useCreateVariable,
 	useDeleteVariable,
 	useUpdateVariable,
@@ -83,11 +84,15 @@ describe("variable hooks", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			buildVariablesQuery(variableFilter).queryKey,
+			buildFilterVariablesQuery(variableFilter).queryKey,
 			seedVariables(),
 		);
 		queryClient.setQueryData(
-			buildCountQuery(variableFilter).queryKey,
+			buildFilterCountQuery(variableFilter).queryKey,
+			seedVariables().length,
+		);
+		queryClient.setQueryData(
+			buillAllCountQuery().queryKey,
 			seedVariables().length,
 		);
 
@@ -146,11 +151,15 @@ describe("variable hooks", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			buildVariablesQuery(variableFilter).queryKey,
+			buildFilterVariablesQuery(variableFilter).queryKey,
 			seedVariables(),
 		);
 		queryClient.setQueryData(
-			buildCountQuery(variableFilter).queryKey,
+			buildFilterCountQuery(variableFilter).queryKey,
+			seedVariables().length,
+		);
+		queryClient.setQueryData(
+			buillAllCountQuery().queryKey,
 			seedVariables().length,
 		);
 
@@ -208,11 +217,15 @@ describe("variable hooks", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			buildVariablesQuery(variableFilter).queryKey,
+			buildFilterVariablesQuery(variableFilter).queryKey,
 			seedVariables(),
 		);
 		queryClient.setQueryData(
-			buildCountQuery(variableFilter).queryKey,
+			buildFilterCountQuery(variableFilter).queryKey,
+			seedVariables().length,
+		);
+		queryClient.setQueryData(
+			buillAllCountQuery().queryKey,
 			seedVariables().length,
 		);
 
