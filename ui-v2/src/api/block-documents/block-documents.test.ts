@@ -8,16 +8,22 @@ import { createFakeBlockDocument } from "@/mocks";
 
 import {
 	type BlockDocument,
-	buildFilterBlockDocumentsQuery,
+	buildCountFilterBlockDocumentsQuery,
+	buildListFilterBlockDocumentsQuery,
 } from "./block-documents";
 
 describe("block documents queries", () => {
 	const seedBlocksData = () => [createFakeBlockDocument()];
 
-	const mockFilterBlocksAPI = (blocks: Array<BlockDocument>) => {
+	const mockFilterListBlocksAPI = (blocks: Array<BlockDocument>) => {
 		server.use(
 			http.post(buildApiUrl("/block_documents/filter"), () => {
 				return HttpResponse.json(blocks);
+			}),
+		);
+		server.use(
+			http.post(buildApiUrl("/block_documents/count"), () => {
+				return HttpResponse.json(blocks.length);
 			}),
 		);
 	};
@@ -25,16 +31,32 @@ describe("block documents queries", () => {
 	it("is stores block documents list data", async () => {
 		// ------------ Mock API requests when cache is empty
 		const mockList = seedBlocksData();
-		mockFilterBlocksAPI(mockList);
+		mockFilterListBlocksAPI(mockList);
 
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
-			() => useSuspenseQuery(buildFilterBlockDocumentsQuery()),
+			() => useSuspenseQuery(buildListFilterBlockDocumentsQuery()),
 			{ wrapper: createWrapper() },
 		);
 
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("is stores block documents count data", async () => {
+		// ------------ Mock API requests when cache is empty
+		const mockList = seedBlocksData();
+		mockFilterListBlocksAPI(mockList);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildCountFilterBlockDocumentsQuery()),
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(1);
 	});
 });
