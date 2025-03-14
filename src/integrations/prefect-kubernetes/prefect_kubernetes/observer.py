@@ -23,7 +23,7 @@ from prefect.utilities.slugify import slugify
 
 _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
 
-logging.getLogger("kopf").setLevel(logging.DEBUG)
+logging.getLogger("kopf.objects").setLevel(logging.DEBUG)
 
 
 @kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # type: ignore
@@ -148,20 +148,17 @@ async def _get_k8s_jobs(
 
 
 @kopf.on.event("jobs", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # type: ignore
-async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
+async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     name: str,
     labels: kopf.Labels,
     status: kopf.Status,
     logger: logging.Logger,
+    spec: kopf.Spec,
     **kwargs: Any,
 ):
     """
-    Handles job state changes for Prefect flow runs.
-
-    This handler has two core responsibilities:
-    1. Exit early for terminal/final/scheduled states
-    2. For other states, check if there are any jobs with the flow run label and mark as crashed if none exist
+    Marks a flow run as crashed if the corresponding job has failed and no other active jobs exist.
     """
     if not (flow_run_id := labels.get("prefect.io/flow-run-id")):
         return
@@ -169,6 +166,15 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
     logger.debug(
         f"Job event received - name: {name}, flow_run_id: {flow_run_id}, status: {status}"
     )
+    backoff_limit = spec.get("backoffLimit", 6)
+
+    # Check current job status from the event
+    current_job_failed = status.get("failed", 0) > backoff_limit
+
+    # If the job is still active or has succeeded, don't mark as crashed
+    if not current_job_failed:
+        logger.debug(f"Job {name} is still active or has succeeded, skipping")
+        return
 
     # Get the flow run to check its state
     async with get_client() as client:
@@ -185,28 +191,6 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
             logger.debug(
                 f"Flow run {flow_run_id} is in final or scheduled state, skipping"
             )
-            return
-
-        # Check current job status from the event
-        current_job_succeeded = status.get("succeeded", 0) > 0
-        current_job_failed = status.get("failed", 0) > 0
-        current_job_active = status.get("active", 0) > 0
-
-        # Special handling for image pull errors - if job doesn't have any status yet,
-        # consider it active if it's not failed/succeeded
-        if (
-            not (current_job_active or current_job_succeeded or current_job_failed)
-            and status
-        ):
-            current_job_active = True
-
-        logger.debug(
-            f"Job {name} status - succeeded: {current_job_succeeded}, failed: {current_job_failed}, active: {current_job_active}"
-        )
-
-        # If the job is still active or has succeeded, don't mark as crashed
-        if current_job_active or current_job_succeeded or not current_job_failed:
-            logger.debug(f"Job {name} is still active or has succeeded, skipping")
             return
 
         # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
@@ -240,18 +224,18 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
                     flow_run_id=uuid.UUID(flow_run_id)
                 )
                 assert flow_run.state is not None, "Expected flow run state to be set"
-                if not flow_run.state.is_pending() or has_other_active_job:
+                if (
+                    not (flow_run.state.is_pending() or flow_run.state.is_scheduled())
+                    or has_other_active_job
+                ):
                     break
 
+                logger.info(
+                    f"Flow run {flow_run_id} in state {flow_run.state!r} with no other active jobs, waiting for 5 seconds before checking again"
+                )
                 await anyio.sleep(5)
 
-        # Only mark as crashed if:
-        # 1. The current job is not active or succeeded
-        # 2. There are no other active or succeeded jobs
-        # 3. The job has failed (to avoid catching jobs too early)
-        if not has_other_active_job and (
-            flow_run.state.is_pending() or flow_run.state.is_scheduled()
-        ):
+        if not has_other_active_job:
             logger.warning(
                 f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
             )
