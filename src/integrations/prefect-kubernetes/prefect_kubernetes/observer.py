@@ -67,7 +67,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # This handles the case where the observer is restarted and we don't want to emit duplicate events
     # and the case where you're moving from an older version of the worker without the observer to a newer version with the observer.
     if event_type is None:
-        with get_client() as client:
+        async with get_client() as client:
             response = await client.request(
                 "POST",
                 "/events/filter",
