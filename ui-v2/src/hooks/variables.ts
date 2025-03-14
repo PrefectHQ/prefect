@@ -9,38 +9,19 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 
-type UseVariablesOptions =
+type VariablesFilter =
 	components["schemas"]["Body_read_variables_variables_filter_post"];
 
-type VariableKeys = {
-	all: readonly ["variables"];
-	filtered: (
-		options: UseVariablesOptions,
-	) => readonly ["variables", "filtered", string];
-	filteredCount: (options?: UseVariablesOptions) => readonly string[];
-};
-
-/**
- * Query key factory for variables-related queries
- *
- * @property {readonly string[]} all - Base key for all variable queries
- * @property {function} filtered - Generates key for filtered variable queries, incorporating filter options
- * @property {function} filteredCount - Generates key for filtered count queries, including name and tag filters
- */
-const variableKeys: VariableKeys = {
-	all: ["variables"],
-	filtered: (options) => [
-		...variableKeys.all,
-		"filtered",
-		JSON.stringify(options),
-	],
-	filteredCount: (options) => {
-		const key = [...variableKeys.all, "filtered-count"];
-		if (options?.variables?.name?.like_) key.push(options.variables.name.like_);
-		if (options?.variables?.tags?.all_?.length)
-			key.push(JSON.stringify(options.variables.tags));
-		return key;
-	},
+export const queryKeyFactory = {
+	all: () => ["variables"] as const,
+	lists: () => [...queryKeyFactory.all(), "list"] as const,
+	listsFilter: () => [...queryKeyFactory.lists(), "filter"] as const,
+	listFilter: (filter: VariablesFilter) =>
+		[...queryKeyFactory.listsFilter(), filter] as const,
+	counts: () => [...queryKeyFactory.all(), "counts"] as const,
+	countsAll: () => [...queryKeyFactory.counts(), "all"] as const,
+	count: (filter: VariablesFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 };
 
 /**
@@ -52,9 +33,9 @@ const variableKeys: VariableKeys = {
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-export const buildVariablesQuery = (options: UseVariablesOptions) =>
+export const buildFilterVariablesQuery = (options: VariablesFilter) =>
 	queryOptions({
-		queryKey: variableKeys.filtered(options),
+		queryKey: queryKeyFactory.listFilter(options),
 		queryFn: async () => {
 			const response = await getQueryService().POST("/variables/filter", {
 				body: options,
@@ -66,7 +47,7 @@ export const buildVariablesQuery = (options: UseVariablesOptions) =>
 	});
 
 /**
- * Builds a query configuration for counting variables with optional filters
+ * Builds a query configuration for counting variables with filters
  * @param options - Optional filter options for the variables count query
  * @returns A query configuration object compatible with TanStack Query including:
  *  - queryKey: A unique key for caching the count results
@@ -74,14 +55,32 @@ export const buildVariablesQuery = (options: UseVariablesOptions) =>
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-export const buildCountQuery = (options?: UseVariablesOptions) =>
+export const buildFilterCountQuery = (options: VariablesFilter) =>
 	queryOptions({
-		queryKey: variableKeys.filteredCount(options),
+		queryKey: queryKeyFactory.count(options),
 		queryFn: async () => {
-			const body = options?.variables ? { variables: options.variables } : {};
 			const response = await getQueryService().POST("/variables/count", {
-				body,
+				body: options,
 			});
+			return response.data;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+	});
+
+/**
+ * Builds a query configuration for counting all variables
+ * @returns A query configuration object compatible with TanStack Query including:
+ *  - queryKey: A unique key for caching the count results
+ *  - queryFn: The async function to fetch the filtered count
+ *  - staleTime: How long the data should be considered fresh (1 second)
+ *  - placeholderData: Uses previous data while loading new data
+ */
+export const buillAllCountQuery = () =>
+	queryOptions({
+		queryKey: queryKeyFactory.countsAll(),
+		queryFn: async () => {
+			const response = await getQueryService().POST("/variables/count");
 			return response.data;
 		},
 		staleTime: 1000,
@@ -125,15 +124,15 @@ export const buildCountQuery = (options?: UseVariablesOptions) =>
  * });
  * ```
  */
-export const useVariables = (options: UseVariablesOptions) => {
+export const useVariables = (options: VariablesFilter) => {
 	const results = useQueries({
 		queries: [
 			// Filtered variables with pagination
-			buildVariablesQuery(options),
+			buildFilterVariablesQuery(options),
 			// Filtered count
-			buildCountQuery(options),
+			buildFilterCountQuery(options),
 			// Total count
-			buildCountQuery(),
+			buillAllCountQuery(),
 		],
 	});
 
@@ -174,13 +173,13 @@ useVariables.loader = ({
 	deps,
 	context,
 }: {
-	deps: UseVariablesOptions;
+	deps: VariablesFilter;
 	context: { queryClient: QueryClient };
 }) =>
 	Promise.all([
-		context.queryClient.ensureQueryData(buildVariablesQuery(deps)),
-		context.queryClient.ensureQueryData(buildCountQuery(deps)),
-		context.queryClient.ensureQueryData(buildCountQuery()),
+		context.queryClient.ensureQueryData(buildFilterVariablesQuery(deps)),
+		context.queryClient.ensureQueryData(buildFilterCountQuery(deps)),
+		context.queryClient.ensureQueryData(buillAllCountQuery()),
 	]);
 
 /**
@@ -223,7 +222,7 @@ export const useCreateVariable = () => {
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: variableKeys.all,
+				queryKey: queryKeyFactory.all(),
 			});
 		},
 	});
@@ -276,7 +275,7 @@ export const useUpdateVariable = () => {
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: variableKeys.all,
+				queryKey: queryKeyFactory.all(),
 			});
 		},
 	});
@@ -314,7 +313,7 @@ export const useDeleteVariable = () => {
 			}),
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: variableKeys.all,
+				queryKey: queryKeyFactory.all(),
 			});
 		},
 	});
