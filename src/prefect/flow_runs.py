@@ -454,7 +454,7 @@ async def suspend_flow_run(
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later
-        raise Pause()
+        raise Pause(state=state)
 
 
 @sync_compatible
