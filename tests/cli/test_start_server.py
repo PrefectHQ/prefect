@@ -106,6 +106,15 @@ async def start_server_process() -> AsyncIterator[Process]:
 
 
 class TestBackgroundServer:
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path: Path):
+        path = tmp_path / "profiles.toml"
+        with temporary_settings({PREFECT_PROFILES_PATH: path}):
+            save_profiles(
+                profiles=ProfilesCollection(profiles=[get_settings_context().profile])
+            )
+            yield path
+
     def test_start_and_stop_background_server(self, unused_tcp_port: int):
         invoke_and_assert(
             command=[
