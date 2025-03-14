@@ -7,6 +7,7 @@ import threading
 import uuid
 from typing import Any
 
+import anyio
 import kopf
 from cachetools import LRUCache
 from kubernetes_asyncio import config
@@ -21,6 +22,8 @@ from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 
 _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
+
+logging.getLogger("kopf").setLevel(logging.DEBUG)
 
 
 @kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # type: ignore
@@ -202,35 +205,52 @@ async def _handle_job_state(  # pyright: ignore[reportUnusedFunction]
         )
 
         # If the job is still active or has succeeded, don't mark as crashed
-        if current_job_active or current_job_succeeded:
+        if current_job_active or current_job_succeeded or not current_job_failed:
             logger.debug(f"Job {name} is still active or has succeeded, skipping")
             return
 
-        # Check if there are any other jobs with this flow run label
-        k8s_jobs = await _get_k8s_jobs(
-            flow_run_id, namespace=kwargs["namespace"], logger=logger
-        )
+        # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
+        # rescheduling was successful. If this is the case, we want to find the other active job so that we don't mark
+        # the flow run as crashed.
+        #
+        # If the flow run is PENDING, it's possible that the job hasn't been created yet, so we'll wait and query new state
+        # to make a determination.
+        has_other_active_job = False
+        with anyio.move_on_after(30):
+            while True:
+                # Check if there are any other jobs with this flow run label
+                k8s_jobs = await _get_k8s_jobs(
+                    flow_run_id, namespace=kwargs["namespace"], logger=logger
+                )
 
-        # Filter out the current job from the list
-        other_jobs = [job for job in k8s_jobs if job.metadata.name != name]  # type: ignore
+                # Filter out the current job from the list
+                other_jobs = [job for job in k8s_jobs if job.metadata.name != name]  # type: ignore
 
-        # Check if any other job is completed or running
-        has_other_active_job = any(
-            (job.status and job.status.succeeded)  # type: ignore
-            or (job.status and job.status.active and job.status.active > 0)  # type: ignore
-            for job in other_jobs
-        )
+                # Check if any other job is completed or running
+                has_other_active_job = any(
+                    (job.status and job.status.succeeded)  # type: ignore
+                    or (job.status and job.status.active and job.status.active > 0)  # type: ignore
+                    for job in other_jobs
+                )
+                logger.debug(
+                    f"Other jobs status - count: {len(other_jobs)}, has_active: {has_other_active_job}"
+                )
 
-        logger.debug(
-            f"Other jobs status - count: {len(other_jobs)}, has_active: {has_other_active_job}"
-        )
+                flow_run = await client.read_flow_run(
+                    flow_run_id=uuid.UUID(flow_run_id)
+                )
+                assert flow_run.state is not None, "Expected flow run state to be set"
+                if not flow_run.state.is_pending() or has_other_active_job:
+                    break
+
+                await anyio.sleep(5)
 
         # Only mark as crashed if:
         # 1. The current job is not active or succeeded
         # 2. There are no other active or succeeded jobs
         # 3. The job has failed (to avoid catching jobs too early)
-        if current_job_failed and not (
-            current_job_active or current_job_succeeded or has_other_active_job
+        if not has_other_active_job and (
+            flow_run.state.is_pending() or flow_run.state.is_scheduled()
         ):
             logger.warning(
                 f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
