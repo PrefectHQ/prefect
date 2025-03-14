@@ -117,7 +117,6 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -677,25 +676,19 @@ class KubernetesWorker(
             KubernetesWorkerResult: A result object containing information about the
                 final state of the flow run
         """
-        status_code = 0
         logger = self.get_flow_run_logger(flow_run)
         async with self._get_configured_kubernetes_client(configuration) as client:
             logger.info("Creating Kubernetes job...")
 
-            job = None
-            try:
-                job = await self._create_job(configuration, client)
-            except Exception as e:
-                status_code = -1
-                logger.error(f"Failed to create Kubernetes job: {e}")
+            job = await self._create_job(configuration, client)
 
             assert job, "Job should be created"
-            pid = await self._get_infrastructure_pid(job, client)
+            pid = f"{job.metadata.namespace}:{job.metadata.name}"
             # Indicate that the job has started
             if task_status is not None:
                 task_status.started(pid)
 
-            return KubernetesWorkerResult(identifier=pid, status_code=status_code)
+            return KubernetesWorkerResult(identifier=pid, status_code=0)
 
     async def submit(
         self,
@@ -1027,53 +1020,6 @@ class KubernetesWorker(
             yield BatchV1Api(api_client=client)
         finally:
             await client.close()
-
-    async def _get_infrastructure_pid(self, job: "V1Job", client: "ApiClient") -> str:
-        """
-        Generates a Kubernetes infrastructure PID.
-
-        The PID is in the format: "<cluster uid>:<namespace>:<job name>".
-        """
-        cluster_uid = await self._get_cluster_uid(client)
-        pid = f"{cluster_uid}:{job.metadata.namespace}:{job.metadata.name}"
-        return pid
-
-    def _parse_infrastructure_pid(
-        self, infrastructure_pid: str
-    ) -> Tuple[str, str, str]:
-        """
-        Parse a Kubernetes infrastructure PID into its component parts.
-
-        Returns a cluster UID, namespace, and job name.
-        """
-        cluster_uid, namespace, job_name = infrastructure_pid.split(":", 2)
-        return cluster_uid, namespace, job_name
-
-    async def _get_cluster_uid(self, client: "ApiClient") -> str:
-        """
-        Gets a unique id for the current cluster being used.
-
-        There is no real unique identifier for a cluster. However, the `kube-system`
-        namespace is immutable and has a persistence UID that we use instead.
-
-        PREFECT_KUBERNETES_CLUSTER_UID can be set in cases where the `kube-system`
-        namespace cannot be read e.g. when a cluster role cannot be created. If set,
-        this variable will be used and we will not attempt to read the `kube-system`
-        namespace.
-
-        See https://github.com/kubernetes/kubernetes/issues/44954
-        """
-        settings = KubernetesSettings()
-        # Default to an environment variable
-        env_cluster_uid = settings.cluster_uid
-        if env_cluster_uid:
-            return env_cluster_uid
-
-        # Read the UID from the cluster namespace
-        v1 = CoreV1Api(client)
-        namespace = await v1.read_namespace("kube-system")
-        cluster_uid = namespace.metadata.uid
-        return cluster_uid
 
     async def __aenter__(self):
         start_observer()
