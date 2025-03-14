@@ -1,4 +1,5 @@
 import uuid
+from contextlib import asynccontextmanager
 from time import sleep
 from unittest.mock import ANY, AsyncMock, MagicMock
 
@@ -190,9 +191,13 @@ class TestReplicatePodEvent:
         mock_client.request.return_value = MagicMock(
             json=lambda: {"events": [{"id": "existing-event"}]}
         )
-        mock_get_client = MagicMock(return_value=mock_client)
-        mock_get_client.return_value.__enter__ = lambda _: mock_client
-        mock_get_client.return_value.__exit__ = lambda *_args: None
+
+        @asynccontextmanager
+        async def mock_get_client():
+            try:
+                yield mock_client
+            finally:
+                pass
 
         monkeypatch.setattr("prefect_kubernetes.observer.get_client", mock_get_client)
 
@@ -244,13 +249,17 @@ class TestStartAndStopObserver:
         and without hanging.
         """
         # Set up a mock to check check for existing pod events
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_client.request.return_value.json.return_value = {
             "events": [{"id": "existing-event"}]
         }
-        mock_get_client = MagicMock(return_value=mock_client)
-        mock_get_client.return_value.__enter__ = lambda x: mock_client
-        mock_get_client.return_value.__exit__ = lambda *args: None
+
+        @asynccontextmanager
+        async def mock_get_client():
+            try:
+                yield mock_client
+            finally:
+                pass
 
         monkeypatch.setattr("prefect_kubernetes.observer.get_client", mock_get_client)
 
