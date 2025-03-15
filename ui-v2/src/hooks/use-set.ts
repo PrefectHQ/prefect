@@ -61,5 +61,5 @@ export const useSet = <K>(initialSet = new Set<K>()): [Set<K>, Actions<K>] => {
 		...stableActions,
 	} as Actions<K>;
 
-	return [set, utils];
+	return [set, setSet, utils];
 };

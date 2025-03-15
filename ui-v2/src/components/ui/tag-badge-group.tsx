@@ -55,3 +55,62 @@ export const TagBadgeGroup = ({
 		</>
 	);
 };
+
+type TagBadgeGroupPropsX<T> = {
+	tags: T[] | undefined;
+	variant?: BadgeProps["variant"];
+	maxTagsDisplayed?: number;
+	onTagsChange?: (tags: T[]) => void;
+	labelKey: keyof T;
+	idKey: keyof T;
+};
+
+export function TagBadgeGroupX<T>({
+	tags = [],
+	variant,
+	maxTagsDisplayed = 2,
+	onTagsChange,
+	labelKey,
+	idKey,
+}: TagBadgeGroupPropsX<T>) {
+	const removeTag = (tag: T) => {
+		const updatedTags = tags.filter((t) => t[idKey] !== tag[idKey]);
+		onTagsChange?.(updatedTags);
+	};
+
+	const numTags = tags.length;
+
+	if (numTags > maxTagsDisplayed) {
+		return (
+			<HoverCard>
+				<HoverCardTrigger asChild>
+					<Badge variant={variant} className="ml-1 whitespace-nowrap">
+						{numTags} tags
+					</Badge>
+				</HoverCardTrigger>
+				<HoverCardContent className="flex flex-wrap gap-1">
+					{tags.map((tag) => (
+						<TagBadge
+							key={String(tag[idKey])}
+							tag={String(tag[labelKey])}
+							onRemove={onTagsChange ? () => removeTag(tag) : undefined}
+						/>
+					))}
+				</HoverCardContent>
+			</HoverCard>
+		);
+	}
+
+	return (
+		<>
+			{tags.map((tag) => (
+				<TagBadge
+					key={String(tag[idKey])}
+					tag={String(tag[labelKey])}
+					onRemove={onTagsChange ? () => removeTag(tag) : undefined}
+					variant={variant}
+				/>
+			))}
+		</>
+	);
+}

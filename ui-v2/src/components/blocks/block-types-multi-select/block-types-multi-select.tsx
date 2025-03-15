@@ -4,8 +4,7 @@ import {
 	type BlockType,
 	buildListFilterBlockTypesQuery,
 } from "@/api/block-types";
-import { UNASSIGNED } from "@/components/automations/automations-wizard/automation-schema";
-import { Badge } from "@/components/ui/badge";
+
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -16,16 +15,10 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import {
-	Command,
-	CommandGroup,
-	CommandItem,
-	CommandList,
-} from "@/components/ui/command";
-import { TagBadge } from "@/components/ui/tag-badge";
+
+import { TagBadgeGroupX } from "@/components/ui/tag-badge-group";
 import { useSet } from "@/hooks/use-set";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Command as CommandPrimitive } from "cmdk";
 import { Suspense, useDeferredValue, useMemo, useState } from "react";
 
 export function BlockTypesMultiSelect() {
@@ -38,7 +31,7 @@ export function BlockTypesMultiSelect() {
 
 function BlockTypesMultiSelectImplementation() {
 	const [search, setSearch] = useState("");
-	const [selectedBlockTypesIds, { toggle, has, remove }] = useSet();
+	const [selectedBlockTypesIds, setSet, { toggle, has }] = useSet();
 
 	const deferredSearch = useDeferredValue(search);
 
@@ -60,19 +53,25 @@ function BlockTypesMultiSelectImplementation() {
 		);
 	}, [blockTypes, deferredSearch]);
 
+	const handleRemoveTag = (blockTypes: Array<BlockType>) => {
+		const blockTypeIds = blockTypes.map((blockType) => blockType.id);
+		setSet(new Set(blockTypeIds));
+	};
+
 	return (
 		<Combobox>
 			<ComboboxTrigger selected={selectedBlockTypesIds.size > 0}>
 				<div className="flex gap-1">
-					{selectedBlockTypesIds.size > 0
-						? selectedBlockTypes.map((blockType) => (
-								<TagBadge
-									key={blockType.id}
-									tag={blockType.name}
-									onRemove={() => remove(blockType.id)}
-								/>
-							))
-						: "Select block types"}
+					{selectedBlockTypesIds.size > 0 ? (
+						<TagBadgeGroupX
+							tags={selectedBlockTypes}
+							idKey="id"
+							labelKey="name"
+							onTagsChange={handleRemoveTag}
+						/>
+					) : (
+						"Select block types"
+					)}
 				</div>
 			</ComboboxTrigger>
 			<ComboboxContent>
