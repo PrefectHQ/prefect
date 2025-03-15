@@ -481,6 +481,7 @@
                     "v3/api-ref/rest-api/server/task-runs/count-task-runs",
                     "v3/api-ref/rest-api/server/task-runs/task-run-history",
                     "v3/api-ref/rest-api/server/task-runs/read-task-runs",
+                    "v3/api-ref/rest-api/server/task-runs/paginate-task-runs",
                     "v3/api-ref/rest-api/server/task-runs/set-task-run-state",
                     "v3/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
                     "v3/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state"
