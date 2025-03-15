@@ -244,25 +244,8 @@ def start(
     """
     Start a Prefect server instance
     """
-    base_url = f"http://{host}:{port}"
-    if is_interactive():
-        try:
-            prestart_check(base_url)
-        except Exception:
-            pass
-
-    server_settings = {
-        "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
-        "PREFECT_SERVER_ANALYTICS_ENABLED": str(analytics),
-        "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": str(late_runs),
-        "PREFECT_UI_ENABLED": str(ui),
-        "PREFECT_SERVER_LOGGING_LEVEL": log_level,
-    }
-
-    if no_services:
-        server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
-
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
+
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -273,12 +256,14 @@ def start(
             f"Invalid host '{host}'. Please specify a valid hostname or IP address."
         )
     except socket.error:
+        # If there's a PID file and the port is in use, assume it's our server
         if pid_file.exists():
             exit_with_error(
                 f"A background server process is already running on port {port}. "
                 "Run `prefect server stop` to stop it or specify a different port "
                 "with the `--port` flag."
             )
+
         exit_with_error(
             f"Port {port} is already in use. Please specify a different port with the "
             "`--port` flag."
@@ -293,6 +278,41 @@ def start(
                 "A server is already running in the background. To stop it,"
                 " run `prefect server stop`."
             )
+
+    # Check if host/port were explicitly passed (not using default values)
+    current_profile = load_current_profile()
+    using_default_host = host == PREFECT_SERVER_API_HOST.value()
+    using_default_port = port == PREFECT_SERVER_API_PORT.value()
+
+    # If both host and port are using defaults and PREFECT_API_URL exists, use that
+    if (
+        using_default_host
+        and using_default_port
+        and current_profile
+        and PREFECT_API_URL in current_profile.settings
+    ):
+        api_url = current_profile.settings[PREFECT_API_URL]
+        # Remove /api suffix if present to get base_url
+        base_url = api_url[:-4] if api_url.endswith("/api") else api_url
+    else:
+        # Either explicit host/port were provided or no PREFECT_API_URL exists
+        base_url = f"http://{host}:{port}"
+        if is_interactive():
+            try:
+                prestart_check(base_url)
+            except Exception:
+                pass
+
+    server_settings = {
+        "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
+        "PREFECT_SERVER_ANALYTICS_ENABLED": str(analytics),
+        "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": str(late_runs),
+        "PREFECT_UI_ENABLED": str(ui),
+        "PREFECT_SERVER_LOGGING_LEVEL": log_level,
+    }
+
+    if no_services:
+        server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
 
     app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
     app.console.print("\n")
@@ -374,7 +394,7 @@ def _run_in_foreground(
                 ).lower(),
             )
     finally:
-        app.console.print("Server stopped!")
+        app.console.print("\n[green]Server stopped![/]")
 
 
 @server_app.command()
@@ -394,7 +414,7 @@ async def stop():
         # The file probably exists, but use `missing_ok` to avoid an
         # error if the file was deleted by another actor
         pid_file.unlink(missing_ok=True)
-    app.console.print("Server stopped!")
+    app.console.print("\n[green]Server stopped![/]")
 
 
 @database_app.command()
