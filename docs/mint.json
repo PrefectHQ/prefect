@@ -10,7 +10,7 @@
     {
       "icon": "slack",
       "name": "Join our Community",
-      "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
+      "url": "https://prefect.io/slack"
     },
     {
       "icon": "cloud",
@@ -79,9 +79,7 @@
           "pages": [
             "v3/tutorials/platform",
             "v3/tutorials/debug",
-            "v3/tutorials/alerts",
-            "v3/tutorials/modal",
-            "v3/tutorials/server-and-worker"
+            "v3/tutorials/alerts"
           ]
         }
       ],
@@ -240,7 +238,20 @@
           ],
           "version": "v3"
         },
-        "v3/manage/self-host",
+        {
+          "group": "Prefect server",
+          "pages": [
+            "v3/manage/server/index",
+            {
+              "group": "Self-hosting examples",
+              "pages": [
+                "v3/manage/server/examples/cli",
+                "v3/manage/server/examples/docker",
+                "v3/manage/server/examples/helm"
+              ]
+            }
+          ]
+        },
         "v3/manage/infrastructure-as-code"
       ],
       "version": "v3"
@@ -1436,6 +1447,14 @@
     {
       "destination": "/v3/manage/infrastructure-as-code",
       "source": "/v3/manage/cloud/terraform-provider"
+    },
+    {
+      "destination": "/v3/deploy/infrastructure-examples/modal",
+      "source": "/v3/tutorials/modal"
+    },
+    {
+      "destination": "/v3/manage/server/examples/helm",
+      "source": "/v3/tutorials/server-and-worker"
     },
     {
       "destination": "/v3/api-ref/python",

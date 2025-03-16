@@ -16,6 +16,7 @@ from opentelemetry.trace import (
 from typing_extensions import TypeAlias
 
 import prefect
+import prefect.settings
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import State
@@ -50,15 +51,19 @@ class RunTelemetry:
         default_factory=lambda: get_tracer("prefect", prefect.__version__)
     )
     span: Span | None = None
+    _enabled: bool = field(
+        default_factory=lambda: prefect.settings.get_current_settings().cloud.enable_orchestration_telemetry
+    )
 
     async def async_start_span(
         self,
         run: FlowOrTaskRun,
         client: PrefectClient,
         parameters: dict[str, Any] | None = None,
-    ) -> Span:
+    ) -> Span | None:
+        if not self._enabled:
+            return None
         traceparent, span = self._start_span(run, parameters)
-
         if self._run_type(run) == "flow" and traceparent:
             # Only explicitly update labels if the run is a flow as task runs
             # are updated via events.
@@ -73,7 +78,10 @@ class RunTelemetry:
         run: FlowOrTaskRun,
         client: SyncPrefectClient,
         parameters: dict[str, Any] | None = None,
-    ) -> Span:
+    ) -> Span | None:
+        if not self._enabled:
+            return None
+
         traceparent, span = self._start_span(run, parameters)
 
         if self._run_type(run) == "flow" and traceparent:

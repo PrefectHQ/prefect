@@ -3675,21 +3675,21 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp" },
+    { name = "azure-cosmos", marker = "extra == 'all-extras'" },
+    { name = "azure-cosmos", marker = "extra == 'cosmos-db'" },
     { name = "azure-identity", specifier = ">=1.10" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0" },
     { name = "azure-mgmt-resource", specifier = ">=21.2" },
+    { name = "azure-storage-blob", marker = "extra == 'all-extras'" },
+    { name = "azure-storage-blob", marker = "extra == 'blob-storage'" },
+    { name = "azureml-core", marker = "extra == 'all-extras'" },
+    { name = "azureml-core", marker = "extra == 'ml-datastore'" },
     { name = "prefect", directory = "." },
     { name = "setuptools" },
 ]
+provides-extras = ["blob-storage", "cosmos-db", "ml-datastore", "all-extras"]
 
 [package.metadata.requires-dev]
-all-extras = [
-    { name = "azure-cosmos" },
-    { name = "azure-storage-blob" },
-    { name = "azureml-core" },
-]
-blob-storage = [{ name = "azure-storage-blob" }]
-cosmos-db = [{ name = "azure-cosmos" }]
 dev = [
     { name = "aiohttp" },
     { name = "azure-cosmos" },
@@ -3709,7 +3709,6 @@ dev = [
     { name = "pytest-env" },
     { name = "pytest-xdist" },
 ]
-ml-datastore = [{ name = "azureml-core" }]
 
 [[package]]
 name = "prefect-bitbucket"
@@ -3819,25 +3818,26 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dbt-bigquery", marker = "extra == 'all-extras'" },
+    { name = "dbt-bigquery", marker = "extra == 'bigquery'" },
     { name = "dbt-core", specifier = ">=1.7.0" },
+    { name = "dbt-postgres", marker = "extra == 'all-extras'" },
+    { name = "dbt-postgres", marker = "extra == 'postgres'" },
+    { name = "dbt-snowflake", marker = "extra == 'all-extras'" },
+    { name = "dbt-snowflake", marker = "extra == 'snowflake'" },
     { name = "prefect", directory = "." },
+    { name = "prefect-gcp", extras = ["bigquery"], marker = "extra == 'all-extras'", directory = "src/integrations/prefect-gcp" },
+    { name = "prefect-gcp", extras = ["bigquery"], marker = "extra == 'bigquery'", directory = "src/integrations/prefect-gcp" },
     { name = "prefect-shell", directory = "src/integrations/prefect-shell" },
+    { name = "prefect-snowflake", marker = "extra == 'all-extras'", directory = "src/integrations/prefect-snowflake" },
+    { name = "prefect-snowflake", marker = "extra == 'snowflake'", directory = "src/integrations/prefect-snowflake" },
+    { name = "prefect-sqlalchemy", marker = "extra == 'all-extras'", directory = "src/integrations/prefect-sqlalchemy" },
+    { name = "prefect-sqlalchemy", marker = "extra == 'postgres'", directory = "src/integrations/prefect-sqlalchemy" },
     { name = "sgqlc", specifier = ">=16.0.0" },
 ]
+provides-extras = ["snowflake", "bigquery", "postgres", "all-extras"]
 
 [package.metadata.requires-dev]
-all-extras = [
-    { name = "dbt-bigquery" },
-    { name = "dbt-postgres" },
-    { name = "dbt-snowflake" },
-    { name = "prefect-gcp", extras = ["bigquery"], directory = "src/integrations/prefect-gcp" },
-    { name = "prefect-snowflake", directory = "src/integrations/prefect-snowflake" },
-    { name = "prefect-sqlalchemy", directory = "src/integrations/prefect-sqlalchemy" },
-]
-bigquery = [
-    { name = "dbt-bigquery" },
-    { name = "prefect-gcp", extras = ["bigquery"], directory = "src/integrations/prefect-gcp" },
-]
 dev = [
     { name = "coverage" },
     { name = "dbt-bigquery" },
@@ -3859,14 +3859,6 @@ dev = [
     { name = "pytest-env" },
     { name = "pytest-xdist" },
     { name = "respx" },
-]
-postgres = [
-    { name = "dbt-postgres" },
-    { name = "prefect-sqlalchemy", directory = "src/integrations/prefect-sqlalchemy" },
-]
-snowflake = [
-    { name = "dbt-snowflake" },
-    { name = "prefect-snowflake", directory = "src/integrations/prefect-snowflake" },
 ]
 
 [[package]]
@@ -3945,27 +3937,25 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "google-api-python-client", specifier = ">=2.20.0" },
+    { name = "google-cloud-aiplatform", marker = "extra == 'aiplatform'" },
+    { name = "google-cloud-aiplatform", marker = "extra == 'all-extras'" },
+    { name = "google-cloud-bigquery", marker = "extra == 'all-extras'" },
+    { name = "google-cloud-bigquery", marker = "extra == 'bigquery'" },
+    { name = "google-cloud-bigquery-storage", marker = "extra == 'all-extras'" },
+    { name = "google-cloud-bigquery-storage", marker = "extra == 'bigquery'" },
     { name = "google-cloud-secret-manager" },
+    { name = "google-cloud-secret-manager", marker = "extra == 'all-extras'" },
+    { name = "google-cloud-secret-manager", marker = "extra == 'secret-manager'" },
     { name = "google-cloud-storage", specifier = ">=2.0.0" },
+    { name = "google-cloud-storage", marker = "extra == 'all-extras'" },
+    { name = "google-cloud-storage", marker = "extra == 'cloud-storage'" },
     { name = "prefect", directory = "." },
     { name = "python-slugify", specifier = ">=8.0.0" },
     { name = "tenacity", specifier = ">=8.0.0" },
 ]
+provides-extras = ["cloud-storage", "bigquery", "secret-manager", "aiplatform", "all-extras"]
 
 [package.metadata.requires-dev]
-aiplatform = [{ name = "google-cloud-aiplatform" }]
-all-extras = [
-    { name = "google-cloud-aiplatform" },
-    { name = "google-cloud-bigquery" },
-    { name = "google-cloud-bigquery-storage" },
-    { name = "google-cloud-secret-manager" },
-    { name = "google-cloud-storage" },
-]
-bigquery = [
-    { name = "google-cloud-bigquery" },
-    { name = "google-cloud-bigquery-storage" },
-]
-cloud-storage = [{ name = "google-cloud-storage" }]
 dev = [
     { name = "coverage" },
     { name = "google-cloud-aiplatform" },
@@ -3988,7 +3978,6 @@ dev = [
     { name = "pytest-env" },
     { name = "pytest-xdist" },
 ]
-secret-manager = [{ name = "google-cloud-secret-manager" }]
 
 [[package]]
 name = "prefect-github"
@@ -4070,7 +4059,7 @@ dependencies = [
 requires-dist = [
     { name = "exceptiongroup" },
     { name = "kubernetes-asyncio", specifier = ">=32.0.0" },
-    { name = "prefect", directory = "." },
+    { name = "prefect", editable = "." },
     { name = "pyopenssl", specifier = ">=24.1.0" },
     { name = "tenacity", specifier = ">=8.2.3" },
 ]

@@ -176,7 +176,7 @@ from prefect_kubernetes.utilities import (
 )
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import FlowRun
+    from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.flows import Flow
 
@@ -201,7 +201,7 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
             "generateName": "{{ name }}-",
         },
         "spec": {
-            "backoffLimit": 0,
+            "backoffLimit": "{{ backoff_limit }}",
             "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
             "template": {
                 "spec": {
@@ -363,8 +363,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["APIFlow"] = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "APIFlow | None" = None,
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -379,7 +381,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             flow: The flow associated with the flow run used for preparation.
         """
 
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        # Configure eviction handling
+        self._configure_eviction_handling()
         # Update configuration env and job manifest env
         self._update_prefect_api_url_if_local_server()
         self._populate_env_in_manifest()
@@ -389,6 +393,46 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
+
+    def _configure_eviction_handling(self):
+        """
+        Configures eviction handling for the job pod. Needs to run before
+
+        If `backoffLimit` is set to 0, we'll tell the Runner to reschedule
+        its flow run when it receives a SIGTERM.
+
+        If `backoffLimit` is set to a positive number, we'll ensure that the
+        reschedule SIGTERM handling is not set. Having both a `backoffLimit` and
+        reschedule handling set can cause duplicate flow run execution.
+        """
+        # If backoffLimit is set to 0, we'll tell the Runner to reschedule
+        # its flow run when it receives a SIGTERM.
+        if self.job_manifest["spec"].get("backoffLimit") == 0:
+            if isinstance(self.env, dict):
+                self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
+            elif not any(
+                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                for v in self.env
+            ):
+                self.env.append(
+                    {
+                        "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                        "value": "reschedule",
+                    }
+                )
+        # Otherwise, we'll ensure that the reschedule SIGTERM handling is not set.
+        else:
+            if isinstance(self.env, dict):
+                self.env.pop("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", None)
+            elif any(
+                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                for v in self.env
+            ):
+                self.env = [
+                    v
+                    for v in self.env
+                    if v.get("name") != "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                ]
 
     def _populate_env_in_manifest(self):
         """
@@ -538,6 +582,15 @@ class KubernetesWorkerVariables(BaseVariables):
         default=KubernetesImagePullPolicy.IF_NOT_PRESENT,
         description="The Kubernetes image pull policy to use for job containers.",
     )
+    backoff_limit: int = Field(
+        default=0,
+        ge=0,
+        title="Backoff Limit",
+        description=(
+            "The number of times Kubernetes will retry a job after pod eviction. "
+            "If set to 0, Prefect will reschedule the flow run when the pod is evicted."
+        ),
+    )
     finished_job_ttl: Optional[int] = Field(
         default=None,
         title="Finished Job TTL",
@@ -602,7 +655,7 @@ class KubernetesWorker(
         self,
         flow_run: "FlowRun",
         configuration: KubernetesWorkerJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
+        task_status: anyio.abc.TaskStatus[int] | None = None,
     ) -> KubernetesWorkerResult:
         """
         Executes a flow run within a Kubernetes Job and waits for the flow run
@@ -642,7 +695,11 @@ class KubernetesWorker(
             )
             async with events_replicator:
                 status_code = await self._watch_job(
-                    logger, job.metadata.name, configuration, client
+                    logger=logger,
+                    job_name=job.metadata.name,
+                    configuration=configuration,
+                    client=client,
+                    flow_run=flow_run,
                 )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
@@ -736,7 +793,12 @@ class KubernetesWorker(
             values=job_variables,
             client=self._client,
         )
-        configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=api_flow,
+            work_pool=self._work_pool,
+            worker_name=self.name,
+        )
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
@@ -838,8 +900,8 @@ class KubernetesWorker(
         self,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-        secret_name: Optional[str] = None,
-        secret_key: Optional[str] = None,
+        secret_name: str | None = None,
+        secret_key: str | None = None,
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
         manifest_env = configuration.job_manifest["spec"]["template"]["spec"][
@@ -1143,6 +1205,7 @@ class KubernetesWorker(
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
+        flow_run: "FlowRun",
     ) -> int:
         """
         Watch a job.
@@ -1215,7 +1278,13 @@ class KubernetesWorker(
             )
 
         if not first_container_status:
-            logger.error(f"Job {job_name!r}: No pods found for job.")
+            assert self._client is not None
+            up_to_date_flow_run = await self._client.read_flow_run(
+                flow_run.id,
+            )
+            if up_to_date_flow_run.state and up_to_date_flow_run.state.is_scheduled():
+                return 0
+            logger.error(f"Job {job_name!r}: Unable to determine container status.")
             return -1
 
         # In some cases, the pod will still be running at this point.
@@ -1254,7 +1323,7 @@ class KubernetesWorker(
         job_id: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> Optional["V1Job"]:
+    ) -> "V1Job | None":
         """Get a Kubernetes job by id."""
 
         try:
@@ -1273,13 +1342,13 @@ class KubernetesWorker(
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> Optional["V1Pod"]:
+    ) -> "V1Pod | None":
         """Get the first running pod for a job."""
 
         watch = kubernetes_asyncio.watch.Watch()
         logger.info(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
-        last_pod_name: Optional[str] = None
+        last_pod_name: str | None = None
         core_client = CoreV1Api(client)
         async with watch:
             async for event in watch.stream(
@@ -1312,7 +1381,7 @@ class KubernetesWorker(
         self,
         logger: logging.Logger,
         job_name: str,
-        pod_name: Optional[str],
+        pod_name: str | None,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:

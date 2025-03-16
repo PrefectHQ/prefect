@@ -4492,6 +4492,25 @@ class TestFlowServe:
             name="test", pause_on_shutdown=ANY, limit=limit
         )
 
+    def test_serve_does_not_strip_non_file_path_names(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """this is a regression test for https://github.com/PrefectHQ/prefect/issues/17446
+
+        Test that names like semantic version numbers in deployment names are preserved."""
+
+        captured_name = None
+
+        def mock_add_flow(*args, name=None, **kwargs):
+            nonlocal captured_name
+            captured_name = name
+            return uuid.uuid4()
+
+        monkeypatch.setattr("prefect.runner.Runner.add_flow", mock_add_flow)
+
+        self.flow.serve("etl-0.0.5")
+        assert captured_name == "etl-0.0.5"
+
 
 class MockStorage:
     """
@@ -4934,6 +4953,33 @@ class TestFlowDeploy:
         )
 
         assert not capsys.readouterr().out
+
+    async def test_deploy_from_within_flow(
+        self, mock_deploy, local_flow, work_pool, prefect_client
+    ):
+        """regression test for 17434"""
+
+        @flow
+        def hello_flow():
+            local_flow.deploy(
+                name="my-deployment",
+                work_pool_name=work_pool.name,
+            )
+
+        hello_flow()
+
+        assert mock_deploy.call_count == 1
+        mock_deploy.assert_called_once_with(
+            await local_flow.to_deployment(
+                name="my-deployment",
+            ),
+            work_pool_name=work_pool.name,
+            image=None,
+            build=True,
+            push=True,
+            print_next_steps_message=False,
+            ignore_warnings=False,
+        )
 
 
 class TestLoadFlowFromFlowRun:

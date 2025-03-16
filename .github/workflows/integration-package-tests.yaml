@@ -67,11 +67,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache-dependency-glob: "pyproject.toml"
-
-      - name: Install dependencies
-        working-directory: src/integrations/${{ matrix.package }}
-        run: uv sync
+          cache-dependency-glob: " src/integrations/${{ matrix.package }}/pyproject.toml"
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'

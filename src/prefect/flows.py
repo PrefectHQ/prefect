@@ -1046,10 +1046,9 @@ class Flow(Generic[P, R]):
         if not name:
             name = self.name
         else:
-            # Handling for my_flow.serve(__file__)
-            # Will set name to name of file where my_flow.serve() without the extension
-            # Non filepath strings will pass through unchanged
-            name = Path(name).stem
+            # Only strip extension if it is a file path
+            if (p := Path(name)).is_file():
+                name = p.stem
 
         runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown, limit=limit)
         deployment_id = runner.add_flow(
@@ -1490,10 +1489,10 @@ class Flow(Generic[P, R]):
             _sla=_sla,
         )
 
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(to_deployment_coro)
-
-        deployment = await to_deployment_coro
+        if inspect.isawaitable(to_deployment_coro):
+            deployment = await to_deployment_coro
+        else:
+            deployment = to_deployment_coro
 
         from prefect.deployments.runner import deploy
 

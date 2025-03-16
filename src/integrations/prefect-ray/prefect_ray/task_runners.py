@@ -206,7 +206,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         ```
         Connecting to an existing ray instance:
         ```python
-        RayTaskRunner(address="ray://192.0.2.255:8786")
+        RayTaskRunner(address="ray://<head_node_host>:10001")
         ```
     """
 
