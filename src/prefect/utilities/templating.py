@@ -13,6 +13,7 @@ from typing import (
     cast,
     overload,
 )
+import json
 
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import get_logger
@@ -360,6 +361,13 @@ async def resolve_block_document_references(
 
             # resolving keypath/block attributes
             if value_keypath:
+                try:  # try to parse the data as json
+                    data = json.loads(data)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Cannot parse block document data as JSON, use as is."
+                    )
+
                 from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
                 if from_dict is NotSet:
                     raise ValueError(
