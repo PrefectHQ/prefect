@@ -11,13 +11,31 @@ import {
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuGroup,
-	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
 import * as React from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import {
+	ChartConfig,
+	ChartContainer,
+	ChartTooltip,
+	ChartTooltipContent,
+} from "@/components/ui/chart";
+import { subDays, endOfDay, addHours, startOfHour } from "date-fns";
+
+
+const END_DATE = startOfHour(addHours(endOfDay(new Date()), 1)).toISOString();
+const START_DATE = subDays(END_DATE, 7).toISOString();
 
 export const Route = createFileRoute("/events/")({
 	component: RouteComponent,
@@ -35,14 +53,19 @@ export const Route = createFileRoute("/events/")({
 			context.queryClient.ensureQueryData(
 				getQueryHooks().queryOptions("post", "/events/count-by/{countable}", {
 					params: {
-						path: { countable: "event" }
+						path: { countable: "time" }
 					},
 					body: {
 						filter: {
+							any_resource: deps.filter?.any_resource,
 							order: "DESC",
+							occurred: {
+								since: START_DATE,
+								until: END_DATE
+							}
 						},
-						time_unit: "week",
-						time_interval: 1
+						time_interval: 1,
+						time_unit: "hour"
 					}
 				})
 			),
@@ -106,42 +129,6 @@ function ResourceCheckboxItem({
 	);
 }
 
-function EventTypeCheckboxItem({
-	eventType,
-}: {
-	eventType: string;
-	count?: number;
-}) {
-	const { filter } = Route.useSearch();
-	const navigate = Route.useNavigate();
-	const isChecked = filter?.event === eventType;
-	
-	return (
-		<DropdownMenuCheckboxItem
-			key={eventType}
-			onSelect={(e) => e.preventDefault()}
-			checked={isChecked}
-			onCheckedChange={(checked) => {
-				navigate({
-					to: "/events",
-					search: (prev) => {
-						return {
-							...prev,
-							filter: {
-								...prev.filter,
-								event: checked ? eventType : undefined
-							}
-						}
-					},
-					replace: true
-				})
-			}}
-		>
-			{eventType}
-		</DropdownMenuCheckboxItem>
-	);
-}
-
 function RouteComponent() {
 	const [ events, eventGroupCounts, flows, workPools, deployments, blockDocuments, automations ]= Route.useLoaderData();
 	const search = Route.useSearch();
@@ -152,14 +139,28 @@ function RouteComponent() {
 	const resourceIds = resourceFilter.id || [];
 	const resourceArray = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
 	
-
 	const countSelected = () => {
 		return resourceArray.length > 0 ? `${resourceArray.length} selected` : "Filter by resource";
 	};
 	
+
+	const chartConfig = {
+		events: {
+			label: "Events",
+			color: "hsl(var(--chart-1))",
+		},
+		count: {
+			label: "Count",
+			color: "hsl(var(--chart-1))",
+		},
+	} satisfies ChartConfig;
+	
+	const totalEvents = React.useMemo(() => 
+		eventGroupCounts.reduce((acc, curr) => acc + curr.count, 0),
+	[eventGroupCounts]);
 	
 	return (
-		<ul>
+		<div>
 			<div className="flex space-x-4 mb-4">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -284,23 +285,98 @@ function RouteComponent() {
 				</DropdownMenu>
 			</div>
 
-			{events.events.map((event) => {
-				const eventDate = new Date(event.occurred);
-				return (
-					<li key={event.id}>
-						<Link
-							to="/events/event/$date/$eventId"
-							params={{
-								date: formatISO(eventDate, {'representation': 'date'}),
-								eventId: event.id
+			<Card className="mb-6 p-0">
+				<CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
+					<div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
+						<CardTitle>Events Timeline</CardTitle>
+						<CardDescription>
+							Showing {totalEvents} events over time
+						</CardDescription>
+					</div>
+					<div className="flex">
+						<div className="relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left data-[active=true]:bg-muted/50 sm:border-l sm:border-t-0 sm:px-8 sm:py-6">
+							<span className="text-xs text-muted-foreground">
+								{chartConfig.events.label}
+							</span>
+							<span className="text-lg font-bold leading-none sm:text-3xl">
+								{totalEvents.toLocaleString()}
+							</span>
+						</div>
+					</div>
+				</CardHeader>
+				<CardContent className="!pt-0 px-2 sm:p-6">
+					<ChartContainer
+						config={chartConfig}
+						className="aspect-auto h-[250px] w-full"
+					>
+						<BarChart
+							accessibilityLayer
+							data={eventGroupCounts}
+							margin={{
+								left: -36,
+								right: 24,
 							}}
 						>
-							{event.event}
-							{event.resource?.['prefect.resource.name']}
-						</Link>
-					</li>
-				);
-			})}
-		</ul>
+							<CartesianGrid vertical={false} />
+							<XAxis
+								dataKey="start_time"
+								tickLine={false}
+								axisLine={false}
+								tickMargin={8}
+								minTickGap={32}
+								tickFormatter={(value) => {
+									const date = new Date(value);
+									return date.toLocaleString("en-US", {
+										month: "short",
+										day: "numeric",
+										hour: "numeric",
+										minute: "2-digit",
+									});
+								}}
+							/>
+							<YAxis />
+							<ChartTooltip
+								content={
+									<ChartTooltipContent
+										className="w-[200px]"
+										nameKey="events"
+										labelFormatter={(value) => {
+											return new Date(value).toLocaleString("en-US", {
+												month: "short",
+												day: "numeric",
+												year: "numeric",
+												hour: "numeric",
+												minute: "2-digit",
+											});
+										}}
+									/>
+								}
+							/>
+							<Bar dataKey="count" fill={chartConfig.count.color} />
+						</BarChart>
+					</ChartContainer>
+				</CardContent>
+			</Card>
+
+			<ul>
+				{events.events.map((event) => {
+					const eventDate = new Date(event.occurred);
+					return (
+						<li key={event.id}>
+							<Link
+								to="/events/event/$date/$eventId"
+								params={{
+									date: formatISO(eventDate, {'representation': 'date'}),
+									eventId: event.id
+								}}
+							>
+								{event.event}
+								{event.resource?.['prefect.resource.name']}
+							</Link>
+						</li>
+					);
+				})}
+			</ul>
+		</div>
 	);
 }
