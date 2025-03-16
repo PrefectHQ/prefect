@@ -82,7 +82,6 @@ function ResourceCheckboxItem({
 	resourceType: string;
 	resourceId: string;
 	checked?: boolean;
-	onCheckedChange?: (checked: boolean) => void;
 }) {
 	const { filter } = Route.useSearch();
 	const navigate = Route.useNavigate();
@@ -107,6 +106,42 @@ function ResourceCheckboxItem({
 	);
 }
 
+function EventTypeCheckboxItem({
+	eventType,
+}: {
+	eventType: string;
+	count?: number;
+}) {
+	const { filter } = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const isChecked = filter?.event === eventType;
+	
+	return (
+		<DropdownMenuCheckboxItem
+			key={eventType}
+			onSelect={(e) => e.preventDefault()}
+			checked={isChecked}
+			onCheckedChange={(checked) => {
+				navigate({
+					to: "/events",
+					search: (prev) => {
+						return {
+							...prev,
+							filter: {
+								...prev.filter,
+								event: checked ? eventType : undefined
+							}
+						}
+					},
+					replace: true
+				})
+			}}
+		>
+			{eventType}
+		</DropdownMenuCheckboxItem>
+	);
+}
+
 function RouteComponent() {
 	const [ events, eventGroupCounts, flows, workPools, deployments, blockDocuments, automations ]= Route.useLoaderData();
 	const search = Route.useSearch();
@@ -117,152 +152,137 @@ function RouteComponent() {
 	const resourceIds = resourceFilter.id || [];
 	const resourceArray = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
 	
-	// Helper functions to check if a resource is selected
-	const isAutomationSelected = (id: string) => resourceArray.includes(`prefect.automation.${id}`);
-	const isBlockSelected = (id: string) => resourceArray.includes(`prefect.block_document.${id}`);
-	const isDeploymentSelected = (id: string) => resourceArray.includes(`prefect.deployment.${id}`);
-	const isFlowSelected = (id: string) => resourceArray.includes(`prefect.flow.${id}`);
-	const isWorkPoolSelected = (id: string) => resourceArray.includes(`prefect.work_pool.${id}`);
-	
-	// Helper function to update search params
-	const updateResourceParams = (resourceType: string, id: string, checked: boolean) => {
-		const resourceId = `${resourceType}.${id}`;
-		let newResources = [...resourceArray];
-		
-		if (checked && !newResources.includes(resourceId)) {
-			newResources.push(resourceId);
-		} else if (!checked) {
-			newResources = newResources.filter(r => r !== resourceId);
-		}
-		
-		navigate({
-			search: (prev) => {
-				// Create a new filter with just the updated resources
-				// This replaces the previous selection rather than appending to it
-				return {
-					...prev,
-					filter: {
-						...prev.filter,
-						any_resource: { 
-							id: newResources.length > 0 ? newResources : undefined
-						} 
-					}
-				};
-			},
-			replace: true
-		});
-	};
-	// Helper function to count selected items
+
 	const countSelected = () => {
 		return resourceArray.length > 0 ? `${resourceArray.length} selected` : "Filter by resource";
 	};
 	
+	
 	return (
 		<ul>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" className="w-[280px] justify-between">
-						{countSelected()}
-						<ChevronDownIcon className="ml-2 h-4 w-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent className="w-[280px]">
-					{automations.length > 0 && (
-						<>
-							<DropdownMenuLabel>Automations</DropdownMenuLabel>
-							<DropdownMenuGroup>
-								{automations.map((automation) => (
-									<ResourceCheckboxItem
-										key={automation.id}
-										resourceType={automation.name}
-										resourceId={'prefect.automation.' + automation.id}
-										checked={isAutomationSelected(automation.id)}
-										onCheckedChange={(checked) => {
-											updateResourceParams("prefect.automation", automation.id, checked);
-										}}
-									/>
-								))}
-							</DropdownMenuGroup>
-							<DropdownMenuSeparator />
-						</>
-					)}
-					{blockDocuments.length > 0 && (
-						<>
-							<DropdownMenuLabel>Blocks</DropdownMenuLabel>
-							<DropdownMenuGroup>
-								{blockDocuments.map((blockDocument) => (
-									<ResourceCheckboxItem
-										key={blockDocument.id}
-										resourceType={blockDocument.name}
-										resourceId={'prefect.block_document.' + blockDocument.id}
-										checked={isBlockSelected(blockDocument.id)}
-										onCheckedChange={(checked) => {
-											updateResourceParams("prefect.block_document", blockDocument.id, checked);
-										}}
-									/>
-								))}
-							</DropdownMenuGroup>
-							<DropdownMenuSeparator />
-						</>
-					)}
-					{deployments.length > 0 && (
-						<>
-							<DropdownMenuLabel>Deployments</DropdownMenuLabel>
-							<DropdownMenuGroup>
-								{deployments.map((deployment) => (
-									<ResourceCheckboxItem
-										key={deployment.id}
-										resourceType={deployment.name}
-										resourceId={'prefect.deployment.' + deployment.id}
-										checked={isDeploymentSelected(deployment.id)}
-										onCheckedChange={(checked) => {
-											updateResourceParams("prefect.deployment", deployment.id, checked);
-										}}
-									/>
-								))}
-							</DropdownMenuGroup>
-							<DropdownMenuSeparator />
-						</>
-					)}
-					{flows.length > 0 && (
-						<>
-							<DropdownMenuLabel>Flows</DropdownMenuLabel>
-							<DropdownMenuGroup>
-								{flows.map((flow) => (
-									<ResourceCheckboxItem
-										key={flow.id}
-										resourceType={flow.name}
-										resourceId={'prefect.flow.' + flow.id}
-										checked={isFlowSelected(flow.id)}
-										onCheckedChange={(checked) => {
-											updateResourceParams("prefect.flow", flow.id, checked);
-										}}
-									/>
-								))}
-							</DropdownMenuGroup>
-							<DropdownMenuSeparator />
-						</>
-					)}
-					{workPools.length > 0 && (
-						<>
-							<DropdownMenuLabel>Work Pools</DropdownMenuLabel>
-							<DropdownMenuGroup>
-								{workPools.map((workPool) => (
-									<ResourceCheckboxItem
-										key={workPool.id}
-										resourceType={workPool.name}
-										resourceId={'prefect.work_pool.' + workPool.id}
-										checked={isWorkPoolSelected(workPool.id)}
-										onCheckedChange={(checked) => {
-											updateResourceParams("prefect.work_pool", workPool.id, checked);
-										}}
-									/>
-								))}
-							</DropdownMenuGroup>
-						</>
-					)}
-				</DropdownMenuContent>
-			</DropdownMenu>
+			<div className="flex space-x-4 mb-4">
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="outline" className="w-[280px] justify-between">
+							{countSelected()}
+							<ChevronDownIcon className="ml-2 h-4 w-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent className="w-[280px]">
+						{automations.length > 0 && (
+							<>
+								<DropdownMenuLabel>Automations</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									{automations.map((automation) => (
+										<ResourceCheckboxItem
+											key={automation.id}
+											resourceType={automation.name}
+											resourceId={'prefect.automation.' + automation.id}
+										/>
+									))}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+							</>
+						)}
+						{blockDocuments.length > 0 && (
+							<>
+								<DropdownMenuLabel>Blocks</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									{blockDocuments.map((blockDocument) => (
+										<ResourceCheckboxItem
+											key={blockDocument.id}
+											resourceType={blockDocument.name || 'Unnamed Block'}
+											resourceId={'prefect.block_document.' + blockDocument.id}
+										/>
+									))}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+							</>
+						)}
+						{deployments.length > 0 && (
+							<>
+								<DropdownMenuLabel>Deployments</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									{deployments.map((deployment) => (
+										<ResourceCheckboxItem
+											key={deployment.id}
+											resourceType={deployment.name}
+											resourceId={'prefect.deployment.' + deployment.id}
+										/>
+									))}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+							</>
+						)}
+						{flows.length > 0 && (
+							<>
+								<DropdownMenuLabel>Flows</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									{flows.map((flow) => (
+										<ResourceCheckboxItem
+											key={flow.id}
+											resourceType={flow.name}
+											resourceId={'prefect.flow.' + flow.id}
+										/>
+									))}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+							</>
+						)}
+						{workPools.length > 0 && (
+							<>
+								<DropdownMenuLabel>Work Pools</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									{workPools.map((workPool) => (
+										<ResourceCheckboxItem
+											key={workPool.id}
+											resourceType={workPool.name}
+											resourceId={'prefect.work_pool.' + workPool.id}
+										/>
+									))}
+								</DropdownMenuGroup>
+							</>
+						)}
+					</DropdownMenuContent>
+				</DropdownMenu>
+				
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="outline" className="w-[280px] justify-between">
+							{"Filter by event type"}
+							<ChevronDownIcon className="ml-2 h-4 w-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent className="w-[280px]">
+						<DropdownMenuLabel>Event Types</DropdownMenuLabel>
+						{eventGroupCounts.map((label, index) => (
+							<DropdownMenuCheckboxItem 
+								key={index}
+								onSelect={(e) => e.preventDefault()}
+								checked={search.filter?.event?.name?.includes(label.label)}
+								onCheckedChange={(checked) => {
+									navigate({
+										to: "/events",
+										search: (prev) => {
+											return {
+												...prev,
+												filter: {
+													...prev.filter,
+													event: {
+														"name": checked ? [...(prev?.filter?.event?.name || []), label.label] : prev?.filter?.event?.name?.filter(item => item !== label.label)
+													}
+												}
+											}
+										},
+										replace: true
+									})
+								}}
+								>{label.label}</DropdownMenuCheckboxItem>
+						
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
 
 			{events.events.map((event) => {
 				const eventDate = new Date(event.occurred);
