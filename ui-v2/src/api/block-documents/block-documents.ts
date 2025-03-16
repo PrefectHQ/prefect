@@ -1,6 +1,10 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 
 export type BlockDocument = components["schemas"]["BlockDocument"];
 export type BlockDocumentsFilter =
@@ -84,3 +88,52 @@ export const buildCountAllBlockDocumentsQuery = () =>
 			return res.data;
 		},
 	});
+
+// ----------------------------
+// --------  Mutations --------
+// ----------------------------
+
+/**
+ * Hook for deleting a block document
+ *
+ * @returns Mutation object for deleting a block document with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteBlockDocument } = useDeleteBlockDocument();
+ *
+ * // Delete a block document by id
+ * deleteBlockDocument('block-document-id', {
+ *   onSuccess: () => {
+ *     // Handle successful deletion
+ *     console.log('Block document deleted successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to delete block document:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteBlockDocument = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteBlockDocument, ...rest } = useMutation({
+		mutationFn: (id: string) =>
+			getQueryService().DELETE("/block_documents/{id}", {
+				params: { path: { id } },
+			}),
+		onSettled: () => {
+			return Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeyFactory.lists(),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: queryKeyFactory.counts(),
+				}),
+			]);
+		},
+	});
+
+	return { deleteBlockDocument, ...rest };
+};
