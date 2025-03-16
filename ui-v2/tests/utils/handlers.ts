@@ -39,6 +39,10 @@ const blockDocumentsHandlers = [
 	http.post(buildApiUrl("/block_documents/count"), () => {
 		return HttpResponse.json(0);
 	}),
+
+	http.delete(buildApiUrl("/block_documents/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const deploymentsHandlers = [
