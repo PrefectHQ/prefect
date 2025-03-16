@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, Dict
+import logging
 
 import pytest
 
@@ -265,6 +266,22 @@ class TestApplyValues:
         apply_values(template, values={}, warn_on_notset=True)
         assert (
             "Value for placeholder 'name' not found in provided values." in caplog.text
+        )
+
+    def test_apply_values_with_invalid_json_string(self, caplog):
+        # Test that a warning is logged when trying to parse invalid JSON
+        template = "{{ prefect.variables.invalid_json }}"
+        values = {"prefect.variables.invalid_json": "{not valid json}"}
+
+        with caplog.at_level(logging.WARNING):
+            result = apply_values(template, values)
+
+        # Verify the result is the string as-is since it couldn't be parsed as JSON
+        assert result == "{not valid json}"
+        # Verify a warning was logged
+        assert any(
+            "Failed to parse value as JSON" in record.message
+            for record in caplog.records
         )
 
 
