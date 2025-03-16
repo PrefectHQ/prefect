@@ -369,13 +369,13 @@ class TaskRunResponse(ORMBaseModel):
         description="The version of the task executed in this task run.",
         examples=["1.0"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the task run."
     )
-    task_inputs: Dict[str, List[schemas.core.TaskRunResult]] = Field(
+    task_inputs: dict[str, list[schemas.core.TaskRunResult]] = Field(
         default_factory=dict, description="Inputs provided to the task run."
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the task run.",
         examples=[{"my_var": "my_val"}],
@@ -384,23 +384,11 @@ class TaskRunResponse(ORMBaseModel):
         default_factory=schemas.core.TaskRunPolicy,
         description="The task run's empirical retry policy.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
-
-    @classmethod
-    def model_validate(
-        cls: Type[Self],
-        obj: Any,
-        *,
-        strict: Optional[bool] = None,
-        from_attributes: Optional[bool] = None,
-        context: Optional[dict[str, Any]] = None,
-    ) -> Self:
-        response = super().model_validate(obj)
-        return response
 
 
 class DeploymentResponse(ORMBaseModel):

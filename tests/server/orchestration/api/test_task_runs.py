@@ -4,15 +4,17 @@ from uuid import uuid4
 import pendulum
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import State
+from prefect.client.schemas.objects import Flow, State
 from prefect.server import models, schemas
-from prefect.server.database.orm_models import TaskRun
+from prefect.server.database.orm_models import FlowRun, TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.states import Pending
+from prefect.types import DateTime
 
 
 class TestCreateTaskRun:
@@ -363,7 +365,9 @@ class TestReadTaskRuns:
 
 
 class TestPaginateTaskRuns:
-    async def test_paginate_task_runs_basic(self, task_run, client):
+    async def test_paginate_task_runs_basic(
+        self, task_run: TaskRun, client: AsyncClient
+    ):
         """Test basic pagination functionality with default parameters."""
         response = await client.post("/task_runs/paginate")
         assert response.status_code == status.HTTP_200_OK
@@ -373,7 +377,9 @@ class TestPaginateTaskRuns:
         assert data["results"][0]["id"] == str(task_run.id)
         assert data["results"][0]["flow_run_id"] == str(task_run.flow_run_id)
 
-    async def test_paginate_task_runs_response_structure(self, task_run, client):
+    async def test_paginate_task_runs_response_structure(
+        self, task_run: TaskRun, client: AsyncClient
+    ):
         """Test that the pagination response structure is correct."""
         response = await client.post("/task_runs/paginate")
         assert response.status_code == status.HTTP_200_OK
@@ -391,12 +397,12 @@ class TestPaginateTaskRuns:
         assert data["limit"] > 0
 
     async def test_paginate_task_runs_with_custom_page_and_limit(
-        self, flow_run, session, client
+        self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
     ):
         """Test pagination with custom page size and page number."""
         # Create multiple task runs
-        now = pendulum.now("UTC")
-        task_runs = []
+        now = DateTime.now("UTC")
+        task_runs: list[TaskRun] = []
 
         for i in range(5):
             task_run = await models.task_runs.create_task_run(
@@ -440,7 +446,9 @@ class TestPaginateTaskRuns:
         assert len(data["results"]) == 1  # Only one item on the last page
         assert data["page"] == 3
 
-    async def test_paginate_task_runs_with_task_run_filter(self, task_run, client):
+    async def test_paginate_task_runs_with_task_run_filter(
+        self, task_run: TaskRun, client: AsyncClient
+    ):
         """Test pagination with task run filter."""
         task_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
@@ -470,7 +478,9 @@ class TestPaginateTaskRuns:
         assert len(data["results"]) == 0
         assert data["count"] == 0
 
-    async def test_paginate_task_runs_with_flow_run_filter(self, task_run, client):
+    async def test_paginate_task_runs_with_flow_run_filter(
+        self, task_run: TaskRun, client: AsyncClient
+    ):
         """Test pagination with flow run filter."""
         flow_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
@@ -500,7 +510,9 @@ class TestPaginateTaskRuns:
         assert len(data["results"]) == 0
         assert data["count"] == 0
 
-    async def test_paginate_task_runs_with_flow_filter(self, flow, task_run, client):
+    async def test_paginate_task_runs_with_flow_filter(
+        self, flow: Flow, task_run: TaskRun, client: AsyncClient
+    ):
         """Test pagination with flow filter."""
         flow_filter = dict(
             flows=schemas.filters.FlowFilter(
@@ -530,9 +542,11 @@ class TestPaginateTaskRuns:
         assert len(data["results"]) == 0
         assert data["count"] == 0
 
-    async def test_paginate_task_runs_applies_sort(self, flow_run, session, client):
+    async def test_paginate_task_runs_applies_sort(
+        self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
+    ):
         """Test pagination with sorting."""
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -616,7 +630,7 @@ class TestPaginateTaskRuns:
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
     )
     async def test_paginate_task_runs_succeeds_for_all_sort_values(
-        self, sort, task_run, client
+        self, sort: schemas.sorting.TaskRunSort, task_run: TaskRun, client: AsyncClient
     ):
         """Test pagination with all sort values."""
         response = await client.post("/task_runs/paginate", json=dict(sort=sort))
@@ -626,7 +640,7 @@ class TestPaginateTaskRuns:
         assert len(data["results"]) == 1
         assert data["results"][0]["id"] == str(task_run.id)
 
-    async def test_paginate_task_runs_with_invalid_page(self, client):
+    async def test_paginate_task_runs_with_invalid_page(self, client: AsyncClient):
         """Test pagination with invalid page parameter."""
         response = await client.post("/task_runs/paginate", json=dict(page=0))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
