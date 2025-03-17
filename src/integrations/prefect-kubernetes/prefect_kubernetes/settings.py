@@ -1,21 +1,43 @@
-from typing import Optional
+from functools import partial
+from typing import Annotated, Optional, Union
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AliasChoices, AliasPath, BeforeValidator, Field
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.types import validate_set_T_from_delim_string
+
+
+def _validate_label_filters(value: dict[str, str] | str | None) -> dict[str, str]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    split_value = value.split(",")
+    return {
+        k.strip(): v.strip() for k, v in (item.split("=", 1) for item in split_value)
+    }
+
+
+LabelFilters = Annotated[
+    Union[dict[str, str], str, None], BeforeValidator(_validate_label_filters)
+]
+Namespaces = Annotated[
+    Union[set[str], str, None],
+    BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
+]
 
 
 class KubernetesObserverSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes", "observer"))
 
-    namespaces: list[str] = Field(
-        default_factory=list,
+    namespaces: Namespaces = Field(
+        default_factory=set,
         description="The namespaces to watch for Prefect-submitted Kubernetes "
         "jobs and pods. If not provided, the watch will be cluster-wide.",
     )
 
-    additional_label_filters: list[str] = Field(
-        default_factory=list,
+    additional_label_filters: LabelFilters = Field(
+        default_factory=dict,
         description="Additional label filters to apply to the watch for "
         "Prefect-submitted Kubernetes jobs and pods. If not provided, the watch will "
         "include all pods and jobs with the `prefect.io/flow-run-id` label. Labels "
@@ -73,4 +95,9 @@ class KubernetesSettings(PrefectBaseSettings):
     worker: KubernetesWorkerSettings = Field(
         description="Settings for controlling Kubernetes worker behavior.",
         default_factory=KubernetesWorkerSettings,
+    )
+
+    observer: KubernetesObserverSettings = Field(
+        description="Settings for controlling Kubernetes observer behavior.",
+        default_factory=KubernetesObserverSettings,
     )

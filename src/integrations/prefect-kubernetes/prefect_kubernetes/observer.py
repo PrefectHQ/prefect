@@ -28,18 +28,12 @@ logging.getLogger("kopf.objects").setLevel(logging.INFO)
 
 settings = KubernetesSettings()
 
-# Convert list of "key=value" label filters into a dictionary
-additional_label_filters: dict[str, str] = {}
-for label in settings.observer.additional_label_filters:
-    key, value = label.split("=")
-    additional_label_filters[key] = value
-
 
 @kopf.on.event(
     "pods",
     labels={
         "prefect.io/flow-run-id": kopf.PRESENT,
-        **additional_label_filters,
+        **settings.observer.additional_label_filters,
     },
 )  # type: ignore
 async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
@@ -166,7 +160,7 @@ async def _get_k8s_jobs(
     "jobs",
     labels={
         "prefect.io/flow-run-id": kopf.PRESENT,
-        **additional_label_filters,
+        **settings.observer.additional_label_filters,
     },
 )  # type: ignore
 async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
