@@ -5,13 +5,13 @@ import sys
 import uuid
 from contextlib import asynccontextmanager
 from time import monotonic, sleep
+from typing import Any
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
 import anyio.abc
 import kubernetes_asyncio
-import pendulum
 import pytest
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Pod
 from kubernetes_asyncio.client.exceptions import ApiException
@@ -49,6 +49,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running
+from prefect.types._datetime import DateTime, parse_datetime
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CLUSTER = "fake-cluster"
@@ -56,19 +57,19 @@ MOCK_CLUSTER_UID = "1234"
 
 
 @pytest.fixture
-def mock_watch(monkeypatch):
+def mock_watch(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock(return_value=AsyncMock())
     monkeypatch.setattr("kubernetes_asyncio.watch.Watch", mock)
     return mock
 
 
-async def mock_stream(*args, **kwargs):
+async def mock_stream(*args: Any, **kwargs: Any):
     async for event in mock_pods_stream_that_returns_completed_pod(*args, **kwargs):
         yield event
 
 
 @pytest.fixture
-def mock_cluster_config(monkeypatch):
+def mock_cluster_config(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
     # We cannot mock this or the `except` clause will complain
     mock.ConfigException.return_value = ConfigException
@@ -85,11 +86,11 @@ def mock_cluster_config(monkeypatch):
 
 
 @pytest.fixture
-def mock_anyio_sleep_monotonic(monkeypatch, event_loop):
+def mock_anyio_sleep_monotonic(monkeypatch: pytest.MonkeyPatch, event_loop: Any):
     def mock_monotonic():
         return mock_sleep.current_time
 
-    async def mock_sleep(duration):
+    async def mock_sleep(duration: float):
         mock_sleep.current_time += duration
 
     mock_sleep.current_time = monotonic()
@@ -117,7 +118,7 @@ def mock_pod():
 
 
 @pytest.fixture
-def mock_core_client(monkeypatch, mock_cluster_config):
+def mock_core_client(monkeypatch: pytest.MonkeyPatch, mock_cluster_config: MagicMock):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
     mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
@@ -135,7 +136,7 @@ def mock_core_client(monkeypatch, mock_cluster_config):
 
 
 @pytest.fixture
-def mock_core_client_lean(monkeypatch):
+def mock_core_client_lean(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
     monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
@@ -144,11 +145,11 @@ def mock_core_client_lean(monkeypatch):
 
 
 @pytest.fixture
-def mock_batch_client(monkeypatch, mock_job):
+def mock_batch_client(monkeypatch: pytest.MonkeyPatch, mock_job: MagicMock):
     mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
 
     @asynccontextmanager
-    async def get_batch_client(*args, **kwargs):
+    async def get_batch_client(*args: Any, **kwargs: Any):
         yield mock()
 
     monkeypatch.setattr(
@@ -163,13 +164,13 @@ def mock_batch_client(monkeypatch, mock_job):
 
 @pytest.fixture
 async def mock_pods_stream_that_returns_running_pod(
-    mock_core_client, mock_pod, mock_job
+    mock_core_client: MagicMock, mock_pod: MagicMock, mock_job: MagicMock
 ):
-    async def mock_stream(*args, **kwargs):
+    async def mock_stream(*args: Any, **kwargs: Any):
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
             yield {"object": mock_pod, "type": "MODIFIED"}
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_job:
-            mock_job.status.completion_time = pendulum.now("utc").timestamp()
+            mock_job.status.completion_time = DateTime.now("utc").timestamp()
             yield {"object": mock_job, "type": "MODIFIED"}
 
     return mock_stream
@@ -2428,7 +2429,7 @@ class TestKubernetesWorker:
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 yield {"object": mock_job, "type": "MODIFIED"}
 
         mock_watch.return_value.stream = mock_stream
@@ -2454,7 +2455,7 @@ class TestKubernetesWorker:
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 yield {"object": mock_job, "type": "MODIFIED"}
 
         mock_watch.return_value.stream = mock_stream
@@ -2478,7 +2479,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2539,7 +2540,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2584,7 +2585,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2640,7 +2641,7 @@ class TestKubernetesWorker:
             ]
 
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2944,7 +2945,7 @@ class TestKubernetesWorker:
             mock_pod,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 items = [
                     {"object": mock_pod, "type": "MODIFIED"},
                     {"object": mock_job, "type": "MODIFIED"},
@@ -3005,7 +3006,7 @@ class TestKubernetesWorker:
                 spec=kubernetes_asyncio.client.V1ContainerStatus
             )
             mock_container_status.state.running = MagicMock(
-                start_time=pendulum.now("utc")
+                start_time=DateTime.now("utc")
             )
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
@@ -3060,7 +3061,7 @@ class TestKubernetesWorker:
                         await anyio.sleep(310)
 
                     # Send another event after the delay
-                    job.status.completion_time = pendulum.now("utc").timestamp()
+                    job.status.completion_time = DateTime.now("utc").timestamp()
                     yield {"object": job, "type": "MODIFIED"}
 
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
@@ -3086,7 +3087,7 @@ class TestKubernetesWorker:
                         ),
                         reason="StuffBlewUp",
                         count=2,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="Whew, that was baaaaad",
                     ),
                     CoreV1Event(
@@ -3099,7 +3100,7 @@ class TestKubernetesWorker:
                         ),
                         reason="NahChief",
                         count=2,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="You do not want to know about this one",
                     ),
                     CoreV1Event(
@@ -3112,7 +3113,7 @@ class TestKubernetesWorker:
                         ),
                         reason="ImageWhatImage",
                         count=1,
-                        event_time=pendulum.parse("2022-01-02T03:04:05Z"),
+                        event_time=parse_datetime("2022-01-02T03:04:05Z"),
                         message="I don't see no image",
                     ),
                     CoreV1Event(
@@ -3125,7 +3126,7 @@ class TestKubernetesWorker:
                         ),
                         reason="GoodLuck",
                         count=1,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="You ain't getting no more RAM",
                     ),
                     CoreV1Event(
@@ -3138,7 +3139,7 @@ class TestKubernetesWorker:
                         ),
                         reason="NotMeDude",
                         count=1,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="You ain't getting no more RAM",
                     ),
                     CoreV1Event(
@@ -3151,7 +3152,7 @@ class TestKubernetesWorker:
                         ),
                         reason="StuffBlewUp",
                         count=2,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="I mean really really bad",
                     ),
                 ],

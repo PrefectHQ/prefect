@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import boto3
-import pendulum
 import pytest
 from moto import mock_secretsmanager
 from prefect_aws.secrets_manager import (
@@ -11,6 +10,7 @@ from prefect_aws.secrets_manager import (
 )
 
 from prefect import flow
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -269,7 +269,7 @@ async def test_delete_secret_task(
 
         if not force_delete_without_recovery:
             assert deletion_date.date() == (
-                pendulum.now("UTC").date() + timedelta(days=recovery_window_in_days)
+                DateTime.now("UTC").date() + timedelta(days=recovery_window_in_days)
             )
         else:
-            assert deletion_date.date() == pendulum.now("UTC").date()
+            assert deletion_date.date() == DateTime.now("UTC").date()
