@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import Any
+from typing import Any, Hashable
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
@@ -8,7 +10,7 @@ from prefect import __version__ as PREFECT_VERSION
 
 
 def inject_schemas_into_openapi(
-    webserver: FastAPI, schemas_to_inject: dict[str, Any]
+    webserver: FastAPI, schemas_to_inject: dict[Hashable, Any]
 ) -> dict[str, Any]:
     """
     Augments the webserver's OpenAPI schema with additional schemas from deployments / flows / tasks.
@@ -29,7 +31,7 @@ def inject_schemas_into_openapi(
 
 
 def merge_definitions(
-    injected_schemas: dict[str, Any], openapi_schema: dict[str, Any]
+    injected_schemas: dict[Hashable, Any], openapi_schema: dict[str, Any]
 ) -> dict[str, Any]:
     """
     Integrates definitions from injected schemas into the OpenAPI components.
@@ -51,7 +53,9 @@ def merge_definitions(
     return openapi_schema_copy
 
 
-def update_refs_in_schema(schema_item: Any, new_ref: str) -> None:
+def update_refs_in_schema(
+    schema_item: dict[str, Any] | list[Any], new_ref: str
+) -> None:
     """
     Recursively replaces `$ref` with a new reference base in a schema item.
 
@@ -64,7 +68,7 @@ def update_refs_in_schema(schema_item: Any, new_ref: str) -> None:
             schema_item["$ref"] = schema_item["$ref"].replace("#/definitions/", new_ref)
         for value in schema_item.values():
             update_refs_in_schema(value, new_ref)
-    elif isinstance(schema_item, list):
+    elif isinstance(schema_item, list):  # pyright: ignore[reportUnnecessaryIsInstance]
         for item in schema_item:
             update_refs_in_schema(item, new_ref)
 

@@ -6,7 +6,6 @@ from copy import deepcopy
 from pathlib import Path
 from typing import (
     Any,
-    Dict,
     Optional,
     Protocol,
     TypedDict,
@@ -16,7 +15,7 @@ from typing import (
 from urllib.parse import urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
-import fsspec
+import fsspec  # pyright: ignore[reportMissingTypeStubs]
 from anyio import run_process
 from pydantic import SecretStr
 
@@ -79,7 +78,7 @@ class RunnerStorage(Protocol):
 
 class GitCredentials(TypedDict, total=False):
     username: str
-    access_token: Union[str, Secret[str]]
+    access_token: str | Secret[str]
 
 
 class GitRepository:
@@ -117,12 +116,12 @@ class GitRepository:
     def __init__(
         self,
         url: str,
-        credentials: Union[GitCredentials, Block, Dict[str, Any], None] = None,
-        name: Optional[str] = None,
-        branch: Optional[str] = None,
+        credentials: Union[GitCredentials, Block, dict[str, Any], None] = None,
+        name: str | None = None,
+        branch: str | None = None,
         include_submodules: bool = False,
-        pull_interval: Optional[int] = 60,
-        directories: Optional[str] = None,
+        pull_interval: int | None = 60,
+        directories: list[str] | None = None,
     ):
         if credentials is None:
             credentials = {}
@@ -198,7 +197,7 @@ class GitRepository:
     @property
     def _git_config(self) -> list[str]:
         """Build a git configuration to use when running git commands."""
-        config = {}
+        config: dict[str, str] = {}
 
         # Submodules can be private. The url in .gitmodules
         # will not include the credentials, we need to
@@ -220,7 +219,7 @@ class GitRepository:
             result = await run_process(
                 ["git", "config", "--get", "core.sparseCheckout"], cwd=self.destination
             )
-            return result.strip().lower() == "true"
+            return result.stdout.decode().strip().lower() == "true"
         except Exception:
             return False
 
@@ -243,8 +242,7 @@ class GitRepository:
                 cwd=str(self.destination),
             )
             existing_repo_url = None
-            if result.stdout is not None:
-                existing_repo_url = _strip_auth_from_url(result.stdout.decode().strip())
+            existing_repo_url = _strip_auth_from_url(result.stdout.decode().strip())
 
             if existing_repo_url != self._url:
                 raise ValueError(
@@ -255,7 +253,7 @@ class GitRepository:
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():
                 await run_process(
-                    ["git", "sparse-checkout", "set"] + self._directories,
+                    ["git", "sparse-checkout", "set", *self._directories],
                     cwd=self.destination,
                 )
 
@@ -323,7 +321,7 @@ class GitRepository:
         if self._directories:
             self._logger.debug("Will add %s", self._directories)
             await run_process(
-                ["git", "sparse-checkout", "set"] + self._directories,
+                ["git", "sparse-checkout", "set", *self._directories],
                 cwd=self.destination,
             )
 
@@ -343,7 +341,7 @@ class GitRepository:
         )
 
     def to_pull_step(self) -> dict[str, Any]:
-        pull_step = {
+        pull_step: dict[str, Any] = {
             "prefect.deployments.steps.git_clone": {
                 "repository": self._url,
                 "branch": self._branch,
@@ -357,13 +355,14 @@ class GitRepository:
             pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (
                 f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
             )
-        elif isinstance(self._credentials, dict):
-            if isinstance(self._credentials.get("access_token"), Secret):
+        elif isinstance(self._credentials, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+            if isinstance(
+                access_token := self._credentials.get("access_token"), Secret
+            ):
                 pull_step["prefect.deployments.steps.git_clone"]["credentials"] = {
                     **self._credentials,
                     "access_token": (
-                        "{{"
-                        f" {self._credentials['access_token'].get_block_placeholder()} }}}}"
+                        f"{{{{ {access_token.get_block_placeholder()} }}}}"
                     ),
                 }
             elif self._credentials.get("access_token") is not None:
@@ -455,10 +454,10 @@ class RemoteStorage:
 
         def replace_blocks_with_values(obj: Any) -> Any:
             if isinstance(obj, Block):
-                if hasattr(obj, "get"):
-                    return obj.get()
+                if get := getattr(obj, "get", None):
+                    return get()
                 if hasattr(obj, "value"):
-                    return obj.value
+                    return getattr(obj, "value")
                 else:
                     return obj.model_dump()
             return obj
@@ -467,7 +466,7 @@ class RemoteStorage:
             self._settings, replace_blocks_with_values, return_data=True
         )
 
-        return fsspec.filesystem(scheme, **settings_with_block_values)
+        return fsspec.filesystem(scheme, **settings_with_block_values)  # pyright: ignore[reportUnknownMemberType] missing type stubs
 
     def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
@@ -513,7 +512,7 @@ class RemoteStorage:
         try:
             await from_async.wait_for_call_in_new_thread(
                 create_call(
-                    self._filesystem.get,
+                    self._filesystem.get,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type stubs
                     remote_path,
                     str(self.destination),
                     recursive=True,
@@ -580,18 +579,14 @@ class BlockStorageAdapter:
         self._block = block
         self._pull_interval = pull_interval
         self._storage_base_path = Path.cwd()
-        if not isinstance(block, Block):
+        if not isinstance(block, Block):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 f"Expected a block object. Received a {type(block).__name__!r} object."
             )
         if not hasattr(block, "get_directory"):
             raise ValueError("Provided block must have a `get_directory` method.")
 
-        self._name = (
-            f"{block.get_block_type_slug()}-{block._block_document_name}"
-            if block._block_document_name
-            else str(uuid4())
-        )
+        self._name = f"{block.get_block_type_slug()}-{getattr(block, '_block_document_name', uuid4())}"
 
     def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
@@ -610,11 +605,11 @@ class BlockStorageAdapter:
         await self._block.get_directory(local_path=str(self.destination))
 
     def to_pull_step(self) -> dict[str, Any]:
-        # Give blocks the change to implement their own pull step
+        # Give blocks the chance to implement their own pull step
         if hasattr(self._block, "get_pull_step"):
-            return self._block.get_pull_step()
+            return getattr(self._block, "get_pull_step")()
         else:
-            if not self._block._block_document_name:
+            if getattr(self._block, "_block_document_name", None) is None:
                 raise BlockNotSavedError(
                     "Block must be saved with `.save()` before it can be converted to a"
                     " pull step."
@@ -622,7 +617,7 @@ class BlockStorageAdapter:
             return {
                 "prefect.deployments.steps.pull_with_block": {
                     "block_type_slug": self._block.get_block_type_slug(),
-                    "block_document_name": self._block._block_document_name,
+                    "block_document_name": getattr(self._block, "_block_document_name"),
                 }
             }
 
@@ -723,7 +718,9 @@ def create_storage_from_source(
         return LocalStorage(path=source, pull_interval=pull_interval)
 
 
-def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
+def _format_token_from_credentials(
+    netloc: str, credentials: dict[str, Any] | GitCredentials
+) -> str:
     """
     Formats the credentials block for the git provider.
 
@@ -736,7 +733,10 @@ def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
     token = credentials.get("token") if credentials else None
     access_token = credentials.get("access_token") if credentials else None
 
-    user_provided_token = access_token or token or password
+    user_provided_token: str | Secret[str] | None = access_token or token or password
+
+    if isinstance(user_provided_token, Secret):
+        user_provided_token = user_provided_token.get()
 
     if not user_provided_token:
         raise ValueError(
@@ -787,7 +787,7 @@ def _strip_auth_from_url(url: str) -> str:
 
     # Construct a new netloc without the auth info
     netloc = parsed.hostname
-    if parsed.port:
+    if parsed.port and netloc:
         netloc += f":{parsed.port}"
 
     # Build the sanitized URL

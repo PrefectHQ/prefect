@@ -63,7 +63,7 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunInput]:
+async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunResult]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -76,7 +76,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunInput] = set()
+    inputs: set[TaskRunResult] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):

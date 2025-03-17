@@ -3,15 +3,19 @@ from __future__ import annotations
 import asyncio
 import inspect
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Union, overload
 
 import anyio
 import httpx
 from typing_extensions import Literal, TypeAlias
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import FlowRunFilter, TaskRunFilter
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterParentFlowRunId,
+    TaskRunFilter,
+)
+from prefect.client.schemas.objects import Constant, FlowRun, Parameter, TaskRunResult
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
@@ -60,18 +64,20 @@ async def _submit_flow_to_runner(
 
         parent_flow_run_context = FlowRunContext.get()
 
-        task_inputs = {
-            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        task_inputs: dict[str, list[TaskRunResult | Parameter | Constant]] = {
+            k: list(await collect_task_run_inputs(v)) for k, v in parameters.items()
         }
         parameters = await resolve_inputs(parameters)
         dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
         parent_task_run = await client.create_task_run(
             task=dummy_task,
             flow_run_id=(
-                parent_flow_run_context.flow_run.id if parent_flow_run_context else None
+                parent_flow_run_context.flow_run.id
+                if parent_flow_run_context and parent_flow_run_context.flow_run
+                else None
             ),
             dynamic_key=(
-                dynamic_key_for_task_run(parent_flow_run_context, dummy_task)
+                str(dynamic_key_for_task_run(parent_flow_run_context, dummy_task))
                 if parent_flow_run_context
                 else str(uuid.uuid4())
             ),
@@ -79,14 +85,15 @@ async def _submit_flow_to_runner(
             state=Pending(),
         )
 
-        response = await client._client.post(
+        httpx_client = getattr(client, "_client")
+        response = await httpx_client.post(
             (
                 f"http://{PREFECT_RUNNER_SERVER_HOST.value()}"
                 f":{PREFECT_RUNNER_SERVER_PORT.value()}"
                 "/flow/run"
             ),
             json={
-                "entrypoint": flow._entrypoint,
+                "entrypoint": getattr(flow, "_entrypoint"),
                 "parameters": flow.serialize_parameters(parameters),
                 "parent_task_run_id": str(parent_task_run.id),
             },
@@ -98,15 +105,15 @@ async def _submit_flow_to_runner(
 
 @overload
 def submit_to_runner(
-    prefect_callable: Union[Flow[Any, Any], Task[Any, Any]],
-    parameters: Dict[str, Any],
+    prefect_callable: Flow[Any, Any] | Task[Any, Any],
+    parameters: dict[str, Any],
     retry_failed_submissions: bool = True,
 ) -> FlowRun: ...
 
 
 @overload
 def submit_to_runner(
-    prefect_callable: Union[Flow[Any, Any], Task[Any, Any]],
+    prefect_callable: Flow[Any, Any] | Task[Any, Any],
     parameters: list[dict[str, Any]],
     retry_failed_submissions: bool = True,
 ) -> list[FlowRun]: ...
@@ -114,10 +121,10 @@ def submit_to_runner(
 
 @sync_compatible
 async def submit_to_runner(
-    prefect_callable: FlowOrTask,
-    parameters: Optional[Union[dict[str, Any], list[dict[str, Any]]]] = None,
+    prefect_callable: Flow[Any, Any],
+    parameters: dict[str, Any] | list[dict[str, Any]] | None = None,
     retry_failed_submissions: bool = True,
-) -> Union[FlowRun, list[FlowRun]]:
+) -> FlowRun | list[FlowRun]:
     """
     Submit a callable in the background via the runner webserver one or more times.
 
@@ -127,22 +134,22 @@ async def submit_to_runner(
             each dictionary represents a discrete invocation of the callable
         retry_failed_submissions: Whether to retry failed submissions to the runner webserver.
     """
-    if not isinstance(prefect_callable, (Flow, Task)):
+    if not isinstance(prefect_callable, Flow):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError(
             "The `submit_to_runner` utility only supports submitting flows and tasks."
         )
 
     parameters = parameters or {}
-    if isinstance(parameters, List):
+    if isinstance(parameters, list):
         return_single = False
-    elif isinstance(parameters, dict):
+    elif isinstance(parameters, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
         parameters = [parameters]
         return_single = True
     else:
         raise TypeError("Parameters must be a dictionary or a list of dictionaries.")
 
-    submitted_runs = []
-    unsubmitted_parameters = []
+    submitted_runs: list[FlowRun] = []
+    unsubmitted_parameters: list[dict[str, Any]] = []
 
     for p in parameters:
         try:
@@ -181,9 +188,9 @@ async def submit_to_runner(
 
 @sync_compatible
 async def wait_for_submitted_runs(
-    flow_run_filter: Optional[FlowRunFilter] = None,
-    task_run_filter: Optional[TaskRunFilter] = None,
-    timeout: Optional[float] = None,
+    flow_run_filter: FlowRunFilter | None = None,
+    task_run_filter: TaskRunFilter | None = None,
+    timeout: float | None = None,
     poll_interval: float = 3.0,
 ):
     """
@@ -197,7 +204,9 @@ async def wait_for_submitted_runs(
         poll_interval: How long to wait between polling each run's state (seconds).
     """
 
-    parent_flow_run_id = ctx.flow_run.id if (ctx := FlowRunContext.get()) else None
+    parent_flow_run_id = (
+        ctx.flow_run.id if ((ctx := FlowRunContext.get()) and ctx.flow_run) else None
+    )
 
     if task_run_filter:
         raise NotImplementedError("Waiting for task runs is not yet supported.")
@@ -223,7 +232,9 @@ async def wait_for_submitted_runs(
             if parent_flow_run_id is not None:
                 subflow_runs = await client.read_flow_runs(
                     flow_run_filter=FlowRunFilter(
-                        parent_flow_run_id=dict(any_=[parent_flow_run_id])
+                        parent_flow_run_id=FlowRunFilterParentFlowRunId(
+                            any_=[parent_flow_run_id]
+                        )
                     )
                 )
 
