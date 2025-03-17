@@ -5,7 +5,7 @@
 /ui                                  @znicholasbrown
 
 # documentation
-/docs                                @aaazzam @kevingrismore @daniel-prefect @seanpwlms
+/docs                                @aaazzam @kevingrismore @seanpwlms
 
 # integrations
 /src/integrations/prefect-dbt        @aaazzam @kevingrismore
@@ -20,5 +20,5 @@
 /src/prefect/main.py                 @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
 
 # UI Replatform
-/ui-v2                               @aaazzam @desertaxle @devinvillarosa @devangrose @pleek91
+/ui-v2                               @aaazzam @desertaxle @devinvillarosa
 /ui-v2/src/api/prefect.ts            @cicdw @desertaxle @zzstoatzz
