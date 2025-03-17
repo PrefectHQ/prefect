@@ -198,6 +198,18 @@ function RouteComponent() {
 		() => [
 
 			{
+				accessorKey: "event",
+				header: "Event Type",
+				cell: ({ row }) => <div>{row.original.event}</div>,
+			},
+			{
+				accessorKey: "resource",
+				header: "Resource",
+				cell: ({ row }) => (
+					<div>{row.original.resource?.["prefect.resource.name"] || "-"}</div>
+				),
+			},
+			{
 				accessorKey: "occurred",
 				header: "Time",
 				cell: ({ row }) => {
@@ -214,18 +226,6 @@ function RouteComponent() {
 						</div>
 					);
 				},
-			},
-			{
-				accessorKey: "event",
-				header: "Event Type",
-				cell: ({ row }) => <div>{row.original.event}</div>,
-			},
-			{
-				accessorKey: "resource",
-				header: "Resource",
-				cell: ({ row }) => (
-					<div>{row.original.resource?.["prefect.resource.name"] || "-"}</div>
-				),
 			},
 
 		],
