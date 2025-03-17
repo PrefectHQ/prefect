@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -9,7 +10,6 @@ import docker
 import docker.errors
 import docker.models.containers
 import docker.models.images
-import pendulum
 import pytest
 from prefect_docker.deployments.steps import (
     build_docker_image,
@@ -35,12 +35,12 @@ FAKE_CREDENTIALS = {
 
 
 @pytest.fixture(autouse=True)
-def reset_cachable_steps(monkeypatch):
+def reset_cachable_steps(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect_docker.deployments.steps.STEP_OUTPUT_CACHE", {})
 
 
 @pytest.fixture
-def mock_docker_client(monkeypatch):
+def mock_docker_client(monkeypatch: pytest.MonkeyPatch):
     mock_client = MagicMock(name="DockerClient", spec=docker.DockerClient)
     mock_client.version.return_value = {"Version": "20.10"}
 
@@ -91,11 +91,13 @@ def mock_docker_client(monkeypatch):
 
 
 @pytest.fixture
-def mock_pendulum(monkeypatch):
-    mock_pendulum = MagicMock(name="pendulum", spec=pendulum)
-    mock_pendulum.now.return_value = pendulum.datetime(2022, 8, 31, 18, 1, 32)
-    monkeypatch.setattr("prefect_docker.deployments.steps.pendulum", mock_pendulum)
-    return mock_pendulum
+def mock_datetime(monkeypatch: pytest.MonkeyPatch):
+    mock_datetime = MagicMock(name="prefect_datetime", spec=prefect.types.DateTime)
+    mock_dt_instance = MagicMock()
+    mock_dt_instance.isoformat.return_value = "2022-08-31T18:01:32-00:00"
+    mock_datetime.now.return_value = mock_dt_instance
+    monkeypatch.setattr("prefect_docker.deployments.steps.DateTime", mock_datetime)
+    return mock_datetime
 
 
 @pytest.mark.parametrize(
@@ -148,12 +150,11 @@ def mock_pendulum(monkeypatch):
         ),
     ],
 )
+@pytest.mark.usefixtures("mock_datetime")
 def test_build_docker_image(
-    monkeypatch,
-    mock_docker_client,
-    mock_pendulum,
-    kwargs,
-    expected_image,
+    mock_docker_client: MagicMock,
+    kwargs: Any,
+    expected_image: str,
 ):
     auto_build = False
     image_name = kwargs.get("image_name")
@@ -214,7 +215,7 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
-def test_real_auto_dockerfile_build(docker_client_with_cleanup):
+def test_real_auto_dockerfile_build(docker_client_with_cleanup: MagicMock):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
     image_name = "local/repo"
     tag = f"test-{uuid4()}"
@@ -264,7 +265,9 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup):
             pass
 
 
-def test_push_docker_image_with_additional_tags(mock_docker_client, monkeypatch):
+def test_push_docker_image_with_additional_tags(
+    mock_docker_client: MagicMock, monkeypatch: pytest.MonkeyPatch
+):
     # Mock stdout
     mock_stdout = MagicMock()
     monkeypatch.setattr(sys, "stdout", mock_stdout)
@@ -315,7 +318,9 @@ def test_push_docker_image_with_additional_tags(mock_docker_client, monkeypatch)
     assert mock_stdout.write.call_count == 15
 
 
-def test_push_docker_image_with_credentials(mock_docker_client, monkeypatch):
+def test_push_docker_image_with_credentials(
+    mock_docker_client: MagicMock, monkeypatch: pytest.MonkeyPatch
+):
     # Mock stdout
     mock_stdout = MagicMock()
     monkeypatch.setattr(sys, "stdout", mock_stdout)
@@ -345,7 +350,9 @@ def test_push_docker_image_with_credentials(mock_docker_client, monkeypatch):
     assert mock_stdout.write.call_count == 5
 
 
-def test_push_docker_image_without_credentials(mock_docker_client, monkeypatch):
+def test_push_docker_image_without_credentials(
+    mock_docker_client: MagicMock, monkeypatch: pytest.MonkeyPatch
+):
     # Mock stdout
     mock_stdout = MagicMock()
     monkeypatch.setattr(sys, "stdout", mock_stdout)
@@ -371,7 +378,7 @@ def test_push_docker_image_without_credentials(mock_docker_client, monkeypatch):
     assert mock_stdout.write.call_count == 5
 
 
-def test_push_docker_image_raises_on_event_error(mock_docker_client):
+def test_push_docker_image_raises_on_event_error(mock_docker_client: MagicMock):
     error_event = [{"error": "Error"}]
     mock_docker_client.api.push.return_value = error_event
 
@@ -385,7 +392,7 @@ def test_push_docker_image_raises_on_event_error(mock_docker_client):
 
 
 class TestCachedSteps:
-    def test_cached_build_docker_image(self, mock_docker_client):
+    def test_cached_build_docker_image(self, mock_docker_client: MagicMock):
         image_name = "registry/repo"
         dockerfile = "Dockerfile"
         tag = "mytag"
@@ -417,7 +424,7 @@ class TestCachedSteps:
             additional_tags
         )
 
-    def test_uncached_build_docker_image(self, mock_docker_client):
+    def test_uncached_build_docker_image(self, mock_docker_client: MagicMock):
         image_name = "registry/repo"
         dockerfile = "Dockerfile"
         tag = "mytag"
@@ -450,7 +457,7 @@ class TestCachedSteps:
             == expected_tag_calls * 3
         )
 
-    def test_cached_push_docker_image(self, mock_docker_client):
+    def test_cached_push_docker_image(self, mock_docker_client: MagicMock):
         image_name = FAKE_IMAGE_NAME
         tag = FAKE_TAG
         credentials = FAKE_CREDENTIALS
@@ -476,7 +483,7 @@ class TestCachedSteps:
         # Push should be called once for the tag and once for each additional tag
         assert mock_docker_client.api.push.call_count == 1 + len(additional_tags)
 
-    def test_uncached_push_docker_image(self, mock_docker_client):
+    def test_uncached_push_docker_image(self, mock_docker_client: MagicMock):
         image_name = FAKE_IMAGE_NAME
         tag = FAKE_TAG
         credentials = FAKE_CREDENTIALS
@@ -504,7 +511,7 @@ class TestCachedSteps:
         expected_push_calls = 1 + len(additional_tags)
         assert mock_docker_client.api.push.call_count == expected_push_calls * 3
 
-    def test_avoids_aggressive_caching(self, mock_docker_client):
+    def test_avoids_aggressive_caching(self, mock_docker_client: MagicMock):
         """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15258
         where all decorated functions were sharing a cache, so dict(image=..., tag=...) passed to
         build_docker_image and push_docker_image would hit the cache for push_docker_image,

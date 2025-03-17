@@ -27,7 +27,7 @@ python -c 'from prefect.runtime import task_run; print(task_run.fake_key)' # "fo
 ```
 
 If the environment variable mocks an existing runtime attribute, the value is cast to the same type. 
-This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `pendulum.DateTime`. 
+This works for runtime attributes of basic types (`bool`, `int`, `float` and `str`) and `datetime.datetime`. 
 For complex types like `list` or `dict`, we suggest mocking them using 
 [monkeypatch](https://docs.pytest.org/en/latest/how-to/monkeypatch.html) or a similar tool.
 </Tip>
