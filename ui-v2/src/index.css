@@ -5,6 +5,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html, body, #root {
+  height: 100svh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+
 :root {
 	--background: hsl(0 0% 100%);
 	--foreground: hsl(0 0% 3.9%);
@@ -154,5 +162,31 @@
 	}
 	body {
 		@apply bg-background text-foreground;
+	}
+}
+
+/* Custom scrollbar styles */
+@layer base {
+	::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+	
+	::-webkit-scrollbar-track {
+		@apply bg-background;
+	}
+	
+	::-webkit-scrollbar-thumb {
+		@apply bg-muted rounded-full;
+	}
+	
+	::-webkit-scrollbar-thumb:hover {
+		@apply bg-muted-foreground/50;
+	}
+	
+	/* Firefox scrollbar */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--muted) var(--background);
 	}
 }

@@ -32,6 +32,21 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { subDays, endOfDay, addHours, startOfHour } from "date-fns";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import {
+	ColumnDef,
+	flexRender,
+	getCoreRowModel,
+	useReactTable,
+	PaginationState,
+} from "@tanstack/react-table";
 
 
 const END_DATE = startOfHour(addHours(endOfDay(new Date()), 1)).toISOString();
@@ -159,9 +174,80 @@ function RouteComponent() {
 		eventGroupCounts.reduce((acc, curr) => acc + curr.count, 0),
 	[eventGroupCounts]);
 	
+	// Table pagination state
+	const [pagination, setPagination] = React.useState<PaginationState>({
+		pageIndex: search.offset ? Math.floor(search.offset / (search.limit || 10)) : 0,
+		pageSize: search.limit || 10,
+	});
+	
+	// Update URL when pagination changes
+	React.useEffect(() => {
+		navigate({
+			to: "/events",
+			search: (prev) => ({
+				...prev,
+				limit: pagination.pageSize,
+				offset: pagination.pageIndex * pagination.pageSize,
+			}),
+			replace: true,
+		});
+	}, [pagination, navigate]);
+	
+	// Define table columns
+	const columns = React.useMemo<ColumnDef<typeof events.events[0]>[]>(
+		() => [
+
+			{
+				accessorKey: "occurred",
+				header: "Time",
+				cell: ({ row }) => {
+					const date = new Date(row.original.occurred);
+					return (
+						<div title={date.toISOString()}>
+							{date.toLocaleString("en-US", {
+								month: "short",
+								day: "numeric",
+								year: "numeric",
+								hour: "numeric",
+								minute: "2-digit",
+							})}
+						</div>
+					);
+				},
+			},
+			{
+				accessorKey: "event",
+				header: "Event Type",
+				cell: ({ row }) => <div>{row.original.event}</div>,
+			},
+			{
+				accessorKey: "resource",
+				header: "Resource",
+				cell: ({ row }) => (
+					<div>{row.original.resource?.["prefect.resource.name"] || "-"}</div>
+				),
+			},
+
+		],
+		[]
+	);
+	
+	// Create table instance
+	const table = useReactTable({
+		data: events.events,
+		columns,
+		pageCount: Math.ceil(events.total / pagination.pageSize),
+		state: {
+			pagination,
+		},
+		onPaginationChange: setPagination,
+		manualPagination: true,
+		getCoreRowModel: getCoreRowModel(),
+	});
+	
 	return (
-		<div>
-			<div className="flex space-x-4 mb-4">
+		<div className="h-full max-h-full max-w-full">
+			<div className="h-14 flex-0 space-x-4">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button variant="outline" className="w-[280px] justify-between">
@@ -285,8 +371,9 @@ function RouteComponent() {
 				</DropdownMenu>
 			</div>
 
-			<Card className="mb-6 p-0">
-				<CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row">
+
+			<Card className="h-[calc(100%-4rem)] max-h-full flex flex-col m-0 p-0 gap-0 rounded-b-none border-b-0">
+				<CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row flex-shrink-0">
 					<div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
 						<CardTitle>Events Timeline</CardTitle>
 						<CardDescription>
@@ -304,10 +391,10 @@ function RouteComponent() {
 						</div>
 					</div>
 				</CardHeader>
-				<CardContent className="!pt-0 px-2 sm:p-6">
+				<CardContent className="!p-0 sm:p-6 flex-1 flex flex-col min-h-0">
 					<ChartContainer
 						config={chartConfig}
-						className="aspect-auto h-[250px] w-full"
+						className="aspect-auto h-[250px] px-6 w-full mb-6 flex-shrink-0"
 					>
 						<BarChart
 							accessibilityLayer
@@ -355,28 +442,55 @@ function RouteComponent() {
 							<Bar dataKey="count" fill={chartConfig.count.color} />
 						</BarChart>
 					</ChartContainer>
-				</CardContent>
-			</Card>
+					<div className="flex-1 h-full min-h-0">
+						
+						<div className="h-full max-h-full overflow-auto border-t">
+						<Table className="h-full max-h-full">
+						<TableHeader>
+								{table.getHeaderGroups().map((headerGroup) => (
+									<TableRow key={headerGroup.id}>
+										{headerGroup.headers.map((header) => (
+											<TableHead key={header.id} className="sticky top-0 z-10 bg-background">
+												{header.isPlaceholder
+													? null
+													: flexRender(
+														header.column.columnDef.header,
+														header.getContext()
+													)}
+											</TableHead>
+										))}
+									</TableRow>
+								))}
+							</TableHeader>
+							<TableBody>
+								{table.getRowModel().rows?.length ? (
+									table.getRowModel().rows.map((row) => (
+										<TableRow
+											key={row.id}
+											data-state={row.getIsSelected() && "selected"}
+										>
+											{row.getVisibleCells().map((cell) => (
+												<TableCell key={cell.id}>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</TableCell>
+											))}
+										</TableRow>
+									))
+								) : (
+									<TableRow>
+										<TableCell colSpan={columns.length} className="h-24 text-center">
+											No events found.
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
+						</div>
+		 			</div>
 
-			<ul>
-				{events.events.map((event) => {
-					const eventDate = new Date(event.occurred);
-					return (
-						<li key={event.id}>
-							<Link
-								to="/events/event/$date/$eventId"
-								params={{
-									date: formatISO(eventDate, {'representation': 'date'}),
-									eventId: event.id
-								}}
-							>
-								{event.event}
-								{event.resource?.['prefect.resource.name']}
-							</Link>
-						</li>
-					);
-				})}
-			</ul>
-		</div>
+				</CardContent>
+		 	</Card>
+
+		 </div>
 	);
 }

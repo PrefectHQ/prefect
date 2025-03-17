@@ -4,9 +4,9 @@ import { Toaster } from "@/components/ui/sonner";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<SidebarProvider>
+		<SidebarProvider className="h-full">
 			<AppSidebar />
-			<main className="flex-1 overflow-auto p-4">{children}</main>
+			<main className="p-4 pb-0 max-h-full h-full w-full">{children}</main>
 			<Toaster />
 		</SidebarProvider>
 	);
