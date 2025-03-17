@@ -1,16 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Mapping,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -407,9 +398,9 @@ class TaskRunCreate(ActionBaseModel):
     )
     tags: list[str] = Field(default_factory=list)
     labels: KeyValueLabelsField = Field(default_factory=dict)
-    task_inputs: Mapping[
+    task_inputs: dict[
         str,
-        Sequence[
+        list[
             Union[
                 objects.TaskRunResult,
                 objects.Parameter,

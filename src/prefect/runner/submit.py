@@ -15,7 +15,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterParentFlowRunId,
     TaskRunFilter,
 )
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.objects import Constant, FlowRun, Parameter, TaskRunResult
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
 from prefect.logging import get_logger
@@ -64,7 +64,7 @@ async def _submit_flow_to_runner(
 
         parent_flow_run_context = FlowRunContext.get()
 
-        task_inputs = {
+        task_inputs: dict[str, list[TaskRunResult | Parameter | Constant]] = {
             k: list(await collect_task_run_inputs(v)) for k, v in parameters.items()
         }
         parameters = await resolve_inputs(parameters)
