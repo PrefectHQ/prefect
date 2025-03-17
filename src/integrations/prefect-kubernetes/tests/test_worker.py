@@ -5,6 +5,7 @@ import sys
 import uuid
 from contextlib import asynccontextmanager
 from time import monotonic
+from typing import Any
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 
@@ -43,6 +44,7 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
+from prefect.types._datetime import DateTime
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CLUSTER = "fake-cluster"
