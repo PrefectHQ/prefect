@@ -31,7 +31,6 @@ from prefect.server.orchestration.policies import TaskRunOrchestrationPolicy
 from prefect.server.schemas.responses import (
     OrchestrationResult,
     TaskRunPaginationResponse,
-    TaskRunResponse,
 )
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
