@@ -67,7 +67,6 @@
 		"src/prefect/locking/",
 		"src/prefect/logging/",
 		"src/prefect/records/",
-		"src/prefect/runner/",
 		"src/prefect/runtime/",
 		"src/prefect/settings/",
 		"src/prefect/server/api/",
