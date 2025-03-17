@@ -247,7 +247,7 @@ function RouteComponent() {
 	
 	return (
 		<div className="h-full max-h-full max-w-full">
-			<div className="h-14 flex-0 space-x-4">
+			<div className="h-12 flex-0 flex space-x-4 flex-nowrap">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button variant="outline" className="w-[280px] justify-between">
@@ -372,7 +372,7 @@ function RouteComponent() {
 			</div>
 
 
-			<Card className="h-[calc(100%-4rem)] max-h-full flex flex-col m-0 p-0 gap-0 rounded-b-none border-b-0">
+			<Card className="h-[calc(100%-3rem)] max-h-full flex flex-col m-0 p-0 gap-0 rounded-b-none border-b-0">
 				<CardHeader className="flex flex-col items-stretch space-y-0 border-b p-0 sm:flex-row flex-shrink-0">
 					<div className="flex flex-1 flex-col justify-center gap-1 px-6 py-5 sm:py-6">
 						<CardTitle>Events Timeline</CardTitle>
@@ -391,7 +391,7 @@ function RouteComponent() {
 						</div>
 					</div>
 				</CardHeader>
-				<CardContent className="!p-0 sm:p-6 flex-1 flex flex-col min-h-0">
+				<CardContent className="!px-0 !pb-0 sm:p-6 flex-1 flex flex-col min-h-0">
 					<ChartContainer
 						config={chartConfig}
 						className="aspect-auto h-[250px] px-6 w-full mb-6 flex-shrink-0"
@@ -445,7 +445,7 @@ function RouteComponent() {
 					<div className="flex-1 h-full min-h-0">
 						
 						<div className="h-full max-h-full overflow-auto border-t">
-						<Table className="h-full max-h-full">
+						<Table className="max-h-full">
 						<TableHeader>
 								{table.getHeaderGroups().map((headerGroup) => (
 									<TableRow key={headerGroup.id}>
@@ -467,6 +467,7 @@ function RouteComponent() {
 									table.getRowModel().rows.map((row) => (
 										<TableRow
 											key={row.id}
+											className="max-h-8"
 											data-state={row.getIsSelected() && "selected"}
 										>
 											{row.getVisibleCells().map((cell) => (
