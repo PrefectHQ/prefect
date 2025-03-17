@@ -5,7 +5,17 @@ import ssl
 from collections.abc import Iterable
 from contextlib import AsyncExitStack
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Mapping,
+    NoReturn,
+    Optional,
+    Sequence,
+    Union,
+    overload,
+)
 from uuid import UUID
 
 import certifi
@@ -766,9 +776,9 @@ class PrefectClient(
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
         task_inputs: Optional[
-            dict[
+            Mapping[
                 str,
-                list[
+                Sequence[
                     Union[
                         TaskRunResult,
                         Parameter,

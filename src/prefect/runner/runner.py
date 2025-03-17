@@ -1425,7 +1425,7 @@ class Runner:
             )
             status_code = process.returncode
         except Exception as exc:
-            if not task_status._future.done():
+            if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
                     f"Failed to start process for flow run '{flow_run.id}'."
