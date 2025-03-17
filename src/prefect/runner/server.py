@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional
 
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -42,8 +42,8 @@ RunnableEndpoint = Literal["deployment", "flow", "task"]
 
 class RunnerGenericFlowRunRequest(BaseModel):
     entrypoint: str
-    parameters: dict[str, Any] | None = None
-    parent_task_run_id: uuid.UUID | None = None
+    parameters: Optional[dict[str, Any]] = None
+    parent_task_run_id: Optional[uuid.UUID] = None
 
 
 def perform_health_check(
