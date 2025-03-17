@@ -5,6 +5,24 @@ from pydantic import AliasChoices, AliasPath, Field
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
+class KubernetesObserverSettings(PrefectBaseSettings):
+    model_config = build_settings_config(("integrations", "kubernetes", "observer"))
+
+    namespaces: list[str] = Field(
+        default_factory=list,
+        description="The namespaces to watch for Prefect-submitted Kubernetes "
+        "jobs and pods. If not provided, the watch will be cluster-wide.",
+    )
+
+    additional_label_filters: list[str] = Field(
+        default_factory=list,
+        description="Additional label filters to apply to the watch for "
+        "Prefect-submitted Kubernetes jobs and pods. If not provided, the watch will "
+        "include all pods and jobs with the `prefect.io/flow-run-id` label. Labels "
+        "should be provided in the format `key=value`.",
+    )
+
+
 class KubernetesWorkerSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes", "worker"))
 
