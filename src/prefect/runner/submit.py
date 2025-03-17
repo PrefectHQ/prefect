@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import uuid
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Union, overload
 
 import anyio
 import httpx
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger("webserver")
 
-FlowOrTask: TypeAlias = Flow[Any, Any] | Task[Any, Any]
+FlowOrTask: TypeAlias = Union[Flow[Any, Any], Task[Any, Any]]
 
 
 async def _submit_flow_to_runner(
