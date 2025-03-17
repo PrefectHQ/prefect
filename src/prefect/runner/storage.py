@@ -117,11 +117,11 @@ class GitRepository:
         self,
         url: str,
         credentials: Union[GitCredentials, Block, dict[str, Any], None] = None,
-        name: Optional[str] = None,
-        branch: Optional[str] = None,
+        name: str | None = None,
+        branch: str | None = None,
         include_submodules: bool = False,
-        pull_interval: Optional[int] = 60,
-        directories: Optional[str] = None,
+        pull_interval: int | None = 60,
+        directories: list[str] | None = None,
     ):
         if credentials is None:
             credentials = {}
@@ -253,7 +253,7 @@ class GitRepository:
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():
                 await run_process(
-                    ["git", "sparse-checkout", "set", self._directories],
+                    ["git", "sparse-checkout", "set", *self._directories],
                     cwd=self.destination,
                 )
 
@@ -455,7 +455,7 @@ class RemoteStorage:
         def replace_blocks_with_values(obj: Any) -> Any:
             if isinstance(obj, Block):
                 if get := getattr(obj, "get", None):
-                    return get
+                    return get()
                 if hasattr(obj, "value"):
                     return getattr(obj, "value")
                 else:

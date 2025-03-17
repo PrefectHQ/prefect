@@ -92,7 +92,7 @@ async def _build_endpoint_for_deployment(
     deployment: "DeploymentResponse", runner: "Runner"
 ) -> Callable[..., Coroutine[Any, Any, JSONResponse]]:
     async def _create_flow_run_for_deployment(
-        body: dict[Any, Any] | None = None,
+        body: Optional[dict[Any, Any]] = None,
     ) -> JSONResponse:
         body = body or {}
         if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
