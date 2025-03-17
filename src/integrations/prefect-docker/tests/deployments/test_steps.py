@@ -93,7 +93,9 @@ def mock_docker_client(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture
 def mock_datetime(monkeypatch: pytest.MonkeyPatch):
     mock_datetime = MagicMock(name="prefect_datetime", spec=prefect.types.DateTime)
-    mock_datetime.now.return_value = prefect.types.DateTime(2022, 8, 31, 18, 1, 32)
+    mock_dt_instance = MagicMock()
+    mock_dt_instance.isoformat.return_value = "2022-08-31T18:01:32-00:00"
+    mock_datetime.now.return_value = mock_dt_instance
     monkeypatch.setattr("prefect_docker.deployments.steps.DateTime", mock_datetime)
     return mock_datetime
 
