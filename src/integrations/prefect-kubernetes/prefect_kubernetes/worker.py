@@ -382,8 +382,30 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                 preparation.
             flow: The flow associated with the flow run used for preparation.
         """
+        # Save original env if it's a list
+        original_env_list = None
+        if isinstance(self.env, list):
+            original_env_list = self.env.copy()
 
+        # Call parent method which will convert env to dict format
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+
+        # If we had a list format originally, we need to merge the dict format back into the list
+        if original_env_list is not None:
+            # Convert dict env back to list format, but preserve original list items
+            # Create a set of env var names from the original list to check for duplicates
+            original_env_names = {item["name"] for item in original_env_list}
+
+            # Convert the dict env to list format for new items
+            dict_env_as_list = [
+                {"name": k, "value": v}
+                for k, v in self.env.items()
+                if k not in original_env_names
+            ]
+
+            # Combine original list with new items
+            self.env = original_env_list + dict_env_as_list
+
         # Configure eviction handling
         self._configure_eviction_handling()
         # Update configuration env and job manifest env
@@ -450,7 +472,12 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         An example reason the a user would remove the `{{ env }}` placeholder to
         hardcode Kubernetes secrets in the base job template.
         """
-        transformed_env = [{"name": k, "value": v} for k, v in self.env.items()]
+        # Handle both dictionary and list formats for environment variables
+        if isinstance(self.env, dict):
+            transformed_env = [{"name": k, "value": v} for k, v in self.env.items()]
+        else:
+            # If env is already a list (k8s format), use it directly
+            transformed_env = self.env
 
         template_env = self.job_manifest["spec"]["template"]["spec"]["containers"][
             0
@@ -477,12 +504,22 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         user, update the value to ensure connectivity when using a bridge network by
         updating local connections to use the internal host
         """
-        if self.env.get("PREFECT_API_URL") and self._api_dns_name:
-            self.env["PREFECT_API_URL"] = (
-                self.env["PREFECT_API_URL"]
-                .replace("localhost", self._api_dns_name)
-                .replace("127.0.0.1", self._api_dns_name)
-            )
+        if isinstance(self.env, dict):
+            if (api_url := self.env.get("PREFECT_API_URL")) and self._api_dns_name:
+                self.env["PREFECT_API_URL"] = api_url.replace(
+                    "localhost", self._api_dns_name
+                ).replace("127.0.0.1", self._api_dns_name)
+        else:
+            # Handle list format
+            for env_var in self.env:
+                if (
+                    env_var.get("name") == "PREFECT_API_URL"
+                    and self._api_dns_name
+                    and (value := env_var.get("value"))
+                ):
+                    env_var["value"] = value.replace(
+                        "localhost", self._api_dns_name
+                    ).replace("127.0.0.1", self._api_dns_name)
 
     def _slugify_labels(self):
         """Slugifies the labels in the job manifest."""

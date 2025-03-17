@@ -2138,6 +2138,70 @@ class TestKubernetesWorker:
 
         assert any(env for env in created_env if env["name"] == "PREFECT__FLOW_RUN_ID")
 
+    async def test_merges_env_list_from_work_pool_and_deployment(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        """Test that environment variables in list format from work pool and deployment are merged.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17406
+        """
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        custom_base_template = KubernetesWorker.get_default_base_job_template()
+        custom_base_template["job_configuration"]["env"] = [
+            {"name": "WORK_POOL_ENV", "value": "work_pool_value"},
+            {
+                "name": "WORK_POOL_SECRET",
+                "valueFrom": {
+                    "secretKeyRef": {"name": "work-pool-secret", "key": "SECRET_KEY"}
+                },
+            },
+        ]
+
+        deployment_env = [{"name": "DEPLOYMENT_ENV", "value": "deployment_value"}]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            custom_base_template,
+            {"env": deployment_env},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+
+        mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+        created_job = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+            1
+        ]
+        created_env = created_job["spec"]["template"]["spec"]["containers"][0]["env"]
+
+        # make sure both work pool and deployment env vars are present
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "WORK_POOL_ENV" and env["value"] == "work_pool_value"
+        )
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "WORK_POOL_SECRET"
+            and env["valueFrom"]["secretKeyRef"]["name"] == "work-pool-secret"
+            and env["valueFrom"]["secretKeyRef"]["key"] == "SECRET_KEY"
+        )
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "DEPLOYMENT_ENV" and env["value"] == "deployment_value"
+        )
+
+        # Also check that standard Prefect env vars are present
+        assert any(env for env in created_env if env["name"] == "PREFECT__FLOW_RUN_ID")
+
     async def test_allows_unsetting_environment_variables(
         self,
         flow_run,
