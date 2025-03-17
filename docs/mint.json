@@ -402,7 +402,7 @@
       ]
     },
     {
-      "group": "APIs & SDK",
+      "group": "API Reference",
       "pages": [
         "v3/api-ref/index",
         "v3/api-ref/python/index",
@@ -1487,7 +1487,7 @@
   ],
   "tabs": [
     {
-      "name": "APIs & SDK",
+      "name": "API Reference",
       "url": "v3/api-ref"
     },
     {

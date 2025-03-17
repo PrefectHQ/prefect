@@ -46,7 +46,7 @@ def main():
 
     # Find the "Server API" section and replace the "pages" content other than the index
     for group in mint_json["navigation"]:
-        if group["group"] == "APIs & SDK" and group["version"] == version:
+        if group["group"] == "API Reference" and group["version"] == version:
             for sub_group in group["pages"]:
                 if isinstance(sub_group, dict) and sub_group["group"] == "REST API":
                     for rest_group in sub_group["pages"]:
