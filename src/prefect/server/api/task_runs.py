@@ -255,12 +255,14 @@ async def paginate_task_runs(
             deployment_filter=deployments,
         )
 
-        return TaskRunPaginationResponse(
-            results=[TaskRunResponse.model_validate(run) for run in runs],
-            count=total_count,
-            limit=limit,
-            pages=(total_count + limit - 1) // limit,
-            page=page,
+        return TaskRunPaginationResponse.model_validate(
+            dict(
+                results=runs,
+                count=total_count,
+                limit=limit,
+                pages=(total_count + limit - 1) // limit,
+                page=page,
+            )
         )
 
 
