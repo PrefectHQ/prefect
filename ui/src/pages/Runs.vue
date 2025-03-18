@@ -103,7 +103,8 @@
                 </p-list-header>
 
                 <template v-if="taskRunCount > 0">
-                  <TaskRunList v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" @bottom="loadMoreTaskRuns" />
+                  <TaskRunList v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" />
+                  <p-pager v-model:limit="limit" v-model:page="taskRunsPage" :pages="taskRunsPages" />
                 </template>
 
                 <template v-else-if="!taskRunsSubscriptions.executed && taskRunsSubscriptions.loading">
@@ -216,6 +217,8 @@
 
   const flowRunsFilterRef = toRef(flowRunsFilter)
 
+  const taskRunsPage = useRouteQueryParam('task-runs-page', NumberRouteParam, 1)
+
   const taskRunsFilter = toRef<Getter<TaskRunsFilter>>(() => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'TaskRunsFilter')
 
@@ -224,6 +227,8 @@
         nameLike: taskRunNameLikeDebounced.value,
       },
       sort: taskRunsSort.value,
+      limit: limit.value,
+      page: taskRunsPage.value,
     })
   })
 
@@ -240,6 +245,8 @@
         parentTaskRunIdNull: hideSubflows.value ? true : undefined,
       },
       sort: flowRunsSort.value,
+      limit: limit.value,
+      page: flowRunsPage.value,
     })
   }
 
@@ -255,8 +262,7 @@
     interval,
   })
 
-  const { taskRuns, total: taskRunCount, subscriptions: taskRunsSubscriptions, next: loadMoreTaskRuns } = usePaginatedTaskRuns(taskRunsFilter, {
-    mode: 'infinite',
+  const { taskRuns, count: taskRunCount, subscription: taskRunsSubscriptions, pages: taskRunsPages } = usePaginatedTaskRuns(taskRunsFilter, {
     interval,
   })
 
