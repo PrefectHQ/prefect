@@ -1882,6 +1882,14 @@ class TestTaskCaching:
 
         assert foo.cache_policy == NO_CACHE
 
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(result_storage_key="foo-bar")
+            def zig(x):
+                return x
+
+        assert zig.cache_policy == NO_CACHE
+
     @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
     async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(
         self, caplog, cache_policy

@@ -463,7 +463,7 @@ class Task(Generic[P, R]):
                 )
         elif cache_policy is NotSet and result_storage_key is None:
             self.cache_policy = DEFAULT
-        elif result_storage_key:
+        elif cache_policy != NO_CACHE and result_storage_key:
             # TODO: handle this situation with double storage
             self.cache_policy = None
         else:
