@@ -375,6 +375,14 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
         Ensures that necessary values are present in the job manifest and that the
         job manifest is valid.
+
+        Args:
+            flow_run: The flow run to prepare the job configuration for
+            deployment: The deployment associated with the flow run used for
+                preparation.
+            flow: The flow associated with the flow run used for preparation.
+            work_pool: The work pool associated with the flow run used for preparation.
+            worker_name: The name of the worker used for preparation.
         """
         original_env_list = None
         if isinstance(self.env, list):
