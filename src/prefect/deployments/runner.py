@@ -673,8 +673,11 @@ class RunnerDeployment(BaseModel):
                 if not flow_file:
                     if not mod_name:
                         raise ValueError(no_file_location_error)
-                    module = importlib.import_module(mod_name)
-                    flow_file = getattr(module, "__file__", None)
+                    try:
+                        module = importlib.import_module(mod_name)
+                        flow_file = getattr(module, "__file__", None)
+                    except ModuleNotFoundError:
+                        raise ValueError(no_file_location_error)
                     if not flow_file:
                         raise ValueError(no_file_location_error)
 
