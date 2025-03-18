@@ -384,27 +384,29 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             work_pool: The work pool associated with the flow run used for preparation.
             worker_name: The name of the worker used for preparation.
         """
-        original_env_list = None
+        # Save special Kubernetes env vars (like those with valueFrom)
+        special_env_vars = []
         if isinstance(self.env, list):
-            original_env_list = self.env.copy()
+            special_env_vars = [item for item in self.env if "valueFrom" in item]
+            original_env = {}
+            for item in self.env:
+                if "name" in item and "value" in item:
+                    original_env[item["name"]] = item.get("value")
+            self.env = original_env
 
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
-        if original_env_list:
-            existing_names = {
-                item.get("name") for item in original_env_list if "name" in item
-            }
-            env_as_list: list[dict[str, Any]] = [
-                {"name": key, "value": value}
-                for key, value in self.env.items()
-                if key not in existing_names
-            ]
-
-            env_as_list.extend(original_env_list)
-            self.env = env_as_list
-
         self._configure_eviction_handling()
         self._update_prefect_api_url_if_local_server()
+
+        # Restore any special env vars with valueFrom before populating the manifest
+        if special_env_vars:
+            # Convert dict env back to list format
+            env_list = [{"name": k, "value": v} for k, v in self.env.items()]
+            # Add special env vars back in
+            env_list.extend(special_env_vars)
+            self.env = env_list
+
         self._populate_env_in_manifest()
         self._slugify_labels()
         self._populate_image_if_not_present()
