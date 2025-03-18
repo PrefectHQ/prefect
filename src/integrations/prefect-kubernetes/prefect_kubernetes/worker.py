@@ -375,45 +375,30 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
         Ensures that necessary values are present in the job manifest and that the
         job manifest is valid.
-
-        Args:
-            flow_run: The flow run to prepare the job configuration for
-            deployment: The deployment associated with the flow run used for
-                preparation.
-            flow: The flow associated with the flow run used for preparation.
         """
-        # Save original env if it's a list
         original_env_list = None
         if isinstance(self.env, list):
             original_env_list = self.env.copy()
 
-        # Call parent method which will convert env to dict format
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
-        # If we had a list format originally, we need to merge the dict format back into the list
-        if original_env_list is not None:
-            # Convert dict env back to list format, but preserve original list items
-            # Create a set of env var names from the original list to check for duplicates
-            original_env_names = {item["name"] for item in original_env_list}
-
-            # Convert the dict env to list format for new items
-            dict_env_as_list = [
-                {"name": k, "value": v}
-                for k, v in self.env.items()
-                if k not in original_env_names
+        if original_env_list:
+            existing_names = {
+                item.get("name") for item in original_env_list if "name" in item
+            }
+            env_as_list: list[dict[str, Any]] = [
+                {"name": key, "value": value}
+                for key, value in self.env.items()
+                if key not in existing_names
             ]
 
-            # Combine original list with new items
-            self.env = original_env_list + dict_env_as_list
+            env_as_list.extend(original_env_list)
+            self.env = env_as_list
 
-        # Configure eviction handling
         self._configure_eviction_handling()
-        # Update configuration env and job manifest env
         self._update_prefect_api_url_if_local_server()
         self._populate_env_in_manifest()
-        # Update labels in job manifest
         self._slugify_labels()
-        # Add defaults to job manifest if necessary
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
