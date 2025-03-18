@@ -95,6 +95,10 @@ def load_script_as_module(path: str) -> ModuleType:
 
     module_name = os.path.splitext(Path(path).name)[0]
 
+    # fall back in case of filenames with the same names as modules
+    if module_name in sys.modules:
+        module_name = f"__prefect_loader_{id(path)}__"
+
     spec = importlib.util.spec_from_file_location(
         module_name,
         path,
