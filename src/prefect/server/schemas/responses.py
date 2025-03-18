@@ -344,6 +344,53 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+class TaskRunResponse(ORMBaseModel):
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the task run. Defaults to a random slug if not specified."
+        ),
+        examples=["my-task-run"],
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The id of the flow run this task run belongs to."
+    )
+    task_key: str = Field(
+        default=..., description="The key of the task this run represents."
+    )
+    state_id: Optional[UUID] = Field(
+        default=None, description="The id of the task run's current state."
+    )
+    state: Optional[schemas.states.State] = Field(
+        default=None, description="The current state of the task run."
+    )
+    task_version: Optional[str] = Field(
+        default=None,
+        description="The version of the task executed in this task run.",
+        examples=["1.0"],
+    )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Parameters for the task run."
+    )
+    task_inputs: dict[str, list[schemas.core.TaskRunResult]] = Field(
+        default_factory=dict, description="Inputs provided to the task run."
+    )
+    context: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional context for the task run.",
+        examples=[{"my_var": "my_val"}],
+    )
+    empirical_policy: schemas.core.TaskRunPolicy = Field(
+        default_factory=schemas.core.TaskRunPolicy,
+        description="The task run's empirical retry policy.",
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="A list of tags for the task run.",
+        examples=[["tag-1", "tag-2"]],
+    )
+
+
 class DeploymentResponse(ORMBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
@@ -575,6 +622,14 @@ class FlowPaginationResponse(BaseModel):
 
 class FlowRunPaginationResponse(BaseModel):
     results: list[FlowRunResponse]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
+class TaskRunPaginationResponse(BaseModel):
+    results: list[TaskRunResponse]
     count: int
     limit: int
     pages: int
