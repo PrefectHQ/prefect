@@ -3324,6 +3324,12 @@ class TestKubernetesWorker:
                 cwd=ANY,
             )
 
+            async with prefect.get_client() as client:
+                flow_run = await client.read_flow_run(future.flow_run_id)
+                assert flow_run.work_pool_name == work_pool.name
+                assert flow_run.work_queue_name == "default"
+                assert flow_run.job_variables == {"command": " ".join(expected_command)}
+
         async def test_submit_adhoc_run_failed_submission(
             self,
             mock_batch_client,

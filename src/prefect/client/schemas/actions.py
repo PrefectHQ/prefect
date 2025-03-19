@@ -443,6 +443,9 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = Field(default=None)
 
     labels: KeyValueLabelsField = Field(default_factory=dict)
+    work_pool_name: Optional[str] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
 
 
 class DeploymentFlowRunCreate(ActionBaseModel):
