@@ -113,7 +113,9 @@ class FlowRunClient(BaseClient):
         if job_variables is not None:
             flow_run_create.job_variables = job_variables
 
-        flow_run_create_json = flow_run_create.model_dump(mode="json")
+        flow_run_create_json = flow_run_create.model_dump(
+            mode="json", exclude_unset=True
+        )
         response = self.request("POST", "/flow_runs/", json=flow_run_create_json)
 
         flow_run = FlowRun.model_validate(response.json())
@@ -551,12 +553,18 @@ class FlowRunAsyncClient(BaseAsyncClient):
                 retries=flow.retries,
                 retry_delay=int(flow.retry_delay_seconds or 0),
             ),
-            work_pool_name=work_pool_name,
-            work_queue_name=work_queue_name,
-            job_variables=job_variables,
         )
 
-        flow_run_create_json = flow_run_create.model_dump(mode="json")
+        if work_pool_name is not None:
+            flow_run_create.work_pool_name = work_pool_name
+        if work_queue_name is not None:
+            flow_run_create.work_queue_name = work_queue_name
+        if job_variables is not None:
+            flow_run_create.job_variables = job_variables
+
+        flow_run_create_json = flow_run_create.model_dump(
+            mode="json", exclude_unset=True
+        )
         response = await self.request("POST", "/flow_runs/", json=flow_run_create_json)
 
         flow_run = FlowRun.model_validate(response.json())
