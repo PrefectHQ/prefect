@@ -379,12 +379,14 @@ class CloudRunWorkerV2Variables(BaseVariables):
         default_factory=dict,
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
-        example={
-            "ENV_VAR_NAME": {
-                "secret": "SECRET_NAME",
-                "version": "latest",
+        examples=[
+            {
+                "ENV_VAR_NAME": {
+                    "secret": "SECRET_NAME",
+                    "version": "latest",
+                }
             }
-        },
+        ],
     )
     cloudsql_instances: Optional[List[str]] = Field(
         default_factory=list,
