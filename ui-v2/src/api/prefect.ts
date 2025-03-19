@@ -9295,6 +9295,8 @@ export interface components {
              * @description The id of the pool's default queue.
              */
             default_queue_id?: string | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
         };
         /**
          * WorkPoolCreate
@@ -9333,6 +9335,8 @@ export interface components {
              * @description A concurrency limit for the work pool.
              */
             concurrency_limit?: number | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
         };
         /**
          * WorkPoolFilter
@@ -9391,6 +9395,22 @@ export interface components {
          */
         WorkPoolStatus: "READY" | "NOT_READY" | "PAUSED";
         /**
+         * WorkPoolStorageConfiguration
+         * @description A representation of a work pool's storage configuration
+         */
+        WorkPoolStorageConfiguration: {
+            /**
+             * Bundle Upload Step
+             * @description The step to use for uploading bundles to storage.
+             */
+            bundle_upload_step?: Record<string, never> | null;
+            /**
+             * Bundle Execution Step
+             * @description The step to use for executing bundles.
+             */
+            bundle_execution_step?: Record<string, never> | null;
+        };
+        /**
          * WorkPoolUpdate
          * @description Data used by the Prefect REST API to update a work pool.
          */
@@ -9403,6 +9423,8 @@ export interface components {
             base_job_template?: Record<string, never> | null;
             /** Concurrency Limit */
             concurrency_limit?: number | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
         };
         /**
          * WorkQueue

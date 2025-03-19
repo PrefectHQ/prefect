@@ -1101,6 +1101,21 @@ class Agent(ORMBaseModel):
     )
 
 
+class WorkPoolStorageConfiguration(PrefectBaseModel):
+    """A representation of a work pool's storage configuration"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    bundle_upload_step: dict[str, Any] | None = Field(
+        default=None,
+        description="The step to use for uploading bundles to storage.",
+    )
+    bundle_execution_step: dict[str, Any] | None = Field(
+        default=None,
+        description="The step to use for executing bundles.",
+    )
+
+
 class WorkPool(ORMBaseModel):
     """An ORM representation of a work pool"""
 
@@ -1128,7 +1143,12 @@ class WorkPool(ORMBaseModel):
     # this required field has a default of None so that the custom validator
     # below will be called and produce a more helpful error message
     default_queue_id: Optional[UUID] = Field(
-        None, description="The id of the pool's default queue."
+        default=None, description="The id of the pool's default queue."
+    )
+
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="The storage configuration for the work pool.",
     )
 
     @field_validator("default_queue_id")
