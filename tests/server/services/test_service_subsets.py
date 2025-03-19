@@ -42,6 +42,7 @@ def test_run_in_all_servers():
     """The following services should be enabled on background servers and web-only
     API servers"""
     assert set(RunInAllServers.all_services()) == {
+        Telemetry,
         # Orchestration services
         TaskRunRecorder,
         # Events services
