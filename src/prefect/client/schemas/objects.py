@@ -1445,6 +1445,19 @@ class Agent(ObjectBaseModel):
     )
 
 
+class WorkPoolStorageConfiguration(PrefectBaseModel):
+    """A work pool storage configuration"""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    bundle_upload_step: Optional[dict[str, Any]] = Field(
+        default=None, description="The bundle upload step for the work pool."
+    )
+    bundle_execution_step: Optional[dict[str, Any]] = Field(
+        default=None, description="The bundle execution step for the work pool."
+    )
+
+
 class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 
@@ -1467,6 +1480,11 @@ class WorkPool(ObjectBaseModel):
     )
     status: Optional[WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
+    )
+
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="The storage configuration for the work pool.",
     )
 
     # this required field has a default of None so that the custom validator
