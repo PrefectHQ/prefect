@@ -57,6 +57,11 @@ class TasksSettings(PrefectBaseSettings):
         description="If `True`, enables a refresh of cached results: re-executing the task will refresh the cached results.",
     )
 
+    default_no_cache: bool = Field(
+        default=False,
+        description="If `True`, sets the default cache policy on all tasks to `NO_CACHE`.",
+    )
+
     default_retries: int = Field(
         default=0,
         ge=0,
