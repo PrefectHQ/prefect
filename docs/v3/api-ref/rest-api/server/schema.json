@@ -24564,6 +24564,10 @@
                         ],
                         "title": "Default Queue Id",
                         "description": "The id of the pool's default queue."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "type": "object",
@@ -24626,6 +24630,10 @@
                         ],
                         "title": "Concurrency Limit",
                         "description": "A concurrency limit for the work pool."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "additionalProperties": false,
@@ -24762,6 +24770,38 @@
                 "title": "WorkPoolStatus",
                 "description": "Enumeration of work pool statuses."
             },
+            "WorkPoolStorageConfiguration": {
+                "properties": {
+                    "bundle_upload_step": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bundle Upload Step",
+                        "description": "The step to use for uploading bundles to storage."
+                    },
+                    "bundle_execution_step": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bundle Execution Step",
+                        "description": "The step to use for executing bundles."
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "WorkPoolStorageConfiguration",
+                "description": "A representation of a work pool's storage configuration"
+            },
             "WorkPoolUpdate": {
                 "properties": {
                     "description": {
@@ -24808,6 +24848,17 @@
                             }
                         ],
                         "title": "Concurrency Limit"
+                    },
+                    "storage_configuration": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolStorageConfiguration"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "additionalProperties": false,

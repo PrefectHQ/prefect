@@ -3,7 +3,7 @@ import os
 import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Generator, List
+from typing import Any, Generator, List
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 from uuid import UUID, uuid4
@@ -66,6 +66,7 @@ from prefect.client.schemas.objects import (
     TaskRun,
     Variable,
     WorkerMetadata,
+    WorkPoolStorageConfiguration,
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
@@ -2026,7 +2027,7 @@ class TestWorkPools:
         }
 
     async def test_create_work_pool_overwriting_existing_work_pool(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(
@@ -2085,6 +2086,74 @@ class TestWorkPools:
         await prefect_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.read_work_pool(work_pool.id)
+
+    @pytest.fixture
+    def sample_bundle_upload_step(self) -> dict[str, Any]:
+        return {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+
+    @pytest.fixture
+    def sample_bundle_execution_step(self) -> dict[str, Any]:
+        return {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+
+    async def test_create_work_pool_with_storage_configuration(
+        self,
+        prefect_client: PrefectClient,
+        sample_bundle_upload_step: dict[str, Any],
+        sample_bundle_execution_step: dict[str, Any],
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate.model_validate(
+                {
+                    "name": "test-pool-1",
+                    "storage_configuration": {
+                        "bundle_upload_step": sample_bundle_upload_step,
+                        "bundle_execution_step": sample_bundle_execution_step,
+                    },
+                }
+            ),
+        )
+        assert work_pool.storage_configuration == WorkPoolStorageConfiguration(
+            bundle_upload_step=sample_bundle_upload_step,
+            bundle_execution_step=sample_bundle_execution_step,
+        )
+
+    async def test_update_work_pool_with_storage_configuration(
+        self,
+        prefect_client: PrefectClient,
+        sample_bundle_upload_step: dict[str, Any],
+        sample_bundle_execution_step: dict[str, Any],
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-1")
+        )
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate.model_validate(
+                {
+                    "storage_configuration": {
+                        "bundle_upload_step": sample_bundle_upload_step,
+                        "bundle_execution_step": {"step": "not a real step"},
+                    },
+                }
+            ),
+        )
+        result = await prefect_client.read_work_pool(work_pool.name)
+        assert result.storage_configuration == WorkPoolStorageConfiguration(
+            bundle_upload_step=sample_bundle_upload_step,
+            bundle_execution_step={"step": "not a real step"},
+        )
 
 
 class TestArtifacts:
