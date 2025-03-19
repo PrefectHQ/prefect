@@ -4,9 +4,7 @@ Regression test for https://github.com/PrefectHQ/prefect/issues/9329#issuecommen
 
 import multiprocessing as mp
 import signal
-import tempfile
 from datetime import timedelta
-from pathlib import Path
 
 from prefect import flow, get_client
 from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterTags
@@ -15,7 +13,9 @@ from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY, temporary_settings
 
 def read_flow_runs(tags):
     with get_client(sync_client=True) as client:
-        return client.read_flow_runs(deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(all_=tags)))
+        return client.read_flow_runs(
+            deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(all_=tags))
+        )
 
 
 def _task(i):
@@ -42,7 +42,11 @@ if __name__ == "__main__":
 
     with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 1}):
         try:
-            main.serve(name="mp-integration", interval=timedelta(seconds=INTERVAL_SECONDS), tags=TAGS)
+            main.serve(
+                name="mp-integration",
+                interval=timedelta(seconds=INTERVAL_SECONDS),
+                tags=TAGS,
+            )
         except KeyboardInterrupt as e:
             print(str(e))
         finally:
