@@ -239,6 +239,7 @@ env = [
     "PREFECT_TESTING_TEST_MODE=1",
     "PREFECT_TESTING_UNIT_TEST_MODE=1",
     "PREFECT_SERVER_LOGGING_LEVEL=DEBUG",
+    "PREFECT_SERVER_ANALYTICS_ENABLED=0",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
