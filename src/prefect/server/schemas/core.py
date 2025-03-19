@@ -1106,11 +1106,11 @@ class WorkPoolStorageConfiguration(PrefectBaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    bundle_upload_step: dict[str, Any] | None = Field(
+    bundle_upload_step: Optional[dict[str, Any]] = Field(
         default=None,
         description="The step to use for uploading bundles to storage.",
     )
-    bundle_execution_step: dict[str, Any] | None = Field(
+    bundle_execution_step: Optional[dict[str, Any]] = Field(
         default=None,
         description="The step to use for executing bundles.",
     )
