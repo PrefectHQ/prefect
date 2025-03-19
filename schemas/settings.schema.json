@@ -2142,6 +2142,15 @@
                     "title": "Refresh Cache",
                     "type": "boolean"
                 },
+                "default_no_cache": {
+                    "default": false,
+                    "description": "If `True`, sets the default cache policy on all tasks to `NO_CACHE`.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_DEFAULT_NO_CACHE"
+                    ],
+                    "title": "Default No Cache",
+                    "type": "boolean"
+                },
                 "default_retries": {
                     "default": 0,
                     "description": "This value sets the default number of retries for all tasks.",

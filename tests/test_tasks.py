@@ -53,6 +53,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASKS_DEFAULT_NO_CACHE,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
     temporary_settings,
@@ -1848,6 +1849,46 @@ class TestTaskCaching:
         assert (
             "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
         )
+
+    async def test_no_cache_can_be_configured_as_default(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+
+    async def test_no_cache_default_can_be_overrided(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(cache_policy=DEFAULT)
+            def foo(x):
+                return x
+
+            @task(cache_key_fn=lambda **kwargs: "")
+            def bar(x):
+                return x
+
+        assert foo.cache_policy == DEFAULT
+        assert bar.cache_policy != NO_CACHE
+
+    async def test_no_cache_default_is_respected_even_with_result_persistence(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(persist_result=True)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(result_storage_key="foo-bar")
+            def zig(x):
+                return x
+
+        assert zig.cache_policy == NO_CACHE
 
     @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
     async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(

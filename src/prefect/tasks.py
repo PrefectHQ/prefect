@@ -422,6 +422,11 @@ class Task(Generic[P, R]):
 
         self.task_key: str = _generate_task_key(self.fn)
 
+        # determine cache and result configuration
+        settings = get_current_settings()
+        if settings.tasks.default_no_cache and cache_policy is NotSet:
+            cache_policy = NO_CACHE
+
         if cache_policy is not NotSet and cache_key_fn is not None:
             logger.warning(
                 f"Both `cache_policy` and `cache_key_fn` are set on task {self}. `cache_key_fn` will be used."
@@ -458,7 +463,7 @@ class Task(Generic[P, R]):
                 )
         elif cache_policy is NotSet and result_storage_key is None:
             self.cache_policy = DEFAULT
-        elif result_storage_key:
+        elif cache_policy != NO_CACHE and result_storage_key:
             # TODO: handle this situation with double storage
             self.cache_policy = None
         else:
@@ -468,7 +473,6 @@ class Task(Generic[P, R]):
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
 
-        settings = get_current_settings()
         self.retries: int = (
             retries if retries is not None else settings.tasks.default_retries
         )
