@@ -2376,6 +2376,18 @@ If `True`, enables a refresh of cached results: re-executing the task will refre
 **Supported environment variables**:
 `PREFECT_TASKS_REFRESH_CACHE`
 
+### `default_no_cache`
+If `True`, sets the default cache policy on all tasks to `NO_CACHE`.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `tasks.default_no_cache`
+
+**Supported environment variables**:
+`PREFECT_TASKS_DEFAULT_NO_CACHE`
+
 ### `default_retries`
 This value sets the default number of retries for all tasks.
 

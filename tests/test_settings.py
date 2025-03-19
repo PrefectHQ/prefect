@@ -423,6 +423,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_TASKS_DEFAULT_NO_CACHE": {"test_value": True},
     "PREFECT_TASKS_DEFAULT_PERSIST_RESULT": {"test_value": True},
     "PREFECT_TASKS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
