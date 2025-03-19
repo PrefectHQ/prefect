@@ -883,8 +883,8 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = Field(default=None)
     base_job_template: Optional[Dict[str, Any]] = Field(default=None)
     concurrency_limit: Optional[NonNegativeInteger] = Field(default=None)
-    storage_configuration: schemas.core.WorkPoolStorageConfiguration = Field(
-        default_factory=schemas.core.WorkPoolStorageConfiguration,
+    storage_configuration: Optional[schemas.core.WorkPoolStorageConfiguration] = Field(
+        default=None,
         description="The storage configuration for the work pool.",
     )
     _validate_base_job_template = field_validator("base_job_template")(

@@ -24850,7 +24850,14 @@
                         "title": "Concurrency Limit"
                     },
                     "storage_configuration": {
-                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolStorageConfiguration"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "description": "The storage configuration for the work pool."
                     }
                 },

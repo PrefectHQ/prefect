@@ -9424,7 +9424,7 @@ export interface components {
             /** Concurrency Limit */
             concurrency_limit?: number | null;
             /** @description The storage configuration for the work pool. */
-            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"] | null;
         };
         /**
          * WorkQueue
