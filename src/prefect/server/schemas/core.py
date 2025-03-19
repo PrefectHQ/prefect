@@ -1104,7 +1104,7 @@ class Agent(ORMBaseModel):
 class WorkPoolStorageConfiguration(PrefectBaseModel):
     """A representation of a work pool's storage configuration"""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     bundle_upload_step: Optional[dict[str, Any]] = Field(
         default=None,
