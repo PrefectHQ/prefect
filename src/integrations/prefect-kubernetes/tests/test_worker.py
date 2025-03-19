@@ -3294,7 +3294,10 @@ class TestKubernetesWorker:
             mock_run_process: AsyncMock,
             caplog: pytest.LogCaptureFixture,
             work_pool: WorkPool,
+            monkeypatch: pytest.MonkeyPatch,
         ):
+            frozen_uuid = uuid.uuid4()
+            monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
             mock_watch.return_value.stream = mock.Mock(
                 side_effect=mock_pods_stream_that_returns_completed_pod
             )
@@ -3302,7 +3305,7 @@ class TestKubernetesWorker:
             async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
                 future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
-            expected_command = [
+            expected_upload_command = [
                 "uv",
                 "run",
                 "--with",
@@ -3316,19 +3319,36 @@ class TestKubernetesWorker:
                 "--credentials-block-name",
                 "my-creds",
                 "--key",
-                str(future.flow_run_id),
-                str(future.flow_run_id),
+                str(frozen_uuid),
+                str(frozen_uuid),
             ]
             mock_run_process.assert_called_once_with(
-                expected_command,
+                expected_upload_command,
                 cwd=ANY,
             )
-
+            expected_execute_command = [
+                "uv",
+                "run",
+                "--with",
+                "prefect-mock==0.5.5",
+                "--python",
+                f"{python_version_info.major}.{python_version_info.minor}",
+                "-m",
+                "prefect_mock.experimental.bundles.execute",
+                "--bucket",
+                "test-bucket",
+                "--credentials-block-name",
+                "my-creds",
+                "--key",
+                str(frozen_uuid),
+            ]
             async with prefect.get_client() as client:
                 flow_run = await client.read_flow_run(future.flow_run_id)
                 assert flow_run.work_pool_name == work_pool.name
                 assert flow_run.work_queue_name == "default"
-                assert flow_run.job_variables == {"command": " ".join(expected_command)}
+                assert flow_run.job_variables == {
+                    "command": " ".join(expected_execute_command)
+                }
 
         async def test_submit_adhoc_run_failed_submission(
             self,

@@ -108,6 +108,7 @@ import enum
 import json
 import logging
 import shlex
+import subprocess
 import tempfile
 import uuid
 import warnings
@@ -812,16 +813,16 @@ class KubernetesWorker(
         with tempfile.TemporaryDirectory() as temp_dir:
             await (
                 anyio.Path(temp_dir)
-                .joinpath(str(flow_run.id))
+                .joinpath(bundle_key)
                 .write_bytes(json.dumps(bundle).encode("utf-8"))
             )
 
             try:
                 await anyio.run_process(
-                    upload_command + [str(flow_run.id)],
+                    upload_command + [bundle_key],
                     cwd=temp_dir,
                 )
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 self._logger.error(
                     "Failed to upload bundle: %s", e.stderr.decode("utf-8")
                 )
