@@ -1256,7 +1256,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         if not flow_run.state:
             current_states: (
-                list[State] | list[State[Any]]
+                list[State] | list[State[Any]]  # pyright: ignore[reportAssignmentType]
             ) = await self.client.read_flow_run_states(flow_run.id)
             # Set flow run's state with the latest one
             # Don't need to make API call, because after executing this function,
