@@ -93,8 +93,11 @@ def load_script_as_module(path: str) -> ModuleType:
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
-    # Generate unique module name for thread safety
-    module_name = f"__prefect_loader_{id(path)}__"
+    module_name = os.path.splitext(Path(path).name)[0]
+
+    # fall back in case of filenames with the same names as modules
+    if module_name in sys.modules:
+        module_name = f"__prefect_loader_{id(path)}__"
 
     spec = importlib.util.spec_from_file_location(
         module_name,
@@ -112,15 +115,9 @@ def load_script_as_module(path: str) -> ModuleType:
         with _get_sys_path_lock():
             sys.path.insert(0, working_directory)
             sys.path.insert(0, parent_path)
-            try:
-                spec.loader.exec_module(module)
-            finally:
-                sys.path.remove(parent_path)
-                sys.path.remove(working_directory)
+            spec.loader.exec_module(module)
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
-    finally:
-        sys.modules.pop(module_name)
 
     return module
 

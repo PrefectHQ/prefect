@@ -60,6 +60,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
+    Cancelled,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -1250,9 +1251,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
         state_updates.setdefault("type", StateType.CANCELLED)
-        if TYPE_CHECKING:
-            assert flow_run.state
-        state = flow_run.state.model_copy(update=state_updates)
+
+        if flow_run.state:
+            state = flow_run.state.model_copy(update=state_updates)
+        else:
+            # Unexpectedly when flow run does not have a state, create a new one
+            state = Cancelled(**state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
 
