@@ -64,7 +64,8 @@ class DockerImage:
     def build(self) -> None:
         full_image_name = self.reference
         build_kwargs = self.build_kwargs.copy()
-        build_kwargs["context"] = Path.cwd()
+        if "context" not in build_kwargs:
+            build_kwargs["context"] = Path.cwd()
         build_kwargs["tag"] = full_image_name
         build_kwargs["pull"] = build_kwargs.get("pull", True)
 
