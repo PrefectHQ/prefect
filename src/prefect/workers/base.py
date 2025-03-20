@@ -51,7 +51,7 @@ from prefect.logging.loggers import (
     get_worker_logger,
 )
 from prefect.plugins import load_prefect_collections
-from prefect.server.database.orm_models import FlowRunState
+from prefect.server.schemas.states import State
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
@@ -1256,7 +1256,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         if not flow_run.state:
             # BUG: ensure flow run has its state loaded
-            current_states: list[FlowRunState] = await self.client.read_flow_run_states(
+            current_states: list[State[Any]] = await self.client.read_flow_run_states(
                 flow_run.id
             )
             # Set flow run's state with the latest one
