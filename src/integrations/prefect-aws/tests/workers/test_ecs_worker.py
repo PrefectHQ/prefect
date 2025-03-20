@@ -2345,12 +2345,9 @@ async def test_get_or_generate_family(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
-def test_task_definitions_equal_logs_differences(caplog):
+async def test_task_definitions_equal_logs_differences(caplog):
     """Test that we log the differences between task definitions when they don't match."""
-    # Create a worker instance to access the method
-    worker = ECSWorker()
 
-    # Create two slightly different task definitions
     taskdef_1 = {
         "containerDefinitions": [
             {
@@ -2380,28 +2377,23 @@ def test_task_definitions_equal_logs_differences(caplog):
         "executionRoleArn": "test-role",  # Additional key
     }
 
-    # Create a logger for testing
     logger = logging.getLogger("prefect.workers.ecs")
 
-    # Set the log level to DEBUG to capture debug messages
-    with caplog.at_level(logging.DEBUG, logger="prefect.workers.ecs"):
-        # Call the method
-        result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
+    async with ECSWorker(work_pool_name="test") as worker:
+        with caplog.at_level(logging.DEBUG, logger="prefect.workers.ecs"):
+            result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
 
-        # Assert the result is False
-        assert result is False
+            assert result is False
 
-        # Check that the differences were logged
-        assert (
-            "Keys only in retrieved task definition: {'executionRoleArn'}"
-            in caplog.text
-        )
-        assert "Value differs for key 'containerDefinitions'" in caplog.text
+            assert (
+                "Keys only in retrieved task definition: {'executionRoleArn'}"
+                in caplog.text
+            )
+            assert "Value differs for key 'containerDefinitions'" in caplog.text
 
-        # The differences in the container definitions should be logged
-        assert "Generated:  " in caplog.text
-        assert "Retrieved: " in caplog.text
-        assert "prefecthq/prefect:2.0" in caplog.text
-        assert "prefecthq/prefect:2.1" in caplog.text
-        assert "cpu: 256" in caplog.text
-        assert "cpu: 512" in caplog.text
+            assert "Generated:  " in caplog.text
+            assert "Retrieved: " in caplog.text
+            assert "prefecthq/prefect:2.0" in caplog.text
+            assert "prefecthq/prefect:2.1" in caplog.text
+            assert "cpu: 256" in caplog.text
+            assert "cpu: 512" in caplog.text
