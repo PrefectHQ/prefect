@@ -23,6 +23,7 @@ from prefect.exceptions import (
     MissingContextError,
     SerializationError,
 )
+from prefect.filesystems import NullFileSystem
 from prefect.logging.loggers import LoggingAdapter, get_logger, get_run_logger
 from prefect.results import (
     ResultRecord,
@@ -452,6 +453,10 @@ def transaction(
     # if there is no key, we won't persist a record
     if key and not store:
         store = get_result_store()
+
+    # Avoid inheriting a NullFileSystem for metadata_storage from a flow's result store
+    if store and isinstance(store.metadata_storage, NullFileSystem):
+        store = store.model_copy(update={"metadata_storage": None})
 
     try:
         _logger: Union[logging.Logger, LoggingAdapter] = logger or get_run_logger()
