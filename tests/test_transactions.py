@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.exceptions import ConfigurationError
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, NullFileSystem
 from prefect.flows import flow
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
@@ -420,25 +420,33 @@ class TestWithResultStore:
         assert record_2.metadata.storage_key == "test_basic_transaction"
 
     async def test_transaction_with_nullfilesystem_metadata(self, tmp_path: Path):
-        """Test transactions work correctly when flow result stores don't use NullFileSystem.
+        """Test transactions correctly handle NullFileSystem for metadata storage.
 
-        This tests that when a flow's metadata_storage is None rather than NullFileSystem,
-        transactions correctly identify previously committed files.
+        This tests for the bug where a file would exist at the expected path, but
+        the transaction would not recognize it as committed because the exists check
+        used metadata_storage (which is a NullFileSystem).
+
+        The fix ensures that when a transaction is created with a ResultStore that has
+        NullFileSystem for metadata_storage, it replaces it with None to enable
+        metadata persistence and proper idempotency detection.
         """
+        # Create a result store with explicit NullFileSystem for metadata_storage
         local_storage = LocalFileSystem(basepath=str(tmp_path))
         result_store = ResultStore(
             result_storage=local_storage,
-            # No metadata_storage specified - should default to None
+            metadata_storage=NullFileSystem(),
         )
 
-        # Verify metadata_storage is None, not NullFileSystem
-        assert result_store.metadata_storage is None
+        # Verify it's using NullFileSystem
+        assert isinstance(result_store.metadata_storage, NullFileSystem)
 
         # First transaction - creates a file
         transaction_key = "test-null-metadata-transaction"
         with transaction(
             key=transaction_key, store=result_store, write_on_commit=True
         ) as txn:
+            # Verify transaction has replaced NullFileSystem with None
+            assert txn.store.metadata_storage is None
             txn.stage({"foo": "bar"})
 
         # Verify the file was created
@@ -447,7 +455,7 @@ class TestWithResultStore:
         # Second transaction - should recognize the file as already committed
         with transaction(key=transaction_key, store=result_store) as txn:
             assert txn.is_committed(), (
-                "Transaction should correctly identify existing file when metadata_storage is None"
+                "Transaction should correctly identify existing file after replacing NullFileSystem"
             )
 
     async def test_competing_read_transaction(self, result_store):

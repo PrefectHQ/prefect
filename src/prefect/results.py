@@ -410,8 +410,7 @@ class ResultStore(BaseModel):
             update["serializer"] = resolve_serializer(flow.result_serializer)
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await aget_default_result_storage()
-        # Do not set metadata_storage to NullFileSystem, let it remain None
-        # so transaction idempotency works correctly
+        update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
     @sync_compatible
