@@ -34,6 +34,7 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import (
     Integration,
+    State,
     StateType,
     WorkerMetadata,
     WorkPool,
@@ -51,7 +52,6 @@ from prefect.logging.loggers import (
     get_worker_logger,
 )
 from prefect.plugins import load_prefect_collections
-from prefect.server.schemas.states import State
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
@@ -61,6 +61,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.states import (
+    Cancelled,
     Crashed,
     Pending,
     exception_to_failed_state,
@@ -1258,7 +1259,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             state = flow_run.state.model_copy(update=state_updates)
         else:
             # Unexpectedly when flow run does not have a state, create a new one
-            state: State = State(**state_updates)  # pyright: ignore[reportAssignmentType]
+            state: "State[R]" = Cancelled()
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
 
