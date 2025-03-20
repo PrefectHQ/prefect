@@ -64,7 +64,7 @@ Examples:
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 ACI_DEFAULT_CPU = 1.0
 ACI_DEFAULT_MEMORY = 1.0
@@ -120,6 +120,17 @@ class ACRManagedIdentity(BaseModel):
             "The user-assigned Azure managed identity for the private registry."
         ),
     )
+
+
+class DockerRegistryCredentials(BaseModel):
+    """
+    Credentials for a Docker registry.
+    """
+
+    username: str = Field(default=...)
+    password: SecretStr = Field(default=...)
+    registry_url: str = Field(default=...)
+    reauth: bool = Field(default=True)
 
 
 class AzureContainerInstanceJobResult:

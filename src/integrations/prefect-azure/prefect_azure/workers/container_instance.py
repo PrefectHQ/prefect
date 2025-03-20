@@ -100,7 +100,10 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect_azure.container_instance import ACRManagedIdentity
+from prefect_azure.container_instance import (
+    ACRManagedIdentity,
+    DockerRegistryCredentials,
+)
 from prefect_azure.credentials import AzureContainerInstanceCredentials
 
 if TYPE_CHECKING:
@@ -123,7 +126,7 @@ ENV_SECRETS = ["PREFECT_API_KEY"]
 # has gone wrong and we should raise an exception to inform the user they should
 # check their Azure account for orphaned container groups.
 CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS = 30
-DockerRegistry = Union[ACRManagedIdentity, Any, None]
+DockerRegistry = Union[ACRManagedIdentity, DockerRegistryCredentials, None]
 
 
 def _get_default_arm_template():

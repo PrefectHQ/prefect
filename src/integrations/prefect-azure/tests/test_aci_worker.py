@@ -11,7 +11,10 @@ from azure.core.exceptions import HttpResponseError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
-from prefect_azure.container_instance import ACRManagedIdentity
+from prefect_azure.container_instance import (
+    ACRManagedIdentity,
+    DockerRegistryCredentials,
+)
 from prefect_azure.workers.container_instance import (
     AzureContainerJobConfiguration,
     AzureContainerVariables,  # noqa
@@ -890,6 +893,29 @@ def test_add_acr_registry_identity(
     assert len(image_registry_credentials) == 1
     assert image_registry_credentials[0]["server"] == registry.registry_url
     assert image_registry_credentials[0]["identity"] == registry.identity
+
+
+def test_add_docker_registry_credentials(
+    raw_job_configuration, worker_flow_run, mock_aci_client, monkeypatch
+):
+    registry = DockerRegistryCredentials(
+        registry_url="https://myregistry.azurecr.io",
+        username="my-username",
+        password="my-password",
+    )
+
+    raw_job_configuration.image_registry = registry
+    raw_job_configuration.prepare_for_flow_run(worker_flow_run)
+
+    container_group = raw_job_configuration.arm_template["resources"][0]
+    image_registry_credentials = container_group["properties"][
+        "imageRegistryCredentials"
+    ]
+
+    assert len(image_registry_credentials) == 1
+    assert image_registry_credentials[0]["server"] == registry.registry_url
+    assert image_registry_credentials[0]["username"] == registry.username
+    assert image_registry_credentials[0]["password"] == registry.password
 
 
 async def test_provisioning_container_group(
