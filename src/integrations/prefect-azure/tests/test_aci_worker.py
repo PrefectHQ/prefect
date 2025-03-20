@@ -915,7 +915,10 @@ def test_add_docker_registry_credentials(
     assert len(image_registry_credentials) == 1
     assert image_registry_credentials[0]["server"] == registry.registry_url
     assert image_registry_credentials[0]["username"] == registry.username
-    assert image_registry_credentials[0]["password"] == registry.password
+    assert (
+        image_registry_credentials[0]["password"]
+        == registry.password.get_secret_value()
+    )
 
 
 async def test_provisioning_container_group(
