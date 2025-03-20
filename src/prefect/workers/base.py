@@ -1254,16 +1254,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         if TYPE_CHECKING:
             assert flow_run.state
 
-        if not flow_run.state:
-            current_states: (
-                list[State] | list[State[Any]]  # pyright: ignore[reportAssignmentType]
-            ) = await self.client.read_flow_run_states(flow_run.id)
-            # Set flow run's state with the latest one
-            # Don't need to make API call, because after executing this function,
-            # the state will be finally CANCELLED
-            flow_run.state = current_states[-1]
-
-        state = flow_run.state.model_copy(update=state_updates)
+        if flow_run.state:
+            state = flow_run.state.model_copy(update=state_updates)
+        else:
+            # Unexpectedly when flow run does not have a state, create a new one
+            state = State(**state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
 
