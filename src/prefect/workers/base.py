@@ -1252,8 +1252,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
         state_updates.setdefault("type", StateType.CANCELLED)
-        if TYPE_CHECKING:
-            assert flow_run.state
 
         if flow_run.state:
             state = flow_run.state.model_copy(update=state_updates)
