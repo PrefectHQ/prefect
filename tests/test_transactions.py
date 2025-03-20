@@ -10,7 +10,6 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
-    NullFileSystem,
     ResultRecord,
     ResultStore,
     get_default_result_storage,
@@ -421,18 +420,19 @@ class TestWithResultStore:
         assert record_2.metadata.storage_key == "test_basic_transaction"
 
     async def test_transaction_with_nullfilesystem_metadata(self, tmp_path: Path):
-        """Test transactions work correctly with NullFileSystem as metadata storage.
+        """Test transactions work correctly when flow result stores don't use NullFileSystem.
 
-        This tests for the bug where a file would exist at the expected path, but
-        the transaction would still report as not committed because the exists check
-        used metadata_storage (which is a NullFileSystem) instead of checking
-        result_storage directly.
+        This tests that when a flow's metadata_storage is None rather than NullFileSystem,
+        transactions correctly identify previously committed files.
         """
         local_storage = LocalFileSystem(basepath=str(tmp_path))
         result_store = ResultStore(
             result_storage=local_storage,
-            metadata_storage=NullFileSystem(),
+            # No metadata_storage specified - should default to None
         )
+
+        # Verify metadata_storage is None, not NullFileSystem
+        assert result_store.metadata_storage is None
 
         # First transaction - creates a file
         transaction_key = "test-null-metadata-transaction"
@@ -441,12 +441,13 @@ class TestWithResultStore:
         ) as txn:
             txn.stage({"foo": "bar"})
 
+        # Verify the file was created
         assert (tmp_path / transaction_key).exists()
 
         # Second transaction - should recognize the file as already committed
         with transaction(key=transaction_key, store=result_store) as txn:
             assert txn.is_committed(), (
-                "Transaction should recognize existing file with NullFileSystem metadata"
+                "Transaction should correctly identify existing file when metadata_storage is None"
             )
 
     async def test_competing_read_transaction(self, result_store):

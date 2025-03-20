@@ -410,7 +410,8 @@ class ResultStore(BaseModel):
             update["serializer"] = resolve_serializer(flow.result_serializer)
         if self.result_storage is None and update.get("result_storage") is None:
             update["result_storage"] = await aget_default_result_storage()
-        update["metadata_storage"] = NullFileSystem()
+        # Do not set metadata_storage to NullFileSystem, let it remain None
+        # so transaction idempotency works correctly
         return self.model_copy(update=update)
 
     @sync_compatible
@@ -491,23 +492,7 @@ class ResultStore(BaseModel):
         Returns:
             bool: True if the result record exists, False otherwise.
         """
-        # If metadata_storage is NullFileSystem, we should check result_storage directly
-        if isinstance(self.metadata_storage, NullFileSystem):
-            if self.result_storage is None:
-                return False
-
-            try:
-                content = await _call_explicitly_async_block_method(
-                    self.result_storage, "read_path", (key,), {}
-                )
-                if content is None:
-                    return False
-
-                return True
-            except Exception:
-                # If any error occurs, assume the file doesn't exist
-                return False
-        elif self.metadata_storage is not None:
+        if self.metadata_storage is not None:
             # TODO: Add an `exists` method to commonly used storage blocks
             # so the entire payload doesn't need to be read
             try:
