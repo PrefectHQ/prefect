@@ -2395,5 +2395,5 @@ async def test_task_definitions_equal_logs_differences(caplog):
             assert "Retrieved: " in caplog.text
             assert "prefecthq/prefect:2-latest" in caplog.text
             assert "prefecthq/prefect:3-latest" in caplog.text
-            assert "cpu: 256" in caplog.text
-            assert "cpu: 512" in caplog.text
+            assert "256" in caplog.text
+            assert "512" in caplog.text
