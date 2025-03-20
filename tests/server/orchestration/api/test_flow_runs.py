@@ -13,6 +13,7 @@ from starlette import status
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -226,6 +227,81 @@ class TestCreateFlowRun:
         )
 
         assert response.json()["deployment_id"] == str(deployment.id)
+
+    async def test_create_flow_run_with_work_pool(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+        work_pool: WorkPool,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["work_pool_name"] == work_pool.name
+        assert res["work_queue_name"] == "default"
+
+    async def test_create_flow_run_with_work_pool_and_work_queue(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+        work_pool: WorkPool,
+        work_queue_1: WorkQueue,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+                work_queue_name=work_queue_1.name,
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["work_pool_name"] == work_pool.name
+        assert res["work_queue_name"] == work_queue_1.name
+
+    async def test_create_flow_run_with_non_existent_work_pool(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name="non-existent-work-pool",
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 404
+        assert (
+            'Work pool "non-existent-work-pool" not found' in response.json()["detail"]
+        )
+
+    async def test_create_flow_run_with_job_variables(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                job_variables={
+                    "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
+                },
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["job_variables"] == {
+            "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
+        }
 
 
 class TestUpdateFlowRun:

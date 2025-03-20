@@ -108,7 +108,9 @@ import enum
 import json
 import logging
 import shlex
+import subprocess
 import tempfile
+import uuid
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -757,15 +759,6 @@ class KubernetesWorker(
         if TYPE_CHECKING:
             assert self._client is not None
             assert self._work_pool is not None
-        flow_run = await self._client.create_flow_run(
-            flow, parameters=parameters, state=Pending()
-        )
-        if task_status is not None:
-            # Emit the flow run object to .submit to allow it to return a future as soon as possible
-            task_status.started(flow_run)
-        # Avoid an API call to get the flow
-        api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
-        logger = self.get_flow_run_logger(flow_run)
 
         # TODO: Migrate steps to their own attributes on work pool when hardening this design
         upload_step = json.loads(
@@ -783,10 +776,24 @@ class KubernetesWorker(
             )
         )
 
-        upload_command = convert_step_to_command(upload_step, str(flow_run.id))
-        execute_command = convert_step_to_command(execute_step, str(flow_run.id))
+        bundle_key = str(uuid.uuid4())
+        upload_command = convert_step_to_command(upload_step, bundle_key)
+        execute_command = convert_step_to_command(execute_step, bundle_key)
 
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+        flow_run = await self._client.create_flow_run(
+            flow,
+            parameters=parameters,
+            state=Pending(),
+            job_variables=job_variables,
+            work_pool_name=self._work_pool.name,
+        )
+        if task_status is not None:
+            # Emit the flow run object to .submit to allow it to return a future as soon as possible
+            task_status.started(flow_run)
+        # Avoid an API call to get the flow
+        api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+        logger = self.get_flow_run_logger(flow_run)
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
@@ -806,16 +813,16 @@ class KubernetesWorker(
         with tempfile.TemporaryDirectory() as temp_dir:
             await (
                 anyio.Path(temp_dir)
-                .joinpath(str(flow_run.id))
+                .joinpath(bundle_key)
                 .write_bytes(json.dumps(bundle).encode("utf-8"))
             )
 
             try:
                 await anyio.run_process(
-                    upload_command + [str(flow_run.id)],
+                    upload_command + [bundle_key],
                     cwd=temp_dir,
                 )
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 self._logger.error(
                     "Failed to upload bundle: %s", e.stderr.decode("utf-8")
                 )

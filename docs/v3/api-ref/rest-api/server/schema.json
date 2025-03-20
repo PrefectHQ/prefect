@@ -18599,6 +18599,42 @@
                         "title": "Idempotency Key",
                         "description": "An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned."
                     },
+                    "work_pool_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Pool Name",
+                        "description": "The name of the work pool to run the flow run in."
+                    },
+                    "work_queue_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Queue Name",
+                        "description": "The name of the work queue to place the flow run in."
+                    },
+                    "job_variables": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Job Variables",
+                        "description": "The job variables to use when setting up flow run infrastructure."
+                    },
                     "deployment_id": {
                         "anyOf": [
                             {

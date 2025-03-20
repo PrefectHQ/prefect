@@ -6583,6 +6583,21 @@ export interface components {
              */
             idempotency_key?: string | null;
             /**
+             * Work Pool Name
+             * @description The name of the work pool to run the flow run in.
+             */
+            work_pool_name?: string | null;
+            /**
+             * Work Queue Name
+             * @description The name of the work queue to place the flow run in.
+             */
+            work_queue_name?: string | null;
+            /**
+             * Job Variables
+             * @description The job variables to use when setting up flow run infrastructure.
+             */
+            job_variables?: Record<string, never> | null;
+            /**
              * Deployment Id
              * @deprecated
              * @description DEPRECATED: The id of the deployment associated with this flow run, if available.

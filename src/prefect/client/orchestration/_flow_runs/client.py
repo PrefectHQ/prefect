@@ -46,6 +46,9 @@ class FlowRunClient(BaseClient):
         tags: "Iterable[str] | None" = None,
         parent_task_run_id: "UUID | None" = None,
         state: "State[R] | None" = None,
+        work_pool_name: str | None = None,
+        work_queue_name: str | None = None,
+        job_variables: dict[str, Any] | None = None,
     ) -> "FlowRun":
         """
         Create a flow run for a flow.
@@ -59,7 +62,10 @@ class FlowRunClient(BaseClient):
             parent_task_run_id: if a subflow run is being created, the placeholder task
                 run identifier in the parent flow
             state: The initial state for the run. If not provided, defaults to
-                `Scheduled` for now. Should always be a `Scheduled` type.
+                `Pending`.
+            work_pool_name: The name of the work pool to run the flow run in.
+            work_queue_name: The name of the work queue to place the flow run in.
+            job_variables: The job variables to use when setting up flow run infrastructure.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -100,7 +106,16 @@ class FlowRunClient(BaseClient):
             ),
         )
 
-        flow_run_create_json = flow_run_create.model_dump(mode="json")
+        if work_pool_name is not None:
+            flow_run_create.work_pool_name = work_pool_name
+        if work_queue_name is not None:
+            flow_run_create.work_queue_name = work_queue_name
+        if job_variables is not None:
+            flow_run_create.job_variables = job_variables
+
+        flow_run_create_json = flow_run_create.model_dump(
+            mode="json", exclude_unset=True
+        )
         response = self.request("POST", "/flow_runs/", json=flow_run_create_json)
 
         flow_run = FlowRun.model_validate(response.json())
@@ -480,6 +495,9 @@ class FlowRunAsyncClient(BaseAsyncClient):
         tags: "Iterable[str] | None" = None,
         parent_task_run_id: "UUID | None" = None,
         state: "State[R] | None" = None,
+        work_pool_name: str | None = None,
+        work_queue_name: str | None = None,
+        job_variables: dict[str, Any] | None = None,
     ) -> "FlowRun":
         """
         Create a flow run for a flow.
@@ -493,7 +511,10 @@ class FlowRunAsyncClient(BaseAsyncClient):
             parent_task_run_id: if a subflow run is being created, the placeholder task
                 run identifier in the parent flow
             state: The initial state for the run. If not provided, defaults to
-                `Scheduled` for now. Should always be a `Scheduled` type.
+                `Pending`.
+            work_pool_name: The name of the work pool to run the flow run in.
+            work_queue_name: The name of the work queue to place the flow run in.
+            job_variables: The job variables to use when setting up flow run infrastructure.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -534,7 +555,16 @@ class FlowRunAsyncClient(BaseAsyncClient):
             ),
         )
 
-        flow_run_create_json = flow_run_create.model_dump(mode="json")
+        if work_pool_name is not None:
+            flow_run_create.work_pool_name = work_pool_name
+        if work_queue_name is not None:
+            flow_run_create.work_queue_name = work_queue_name
+        if job_variables is not None:
+            flow_run_create.job_variables = job_variables
+
+        flow_run_create_json = flow_run_create.model_dump(
+            mode="json", exclude_unset=True
+        )
         response = await self.request("POST", "/flow_runs/", json=flow_run_create_json)
 
         flow_run = FlowRun.model_validate(response.json())
