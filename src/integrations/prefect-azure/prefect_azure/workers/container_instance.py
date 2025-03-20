@@ -88,6 +88,7 @@ from azure.mgmt.resource.resources.models import (
     DeploymentMode,
     DeploymentProperties,
 )
+from prefect_docker.credentials import DockerRegistryCredentials
 from pydantic import Field, SecretStr
 from slugify import slugify
 
@@ -123,7 +124,7 @@ ENV_SECRETS = ["PREFECT_API_KEY"]
 # has gone wrong and we should raise an exception to inform the user they should
 # check their Azure account for orphaned container groups.
 CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS = 30
-DockerRegistry = Union[ACRManagedIdentity, Any, None]
+DockerRegistry = Union[ACRManagedIdentity, DockerRegistryCredentials, None]
 
 
 def _get_default_arm_template():
@@ -310,18 +311,14 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
                     "identity": image_registry.identity,
                 }
             ]
-        elif isinstance(image_registry, dict) and (
-            "username" in image_registry
-            and "password" in image_registry
-            and "registry_url" in image_registry
-        ):
+        elif isinstance(image_registry, DockerRegistryCredentials):
             self.arm_template["resources"][0]["properties"][
                 "imageRegistryCredentials"
             ] = [
                 {
-                    "server": image_registry["registry_url"],
-                    "username": image_registry["username"],
-                    "password": image_registry["password"],
+                    "server": image_registry.registry_url,
+                    "username": image_registry.username,
+                    "password": image_registry.password.get_secret_value(),
                 }
             ]
 

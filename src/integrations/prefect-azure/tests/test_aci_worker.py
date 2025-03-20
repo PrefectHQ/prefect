@@ -19,7 +19,9 @@ from prefect_azure.workers.container_instance import (
     AzureContainerWorkerResult,
     ContainerGroupProvisioningState,
     ContainerRunState,
+    _get_default_arm_template,
 )
+from prefect_docker.credentials import DockerRegistryCredentials
 from pydantic import SecretStr
 
 from prefect.client.schemas import FlowRun
@@ -892,19 +894,61 @@ def test_add_acr_registry_identity(
     assert image_registry_credentials[0]["identity"] == registry.identity
 
 
-def test_add_docker_registry_credentials(
+def test_add_docker_registry_credentials_from_block(
+    raw_job_configuration, worker_flow_run, mock_aci_client, monkeypatch
+):
+    registry = DockerRegistryCredentials(
+        registry_url="https://myregistry.azurecr.io",
+        username="my-username",
+        password="my-password",
+    )
+
+    job_config = AzureContainerJobConfiguration(
+        command="test-command",
+        image="test-image:latest",
+        resource_group_name="test-resource-group",
+        subscription_id=SecretStr("test-subscription-id"),
+        image_registry=registry,
+        arm_template=_get_default_arm_template(),
+    )
+
+    job_config.prepare_for_flow_run(worker_flow_run)
+
+    container_group = job_config.arm_template["resources"][0]
+    image_registry_credentials = container_group["properties"][
+        "imageRegistryCredentials"
+    ]
+
+    assert len(image_registry_credentials) == 1
+    assert image_registry_credentials[0]["server"] == registry.registry_url
+    assert image_registry_credentials[0]["username"] == registry.username
+    assert (
+        image_registry_credentials[0]["password"]
+        == registry.password.get_secret_value()
+    )
+
+
+def test_add_docker_registry_credentials_from_dict(
     raw_job_configuration, worker_flow_run, mock_aci_client, monkeypatch
 ):
     registry = {
-        "registry_url": "https://myregistry.azurecr.io",
+        "registry_url": "myregistry.azurecr.io",
         "username": "my-username",
         "password": "my-password",
     }
 
-    raw_job_configuration.image_registry = registry
-    raw_job_configuration.prepare_for_flow_run(worker_flow_run)
+    job_config = AzureContainerJobConfiguration(
+        command="test-command",
+        image="test-image:latest",
+        resource_group_name="test-resource-group",
+        subscription_id=SecretStr("test-subscription-id"),
+        image_registry=registry,
+        arm_template=_get_default_arm_template(),
+    )
 
-    container_group = raw_job_configuration.arm_template["resources"][0]
+    job_config.prepare_for_flow_run(worker_flow_run)
+
+    container_group = job_config.arm_template["resources"][0]
     image_registry_credentials = container_group["properties"][
         "imageRegistryCredentials"
     ]
