@@ -94,3 +94,4 @@ env = ["PREFECT_TEST_MODE=1"]
 
 [tool.uv.sources]
 prefect = { path = "../../../" }
+prefect-docker = { path = "../prefect-docker" }
