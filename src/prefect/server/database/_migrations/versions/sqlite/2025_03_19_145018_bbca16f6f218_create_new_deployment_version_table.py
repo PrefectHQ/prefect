@@ -1,7 +1,7 @@
 """Create new deployment version table
 
 Revision ID: bbca16f6f218
-Revises: 07ecde74d74d
+Revises: 3457c6ca2360
 Create Date: 2025-03-19 14:50:18.927635
 
 """
@@ -13,7 +13,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "bbca16f6f218"
-down_revision = "07ecde74d74d"
+down_revision = "3457c6ca2360"
 branch_labels = None
 depends_on = None
 
