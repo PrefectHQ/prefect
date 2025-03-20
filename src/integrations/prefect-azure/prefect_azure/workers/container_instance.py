@@ -100,10 +100,7 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect_azure.container_instance import (
-    ACRManagedIdentity,
-    DockerRegistryCredentials,
-)
+from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.credentials import AzureContainerInstanceCredentials
 
 if TYPE_CHECKING:
@@ -126,7 +123,7 @@ ENV_SECRETS = ["PREFECT_API_KEY"]
 # has gone wrong and we should raise an exception to inform the user they should
 # check their Azure account for orphaned container groups.
 CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS = 30
-DockerRegistry = Union[ACRManagedIdentity, DockerRegistryCredentials, None]
+DockerRegistry = Union[ACRManagedIdentity, Any, None]
 
 
 def _get_default_arm_template():
@@ -313,18 +310,18 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
                     "identity": image_registry.identity,
                 }
             ]
-        elif (
-            hasattr(image_registry, "username")
-            and hasattr(image_registry, "password")
-            and hasattr(image_registry, "registry_url")
+        elif isinstance(image_registry, dict) and (
+            "username" in image_registry
+            and "password" in image_registry
+            and "registry_url" in image_registry
         ):
             self.arm_template["resources"][0]["properties"][
                 "imageRegistryCredentials"
             ] = [
                 {
-                    "server": image_registry.registry_url,
-                    "username": image_registry.username,
-                    "password": image_registry.password.get_secret_value(),
+                    "server": image_registry["registry_url"],
+                    "username": image_registry["username"],
+                    "password": image_registry["password"],
                 }
             ]
 
