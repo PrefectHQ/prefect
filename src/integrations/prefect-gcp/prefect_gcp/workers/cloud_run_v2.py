@@ -247,9 +247,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with the image if not present.
         """
         if "image" not in self.job_body["template"]["template"]["containers"][0]:
-            self.job_body["template"]["template"]["containers"][0][
-                "image"
-            ] = f"docker.io/{get_prefect_image_name()}"
+            self.job_body["template"]["template"]["containers"][0]["image"] = (
+                f"docker.io/{get_prefect_image_name()}"
+            )
 
     def _populate_or_format_command(self):
         """
