@@ -1258,7 +1258,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             state = flow_run.state.model_copy(update=state_updates)
         else:
             # Unexpectedly when flow run does not have a state, create a new one
-            state = State(**state_updates)
+            state: State = State(**state_updates)  # pyright: ignore[reportAssignmentType]
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
 
