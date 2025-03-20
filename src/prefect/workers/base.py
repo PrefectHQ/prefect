@@ -1255,10 +1255,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             assert flow_run.state
 
         if not flow_run.state:
-            # BUG: ensure flow run has its state loaded
-            current_states: list[State] = await self.client.read_flow_run_states(
-                flow_run.id
-            )
+            current_states: (
+                list[State] | list[State[Any]]
+            ) = await self.client.read_flow_run_states(flow_run.id)
             # Set flow run's state with the latest one
             # Don't need to make API call, because after executing this function,
             # the state will be finally CANCELLED
