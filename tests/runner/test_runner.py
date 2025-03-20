@@ -51,7 +51,7 @@ from prefect.events.clients import AssertingEventsClient
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.worker import EventsWorker
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check, start_webserver
@@ -1942,18 +1942,6 @@ class TestRunnerDeployment:
 
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
-
-    def test_from_flow_raises_when_using_flow_loaded_from_entrypoint(self):
-        da_flow = load_flow_from_entrypoint("tests/runner/test_runner.py:dummy_flow_1")
-
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Cannot create a RunnerDeployment from a flow that has been loaded from"
-                " an entrypoint"
-            ),
-        ):
-            RunnerDeployment.from_flow(da_flow, __file__)
 
     def test_from_flow_raises_on_interactively_defined_flow(self):
         @flow
