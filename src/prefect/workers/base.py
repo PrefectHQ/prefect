@@ -34,7 +34,6 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import (
     Integration,
-    State,
     StateType,
     WorkerMetadata,
     WorkPool,
