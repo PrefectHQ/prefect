@@ -2342,3 +2342,58 @@ async def test_get_or_generate_family(
     task = describe_task(ecs_client, task_arn)
     task_definition = describe_task_definition(ecs_client, task)
     assert task_definition["family"] == family
+
+
+@pytest.mark.usefixtures("ecs_mocks")
+async def test_task_definitions_equal_logs_differences(caplog):
+    """Test that we log the differences between task definitions when they don't match."""
+
+    taskdef_1 = {
+        "containerDefinitions": [
+            {
+                "name": "prefect",
+                "image": "prefecthq/prefect:2-latest",
+                "cpu": 256,
+                "memory": 512,
+                "essential": True,
+            }
+        ],
+        "family": "test-family",
+        "networkMode": "bridge",
+    }
+
+    taskdef_2 = {
+        "containerDefinitions": [
+            {
+                "name": "prefect",
+                "image": "prefecthq/prefect:3-latest",  # Different image version
+                "cpu": 512,  # Different CPU
+                "memory": 512,
+                "essential": True,
+            }
+        ],
+        "family": "test-family",
+        "networkMode": "bridge",
+        "executionRoleArn": "test-role",  # Additional key
+    }
+
+    logger = logging.getLogger("prefect.workers.ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        with caplog.at_level(logging.DEBUG, logger="prefect.workers.ecs"):
+            result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
+
+            assert result is False
+
+            assert (
+                "Keys only in retrieved task definition: {'executionRoleArn'}"
+                in caplog.text
+            )
+            assert "Value differs for key 'containerDefinitions'" in caplog.text
+
+            assert "Generated:  " in caplog.text
+            assert "Retrieved: " in caplog.text
+            assert "prefecthq/prefect:2-latest" in caplog.text
+            assert "prefecthq/prefect:3-latest" in caplog.text
+            assert "256" in caplog.text
+            assert "512" in caplog.text

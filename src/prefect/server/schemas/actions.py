@@ -560,6 +560,18 @@ class FlowRunCreate(ActionBaseModel):
             " has already been created, the existing flow run will be returned."
         ),
     )
+    work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the work pool to run the flow run in.",
+    )
+    work_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the work queue to place the flow run in.",
+    )
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The job variables to use when setting up flow run infrastructure.",
+    )
 
     # DEPRECATED
 
