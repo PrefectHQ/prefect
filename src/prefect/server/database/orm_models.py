@@ -1150,6 +1150,15 @@ class WorkPool(Base):
     last_transitioned_status_at: Mapped[Optional[DateTime]]
     last_status_event_id: Mapped[Optional[uuid.UUID]]
 
+    storage_configuration: Mapped[schemas.core.WorkPoolStorageConfiguration] = (
+        mapped_column(
+            Pydantic(schemas.core.WorkPoolStorageConfiguration),
+            server_default="{}",
+            default=schemas.core.WorkPoolStorageConfiguration,
+            nullable=False,
+        )
+    )
+
     __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 

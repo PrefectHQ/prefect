@@ -23,6 +23,7 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
+    WorkPoolStorageConfiguration,
 )
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -684,6 +685,10 @@ class WorkPoolCreate(ActionBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkPoolUpdate(ActionBaseModel):
@@ -693,6 +698,10 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = Field(default=None)
     base_job_template: Optional[dict[str, Any]] = Field(default=None)
     concurrency_limit: Optional[int] = Field(default=None)
+    storage_configuration: Optional[WorkPoolStorageConfiguration] = Field(
+        default=None,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkQueueCreate(ActionBaseModel):
