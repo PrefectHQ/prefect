@@ -51,6 +51,7 @@ from prefect.logging.loggers import (
     get_worker_logger,
 )
 from prefect.plugins import load_prefect_collections
+from prefect.server.database.orm_models import FlowRunState
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
@@ -1252,6 +1253,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         state_updates.setdefault("type", StateType.CANCELLED)
         if TYPE_CHECKING:
             assert flow_run.state
+
+        if not flow_run.state:
+            # BUG: ensure flow run has its state loaded
+            current_states: list[FlowRunState] = await self.client.read_flow_run_states(
+                flow_run.id
+            )
+            # Set flow run's state with the latest one
+            # Don't need to make API call, because after executing this function,
+            # the state will be finally CANCELLED
+            flow_run.state = current_states[-1]
+
         state = flow_run.state.model_copy(update=state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
