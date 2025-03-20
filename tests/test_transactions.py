@@ -1,5 +1,6 @@
 import threading
 import uuid
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,6 +10,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
+    NullFileSystem,
     ResultRecord,
     ResultStore,
     get_default_result_storage,
@@ -417,6 +419,35 @@ class TestWithResultStore:
         assert record_2
         assert record_2 == record_1
         assert record_2.metadata.storage_key == "test_basic_transaction"
+
+    async def test_transaction_with_nullfilesystem_metadata(self, tmp_path: Path):
+        """Test transactions work correctly with NullFileSystem as metadata storage.
+
+        This tests for the bug where a file would exist at the expected path, but
+        the transaction would still report as not committed because the exists check
+        used metadata_storage (which is a NullFileSystem) instead of checking
+        result_storage directly.
+        """
+        local_storage = LocalFileSystem(basepath=str(tmp_path))
+        result_store = ResultStore(
+            result_storage=local_storage,
+            metadata_storage=NullFileSystem(),
+        )
+
+        # First transaction - creates a file
+        transaction_key = "test-null-metadata-transaction"
+        with transaction(
+            key=transaction_key, store=result_store, write_on_commit=True
+        ) as txn:
+            txn.stage({"foo": "bar"})
+
+        assert (tmp_path / transaction_key).exists()
+
+        # Second transaction - should recognize the file as already committed
+        with transaction(key=transaction_key, store=result_store) as txn:
+            assert txn.is_committed(), (
+                "Transaction should recognize existing file with NullFileSystem metadata"
+            )
 
     async def test_competing_read_transaction(self, result_store):
         write_transaction_open = threading.Event()
