@@ -125,10 +125,10 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
     timeout: int = Field(
         default=600,
         gt=0,
-        le=86400,
+        le=604800,
         description=(
             "Max allowed duration the Job may be active before Cloud Run will "
-            "actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
+            "actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
     _job_name: str = PrivateAttr(default=None)
@@ -247,9 +247,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with the image if not present.
         """
         if "image" not in self.job_body["template"]["template"]["containers"][0]:
-            self.job_body["template"]["template"]["containers"][0]["image"] = (
-                f"docker.io/{get_prefect_image_name()}"
-            )
+            self.job_body["template"]["template"]["containers"][0][
+                "image"
+            ] = f"docker.io/{get_prefect_image_name()}"
 
     def _populate_or_format_command(self):
         """
