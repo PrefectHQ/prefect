@@ -1256,7 +1256,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         if not flow_run.state:
             # BUG: ensure flow run has its state loaded
-            current_states: list[State[Any]] = await self.client.read_flow_run_states(
+            current_states: list[State] = await self.client.read_flow_run_states(
                 flow_run.id
             )
             # Set flow run's state with the latest one
