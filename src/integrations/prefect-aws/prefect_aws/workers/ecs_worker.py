@@ -830,7 +830,7 @@ class ECSWorker(BaseWorker):
                 if not cached_task_definition[
                     "status"
                 ] == "ACTIVE" or not self._task_definitions_equal(
-                    task_definition, cached_task_definition
+                    task_definition, cached_task_definition, logger
                 ):
                     cached_task_definition_arn = None
             except Exception:
@@ -846,7 +846,7 @@ class ECSWorker(BaseWorker):
                     logger, ecs_client, family_name
                 )
                 if task_definition_from_family and self._task_definitions_equal(
-                    task_definition, task_definition_from_family
+                    task_definition, task_definition_from_family, logger
                 ):
                     cached_task_definition_arn = task_definition_from_family[
                         "taskDefinitionArn"
@@ -1687,7 +1687,9 @@ class ECSWorker(BaseWorker):
             )
         return task["tasks"][0]
 
-    def _task_definitions_equal(self, taskdef_1, taskdef_2) -> bool:
+    def _task_definitions_equal(
+        self, taskdef_1, taskdef_2, logger: logging.Logger
+    ) -> bool:
         """
         Compare two task definitions.
 
@@ -1721,5 +1723,34 @@ class ECSWorker(BaseWorker):
         for field in ECS_POST_REGISTRATION_FIELDS:
             taskdef_1.pop(field, None)
             taskdef_2.pop(field, None)
+
+        # Log differences between task definitions for debugging
+        if taskdef_1 != taskdef_2:
+            logger.debug(
+                "The generated task definition and the retrieved task definition are not equal."
+            )
+            # Find and log differences in keys
+            keys1 = set(taskdef_1.keys())
+            keys2 = set(taskdef_2.keys())
+
+            if keys1 != keys2:
+                keys_only_in_1 = keys1 - keys2
+                keys_only_in_2 = keys2 - keys1
+                if keys_only_in_1:
+                    logger.debug(
+                        f"Keys only in generated task definition: {keys_only_in_1}"
+                    )
+                if keys_only_in_2:
+                    logger.debug(
+                        f"Keys only in retrieved task definition: {keys_only_in_2}"
+                    )
+
+            # Find and log differences in values for common keys
+            common_keys = keys1.intersection(keys2)
+            for key in common_keys:
+                if taskdef_1[key] != taskdef_2[key]:
+                    logger.debug(f"Value differs for key '{key}':")
+                    logger.debug(f" Generated:  {taskdef_1[key]}")
+                    logger.debug(f" Retrieved: {taskdef_2[key]}")
 
         return taskdef_1 == taskdef_2
