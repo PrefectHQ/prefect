@@ -29,6 +29,7 @@ import docker
 import docker.errors
 import packaging.version
 from docker import DockerClient
+from docker.constants import DEFAULT_TIMEOUT_SECONDS as DEFAULT_DOCKER_TIMEOUT_SECONDS
 from docker.models.containers import Container
 from pydantic import Field
 from slugify import slugify
@@ -446,8 +447,10 @@ class DockerWorker(BaseWorker):
                     message="distutils Version classes are deprecated.*",
                     category=DeprecationWarning,
                 )
-
-                docker_client = docker.from_env()
+                timeout = os.environ.get(
+                    "DOCKER_CLIENT_TIMEOUT", DEFAULT_DOCKER_TIMEOUT_SECONDS
+                )
+                docker_client = docker.from_env(timeout=timeout)
 
         except docker.errors.DockerException as exc:
             raise RuntimeError("Could not connect to Docker.") from exc
