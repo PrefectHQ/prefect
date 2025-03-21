@@ -3305,6 +3305,7 @@ class TestKubernetesWorker:
             expected_upload_command = [
                 "uv",
                 "run",
+                "--quiet",
                 "--with",
                 "prefect-mock==0.5.5",
                 "--python",
