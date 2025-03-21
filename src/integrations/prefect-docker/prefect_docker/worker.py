@@ -447,8 +447,10 @@ class DockerWorker(BaseWorker):
                     message="distutils Version classes are deprecated.*",
                     category=DeprecationWarning,
                 )
-                timeout = os.environ.get(
-                    "DOCKER_CLIENT_TIMEOUT", DEFAULT_DOCKER_TIMEOUT_SECONDS
+                timeout = int(
+                    os.environ.get(
+                        "DOCKER_CLIENT_TIMEOUT", DEFAULT_DOCKER_TIMEOUT_SECONDS
+                    )
                 )
                 docker_client = docker.from_env(timeout=timeout)
 
