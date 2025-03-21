@@ -676,7 +676,7 @@ async def test_task_definition_arn_with_variables_that_are_ignored(
 
     async with ECSWorker(work_pool_name="test") as worker:
         with caplog.at_level(
-            logging.INFO, logger=worker.get_flow_run_logger(flow_run).name
+            logging.WARN, logger=worker.get_flow_run_logger(flow_run).name
         ):
             result = await run_then_stop_task(worker, configuration, flow_run)
 
@@ -688,13 +688,11 @@ async def test_task_definition_arn_with_variables_that_are_ignored(
         "A new task definition should not be registered"
     )
 
-    # TODO: Add logging for this case
-    # assert (
-    #     "Settings require changes to the linked task definition. "
-    #     "The settings will be ignored. "
-    #     "Enable DEBUG level logs to see the difference."
-    #     in caplog.text
-    # )
+    assert (
+        "Skipping task definition construction since a task definition"
+        " ARN is provided. The following job variable references"
+        " in the task definition template will be ignored: " in caplog.text
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")

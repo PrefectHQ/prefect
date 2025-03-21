@@ -769,8 +769,8 @@ class ECSWorker(BaseWorker):
 
                 logger.warning(
                     "Skipping task definition construction since a task definition"
-                    " ARN is provided on the task run request. The following job variable"
-                    " references in the task definition template will be ignored: "
+                    " ARN is provided. The following job variable references"
+                    " in the task definition template will be ignored: "
                     + ", ".join(placeholders)
                 )
 
