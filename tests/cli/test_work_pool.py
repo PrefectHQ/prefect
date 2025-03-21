@@ -6,10 +6,17 @@ import pytest
 import readchar
 from typer import Exit
 
-from prefect.client.schemas.actions import WorkPoolUpdate
-from prefect.client.schemas.objects import WorkPool
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import (
+    BlockSchemaCreate,
+    BlockTypeCreate,
+    WorkPoolStorageConfiguration,
+    WorkPoolUpdate,
+)
+from prefect.client.schemas.objects import BlockDocument, WorkPool
 from prefect.context import get_settings_context
 from prefect.exceptions import ObjectNotFound
+from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -825,3 +832,181 @@ class TestProvisionInfrastructure:
             "Automatic infrastructure provisioning is not supported for"
             " 'push-work-pool:push' work pools." in res.output
         )
+
+
+class TestStorageInspect:
+    async def test_storage_inspect_no_config(self, work_pool: WorkPool):
+        """Test inspecting a work pool with no storage configuration."""
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool storage inspect {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                f"No storage configuration found for work pool {work_pool.name!r}"
+            ],
+        )
+        assert res.exit_code == 0
+
+    async def test_storage_inspect_with_s3_config(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test inspecting a work pool with S3 storage configuration."""
+        # First configure S3 storage
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                storage_configuration=WorkPoolStorageConfiguration(
+                    bundle_upload_step={
+                        "prefect_aws.experimental.bundles.upload": {
+                            "requires": "prefect-aws",
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                        }
+                    }
+                )
+            ),
+        )
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool storage inspect {work_pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                "Storage Configuration",
+                work_pool.name[:10],  # name is long and might wrap
+                "type",
+                "S3",
+                "bucket",
+                "test-bucket",
+                "aws_credentials_block_name",
+                "test-credentials",
+            ],
+        )
+        assert res.exit_code == 0
+
+    async def test_storage_inspect_nonexistent_pool(self):
+        """Test inspecting a nonexistent work pool."""
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool storage inspect nonexistent-pool",
+            expected_code=1,
+            expected_output_contains=["Work pool 'nonexistent-pool' does not exist"],
+        )
+        assert res.exit_code == 1
+
+
+@pytest.fixture
+async def aws_credentials(prefect_client: PrefectClient) -> BlockDocument:
+    aws_credentials_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="AWS Credentials",
+            slug="aws-credentials",
+        )
+    )
+
+    aws_credentials_schema = await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=aws_credentials_type.id,
+            fields={"properties": {"aws_access_key_id": {"type": "string"}}},
+        )
+    )
+
+    return await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="my-creds",
+            block_type_id=aws_credentials_type.id,
+            block_schema_id=aws_credentials_schema.id,
+            data={"aws_access_key_id": "AKIA1234"},
+        )
+    )
+
+
+class TestStorageConfigure:
+    async def test_storage_configure_s3(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        aws_credentials: BlockDocument,
+    ):
+        """Test configuring S3 storage for a work pool."""
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "storage",
+                "configure",
+                "s3",
+                work_pool.name,
+                "--bucket",
+                "test-bucket",
+                "--aws-credentials-block-name",
+                aws_credentials.name,
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Configured S3 storage for work pool {work_pool.name!r}"
+            ],
+        )
+
+        # Verify the configuration was saved
+        client_res = await prefect_client.read_work_pool(work_pool.name)
+        assert client_res.storage_configuration.bundle_upload_step is not None
+        assert (
+            client_res.storage_configuration.bundle_upload_step[
+                "prefect_aws.experimental.bundles.upload"
+            ]["bucket"]
+            == "test-bucket"
+        )
+        assert (
+            client_res.storage_configuration.bundle_upload_step[
+                "prefect_aws.experimental.bundles.upload"
+            ]["aws_credentials_block_name"]
+            == aws_credentials.name
+        )
+
+    async def test_storage_configure_s3_nonexistent_pool(
+        self, aws_credentials: BlockDocument
+    ):
+        """Test configuring S3 storage for a nonexistent work pool."""
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "storage",
+                "configure",
+                "s3",
+                "nonexistent-pool",
+                "--bucket",
+                "test-bucket",
+                "--aws-credentials-block-name",
+                aws_credentials.name,
+            ],
+            expected_code=1,
+            expected_output_contains=["Work pool 'nonexistent-pool' does not exist"],
+        )
+
+    async def test_storage_configure_s3_nonexistent_credentials(
+        self, work_pool: WorkPool
+    ):
+        """Test configuring S3 storage with nonexistent credentials block."""
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "work-pool",
+                "storage",
+                "configure",
+                "s3",
+                work_pool.name,
+                "--bucket",
+                "test-bucket",
+                "--aws-credentials-block-name",
+                "nonexistent-credentials",
+            ],
+            expected_code=1,
+            expected_output_contains=[
+                "AWS credentials block 'nonexistent-credentials' does not exist"
+            ],
+        )
+        assert res.exit_code == 1
