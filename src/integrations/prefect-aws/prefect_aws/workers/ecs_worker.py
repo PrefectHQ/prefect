@@ -761,7 +761,9 @@ class ECSWorker(BaseWorker):
             if configuration.task_definition:
                 logger.warning(
                     "Ignoring task definition in configuration since task definition"
-                    " ARN is provided on the task run request."
+                    " ARN is provided on the task run request. By default, this discards"
+                    " the following job variables: image, container_name, cpu, family, memory, and"
+                    " execution_role_arn."
                 )
 
         self._validate_task_definition(task_definition, configuration)
