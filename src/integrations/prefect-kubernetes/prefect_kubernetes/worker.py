@@ -381,17 +381,34 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             deployment: The deployment associated with the flow run used for
                 preparation.
             flow: The flow associated with the flow run used for preparation.
+            work_pool: The work pool associated with the flow run used for preparation.
+            worker_name: The name of the worker used for preparation.
         """
+        # Save special Kubernetes env vars (like those with valueFrom)
+        special_env_vars = []
+        if isinstance(self.env, list):
+            special_env_vars = [item for item in self.env if "valueFrom" in item]
+            original_env = {}
+            for item in self.env:
+                if "name" in item and "value" in item:
+                    original_env[item["name"]] = item.get("value")
+            self.env = original_env
 
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
-        # Configure eviction handling
+
         self._configure_eviction_handling()
-        # Update configuration env and job manifest env
         self._update_prefect_api_url_if_local_server()
+
+        # Restore any special env vars with valueFrom before populating the manifest
+        if special_env_vars:
+            # Convert dict env back to list format
+            env_list = [{"name": k, "value": v} for k, v in self.env.items()]
+            # Add special env vars back in
+            env_list.extend(special_env_vars)
+            self.env = env_list
+
         self._populate_env_in_manifest()
-        # Update labels in job manifest
         self._slugify_labels()
-        # Add defaults to job manifest if necessary
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
@@ -450,7 +467,12 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         An example reason the a user would remove the `{{ env }}` placeholder to
         hardcode Kubernetes secrets in the base job template.
         """
-        transformed_env = [{"name": k, "value": v} for k, v in self.env.items()]
+        # Handle both dictionary and list formats for environment variables
+        if isinstance(self.env, dict):
+            transformed_env = [{"name": k, "value": v} for k, v in self.env.items()]
+        else:
+            # If env is already a list (k8s format), use it directly
+            transformed_env = self.env
 
         template_env = self.job_manifest["spec"]["template"]["spec"]["containers"][
             0
@@ -477,12 +499,22 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         user, update the value to ensure connectivity when using a bridge network by
         updating local connections to use the internal host
         """
-        if self.env.get("PREFECT_API_URL") and self._api_dns_name:
-            self.env["PREFECT_API_URL"] = (
-                self.env["PREFECT_API_URL"]
-                .replace("localhost", self._api_dns_name)
-                .replace("127.0.0.1", self._api_dns_name)
-            )
+        if isinstance(self.env, dict):
+            if (api_url := self.env.get("PREFECT_API_URL")) and self._api_dns_name:
+                self.env["PREFECT_API_URL"] = api_url.replace(
+                    "localhost", self._api_dns_name
+                ).replace("127.0.0.1", self._api_dns_name)
+        else:
+            # Handle list format
+            for env_var in self.env:
+                if (
+                    env_var.get("name") == "PREFECT_API_URL"
+                    and self._api_dns_name
+                    and (value := env_var.get("value"))
+                ):
+                    env_var["value"] = value.replace(
+                        "localhost", self._api_dns_name
+                    ).replace("127.0.0.1", self._api_dns_name)
 
     def _slugify_labels(self):
         """Slugifies the labels in the job manifest."""
