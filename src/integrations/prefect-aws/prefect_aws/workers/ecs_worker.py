@@ -768,9 +768,10 @@ class ECSWorker(BaseWorker):
                 ]
 
                 logger.warning(
-                    "Ignoring task definition in configuration since task definition"
-                    " ARN is provided on the task run request. The following job variables"
-                    " will be ignored: " + ", ".join(placeholders)
+                    "Skipping task definition construction since a task definition"
+                    " ARN is provided on the task run request. The following job variable"
+                    " references in the task definition template will be ignored: "
+                    + ", ".join(placeholders)
                 )
 
         self._validate_task_definition(task_definition, configuration)
