@@ -2346,8 +2346,6 @@ async def test_get_or_generate_family(
 
 @pytest.mark.usefixtures("ecs_mocks")
 async def test_task_definitions_equal_logs_differences(caplog):
-    """Test that we log the differences between task definitions when they don't match."""
-
     taskdef_1 = {
         "containerDefinitions": [
             {
