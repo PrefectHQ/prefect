@@ -833,7 +833,11 @@ class ECSWorker(BaseWorker):
                     task_definition, cached_task_definition, logger
                 ):
                     cached_task_definition_arn = None
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to retrieve task definition for cached arn {cached_task_definition_arn!r}. "
+                    f"Error: {e}"
+                )
                 cached_task_definition_arn = None
 
         if (
@@ -851,7 +855,11 @@ class ECSWorker(BaseWorker):
                     cached_task_definition_arn = task_definition_from_family[
                         "taskDefinitionArn"
                     ]
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to retrieve task definition for family {family_name!r}. "
+                    f"Error: {e}"
+                )
                 cached_task_definition_arn = None
 
         if not cached_task_definition_arn:
