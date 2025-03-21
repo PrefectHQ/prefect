@@ -168,6 +168,22 @@ async def test_reading_graph_for_flow_run_with_no_tasks(
     assert_graph_is_connected(graph)
 
 
+async def test_reading_graph_for_flow_run_with_string_since_field(
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+        since="0001-01-01T00:00:00+00:00",
+    )
+
+    assert graph.start_time == flow_run.start_time
+    assert graph.end_time == flow_run.end_time
+    assert graph.root_node_ids == []
+    assert graph.nodes == []
+
+
 @pytest.fixture
 async def flat_tasks(
     db: PrefectDBInterface,
