@@ -1,7 +1,8 @@
 name: Publish Python package
 
 on:
-  pull_request:
+  release:
+    types: [released, prereleased]
   workflow_dispatch:
     inputs:
       commit:
@@ -36,7 +37,7 @@ jobs:
 
       - name: Install python packages
         run: |
-          uv sync --only-dev --frozen
+          uv sync --only-dev
 
       - name: Build UI
         run: |
