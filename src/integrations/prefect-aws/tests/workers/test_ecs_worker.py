@@ -2438,6 +2438,7 @@ async def test_failed_to_retrieve_task_definition_for_cached_arn_logs_warnings(
 
         assert "Failed to retrieve task definition for cached arn" in caplog.text
         assert fake_task_def_arn in caplog.text
+        assert "Task definition not found" in caplog.text
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2455,7 +2456,7 @@ async def test_failed_to_retrieve_task_definition_from_family_logs_warnings(
     async with ECSWorker(work_pool_name="test") as worker:
 
         def mock_retrieve_failure(*args, **kwargs):
-            raise Exception("Failed to retrieve task definition for family")
+            raise Exception("Task definition not found")
 
         worker._retrieve_task_definition = mock_retrieve_failure
 
@@ -2479,3 +2480,4 @@ async def test_failed_to_retrieve_task_definition_from_family_logs_warnings(
 
         assert "Failed to retrieve task definition for family" in caplog.text
         assert family_name in caplog.text
+        assert "Task definition not found" in caplog.text
