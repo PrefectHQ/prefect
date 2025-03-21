@@ -134,6 +134,81 @@ def use_hosted_api_server(hosted_api_server):
 
 
 @pytest.fixture
+async def hosted_api_server_with_cors(unused_tcp_port_factory):
+    """
+    Sets `PREFECT_SERVER_CORS_ALLOWED_ORIGINS`, `PREFECT_SERVER_CORS_ALLOWED_METHODS`,
+    and `PREFECT_SERVER_CORS_ALLOWED_HEADERS` to test cross-origin requests.
+    """
+    port = unused_tcp_port_factory()
+
+    # Will connect to the same database as normal test clients
+    async with open_process(
+        command=[
+            "uvicorn",
+            "--factory",
+            "prefect.server.api.server:create_app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--log-level",
+            "info",
+        ],
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        env={
+            **os.environ,
+            **get_current_settings().to_environment_variables(),
+            **{
+                "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": "http://example.com",
+                "PREFECT_SERVER_CORS_ALLOWED_METHODS": "GET,POST",
+                "PREFECT_SERVER_CORS_ALLOWED_HEADERS": "x-tra-header",
+            },
+        },
+    ) as process:
+        api_url = f"http://localhost:{port}/api"
+
+        # Wait for the server to be ready
+        async with httpx.AsyncClient() as client:
+            response = None
+            with anyio.move_on_after(20):
+                while True:
+                    try:
+                        response = await client.get(api_url + "/health")
+                    except httpx.ConnectError:
+                        pass
+                    else:
+                        if response.status_code == 200:
+                            break
+                    await anyio.sleep(0.1)
+            if response:
+                response.raise_for_status()
+            if not response:
+                raise RuntimeError(
+                    "Timed out while attempting to connect to hosted test Prefect API."
+                )
+
+        # Yield to the consuming tests
+        yield api_url
+
+        # Then shutdown the process
+        try:
+            process.terminate()
+
+            # Give the process a 10 second grace period to shutdown
+            for _ in range(10):
+                if process.returncode is not None:
+                    break
+                await anyio.sleep(1)
+            else:
+                # Kill the process if it is not shutdown in time
+                process.kill()
+
+        except ProcessLookupError:
+            pass
+
+
+@pytest.fixture
 def mock_anyio_sleep(monkeypatch):
     """
     Mock sleep used to not actually sleep but to set the current time to now + sleep
