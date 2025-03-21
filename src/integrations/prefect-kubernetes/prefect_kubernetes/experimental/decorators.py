@@ -13,7 +13,7 @@ from typing import (
     overload,
 )
 
-from exceptiongroup import ExceptionGroup
+from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from prefect_kubernetes.worker import KubernetesWorker
 from typing_extensions import Literal, ParamSpec
 
@@ -123,10 +123,11 @@ class InfrastructureBoundFlow(Flow[P, R]):
                         await future.wait_async()
                         return future.state
                     return await future.aresult()
-            except ExceptionGroup as exc:
+            except (ExceptionGroup, BaseExceptionGroup) as exc:
+                # For less verbose tracebacks
                 exceptions = exc.exceptions
                 if len(exceptions) == 1:
-                    raise exceptions[0]
+                    raise exceptions[0] from None
                 else:
                     raise
 

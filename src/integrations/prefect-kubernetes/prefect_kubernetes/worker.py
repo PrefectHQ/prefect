@@ -821,10 +821,9 @@ class KubernetesWorker(
                     cwd=temp_dir,
                 )
             except subprocess.CalledProcessError as e:
-                self._logger.error(
-                    "Failed to upload bundle: %s", e.stderr.decode("utf-8")
-                )
-                raise e
+                raise RuntimeError(
+                    f"Failed to upload bundle: {e.stderr.decode('utf-8')}"
+                ) from e
 
         logger.debug("Successfully uploaded execution bundle")
 
