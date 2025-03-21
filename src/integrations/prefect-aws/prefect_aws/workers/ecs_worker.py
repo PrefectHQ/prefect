@@ -855,10 +855,10 @@ class ECSWorker(BaseWorker):
                     cached_task_definition_arn = task_definition_from_family[
                         "taskDefinitionArn"
                     ]
-            except Exception:
+            except Exception as e:
                 logger.warning(
                     f"Failed to retrieve task definition for family {family_name!r}."
-                    "Error: {e}"
+                    f"Error: {e}"
                 )
                 cached_task_definition_arn = None
 
