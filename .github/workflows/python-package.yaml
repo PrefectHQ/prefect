@@ -23,7 +23,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@v5
         with:
@@ -42,7 +41,10 @@ jobs:
 
       - name: Build UI
         run: |
-          uv run prefect dev build-ui
+
+      - name: Check git diff
+        run: |
+          git diff --exit-code
 
       - name: Build a binary wheel and a source tarball
         run: |
