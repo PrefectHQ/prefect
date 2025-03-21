@@ -1,8 +1,7 @@
 name: Publish Python package
 
 on:
-  release:
-    types: [released, prereleased]
+  pull_request:
   workflow_dispatch:
     inputs:
       commit:
