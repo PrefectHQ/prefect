@@ -3669,6 +3669,7 @@ dependencies = [
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-resource" },
     { name = "prefect" },
+    { name = "prefect-docker" },
     { name = "setuptools" },
 ]
 
@@ -3685,6 +3686,7 @@ requires-dist = [
     { name = "azureml-core", marker = "extra == 'all-extras'" },
     { name = "azureml-core", marker = "extra == 'ml-datastore'" },
     { name = "prefect", directory = "." },
+    { name = "prefect-docker", directory = "src/integrations/prefect-docker" },
     { name = "setuptools" },
 ]
 provides-extras = ["blob-storage", "cosmos-db", "ml-datastore", "all-extras"]
