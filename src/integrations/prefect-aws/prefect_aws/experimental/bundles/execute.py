@@ -106,7 +106,7 @@ def _execute_bundle_from_s3(
             aws_credentials_block_name=aws_credentials_block_name,
         )
     except Exception as e:
-        print(f"Failed to execute bundle: {e}", file=sys.stderr)
+        print(f"Bundle execution failed ({type(e).__name__}): {e}", file=sys.stderr)
         raise typer.Exit(code=1) from e
 
 

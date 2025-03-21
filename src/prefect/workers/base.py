@@ -723,14 +723,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             except Exception:
                 self._logger.exception("Failed to emit worker stopped event")
 
-        # try:
-        #     await self._exit_stack.__aexit__(*exc_info)
-        # except Exception:
-        #     # We log quietly here to avoid anyio wrapping errors in an exception group
-        #     self._logger.debug("Error tearing down worker", exc_info=True)
-
         await self._exit_stack.__aexit__(*exc_info)
-
         self._runs_task_group = None
         self._client = None
 

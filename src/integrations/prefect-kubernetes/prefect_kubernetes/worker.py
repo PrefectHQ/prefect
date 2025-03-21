@@ -772,7 +772,9 @@ class KubernetesWorker(
 
         bundle_key = str(uuid.uuid4())
         upload_command = convert_step_to_command(
-            self._work_pool.storage_configuration.bundle_upload_step, bundle_key
+            self._work_pool.storage_configuration.bundle_upload_step,
+            bundle_key,
+            quiet=True,
         )
         execute_command = convert_step_to_command(
             self._work_pool.storage_configuration.bundle_execution_step, bundle_key
@@ -824,7 +826,7 @@ class KubernetesWorker(
                     cwd=temp_dir,
                 )
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(e.stdout.decode("utf-8")) from e
+                raise RuntimeError(e.stderr.decode("utf-8")) from e
 
         logger.debug("Successfully uploaded execution bundle")
 

@@ -94,8 +94,9 @@ def _upload_bundle_to_s3(
             aws_credentials_block_name=block_name,
         )
     except Exception as e:
-        print(type(e).__name__, file=sys.stderr)
-        print(f"Failed to upload bundle to S3: {e}", file=sys.stderr)
+        print(
+            f"Failed to upload bundle to S3 ({type(e).__name__}): {e}", file=sys.stderr
+        )
         raise typer.Exit(code=1)
 
 
