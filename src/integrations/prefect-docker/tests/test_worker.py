@@ -1,4 +1,5 @@
 import copy
+import os
 import uuid
 from unittest.mock import MagicMock, call, patch
 
@@ -1209,3 +1210,29 @@ async def test_emits_event_container_creation_failure(
             resource=worker_resource,
             related=worker._event_related_resources(),
         )
+
+
+@patch("docker.from_env")
+async def test_docker_client_default_timeout_configuration(
+    mocked_from_env: MagicMock,
+) -> None:
+    """Validate we can pass a timeout via environment variables to the underlying docker client."""
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        _ = worker._get_client()
+
+        default_timeout_duration = 60
+        mocked_from_env.assert_called_once_with(timeout=default_timeout_duration)
+
+
+@patch.dict(os.environ, {"DOCKER_CLIENT_TIMEOUT": "30"})
+@patch("docker.from_env")
+async def test_docker_client_overwrite_timeout_configuration(
+    mocked_from_env: MagicMock,
+) -> None:
+    """Validate we can pass a timeout via environment variables to the underlying docker client."""
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        _ = worker._get_client()
+
+        mocked_from_env.assert_called_once_with(timeout=30)
