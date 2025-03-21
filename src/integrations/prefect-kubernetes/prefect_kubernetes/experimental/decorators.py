@@ -13,6 +13,7 @@ from typing import (
     overload,
 )
 
+from exceptiongroup import ExceptionGroup
 from prefect_kubernetes.worker import KubernetesWorker
 from typing_extensions import Literal, ParamSpec
 
@@ -110,17 +111,24 @@ class InfrastructureBoundFlow(Flow[P, R]):
             wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
             **kwargs: P.kwargs,
         ) -> R | State[R]:
-            async with self.worker_cls(work_pool_name=self.work_pool) as worker:
-                parameters = get_call_parameters(self, args, kwargs)
-                future = await worker.submit(
-                    flow=self,
-                    parameters=parameters,
-                    job_variables=self.job_variables,
-                )
-                if return_state:
-                    await future.wait_async()
-                    return future.state
-                return await future.aresult()
+            try:
+                async with self.worker_cls(work_pool_name=self.work_pool) as worker:
+                    parameters = get_call_parameters(self, args, kwargs)
+                    future = await worker.submit(
+                        flow=self,
+                        parameters=parameters,
+                        job_variables=self.job_variables,
+                    )
+                    if return_state:
+                        await future.wait_async()
+                        return future.state
+                    return await future.aresult()
+            except ExceptionGroup as exc:
+                exceptions = exc.exceptions
+                if len(exceptions) == 1:
+                    raise exceptions[0]
+                else:
+                    raise
 
         if inspect.iscoroutinefunction(self.fn):
             return modified_call(

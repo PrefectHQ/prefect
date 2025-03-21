@@ -730,6 +730,7 @@ class KubernetesWorker(
         )
         if self._runs_task_group is None:
             raise RuntimeError("Worker not properly initialized")
+
         flow_run = await self._runs_task_group.start(
             partial(
                 self._submit_adhoc_run,
@@ -764,7 +765,9 @@ class KubernetesWorker(
             or self._work_pool.storage_configuration.bundle_execution_step is None
         ):
             raise RuntimeError(
-                f"Storage is not configured for work pool {self._work_pool.name!r}. Please configure storage for the work pool by running `prefect work-pool storage configure`."
+                f"Storage is not configured for work pool {self._work_pool.name!r}. "
+                "Please configure storage for the work pool by running `prefect "
+                "work-pool storage configure`."
             )
 
         bundle_key = str(uuid.uuid4())

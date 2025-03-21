@@ -36,7 +36,7 @@ from pydantic import ValidationError
 import prefect
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.client.schemas.objects import WorkPool
+from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
 from prefect.exceptions import (
     InfrastructureError,
 )
@@ -3243,9 +3243,7 @@ class TestKubernetesWorker:
                     await client.delete_work_pool(work_pool.name)
 
         @pytest.fixture(autouse=True)
-        async def mock_steps(
-            self, work_pool: WorkPool, monkeypatch: pytest.MonkeyPatch
-        ):
+        async def mock_steps(self, work_pool: WorkPool):
             UPLOAD_STEP = {
                 "prefect_mock.experimental.bundles.upload": {
                     "requires": "prefect-mock==0.5.5",
@@ -3263,15 +3261,14 @@ class TestKubernetesWorker:
             }
 
             async with prefect.get_client() as client:
-                work_pool.base_job_template["variables"]["properties"]["env"][
-                    "default"
-                ] = {
-                    "PREFECT__BUNDLE_UPLOAD_STEP": json.dumps(UPLOAD_STEP),
-                    "PREFECT__BUNDLE_EXECUTE_STEP": json.dumps(EXECUTE_STEP),
-                }
                 await client.update_work_pool(
                     work_pool.name,
-                    WorkPoolUpdate(base_job_template=work_pool.base_job_template),
+                    WorkPoolUpdate(
+                        storage_configuration=WorkPoolStorageConfiguration(
+                            bundle_execution_step=EXECUTE_STEP,
+                            bundle_upload_step=UPLOAD_STEP,
+                        ),
+                    ),
                 )
 
         @pytest.fixture
