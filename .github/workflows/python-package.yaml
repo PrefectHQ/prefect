@@ -37,10 +37,11 @@ jobs:
 
       - name: Install python packages
         run: |
-          uv sync --only-dev --frozen
+          uv sync --only-dev
 
       - name: Build UI
         run: |
+          uv run prefect dev build-ui
 
       - name: Check git diff
         run: |
