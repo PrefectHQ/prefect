@@ -38,7 +38,7 @@ jobs:
 
       - name: Install python packages
         run: |
-          uv sync --only-dev
+          uv sync --only-dev --frozen
 
       - name: Build UI
         run: |
