@@ -807,7 +807,6 @@ class KubernetesWorker(
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
-        logger.debug("Uploading execution bundle")
         with tempfile.TemporaryDirectory() as temp_dir:
             await (
                 anyio.Path(temp_dir)
@@ -816,14 +815,16 @@ class KubernetesWorker(
             )
 
             try:
+                full_command = upload_command + [bundle_key]
+                logger.debug(
+                    "Uploading execution bundle with command: %s", full_command
+                )
                 await anyio.run_process(
-                    upload_command + [bundle_key],
+                    full_command,
                     cwd=temp_dir,
                 )
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(
-                    f"Failed to upload bundle: {e.stderr.decode('utf-8')}"
-                ) from e
+                raise RuntimeError(e.stdout.decode("utf-8")) from e
 
         logger.debug("Successfully uploaded execution bundle")
 

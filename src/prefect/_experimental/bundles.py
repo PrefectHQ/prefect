@@ -173,7 +173,9 @@ def execute_bundle_in_subprocess(
     return process
 
 
-def convert_step_to_command(step: dict[str, Any], key: str) -> list[str]:
+def convert_step_to_command(
+    step: dict[str, Any], key: str, quiet: bool = True
+) -> list[str]:
     """
     Converts a bundle upload or execution step to a command.
 
@@ -186,6 +188,9 @@ def convert_step_to_command(step: dict[str, Any], key: str) -> list[str]:
     """
     # Start with uv run
     command = ["uv", "run"]
+
+    if quiet:
+        command.append("--quiet")
 
     step_keys = list(step.keys())
 
