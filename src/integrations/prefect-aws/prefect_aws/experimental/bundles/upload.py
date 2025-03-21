@@ -5,6 +5,7 @@ These steps allow uploading and downloading flow/task bundles to and from S3.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Optional, TypedDict
 
@@ -85,12 +86,18 @@ def _upload_bundle_to_s3(
         else None
     )
 
-    return upload_bundle_to_s3(
-        local_filepath=local_filepath,
-        bucket=bucket,
-        key=key,
-        aws_credentials_block_name=block_name,
-    )
+    try:
+        return upload_bundle_to_s3(
+            local_filepath=local_filepath,
+            bucket=bucket,
+            key=key,
+            aws_credentials_block_name=block_name,
+        )
+    except Exception as e:
+        print(
+            f"Failed to upload bundle to S3 ({type(e).__name__}): {e}", file=sys.stderr
+        )
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

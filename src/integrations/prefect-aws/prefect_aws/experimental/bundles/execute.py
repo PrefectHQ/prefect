@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Optional, TypedDict
@@ -98,11 +99,15 @@ def _execute_bundle_from_s3(
     key: str = typer.Option(...),
     aws_credentials_block_name: Optional[str] = typer.Option(None),
 ) -> None:
-    execute_bundle_from_s3(
-        bucket=bucket,
-        key=key,
-        aws_credentials_block_name=aws_credentials_block_name,
-    )
+    try:
+        execute_bundle_from_s3(
+            bucket=bucket,
+            key=key,
+            aws_credentials_block_name=aws_credentials_block_name,
+        )
+    except Exception as e:
+        print(f"Bundle execution failed ({type(e).__name__}): {e}", file=sys.stderr)
+        raise typer.Exit(code=1) from e
 
 
 if __name__ == "__main__":
