@@ -559,7 +559,7 @@
               "description": "To use any private container registry with a username and password, choose DockerRegistry. To use a private Azure Container Registry with a managed identity, choose ACRManagedIdentity.",
               "anyOf": [
                 {
-                  "$ref": "#/definitions/DockerRegistry"
+                  "$ref": "#/definitions/DockerRegistryCredentials"
                 },
                 {
                   "$ref": "#/definitions/ACRManagedIdentity"
@@ -637,8 +637,8 @@
             "subscription_id"
           ],
           "definitions": {
-            "DockerRegistry": {
-              "title": "DockerRegistry",
+            "DockerRegistryCredentials": {
+              "title": "DockerRegistryCredentials",
               "description": "Connects to a Docker registry.\n\nRequires a Docker Engine to be connectable.",
               "type": "object",
               "properties": {
@@ -671,7 +671,7 @@
                 "password",
                 "registry_url"
               ],
-              "block_type_slug": "docker-registry",
+              "block_type_slug": "docker-registry-credentials",
               "secret_fields": [
                 "password"
               ],
