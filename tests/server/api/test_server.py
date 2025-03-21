@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
+import httpx
 import pytest
 import sqlalchemy as sa
 import toml
@@ -126,6 +127,21 @@ async def test_retryable_exception_handler(exc):
 
         response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
+
+
+def test_cors_middleware_settings(hosted_api_server_with_cors: str):
+    response = httpx.options(
+        f"{hosted_api_server_with_cors}/health",
+        headers={
+            "Origin": "http://example.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+
+    assert response.headers["Access-Control-Allow-Origin"] == "http://example.com"
+    assert response.headers["Access-Control-Allow-Methods"] == "GET, POST"
+    assert "x-tra-header" in response.headers["Access-Control-Allow-Headers"]
 
 
 async def test_health_check_route(client):
