@@ -157,7 +157,6 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFlowRunFuture
 from prefect.states import Pending
-from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -760,25 +759,21 @@ class KubernetesWorker(
             assert self._client is not None
             assert self._work_pool is not None
 
-        # TODO: Migrate steps to their own attributes on work pool when hardening this design
-        upload_step = json.loads(
-            get_from_dict(
-                self._work_pool.base_job_template,
-                "variables.properties.env.default.PREFECT__BUNDLE_UPLOAD_STEP",
-                "{}",
+        if (
+            self._work_pool.storage_configuration.bundle_upload_step is None
+            or self._work_pool.storage_configuration.bundle_execution_step is None
+        ):
+            raise RuntimeError(
+                f"Storage is not configured for work pool {self._work_pool.name!r}. Please configure storage for the work pool by running `prefect work-pool storage configure`."
             )
-        )
-        execute_step = json.loads(
-            get_from_dict(
-                self._work_pool.base_job_template,
-                "variables.properties.env.default.PREFECT__BUNDLE_EXECUTE_STEP",
-                "{}",
-            )
-        )
 
         bundle_key = str(uuid.uuid4())
-        upload_command = convert_step_to_command(upload_step, bundle_key)
-        execute_command = convert_step_to_command(execute_step, bundle_key)
+        upload_command = convert_step_to_command(
+            self._work_pool.storage_configuration.bundle_upload_step, bundle_key
+        )
+        execute_command = convert_step_to_command(
+            self._work_pool.storage_configuration.bundle_execution_step, bundle_key
+        )
 
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
         flow_run = await self._client.create_flow_run(
