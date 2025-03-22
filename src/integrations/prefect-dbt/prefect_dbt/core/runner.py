@@ -316,10 +316,18 @@ class PrefectDbtRunner:
 
             with resolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
                 invoke_kwargs["profiles_dir"] = profiles_dir
+                args = [
+                    "parse",
+                    "--project-dir",
+                    invoke_kwargs["project_dir"],
+                    "--profiles-dir",
+                    invoke_kwargs["profiles_dir"],
+                ]
+
                 res: dbtRunnerResult = dbtRunner(
                     callbacks=[self._create_logging_callback(self.settings.log_level)]
                 ).invoke(  # type: ignore[reportUnknownMemberType]
-                    ["parse"], **invoke_kwargs
+                    args, **invoke_kwargs
                 )
 
             if not res.success:
@@ -364,6 +372,13 @@ class PrefectDbtRunner:
                 self._create_logging_callback(self.settings.log_level),
                 self._create_events_callback(related_prefect_context),
             ]
+            args = args + [
+                "--project-dir",
+                invoke_kwargs["project_dir"],
+                "--profiles-dir",
+                invoke_kwargs["profiles_dir"],
+            ]
+
             res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)
 
             if not res.success and res.exception:
@@ -426,6 +441,13 @@ class PrefectDbtRunner:
                 self._create_logging_callback(self.settings.log_level),
                 self._create_events_callback(related_prefect_context),
             ]
+            args = args + [
+                "--project-dir",
+                invoke_kwargs["project_dir"],
+                "--profiles-dir",
+                invoke_kwargs["profiles_dir"],
+            ]
+
             res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)  # type: ignore[reportUnknownMemberType]
 
             if not res.success and res.exception:
