@@ -809,10 +809,11 @@ class TestDeploymentCLI:
                         expected_output_contains=["Failed to parse SLA"],
                     )
 
-        @pytest.mark.usefixtures("interactive_console", "project_dir")
+        @pytest.mark.usefixtures("interactive_console")
         async def test_slas_saved_to_prefect_yaml(
             self,
             docker_work_pool,
+            project_dir,
         ):
             client = mock.AsyncMock()
             client.server_type = ServerType.CLOUD
@@ -822,6 +823,10 @@ class TestDeploymentCLI:
                 "duration": 1800,
                 "severity": "high",
             }
+
+            # ensure file is removed for save to occur
+            prefect_file = project_dir / "prefect.yaml"
+            prefect_file.unlink()
 
             with mock.patch(
                 "prefect.cli.deploy._create_slas",
@@ -833,10 +838,14 @@ class TestDeploymentCLI:
                         "deploy ./flows/hello.py:my_flow -n test-name-1 -p"
                         f" {docker_work_pool.name} --sla"
                         f" '{json.dumps(cli_sla_spec)}'"
+                        f" --prefect-file {prefect_file}"
                     ),
                     user_input=(
                         # Decline schedule
                         "n"
+                        + readchar.key.ENTER
+                        # Decline remote storage
+                        + "n"
                         + readchar.key.ENTER
                         # Decline docker build
                         + "n"
@@ -849,7 +858,6 @@ class TestDeploymentCLI:
                 )
 
             # Read the updated prefect.yaml
-            prefect_file = Path("prefect.yaml")
             with prefect_file.open(mode="r") as f:
                 contents = yaml.safe_load(f)
 
