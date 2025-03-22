@@ -1192,3 +1192,10 @@ class TestDeploymentDelete:
                 "deployments",
             ],
         )
+
+    def test_delete_all_deployments_fails_if_name_or_id_provided(self):
+        invoke_and_assert(
+            ["deployment", "delete", "--all", "test-deployment"],
+            expected_code=1,
+            expected_output_contains="Cannot provide a deployment name or id when deleting all deployments.",
+        )

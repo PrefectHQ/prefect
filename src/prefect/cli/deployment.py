@@ -935,9 +935,13 @@ async def delete(
     """
     async with get_client() as client:
         if _all:
+            if name is not None or deployment_id is not None:
+                exit_with_error(
+                    "Cannot provide a deployment name or id when deleting all deployments."
+                )
             deployments = await client.read_deployments()
             if len(deployments) == 0:
-                exit_with_error("No deployments found.")
+                exit_with_success("No deployments found.")
             if is_interactive() and not typer.confirm(
                 f"Are you sure you want to delete all {len(deployments)} deployments?",
                 default=False,
@@ -947,7 +951,8 @@ async def delete(
                 await client.delete_deployment(deployment.id)
             plural = "" if len(deployments) == 1 else "s"
             exit_with_success(f"Deleted {len(deployments)} deployment{plural}.")
-        elif name is None and deployment_id is not None:
+
+        if name is None and deployment_id is not None:
             try:
                 if is_interactive() and not typer.confirm(
                     (
