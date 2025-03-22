@@ -593,6 +593,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         flow_id: "UUID",
         name: str,
         version: str | None = None,
+        version_info: dict[str, Any] | None = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,
@@ -644,6 +645,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             flow_id=flow_id,
             name=name,
             version=version,
+            version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
@@ -1033,6 +1035,21 @@ class DeploymentAsyncClient(BaseAsyncClient):
                 raise ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+    async def create_deployment_version(
+        self,
+        deployment_id: "UUID",
+        version_info: dict[str, str],
+    ):
+        body = version_info
+        response = await self.request(
+            "POST",
+            "/deployments/{id}/versions",
+            path_params={"id": deployment_id},
+            json=body,
+        )
+
+        return DeploymentResponse.model_validate(response.json())
 
     async def get_scheduled_flow_runs_for_deployments(
         self,
