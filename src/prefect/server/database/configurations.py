@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import traceback
 from abc import ABC, abstractmethod
@@ -37,6 +38,12 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
 
 _EngineCacheKey: TypeAlias = tuple[AbstractEventLoop, str, bool, Optional[float]]
 ENGINES: dict[_EngineCacheKey, AsyncEngine] = {}
+
+if os.getenv("PREFECT_ENABLE_LOGFIRE"):
+    import logfire
+
+    logfire.configure()
+    logfire.instrument_sqlite3()
 
 
 class ConnectionTracker:
@@ -130,25 +137,24 @@ class BaseDatabaseConfiguration(ABC):
         self.connection_timeout: Optional[float] = (
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
+        settings = get_current_settings()
         self.sqlalchemy_pool_size: Optional[int] = (
-            sqlalchemy_pool_size
-            or get_current_settings().server.database.sqlalchemy.pool_size
+            sqlalchemy_pool_size or settings.server.database.sqlalchemy.pool_size
         )
         self.sqlalchemy_max_overflow: Optional[int] = (
-            sqlalchemy_max_overflow
-            or get_current_settings().server.database.sqlalchemy.max_overflow
+            sqlalchemy_max_overflow or settings.server.database.sqlalchemy.max_overflow
         )
         self.connection_app_name: Optional[str] = (
             connection_app_name
-            or get_current_settings().server.database.sqlalchemy.connect_args.application_name
+            or settings.server.database.sqlalchemy.connect_args.application_name
         )
         self.statement_cache_size: Optional[int] = (
             statement_cache_size
-            or get_current_settings().server.database.sqlalchemy.connect_args.statement_cache_size
+            or settings.server.database.sqlalchemy.connect_args.statement_cache_size
         )
         self.prepared_statement_cache_size: Optional[int] = (
             prepared_statement_cache_size
-            or get_current_settings().server.database.sqlalchemy.connect_args.prepared_statement_cache_size
+            or settings.server.database.sqlalchemy.connect_args.prepared_statement_cache_size
         )
 
     def unique_key(self) -> tuple[Hashable, ...]:

@@ -330,6 +330,13 @@ def create_api_app(
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+
+    if os.getenv("PREFECT_ENABLE_LOGFIRE"):
+        import logfire
+
+        logfire.configure()
+        logfire.instrument_fastapi(api_app)
+
     api_app.add_middleware(GZipMiddleware)
 
     @api_app.get(health_check_path, tags=["Root"])
