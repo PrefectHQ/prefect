@@ -884,7 +884,9 @@ async def update_flow_run_labels(
     """
     Update the labels of a flow run.
     """
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         await models.flow_runs.update_flow_run_labels(
             session=session, flow_run_id=flow_run_id, labels=labels
         )

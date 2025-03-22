@@ -3,6 +3,9 @@ Functions for interacting with worker ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from __future__ import annotations
+
+import copy
 import datetime
 from typing import (
     Awaitable,
@@ -26,7 +29,8 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
-from prefect.types._datetime import DateTime, now
+from prefect.types import DateTime
+from prefect.types._datetime import now
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -734,10 +738,10 @@ async def worker_heartbeat(
         session (AsyncSession): a database session
         work_pool_id (UUID): a work pool ID
         worker_name (str): a worker name
+        heartbeat_interval_seconds: Optional heartbeat interval in seconds
 
     Returns:
         bool: whether or not the worker was updated
-
     """
     right_now = now("UTC")
     # Values that won't change between heart beats
@@ -753,6 +757,7 @@ async def worker_heartbeat(
     if heartbeat_interval_seconds is not None:
         update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
 
+    # This is atomic in both SQLite and Postgres
     insert_stmt = (
         db.queries.insert(db.Worker)
         .values(**base_values, **update_values)
@@ -766,7 +771,41 @@ async def worker_heartbeat(
     )
 
     result = await session.execute(insert_stmt)
-    return result.rowcount > 0
+    success = result.rowcount > 0
+
+    if success:
+        # Check if we need to update work pool status
+        # Use SELECT FOR UPDATE only when we know we need to update
+        query = (
+            sa.select(db.WorkPool)
+            .where(
+                db.WorkPool.id == work_pool_id,
+                db.WorkPool.status == schemas.statuses.WorkPoolStatus.NOT_READY,
+                db.WorkPool.type != "prefect-agent",
+            )
+            .with_for_update()
+        )
+        work_pool = (await session.execute(query)).scalar_one_or_none()
+
+        if work_pool is not None:
+            # Store the pre-update state for event emission
+            pre_update_work_pool = copy.copy(work_pool)
+
+            # We got the lock and the status is still NOT_READY, so update it
+            work_pool.status = schemas.statuses.WorkPoolStatus.READY
+            work_pool.last_status_event_id = uuid4()
+            work_pool.last_transitioned_status_at = now("UTC")
+            await session.flush()
+
+            # Emit the status change event
+            await emit_work_pool_status_event(
+                event_id=work_pool.last_status_event_id,
+                occurred=work_pool.last_transitioned_status_at,
+                pre_update_work_pool=pre_update_work_pool,
+                work_pool=work_pool,
+            )
+
+    return success
 
 
 @db_injector
