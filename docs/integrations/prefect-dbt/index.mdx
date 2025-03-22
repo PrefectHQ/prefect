@@ -150,11 +150,12 @@ if __name__ == "__main__":
 #### dbt settings
 
 The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
-If no environment variables are set, dbt's defaults are used.
+If no environment variables are set, dbt's defaults are used, which are `$HOME/.dbt` for both profiles dir and project dir.
 
 Provide a `PrefectDbtSettings` instance to `PrefectDbtRunner` to customize dbt settings or override environment variables.
 
 ```python
+from pathlib import Path
 from prefect import flow
 from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 
@@ -163,8 +164,8 @@ from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 def run_dbt():
     PrefectDbtRunner(
         settings=PrefectDbtSettings(
-            project_dir="test",
-            profiles_dir="examples/run_dbt"
+            project_dir=Path("dbt").resolve(),
+            profiles_dir=Path("dbt/dbt_profiles").resolve()
         )
     ).invoke(["build"])
 
@@ -172,6 +173,8 @@ def run_dbt():
 if __name__ == "__main__":
     run_dbt()
 ```
+
+It's recommended to use absolute paths for `project_dir` and `profiles_dir` to avoid unwanted issues with relative paths.
 
 #### `profiles.yml` templating
 
