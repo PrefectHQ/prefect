@@ -107,11 +107,11 @@
                   <p-pager v-model:limit="limit" v-model:page="taskRunsPage" :pages="taskRunsPages" />
                 </template>
 
-                <template v-else-if="!taskRunsSubscriptions.executed && taskRunsSubscriptions.loading">
+                <template v-else-if="!taskRunsSubscription.executed && taskRunsSubscription.loading">
                   <p-loading-icon class="m-auto" />
                 </template>
 
-                <template v-else-if="!taskRunsSubscriptions.executed">
+                <template v-else-if="!taskRunsSubscription.executed">
                   <p-message type="error">
                     An error occurred while loading task runs. Please try again.
                   </p-message>
@@ -262,7 +262,7 @@
     interval,
   })
 
-  const { taskRuns, count: taskRunCount, subscription: taskRunsSubscriptions, pages: taskRunsPages } = usePaginatedTaskRuns(taskRunsFilter, {
+  const { taskRuns, count: taskRunCount, subscription: taskRunsSubscription, pages: taskRunsPages } = usePaginatedTaskRuns(taskRunsFilter, {
     interval,
   })
 
@@ -285,7 +285,7 @@
 
   const deleteTaskRuns = (): void => {
     selectedTaskRuns.value = []
-    taskRunsSubscriptions.refresh()
+    taskRunsSubscription.refresh()
   }
 </script>
 

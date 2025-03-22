@@ -195,7 +195,7 @@ markdown-docs = [
 
 benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
 
-perf = ["logfire", "memray"]
+perf = ["logfire[fastapi,sqlalchemy]", "memray"]
 
 [tool.hatch.version]
 source = "versioningit"
