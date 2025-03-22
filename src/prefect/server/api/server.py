@@ -332,10 +332,10 @@ def create_api_app(
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
 
     if os.getenv("PREFECT_ENABLE_LOGFIRE"):
-        import logfire
+        import logfire  # pyright: ignore
 
-        logfire.configure()
-        logfire.instrument_fastapi(api_app)
+        logfire.configure()  # pyright: ignore
+        logfire.instrument_fastapi(api_app)  # pyright: ignore
 
     api_app.add_middleware(GZipMiddleware)
 

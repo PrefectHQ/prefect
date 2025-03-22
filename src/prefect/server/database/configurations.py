@@ -40,10 +40,10 @@ _EngineCacheKey: TypeAlias = tuple[AbstractEventLoop, str, bool, Optional[float]
 ENGINES: dict[_EngineCacheKey, AsyncEngine] = {}
 
 if os.getenv("PREFECT_ENABLE_LOGFIRE"):
-    import logfire
+    import logfire  # pyright: ignore
 
-    logfire.configure()
-    logfire.instrument_sqlite3()
+    logfire.configure()  # pyright: ignore
+    logfire.instrument_sqlite3()  # pyright: ignore
 
 
 class ConnectionTracker:

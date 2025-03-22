@@ -3,6 +3,9 @@ Functions for interacting with worker ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from __future__ import annotations
+
+import copy
 import datetime
 from typing import (
     Awaitable,
@@ -26,7 +29,8 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
-from prefect.types._datetime import DateTime, now
+from prefect.types import DateTime
+from prefect.types._datetime import now
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -784,11 +788,22 @@ async def worker_heartbeat(
         work_pool = (await session.execute(query)).scalar_one_or_none()
 
         if work_pool is not None:
+            # Store the pre-update state for event emission
+            pre_update_work_pool = copy.copy(work_pool)
+
             # We got the lock and the status is still NOT_READY, so update it
             work_pool.status = schemas.statuses.WorkPoolStatus.READY
             work_pool.last_status_event_id = uuid4()
             work_pool.last_transitioned_status_at = now("UTC")
             await session.flush()
+
+            # Emit the status change event
+            await emit_work_pool_status_event(
+                event_id=work_pool.last_status_event_id,
+                occurred=work_pool.last_transitioned_status_at,
+                pre_update_work_pool=pre_update_work_pool,
+                work_pool=work_pool,
+            )
 
     return success
 
