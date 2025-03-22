@@ -43,7 +43,6 @@ if os.getenv("PREFECT_ENABLE_LOGFIRE"):
     import logfire  # pyright: ignore
 
     logfire.configure()  # pyright: ignore
-    logfire.instrument_sqlite3()  # pyright: ignore
 
 
 class ConnectionTracker:
@@ -270,6 +269,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 pool_use_lifo=True,
                 **kwargs,
             )
+            if os.getenv("PREFECT_ENABLE_LOGFIRE"):
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
 
             if TRACKER.active:
                 TRACKER.track_pool(engine.pool)
@@ -392,6 +393,8 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 )
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+            if os.getenv("PREFECT_ENABLE_LOGFIRE"):
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
             sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
 
