@@ -334,7 +334,7 @@ class PrefectDbtRunner:
                 raise ValueError(f"Failed to load manifest: {res.exception}")
 
             assert isinstance(res.result, Manifest), (
-                "Expected manifest result from dbt parse"
+                f"Expected manifest result from dbt parse, got {res.result} with type {type(res.result)} instead"
             )
 
             self.manifest = res.result
