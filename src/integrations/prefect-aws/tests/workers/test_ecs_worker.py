@@ -35,6 +35,7 @@ from pydantic import ValidationError
 from prefect.server.schemas.core import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.slugify import slugify
+from prefect.utilities.templating import find_placeholders
 
 TEST_TASK_DEFINITION_YAML = """
 containerDefinitions:
@@ -621,7 +622,9 @@ async def test_container_command(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
-async def test_task_definition_arn(aws_credentials: AwsCredentials, flow_run: FlowRun):
+async def test_task_definition_arn(
+    aws_credentials: AwsCredentials, flow_run: FlowRun, caplog
+):
     session = aws_credentials.get_boto3_session()
     ecs_client = session.client("ecs")
 
@@ -636,7 +639,10 @@ async def test_task_definition_arn(aws_credentials: AwsCredentials, flow_run: Fl
     )
 
     async with ECSWorker(work_pool_name="test") as worker:
-        result = await run_then_stop_task(worker, configuration, flow_run)
+        with caplog.at_level(
+            logging.WARN, logger=worker.get_flow_run_logger(flow_run).name
+        ):
+            result = await run_then_stop_task(worker, configuration, flow_run)
 
     assert result.status_code == 0
     _, task_arn = parse_identifier(result.identifier)
@@ -645,6 +651,11 @@ async def test_task_definition_arn(aws_credentials: AwsCredentials, flow_run: Fl
     print(task)
     assert task["taskDefinitionArn"] == task_definition_arn, (
         "The task definition should be used without registering a new one"
+    )
+
+    assert (
+        "Skipping task definition construction since a task definition"
+        " ARN is provided." in caplog.text
     )
 
 
@@ -676,8 +687,15 @@ async def test_task_definition_arn_with_variables_that_are_ignored(
 
     async with ECSWorker(work_pool_name="test") as worker:
         with caplog.at_level(
-            logging.INFO, logger=worker.get_flow_run_logger(flow_run).name
+            logging.WARN, logger=worker.get_flow_run_logger(flow_run).name
         ):
+            template_with_placeholders = worker.work_pool.base_job_template[
+                "job_configuration"
+            ]["task_definition"]
+            placeholders = [
+                placeholder.name
+                for placeholder in find_placeholders(template_with_placeholders)
+            ]
             result = await run_then_stop_task(worker, configuration, flow_run)
 
     assert result.status_code == 0
@@ -688,13 +706,18 @@ async def test_task_definition_arn_with_variables_that_are_ignored(
         "A new task definition should not be registered"
     )
 
-    # TODO: Add logging for this case
-    # assert (
-    #     "Settings require changes to the linked task definition. "
-    #     "The settings will be ignored. "
-    #     "Enable DEBUG level logs to see the difference."
-    #     in caplog.text
-    # )
+    assert (
+        "Skipping task definition construction since a task definition"
+        " ARN is provided." in caplog.text
+    )
+
+    assert (
+        "The following job variable references"
+        " in the task definition template will be ignored: " in caplog.text
+    )
+
+    for key in overrides.keys():
+        assert key in caplog.text if key in placeholders else key not in caplog.text
 
 
 @pytest.mark.usefixtures("ecs_mocks")
