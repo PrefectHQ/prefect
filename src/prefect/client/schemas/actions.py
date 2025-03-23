@@ -39,6 +39,7 @@ from prefect.types import (
     DateTime,
     KeyValueLabelsField,
     Name,
+    NameOrEmpty,
     NonEmptyishName,
     NonNegativeFloat,
     NonNegativeInteger,
@@ -212,7 +213,7 @@ class DeploymentCreate(ActionBaseModel):
     ) -> Union[str, list[str]]:
         return convert_to_strings(values)
 
-    name: str = Field(..., description="The name of the deployment.")
+    name: NameOrEmpty = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     paused: Optional[bool] = Field(default=None)
     schedules: list[DeploymentScheduleCreate] = Field(
