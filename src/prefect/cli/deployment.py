@@ -922,6 +922,7 @@ async def delete(
     deployment_id: Optional[UUID] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
+    _all: bool = typer.Option(False, "--all", help="Delete all deployments"),
 ):
     """
     Delete a deployment.
@@ -933,6 +934,24 @@ async def delete(
         $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
     """
     async with get_client() as client:
+        if _all:
+            if name is not None or deployment_id is not None:
+                exit_with_error(
+                    "Cannot provide a deployment name or id when deleting all deployments."
+                )
+            deployments = await client.read_deployments()
+            if len(deployments) == 0:
+                exit_with_success("No deployments found.")
+            if is_interactive() and not typer.confirm(
+                f"Are you sure you want to delete all {len(deployments)} deployments?",
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+            for deployment in deployments:
+                await client.delete_deployment(deployment.id)
+            plural = "" if len(deployments) == 1 else "s"
+            exit_with_success(f"Deleted {len(deployments)} deployment{plural}.")
+
         if name is None and deployment_id is not None:
             try:
                 if is_interactive() and not typer.confirm(
