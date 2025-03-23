@@ -193,23 +193,31 @@ class MemoryLockManager(LockManager):
         )
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
-        if lock := self._locks.get(key, {}).get("lock"):
+        lock_info: _LockInfo | None = self._locks.get(key)
+        if lock_info is None:
+            return True
+        if lock_info["lock"].locked():
             if timeout is not None:
-                lock_acquired = lock.acquire(timeout=timeout)
+                lock_acquired = lock_info["lock"].acquire(timeout=timeout)
             else:
-                lock_acquired = lock.acquire()
+                lock_acquired = lock_info["lock"].acquire()
             if lock_acquired:
-                lock.release()
+                lock_info["lock"].release()
             return lock_acquired
         return True
 
     async def await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
-        if lock := self._locks.get(key, {}).get("lock"):
+        lock_info: _LockInfo | None = self._locks.get(key, None)
+        if lock_info is None:
+            return True
+        if lock_info["lock"].locked():
             if timeout is not None:
-                lock_acquired = await asyncio.to_thread(lock.acquire, timeout=timeout)
+                lock_acquired = await asyncio.to_thread(
+                    lock_info["lock"].acquire, timeout=timeout
+                )
             else:
-                lock_acquired = await asyncio.to_thread(lock.acquire)
+                lock_acquired = await asyncio.to_thread(lock_info["lock"].acquire)
             if lock_acquired:
-                lock.release()
+                lock_info["lock"].release()
             return lock_acquired
         return True
