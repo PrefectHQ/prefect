@@ -21,11 +21,14 @@ from pydantic_extra_types.pendulum_dt import (
     Duration as PydanticDuration,
 )
 from typing_extensions import TypeAlias
+from whenever import ZonedDateTime as WheneverZonedDateTime
+from whenever import patch_current_time
 
 DateTime: TypeAlias = PydanticDateTime
 Date: TypeAlias = PydanticDate
 Duration: TypeAlias = PydanticDuration
 UTC: pendulum.tz.Timezone = pendulum.tz.UTC
+ZonedDateTime: TypeAlias = WheneverZonedDateTime
 
 
 def parse_datetime(
@@ -123,6 +126,9 @@ def earliest_possible_datetime() -> DateTime:
 
 
 @contextmanager
-def travel_to(dt: DateTime, freeze: bool = True):
-    with pendulum.travel_to(dt, freeze=freeze):
+def travel_to(dt: ZonedDateTime | DateTime, freeze: bool = True):
+    if isinstance(dt, DateTime):
+        dt = ZonedDateTime.from_timestamp(dt.timestamp(), tz="UTC")
+
+    with patch_current_time(dt, keep_ticking=not freeze):
         yield
