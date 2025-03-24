@@ -714,7 +714,7 @@ class TriggeredAction(PrefectBaseModel):
         description="A unique key representing a single triggering of an action",
     )
 
-    firing: Firing | None = Field(
+    firing: Optional[Firing] = Field(
         default=None, description="The Firing that prompted this action"
     )
 
