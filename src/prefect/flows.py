@@ -44,7 +44,7 @@ from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
-from typing_extensions import Literal, ParamSpec, Self
+from typing_extensions import Literal, ParamSpec
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
@@ -412,7 +412,7 @@ class Flow(Generic[P, R]):
     def isstaticmethod(self) -> bool:
         return getattr(self.fn, "_is_static_method", False)
 
-    def __get__(self, instance: Any, owner: type[Self]) -> "Flow[P, R]":
+    def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
         """
         Implement the descriptor protocol so that the flow can be used as an instance or class method.
         When an instance method is loaded, this method is called with the "self" instance as
