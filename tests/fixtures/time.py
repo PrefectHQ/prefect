@@ -2,29 +2,26 @@ from datetime import timedelta
 from typing import Callable, Optional, Union
 
 import pytest
-from pendulum import DateTime
-from pendulum.tz.timezone import Timezone
 
-import prefect.types._datetime
+from prefect.types._datetime import DateTime, Timezone, now
 
 
 @pytest.fixture
-def frozen_time(monkeypatch: pytest.MonkeyPatch) -> prefect.types._datetime.DateTime:
-    frozen = prefect.types._datetime.now("UTC")
+def frozen_time(monkeypatch: pytest.MonkeyPatch) -> DateTime:
+    frozen = now("UTC")
 
     def frozen_time(tz: Optional[Union[str, Timezone]] = None):
         if tz is None:
             return frozen
         return frozen.in_timezone(tz)
 
-    monkeypatch.setattr(prefect.types._datetime, "now", frozen_time)
-    monkeypatch.setattr(prefect.types._datetime.DateTime, "now", frozen_time)
+    monkeypatch.setattr(DateTime, "now", frozen_time)
     return frozen
 
 
 @pytest.fixture
 def advance_time(monkeypatch: pytest.MonkeyPatch) -> Callable[[timedelta], DateTime]:
-    clock = prefect.types._datetime.now("UTC")
+    clock = now("UTC")
 
     def advance(amount: timedelta):
         nonlocal clock
