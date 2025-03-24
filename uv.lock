@@ -3537,7 +3537,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3.0.0" },
     { name = "toml", specifier = ">=0.10.0" },
     { name = "typer", specifier = ">=0.12.0,!=0.12.2,<0.16.0" },
-    { name = "typing-extensions", specifier = ">=4.5.0,<5.0.0" },
+    { name = "typing-extensions", specifier = ">=4.10.0,<5.0.0" },
     { name = "ujson", specifier = ">=5.8.0,<6.0.0" },
     { name = "uv", specifier = ">=0.6.0" },
     { name = "uvicorn", specifier = ">=0.14.0,!=0.29.0" },
