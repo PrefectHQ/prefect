@@ -44,7 +44,7 @@ from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
-from typing_extensions import Literal, ParamSpec
+from typing_extensions import Literal, ParamSpec, Self
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
@@ -272,10 +272,11 @@ class Flow(Generic[P, R]):
 
         if isinstance(fn, classmethod):
             fn = cast(Callable[P, R], fn.__func__)
+            setattr(fn, "_is_classmethod", True)
 
         if isinstance(fn, staticmethod):
             fn = cast(Callable[P, R], fn.__func__)
-            setattr(fn, "__prefect_static__", True)
+            setattr(fn, "_is_static_method", True)
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -405,13 +406,13 @@ class Flow(Generic[P, R]):
 
     @property
     def isclassmethod(self) -> bool:
-        return hasattr(self.fn, "__prefect_cls__")
+        return getattr(self.fn, "_is_classmethod", False)
 
     @property
     def isstaticmethod(self) -> bool:
-        return getattr(self.fn, "__prefect_static__", False)
+        return getattr(self.fn, "_is_static_method", False)
 
-    def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
+    def __get__(self, instance: Any, owner: type[Self]) -> "Flow[P, R]":
         """
         Implement the descriptor protocol so that the flow can be used as an instance or class method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -421,7 +422,7 @@ class Flow(Generic[P, R]):
             return self
 
         # wrapped function is a classmethod
-        if owner and not instance:
+        if instance is None:
             bound_flow = copy(self)
             setattr(bound_flow.fn, "__prefect_cls__", owner)
             return bound_flow

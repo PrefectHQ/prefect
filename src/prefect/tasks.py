@@ -553,7 +553,7 @@ class Task(Generic[P, R]):
     def isstaticmethod(self) -> bool:
         return getattr(self.fn, "__prefect_static__", False)
 
-    def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
+    def __get__(self, instance: Any, owner: type[Self]) -> "Task[P, R]":
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -564,7 +564,7 @@ class Task(Generic[P, R]):
             return self
 
         # wrapped function is a classmethod
-        if owner and not instance:
+        if not instance:
             bound_task = copy(self)
             setattr(bound_task.fn, "__prefect_cls__", owner)
             return bound_task

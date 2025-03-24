@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import sys
 import threading
 import time
 from asyncio import Event, sleep
@@ -426,8 +427,21 @@ class TestTaskCall:
             def class_method(cls):
                 return cls.__name__
 
+            @classmethod
+            @task
+            def class_method_of_a_different_order(cls):
+                return cls.__name__
+
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
+
+        if sys.version_info < (3, 13):
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_different_order, Task)
+        else:
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Task)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_task_supports_static_methods(self, T):
@@ -437,8 +451,16 @@ class TestTaskCall:
             def static_method():
                 return "static"
 
+            @staticmethod
+            @task
+            def static_method_of_a_different_order():
+                return "static"
+
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
+
+        assert Foo.static_method_of_a_different_order() == "static"
+        assert isinstance(Foo.static_method_of_a_different_order, Task)
 
     def test_instance_method_doesnt_create_copy_of_self(self):
         class Foo(pydantic.BaseModel):
@@ -517,8 +539,21 @@ class TestTaskCall:
             async def class_method(cls):
                 return cls.__name__
 
+            @classmethod
+            @task
+            async def class_method_of_a_different_order(cls):
+                return cls.__name__
+
         assert await Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
+
+        if sys.version_info < (3, 13):
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Task)
+        else:
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Task)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_static_methods(self, T):
@@ -528,8 +563,16 @@ class TestTaskCall:
             async def static_method():
                 return "static"
 
+            @staticmethod
+            @task
+            async def static_method_of_a_different_order():
+                return "static"
+
         assert await Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
+
+        assert await Foo.static_method_of_a_different_order() == "static"
+        assert isinstance(Foo.static_method_of_a_different_order, Task)
 
     def test_returns_when_cache_result_in_memory_is_false_sync_task(self):
         @task(cache_result_in_memory=False)
