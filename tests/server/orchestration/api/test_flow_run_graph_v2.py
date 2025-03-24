@@ -5,7 +5,6 @@ from unittest import mock
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from httpx import AsyncClient
@@ -22,6 +21,7 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
     temporary_settings,
 )
+from prefect.types._datetime import UTC, DateTime, earliest_possible_datetime, now
 
 
 async def test_reading_graph_for_nonexistant_flow_run(
@@ -40,7 +40,7 @@ def assert_graph_is_connected(graph: Graph, incremental: bool = False) -> None:
     nodes_by_id = {id: node for id, node in graph.nodes}
 
     def assert_ordered_by_start_time(items: Iterable[Union[Edge, Node]]) -> None:
-        last_seen = pendulum.datetime(1978, 6, 4)
+        last_seen = DateTime(1978, 6, 4, tzinfo=UTC)
         for item in items:
             try:
                 node = nodes_by_id[item.id]
@@ -50,7 +50,7 @@ def assert_graph_is_connected(graph: Graph, incremental: bool = False) -> None:
                 raise
 
             assert node.start_time >= last_seen
-            last_seen = pendulum.instance(node.start_time)
+            last_seen = DateTime.instance(node.start_time)
 
     nodes = [node for _, node in graph.nodes]
     assert_ordered_by_start_time(nodes)
@@ -88,7 +88,7 @@ def assert_graph_is_connected(graph: Graph, incremental: bool = False) -> None:
 
 
 @pytest.fixture
-def base_time(start_of_test: pendulum.DateTime) -> pendulum.DateTime:
+def base_time(start_of_test: DateTime) -> DateTime:
     return start_of_test.subtract(minutes=5)
 
 
@@ -97,7 +97,7 @@ async def unstarted_flow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow,  # : db.Flow,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     flow_run = db.FlowRun(
         id=uuid4(),
@@ -135,7 +135,7 @@ async def flow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow,  # : db.Flow,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     flow_run = db.FlowRun(
         id=uuid4(),
@@ -175,7 +175,7 @@ async def test_reading_graph_for_flow_run_with_string_since_field(
     graph = await read_flow_run_graph(
         session=session,
         flow_run_id=flow_run.id,
-        since="0001-01-01T00:00:00+00:00",
+        since=earliest_possible_datetime(),
     )
 
     assert graph.start_time == flow_run.start_time
@@ -189,7 +189,7 @@ async def flat_tasks(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run,  # db.FlowRun,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     task_runs = [
         db.TaskRun(
@@ -307,7 +307,7 @@ async def nested_tasks(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run,  # db.FlowRun,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ) -> List:
     # This is a flow with 3 tasks. the flow calls task0.
     # task0 calls task1, and then passes its result to task2
@@ -386,7 +386,7 @@ async def test_reading_graph_for_flow_run_with_nested_tasks(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     nested_tasks: List,  # List[db.TaskRun],
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     graph = await read_flow_run_graph(
         session=session,
@@ -467,7 +467,7 @@ async def nested_tasks_including_parent_with_multiple_params(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run,  # db.FlowRun,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ) -> List:
     task_runs = []
 
@@ -519,7 +519,7 @@ async def test_reading_graph_nested_tasks_including_parent_with_multiple_params(
     session: AsyncSession,
     flow_run,
     nested_tasks_including_parent_with_multiple_params: List,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     graph = await read_flow_run_graph(
         session=session,
@@ -542,7 +542,7 @@ async def linked_tasks(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run,  # db.FlowRun,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ) -> List:
     # The shape of this will be:
     # 4 top-level tasks
@@ -625,7 +625,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     linked_tasks: List,  # List[db.TaskRun],
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     graph = await read_flow_run_graph(
         session=session,
@@ -760,7 +760,7 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     linked_tasks: List,  # List[db.TaskRun],
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     await session.execute(
         sa.update(db.TaskRun)
@@ -900,7 +900,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     linked_tasks: List,  # List[db.TaskRun],
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     # `since` is just after the second task ends, so we should only get the last four
     since = base_time.add(minutes=1, seconds=1, microseconds=1000)
@@ -1013,7 +1013,7 @@ async def subflow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run,  # db.FlowRun,
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     wrapper_task = db.TaskRun(
         id=uuid4(),
@@ -1236,7 +1236,7 @@ async def flow_run_task_artifacts(
         flow_run_id=flow_run.id,
         task_run_id=flat_tasks[4].id,
         type="table",
-        created=pendulum.now().subtract(minutes=2),
+        created=now("UTC").subtract(minutes=2),
     )
 
     # second artifact from same task with a different created time
@@ -1244,7 +1244,7 @@ async def flow_run_task_artifacts(
         flow_run_id=flow_run.id,
         task_run_id=flat_tasks[4].id,
         type="table",
-        created=pendulum.now().subtract(minutes=1),
+        created=now("UTC").subtract(minutes=1),
     )
 
     result_type_artifact = db.Artifact(
@@ -1371,25 +1371,25 @@ async def flow_run_states(
             flow_run_id=flow_run.id,
             type=StateType.RUNNING,
             name="Running",
-            timestamp=pendulum.now().subtract(minutes=1),
+            timestamp=now("UTC").subtract(minutes=1),
         ),
         db.FlowRunState(
             flow_run_id=flow_run.id,
             type=StateType.COMPLETED,
             name="Completed",
-            timestamp=pendulum.now(),
+            timestamp=now("UTC"),
         ),
         db.FlowRunState(
             flow_run_id=flow_run.id,
             type=StateType.SCHEDULED,
             name="Scheduled",
-            timestamp=pendulum.now().subtract(minutes=3),
+            timestamp=now("UTC").subtract(minutes=3),
         ),
         db.FlowRunState(
             flow_run_id=flow_run.id,
             type=StateType.PENDING,
             name="Pending",
-            timestamp=pendulum.now().subtract(seconds=2),
+            timestamp=now("UTC").subtract(seconds=2),
         ),
     ]
     session.add_all(states)
@@ -1423,8 +1423,8 @@ async def test_reading_graph_for_flow_run_includes_states(
 @pytest.fixture
 def graph() -> Graph:
     return Graph(
-        start_time=pendulum.datetime(1978, 6, 4),
-        end_time=pendulum.datetime(2023, 6, 4),
+        start_time=DateTime(1978, 6, 4, tzinfo=UTC),
+        end_time=DateTime(2023, 6, 4, tzinfo=UTC),
         root_node_ids=[],
         nodes=[],
         artifacts=[],
@@ -1452,7 +1452,7 @@ async def test_missing_flow_run_returns_404(
     assert response.status_code == 404, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY, flow_run_id=flow_run_id, since=pendulum.DateTime.min
+        session=mock.ANY, flow_run_id=flow_run_id, since=DateTime.min
     )
 
 
@@ -1467,7 +1467,7 @@ async def test_api_full(
     assert response.status_code == 200, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY, flow_run_id=flow_run_id, since=pendulum.DateTime.min
+        session=mock.ANY, flow_run_id=flow_run_id, since=DateTime.min
     )
     assert response.json() == graph.model_dump(mode="json")
 
@@ -1490,7 +1490,7 @@ async def test_api_incremental(
     model_method_mock.assert_awaited_once_with(
         session=mock.ANY,
         flow_run_id=flow_run_id,
-        since=pendulum.datetime(2023, 6, 4, 1, 2, 3),
+        since=DateTime(2023, 6, 4, 1, 2, 3, tzinfo=UTC),
     )
     assert response.json() == graph.model_dump(mode="json")
 
@@ -1499,7 +1499,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_too_many_nodes(
     session: AsyncSession,
     flow_run,  # db.FlowRun,
     linked_tasks: List,  # List[db.TaskRun],
-    base_time: pendulum.DateTime,
+    base_time: DateTime,
 ):
     with temporary_settings(
         updates={PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES: 4},

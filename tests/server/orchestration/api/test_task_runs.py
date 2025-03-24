@@ -1,7 +1,6 @@
 import uuid
 from uuid import uuid4
 
-import pendulum
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +14,7 @@ from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.states import Pending
 from prefect.types import DateTime
+from prefect.types._datetime import now as now_fn
 
 
 class TestCreateTaskRun:
@@ -287,7 +287,7 @@ class TestReadTaskRuns:
         assert response.json() == []
 
     async def test_read_task_runs_applies_sort(self, flow_run, session, client):
-        now = pendulum.now("UTC")
+        now = now_fn("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -848,7 +848,7 @@ class TestSetTaskRunState:
             task_run=schemas.core.TaskRun(
                 flow_run_id=None,  # autonomous task runs have no flow run
                 task_key="my-task-key",
-                expected_start_time=pendulum.now("UTC"),
+                expected_start_time=now_fn("UTC"),
                 dynamic_key="0",
             ),
         )
@@ -905,8 +905,8 @@ class TestTaskRunHistory:
         response = await client.post(
             "/task_runs/history",
             json=dict(
-                history_start=str(pendulum.now("UTC")),
-                history_end=str(pendulum.now("UTC").add(days=1)),
+                history_start=str(now_fn("UTC")),
+                history_end=str(now_fn("UTC").add(days=1)),
                 history_interval_seconds=0.9,
             ),
         )
