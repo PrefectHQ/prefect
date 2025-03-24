@@ -68,6 +68,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -98,7 +99,6 @@ ECS_POST_REGISTRATION_FIELDS = [
     "registeredBy",
     "deregisteredAt",
 ]
-
 
 DEFAULT_TASK_DEFINITION_TEMPLATE = """
 containerDefinitions:
@@ -759,10 +759,25 @@ class ECSWorker(BaseWorker):
                 logger, ecs_client, task_definition_arn
             )
             if configuration.task_definition:
+                template_with_placeholders = self.work_pool.base_job_template[
+                    "job_configuration"
+                ]["task_definition"]
+                placeholders = [
+                    placeholder.name
+                    for placeholder in find_placeholders(template_with_placeholders)
+                ]
+
                 logger.warning(
-                    "Ignoring task definition in configuration since task definition"
-                    " ARN is provided on the task run request."
+                    "Skipping task definition construction since a task definition"
+                    " ARN is provided."
                 )
+
+                if placeholders:
+                    logger.warning(
+                        "The following job variable references"
+                        " in the task definition template will be ignored: "
+                        + ", ".join(placeholders)
+                    )
 
         self._validate_task_definition(task_definition, configuration)
 
