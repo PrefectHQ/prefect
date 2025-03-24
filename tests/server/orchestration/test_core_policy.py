@@ -1,12 +1,12 @@
 import contextlib
 import math
 import random
+from datetime import timedelta
 from itertools import product
 from typing import Optional
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -49,12 +49,14 @@ from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
+    OrchestrationContext,
 )
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import DateTime, parse_datetime
 
 # Convert constants from sets to lists for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -106,7 +108,12 @@ def fizzling_rule():
         FROM_STATES = ALL_ORCHESTRATION_STATES
         TO_STATES = ALL_ORCHESTRATION_STATES
 
-        async def before_transition(self, initial_state, proposed_state, context):
+        async def before_transition(
+            self,
+            initial_state: states.State,
+            proposed_state: states.State,
+            context: OrchestrationContext,
+        ):
             # this rule mutates the proposed state type, but won't fizzle itself upon exiting
             mutated_state = proposed_state.model_copy()
             mutated_state.type = random.choice(
@@ -135,7 +142,7 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now("UTC").subtract(minutes=5)},
+            initial_details={"scheduled_time": DateTime.now("UTC").subtract(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -159,7 +166,9 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now("UTC").add(minutes=5)},
+            initial_details={
+                "scheduled_time": DateTime.now("UTC") + timedelta(minutes=5)
+            },
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -191,7 +200,9 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now("UTC").add(minutes=5)},
+            initial_details={
+                "scheduled_time": DateTime.now("UTC") + timedelta(minutes=5)
+            },
         )
 
         scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
@@ -211,7 +222,7 @@ class TestCopyScheduledTime:
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.PENDING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = pendulum.now("UTC").subtract(minutes=5)
+        scheduled_time = DateTime.now("UTC") - timedelta(minutes=5)
 
         ctx = await initialize_orchestration(
             session,
@@ -249,7 +260,9 @@ class TestCopyScheduledTime:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": pendulum.now("UTC").add(minutes=5)},
+            initial_details={
+                "scheduled_time": DateTime.now("UTC") + timedelta(minutes=5)
+            },
         )
 
         scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
@@ -341,8 +354,8 @@ class TestCachingBackendLogic:
     @pytest.mark.parametrize(
         ["expiration", "expected_status", "expected_name"],
         [
-            (pendulum.now("UTC").subtract(days=1), SetStateStatus.ACCEPT, "Running"),
-            (pendulum.now("UTC").add(days=1), SetStateStatus.REJECT, "Cached"),
+            (DateTime.now("UTC") - timedelta(days=1), SetStateStatus.ACCEPT, "Running"),
+            (DateTime.now("UTC") + timedelta(days=1), SetStateStatus.REJECT, "Cached"),
             (None, SetStateStatus.REJECT, "Cached"),
         ],
         ids=["past", "future", "null"],
@@ -405,7 +418,7 @@ class TestCachingBackendLogic:
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.COMPLETED
         intended_transition = (initial_state_type, proposed_state_type)
-        expiration = pendulum.now("UTC").subtract(days=1)
+        expiration = DateTime.now("UTC") - timedelta(days=1)
 
         ctx1 = await initialize_orchestration(
             session,
@@ -982,7 +995,7 @@ class TestTaskRetryingRule:
         run_settings.retry_delay = 10
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = pendulum.now("UTC")
+            orchestration_start = DateTime.now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -1017,7 +1030,7 @@ class TestTaskRetryingRule:
         run_settings.retry_delay = configured_retry_delays
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = pendulum.now("UTC")
+            orchestration_start = DateTime.now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -1053,7 +1066,7 @@ class TestTaskRetryingRule:
         run_settings.retry_delay = configured_retry_delays
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = pendulum.now("UTC")
+            orchestration_start = DateTime.now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -1098,7 +1111,7 @@ class TestTaskRetryingRule:
         run_settings.retry_jitter_factor = 9
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = pendulum.now("UTC")
+            orchestration_start = DateTime.now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -2796,7 +2809,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        five_minutes_from_now = DateTime.now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_from_now, pause_reschedule=True
         )
@@ -2822,7 +2835,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        five_minutes_from_now = DateTime.now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_from_now
         )
@@ -2886,7 +2899,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         ctx.run.deployment_id = deployment.id
-        five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
+        five_minutes_ago = DateTime.now("UTC") - timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_ago
         )
@@ -2914,7 +2927,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         ctx.run.deployment_id = deployment.id
-        the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        the_future = DateTime.now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
@@ -2939,7 +2952,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         ctx.run.deployment_id = deployment.id
-        the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        the_future = DateTime.now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
@@ -3011,7 +3024,7 @@ class TestPreventRunningTasksFromStoppedFlows:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        pause_timeout = pendulum.now("UTC").add(minutes=5)
+        pause_timeout = DateTime.now("UTC") + timedelta(minutes=5)
         ctx = await initialize_orchestration(
             session,
             "task",
@@ -3586,10 +3599,10 @@ class TestFlowConcurrencyLimits:
 
         with mock.patch(
             "prefect.server.orchestration.core_policy.DateTime.now"
-        ) as mock_pendulum_now:
-            expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
-            mock_pendulum_now.return_value = expected_now
-            expected_scheduled_time = mock_pendulum_now.return_value.add(
+        ) as mock_now:
+            expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
+            mock_now.return_value = expected_now
+            expected_scheduled_time = mock_now.return_value + timedelta(
                 seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
             )
 
@@ -3645,10 +3658,10 @@ class TestFlowConcurrencyLimits:
 
             with mock.patch(
                 "prefect.server.orchestration.core_policy.DateTime.now"
-            ) as mock_pendulum_now:
-                expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
-                mock_pendulum_now.return_value = expected_now
-                expected_scheduled_time = mock_pendulum_now.return_value.add(
+            ) as mock_now:
+                expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
+                mock_now.return_value = expected_now
+                expected_scheduled_time = mock_now.return_value + timedelta(
                     seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
                 )
                 async with contextlib.AsyncExitStack() as stack:
@@ -3778,10 +3791,10 @@ class TestFlowConcurrencyLimits:
 
         with mock.patch(
             "prefect.server.orchestration.core_policy.DateTime.now"
-        ) as mock_pendulum_now:
-            expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
-            mock_pendulum_now.return_value = expected_now
-            expected_scheduled_time = mock_pendulum_now.return_value.add(
+        ) as mock_now:
+            expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
+            mock_now.return_value = expected_now
+            expected_scheduled_time = mock_now.return_value + timedelta(
                 seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
             )
         async with contextlib.AsyncExitStack() as stack:
@@ -3863,10 +3876,10 @@ class TestFlowConcurrencyLimits:
 
         with mock.patch(
             "prefect.server.orchestration.core_policy.DateTime.now"
-        ) as mock_pendulum_now:
-            expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
-            mock_pendulum_now.return_value = expected_now
-            expected_scheduled_time = mock_pendulum_now.return_value.add(
+        ) as mock_now:
+            expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
+            mock_now.return_value = expected_now
+            expected_scheduled_time = mock_now.return_value + timedelta(
                 seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
             )
             async with contextlib.AsyncExitStack() as stack:
