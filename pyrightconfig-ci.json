@@ -64,7 +64,6 @@
 		"src/prefect/events/",
 		"src/prefect/infrastructure/",
 		"src/prefect/input/",
-		"src/prefect/logging/",
 		"src/prefect/records/",
 		"src/prefect/runtime/",
 		"src/prefect/settings/",
