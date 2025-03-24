@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime as pydatetime
-from datetime import timedelta
+from datetime import timedelta, timezone
 from unittest import mock
 
 import dateutil
@@ -18,9 +18,9 @@ from prefect.server.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import DateTime, now, parse_datetime
 
-dt = pendulum.datetime(2020, 1, 1)
+dt = DateTime(2020, 1, 1)
 RRDaily = "FREQ=DAILY"
 
 
@@ -62,7 +62,7 @@ class TestCreateIntervalSchedule:
         clock = IntervalSchedule(
             interval=timedelta(days=1),
             timezone="America/Los_Angeles",
-            anchor_date=pendulum.now("America/New_York"),
+            anchor_date=now("America/New_York"),
         )
         assert clock.timezone == "America/Los_Angeles"
         assert clock.anchor_date.tz.name == "America/New_York"
@@ -80,12 +80,12 @@ class TestCreateIntervalSchedule:
         # when pendulum parses a datetime, it keeps the UTC offset as the "timezone"
         # and we need to make sure this doesn't get picked up as the schedule's timezone
         # since the schedule should infer that it has the same behavior as "UTC"
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = parse_datetime(str(now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
         assert clock.timezone == "UTC"
 
     def test_parse_utc_offset_timezone(self):
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = parse_datetime(str(now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
         clock_dict = clock.model_dump(mode="json")
 
@@ -101,7 +101,7 @@ class TestCreateIntervalSchedule:
         assert parsed.timezone == "UTC"
 
     def test_parse_utc_offset_timezone_with_specified_tz(self):
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = parse_datetime(str(now("America/New_York")))
         clock = IntervalSchedule(
             interval=timedelta(days=1),
             anchor_date=offset_dt,
@@ -884,9 +884,9 @@ class TestRRuleSchedule:
                 rrule.rrule(rrule.MINUTELY, dt),
                 "DTSTART:20200101T000000\nRRULE:FREQ=MINUTELY",
                 [
-                    dt.add(minutes=0),
-                    dt.add(minutes=1),
-                    dt.add(minutes=2),
+                    dt.replace(tzinfo=timezone.utc) + timedelta(minutes=0),
+                    dt.replace(tzinfo=timezone.utc) + timedelta(minutes=1),
+                    dt.replace(tzinfo=timezone.utc) + timedelta(minutes=2),
                 ],
             ),
             # last weekday of every other month
@@ -924,7 +924,7 @@ class TestRRuleSchedule:
             (
                 rrule.rrule(
                     rrule.WEEKLY,
-                    dt,
+                    dt.replace(tzinfo=timezone.utc),
                     byweekday=rrule.SU,
                     interval=3,
                     until=pendulum.datetime(2021, 9, 23, tz="UTC"),
@@ -957,6 +957,15 @@ class TestRRuleSchedule:
                 ],
             ),
         ],
+        ids=[
+            "yearly_first_tuesday_october",
+            "minutely",
+            "last_weekday_every_other_month",
+            "weekdays_count_8",
+            "weekly_sunday_until_2021",
+            "weekly_specific_time",
+            "yearly_week_numbers",
+        ],
     )
     async def test_rrule(self, rrule_obj, rrule_str, expected_dts):
         s = RRuleSchedule.from_rrule(rrule_obj)
@@ -980,14 +989,14 @@ class TestRRuleSchedule:
         )
         dates = await s.get_dates(n=100, start=dt)
         assert dates == [
-            dt.add(days=0),
-            dt.add(days=1),
-            dt.add(days=2),
-            dt.add(days=5),
-            dt.add(days=6),
-            dt.add(days=7),
-            dt.add(days=8),
-            dt.add(days=9),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=0),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=1),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=2),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=5),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=6),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=7),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=8),
+            dt.replace(tzinfo=timezone.utc) + timedelta(days=9),
         ]
 
 
