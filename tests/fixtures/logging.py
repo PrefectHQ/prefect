@@ -5,14 +5,14 @@ from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 
 
 @pytest.fixture(autouse=True)
-def reset_api_log_handler():
+async def reset_api_log_handler():
     """
     Since we have a singleton worker for the runtime of the process, we must reset
     it to `None` between tests and we should flush logs before each test exits to
     stop the logging thread.
     """
     yield
-    APILogHandler.flush()
+    await APILogHandler.aflush()
     APILogHandler.workers = {}
 
 

@@ -87,7 +87,7 @@ def dictConfigMock(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("logging.config.dictConfig", mock)
     # Reset the process global since we're testing `setup_logging`
     old = prefect.logging.configuration.PROCESS_LOGGING_CONFIG
-    prefect.logging.configuration.PROCESS_LOGGING_CONFIG = None
+    prefect.logging.configuration.PROCESS_LOGGING_CONFIG = {}
     yield mock
     prefect.logging.configuration.PROCESS_LOGGING_CONFIG = old
 

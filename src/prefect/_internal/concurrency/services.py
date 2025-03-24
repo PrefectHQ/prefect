@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import asyncio
 import concurrent.futures
@@ -375,6 +377,14 @@ class BatchedQueueService(QueueService[T]):
     _max_batch_size: int
     _min_interval: Optional[float] = None
 
+    @property
+    def min_interval(self) -> float | None:
+        return self.__class__._min_interval
+
+    @property
+    def max_batch_size(self) -> int:
+        return self.__class__._max_batch_size
+
     async def _main_loop(self):
         done = False
 
@@ -383,8 +393,8 @@ class BatchedQueueService(QueueService[T]):
             batch_size = 0
 
             # Pull items from the queue until we reach the batch size
-            deadline = get_deadline(self._min_interval)
-            while batch_size < self._max_batch_size:
+            deadline = get_deadline(self.min_interval)
+            while batch_size < self.max_batch_size:
                 try:
                     item = await self._queue_get_thread.submit(
                         create_call(self._queue.get, timeout=get_timeout(deadline))
@@ -401,7 +411,7 @@ class BatchedQueueService(QueueService[T]):
                         self,
                         item,
                         batch_size,
-                        self._max_batch_size,
+                        self.max_batch_size,
                     )
                 except queue.Empty:
                     # Process the batch after `min_interval` even if it is smaller than
