@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import logging.config
 import os
@@ -6,7 +8,7 @@ import string
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 import yaml
 
@@ -21,7 +23,7 @@ from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 
 # Stores the configuration used to setup logging in this Python process
-PROCESS_LOGGING_CONFIG: Optional[Dict[str, Any]] = None
+PROCESS_LOGGING_CONFIG: dict[str, Any] = {}
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar: Callable[[str], str] = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
@@ -60,7 +62,7 @@ def load_logging_config(path: Path) -> dict[str, Any]:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
+def setup_logging(incremental: bool | None = None) -> dict[str, Any]:
     """
     Sets up logging.
 
@@ -100,6 +102,6 @@ def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
             for handler in extra_config.handlers:
                 logger.addHandler(handler)
 
-    PROCESS_LOGGING_CONFIG = config
+    PROCESS_LOGGING_CONFIG.update(config)
 
     return config
