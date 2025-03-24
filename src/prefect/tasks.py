@@ -316,7 +316,7 @@ class Task(Generic[P, R]):
     #       exactly in the @task decorator
     def __init__(
         self,
-        fn: Callable[P, R] | classmethod[Any, P, R] | staticmethod[P, R],
+        fn: Callable[P, R] | "classmethod[Any, P, R]" | "staticmethod[P, R]",
         name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,

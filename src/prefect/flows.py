@@ -196,7 +196,7 @@ class Flow(Generic[P, R]):
     #       exactly in the @flow decorator
     def __init__(
         self,
-        fn: Callable[P, R] | classmethod[Any, P, R] | staticmethod[P, R],
+        fn: Callable[P, R] | "classmethod[Any, P, R]" | "staticmethod[P, R]",
         name: Optional[str] = None,
         version: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,

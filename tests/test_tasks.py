@@ -437,7 +437,7 @@ class TestTaskCall:
 
         if sys.version_info < (3, 13):
             assert Foo.class_method_of_a_different_order() == "Foo"
-            assert isinstance(Foo.class_method_of_different_order, Task)
+            assert isinstance(Foo.class_method_of_a_different_order, Task)
         else:
             assert Foo.class_method_of_a_different_order() == "Foo"
             # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+

@@ -915,19 +915,19 @@ class TestFlowCall:
 
             @classmethod
             @flow
-            def class_method_of_different_order(cls):
+            def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Flow)
 
         if sys.version_info < (3, 13):
-            assert Foo.class_method_of_different_order() == "Foo"
-            assert isinstance(Foo.class_method_of_different_order, Flow)
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Flow)
         else:
-            assert Foo.class_method_of_different_order() == "Foo"
+            assert Foo.class_method_of_a_different_order() == "Foo"
             # Doesn't show up as a flow because @classmethod isn't chainable in Python 3.13+
-            assert not isinstance(Foo.class_method_of_different_order, Flow)
+            assert not isinstance(Foo.class_method_of_a_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_flow_supports_static_methods(self, T):
@@ -976,19 +976,19 @@ class TestFlowCall:
 
             @classmethod
             @flow
-            async def class_method_of_different_order(cls):
+            async def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert await Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Flow)
 
         if sys.version_info < (3, 13):
-            assert await Foo.class_method_of_different_order() == "Foo"
-            assert isinstance(Foo.class_method_of_different_order, Flow)
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Flow)
         else:
-            assert await Foo.class_method_of_different_order() == "Foo"
+            assert await Foo.class_method_of_a_different_order() == "Foo"
             # Doesn't show up as a flow because @classmethod isn't chainable in Python 3.13+
-            assert not isinstance(Foo.class_method_of_different_order, Flow)
+            assert not isinstance(Foo.class_method_of_a_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_flow_supports_async_static_methods(self, T):
