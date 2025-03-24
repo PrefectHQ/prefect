@@ -5,7 +5,6 @@ from typing import AsyncGenerator
 from unittest import mock
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -411,16 +410,16 @@ async def test_event_clock_produces_accurate_offsets(
 
 
 async def test_event_clock_only_moves_forward(
-    reset_events_clock: None, start_of_test: pendulum.DateTime
+    reset_events_clock: None, start_of_test: DateTime
 ):
     event = ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="things.happened",
         resource={"prefect.resource.id": "something"},
         id=uuid4(),
     )
 
-    event.occurred = pendulum.now("UTC") - timedelta(seconds=100)
+    event.occurred = DateTime.now("UTC") - timedelta(seconds=100)
     await triggers.update_events_clock(event)
     first_tick = await triggers.get_events_clock()
     assert first_tick == event.occurred.float_timestamp
@@ -438,27 +437,27 @@ async def test_event_clock_only_moves_forward(
 
 
 async def test_event_clock_avoids_the_future(
-    reset_events_clock: None, start_of_test: pendulum.DateTime
+    reset_events_clock: None, start_of_test: DateTime
 ):
     event = ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="things.happened",
         resource={"prefect.resource.id": "something"},
         id=uuid4(),
     )
 
-    event.occurred = pendulum.now("UTC") - timedelta(seconds=100)
+    event.occurred = DateTime.now("UTC") - timedelta(seconds=100)
     await triggers.update_events_clock(event)
     first_tick = await triggers.get_events_clock()
     assert first_tick
     assert first_tick == event.occurred.float_timestamp
 
     # now try a future date and see that the clock stays pinned to the present
-    event.occurred = pendulum.now("UTC") + timedelta(seconds=100)
+    event.occurred = DateTime.now("UTC") + timedelta(seconds=100)
     await triggers.update_events_clock(event)
     second_tick = await triggers.get_events_clock()
     assert second_tick
-    assert first_tick < second_tick <= pendulum.now("UTC").float_timestamp
+    assert first_tick < second_tick <= DateTime.now("UTC").float_timestamp
 
 
 async def test_offset_is_resilient_to_low_volume(

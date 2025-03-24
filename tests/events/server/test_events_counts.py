@@ -3,7 +3,6 @@ from datetime import timedelta
 from typing import AsyncGenerator, Dict, List, Tuple
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +16,7 @@ from prefect.server.events.storage.database import (
     count_events,
     write_events,
 )
-from prefect.types import Date, DateTime
+from prefect.types._datetime import Date, DateTime, Duration
 
 # Note: the counts in this module are sensitive to the number and shape of events
 # we produce in conftest.py and may need to be adjusted if we make changes.
@@ -645,7 +644,7 @@ async def test_counting_by_time_per_two_days(
     # bucket with 20 or the last the first bucket will have 20 events and the
     # last 40 depending on which day it runs.
 
-    two_days = pendulum.Duration(days=2)
+    two_days = Duration(days=2)
     first_span_index = math.floor(
         (datetime_from_date(known_dates[0]) - PIVOT_DATETIME) / two_days
     )
@@ -873,8 +872,8 @@ async def test_counting_by_time_must_result_in_reasonable_number_of_buckets(
             session=events_query_session,
             filter=EventFilter(
                 occurred=EventOccurredFilter(
-                    since=pendulum.now("UTC").subtract(days=7),
-                    until=pendulum.now("UTC"),
+                    since=DateTime.now("UTC").subtract(days=7),
+                    until=DateTime.now("UTC"),
                 ),
             ),
             countable=Countable.time,

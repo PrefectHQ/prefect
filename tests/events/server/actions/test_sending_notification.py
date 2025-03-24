@@ -4,7 +4,6 @@ from typing import Type
 from unittest import mock
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 
 from prefect.blocks.abstract import NotificationBlock
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
+from prefect.types._datetime import DateTime
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def notify_me(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
     )
@@ -97,7 +97,7 @@ def invalid_block_id(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={},
         triggering_event=woodchonk_nibbled,
     )

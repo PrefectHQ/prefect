@@ -2,7 +2,6 @@ import asyncio
 from typing import AsyncGenerator, AsyncIterator
 from uuid import uuid4
 
-import pendulum
 import pytest
 
 from prefect.server.events import messaging, stream
@@ -12,12 +11,13 @@ from prefect.server.events.filters import (
     EventOccurredFilter,
 )
 from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
+from prefect.types._datetime import DateTime
 
 
 @pytest.fixture
 def event1() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="was.radical",
         resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"hello": "world"},
@@ -28,7 +28,7 @@ def event1() -> Event:
 @pytest.fixture
 def event2() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="was.super.awesome",
         resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
@@ -39,7 +39,7 @@ def event2() -> Event:
 @pytest.fixture
 def event3() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="you.betcha",
         resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
@@ -77,8 +77,8 @@ async def distributor_running() -> AsyncGenerator[None, None]:
 def default_liberal_filter() -> EventFilter:
     return EventFilter(
         occurred=EventOccurredFilter(
-            since=pendulum.now("UTC"),
-            until=pendulum.now("UTC").add(years=1),
+            since=DateTime.now("UTC"),
+            until=DateTime.now("UTC").add(years=1),
         )
     )
 

@@ -714,7 +714,9 @@ class TriggeredAction(PrefectBaseModel):
         description="A unique key representing a single triggering of an action",
     )
 
-    firing: Firing = Field(None, description="The Firing that prompted this action")
+    firing: Firing | None = Field(
+        default=None, description="The Firing that prompted this action"
+    )
 
     triggered: DateTime = Field(..., description="When this action was triggered")
     triggering_labels: Dict[str, str] = Field(
@@ -739,7 +741,7 @@ class TriggeredAction(PrefectBaseModel):
         description="The action to perform",
     )
     action_index: int = Field(
-        0,
+        default=0,
         description="The index of the action within the automation",
     )
 
