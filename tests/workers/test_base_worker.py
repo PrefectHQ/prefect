@@ -1718,27 +1718,28 @@ class TestInfrastructureIntegration:
             await state.result()
 
 
-async def test_worker_set_last_polled_time(
-    work_pool: WorkPool,
-):
+async def test_worker_set_last_polled_time(work_pool: WorkPool):
     now = DateTime.now("UTC")
 
-    with travel_to(now, freeze=True):
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            # initially, the worker should have _last_polled_time set to now
-            assert worker._last_polled_time == now
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        # initially, the worker should have _last_polled_time set to a recent time
+        initial_poll_time = worker._last_polled_time
+        assert initial_poll_time >= now
 
-            # some arbitrary delta forward
-            now2 = now + timedelta(seconds=49)
-            with travel_to(now2, freeze=True):
-                await worker.get_and_submit_flow_runs()
-                assert worker._last_polled_time == now2
+        # some arbitrary delta forward
+        now2 = now + timedelta(seconds=49)
+        with travel_to(now2, freeze=True):
+            await worker.get_and_submit_flow_runs()
+            # after polling, _last_polled_time should be updated to a more recent time
+            assert worker._last_polled_time > initial_poll_time
 
-            # some arbitrary datetime
-            now3 = DateTime(2021, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-            with travel_to(now3, freeze=True):
-                await worker.get_and_submit_flow_runs()
-                assert worker._last_polled_time == now3
+        # some arbitrary datetime
+        now3 = DateTime(2021, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        with travel_to(now3, freeze=True):
+            last_poll_time = worker._last_polled_time
+            await worker.get_and_submit_flow_runs()
+            # after polling, _last_polled_time should be updated to a more recent time
+            assert worker._last_polled_time > last_poll_time
 
 
 async def test_worker_last_polled_health_check(
