@@ -137,5 +137,5 @@ def travel_to(dt: Any, freeze: bool = True):
     else:
         from pendulum import travel_to
 
-        with travel_to(dt, freeze=not freeze):
+        with travel_to(dt, freeze=freeze):
             yield
