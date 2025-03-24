@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+from contextlib import contextmanager
 from typing import Any
 
 import pendulum
@@ -119,3 +120,9 @@ def start_of_period(dt: DateTime, period: str) -> DateTime:
 
 def earliest_possible_datetime() -> DateTime:
     return DateTime.instance(datetime.datetime.min)
+
+
+@contextmanager
+def travel_to(dt: DateTime, freeze: bool = True):
+    with pendulum.travel_to(dt, freeze=freeze):
+        yield
