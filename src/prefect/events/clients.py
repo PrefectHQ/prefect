@@ -46,7 +46,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
-from prefect.types._datetime import add_years, now
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -666,7 +666,7 @@ class PrefectEventSubscriber:
 
         self._filter.occurred = EventOccurredFilter(
             since=now("UTC") - timedelta(minutes=1),
-            until=add_years(now("UTC"), 1),
+            until=now("UTC") + timedelta(days=365),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
