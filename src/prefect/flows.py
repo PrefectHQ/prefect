@@ -272,11 +272,10 @@ class Flow(Generic[P, R]):
 
         if isinstance(fn, classmethod):
             fn = cast(Callable[P, R], fn.__func__)
-            setattr(fn, "_is_classmethod", True)
 
         if isinstance(fn, staticmethod):
             fn = cast(Callable[P, R], fn.__func__)
-            setattr(fn, "_is_static_method", True)
+            setattr(fn, "__prefect_static__", True)
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -406,11 +405,11 @@ class Flow(Generic[P, R]):
 
     @property
     def isclassmethod(self) -> bool:
-        return getattr(self.fn, "_is_classmethod", False)
+        return hasattr(self.fn, "__prefect_cls__")
 
     @property
     def isstaticmethod(self) -> bool:
-        return getattr(self.fn, "_is_static_method", False)
+        return getattr(self.fn, "__prefect_static__", False)
 
     def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
         """
