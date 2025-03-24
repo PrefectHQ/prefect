@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.9<3.14"
+requires-python = ">=3.9,<3.14"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
