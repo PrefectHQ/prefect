@@ -63,6 +63,8 @@ def get_call_parameters(
     """
     if hasattr(fn, "__prefect_self__"):
         call_args = (getattr(fn, "__prefect_self__"), *call_args)
+    if hasattr(fn, "__prefect_cls__"):
+        call_args = (getattr(fn, "__prefect_cls__"), *call_args)
 
     try:
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)

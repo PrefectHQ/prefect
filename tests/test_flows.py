@@ -908,13 +908,26 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
+            @flow
+            @classmethod
+            def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @flow
-            def class_method(cls):
+            def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Flow)
+
+        if sys.version_info < (3, 13):
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Flow)
+        else:
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a flow because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_flow_supports_static_methods(self, T):
@@ -922,13 +935,21 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
+            @flow
+            @staticmethod
+            def static_method():
+                return "static"
+
             @staticmethod
             @flow
-            def static_method():
+            def static_method_of_different_order():
                 return "static"
 
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
+
+        assert Foo.static_method_of_different_order() == "static"
+        assert isinstance(Foo.static_method_of_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_flow_supports_async_instance_methods(self, T):
@@ -948,13 +969,26 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
+            @flow
+            @classmethod
+            async def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @flow
-            async def class_method(cls):
+            async def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert await Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Flow)
+
+        if sys.version_info < (3, 13):
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Flow)
+        else:
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a flow because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_flow_supports_async_static_methods(self, T):
@@ -967,8 +1001,16 @@ class TestFlowCall:
             async def static_method():
                 return "static"
 
+            @staticmethod
+            @flow
+            async def static_method_of_different_order():
+                return "static"
+
         assert await Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
+
+        assert await Foo.static_method_of_different_order() == "static"
+        assert isinstance(Foo.static_method_of_different_order, Flow)
 
     def test_flow_supports_instance_methods_with_basemodel(self):
         class Foo(pydantic.BaseModel):
@@ -986,8 +1028,8 @@ class TestFlowCall:
         class Foo(pydantic.BaseModel):
             model_config = pydantic.ConfigDict(ignored_types=(Flow,))
 
-            @classmethod
             @flow
+            @classmethod
             def class_method(cls):
                 return cls.__name__
 
@@ -1005,28 +1047,6 @@ class TestFlowCall:
 
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
-
-    def test_error_message_if_decorate_classmethod(self):
-        with pytest.raises(
-            TypeError, match="@classmethod should be applied on top of @flow"
-        ):
-
-            class Foo:
-                @flow
-                @classmethod
-                def bar(cls):
-                    pass
-
-    def test_error_message_if_decorate_staticmethod(self):
-        with pytest.raises(
-            TypeError, match="@staticmethod should be applied on top of @flow"
-        ):
-
-            class Foo:
-                @flow
-                @staticmethod
-                def bar():
-                    pass
 
     def test_returns_when_cache_result_in_memory_is_false_sync_flow(self):
         @flow(cache_result_in_memory=False)
