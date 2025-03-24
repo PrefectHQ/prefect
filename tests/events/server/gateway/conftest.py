@@ -1,11 +1,11 @@
 from uuid import uuid4
 
-import pendulum
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
+from prefect.types._datetime import DateTime
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def test_client(events_app: FastAPI) -> TestClient:
 @pytest.fixture
 def event1() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="was.radical",
         resource=Resource.model_validate({"prefect.resource.id": "my.resources"}),
         payload={"hello": "world"},
@@ -34,7 +34,7 @@ def event1() -> Event:
 @pytest.fixture
 def event2() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="was.super.awesome",
         resource=Resource.model_validate({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
@@ -57,7 +57,7 @@ def received_event2(
 @pytest.fixture
 def old_event1() -> ReceivedEvent:
     return Event(
-        occurred=pendulum.now("UTC").subtract(seconds=30),
+        occurred=DateTime.now("UTC").subtract(seconds=30),
         event="was.radical",
         resource=Resource.model_validate({"prefect.resource.id": "my.resources"}),
         payload={"hello": "world"},
@@ -68,7 +68,7 @@ def old_event1() -> ReceivedEvent:
 @pytest.fixture
 def old_event2() -> ReceivedEvent:
     return Event(
-        occurred=pendulum.now("UTC").subtract(seconds=15),
+        occurred=DateTime.now("UTC").subtract(seconds=15),
         event="was.super.awesome",
         resource=Resource.model_validate({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},

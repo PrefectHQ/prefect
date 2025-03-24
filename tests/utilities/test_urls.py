@@ -1,9 +1,8 @@
 import concurrent.futures
 import uuid
 from datetime import timedelta
-from typing import Literal
+from typing import Any, Literal
 
-import pendulum
 import pytest
 
 from prefect.blocks.webhook import Webhook
@@ -13,6 +12,8 @@ from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
 from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
+from prefect.states import StateType
+from prefect.types._datetime import DateTime
 from prefect.utilities.urls import url_for, validate_restricted_url
 from prefect.variables import Variable
 
@@ -62,11 +63,14 @@ async def variable():
 
 
 @pytest.fixture
-def flow_run(flow):
+def flow_run(flow: Any):
     return FlowRun(
         flow_id=flow.id,
         state=State(
-            id=uuid.uuid4(), type="RUNNING", name="My Running State", state_details={}
+            id=uuid.uuid4(),
+            type=StateType.RUNNING,
+            name="My Running State",
+            state_details={},
         ),
     )
 
@@ -125,8 +129,8 @@ async def automation() -> Automation:
 @pytest.fixture
 def received_event():
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
-        received=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
+        received=DateTime.now("UTC"),
         event="was.tubular",
         resource=Resource.model_validate(
             {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}

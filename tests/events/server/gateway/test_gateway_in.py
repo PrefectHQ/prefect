@@ -1,7 +1,6 @@
 from typing import Tuple
 from unittest import mock
 
-import pendulum
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
@@ -10,6 +9,7 @@ from starlette.testclient import WebSocketTestSession
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event
 from prefect.server.events.storage import database
+from prefect.types._datetime import DateTime
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +46,7 @@ async def write_events(monkeypatch: pytest.MonkeyPatch):
 
 def test_stream_events_in(
     test_client: TestClient,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     event1: Event,
     event2: Event,
     stream_publish: mock.AsyncMock,
@@ -65,7 +65,7 @@ def test_stream_events_in(
 
 def test_post_events(
     test_client: TestClient,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     event1: Event,
     event2: Event,
     publish: mock.AsyncMock,
