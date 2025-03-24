@@ -172,6 +172,7 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
+    "whenever",
 ]
 
 markdown-docs = [
