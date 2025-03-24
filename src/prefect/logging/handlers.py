@@ -320,9 +320,9 @@ class PrefectConsoleHandler(StreamHandler):
             theme = Theme(inherit=False)
 
         if isinstance(level, str):
-            self.level = logging.getLevelNamesMapping()[level]
+            self.level: int = logging.getLevelNamesMapping()[level]
         else:
-            self.level = level
+            self.level: int = level
 
         self.console: Console = Console(
             highlighter=highlighter_instance,
