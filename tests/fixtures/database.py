@@ -6,7 +6,6 @@ import warnings
 from contextlib import asynccontextmanager
 from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
-import pendulum
 import pytest
 from sqlalchemy.exc import InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +27,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.types._datetime import DateTime
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
 
@@ -338,8 +338,8 @@ async def task_run_state(session, task_run, db):
 async def flow_run_states(session, flow_run, flow_run_state):
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
-        state_details=dict(scheduled_time=pendulum.now("UTC").subtract(seconds=1)),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
+        state_details=dict(scheduled_time=DateTime.now("UTC").subtract(seconds=1)),
     )
     scheduled_flow_run_state = (
         await models.flow_runs.set_flow_run_state(
@@ -366,7 +366,7 @@ async def flow_run_states(session, flow_run, flow_run_state):
 async def task_run_states(session, task_run, task_run_state):
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
     )
     scheduled_task_run_state = (
         await models.task_runs.set_task_run_state(
@@ -420,7 +420,7 @@ async def deployment(
                 schemas.core.DeploymentSchedule(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     ),
                     active=True,
                 )
@@ -456,7 +456,7 @@ async def deployment_with_version(
                 schemas.core.DeploymentSchedule(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     ),
                     active=True,
                 )
@@ -494,7 +494,7 @@ async def deployment_with_concurrency_limit(
                 schemas.core.DeploymentSchedule(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     ),
                     active=True,
                 )
@@ -531,7 +531,7 @@ async def deployment_2(
                 schemas.core.DeploymentSchedule(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     ),
                     active=True,
                 )
@@ -566,7 +566,7 @@ async def deployment_in_default_work_pool(
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
+                anchor_date=DateTime(2020, 1, 1),
             ),
             storage_document_id=storage_document_id,
             path="./subdir",
@@ -605,7 +605,7 @@ async def deployment_in_non_default_work_pool(
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
-                anchor_date=pendulum.datetime(2020, 1, 1),
+                anchor_date=DateTime(2020, 1, 1),
             ),
             storage_document_id=storage_document_id,
             path="./subdir",
@@ -948,7 +948,7 @@ async def commit_task_run_state(
 
     new_state = schemas.states.State(
         type=state_type,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
         name=state_name,
@@ -979,7 +979,7 @@ async def commit_flow_run_state(
 
     new_state = schemas.states.State(
         type=state_type,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
         name=state_name,
@@ -1155,7 +1155,7 @@ async def worker_deployment_wq1(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     )
                 )
             ],
@@ -1184,7 +1184,7 @@ async def worker_deployment_infra_wq1(session, flow, flow_function, work_queue_1
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     )
                 )
             ],
@@ -1218,7 +1218,7 @@ async def worker_deployment_wq_2(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1),
-                        anchor_date=pendulum.datetime(2020, 1, 1),
+                        anchor_date=DateTime(2020, 1, 1),
                     )
                 )
             ],

@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import List
 from uuid import uuid4
 
-import pendulum
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,7 +125,7 @@ def turn_off_the_sprinkler_automation(
     firing = Firing(
         trigger=when_it_rains_turn_the_sprinklers_off.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={},
         triggering_event=it_started_raining,
     )
@@ -220,7 +219,7 @@ def turn_on_the_sprinkler_automation(
     firing = Firing(
         trigger=when_it_stops_raining_turn_the_sprinklers_on.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={},
         triggering_event=it_stopped_raining,
     )
@@ -334,7 +333,7 @@ def turn_off_the_self_managing_automation(
     firing = Firing(
         trigger=self_managing_sprinkler_automation.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={},
         triggering_event=the_sprinklers_stopped,
     )
@@ -380,7 +379,7 @@ def turn_on_the_self_managing_automation(
     firing = Firing(
         trigger=self_managing_sprinkler_automation.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={},
         triggering_event=the_sprinklers_stopped,
     )

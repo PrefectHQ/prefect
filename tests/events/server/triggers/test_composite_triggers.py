@@ -3,7 +3,6 @@ from typing import List
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -479,7 +478,7 @@ class TestCompoundTriggerAll:
                         id=uuid4(),
                         trigger=compound_automation_all_with_match.trigger.triggers[0],
                         trigger_states={TriggerState.Triggered},
-                        triggered=pendulum.now("UTC"),
+                        triggered=DateTime.now("UTC"),
                     )
                 ),
                 db.CompositeTriggerChildFiring(
@@ -487,7 +486,7 @@ class TestCompoundTriggerAll:
                         id=uuid4(),
                         trigger=compound_automation_all_with_match.trigger.triggers[1],
                         trigger_states={TriggerState.Triggered},
-                        triggered=pendulum.now("UTC"),
+                        triggered=DateTime.now("UTC"),
                     )
                 ),
             ]
