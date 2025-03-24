@@ -908,12 +908,13 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
-            @classmethod
             @flow
+            @classmethod
             def class_method(cls):
                 return cls.__name__
 
         assert Foo.class_method() == "Foo"
+        print(Foo.class_method)
         assert isinstance(Foo.class_method, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
@@ -922,8 +923,8 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
-            @staticmethod
             @flow
+            @staticmethod
             def static_method():
                 return "static"
 
@@ -948,8 +949,8 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
-            @classmethod
             @flow
+            @classmethod
             async def class_method(cls):
                 return cls.__name__
 
@@ -986,8 +987,8 @@ class TestFlowCall:
         class Foo(pydantic.BaseModel):
             model_config = pydantic.ConfigDict(ignored_types=(Flow,))
 
-            @classmethod
             @flow
+            @classmethod
             def class_method(cls):
                 return cls.__name__
 
@@ -1005,28 +1006,6 @@ class TestFlowCall:
 
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
-
-    def test_error_message_if_decorate_classmethod(self):
-        with pytest.raises(
-            TypeError, match="@classmethod should be applied on top of @flow"
-        ):
-
-            class Foo:
-                @flow
-                @classmethod
-                def bar(cls):
-                    pass
-
-    def test_error_message_if_decorate_staticmethod(self):
-        with pytest.raises(
-            TypeError, match="@staticmethod should be applied on top of @flow"
-        ):
-
-            class Foo:
-                @flow
-                @staticmethod
-                def bar():
-                    pass
 
     def test_returns_when_cache_result_in_memory_is_false_sync_flow(self):
         @flow(cache_result_in_memory=False)

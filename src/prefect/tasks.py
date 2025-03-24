@@ -1,8 +1,10 @@
 """
 Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
+from __future__ import annotations
 
 import asyncio
 import datetime
@@ -314,7 +316,7 @@ class Task(Generic[P, R]):
     #       exactly in the @task decorator
     def __init__(
         self,
-        fn: Callable[P, R],
+        fn: Callable[P, R] | classmethod[Any, P, R] | staticmethod[P, R],
         name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
@@ -377,6 +379,13 @@ class Task(Generic[P, R]):
                             f"@task({hook_name}=[hook1, hook2])\ndef"
                             " my_task():\n\tpass"
                         )
+
+        if isinstance(fn, classmethod):
+            fn = cast(Callable[P, R], fn.__func__)
+
+        if isinstance(fn, staticmethod):
+            fn = cast(Callable[P, R], fn.__func__)
+            setattr(fn, "__prefect_static__", True)
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -536,6 +545,14 @@ class Task(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
+    @property
+    def isclassmethod(self) -> bool:
+        return hasattr(self.fn, "__prefect_cls__")
+
+    @property
+    def isstaticmethod(self) -> bool:
+        return getattr(self.fn, "__prefect_static__", False)
+
     def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
@@ -543,9 +560,14 @@ class Task(Generic[P, R]):
         an argument. We return a copy of the task with that instance bound to the task's function.
         """
 
-        # if no instance is provided, it's being accessed on the class
-        if instance is None:
+        if self.isstaticmethod:
             return self
+
+        # wrapped function is a classmethod
+        if owner and not instance:
+            bound_task = copy(self)
+            setattr(bound_task.fn, "__prefect_cls__", owner)
+            return bound_task
 
         # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
         # of the task's function. This will allow it to be automatically added to the task's parameters
@@ -1851,9 +1873,6 @@ def task(
     """
 
     if __fn:
-        if isinstance(__fn, (classmethod, staticmethod)):
-            method_decorator = type(__fn).__name__
-            raise TypeError(f"@{method_decorator} should be applied on top of @task")
         return Task(
             fn=__fn,
             name=name,
