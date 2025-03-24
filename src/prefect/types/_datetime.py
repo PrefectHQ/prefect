@@ -79,10 +79,6 @@ def now(tz: str | Timezone = UTC) -> DateTime:
     return DateTime.now(tz)
 
 
-def add_years(dt: DateTime, years: int) -> DateTime:
-    return dt.add(years=years)
-
-
 def end_of_period(dt: DateTime, period: str) -> DateTime:
     """
     Returns the end of the specified unit of time.

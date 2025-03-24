@@ -919,6 +919,7 @@ class TestFlowCall:
                 return cls.__name__
 
         assert Foo.class_method() == "Foo"
+        print(Foo.class_method)
         assert isinstance(Foo.class_method, Flow)
 
         if sys.version_info < (3, 13):
