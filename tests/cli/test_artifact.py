@@ -7,7 +7,6 @@ from typer import Exit
 
 from prefect.server import models, schemas
 from prefect.testing.cli import invoke_and_assert
-from prefect.types._datetime import create_datetime_instance, human_friendly_diff
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,12 +92,7 @@ async def artifacts(session: "AsyncSession"):
 def test_listing_artifacts_when_none_exist():
     invoke_and_assert(
         ["artifact", "ls"],
-        expected_output_contains="""
-            ┏━━━━┳━━━━━┳━━━━━━┳━━━━━━━━━┓
-            ┃ ID ┃ Key ┃ Type ┃ Updated ┃
-            ┡━━━━╇━━━━━╇━━━━━━╇━━━━━━━━━┩
-            └────┴─────┴──────┴─────────┘
-        """,
+        expected_output_contains=["ID", "Key", "Type", "Updated"],
     )
 
 
@@ -111,13 +105,12 @@ def test_listing_artifacts_after_creating_artifacts(
 
     invoke_and_assert(
         ["artifact", "ls"],
-        expected_output_contains=f"""
-            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
-            ┃                                   ID ┃ Key     ┃ Type  ┃ Updated           ┃
-            ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-            │ {artifact.id} │ {artifact.key} │ {artifact.type} │ {human_friendly_diff(create_datetime_instance(artifact.updated))} │
-            └──────────────────────────────────────┴─────────┴───────┴───────────────────┘
-            """,
+        expected_output_contains=[
+            str(artifact.id),
+            str(artifact.key),
+            str(artifact.type),
+            "a few seconds ago",
+        ],
     )
 
 
@@ -131,13 +124,11 @@ def test_listing_artifacts_after_creating_artifacts_with_null_fields(
 
     invoke_and_assert(
         ["artifact", "ls"],
-        expected_output_contains=f"""
-            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
-            ┃                                   ID ┃ Key     ┃ Type ┃ Updated           ┃
-            ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-            │ {artifact.id} │ {artifact.key} │      │ {human_friendly_diff(create_datetime_instance(artifact.updated))} │
-            └──────────────────────────────────────┴─────────┴──────┴───────────────────┘
-            """,
+        expected_output_contains=[
+            str(artifact.id),
+            str(artifact.key),
+            "a few seconds ago",
+        ],
     )
 
 

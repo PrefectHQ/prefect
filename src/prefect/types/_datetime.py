@@ -73,18 +73,32 @@ def from_timestamp(ts: float, tz: str | pendulum.tz.Timezone = UTC) -> DateTime:
 
 
 def human_friendly_diff(
-    dt: datetime.datetime, other: datetime.datetime | None = None
+    dt: datetime.datetime | None, other: datetime.datetime | None = None
 ) -> str:
-    if sys.version_info >= (3, 13):
-        if dt.tzinfo is None:
-            local_tz = datetime.datetime.now().astimezone().tzinfo
-            dt = dt.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
-        elif isinstance(dt.tzinfo, Timezone):
-            dt = dt.replace(tzinfo=ZoneInfo(dt.tzinfo.name))
+    if dt is None:
+        return ""
 
+    # Handle naive datetimes consistently across Python versions
+    if dt.tzinfo is None:
+        local_tz = datetime.datetime.now().astimezone().tzinfo
+        dt = dt.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
+    elif isinstance(dt.tzinfo, Timezone):
+        dt = dt.replace(tzinfo=ZoneInfo(dt.tzinfo.name))
+
+    # Handle other parameter if provided
+    if other is not None:
+        if other.tzinfo is None:
+            local_tz = datetime.datetime.now().astimezone().tzinfo
+            other = other.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
+        elif isinstance(other.tzinfo, Timezone):
+            other = other.replace(tzinfo=ZoneInfo(other.tzinfo.name))
+
+    if sys.version_info >= (3, 13):
         return humanize.naturaltime(dt, when=other)
 
-    return DateTime.instance(dt).diff_for_humans(other=DateTime.instance(other))
+    return DateTime.instance(dt).diff_for_humans(
+        other=DateTime.instance(other) if other else None
+    )
 
 
 def now(tz: str | Timezone = UTC) -> DateTime:
