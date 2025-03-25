@@ -11,7 +11,7 @@ def get_dependencies_from_pyproject(pyproject_path: Path) -> dict[str, str]:
     return {dep.split(">=")[0].strip(): dep for dep in dependencies}
 
 
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+def pytest_generate_tests(metafunc: pytest.Metafunc):
     if "client_dependency" in metafunc.fixturenames:
         root_dir = Path(__file__).parent.parent.parent
         client_pyproject = root_dir / "client" / "pyproject.toml"
@@ -33,7 +33,7 @@ def prefect_dependencies() -> dict[str, str]:
 
 def test_client_dependency_matches_prefect(
     client_dependency: tuple[str, str], prefect_dependencies: dict[str, str]
-) -> None:
+):
     """The `prefect-client` package dependencies must have constraints that match those
     of the main `prefect` package."""
     dep_name, client_spec = client_dependency
