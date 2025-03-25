@@ -76,8 +76,8 @@ def to_state_create(state: State) -> "StateCreate":
 @deprecated.deprecated_parameter(
     "fetch",
     when=lambda fetch: fetch is not True,
-    start_date="Oct 2024",
-    end_date="Jan 2025",
+    start_date=datetime.datetime(2024, 10, 1),
+    end_date=datetime.datetime(2025, 1, 1),
     help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
 )
 def get_state_result(

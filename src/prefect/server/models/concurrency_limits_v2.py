@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional, Sequence, Union
 from uuid import UUID
 
@@ -169,8 +170,8 @@ async def delete_concurrency_limit(
 @db_injector
 @deprecated_parameter(
     name="create_if_missing",
-    start_date="Sep 2024",
-    end_date="Oct 2024",
+    start_date=datetime(2024, 9, 1),
+    end_date=datetime(2024, 10, 1),
     when=lambda x: x is not None,
     help="Limits must be explicitly created before acquiring concurrency slots.",
 )

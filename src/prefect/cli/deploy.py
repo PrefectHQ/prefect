@@ -7,7 +7,7 @@ import json
 import os
 import re
 from copy import deepcopy
-from datetime import timedelta
+from datetime import datetime, timedelta
 from getpass import GetPassWarning
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
@@ -407,7 +407,7 @@ async def deploy(
         app.console.print(
             generate_deprecation_message(
                 name="The `--variable` flag",
-                start_date="Mar 2024",
+                start_date=datetime(2024, 3, 1),
                 help=(
                     "Please use the `--job-variable foo=bar` argument instead: `prefect"
                     " deploy --job-variable`."

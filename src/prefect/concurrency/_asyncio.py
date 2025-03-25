@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from typing import Literal, Optional
 
 import httpx
@@ -21,8 +22,8 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 
 @deprecated_parameter(
     name="create_if_missing",
-    start_date="Sep 2024",
-    end_date="Oct 2024",
+    start_date=datetime(2024, 9, 1),
+    end_date=datetime(2024, 10, 1),
     when=lambda x: x is not None,
     help="Limits must be explicitly created before acquiring concurrency slots; see `strict` if you want to enforce this behavior.",
 )

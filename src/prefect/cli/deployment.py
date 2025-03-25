@@ -43,7 +43,7 @@ from prefect.states import Scheduled
 from prefect.types._datetime import (
     DateTime,
     format_diff,
-    local_timezone,
+    in_local_tz,
     parse_datetime,
 )
 from prefect.utilities import urls
@@ -873,7 +873,7 @@ async def run(
                 raise
 
     run_url = urls.url_for(flow_run) or "<no dashboard available>"
-    datetime_local_tz = scheduled_start_time.in_tz(local_timezone())
+    datetime_local_tz = in_local_tz(scheduled_start_time)
     scheduled_display = datetime_local_tz.to_datetime_string()
     tz_name = datetime_local_tz.tzname()
     if tz_name:
