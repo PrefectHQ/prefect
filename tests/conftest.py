@@ -36,7 +36,6 @@ from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 pytest.register_assert_rewrite("prefect.testing.utilities")
 
 import prefect
-import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
@@ -88,7 +87,7 @@ from .fixtures.telemetry import *
 from .fixtures.time import *
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--exclude-services",
         action="store_true",

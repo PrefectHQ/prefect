@@ -100,7 +100,7 @@ otel = [
 ]
 
 # Infrastructure extras
-aws = ["prefect-aws>=0.5.0"]
+aws = ["prefect-aws>=0.5.8"]
 azure = ["prefect-azure>=0.4.0"]
 gcp = ["prefect-gcp>=0.6.0"]
 docker = ["prefect-docker>=0.6.0"]

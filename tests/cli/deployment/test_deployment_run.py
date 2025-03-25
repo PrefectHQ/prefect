@@ -12,7 +12,7 @@ from prefect.client.schemas.objects import Deployment, FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
-from prefect.types._datetime import DateTime, Duration, local_timezone, parse_datetime
+from prefect.types._datetime import DateTime, Duration, in_local_tz, parse_datetime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -142,7 +142,7 @@ async def test_start_at_option_displays_scheduled_start_time(
 async def test_start_at_option_with_tz_displays_scheduled_start_time(
     deployment_name: str, start_at: str, expected_start_time: DateTime
 ):
-    expected_start_time_local = expected_start_time.in_tz(local_timezone())
+    expected_start_time_local = in_local_tz(expected_start_time)
     expected_display = (
         expected_start_time_local.to_datetime_string()
         + " "
@@ -167,15 +167,15 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
     [
         (
             "12/20/2022 1am",
-            DateTime(2022, 12, 20, 1, 0, 0, tzinfo=local_timezone()),
+            in_local_tz(DateTime(2022, 12, 20, 1, 0, 0)),
         ),
         (
             "1-1-2020",
-            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=local_timezone()),
+            in_local_tz(DateTime(2020, 1, 1, 0, 0, 0)),
         ),
         (
             "5 June 2015",
-            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=local_timezone()),
+            in_local_tz(DateTime(2015, 6, 5, 0, 0, 0)),
         ),
     ],
 )
@@ -225,7 +225,8 @@ async def test_start_at_option_with_tz_schedules_flow_run(
     expected_start_time: DateTime,
     prefect_client: prefect.client.orchestration.PrefectClient,
 ):
-    expected_start_time_local = expected_start_time.in_tz(local_timezone())
+    expected_start_time_local = in_local_tz(expected_start_time)
+
     expected_display = (
         expected_start_time_local.to_datetime_string()
         + " "
@@ -330,7 +331,7 @@ async def test_start_in_option_schedules_flow_run(
     expected_duration: Duration,
 ):
     expected_start_time = frozen_now + expected_duration
-    expected_display = expected_start_time.in_tz(local_timezone()).to_datetime_string()
+    expected_display = in_local_tz(expected_start_time).to_datetime_string()
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -359,15 +360,15 @@ async def test_start_in_option_schedules_flow_run(
     [
         (
             "12/20/2030 1am",
-            DateTime(2030, 12, 20, 1, 0, 0, tzinfo=local_timezone()),
+            in_local_tz(DateTime(2030, 12, 20, 1, 0, 0)),
         ),
         (
             "1-1-2020",
-            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=local_timezone()),
+            in_local_tz(DateTime(2020, 1, 1, 0, 0, 0)),
         ),
         (
             "5 June 2015",
-            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=local_timezone()),
+            in_local_tz(DateTime(2015, 6, 5, 0, 0, 0)),
         ),
     ],
 )

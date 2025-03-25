@@ -4,7 +4,7 @@ import datetime
 import sys
 from contextlib import contextmanager
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 import humanize
 import pendulum
@@ -13,7 +13,7 @@ from pendulum.date import Date as PendulumDate
 from pendulum.datetime import DateTime as PendulumDateTime
 from pendulum.duration import Duration as PendulumDuration
 from pendulum.time import Time as PendulumTime
-from pendulum.tz.timezone import FixedTimezone, Timezone
+from pendulum.tz.timezone import Timezone
 from pydantic_extra_types.pendulum_dt import (
     Date as PydanticDate,
 )
@@ -47,25 +47,17 @@ def format_diff(
     return pendulum.format_diff(diff, is_now, absolute, locale)
 
 
-def local_timezone() -> Timezone | FixedTimezone:
-    return pendulum.tz.local_timezone()
-
-
 def get_timezones() -> tuple[str, ...]:
-    return pendulum.tz.timezones()
+    return tuple(available_timezones())
 
 
 def create_datetime_instance(v: datetime.datetime) -> DateTime:
+    if sys.version_info >= (3, 13):
+        from whenever import ZonedDateTime
+
+        return ZonedDateTime.from_py_datetime(v)
+
     return DateTime.instance(v)
-
-
-def from_format(
-    value: str,
-    fmt: str,
-    tz: str | Timezone = UTC,
-    locale: str | None = None,
-) -> DateTime:
-    return DateTime.instance(pendulum.from_format(value, fmt, tz, locale))
 
 
 def from_timestamp(
@@ -170,3 +162,12 @@ def travel_to(dt: Any, freeze: bool = True):
 
         with travel_to(dt, freeze=freeze):
             yield
+
+
+def in_local_tz(dt: datetime.datetime) -> DateTime:
+    if sys.version_info >= (3, 13):
+        from whenever import LocalDateTime
+
+        return LocalDateTime.from_py_datetime(dt).assume_system_tz()
+
+    return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())

@@ -10,6 +10,7 @@ will be calculated 6 months later. Start and end dates are always in the format 
 e.g. Jan 2023.
 """
 
+import datetime
 import functools
 import sys
 import warnings
@@ -18,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
-from prefect.types._datetime import DateTime, from_format
+from prefect.types._datetime import DateTime
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
     AliasedModuleDefinition,
@@ -40,7 +41,7 @@ DEPRECATED_MOVED_WARNING = (
     "{name} has moved to {new_location}. It will not be available at the old import "
     "path after {end_date}. {help}"
 )
-DEPRECATED_DATEFMT = "MMM YYYY"  # e.g. Feb 2023
+HUMAN_DATEFMT = "%b %Y"  # e.g. Feb 2023
 DEPRECATED_MODULE_ALIASES: list[AliasedModuleDefinition] = []
 
 
@@ -52,40 +53,42 @@ class PrefectDeprecationWarning(DeprecationWarning):
 
 def generate_deprecation_message(
     name: str,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
     help: str = "",
     when: str = "",
 ) -> str:
-    if not start_date and not end_date:
+    if start_date is not None and not isinstance(start_date, datetime.datetime):
+        raise ValueError("Must provide start_date as a datetime")
+
+    if end_date is not None and not isinstance(end_date, datetime.datetime):
+        raise ValueError("Must provide end_date as a datetime")
+
+    if start_date is None and end_date is None:
         raise ValueError(
             "A start date is required if an end date is not provided. Suggested start"
-            f" date is {DateTime.now('UTC').format(DEPRECATED_DATEFMT)!r}"
+            f" date is {DateTime.now('UTC').strftime(HUMAN_DATEFMT)}"
         )
 
-    if not end_date:
+    if end_date is None:
         if TYPE_CHECKING:
             assert start_date is not None
-        parsed_start_date = from_format(start_date, DEPRECATED_DATEFMT)
-        parsed_end_date = parsed_start_date.add(months=6)
-        end_date = parsed_end_date.format(DEPRECATED_DATEFMT)
-    else:
-        # Validate format
-        from_format(end_date, DEPRECATED_DATEFMT)
+
+        end_date = start_date + datetime.timedelta(days=182.625)
 
     if when:
         when = " when " + when
 
     message = DEPRECATED_WARNING.format(
-        name=name, when=when, end_date=end_date, help=help
+        name=name, when=when, end_date=end_date.strftime(HUMAN_DATEFMT), help=help
     )
     return message.rstrip()
 
 
 def deprecated_callable(
     *,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
     stacklevel: int = 2,
     help: str = "",
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -109,8 +112,8 @@ def deprecated_callable(
 
 def deprecated_class(
     *,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
     stacklevel: int = 2,
     help: str = "",
 ) -> Callable[[type[T]], type[T]]:
@@ -138,8 +141,8 @@ def deprecated_class(
 def deprecated_parameter(
     name: str,
     *,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
     stacklevel: int = 2,
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
@@ -194,8 +197,8 @@ JsonDict: TypeAlias = dict[str, JsonValue]
 def deprecated_field(
     name: str,
     *,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: Optional[datetime.datetime] = None,
+    end_date: Optional[datetime.datetime] = None,
     when_message: str = "",
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
@@ -276,7 +279,9 @@ def inject_renamed_module_alias_finder():
     sys.meta_path.insert(0, AliasedModuleFinder(DEPRECATED_MODULE_ALIASES))
 
 
-def register_renamed_module(old_name: str, new_name: str, start_date: str):
+def register_renamed_module(
+    old_name: str, new_name: str, start_date: datetime.datetime
+):
     """
     Register a renamed module.
 
