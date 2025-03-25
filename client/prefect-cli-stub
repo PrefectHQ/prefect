@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+import asyncio
+import os
+import sys
+from uuid import UUID
+
+import prefect
+from prefect.runner import Runner
+
+
+def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "version":
+        print(prefect.__version__)
+    elif len(sys.argv) >= 3 and sys.argv[1] == "flow-run" and sys.argv[2] == "execute":
+        try:
+            try:
+                flow_run_id = UUID(sys.argv[3])
+            except IndexError:
+                flow_run_id = UUID(os.environ.get("PREFECT__FLOW_RUN_ID") or "")
+        except ValueError:
+            print(f"Error: '{flow_run_id}' is not a valid UUID.")
+            sys.exit(1)
+
+        runner = Runner()
+        asyncio.run(runner.execute_flow_run(flow_run_id))
+    else:
+        print(
+            "This is a minimal Prefect CLI that only supports "
+            "'prefect flow-run execute [ID]'."
+        )
+        print(
+            "For the full Prefect CLI, please use an image with the complete "
+            "Prefect installation, like `prefecthq/prefect:3-latest`."
+        )
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
