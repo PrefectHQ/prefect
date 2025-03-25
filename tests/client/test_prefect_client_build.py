@@ -1,18 +1,17 @@
 from pathlib import Path
-from typing import Dict
 
 import pytest
 import toml
 
 
-def get_dependencies_from_pyproject(pyproject_path: Path) -> Dict[str, str]:
+def get_dependencies_from_pyproject(pyproject_path: Path) -> dict[str, str]:
     pyproject_data = toml.load(pyproject_path)
 
     dependencies = pyproject_data.get("project", {}).get("dependencies", [])
     return {dep.split(">=")[0].strip(): dep for dep in dependencies}
 
 
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+def pytest_generate_tests(metafunc: pytest.Metafunc):
     if "client_dependency" in metafunc.fixturenames:
         root_dir = Path(__file__).parent.parent.parent
         client_pyproject = root_dir / "client" / "pyproject.toml"
@@ -26,15 +25,15 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 
 
 @pytest.fixture(scope="module")
-def prefect_dependencies() -> Dict[str, str]:
+def prefect_dependencies() -> dict[str, str]:
     root_dir = Path(__file__).parent.parent.parent
     prefect_pyproject = root_dir / "pyproject.toml"
     return get_dependencies_from_pyproject(prefect_pyproject)
 
 
 def test_client_dependency_matches_prefect(
-    client_dependency: tuple[str, str], prefect_dependencies: Dict[str, str]
-) -> None:
+    client_dependency: tuple[str, str], prefect_dependencies: dict[str, str]
+):
     """The `prefect-client` package dependencies must have constraints that match those
     of the main `prefect` package."""
     dep_name, client_spec = client_dependency
