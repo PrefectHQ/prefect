@@ -794,10 +794,6 @@
   ],
   "redirects": [
     {
-      "destination": "/v3/api-ref/settings",
-      "source": "/v3/develop/settings-ref"
-    },
-    {
       "destination": "/v3/api-ref/index",
       "source": "/reference"
     },
@@ -1488,6 +1484,10 @@
     {
       "destination": "/v2/:slug*",
       "source": "/2/:slug*"
+    },
+    {
+      "destination": "/v3/api-ref/settings-ref",
+      "source": "/v3/develop/settings-ref"
     }
   ],
   "tabs": [
