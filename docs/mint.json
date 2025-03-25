@@ -145,8 +145,7 @@
         {
           "group": "Manage settings",
           "pages": [
-            "v3/develop/settings-and-profiles",
-            "v3/develop/settings-ref"
+            "v3/develop/settings-and-profiles"
           ]
         },
         "v3/develop/interact-with-api",
@@ -406,6 +405,7 @@
       "pages": [
         "v3/api-ref/index",
         "v3/api-ref/python/index",
+        "v3/api-ref/settings-ref",
         {
           "group": "REST API",
           "pages": [
@@ -793,6 +793,10 @@
     }
   ],
   "redirects": [
+    {
+      "destination": "/v3/api-ref/settings",
+      "source": "/v3/develop/settings-ref"
+    },
     {
       "destination": "/v3/api-ref/index",
       "source": "/reference"
