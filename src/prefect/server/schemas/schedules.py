@@ -378,7 +378,9 @@ class RRuleSchedule(PrefectBaseModel):
     ) -> "RRuleSchedule":
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
-                timezone = rrule._dtstart.tzinfo.name
+                timezone = getattr(rrule._dtstart.tzinfo, "name", None) or getattr(
+                    rrule._dtstart.tzinfo, "key", "UTC"
+                )
             else:
                 timezone = "UTC"
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
@@ -398,7 +400,10 @@ class RRuleSchedule(PrefectBaseModel):
                 raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
 
             if unique_dstarts and unique_timezones:
-                timezone = dtstarts[0].tzinfo.name
+                tzinfo = dtstarts[0].tzinfo
+                timezone = getattr(tzinfo, "name", None) or getattr(
+                    tzinfo, "key", "UTC"
+                )
             else:
                 timezone = "UTC"
 
