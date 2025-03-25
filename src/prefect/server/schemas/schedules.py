@@ -2,14 +2,14 @@
 Schedule schemas
 """
 
+from __future__ import annotations
+
 import datetime
-from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
+from typing import Annotated, Any, ClassVar, Generator, List, Optional, Tuple, Union
 
 import dateutil
 import dateutil.rrule
-import pendulum
 import pytz
-from croniter import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 
 from prefect._internal.schemas.validators import (
@@ -18,24 +18,26 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
+from prefect._vendor.croniter import croniter
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
+from prefect.types._datetime import create_datetime_instance, now
 
 MAX_ITERATIONS = 1000
 
 
 def _prepare_scheduling_start_and_end(
     start: Any, end: Any, timezone: str
-) -> Tuple[pendulum.datetime, Optional[pendulum.datetime]]:
+) -> Tuple[DateTime, Optional[DateTime]]:
     """Uniformly prepares the start and end dates for any Schedule's get_dates call,
-    coercing the arguments into timezone-aware pendulum datetimes."""
+    coercing the arguments into timezone-aware datetimes."""
     timezone = timezone or "UTC"
 
     if start is not None:
-        start = pendulum.instance(start).in_tz(timezone)
+        start = create_datetime_instance(start).in_tz(timezone)
 
     if end is not None:
-        end = pendulum.instance(end).in_tz(timezone)
+        end = create_datetime_instance(end).in_tz(timezone)
 
     return start, end
 
@@ -69,11 +71,11 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -88,7 +90,7 @@ class IntervalSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: Optional[datetime.datetime] = None,
         end: Optional[datetime.datetime] = None,
-    ) -> List[pendulum.DateTime]:
+    ) -> List[DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -102,7 +104,7 @@ class IntervalSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: A list of dates
+            List[DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
@@ -111,7 +113,7 @@ class IntervalSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: Optional[datetime.datetime] = None,
         end: Optional[datetime.datetime] = None,
-    ) -> Generator[pendulum.DateTime, None, None]:
+    ) -> Generator[DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -125,7 +127,7 @@ class IntervalSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            List[DateTime]: a list of dates
         """
         if n is None:
             # if an end was supplied, we do our best to supply all matching dates (up to
@@ -136,7 +138,7 @@ class IntervalSchedule(PrefectBaseModel):
                 n = 1
 
         if start is None:
-            start = pendulum.now("UTC")
+            start = now("UTC")
 
         anchor_tz = self.anchor_date.in_tz(self.timezone)
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
@@ -204,10 +206,9 @@ class CronSchedule(PrefectBaseModel):
             OR. If the switch is set to False, the values are connected using AND. This
             behaves like fcron and enables you to e.g. define a job that executes each
             2nd friday of a month by setting the days of month and the weekday.
-
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -225,7 +226,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("cron")
     @classmethod
-    def valid_cron_string(cls, v):
+    def valid_cron_string(cls, v: str) -> str:
         return validate_cron_string(v)
 
     async def get_dates(
@@ -233,7 +234,7 @@ class CronSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: Optional[datetime.datetime] = None,
         end: Optional[datetime.datetime] = None,
-    ) -> List[pendulum.DateTime]:
+    ) -> List[DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -247,16 +248,16 @@ class CronSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: A list of dates
+            List[DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
     def _get_dates_generator(
         self,
         n: Optional[int] = None,
-        start: datetime.datetime = None,
-        end: datetime.datetime = None,
-    ) -> Generator[pendulum.DateTime, None, None]:
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+    ) -> Generator[DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -270,10 +271,10 @@ class CronSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            List[DateTime]: a list of dates
         """
         if start is None:
-            start = pendulum.now("UTC")
+            start = now("UTC")
 
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
@@ -321,7 +322,7 @@ class CronSchedule(PrefectBaseModel):
             # add that time to the original scheduling anchor.
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
-            next_date = pendulum.instance(start_localized + delta)
+            next_date = create_datetime_instance(start_localized + delta)
 
             # if the end date was exceeded, exit
             if end and next_date > end:
@@ -338,7 +339,7 @@ class CronSchedule(PrefectBaseModel):
             counter += 1
 
 
-DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
+DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)
 
 
 class RRuleSchedule(PrefectBaseModel):
@@ -361,18 +362,20 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod
-    def validate_rrule_str(cls, v):
+    def validate_rrule_str(cls, v: str) -> str:
         return validate_rrule_string(v)
 
     @classmethod
-    def from_rrule(cls, rrule: dateutil.rrule.rrule):
+    def from_rrule(
+        cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset
+    ) -> "RRuleSchedule":
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
                 timezone = rrule._dtstart.tzinfo.name
@@ -381,7 +384,9 @@ class RRuleSchedule(PrefectBaseModel):
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         elif isinstance(rrule, dateutil.rrule.rruleset):
             dtstarts = [rr._dtstart for rr in rrule._rrule if rr._dtstart is not None]
-            unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
+            unique_dstarts = set(
+                create_datetime_instance(d).in_timezone("UTC") for d in dtstarts
+            )
             unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
             if len(unique_timezones) > 1:
@@ -479,7 +484,7 @@ class RRuleSchedule(PrefectBaseModel):
         n: Optional[int] = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[pendulum.DateTime]:
+    ) -> List[DateTime]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -493,16 +498,16 @@ class RRuleSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: A list of dates
+            List[DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
     def _get_dates_generator(
         self,
         n: Optional[int] = None,
-        start: datetime.datetime = None,
-        end: datetime.datetime = None,
-    ) -> Generator[pendulum.DateTime, None, None]:
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+    ) -> Generator[DateTime, None, None]:
         """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
@@ -516,10 +521,10 @@ class RRuleSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            List[DateTime]: a list of dates
         """
         if start is None:
-            start = pendulum.now("UTC")
+            start = now("UTC")
 
         start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
@@ -537,7 +542,7 @@ class RRuleSchedule(PrefectBaseModel):
         # pass count = None to account for discrepancies with duplicates around DST
         # boundaries
         for next_date in self.to_rrule().xafter(start, count=None, inc=True):
-            next_date = pendulum.instance(next_date).in_tz(self.timezone)
+            next_date = create_datetime_instance(next_date).in_timezone(self.timezone)
 
             # if the end date was exceeded, exit
             if end and next_date > end:

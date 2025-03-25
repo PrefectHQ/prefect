@@ -11,11 +11,11 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 from urllib.parse import urlsplit
 
-import pendulum
 from packaging.version import Version
 from typing_extensions import Self
 
 import prefect
+from prefect.types._datetime import now
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
 
@@ -331,7 +331,7 @@ class ImageBuilder:
     def assert_has_line(self, line: str) -> None:
         """Asserts that the given line is in the Dockerfile"""
         all_lines = "\n".join(
-            [f"  {i+1:>3}: {line}" for i, line in enumerate(self.dockerfile_lines)]
+            [f"  {i + 1:>3}: {line}" for i, line in enumerate(self.dockerfile_lines)]
         )
         message = (
             f"Expected {line!r} not found in Dockerfile.  Dockerfile:\n{all_lines}"
@@ -347,12 +347,12 @@ class ImageBuilder:
 
         surrounding_lines = "\n".join(
             [
-                f"  {i+1:>3}: {line}"
+                f"  {i + 1:>3}: {line}"
                 for i, line in enumerate(self.dockerfile_lines[i - 2 : i + 2])
             ]
         )
         message = (
-            f"Unexpected {line!r} found in Dockerfile at line {i+1}.  "
+            f"Unexpected {line!r} found in Dockerfile at line {i + 1}.  "
             f"Surrounding lines:\n{surrounding_lines}"
         )
 
@@ -368,7 +368,7 @@ class ImageBuilder:
 
         surrounding_lines = "\n".join(
             [
-                f"  {i+1:>3}: {line}"
+                f"  {i + 1:>3}: {line}"
                 for i, line in enumerate(
                     self.dockerfile_lines[second_index - 2 : first_index + 2]
                 )
@@ -377,8 +377,8 @@ class ImageBuilder:
 
         message = (
             f"Expected {first!r} to appear before {second!r} in the Dockerfile, but "
-            f"{first!r} was at line {first_index+1} and {second!r} as at line "
-            f"{second_index+1}.  Surrounding lines:\n{surrounding_lines}"
+            f"{first!r} was at line {first_index + 1} and {second!r} as at line "
+            f"{second_index + 1}.  Surrounding lines:\n{surrounding_lines}"
         )
 
         assert first_index < second_index, message
@@ -428,7 +428,7 @@ def push_image(
     """
 
     if not tag:
-        tag = slugify(pendulum.now("utc").isoformat())
+        tag = slugify(now("UTC").isoformat())
 
     _, registry, _, _, _ = urlsplit(registry_url)
     repository = f"{registry}/{name}"

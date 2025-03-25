@@ -2,9 +2,11 @@
 Command line interface for working with profiles
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Union, cast
 
 import toml
 import typer
@@ -17,7 +19,11 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ProfileSettingsValidationError
-from prefect.settings.legacy import _get_settings_fields, _get_valid_setting_names
+from prefect.settings.legacy import (
+    Setting,
+    _get_settings_fields,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
+    _get_valid_setting_names,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
+)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import listrepr
 
@@ -25,16 +31,16 @@ help_message = """
     View and set Prefect profiles.
 """
 VALID_SETTING_NAMES = _get_valid_setting_names(prefect.settings.Settings)
-config_app = PrefectTyper(name="config", help=help_message)
+config_app: PrefectTyper = PrefectTyper(name="config", help=help_message)
 app.add_typer(config_app)
 
 
 @config_app.command("set")
-def set_(settings: List[str]):
+def set_(settings: list[str]):
     """
     Change the value for a setting by setting the value in the current profile.
     """
-    parsed_settings = {}
+    parsed_settings: dict[Union[str, Setting], Any] = {}
     for item in settings:
         try:
             setting, value = item.split("=", maxsplit=1)
@@ -93,7 +99,7 @@ def validate():
 
 
 @config_app.command()
-def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes", "-y")):
+def unset(setting_names: list[str], confirm: bool = typer.Option(False, "--yes", "-y")):
     """
     Restore the default value for a setting.
 
@@ -102,7 +108,7 @@ def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes",
     settings_context = prefect.context.get_settings_context()
     profiles = prefect.settings.load_profiles()
     profile = profiles[settings_context.profile.name]
-    parsed = set()
+    parsed: set[Setting] = set()
 
     for setting_name in setting_names:
         if setting_name not in VALID_SETTING_NAMES:
@@ -165,15 +171,15 @@ the defaults.
 
 @config_app.command()
 def view(
-    show_defaults: Optional[bool] = typer.Option(
+    show_defaults: bool = typer.Option(
         False, "--show-defaults/--hide-defaults", help=(show_defaults_help)
     ),
-    show_sources: Optional[bool] = typer.Option(
+    show_sources: bool = typer.Option(
         True,
         "--show-sources/--hide-sources",
         help=(show_sources_help),
     ),
-    show_secrets: Optional[bool] = typer.Option(
+    show_secrets: bool = typer.Option(
         False,
         "--show-secrets/--hide-secrets",
         help="Toggle display of secrets setting values.",
@@ -198,8 +204,8 @@ def view(
     # Display the profile first
     app.console.print(f"[bold][blue]PREFECT_PROFILE={context.profile.name!r}[/bold]")
 
-    settings_output = []
-    processed_settings = set()
+    settings_output: list[str] = []
+    processed_settings: set[str] = set()
 
     def _process_setting(
         setting: prefect.settings.Setting,
@@ -213,10 +219,10 @@ def view(
         settings_output.append(f"{setting.name}='{display_value}'{source_blurb}")
         processed_settings.add(setting.name)
 
-    def _collect_defaults(default_values: Dict[str, Any], current_path: List[str]):
+    def _collect_defaults(default_values: dict[str, Any], current_path: list[str]):
         for key, value in default_values.items():
             if isinstance(value, dict):
-                _collect_defaults(value, current_path + [key])
+                _collect_defaults(cast(dict[str, Any], value), current_path + [key])
             else:
                 setting = _get_settings_fields(prefect.settings.Settings)[
                     ".".join(current_path + [key])
@@ -226,20 +232,27 @@ def view(
                 _process_setting(setting, value, "defaults")
 
     def _process_toml_settings(
-        settings: Dict[str, Any],
-        base_path: List[str],
+        settings: dict[str, Any],
+        base_path: list[str],
         source: Literal["prefect.toml", "pyproject.toml"],
     ):
         for key, value in settings.items():
             if isinstance(value, dict):
-                _process_toml_settings(value, base_path + [key], source)
+                _process_toml_settings(
+                    cast(dict[str, Any], value), base_path + [key], source
+                )
             else:
                 setting = _get_settings_fields(prefect.settings.Settings).get(
                     ".".join(base_path + [key]), NotSet
                 )
-                if setting is NotSet or setting.name in processed_settings:
+                if setting is NotSet:
                     continue
-                _process_setting(setting, value, source)
+                elif (
+                    isinstance(setting, Setting) and setting.name in processed_settings
+                ):
+                    continue
+                elif isinstance(setting, Setting):
+                    _process_setting(setting, value, source)
 
     # Process settings from environment variables
     for setting_name in VALID_SETTING_NAMES:

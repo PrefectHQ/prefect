@@ -66,6 +66,7 @@ from prefect.settings import (
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.dispatch import get_registry_for_type
 
 # isort: split
@@ -128,16 +129,24 @@ def pytest_addoption(parser):
     )
 
 
+# The following tests are excluded from the clear_db fixture because they are
+# are safe to run without first clearing the database. Not clearing the database
+# after each run generally results in a 25 to 100% speed up of the test suite, so
+# if you run across tests that don't rely on a clean database, you can add them
+# to this list to speed up the test suite.
 EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/utilities",
     "tests/agent",
     "tests/test_settings.py",
     "tests/_internal",
     "tests/server/orchestration/test_rules.py",
+    "tests/test_flows.py",
 ]
 
 
-def pytest_collection_modifyitems(session, config, items):
+def pytest_collection_modifyitems(
+    session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
+):
     """
     Update tests to skip in accordance with service requests
     """
@@ -261,7 +270,7 @@ def tests_dir() -> pathlib.Path:
 
 
 @pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_call(item):
+def pytest_runtest_call(item: pytest.Item):
     """
     This hook will be called within the test run. Allowing us to raise errors or add
     assertions to every test. On error, the test will be marked as failed. If we used
@@ -296,7 +305,7 @@ TEST_PREFECT_HOME = None
 TEST_PROFILE_CTX = None
 
 
-def pytest_sessionstart(session):
+def pytest_sessionstart(session: pytest.Session):
     """
     Creates a profile for the scope of the test session that modifies setting defaults.
 
@@ -371,7 +380,7 @@ def pytest_sessionstart(session):
 
 # def pytest_sessionfinish(session, exitstatus):
 @pytest.fixture(scope="session", autouse=True)
-def cleanup(drain_log_workers, drain_events_workers):
+def cleanup(drain_log_workers: None, drain_events_workers: None):
     # this fixture depends on other fixtures with important cleanup steps like
     # draining workers to ensure that the home directory is not deleted before
     # these steps are completed
@@ -385,13 +394,13 @@ def cleanup(drain_log_workers, drain_events_workers):
 @pytest.fixture(scope="session", autouse=True)
 def safety_check_settings():
     # Safety check for connection to an external API
-    assert (
-        PREFECT_API_URL.value() is None
-    ), "Tests should not be run connected to an external API."
+    assert PREFECT_API_URL.value() is None, (
+        "Tests should not be run connected to an external API."
+    )
     # Safety check for home directory
-    assert (
-        str(PREFECT_HOME.value()) == TEST_PREFECT_HOME
-    ), "Tests should use the temporary test directory"
+    assert str(PREFECT_HOME.value()) == TEST_PREFECT_HOME, (
+        "Tests should use the temporary test directory"
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -477,7 +486,9 @@ async def generate_test_database_connection_url(
 
 
 @pytest.fixture(scope="session", autouse=True)
-def test_database_connection_url(generate_test_database_connection_url):
+def test_database_connection_url(
+    generate_test_database_connection_url: Optional[str],
+) -> Generator[Optional[str], None, None]:
     """
     Update the setting for the database connection url to the generated value from
     `generate_test_database_connection_url`
@@ -489,7 +500,9 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_SERVER_DATABASE_CONNECTION_URL: url}):
+        with temporary_settings(
+            updates={PREFECT_SERVER_DATABASE_CONNECTION_URL: url},
+        ):
             yield url
 
 
@@ -508,7 +521,9 @@ def reset_registered_blocks():
 
 
 @pytest.fixture
-def caplog(caplog):
+def caplog(
+    caplog: pytest.LogCaptureFixture,
+) -> Generator[pytest.LogCaptureFixture, None, None]:
     """
     Overrides caplog to apply to all of our loggers that do not propagate and
     consequently would not be captured by caplog.
@@ -531,8 +546,8 @@ def disable_csrf_protection():
 
 
 @pytest.fixture
-def start_of_test() -> pendulum.DateTime:
-    return pendulum.now("UTC")
+def start_of_test() -> DateTime:
+    return now("UTC")
 
 
 @pytest.fixture(autouse=True)

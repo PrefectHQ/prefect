@@ -3,37 +3,92 @@ The event persister moves event messages from the event bus to storage
 storage as fast as it can.  Never gets tired.
 """
 
+from __future__ import annotations
+
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncGenerator, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, List, NoReturn, TypeVar
 
-import pendulum
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
-from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
+from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.utilities.messaging import (
+    Consumer,
+    Message,
+    MessageHandler,
+    create_consumer,
+)
 from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
+    PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types import DateTime
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
+
+T = TypeVar("T")
 
 
-class EventPersister:
+async def batch_delete(
+    session: AsyncSession,
+    model: type[T],
+    condition: Any,
+    batch_size: int = 10_000,
+) -> int:
+    """
+    Perform a batch deletion of database records using a subquery with LIMIT. Works with both PostgreSQL and
+    SQLite. Compared to a basic delete(...).where(...), a batch deletion is more robust against timeouts
+    when handling large tables, which is especially the case if we first delete old entries from long
+    existing tables.
+
+    Returns:
+        Total number of deleted records
+    """
+    total_deleted = 0
+
+    while True:
+        subquery = (
+            sa.select(model.id).where(condition).limit(batch_size).scalar_subquery()
+        )
+        delete_stmt = sa.delete(model).where(model.id.in_(subquery))
+
+        result = await session.execute(delete_stmt)
+        batch_deleted = result.rowcount
+
+        if batch_deleted == 0:
+            break
+
+        total_deleted += batch_deleted
+        await session.commit()
+
+    return total_deleted
+
+
+class EventPersister(RunInAllServers, Service):
     """A service that persists events to the database as they arrive."""
 
-    name: str = "EventLogger"
+    consumer_task: asyncio.Task[None] | None = None
 
-    consumer_task: Optional[asyncio.Task] = None
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_persister
 
     def __init__(self):
-        self._started_event: Optional[asyncio.Event] = None
+        super().__init__()
+        self._started_event: asyncio.Event | None = None
 
     @property
     def started_event(self) -> asyncio.Event:
@@ -45,9 +100,9 @@ class EventPersister:
     def started_event(self, value: asyncio.Event) -> None:
         self._started_event = value
 
-    async def start(self):
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Event persister already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         async with create_handler(
             batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
@@ -64,7 +119,7 @@ class EventPersister:
             except asyncio.CancelledError:
                 pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Event persister not started"
         self.consumer_task.cancel()
         try:
@@ -112,20 +167,35 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
-
+        older_than = DateTime.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        delete_batch_size = (
+            PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE.value()
+        )
         try:
             async with db.session_context() as session:
-                result = await session.execute(
-                    sa.delete(db.Event).where(db.Event.occurred < older_than)
+                resource_count = await batch_delete(
+                    session,
+                    db.EventResource,
+                    db.EventResource.updated < older_than,
+                    batch_size=delete_batch_size,
                 )
-                await session.commit()
-                if result.rowcount:
+
+                event_count = await batch_delete(
+                    session,
+                    db.Event,
+                    db.Event.occurred < older_than,
+                    batch_size=delete_batch_size,
+                )
+
+                if resource_count or event_count:
                     logger.debug(
-                        "Trimmed %s events older than %s.", result.rowcount, older_than
+                        "Trimmed %s events and %s event resources older than %s.",
+                        event_count,
+                        resource_count,
+                        older_than,
                     )
         except Exception:
-            logger.exception("Error trimming events", exc_info=True)
+            logger.exception("Error trimming events and resources", exc_info=True)
 
     async def flush_periodically():
         try:

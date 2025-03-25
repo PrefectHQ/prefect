@@ -1,7 +1,6 @@
 from typing import Optional, Sequence
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -23,11 +22,12 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types._datetime import now
 from prefect.utilities.schema_tools.validation import (
     ValidationError as JSONSchemaValidationError,
 )
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/automations",
     tags=["Automations"],
     dependencies=[],
@@ -39,6 +39,11 @@ async def create_automation(
     automation: AutomationCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> Automation:
+    """
+    Create an automation.
+
+    For more information, see https://docs.prefect.io/v3/automate.
+    """
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 
@@ -91,7 +96,7 @@ async def update_automation(
     automation: AutomationUpdate,
     automation_id: UUID = Path(..., alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()
 
@@ -134,7 +139,7 @@ async def patch_automation(
     automation: AutomationPartialUpdate,
     automation_id: UUID = Path(..., alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     try:
         async with db.session_context(begin_transaction=True) as session:
             updated = await automations_models.update_automation(
@@ -159,7 +164,7 @@ async def patch_automation(
 async def delete_automation(
     automation_id: UUID = Path(..., alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deleted = await automations_models.delete_automation(
             session=session,
@@ -228,12 +233,12 @@ async def read_automations_related_to_resource(
 async def delete_automations_owned_by_resource(
     resource_id: str = Path(..., alias="resource_id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await automations_models.delete_automations_owned_by_resource(
             session,
             resource_id=resource_id,
             automation_filter=AutomationFilter(
-                created=AutomationFilterCreated(before_=pendulum.now("UTC"))
+                created=AutomationFilterCreated(before_=now("UTC"))
             ),
         )

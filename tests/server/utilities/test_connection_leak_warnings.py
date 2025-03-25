@@ -6,6 +6,7 @@ They shouldn't be run as part of the normal test suite, but can be run manually 
 
 TEST_CONNECTION_LEAK=true pytest tests/server/utilities/test_connection_leak_warnings.py
 """
+
 import os
 
 import pytest

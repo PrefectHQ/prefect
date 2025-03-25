@@ -1,6 +1,8 @@
 import abc
 import asyncio
 import os
+import ssl
+from datetime import timedelta
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -16,31 +18,35 @@ from typing import (
     cast,
 )
 from urllib.parse import urlparse
+from urllib.request import proxy_bypass
 from uuid import UUID
 
+import certifi
 import orjson
-import pendulum
 from cachetools import TTLCache
 from prometheus_client import Counter
 from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets import Subprotocol
+from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
     ConnectionClosedOK,
 )
-from websockets.legacy.client import Connect, WebSocketClientProtocol
 
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_SSL_CERT_FILE,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.types._datetime import add_years, now
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -69,22 +75,25 @@ EVENT_WEBSOCKET_CHECKPOINTS = Counter(
     labelnames=["client"],
 )
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
-def http_to_ws(url: str):
+def http_to_ws(url: str) -> str:
     return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
 
 
-def events_in_socket_from_api_url(url: str):
+def events_in_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/events/in"
 
 
-def events_out_socket_from_api_url(url: str):
+def events_out_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/events/out"
 
 
-class WebsocketProxyConnect(Connect):
+class WebsocketProxyConnect(connect):
     def __init__(self: Self, uri: str, **kwargs: Any):
         # super() is intentionally deferred to the _proxy_connect method
         # to allow for the socket to be established first
@@ -94,6 +103,9 @@ class WebsocketProxyConnect(Connect):
 
         u = urlparse(uri)
         host = u.hostname
+
+        if not host:
+            raise ValueError(f"Invalid URI {uri}, no hostname found")
 
         if u.scheme == "ws":
             port = u.port or 80
@@ -107,11 +119,27 @@ class WebsocketProxyConnect(Connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self._proxy = Proxy.from_url(proxy_url) if proxy_url else None
+        self._proxy = (
+            Proxy.from_url(proxy_url) if proxy_url and not proxy_bypass(host) else None
+        )
         self._host = host
         self._port = port
 
-    async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY and u.scheme == "wss":
+            # Create an unverified context for insecure connections
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            self._kwargs.setdefault("ssl", ctx)
+        elif u.scheme == "wss":
+            cert_file = PREFECT_API_SSL_CERT_FILE.value()
+            if not cert_file:
+                cert_file = certifi.where()
+            # Create a verified context with the certificate file
+            ctx = ssl.create_default_context(cafile=cert_file)
+            self._kwargs.setdefault("ssl", ctx)
+
+    async def _proxy_connect(self: Self) -> ClientConnection:
         if self._proxy:
             sock = await self._proxy.connect(
                 dest_host=self._host,
@@ -123,7 +151,7 @@ class WebsocketProxyConnect(Connect):
         proto = await self.__await_impl__()
         return proto
 
-    def __await__(self: Self) -> Generator[Any, None, WebSocketClientProtocol]:
+    def __await__(self: Self) -> Generator[Any, None, ClientConnection]:
         return self._proxy_connect().__await__()
 
 
@@ -244,11 +272,11 @@ class AssertingEventsClient(EventsClient):
     last: ClassVar["Optional[AssertingEventsClient]"] = None
     all: ClassVar[List["AssertingEventsClient"]] = []
 
-    args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         AssertingEventsClient.last = self
         AssertingEventsClient.all.append(self)
         self.args = args
@@ -292,7 +320,7 @@ def _get_api_url_and_key(
 class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
-    _websocket: Optional[WebSocketClientProtocol]
+    _websocket: Optional[ClientConnection]
     _unconfirmed_events: List[Event]
 
     def __init__(
@@ -339,16 +367,26 @@ class PrefectEventsClient(EventsClient):
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
+    def _log_debug(self, message: str, *args, **kwargs) -> None:
+        message = f"EventsClient(id={id(self)}): " + message
+        logger.debug(message, *args, **kwargs)
+
     async def _reconnect(self) -> None:
+        logger.debug("Reconnecting websocket connection.")
+
         if self._websocket:
             self._websocket = None
             await self._connect.__aexit__(None, None, None)
+            logger.debug("Cleared existing websocket connection.")
 
         try:
+            logger.debug("Opening websocket connection.")
             self._websocket = await self._connect.__aenter__()
             # make sure we have actually connected
+            logger.debug("Pinging to ensure websocket connected.")
             pong = await self._websocket.ping()
             await pong
+            logger.debug("Pong received. Websocket connected.")
         except Exception as e:
             # The client is frequently run in a background thread
             # so we log an additional warning to ensure
@@ -366,23 +404,26 @@ class PrefectEventsClient(EventsClient):
             raise
 
         events_to_resend = self._unconfirmed_events
+        logger.debug("Resending %s unconfirmed events.", len(events_to_resend))
         # Clear the unconfirmed events here, because they are going back through emit
         # and will be added again through the normal checkpointing process
         self._unconfirmed_events = []
         for event in events_to_resend:
             await self.emit(event)
+        logger.debug("Finished resending unconfirmed events.")
 
-    async def _checkpoint(self, event: Event) -> None:
+    async def _checkpoint(self) -> None:
         assert self._websocket
 
-        self._unconfirmed_events.append(event)
-
         unconfirmed_count = len(self._unconfirmed_events)
+
         if unconfirmed_count < self._checkpoint_every:
             return
 
+        logger.debug("Pinging to checkpoint unconfirmed events.")
         pong = await self._websocket.ping()
         await pong
+        self._log_debug("Pong received. Events checkpointed.")
 
         # once the pong returns, we know for sure that we've sent all the messages
         # we had enqueued prior to that.  There could be more that came in after, so
@@ -392,7 +433,19 @@ class PrefectEventsClient(EventsClient):
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _emit(self, event: Event) -> None:
+        self._log_debug("Emitting event id=%s.", event.id)
+
+        self._unconfirmed_events.append(event)
+
+        logger.debug(
+            "Added event id=%s to unconfirmed events list. "
+            "There are now %s unconfirmed events.",
+            event.id,
+            len(self._unconfirmed_events),
+        )
+
         for i in range(self._reconnection_attempts + 1):
+            self._log_debug("Emit reconnection attempt %s.", i)
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
@@ -401,14 +454,18 @@ class PrefectEventsClient(EventsClient):
                 # from a ConnectionClosed, so reconnect now, resending any unconfirmed
                 # events before we send this one.
                 if not self._websocket or i > 0:
+                    self._log_debug("Attempting websocket reconnection.")
                     await self._reconnect()
                     assert self._websocket
 
+                self._log_debug("Sending event id=%s.", event.id)
                 await self._websocket.send(event.model_dump_json())
-                await self._checkpoint(event)
+                self._log_debug("Checkpointing event id=%s.", event.id)
+                await self._checkpoint()
 
                 return
             except ConnectionClosed:
+                self._log_debug("Got ConnectionClosed error.")
                 if i == self._reconnection_attempts:
                     # this was our final chance, raise the most recent error
                     raise
@@ -417,6 +474,9 @@ class PrefectEventsClient(EventsClient):
                     # let the first two attempts happen quickly in case this is just
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.
+                    logger.debug(
+                        "Sleeping for 1 second before next reconnection attempt."
+                    )
                     await asyncio.sleep(1)
 
 
@@ -425,13 +485,13 @@ class AssertingPassthroughEventsClient(PrefectEventsClient):
     during tests AND sends them to a Prefect server."""
 
     last: ClassVar["Optional[AssertingPassthroughEventsClient]"] = None
-    all: ClassVar[List["AssertingPassthroughEventsClient"]] = []
+    all: ClassVar[list["AssertingPassthroughEventsClient"]] = []
 
-    args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         AssertingPassthroughEventsClient.last = self
         AssertingPassthroughEventsClient.all.append(self)
@@ -443,7 +503,7 @@ class AssertingPassthroughEventsClient(PrefectEventsClient):
         cls.last = None
         cls.all = []
 
-    def pop_events(self) -> List[Event]:
+    def pop_events(self) -> list[Event]:
         events = self.events
         self.events = []
         return events
@@ -488,7 +548,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         )
         self._connect = websocket_connect(
             self._events_socket_url,
-            extra_headers={"Authorization": f"bearer {api_key}"},
+            additional_headers={"Authorization": f"bearer {api_key}"},
         )
 
 
@@ -513,7 +573,7 @@ class PrefectEventSubscriber:
 
     """
 
-    _websocket: Optional[WebSocketClientProtocol]
+    _websocket: Optional[ClientConnection]
     _filter: "EventFilter"
     _seen_events: MutableMapping[UUID, bool]
 
@@ -605,8 +665,8 @@ class PrefectEventSubscriber:
         from prefect.events.filters import EventOccurredFilter
 
         self._filter.occurred = EventOccurredFilter(
-            since=pendulum.now("UTC").subtract(minutes=1),
-            until=pendulum.now("UTC").add(years=1),
+            since=now("UTC") - timedelta(minutes=1),
+            until=add_years(now("UTC"), 1),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)

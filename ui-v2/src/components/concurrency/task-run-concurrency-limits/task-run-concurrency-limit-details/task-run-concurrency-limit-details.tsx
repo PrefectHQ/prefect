@@ -1,18 +1,22 @@
 import { cn } from "@/lib/utils";
 
-import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { format, parseISO } from "date-fns";
 import React from "react";
 
-type Props = {
+type TaskRunConcurrencyLimitDetailsProps = {
 	data: TaskRunConcurrencyLimit;
 };
 
-export const TaskRunConcurrencyLimitDetails = ({ data }: Props) => {
+export const TaskRunConcurrencyLimitDetails = ({
+	data,
+}: TaskRunConcurrencyLimitDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-4">
-			<dt className="text-muted-foreground">Tag</dt>
-			<dd className="text-sm font-medium leading-none">{data.tag}</dd>
+			<dl className="flex flex-col gap-2">
+				<dt className="text-muted-foreground">Tag</dt>
+				<dd className="text-sm font-medium leading-none">{data.tag}</dd>
+			</dl>
 			<hr />
 			<dl className="flex flex-col gap-2">
 				{getKeyValueList(data).map((d) => (

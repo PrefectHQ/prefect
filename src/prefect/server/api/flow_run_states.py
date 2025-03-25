@@ -12,7 +12,9 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/flow_run_states", tags=["Flow Run States"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/flow_run_states", tags=["Flow Run States"]
+)
 
 
 @router.get("/{id}")
@@ -24,6 +26,8 @@ async def read_flow_run_state(
 ) -> schemas.states.State:
     """
     Get a flow run state by id.
+
+    For more information, see https://docs.prefect.io/v3/develop/write-flows#final-state-determination.
     """
     async with db.session_context() as session:
         flow_run_state = await models.flow_run_states.read_flow_run_state(

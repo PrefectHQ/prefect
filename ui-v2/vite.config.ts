@@ -13,6 +13,9 @@ export default defineConfig({
 		coverage: {
 			exclude: ["**/*.stories.tsx", "**/*.test.tsx"],
 		},
+		env: {
+			TZ: "UTC",
+		},
 	},
 	resolve: {
 		alias: {

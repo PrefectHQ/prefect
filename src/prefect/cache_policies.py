@@ -2,7 +2,7 @@ import inspect
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Union
 
 from typing_extensions import Self
 
@@ -73,17 +73,19 @@ class CachePolicy:
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         raise NotImplementedError
 
     def __sub__(self, other: str) -> "CachePolicy":
+        "No-op for all policies except Inputs and Compound"
+
+        # for interface compatibility
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
-        new = Inputs(exclude=[other])
-        return CompoundCachePolicy(policies=[self, new])
+        return self
 
     def __add__(self, other: "CachePolicy") -> "CachePolicy":
         # adding _None is a no-op
@@ -132,14 +134,14 @@ class CacheKeyFnPolicy(CachePolicy):
 
     # making it optional for tests
     cache_key_fn: Optional[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
     ] = None
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         if self.cache_key_fn:
@@ -155,13 +157,30 @@ class CompoundCachePolicy(CachePolicy):
     Any keys that return `None` will be ignored.
     """
 
-    policies: List[CachePolicy] = field(default_factory=list)
+    policies: list[CachePolicy] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        # flatten any CompoundCachePolicies
+        self.policies = [
+            policy
+            for p in self.policies
+            for policy in (p.policies if isinstance(p, CompoundCachePolicy) else [p])
+        ]
+
+        # deduplicate any Inputs policies
+        inputs_policies = [p for p in self.policies if isinstance(p, Inputs)]
+        self.policies = [p for p in self.policies if not isinstance(p, Inputs)]
+        if inputs_policies:
+            all_excludes: set[str] = set()
+            for inputs_policy in inputs_policies:
+                all_excludes.update(inputs_policy.exclude)
+            self.policies.append(Inputs(exclude=sorted(all_excludes)))
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         keys: list[str] = []
@@ -178,19 +197,48 @@ class CompoundCachePolicy(CachePolicy):
             return None
         return hash_objects(*keys, raise_on_failure=True)
 
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        # Call the superclass add method to handle validation
+        super().__add__(other)
+
+        if isinstance(other, CompoundCachePolicy):
+            policies = [*self.policies, *other.policies]
+        else:
+            policies = [*self.policies, other]
+
+        return CompoundCachePolicy(
+            policies=policies,
+            key_storage=self.key_storage or other.key_storage,
+            isolation_level=self.isolation_level or other.isolation_level,
+            lock_manager=self.lock_manager or other.lock_manager,
+        )
+
+    def __sub__(self, other: str) -> "CachePolicy":
+        if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("Can only subtract strings from key policies.")
+
+        inputs_policies = [p for p in self.policies if isinstance(p, Inputs)]
+
+        if inputs_policies:
+            new = Inputs(exclude=[other])
+            return CompoundCachePolicy(policies=[*self.policies, new])
+        else:
+            # no dependency on inputs already
+            return self
+
 
 @dataclass
 class _None(CachePolicy):
     """
     Policy that always returns `None` for the computed cache key.
-    This policy prevents persistence.
+    This policy prevents persistence and avoids caching entirely.
     """
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         return None
@@ -204,13 +252,15 @@ class _None(CachePolicy):
 class TaskSource(CachePolicy):
     """
     Policy for computing a cache key based on the source code of the task.
+
+    This policy only considers raw lines of code in the task, and not the source code of nested tasks.
     """
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Optional[Dict[str, Any]],
-        flow_parameters: Optional[Dict[str, Any]],
+        inputs: Optional[dict[str, Any]],
+        flow_parameters: Optional[dict[str, Any]],
         **kwargs: Any,
     ) -> Optional[str]:
         if not task_ctx:
@@ -236,8 +286,8 @@ class FlowParameters(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         if not flow_parameters:
@@ -255,8 +305,8 @@ class RunId(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         if not task_ctx:
@@ -273,13 +323,13 @@ class Inputs(CachePolicy):
     Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
-    exclude: List[str] = field(default_factory=list)
+    exclude: list[str] = field(default_factory=list)
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         hashed_inputs = {}
@@ -302,7 +352,7 @@ class Inputs(CachePolicy):
                 "like locks, file handles, or other system resources.\n\n"
                 "To resolve this, you can:\n"
                 "  1. Exclude these arguments by defining a custom `cache_key_fn`\n"
-                "  2. Disable caching by passing `cache_policy=NONE`\n"
+                "  2. Disable caching by passing `cache_policy=NO_CACHE`\n"
             )
             raise ValueError(msg) from exc
 
@@ -314,6 +364,7 @@ class Inputs(CachePolicy):
 
 INPUTS = Inputs()
 NONE = _None()
+NO_CACHE = _None()
 TASK_SOURCE = TaskSource()
 FLOW_PARAMETERS = FlowParameters()
 RUN_ID = RunId()

@@ -50,14 +50,26 @@ vi.mock("@tanstack/react-query-devtool", () => ({
 	ReactQueryDevtools: () => null,
 }));
 
+vi.stubGlobal("scrollTo", vi.fn());
+
 // Add this to your existing setup.ts file
 class ResizeObserverMock {
 	observe() {}
 	unobserve() {}
 	disconnect() {}
 }
+vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 
-global.ResizeObserver = ResizeObserverMock;
+// Mock localStorage
+const localStorageMock: Storage = {
+	key: vi.fn(),
+	length: 0,
+	getItem: vi.fn(),
+	setItem: vi.fn(),
+	removeItem: vi.fn(),
+	clear: vi.fn(),
+};
+vi.stubGlobal("localStorage", localStorageMock);
 
 // Add this along with the ResizeObserver mock
 Element.prototype.getBoundingClientRect = vi.fn(() => ({

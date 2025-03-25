@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Sequence
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events.schemas.automations import CompositeTrigger, Firing
+from prefect.types._datetime import DateTime, now
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMCompositeTriggerChildFiring
@@ -43,7 +43,7 @@ async def upsert_child_firing(
                 child_firing_id=firing.id,
                 child_fired_at=firing.triggered,
                 child_firing=firing.model_dump(),
-                updated=pendulum.now("UTC"),
+                updated=now("UTC"),
             ),
         )
     )
@@ -85,7 +85,7 @@ async def clear_old_child_firings(
     db: PrefectDBInterface,
     session: AsyncSession,
     trigger: CompositeTrigger,
-    fired_before: pendulum.DateTime,
+    fired_before: DateTime,
 ) -> None:
     await session.execute(
         sa.delete(db.CompositeTriggerChildFiring).filter(

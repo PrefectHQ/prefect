@@ -11,7 +11,6 @@ import sys
 import textwrap
 import time
 from functools import partial
-from string import Template
 from typing import Optional
 
 import anyio
@@ -35,16 +34,16 @@ Internal Prefect development.
 Note that many of these commands require extra dependencies (such as npm and MkDocs)
 to function properly.
 """
-dev_app = PrefectTyper(
+dev_app: PrefectTyper = PrefectTyper(
     name="dev", short_help="Internal Prefect development.", help=DEV_HELP
 )
 app.add_typer(dev_app)
 
 
-def exit_with_error_if_not_editable_install():
+def exit_with_error_if_not_editable_install() -> None:
     if (
         prefect.__module_path__.parent == "site-packages"
-        or not (prefect.__development_base_path__ / "setup.py").exists()
+        or not (prefect.__development_base_path__ / "pyproject.toml").exists()
     ):
         exit_with_error(
             "Development commands require an editable Prefect installation. "
@@ -78,12 +77,8 @@ def build_docs(schema_path: Optional[str] = None):
     app.console.print(f"OpenAPI schema written to {path_to_schema}")
 
 
-BUILD_UI_HELP = f"""
-Installs dependencies and builds UI locally.
-
-The built UI will be located at {prefect.__development_base_path__ / "ui"}
-
-Requires npm.
+BUILD_UI_HELP = """
+Installs dependencies and builds UI locally. Requires npm.
 """
 
 
@@ -386,27 +381,3 @@ def container(
     finally:
         print("\nStopping container...")
         container.stop()
-
-
-@dev_app.command()
-def kubernetes_manifest():
-    """
-    Generates a Kubernetes manifest for development.
-
-    Example:
-        $ prefect dev kubernetes-manifest | kubectl apply -f -
-    """
-    exit_with_error_if_not_editable_install()
-
-    template = Template(
-        (
-            prefect.__module_path__ / "cli" / "templates" / "kubernetes-dev.yaml"
-        ).read_text()
-    )
-    manifest = template.substitute(
-        {
-            "prefect_root_directory": prefect.__development_base_path__,
-            "image_name": get_prefect_image_name(),
-        }
-    )
-    print(manifest)

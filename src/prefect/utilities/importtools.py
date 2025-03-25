@@ -2,25 +2,19 @@ import ast
 import importlib
 import importlib.util
 import os
-import runpy
 import sys
 import threading
 import warnings
 from collections.abc import Iterable, Sequence
 from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
-from io import TextIOWrapper
 from logging import Logger
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
-
-import fsspec  # type: ignore  # no typing stubs available
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional
 
 from prefect.exceptions import ScriptError
 from prefect.logging.loggers import get_logger
-from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 logger: Logger = get_logger(__name__)
 
@@ -84,67 +78,6 @@ def from_qualified_name(name: str) -> Any:
     return getattr(module, attr_name)
 
 
-def objects_from_script(
-    path: str, text: Optional[Union[str, bytes]] = None
-) -> dict[str, Any]:
-    """
-    Run a python script and return all the global variables
-
-    Supports remote paths by copying to a local temporary file.
-
-    WARNING: The Python documentation does not recommend using runpy for this pattern.
-
-    > Furthermore, any functions and classes defined by the executed code are not
-    > guaranteed to work correctly after a runpy function has returned. If that
-    > limitation is not acceptable for a given use case, importlib is likely to be a
-    > more suitable choice than this module.
-
-    The function `load_script_as_module` uses importlib instead and should be used
-    instead for loading objects from scripts.
-
-    Args:
-        path: The path to the script to run
-        text: Optionally, the text of the script. Skips loading the contents if given.
-
-    Returns:
-        A dictionary mapping variable name to value
-
-    Raises:
-        ScriptError: if the script raises an exception during execution
-    """
-
-    def run_script(run_path: str) -> dict[str, Any]:
-        # Cast to an absolute path before changing directories to ensure relative paths
-        # are not broken
-        abs_run_path = os.path.abspath(run_path)
-        with tmpchdir(run_path):
-            try:
-                return runpy.run_path(abs_run_path)
-            except Exception as exc:
-                raise ScriptError(user_exc=exc, path=path) from exc
-
-    if text:
-        with NamedTemporaryFile(
-            mode="wt" if isinstance(text, str) else "wb",
-            prefix=f"run-{filename(path)}",
-            suffix=".py",
-        ) as tmpfile:
-            tmpfile.write(text)
-            tmpfile.flush()
-            return run_script(tmpfile.name)
-
-    else:
-        if not is_local_path(path):
-            # Remote paths need to be local to run
-            with fsspec.open(path) as f:  # type: ignore  # no typing stubs available
-                if TYPE_CHECKING:
-                    assert isinstance(f, TextIOWrapper)
-                contents = f.read()
-            return objects_from_script(path, contents)
-        else:
-            return run_script(path)
-
-
 def load_script_as_module(path: str) -> ModuleType:
     """Execute a script at the given path.
 
@@ -160,8 +93,11 @@ def load_script_as_module(path: str) -> ModuleType:
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
-    # Generate unique module name for thread safety
-    module_name = f"__prefect_loader_{id(path)}__"
+    module_name = os.path.splitext(Path(path).name)[0]
+
+    # fall back in case of filenames with the same names as modules
+    if module_name in sys.modules:
+        module_name = f"__prefect_loader_{id(path)}__"
 
     spec = importlib.util.spec_from_file_location(
         module_name,
@@ -179,15 +115,9 @@ def load_script_as_module(path: str) -> ModuleType:
         with _get_sys_path_lock():
             sys.path.insert(0, working_directory)
             sys.path.insert(0, parent_path)
-            try:
-                spec.loader.exec_module(module)
-            finally:
-                sys.path.remove(parent_path)
-                sys.path.remove(working_directory)
+            spec.loader.exec_module(module)
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
-    finally:
-        sys.modules.pop(module_name)
 
     return module
 

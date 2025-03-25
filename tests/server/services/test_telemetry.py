@@ -94,10 +94,10 @@ async def test_errors_shutdown_service(error_sens_o_matic_mock, caplog):
     ]
 
     assert len(records) == 1, "An error level log should be emitted"
-    assert (
-        "Failed to send telemetry" in records[0].message
-    ), "Should inform the user of the failure"
+    assert "Failed to send telemetry" in records[0].message, (
+        "Should inform the user of the failure"
+    )
 
-    assert (
-        "Server error '500 Internal Server Error' for url" in records[0].message
-    ), "Should include a short version of the exception"
+    assert "Server error '500 Internal Server Error' for url" in records[0].message, (
+        "Should include a short version of the exception"
+    )

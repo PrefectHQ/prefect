@@ -19,6 +19,8 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     op.create_table(
         "deployment_schedule",
         sa.Column(
@@ -101,15 +103,20 @@ def upgrade():
 
     op.execute(sa.text(backfill_schedules))
     op.execute(sa.text(backfill_paused))
+    op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_deployment__paused"))
         batch_op.drop_column("paused")
 
     with op.batch_alter_table("deployment_schedule", schema=None) as batch_op:
+        batch_op.drop_constraint("fk_deployment_schedule__deployment_id__deployment")
         batch_op.drop_index(batch_op.f("ix_deployment_schedule__updated"))
         batch_op.drop_index(batch_op.f("ix_deployment_schedule__deployment_id"))
 
     op.drop_table("deployment_schedule")
+    op.execute("PRAGMA foreign_keys=ON")

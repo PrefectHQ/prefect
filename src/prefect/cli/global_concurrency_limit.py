@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Optional
 
 import orjson
-import pendulum
 import typer
 from pydantic import ValidationError
 from rich.pretty import Pretty
@@ -21,8 +20,9 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
+from prefect.types._datetime import create_datetime_instance
 
-global_concurrency_limit_app = PrefectTyper(
+global_concurrency_limit_app: PrefectTyper = PrefectTyper(
     name="global-concurrency-limit",
     help="Manage global concurrency limits.",
 )
@@ -60,6 +60,8 @@ async def list_global_concurrency_limits():
     table.add_column("Updated", style="blue", no_wrap=True)
 
     for gcl_limit in sorted(gcl_limits, key=lambda x: f"{x.name}"):
+        assert gcl_limit.created is not None, "created is not None"
+        assert gcl_limit.updated is not None, "updated is not None"
         table.add_row(
             str(gcl_limit.id),
             gcl_limit.name,
@@ -67,8 +69,8 @@ async def list_global_concurrency_limits():
             str(gcl_limit.limit),
             str(gcl_limit.active_slots),
             str(gcl_limit.slot_decay_per_second),
-            pendulum.instance(gcl_limit.created).isoformat(),
-            pendulum.instance(gcl_limit.updated).diff_for_humans(),
+            create_datetime_instance(gcl_limit.created).isoformat(),
+            create_datetime_instance(gcl_limit.updated).diff_for_humans(),
         )
 
     app.console.print(table)

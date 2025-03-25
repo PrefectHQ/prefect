@@ -40,13 +40,14 @@ pip install -U 'prefect[aws]'
 
 ### Pydantic V2
 
-<Info>
-This change affects you if: you use custom Pydantic models with Prefect features.
-</Info>
-
 Prefect 3.0 is built with Pydantic 2.0 for improved performance. All Prefect objects will automatically upgrade, but if you use custom Pydantic models for flow parameters or custom blocks, you'll need to ensure they are compatible with Pydantic 2.0. You can continue to use Pydantic 1.0 models in your own code if they do not interact directly with Prefect.
 
 Refer to [Pydantic's migration guide](https://docs.pydantic.dev/latest/migration/) for detailed information on necessary changes.
+
+<Warning>
+We recommend pausing all deployment schedules prior to upgrading. 
+Because of differences in Pydantic datetime handling that affect the scheduler's idempotency logic, there is a small risk of the scheduler duplicating runs in its first loop.
+</Warning>
 
 ### Module location and name changes
 
@@ -286,7 +287,7 @@ my_flow.serve(
 ```python Prefect 3.0 {11}
 from datetime import timedelta
 from prefect import flow
-from prefect.client.schemas.schedules import IntervalSchedule
+from prefect.schedules import Interval
 
 @flow
 def my_flow():
@@ -294,7 +295,7 @@ def my_flow():
 
 my_flow.serve(
     name="my-flow",
-    schedules=[IntervalSchedule(interval=timedelta(minutes=1))]
+    schedules=[Interval(timedelta(minutes=1))]
 )
 ```
 </CodeGroup>

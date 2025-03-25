@@ -28,7 +28,7 @@ controlled rate determined by `slot_decay_per_second`. With a concurrency limit,
 
 ## Manage global concurrency and rate limits
 
-You can create, read, edit, and delete concurrency limits through the Prefect UI, CLI, or Python SDK.
+You can create, read, edit, and delete concurrency limits through the Prefect UI or Python SDK.
 
 When creating a concurrency limit, you can specify the following parameters:
 
@@ -76,7 +76,10 @@ You can manage global concurrency limits in the **Concurrency** section of the P
 
 ### Through the CLI
 
-You can manage global concurrency limits through the Prefect CLI.
+import { CLI } from "/snippets/resource-management/cli.mdx"
+import { global_concurrency } from "/snippets/resource-management/vars.mdx"
+
+<CLI name="global concurrency" href={global_concurrency.cli} />
 
 To create a new concurrency limit, use the `prefect gcl create` command. You must specify a `--limit` argument, and can optionally specify a 
 `--slot-decay-per-second` and `--disable` argument.
@@ -111,6 +114,18 @@ Deleted global concurrency limit with name 'my-concurrency-limit'.
 ```
 
 See all available commands and options by running `prefect gcl --help`.
+
+### Through Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="global concurrency" href={global_concurrency.tf} />
+
+### Through the API
+
+import { API } from "/snippets/resource-management/api.mdx"
+
+<API name="global concurrency" href={global_concurrency.api} />
 
 ## Using the `concurrency` context manager
 

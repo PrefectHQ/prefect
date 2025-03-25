@@ -144,6 +144,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         rule_as_context_manager = IllustrativeRule(ctx, *intended_transition)
@@ -190,6 +191,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         minimal_rule = MinimalRule(ctx, *intended_transition)
@@ -233,6 +235,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         # each rule receives a context as an argument and yields it back after
@@ -296,6 +299,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         fizzling_rule = FizzlingRule(ctx, *intended_transition)
@@ -368,6 +372,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -424,6 +429,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -480,6 +486,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -528,6 +535,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         message_passer = MessagePassingRule(ctx, *intended_transition)
@@ -608,21 +616,21 @@ class TestBaseOrchestrationRule:
 
         assert await minimal_rule.fizzled() is True
 
-        assert (
-            await raising_rule.invalid() is False
-        ), "Rules that error on entry should be fizzled so they can try and clean up"
+        assert await raising_rule.invalid() is False, (
+            "Rules that error on entry should be fizzled so they can try and clean up"
+        )
         assert await raising_rule.fizzled() is True
 
         assert outer_before_transition_hook.call_count == 1
         assert outer_after_transition_hook.call_count == 0
-        assert (
-            outer_cleanup_step.call_count == 1
-        ), "All rules should clean up side effects"
+        assert outer_cleanup_step.call_count == 1, (
+            "All rules should clean up side effects"
+        )
 
         assert before_transition_hook.call_count == 1
-        assert (
-            after_transition_hook.call_count == 0
-        ), "The after-transition hook should not run"
+        assert after_transition_hook.call_count == 0, (
+            "The after-transition hook should not run"
+        )
         assert cleanup_step.call_count == 1, "All rules should clean up side effects"
         assert isinstance(ctx.orchestration_error, RuntimeError)
 
@@ -656,6 +664,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -695,6 +704,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -772,6 +782,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         # an ExitStack is a python builtin construction that allows us to
@@ -920,6 +931,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         # an ExitStack is a python builtin construction that allows us to
@@ -1018,6 +1030,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         xform_as_context_manager = IllustrativeUniversalTransform(
@@ -1066,6 +1079,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
@@ -1121,6 +1135,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
@@ -1176,6 +1191,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
@@ -1185,9 +1201,9 @@ class TestBaseUniversalTransform:
 
         assert side_effect == 1
         assert before_hook.call_count == 1
-        assert (
-            after_hook.call_count == 0
-        ), "after_transition should not be called if orchestration encountered errors."
+        assert after_hook.call_count == 0, (
+            "after_transition should not be called if orchestration encountered errors."
+        )
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
@@ -1449,9 +1465,9 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
-        assert ctx.validated_state.data == {
-            "value": "some special data"
-        }, "result data should be attached to the validated state"
+        assert ctx.validated_state.data == {"value": "some special data"}, (
+            "result data should be attached to the validated state"
+        )
 
         # an artifact should be created with the result data as well
         if run_type == "task":
@@ -1487,9 +1503,9 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
-        assert ctx.validated_state.data == {
-            "value": "some special data"
-        }, "sanitized result data should be attached to the validated state"
+        assert ctx.validated_state.data == {"value": "some special data"}, (
+            "sanitized result data should be attached to the validated state"
+        )
 
         # an artifact should be created with the result data as well
         if run_type == "task":
@@ -1517,9 +1533,9 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
-        assert (
-            ctx.validated_state.data is None
-        ), "this validated state should have no result"
+        assert ctx.validated_state.data is None, (
+            "this validated state should have no result"
+        )
 
         # an artifact should be created with the result data as well
         if run_type == "task":

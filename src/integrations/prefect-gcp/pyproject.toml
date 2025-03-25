@@ -44,6 +44,8 @@ all_extras = [
   "google-cloud-secret-manager",
   "google-cloud-aiplatform",
 ]
+
+[dependency-groups]
 dev = [
   "coverage",
   "google-cloud-aiplatform",
@@ -101,3 +103,6 @@ env = ["PREFECT_TEST_MODE=1"]
 filterwarnings = [
   "ignore:Type google._upb._message.* uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14:DeprecationWarning",
 ]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }

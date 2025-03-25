@@ -5,7 +5,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
 from sqlalchemy.sql import Select
@@ -16,14 +15,13 @@ from prefect.server.schemas.filters import (
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.types._datetime import DateTime, now, start_of_period
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
-
-    DateTime = pendulum.DateTime
 else:
     from prefect.types import DateTime
 
@@ -112,17 +110,18 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC").start_of("day").subtract(days=180),
+        default_factory=lambda: start_of_period(now("UTC"), "day")
+        - timedelta(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: now("UTC"),
         description="Only include events prior to this time (inclusive)",
     )
 
-    def clamp(self, max_duration: timedelta):
+    def clamp(self, max_duration: timedelta) -> None:
         """Limit how far the query can look back based on the given duration"""
-        earliest = pendulum.now("UTC") - max_duration
+        earliest = now("UTC") - max_duration
         self.since = max(earliest, self.since)
 
     def includes(self, event: Event) -> bool:
@@ -210,7 +209,7 @@ class LabelOperations:
     positive: LabelSet = field(default_factory=LabelSet)
     negative: LabelSet = field(default_factory=LabelSet)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for value in self.values:
             label_set = self.positive
             if value.startswith("!"):

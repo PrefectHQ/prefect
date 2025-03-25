@@ -7,7 +7,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import jsonschema.exceptions
-import pendulum
+import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from starlette.background import BackgroundTasks
 
@@ -26,6 +26,7 @@ from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -37,7 +38,7 @@ from prefect.utilities.schema_tools.validation import (
     validate,
 )
 
-router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
+router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
 
 def _multiple_schedules_error(deployment_id) -> HTTPException:
@@ -67,6 +68,8 @@ async def create_deployment(
 
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
+
+    For more information, see https://docs.prefect.io/v3/deploy.
     """
 
     data = deployment.model_dump(exclude_unset=True)
@@ -163,12 +166,12 @@ async def create_deployment(
                     ),
                 )
 
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         model = await models.deployments.create_deployment(
             session=session, deployment=deployment
         )
 
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
 
         return schemas.responses.DeploymentResponse.model_validate(
@@ -181,7 +184,7 @@ async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         existing_deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -189,6 +192,41 @@ async def update_deployment(
         if not existing_deployment:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+            )
+
+        # Checking how we should handle schedule updates
+        # If not all existing schedules have slugs then we'll fall back to the existing logic where are schedules are recreated to match the request.
+        # If the existing schedules have slugs, but not all provided schedules have slugs, then we'll return a 422 to avoid accidentally blowing away schedules.
+        # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
+        schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
+        schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
+        all_provided_have_slugs = all(
+            schedule.slug is not None for schedule in deployment.schedules or []
+        )
+        all_existing_have_slugs = existing_deployment.schedules and all(
+            schedule.slug is not None for schedule in existing_deployment.schedules
+        )
+        if all_provided_have_slugs and all_existing_have_slugs:
+            current_slugs = [
+                schedule.slug for schedule in existing_deployment.schedules
+            ]
+
+            for schedule in deployment.schedules:
+                if schedule.slug in current_slugs:
+                    schedules_to_patch.append(schedule)
+                elif schedule.schedule:
+                    schedules_to_create.append(schedule)
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Unable to create new deployment schedules without a schedule configuration.",
+                    )
+            # Clear schedules to handle their update/creation separately
+            deployment.schedules = None
+        elif not all_provided_have_slugs and all_existing_have_slugs:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Please provide a slug for each schedule in your request to ensure schedules are updated correctly.",
             )
 
         if deployment.work_pool_name:
@@ -229,8 +267,13 @@ async def update_deployment(
             else existing_deployment.enforce_parameter_schema
         )
         if enforce_parameter_schema:
-            # ensure that the new parameters conform to the existing schema
-            if not isinstance(existing_deployment.parameter_openapi_schema, dict):
+            # ensure that the new parameters conform to the proposed schema
+            if deployment.parameter_openapi_schema:
+                openapi_schema = deployment.parameter_openapi_schema
+            else:
+                openapi_schema = existing_deployment.parameter_openapi_schema
+
+            if not isinstance(openapi_schema, dict):
                 raise HTTPException(
                     status.HTTP_409_CONFLICT,
                     detail=(
@@ -242,7 +285,7 @@ async def update_deployment(
             try:
                 validate(
                     parameters,
-                    existing_deployment.parameter_openapi_schema,
+                    openapi_schema,
                     raise_on_error=True,
                     ignore_required=True,
                 )
@@ -260,6 +303,28 @@ async def update_deployment(
         result = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
         )
+
+        for schedule in schedules_to_patch:
+            await models.deployments.update_deployment_schedule(
+                session=session,
+                deployment_id=deployment_id,
+                schedule=schedule,
+                deployment_schedule_slug=schedule.slug,
+            )
+        if schedules_to_create:
+            await models.deployments.create_deployment_schedules(
+                session=session,
+                deployment_id=deployment_id,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        schedule=schedule.schedule,  # type: ignore We will raise above if schedule is not provided
+                        active=schedule.active if schedule.active is not None else True,
+                        slug=schedule.slug,
+                        parameters=schedule.parameters,
+                    )
+                    for schedule in schedules_to_create
+                ],
+            )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
@@ -311,12 +376,12 @@ async def read_deployment(
 async def read_deployments(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
@@ -350,12 +415,12 @@ async def read_deployments(
 async def paginate_deployments(
     limit: int = dependencies.LimitBody(),
     page: int = Body(1, ge=1),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
@@ -409,7 +474,7 @@ async def paginate_deployments(
 @router.post("/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs_for_deployments(
     background_tasks: BackgroundTasks,
-    deployment_ids: List[UUID] = Body(
+    deployment_ids: list[UUID] = Body(
         default=..., description="The deployment IDs to get scheduled runs for"
     ),
     scheduled_before: DateTime = Body(
@@ -417,7 +482,7 @@ async def get_scheduled_flow_runs_for_deployments(
     ),
     limit: int = dependencies.LimitBody(),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[schemas.responses.FlowRunResponse]:
+) -> list[schemas.responses.FlowRunResponse]:
     """
     Get scheduled runs for a set of deployments. Used by a runner to poll for work.
     """
@@ -450,6 +515,7 @@ async def get_scheduled_flow_runs_for_deployments(
 
     background_tasks.add_task(
         mark_deployments_ready,
+        db=db,
         deployment_ids=deployment_ids,
     )
 
@@ -458,12 +524,12 @@ async def get_scheduled_flow_runs_for_deployments(
 
 @router.post("/count")
 async def count_deployments(
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -485,7 +551,7 @@ async def count_deployments(
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a deployment by id.
     """
@@ -717,11 +783,11 @@ async def create_flow_run_from_deployment(
         if not flow_run.state:
             flow_run.state = schemas.states.Scheduled()
 
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         model = await models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
         )
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
         return schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True
@@ -794,12 +860,19 @@ async def create_deployment_schedules(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
 
-        created = await models.deployments.create_deployment_schedules(
-            session=session,
-            deployment_id=deployment.id,
-            schedules=schedules,
-        )
-
+        try:
+            created = await models.deployments.create_deployment_schedules(
+                session=session,
+                deployment_id=deployment.id,
+                schedules=schedules,
+            )
+        except sa.exc.IntegrityError as e:
+            if "duplicate key value violates unique constraint" in str(e):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail="Schedule slugs must be unique within a deployment.",
+                )
+            raise
         return created
 
 
@@ -811,7 +884,7 @@ async def update_deployment_schedule(
         default=..., description="The updated schedule"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -844,7 +917,7 @@ async def delete_deployment_schedule(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     schedule_id: UUID = Path(..., description="The schedule id", alias="schedule_id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id

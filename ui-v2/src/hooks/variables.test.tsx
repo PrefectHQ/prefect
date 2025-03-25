@@ -4,11 +4,12 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import { components } from "@/api/prefect";
-import { createWrapper, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 
 import {
-	buildCountQuery,
-	buildVariablesQuery,
+	buildFilterCountQuery,
+	buildFilterVariablesQuery,
+	buillAllCountQuery,
 	useCreateVariable,
 	useDeleteVariable,
 	useUpdateVariable,
@@ -31,10 +32,10 @@ describe("variable hooks", () => {
 		variables: Array<components["schemas"]["Variable"]>,
 	) => {
 		server.use(
-			http.post("http://localhost:4200/api/variables/filter", () => {
+			http.post(buildApiUrl("/variables/filter"), () => {
 				return HttpResponse.json(variables);
 			}),
-			http.post("http://localhost:4200/api/variables/count", () => {
+			http.post(buildApiUrl("/variables/count"), () => {
 				return HttpResponse.json(variables.length);
 			}),
 		);
@@ -83,11 +84,15 @@ describe("variable hooks", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			buildVariablesQuery(variableFilter).queryKey,
+			buildFilterVariablesQuery(variableFilter).queryKey,
 			seedVariables(),
 		);
 		queryClient.setQueryData(
-			buildCountQuery(variableFilter).queryKey,
+			buildFilterCountQuery(variableFilter).queryKey,
+			seedVariables().length,
+		);
+		queryClient.setQueryData(
+			buillAllCountQuery().queryKey,
 			seedVariables().length,
 		);
 
@@ -146,11 +151,15 @@ describe("variable hooks", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			buildVariablesQuery(variableFilter).queryKey,
+			buildFilterVariablesQuery(variableFilter).queryKey,
 			seedVariables(),
 		);
 		queryClient.setQueryData(
-			buildCountQuery(variableFilter).queryKey,
+			buildFilterCountQuery(variableFilter).queryKey,
+			seedVariables().length,
+		);
+		queryClient.setQueryData(
+			buillAllCountQuery().queryKey,
 			seedVariables().length,
 		);
 
@@ -208,11 +217,15 @@ describe("variable hooks", () => {
 
 		// ------------ Initialize cache
 		queryClient.setQueryData(
-			buildVariablesQuery(variableFilter).queryKey,
+			buildFilterVariablesQuery(variableFilter).queryKey,
 			seedVariables(),
 		);
 		queryClient.setQueryData(
-			buildCountQuery(variableFilter).queryKey,
+			buildFilterCountQuery(variableFilter).queryKey,
+			seedVariables().length,
+		);
+		queryClient.setQueryData(
+			buillAllCountQuery().queryKey,
 			seedVariables().length,
 		);
 

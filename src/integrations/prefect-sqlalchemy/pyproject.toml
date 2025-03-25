@@ -25,7 +25,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "aiosqlite",
   "asyncpg",
@@ -71,6 +71,9 @@ omit = ["tests/*", "prefect_sqlalchemy/_version.py"]
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

@@ -1,3 +1,7 @@
+import {
+	type GlobalConcurrencyLimit,
+	useDeleteGlobalConcurrencyLimit,
+} from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,13 +12,9 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-	type GlobalConcurrencyLimit,
-	useDeleteGlobalConcurrencyLimit,
-} from "@/hooks/global-concurrency-limits";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
-type Props = {
+type GlobalConcurrencyLimitsDeleteDialogProps = {
 	limit: GlobalConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onDelete: () => void;
@@ -24,15 +24,14 @@ export const GlobalConcurrencyLimitsDeleteDialog = ({
 	limit,
 	onOpenChange,
 	onDelete,
-}: Props) => {
-	const { toast } = useToast();
+}: GlobalConcurrencyLimitsDeleteDialogProps) => {
 	const { deleteGlobalConcurrencyLimit, isPending } =
 		useDeleteGlobalConcurrencyLimit();
 
 	const handleOnClick = (id: string) => {
 		deleteGlobalConcurrencyLimit(id, {
 			onSuccess: () => {
-				toast({ description: "Concurrency limit deleted" });
+				toast.success("Concurrency limit deleted");
 			},
 			onError: (error) => {
 				const message =
@@ -58,7 +57,7 @@ export const GlobalConcurrencyLimitsDeleteDialog = ({
 					</DialogTrigger>
 					<Button
 						variant="destructive"
-						onClick={() => handleOnClick(limit?.id)}
+						onClick={() => handleOnClick(limit.id)}
 						loading={isPending}
 					>
 						Delete

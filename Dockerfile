@@ -14,7 +14,7 @@ ARG NODE_VERSION=18.18.0
 ARG EXTRA_PIP_PACKAGES=""
 
 # Build the UI distributable.
-FROM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
@@ -23,9 +23,6 @@ RUN apt-get update && \
     # Required for arm64 builds
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install a newer npm to avoid esbuild errors
-RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
@@ -37,8 +34,7 @@ RUN npm run build
 
 
 # Build the Python distributable.
-# Without this build step, versioneer cannot infer the version without git
-# see https://github.com/python-versioneer/python-versioneer/issues/215
+# Without this build step, versioningit cannot infer the version without git
 FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
 
 WORKDIR /opt/prefect
@@ -49,6 +45,9 @@ RUN apt-get update && \
     git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install UV from official image - pin to specific version for build caching
+COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
+
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
 
@@ -56,8 +55,8 @@ COPY . ./
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
-RUN rm -rf dist && python setup.py sdist
-RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
+RUN rm -rf dist && uv build --sdist --out-dir dist
+RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
@@ -81,6 +80,7 @@ FROM ${BASE_IMAGE} AS final
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
+ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
@@ -101,19 +101,13 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /uvx /bin/
-
-# Install dependencies using a temporary mount for requirements files
-RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
-    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
-    --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt
+COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during installation
-ARG PREFECT_EXTRAS
+ARG PREFECT_EXTRAS=[redis,client,otel]
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/

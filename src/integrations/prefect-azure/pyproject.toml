@@ -28,6 +28,7 @@ dependencies = [
   "azure_mgmt_containerinstance>=10.0",
   "azure-mgmt-resource>=21.2",
   "prefect>=3.1.1",
+  "prefect-docker>=0.6.2",
   "setuptools",                         #required in 3.12 to get pkg_resources (used by azureml.core)
 ]
 dynamic = ["version"]
@@ -37,6 +38,8 @@ blob_storage = ["azure-storage-blob"]
 cosmos_db = ["azure-cosmos"]
 ml_datastore = ["azureml-core"]
 all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core"]
+
+[dependency-groups]
 dev = [
   "aiohttp",
   "azure-cosmos",
@@ -88,3 +91,7 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
+prefect-docker = { path = "../prefect-docker" }

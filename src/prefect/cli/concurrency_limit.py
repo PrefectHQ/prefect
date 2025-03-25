@@ -4,15 +4,8 @@ Command line interface for working with concurrency limits.
 
 import textwrap
 
-import pendulum
 import typer
-
-try:
-    from rich.console import Group
-except ImportError:
-    # Name changed in https://github.com/Textualize/rich/blob/master/CHANGELOG.md#1100---2022-01-09
-    from rich.console import RenderGroup as Group
-
+from rich.console import Group
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
@@ -23,7 +16,7 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 
-concurrency_limit_app = PrefectTyper(
+concurrency_limit_app: PrefectTyper = PrefectTyper(
     name="concurrency-limit",
     help="Manage task-level concurrency limits.",
 )
@@ -90,8 +83,8 @@ async def inspect(tag: str):
     cl_table.add_row(
         str(result.tag),
         str(result.concurrency_limit),
-        Pretty(pendulum.instance(result.created).diff_for_humans()),
-        Pretty(pendulum.instance(result.updated).diff_for_humans()),
+        Pretty(result.created.diff_for_humans() if result.created else ""),
+        Pretty(result.updated.diff_for_humans() if result.updated else ""),
     )
 
     group = Group(
@@ -120,7 +113,9 @@ async def ls(limit: int = 15, offset: int = 0):
             limit=limit, offset=offset
         )
 
-    for cl in sorted(concurrency_limits, key=lambda c: c.updated, reverse=True):
+    for cl in sorted(
+        concurrency_limits, key=lambda c: c.updated or c.created or "", reverse=True
+    ):
         table.add_row(
             str(cl.tag),
             str(cl.id),

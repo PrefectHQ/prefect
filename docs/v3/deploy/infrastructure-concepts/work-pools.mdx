@@ -85,12 +85,7 @@ flowchart LR
 
 ### Work pool configuration
 
-You can configure work pools by using any of the following:
-
-- Prefect UI
-- Prefect CLI commands
-- [Prefect REST API](/v3/api-ref/rest-api/)
-- [Terraform provider for Prefect Cloud](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/work_pool)
+You can configure work pools by using the Prefect UI. 
 
 To manage work pools in the UI, click the **Work Pools** icon. This displays a list of currently configured work pools.
 
@@ -98,7 +93,12 @@ To manage work pools in the UI, click the **Work Pools** icon. This displays a l
 
 Select the **+** button to create a new work pool. You can specify the details about infrastructure created for this work pool.
 
-To create a work pool through the Prefect CLI, use the `prefect work-pool create` command:
+#### Using the CLI
+
+import { CLI } from "/snippets/resource-management/cli.mdx"
+import { work_pools } from "/snippets/resource-management/vars.mdx"
+
+<CLI name="work pools" href={work_pools.cli} />
 
 ```bash
 prefect work-pool create [OPTIONS] NAME
@@ -114,14 +114,6 @@ Optional configuration parameters to filter work on the pool include:
 | `--type`                                           | The type of infrastructure that can execute runs from this work pool.                                                             |
 | `--set-as-default`                                 | Whether to use the created work pool as the local default for deployment.                                         |
 | <span class="no-wrap">`--base-job-template`</span> | The path to a JSON file containing the base job template to use. If unspecified, Prefect uses the default base job template for the given worker type. |
-
-To update a work pool through the Prefect CLI, use the `prefect work-pool update` command:
-
-```bash
-prefect work-pool update [OPTIONS] NAME
-```
-
-`NAME` is the name of the work pool to update.
 
 Optional configuration parameters you can specify to update the work pool include:
 
@@ -144,6 +136,17 @@ Optional configuration parameters you can specify to update the work pool includ
     ```
 </Tip>
 
+#### Using Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="work pools" href={work_pools.tf} />
+
+#### Using the REST API
+
+import { API } from "/snippets/resource-management/api.mdx"
+
+<API name="work pools" href={work_pools.api} />
 
 ### Work pool types
 
@@ -165,7 +168,8 @@ The following work pool types are supported by Prefect:
     | Google Cloud Run - Push              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.  |
     | AWS Elastic Container Service - Push | Execute flow runs within containers on AWS ECS. Works with existing ECS clusters and serverless execution through AWS Fargate. Requires an AWS account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.   |
     | Azure Container Instances - Push     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.    |
-    | Modal - Push                         | Execute flow runs on Modal. Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
+    | Modal - Push                         | Execute [flow runs on Modal](/v3/deploy/infrastructure-examples/modal). Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
+    | Coiled                               | Execute flow runs in the cloud platform of your choice with Coiled.  Makes it easy to run in your account without setting up Kubernetes or other cloud infrastructure.  | 
     | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
   </Tab>
   <Tab title="Self-hosted Prefect server">

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import inspect
 import json
 import logging
 import sys
@@ -6,9 +9,8 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, TextIO, Type
 
-import pendulum
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme
@@ -33,11 +35,23 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
+from prefect.types._datetime import from_timestamp
+
+if sys.version_info >= (3, 12):
+    StreamHandler = logging.StreamHandler[TextIO]
+else:
+    if TYPE_CHECKING:
+        StreamHandler = logging.StreamHandler[TextIO]
+    else:
+        StreamHandler = logging.StreamHandler
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import FlowRun, TaskRun
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     @property
-    def _max_batch_size(self):
+    def max_batch_size(self) -> int:
         return max(
             PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
             - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
@@ -45,10 +59,10 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
         )
 
     @property
-    def _min_interval(self):
+    def min_interval(self) -> float | None:
         return PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
 
-    async def _handle_batch(self, items: List):
+    async def _handle_batch(self, items: list[dict[str, Any]]):
         try:
             await self._client.create_logs(items)
         except Exception as e:
@@ -67,7 +81,7 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
             yield
 
     @classmethod
-    def instance(cls: Type[Self]) -> Self:
+    def instance(cls: Type[Self], *args: Any) -> Self:
         settings = (
             PREFECT_LOGGING_TO_API_BATCH_SIZE.value(),
             PREFECT_API_URL.value(),
@@ -75,7 +89,7 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
         )
 
         # Ensure a unique worker is retrieved per relevant logging settings
-        return super().instance(*settings)
+        return super().instance(*settings, *args)
 
     def _get_size(self, item: Dict[str, Any]) -> int:
         return item.pop("__payload_size__", None) or len(json.dumps(item).encode())
@@ -89,8 +103,7 @@ class APILogHandler(logging.Handler):
     the background.
     """
 
-    @classmethod
-    def flush(cls):
+    def flush(self) -> None:
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
@@ -107,26 +120,27 @@ class APILogHandler(logging.Handler):
                 )
 
             # Not ideal, but this method is called by the stdlib and cannot return a
-            # coroutine so we just schedule the drain in the global loop thread and continue
-            from_sync.call_soon_in_loop_thread(create_call(APILogWorker.drain_all))
-            return None
+            # coroutine so we just schedule the drain in a new thread and continue
+            from_sync.call_soon_in_new_thread(create_call(APILogWorker.drain_all))
         else:
             # We set a timeout of 5s because we don't want to block forever if the worker
             # is stuck. This can occur when the handler is being shutdown and the
             # `logging._lock` is held but the worker is attempting to emit logs resulting
             # in a deadlock.
-            return APILogWorker.drain_all(timeout=5)
+            APILogWorker.drain_all(timeout=5)
 
     @classmethod
-    async def aflush(cls):
+    async def aflush(cls) -> None:
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
         """
 
-        return await APILogWorker.drain_all()
+        result = APILogWorker.drain_all()
+        if inspect.isawaitable(result):
+            await result
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Send a log to the `APILogWorker`
         """
@@ -192,11 +206,15 @@ class APILogHandler(logging.Handler):
                     " flow run contexts unless the flow run id is manually provided."
                 ) from None
 
-            if hasattr(context, "flow_run"):
-                flow_run_id = context.flow_run.id
-            elif hasattr(context, "task_run"):
-                flow_run_id = context.task_run.flow_run_id
-                task_run_id = task_run_id or context.task_run.id
+            if flow_run := getattr(context, "flow_run", None):
+                if TYPE_CHECKING:
+                    assert isinstance(flow_run, FlowRun)
+                flow_run_id = flow_run.id
+            elif task_run := getattr(context, "task_run", None):
+                if TYPE_CHECKING:
+                    assert isinstance(task_run, TaskRun)
+                flow_run_id = task_run.flow_run_id
+                task_run_id = task_run_id or task_run.id
             else:
                 raise ValueError(
                     "Encountered malformed run context. Does not contain flow or task "
@@ -206,22 +224,19 @@ class APILogHandler(logging.Handler):
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
         # prevents malformed logs from entering the queue
-        try:
-            is_uuid_like = isinstance(flow_run_id, uuid.UUID) or (
-                isinstance(flow_run_id, str) and uuid.UUID(flow_run_id)
-            )
-        except ValueError:
-            is_uuid_like = False
+        if isinstance(flow_run_id, str):
+            try:
+                flow_run_id = uuid.UUID(flow_run_id)
+            except ValueError:
+                flow_run_id = None
 
         log = LogCreate(
-            flow_run_id=flow_run_id if is_uuid_like else None,
+            flow_run_id=flow_run_id,
             task_run_id=task_run_id,
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=pendulum.from_timestamp(
-                getattr(record, "created", None) or time.time()
-            ),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),
             message=self.format(record),
         ).model_dump(mode="json")
 
@@ -239,7 +254,7 @@ class APILogHandler(logging.Handler):
 
 
 class WorkerAPILogHandler(APILogHandler):
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         # Open-source API servers do not currently support worker logs, and
         # worker logs only have an associated worker ID when connected to Cloud,
         # so we won't send worker logs to the API unless they have a worker ID.
@@ -262,9 +277,7 @@ class WorkerAPILogHandler(APILogHandler):
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=pendulum.from_timestamp(
-                getattr(record, "created", None) or time.time()
-            ),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),
             message=self.format(record),
         ).model_dump(mode="json")
 
@@ -278,13 +291,13 @@ class WorkerAPILogHandler(APILogHandler):
         return log
 
 
-class PrefectConsoleHandler(logging.StreamHandler):
+class PrefectConsoleHandler(StreamHandler):
     def __init__(
         self,
-        stream=None,
-        highlighter: Highlighter = PrefectConsoleHighlighter,
-        styles: Optional[Dict[str, str]] = None,
-        level: Union[int, str] = logging.NOTSET,
+        stream: TextIO | None = None,
+        highlighter: type[Highlighter] = PrefectConsoleHighlighter,
+        styles: dict[str, str] | None = None,
+        level: int | str = logging.NOTSET,
     ):
         """
         The default console handler for Prefect, which highlights log levels,
@@ -300,21 +313,25 @@ class PrefectConsoleHandler(logging.StreamHandler):
         styled_console = PREFECT_LOGGING_COLORS.value()
         markup_console = PREFECT_LOGGING_MARKUP.value()
         if styled_console:
-            highlighter = highlighter()
+            highlighter_instance = highlighter()
             theme = Theme(styles, inherit=False)
         else:
-            highlighter = NullHighlighter()
+            highlighter_instance = NullHighlighter()
             theme = Theme(inherit=False)
 
-        self.level = level
-        self.console = Console(
-            highlighter=highlighter,
+        if isinstance(level, str):
+            self.level: int = logging.getLevelNamesMapping()[level]
+        else:
+            self.level: int = level
+
+        self.console: Console = Console(
+            highlighter=highlighter_instance,
             theme=theme,
             file=self.stream,
             markup=markup_console,
         )
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             message = self.format(record)
             self.console.print(message, soft_wrap=True)

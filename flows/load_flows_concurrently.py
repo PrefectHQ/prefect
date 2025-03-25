@@ -28,9 +28,9 @@ async def run_stress_test():
     for i in range(10):  # Run 10 iterations
         try:
             count = await test_iteration()
-            print(f"Iteration {i+1}: Successfully loaded {count} flows")
+            print(f"Iteration {i + 1}: Successfully loaded {count} flows")
         except Exception as e:
-            print(f"Iteration {i+1}: Failed with error: {str(e)}")
+            print(f"Iteration {i + 1}: Failed with error: {str(e)}")
             return False
     return True
 

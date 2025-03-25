@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from functools import partial
 from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal
 import orjson
 import pydantic
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
-from pydantic_extra_types.pendulum_dt import Date as PydanticDate
+
+
+from ._datetime import DateTime, Date
 from pydantic import (
     BeforeValidator,
     Field,
@@ -35,8 +38,6 @@ TimeZone = Annotated[
     ),
 ]
 
-DateTime: TypeAlias = PydanticDateTime
-Date: TypeAlias = PydanticDate
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -105,7 +106,8 @@ KeyValueLabels = Annotated[
 
 
 ListOfNonEmptyStrings = Annotated[
-    List[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
+    List[str],
+    BeforeValidator(lambda x: [str(s) for s in x if str(s).strip()]),
 ]
 
 
@@ -114,7 +116,7 @@ class SecretDict(pydantic.Secret[Dict[str, Any]]):
 
 
 def validate_set_T_from_delim_string(
-    value: Union[str, T, Set[T], None], type_, delim=None
+    value: Union[str, T, Set[T], None], type_: type[T], delim: str | None = None
 ) -> Set[T]:
     """
     "no-info" before validator useful in scooping env vars
@@ -169,6 +171,8 @@ KeyValueLabelsField = Annotated[
 
 __all__ = [
     "ClientRetryExtraCodes",
+    "Date",
+    "DateTime",
     "LogLevel",
     "KeyValueLabelsField",
     "NonNegativeInteger",

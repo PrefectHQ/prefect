@@ -2,9 +2,11 @@
 Utilities for Prefect CLI commands
 """
 
+from __future__ import annotations
+
 import functools
 import traceback
-from typing import NoReturn
+from typing import Any, Callable, NoReturn
 
 import typer
 from click.exceptions import ClickException
@@ -13,7 +15,7 @@ from prefect.exceptions import MissingProfileError
 from prefect.settings import PREFECT_TEST_MODE
 
 
-def exit_with_error(message, code=1, **kwargs) -> NoReturn:
+def exit_with_error(message: str | Exception, code: int = 1, **kwargs: Any) -> NoReturn:
     """
     Utility to print a stylized error message and exit with a non-zero code
     """
@@ -24,7 +26,7 @@ def exit_with_error(message, code=1, **kwargs) -> NoReturn:
     raise typer.Exit(code)
 
 
-def exit_with_success(message, **kwargs) -> NoReturn:
+def exit_with_success(message: str, **kwargs: Any) -> NoReturn:
     """
     Utility to print a stylized success message and exit with a zero code
     """
@@ -35,9 +37,9 @@ def exit_with_success(message, **kwargs) -> NoReturn:
     raise typer.Exit(0)
 
 
-def with_cli_exception_handling(fn):
+def with_cli_exception_handling(fn: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return fn(*args, **kwargs)
         except (typer.Exit, typer.Abort, ClickException):

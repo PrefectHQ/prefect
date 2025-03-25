@@ -19,6 +19,11 @@ On the **Automations** page, select the **+** icon to create a new automation. Y
 - One or more [actions](#actions) carried out by the automation.
 - [Details](#details) about the automation, such as a name and description.
 
+import { COMBINED } from "/snippets/resource-management/combined.mdx"
+import { automations } from "/snippets/resource-management/vars.mdx"
+
+<COMBINED name="automations" hrefTF={automations.tf} hrefAPI={automations.api} hrefCLI={automations.cli} />
+
 ## Manage automations
 
 The **Automations** page provides an overview of all configured automations for your workspace.
@@ -42,13 +47,6 @@ common conditions, such as:
 - Deployment status
 - Metric thresholds, such as average duration, lateness, or completion percentage
 - Custom event triggers
-
-<Note>
-**Automations API**
-
-The [automations API](https://app.prefect.cloud/api/docs#tag/Automations) enables further programmatic customization of
-trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
-</Note>
 
 Importantly, you can configure the triggers not only in reaction to events, but also proactively: in the absence of
 an expected event.
@@ -83,7 +81,6 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 ### Create automations In Python code
 
 You can create and access any automation with the Python SDK's `Automation` class and its methods.
-
 ```python
 from prefect.automations import Automation
 from prefect.events.schemas.automations import EventTrigger
@@ -340,11 +337,11 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-- [work_pool](https://prefect-python-sdk-docs.netlify.app/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+- [flow_run](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
+- [work_pool](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool)
 
 In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
 

@@ -253,8 +253,7 @@ def visit_collection(
     context: dict[str, VT] = ...,
     remove_annotations: bool = ...,
     _seen: Optional[set[int]] = ...,
-) -> Any:
-    ...
+) -> Any: ...
 
 
 @overload
@@ -267,8 +266,7 @@ def visit_collection(
     context: None = None,
     remove_annotations: bool = ...,
     _seen: Optional[set[int]] = ...,
-) -> Any:
-    ...
+) -> Any: ...
 
 
 @overload
@@ -281,8 +279,7 @@ def visit_collection(
     context: dict[str, VT] = ...,
     remove_annotations: bool = ...,
     _seen: Optional[set[int]] = ...,
-) -> Optional[Any]:
-    ...
+) -> Optional[Any]: ...
 
 
 @overload
@@ -295,8 +292,7 @@ def visit_collection(
     context: None = None,
     remove_annotations: bool = ...,
     _seen: Optional[set[int]] = ...,
-) -> Optional[Any]:
-    ...
+) -> Optional[Any]: ...
 
 
 @overload
@@ -309,8 +305,7 @@ def visit_collection(
     context: dict[str, VT] = ...,
     remove_annotations: bool = ...,
     _seen: Optional[set[int]] = ...,
-) -> None:
-    ...
+) -> None: ...
 
 
 def visit_collection(
@@ -545,13 +540,11 @@ def visit_collection(
 @overload
 def remove_nested_keys(
     keys_to_remove: list[HashableT], obj: NestedDict[HashableT, VT]
-) -> NestedDict[HashableT, VT]:
-    ...
+) -> NestedDict[HashableT, VT]: ...
 
 
 @overload
-def remove_nested_keys(keys_to_remove: list[HashableT], obj: Any) -> Any:
-    ...
+def remove_nested_keys(keys_to_remove: list[HashableT], obj: Any) -> Any: ...
 
 
 def remove_nested_keys(
@@ -579,13 +572,13 @@ def remove_nested_keys(
 
 
 @overload
-def distinct(iterable: Iterable[HashableT], key: None = None) -> Iterator[HashableT]:
-    ...
+def distinct(
+    iterable: Iterable[HashableT], key: None = None
+) -> Iterator[HashableT]: ...
 
 
 @overload
-def distinct(iterable: Iterable[T], key: Callable[[T], Hashable]) -> Iterator[T]:
-    ...
+def distinct(iterable: Iterable[T], key: Callable[[T], Hashable]) -> Iterator[T]: ...
 
 
 def distinct(
@@ -609,15 +602,13 @@ def distinct(
 @overload
 def get_from_dict(
     dct: NestedDict[str, VT], keys: Union[str, list[str]], default: None = None
-) -> Optional[VT]:
-    ...
+) -> Optional[VT]: ...
 
 
 @overload
 def get_from_dict(
     dct: NestedDict[str, VT], keys: Union[str, list[str]], default: R
-) -> Union[VT, R]:
-    ...
+) -> Union[VT, R]: ...
 
 
 def get_from_dict(

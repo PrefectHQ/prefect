@@ -5,11 +5,10 @@ Routes for interacting with flow run objects.
 import csv
 import datetime
 import io
-from typing import Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 import orjson
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     Body,
@@ -30,6 +29,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
+from prefect.server.api.workers import WorkerLookups
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import FlowRunGraphTooLarge
 from prefect.server.models.flow_runs import (
@@ -37,7 +37,10 @@ from prefect.server.models.flow_runs import (
     read_flow_run_graph,
 )
 from prefect.server.orchestration import dependencies as orchestration_dependencies
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    FlowRunOrchestrationPolicy,
+    TaskRunOrchestrationPolicy,
+)
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import (
     FlowRunPaginationResponse,
@@ -45,11 +48,15 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities import schema_tools
 
-logger = get_logger("server.api")
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
+logger: "logging.Logger" = get_logger("server.api")
+
+router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
 @router.post("/")
@@ -62,12 +69,15 @@ async def create_flow_run(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version: str = Depends(dependencies.provide_request_api_version),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
 ) -> schemas.responses.FlowRunResponse:
     """
     Create a flow run. If a flow run with the same flow_id and
     idempotency key already exists, the existing flow run will be returned.
 
     If no state is provided, the flow run will be created in a PENDING state.
+
+    For more information, see https://docs.prefect.io/v3/develop/write-flows.
     """
     # hydrate the input model into a full flow run / state model
     flow_run_object = schemas.core.FlowRun(
@@ -80,15 +90,34 @@ async def create_flow_run(
     if not flow_run_object.state:
         flow_run_object.state = schemas.states.Pending()
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
+        if flow_run.work_pool_name:
+            if flow_run.work_queue_name:
+                work_queue_id = await worker_lookups._get_work_queue_id_from_name(
+                    session=session,
+                    work_pool_name=flow_run.work_pool_name,
+                    work_queue_name=flow_run.work_queue_name,
+                )
+            else:
+                work_queue_id = (
+                    await worker_lookups._get_default_work_queue_id_from_work_pool_name(
+                        session=session,
+                        work_pool_name=flow_run.work_pool_name,
+                    )
+                )
+        else:
+            work_queue_id = None
+
+        flow_run_object.work_queue_id = work_queue_id
+
         model = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=flow_run_object,
             orchestration_parameters=orchestration_parameters,
         )
-        if model.created >= now:
+        if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
 
         return schemas.responses.FlowRunResponse.model_validate(
@@ -101,7 +130,7 @@ async def update_flow_run(
     flow_run: schemas.actions.FlowRunUpdate,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates a flow run.
     """
@@ -305,7 +334,7 @@ async def read_flow_run(
         )
 
 
-@router.get("/{id}/graph")
+@router.get("/{id}/graph", tags=["Flow Run Graph"])
 async def read_flow_run_graph_v1(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -319,7 +348,7 @@ async def read_flow_run_graph_v1(
         )
 
 
-@router.get("/{id:uuid}/graph-v2")
+@router.get("/{id:uuid}/graph-v2", tags=["Flow Run Graph"])
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     since: DateTime = Query(
@@ -349,23 +378,23 @@ async def read_flow_run_graph_v2(
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    run_input: Optional[Dict] = Body(default=None, embed=True),
+    run_input: Optional[dict[str, Any]] = Body(default=None, embed=True),
     response: Response = None,
-    flow_policy: Type[BaseOrchestrationPolicy] = Depends(
+    flow_policy: type[FlowRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
-    task_policy: BaseOrchestrationPolicy = Depends(
+    task_policy: type[TaskRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_task_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version=Depends(dependencies.provide_request_api_version),
+    api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
     """
     Resume a paused flow run.
     """
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
@@ -453,7 +482,7 @@ async def resume_flow_run(
                 session=session,
                 flow_run_id=flow_run_id,
                 state=schemas.states.Scheduled(
-                    name="Resuming", scheduled_time=pendulum.now("UTC")
+                    name="Resuming", scheduled_time=now("UTC")
                 ),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
@@ -484,7 +513,10 @@ async def resume_flow_run(
             )
 
         # set the 201 if a new state was created
-        if orchestration_result.state and orchestration_result.state.timestamp >= now:
+        if (
+            orchestration_result.state
+            and orchestration_result.state.timestamp >= right_now
+        ):
             response.status_code = status.HTTP_201_CREATED
         else:
             response.status_code = status.HTTP_200_OK
@@ -539,7 +571,7 @@ async def read_flow_runs(
 async def delete_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a flow run by id.
     """
@@ -565,21 +597,21 @@ async def set_flow_run_state(
         ),
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    response: Response = None,
-    flow_policy: Type[BaseOrchestrationPolicy] = Depends(
+    flow_policy: type[FlowRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version=Depends(dependencies.provide_request_api_version),
+    response: Response = None,
+    api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     # create the state
     async with db.session_context(
@@ -596,7 +628,7 @@ async def set_flow_run_state(
         )
 
     # set the 201 if a new state was created
-    if orchestration_result.state and orchestration_result.state.timestamp >= now:
+    if orchestration_result.state and orchestration_result.state.timestamp >= right_now:
         response.status_code = status.HTTP_201_CREATED
     else:
         response.status_code = status.HTTP_200_OK
@@ -611,7 +643,7 @@ async def create_flow_run_input(
     value: bytes = Body(..., description="The value of the input"),
     sender: Optional[str] = Body(None, description="The sender of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Create a key/value input for a flow run.
     """
@@ -693,7 +725,7 @@ async def delete_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Path(..., description="The input key", alias="key"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a flow run input
     """
@@ -848,7 +880,7 @@ async def update_flow_run_labels(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     labels: Dict[str, Any] = Body(..., description="The labels to update"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update the labels of a flow run.
     """

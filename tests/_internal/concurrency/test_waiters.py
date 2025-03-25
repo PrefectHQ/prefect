@@ -129,9 +129,9 @@ def test_sync_waiter_timeout_in_worker_thread():
     assert t1 - t0 < 2
 
     assert call.cancelled()
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on cancel"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on cancel"
+    )
 
 
 @pytest.mark.skip(reason="This test is flaky and should be rewritten")
@@ -170,9 +170,9 @@ def test_sync_waiter_timeout_in_main_thread():
     assert t1 - t0 < 2
     assert waiting_callback.cancelled()
     assert call.cancelled()
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on cancel"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on cancel"
+    )
 
 
 async def test_async_waiter_timeout_in_worker_thread():
@@ -196,9 +196,9 @@ async def test_async_waiter_timeout_in_worker_thread():
         call.result()
 
     assert call.cancelled()
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on cancel"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on cancel"
+    )
 
 
 @pytest.mark.skip(reason="This test hangs and should be rewritten")
@@ -232,9 +232,9 @@ async def test_async_waiter_timeout_in_main_thread():
     assert t1 - t0 < 2
     assert call.cancelled()
     assert waiting_callback.cancelled()
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on cancel"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on cancel"
+    )
 
 
 async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
@@ -283,9 +283,9 @@ async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise
     with pytest.raises(exception_cls, match="test"):
         call.result()
 
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on exception"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on exception"
+    )
 
 
 @pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
@@ -318,9 +318,9 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
     with pytest.raises(exception_cls, match="test"):
         callback.result()
 
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on exception"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on exception"
+    )
 
 
 @pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
@@ -343,9 +343,9 @@ def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
     with pytest.raises(exception_cls, match="test"):
         call.result()
 
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on exception"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on exception"
+    )
 
 
 @pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
@@ -376,6 +376,6 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
     # to the main thread should have the error
     with pytest.raises(exception_cls, match="test"):
         callback.result()
-    assert (
-        done_callback.result(timeout=0) == 1
-    ), "The done callback should still be called on exception"
+    assert done_callback.result(timeout=0) == 1, (
+        "The done callback should still be called on exception"
+    )

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import urllib.parse
 from pathlib import Path
@@ -92,7 +94,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     )
 
     @field_validator("basepath", mode="before")
-    def cast_pathlib(cls, value):
+    def cast_pathlib(cls, value: str | Path | None) -> str | None:
+        if value is None:
+            return value
         return stringify_path(value)
 
     def _resolve_path(self, path: str, validate: bool = False) -> Path:
@@ -132,7 +136,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if not from_path:
-            from_path = Path(self.basepath).expanduser().resolve()
+            from_path = Path(self.basepath or ".").expanduser().resolve()
         else:
             from_path = self._resolve_path(from_path)
 
@@ -277,7 +281,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     _filesystem: fsspec.AbstractFileSystem = None
 
     @field_validator("basepath")
-    def check_basepath(cls, value):
+    def check_basepath(cls, value: str) -> str:
         return validate_basepath(value)
 
     def _resolve_path(self, path: str) -> str:

@@ -16,7 +16,9 @@ from prefect.client.cloud import get_cloud_client
 from prefect.exceptions import ObjectNotFound
 from prefect.settings import PREFECT_API_URL
 
-webhook_app = PrefectTyper(name="webhook", help="Manage Prefect Cloud Webhooks")
+webhook_app: PrefectTyper = PrefectTyper(
+    name="webhook", help="Manage Prefect Cloud Webhooks"
+)
 cloud_app.add_typer(webhook_app, aliases=["webhooks"])
 
 
@@ -102,7 +104,7 @@ async def create(
                 "template": template,
             },
         )
-        app.console.print(f'Successfully created webhook {response["name"]}')
+        app.console.print(f"Successfully created webhook {response['name']}")
 
 
 @webhook_app.command()
@@ -122,7 +124,7 @@ async def rotate(webhook_id: UUID):
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
         response = await client.request("POST", f"/webhooks/{webhook_id}/rotate")
-        app.console.print(f'Successfully rotated webhook URL to {response["slug"]}')
+        app.console.print(f"Successfully rotated webhook URL to {response['slug']}")
 
 
 @webhook_app.command()

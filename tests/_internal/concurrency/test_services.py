@@ -97,6 +97,14 @@ def test_instance_returns_new_instance_with_unique_key():
     assert isinstance(new_instance, MockService)
 
 
+def test_different_subclasses_have_unique_instances():
+    instance = MockService.instance()
+    assert isinstance(instance, MockService)
+    new_instance = MockBatchedService.instance()
+    assert new_instance is not instance
+    assert isinstance(new_instance, MockBatchedService)
+
+
 def test_instance_returns_same_instance_after_error():
     event = threading.Event()
 
@@ -475,8 +483,7 @@ def test_queue_service_start_failure_contains_traceback_only_at_debug(
     class ExceptionOnHandleService(QueueService[int]):
         exception_msg = "Oh no!"
 
-        async def _handle(self):
-            ...
+        async def _handle(self): ...
 
         async def _main_loop(self):
             raise Exception(self.exception_msg)

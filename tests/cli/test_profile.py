@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -6,6 +7,7 @@ import respx
 from httpx import Response
 
 from prefect.cli.profile import show_profile_changes
+from prefect.client.cloud import CloudUnauthorizedError
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
@@ -19,12 +21,14 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.settings.profiles import _read_profiles_from
+from prefect.settings.profiles import (
+    _read_profiles_from,  # type: ignore[reportPrivateUsage]
+)
 from prefect.testing.cli import invoke_and_assert
 
 
 @pytest.fixture(autouse=True)
-def temporary_profiles_path(tmp_path):
+def temporary_profiles_path(tmp_path: Path):
     path = tmp_path / "profiles.toml"
     with temporary_settings({PREFECT_PROFILES_PATH: path}):
         yield path
@@ -41,7 +45,7 @@ def test_use_profile_unknown_key():
 class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def profiles(self):
-        prefect_cloud_api_url = "https://mock-cloud.prefect.io/api"
+        prefect_cloud_api_url = "https://api.prefect.cloud/api"
         prefect_cloud_server_api_url = (
             f"{prefect_cloud_api_url}/accounts/{uuid4()}/workspaces/{uuid4()}"
         )
@@ -79,39 +83,58 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def authorized_cloud(self):
-        # attempts to reach the Cloud 2 workspaces endpoint implies a good connection
+        # attempts to reach the Cloud API implies a good connection
         # to Prefect Cloud as opposed to a hosted Prefect server instance
-        with respx.mock(using="httpx") as respx_mock:
-            authorized = respx_mock.get(
-                "https://mock-cloud.prefect.io/api/me/workspaces",
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            # Mock the health endpoint for cloud
+            health = respx_mock.get(
+                "https://api.prefect.cloud/api/health",
+            ).mock(return_value=Response(200, json={}))
+
+            # Keep the workspaces endpoint mock for backward compatibility
+            respx_mock.get(
+                "https://api.prefect.cloud/api/me/workspaces",
             ).mock(return_value=Response(200, json=[]))
 
-            yield authorized
+            yield health
 
     @pytest.fixture
     def unauthorized_cloud(self):
         # requests to cloud with an invalid key will result in a 401 response
-        with respx.mock(using="httpx") as respx_mock:
-            unauthorized = respx_mock.get(
-                "https://mock-cloud.prefect.io/api/me/workspaces",
-            ).mock(return_value=Response(401, json={}))
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            # Mock the health endpoint for cloud
+            health = respx_mock.get(
+                "https://api.prefect.cloud/api/health",
+            ).mock(side_effect=CloudUnauthorizedError("Invalid API key"))
 
-            yield unauthorized
+            # Keep the workspaces endpoint mock for backward compatibility
+            respx_mock.get(
+                "https://api.prefect.cloud/api/me/workspaces",
+            ).mock(side_effect=CloudUnauthorizedError("Invalid API key"))
+
+            yield health
 
     @pytest.fixture
     def unhealthy_cloud(self):
-        # Cloud may respond with a 500 error when having connection issues
-        with respx.mock(using="httpx") as respx_mock:
-            unhealthy_cloud = respx_mock.get(
-                "https://mock-cloud.prefect.io/api/me/workspaces",
-            ).mock(return_value=Response(500, json={}))
+        # requests to cloud with an invalid key will result in a 401 response
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            # Mock the health endpoint for cloud with an error
+            unhealthy = respx_mock.get(
+                "https://api.prefect.cloud/api/health",
+            ).mock(side_effect=self.connection_error)
 
-            yield unhealthy_cloud
+            # Keep the workspaces endpoint mock for backward compatibility
+            respx_mock.get(
+                "https://api.prefect.cloud/api/me/workspaces",
+            ).mock(side_effect=self.connection_error)
+
+            yield unhealthy
 
     @pytest.fixture
     def hosted_server_has_no_cloud_api(self):
         # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
-        with respx.mock(using="httpx") as respx_mock:
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            # We don't need to mock the cloud API endpoint anymore since we check server type first
             hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/me/workspaces",
             ).mock(return_value=Response(404, json={}))
@@ -120,7 +143,7 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def healthy_hosted_server(self):
-        with respx.mock(using="httpx") as respx_mock:
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
             hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/health",
             ).mock(return_value=Response(200, json={}))
@@ -132,14 +155,15 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def unhealthy_hosted_server(self):
-        with respx.mock(using="httpx") as respx_mock:
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
             badly_hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/health",
             ).mock(side_effect=self.connection_error)
 
             yield badly_hosted
 
-    def test_authorized_cloud_connection(self, authorized_cloud, profiles):
+    @pytest.mark.usefixtures("authorized_cloud")
+    def test_authorized_cloud_connection(self, profiles: ProfilesCollection):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "prefect-cloud"],
@@ -152,7 +176,8 @@ class TestChangingProfileAndCheckingServerConnection:
         profiles = load_profiles()
         assert profiles.active_name == "prefect-cloud"
 
-    def test_unauthorized_cloud_connection(self, unauthorized_cloud, profiles):
+    @pytest.mark.usefixtures("unauthorized_cloud")
+    def test_unauthorized_cloud_connection(self, profiles: ProfilesCollection):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "prefect-cloud-with-invalid-key"],
@@ -166,7 +191,8 @@ class TestChangingProfileAndCheckingServerConnection:
         profiles = load_profiles()
         assert profiles.active_name == "prefect-cloud-with-invalid-key"
 
-    def test_unhealthy_cloud_connection(self, unhealthy_cloud, profiles):
+    @pytest.mark.usefixtures("unhealthy_cloud")
+    def test_unhealthy_cloud_connection(self, profiles: ProfilesCollection):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "prefect-cloud"],
@@ -177,9 +203,8 @@ class TestChangingProfileAndCheckingServerConnection:
         profiles = load_profiles()
         assert profiles.active_name == "prefect-cloud"
 
-    def test_using_hosted_server(
-        self, hosted_server_has_no_cloud_api, healthy_hosted_server, profiles
-    ):
+    @pytest.mark.usefixtures("hosted_server_has_no_cloud_api", "healthy_hosted_server")
+    def test_using_hosted_server(self, profiles: ProfilesCollection):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-server"],
@@ -192,9 +217,10 @@ class TestChangingProfileAndCheckingServerConnection:
         profiles = load_profiles()
         assert profiles.active_name == "hosted-server"
 
-    def test_unhealthy_hosted_server(
-        self, hosted_server_has_no_cloud_api, unhealthy_hosted_server, profiles
-    ):
+    @pytest.mark.usefixtures(
+        "hosted_server_has_no_cloud_api", "unhealthy_hosted_server"
+    )
+    def test_unhealthy_hosted_server(self, profiles: ProfilesCollection):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-server"],
@@ -205,7 +231,7 @@ class TestChangingProfileAndCheckingServerConnection:
         profiles = load_profiles()
         assert profiles.active_name == "hosted-server"
 
-    def test_using_ephemeral_server(self, profiles):
+    def test_using_ephemeral_server(self, profiles: ProfilesCollection):
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "ephemeral"],
@@ -344,15 +370,44 @@ def test_create_profile_from_unknown_profile():
 
 
 def test_create_profile_with_existing_profile():
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active=None,
+        )
+    )
+
     invoke_and_assert(
-        ["profile", "create", "ephemeral"],
+        ["profile", "create", "foo"],
         expected_output="""
-            Profile 'ephemeral' already exists.
+            Profile 'foo' already exists.
             To create a new profile, remove the existing profile first:
 
-                prefect profile delete 'ephemeral'
+                prefect profile delete 'foo'
             """,
         expected_code=1,
+    )
+
+
+def test_create_profile_with_name_conflict_vs_unsaved_default():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/15643
+    """
+    invoke_and_assert(
+        ["profile", "create", "local"],
+        expected_output="""
+            Created profile with properties:
+                name - 'local'
+                from name - None
+
+            Use created profile for future, subsequent commands:
+                prefect profile use 'local'
+
+            Use created profile temporarily for a single command:
+                prefect -p 'local' config view
+            """,
     )
 
 
@@ -451,9 +506,9 @@ def test_rename_profile_renames_profile():
 
     profiles = load_profiles()
     assert "foo" not in profiles, "The original profile should not exist anymore"
-    assert profiles["bar"].settings == {
-        PREFECT_API_KEY: "foo"
-    }, "Settings should be retained"
+    assert profiles["bar"].settings == {PREFECT_API_KEY: "foo"}, (
+        "Settings should be retained"
+    )
     assert profiles.active_name != "bar", "The active profile should not be changed"
 
 
@@ -477,7 +532,9 @@ def test_rename_profile_changes_active_profile():
     assert profiles.active_name == "bar"
 
 
-def test_rename_profile_warns_on_environment_variable_active_profile(monkeypatch):
+def test_rename_profile_warns_on_environment_variable_active_profile(
+    monkeypatch: pytest.MonkeyPatch,
+):
     save_profiles(
         ProfilesCollection(
             profiles=[
@@ -500,9 +557,9 @@ def test_rename_profile_warns_on_environment_variable_active_profile(monkeypatch
     )
 
     profiles = load_profiles()
-    assert (
-        profiles.active_name != "foo"
-    ), "The active profile should not be updated in the file"
+    assert profiles.active_name != "foo", (
+        "The active profile should not be updated in the file"
+    )
 
 
 def test_inspect_profile_unknown_name():
@@ -552,7 +609,7 @@ def test_inspect_profile_without_settings():
 
 
 class TestProfilesPopulateDefaults:
-    def test_populate_defaults(self, temporary_profiles_path):
+    def test_populate_defaults(self, temporary_profiles_path: Path):
         default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
 
         assert not temporary_profiles_path.exists()
@@ -583,7 +640,9 @@ class TestProfilesPopulateDefaults:
         for name in default_profiles.names:
             assert populated_profiles[name].settings == default_profiles[name].settings
 
-    def test_populate_defaults_with_existing_profiles(self, temporary_profiles_path):
+    def test_populate_defaults_with_existing_profiles(
+        self, temporary_profiles_path: Path
+    ):
         existing_profiles = ProfilesCollection(
             profiles=[Profile(name="existing", settings={PREFECT_API_KEY: "test_key"})],
             active="existing",
@@ -615,7 +674,7 @@ class TestProfilesPopulateDefaults:
         assert "existing" in backup_profiles.names
         assert backup_profiles["existing"].settings == {PREFECT_API_KEY: "test_key"}
 
-    def test_populate_defaults_no_changes_needed(self, temporary_profiles_path):
+    def test_populate_defaults_no_changes_needed(self, temporary_profiles_path: Path):
         shutil.copy(DEFAULT_PROFILES_PATH, temporary_profiles_path)
 
         invoke_and_assert(
@@ -628,7 +687,7 @@ class TestProfilesPopulateDefaults:
 
         assert temporary_profiles_path.read_text() == DEFAULT_PROFILES_PATH.read_text()
 
-    def test_show_profile_changes(self, capsys):
+    def test_show_profile_changes(self, capsys: pytest.CaptureFixture[str]):
         default_profiles = ProfilesCollection(
             profiles=[
                 Profile(

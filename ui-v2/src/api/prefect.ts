@@ -51,6 +51,8 @@ export interface paths {
          * Create Flow
          * @description Gracefully creates a new flow from the provided schema. If a flow with the
          *     same name already exists, the existing flow is returned.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/write-flows.
          */
         post: operations["create_flow_flows__post"];
         delete?: never;
@@ -182,6 +184,8 @@ export interface paths {
          *     idempotency key already exists, the existing flow run will be returned.
          *
          *     If no state is provided, the flow run will be created in a PENDING state.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/write-flows.
          */
         post: operations["create_flow_run_flow_runs__post"];
         delete?: never;
@@ -518,6 +522,8 @@ export interface paths {
          *     run will be returned.
          *
          *     If no state is provided, the task run will be created in a PENDING state.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/write-tasks.
          */
         post: operations["create_task_run_task_runs__post"];
         delete?: never;
@@ -614,6 +620,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/task_runs/paginate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paginate Task Runs
+         * @description Pagination query for task runs.
+         */
+        post: operations["paginate_task_runs_task_runs_paginate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/task_runs/{id}/set_state": {
         parameters: {
             query?: never;
@@ -644,6 +670,8 @@ export interface paths {
         /**
          * Read Flow Run State
          * @description Get a flow run state by id.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/write-flows#final-state-determination.
          */
         get: operations["read_flow_run_state_flow_run_states__id__get"];
         put?: never;
@@ -684,6 +712,8 @@ export interface paths {
         /**
          * Read Task Run State
          * @description Get a task run state by id.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/write-tasks.
          */
         get: operations["read_task_run_state_task_run_states__id__get"];
         put?: never;
@@ -726,6 +756,8 @@ export interface paths {
         /**
          * Create Flow Run Notification Policy
          * @description Creates a new flow run notification policy.
+         *
+         *     For more information, see https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations.
          */
         post: operations["create_flow_run_notification_policy_flow_run_notification_policies__post"];
         delete?: never;
@@ -798,6 +830,8 @@ export interface paths {
          *
          *     If the deployment has an active schedule, flow runs will be scheduled.
          *     When upserting, any scheduled runs from the existing deployment will be deleted.
+         *
+         *     For more information, see https://docs.prefect.io/v3/deploy.
          */
         post: operations["create_deployment_deployments__post"];
         delete?: never;
@@ -1169,6 +1203,8 @@ export interface paths {
         /**
          * Create Logs
          * @description Create new logs from the provided schema.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/logging.
          */
         post: operations["create_logs_logs__post"];
         delete?: never;
@@ -1206,7 +1242,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Concurrency Limit */
+        /**
+         * Create Concurrency Limit
+         * @description Create a task run concurrency limit.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
+         */
         post: operations["create_concurrency_limit_concurrency_limits__post"];
         delete?: never;
         options?: never;
@@ -1345,7 +1386,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Concurrency Limit V2 */
+        /**
+         * Create Concurrency Limit V2
+         * @description Create a task run concurrency limit.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.
+         */
         post: operations["create_concurrency_limit_v2_v2_concurrency_limits__post"];
         delete?: never;
         options?: never;
@@ -1434,7 +1480,9 @@ export interface paths {
         put?: never;
         /**
          * Create Block Type
-         * @description Create a new block type
+         * @description Create a new block type.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
          */
         post: operations["create_block_type_block_types__post"];
         delete?: never;
@@ -1571,6 +1619,8 @@ export interface paths {
         /**
          * Create Block Document
          * @description Create a new block document.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
          */
         post: operations["create_block_document_block_documents__post"];
         delete?: never;
@@ -1651,6 +1701,8 @@ export interface paths {
          * Create Work Pool
          * @description Creates a new work pool. If a work pool with the same
          *     name already exists, an error will be raised.
+         *
+         *     For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.
          */
         post: operations["create_work_pool_work_pools__post"];
         delete?: never;
@@ -1760,6 +1812,8 @@ export interface paths {
          * Create Work Queue
          * @description Creates a new work pool queue. If a work pool queue with the same
          *     name already exists, an error will be raised.
+         *
+         *     For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_pools__work_pool_name__queues_post"];
         delete?: never;
@@ -1885,6 +1939,8 @@ export interface paths {
         /**
          * Read Task Workers
          * @description Read active task workers. Optionally filter by task keys.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
          */
         post: operations["read_task_workers_task_workers_filter_post"];
         delete?: never;
@@ -1908,6 +1964,8 @@ export interface paths {
          *
          *     If a work queue with the same name already exists, an error
          *     will be raised.
+         *
+         *     For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
          */
         post: operations["create_work_queue_work_queues__post"];
         delete?: never;
@@ -2033,7 +2091,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Artifact */
+        /**
+         * Create Artifact
+         * @description Create an artifact.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/artifacts.
+         */
         post: operations["create_artifact_artifacts__post"];
         delete?: never;
         options?: never;
@@ -2178,7 +2241,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Block Schema */
+        /**
+         * Create Block Schema
+         * @description Create a block schema.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
+         */
         post: operations["create_block_schema_block_schemas__post"];
         delete?: never;
         options?: never;
@@ -2254,7 +2322,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Available Block Capabilities */
+        /**
+         * Read Available Block Capabilities
+         * @description Get available block capabilities.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/blocks.
+         */
         get: operations["read_available_block_capabilities_block_capabilities__get"];
         put?: never;
         post?: never;
@@ -2293,7 +2366,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Variable */
+        /**
+         * Create Variable
+         * @description Create a variable.
+         *
+         *     For more information, see https://docs.prefect.io/v3/develop/variables.
+         */
         post: operations["create_variable_variables__post"];
         delete?: never;
         options?: never;
@@ -2404,7 +2482,9 @@ export interface paths {
         put?: never;
         /**
          * Create Events
-         * @description Record a batch of Events
+         * @description Record a batch of Events.
+         *
+         *     For more information, see https://docs.prefect.io/v3/automate/events/events.
          */
         post: operations["create_events_events_post"];
         delete?: never;
@@ -2487,7 +2567,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Automation */
+        /**
+         * Create Automation
+         * @description Create an automation.
+         *
+         *     For more information, see https://docs.prefect.io/v3/automate.
+         */
         post: operations["create_automation_automations__post"];
         delete?: never;
         options?: never;
@@ -3625,7 +3710,9 @@ export interface components {
              * Fields
              * @description The block schema's field schema
              */
-            fields?: Record<string, never>;
+            fields?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Type Id
              * @description A block type ID
@@ -3948,12 +4035,12 @@ export interface components {
         };
         /** Body_count_deployments_deployments_count_post */
         Body_count_deployments_deployments_count_post: {
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
         /** Body_count_flow_runs_flow_runs_count_post */
         Body_count_flow_runs_flow_runs_count_post: {
@@ -4168,12 +4255,12 @@ export interface components {
              * @default 1
              */
             page: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["DeploymentSort"];
             /**
@@ -4217,6 +4304,25 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["FlowSort"];
+            /**
+             * Limit
+             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_paginate_task_runs_task_runs_paginate_post */
+        Body_paginate_task_runs_task_runs_paginate_post: {
+            /** @default ID_DESC */
+            sort: components["schemas"]["TaskRunSort"];
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -4354,12 +4460,12 @@ export interface components {
              * @default 0
              */
             offset: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["DeploymentSort"];
             /**
@@ -4573,11 +4679,6 @@ export interface components {
              */
             scheduled_before?: string;
             /**
-             * Agent Id
-             * @description An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue.
-             */
-            agent_id?: string | null;
-            /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
              */
@@ -4718,10 +4819,14 @@ export interface components {
         };
         /** Body_validate_obj_ui_schemas_validate_post */
         Body_validate_obj_ui_schemas_validate_post: {
-            /** Json Schema */
-            json_schema: Record<string, never>;
+            /** Schema */
+            schema: {
+                [key: string]: unknown;
+            };
             /** Values */
-            values: Record<string, never>;
+            values: {
+                [key: string]: unknown;
+            };
         };
         /** Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post */
         Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post: {
@@ -5235,12 +5340,16 @@ export interface components {
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Tags
              * @description A list of deployment tags.
@@ -5278,7 +5387,9 @@ export interface components {
              * Job Variables
              * @description Overrides for the flow's infrastructure configuration.
              */
-            job_variables?: Record<string, never>;
+            job_variables?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * DeploymentFilter
@@ -5383,6 +5494,11 @@ export interface components {
              */
             all_?: string[] | null;
             /**
+             * Any
+             * @description A list of tags to include
+             */
+            any_?: string[] | null;
+            /**
              * Is Null
              * @description If true, only include deployments without tags
              */
@@ -5412,7 +5528,9 @@ export interface components {
              */
             name?: string;
             /** Parameters */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Enforce Parameter Schema
              * @description Whether or not to enforce the parameter schema on this run.
@@ -5434,12 +5552,21 @@ export interface components {
              * @description An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned.
              */
             idempotency_key?: string | null;
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
             /** Parent Task Run Id */
             parent_task_run_id?: string | null;
             /** Work Queue Name */
             work_queue_name?: string | null;
             /** Job Variables */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
         };
         /**
          * DeploymentOrFlowNameFilter
@@ -5554,7 +5681,9 @@ export interface components {
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | Record<string, never> | null;
             /**
              * Path
              * @description The path to the working directory for the workflow, relative to remote storage or an absolute path.
@@ -5633,6 +5762,16 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description A dictionary of parameter value overrides.
+             */
+            parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique slug for the schedule.
+             */
+            slug?: string | null;
         };
         /** DeploymentScheduleCreate */
         DeploymentScheduleCreate: {
@@ -5652,6 +5791,16 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description A dictionary of parameter value overrides.
+             */
+            parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique identifier for the schedule.
+             */
+            slug?: string | null;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -5670,6 +5819,16 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description A dictionary of parameter value overrides.
+             */
+            parameters?: Record<string, never>;
+            /**
+             * Slug
+             * @description A unique identifier for the schedule.
+             */
+            slug?: string | null;
         };
         /**
          * DeploymentSort
@@ -5702,7 +5861,7 @@ export interface components {
              * Schedules
              * @description A list of schedules for the deployment.
              */
-            schedules?: components["schemas"]["DeploymentScheduleCreate"][];
+            schedules?: components["schemas"]["DeploymentScheduleUpdate"][];
             /**
              * Concurrency Limit
              * @description The deployment's concurrency limit.
@@ -5715,6 +5874,11 @@ export interface components {
              * @description Parameters for flow runs scheduled by the deployment.
              */
             parameters?: Record<string, never> | null;
+            /**
+             * Parameter Openapi Schema
+             * @description The parameter schema of the flow, including defaults.
+             */
+            parameter_openapi_schema?: Record<string, never> | null;
             /**
              * Tags
              * @description A list of deployment tags.
@@ -5734,6 +5898,8 @@ export interface components {
              * @description Overrides for the flow's infrastructure configuration.
              */
             job_variables?: Record<string, never> | null;
+            /** Pull Steps */
+            pull_steps?: Record<string, never>[] | null;
             /** Entrypoint */
             entrypoint?: string | null;
             /** Storage Document Id */
@@ -6417,6 +6583,21 @@ export interface components {
              */
             idempotency_key?: string | null;
             /**
+             * Work Pool Name
+             * @description The name of the work pool to run the flow run in.
+             */
+            work_pool_name?: string | null;
+            /**
+             * Work Queue Name
+             * @description The name of the work queue to place the flow run in.
+             */
+            work_queue_name?: string | null;
+            /**
+             * Job Variables
+             * @description The job variables to use when setting up flow run infrastructure.
+             */
+            job_variables?: Record<string, never> | null;
+            /**
              * Deployment Id
              * @deprecated
              * @description DEPRECATED: The id of the deployment associated with this flow run, if available.
@@ -6941,7 +7122,7 @@ export interface components {
              * Pause Keys
              * @description Tracks pauses this run has observed.
              */
-            pause_keys?: unknown[] | null;
+            pause_keys?: string[] | null;
             /**
              * Resuming
              * @description Indicates if this run is resuming from a pause.
@@ -8013,6 +8194,27 @@ export interface components {
              */
             value: unknown;
         };
+        /** SchemaValueIndexError */
+        SchemaValueIndexError: {
+            /** Index */
+            index: number;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuePropertyError */
+        SchemaValuePropertyError: {
+            /** Property */
+            property: string;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+        };
+        /** SchemaValuesValidationResponse */
+        SchemaValuesValidationResponse: {
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            /** Valid */
+            valid: boolean;
+        };
         /**
          * SendNotification
          * @description Send a notification when an Automation is triggered
@@ -8475,7 +8677,9 @@ export interface components {
             /** @description The current task run state. */
             state?: components["schemas"]["State"] | null;
         };
-        TaskRunCount: Record<string, never>;
+        TaskRunCount: {
+            [key: string]: number;
+        };
         /**
          * TaskRunCreate
          * @description Data used by the Prefect REST API to create a task run
@@ -8723,6 +8927,19 @@ export interface components {
              */
             is_null_?: boolean | null;
         };
+        /** TaskRunPaginationResponse */
+        TaskRunPaginationResponse: {
+            /** Results */
+            results: components["schemas"]["TaskRunResponse"][];
+            /** Count */
+            count: number;
+            /** Limit */
+            limit: number;
+            /** Pages */
+            pages: number;
+            /** Page */
+            page: number;
+        };
         /**
          * TaskRunPolicy
          * @description Defines of how a task run should retry.
@@ -8757,6 +8974,69 @@ export interface components {
              * @description Determines the amount a retry should jitter
              */
             retry_jitter_factor?: number | null;
+        };
+        /** TaskRunResponse */
+        TaskRunResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the task run. Defaults to a random slug if not specified.
+             */
+            name?: string;
+            /**
+             * Flow Run Id
+             * @description The id of the flow run this task run belongs to.
+             */
+            flow_run_id?: string | null;
+            /**
+             * Task Key
+             * @description The key of the task this run represents.
+             */
+            task_key: string;
+            /**
+             * State Id
+             * @description The id of the task run's current state.
+             */
+            state_id?: string | null;
+            /** @description The current state of the task run. */
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Task Version
+             * @description The version of the task executed in this task run.
+             */
+            task_version?: string | null;
+            /**
+             * Parameters
+             * @description Parameters for the task run.
+             */
+            parameters?: Record<string, never>;
+            /**
+             * Task Inputs
+             * @description Inputs provided to the task run.
+             */
+            task_inputs?: {
+                [key: string]: components["schemas"]["TaskRunResult"][];
+            };
+            /**
+             * Context
+             * @description Additional context for the task run.
+             */
+            context?: Record<string, never>;
+            /** @description The task run's empirical retry policy. */
+            empirical_policy?: components["schemas"]["TaskRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags for the task run.
+             */
+            tags?: string[];
         };
         /**
          * TaskRunResult
@@ -9030,6 +9310,8 @@ export interface components {
              * @description The id of the pool's default queue.
              */
             default_queue_id?: string | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
         };
         /**
          * WorkPoolCreate
@@ -9068,6 +9350,8 @@ export interface components {
              * @description A concurrency limit for the work pool.
              */
             concurrency_limit?: number | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
         };
         /**
          * WorkPoolFilter
@@ -9126,6 +9410,22 @@ export interface components {
          */
         WorkPoolStatus: "READY" | "NOT_READY" | "PAUSED";
         /**
+         * WorkPoolStorageConfiguration
+         * @description A representation of a work pool's storage configuration
+         */
+        WorkPoolStorageConfiguration: {
+            /**
+             * Bundle Upload Step
+             * @description The step to use for uploading bundles to storage.
+             */
+            bundle_upload_step?: Record<string, never> | null;
+            /**
+             * Bundle Execution Step
+             * @description The step to use for executing bundles.
+             */
+            bundle_execution_step?: Record<string, never> | null;
+        };
+        /**
          * WorkPoolUpdate
          * @description Data used by the Prefect REST API to update a work pool.
          */
@@ -9138,6 +9438,8 @@ export interface components {
             base_job_template?: Record<string, never> | null;
             /** Concurrency Limit */
             concurrency_limit?: number | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"] | null;
         };
         /**
          * WorkQueue
@@ -9539,7 +9841,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": boolean;
                 };
             };
         };
@@ -9559,7 +9861,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": string;
                 };
             };
         };
@@ -10744,6 +11046,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskRun"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    paginate_task_runs_task_runs_paginate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_paginate_task_runs_task_runs_paginate_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskRunPaginationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -15397,7 +15734,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SchemaValuesValidationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -15659,7 +15996,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": string;
                 };
             };
             /** @description Validation Error */

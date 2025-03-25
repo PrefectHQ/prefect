@@ -19,6 +19,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.utilities.callables import parameter_schema
 
 
 def assert_status_events(deployment_name: str, events: List[str]):
@@ -29,9 +30,9 @@ def assert_status_events(deployment_name: str, events: List[str]):
         if event.resource.name == deployment_name
     ]
 
-    assert len(events) == len(
-        deployment_specific_events
-    ), f"Expected events {events}, but found {deployment_specific_events}"
+    assert len(events) == len(deployment_specific_events), (
+        f"Expected events {events}, but found {deployment_specific_events}"
+    )
 
     for i, event in enumerate(events):
         assert event == deployment_specific_events[i].event
@@ -1037,9 +1038,9 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_201_CREATED
 
         json_response = response.json()
-        assert (
-            json_response["concurrency_limit"] is None
-        ), "Deprecated int-only field should be None for backwards-compatibility"
+        assert json_response["concurrency_limit"] is None, (
+            "Deprecated int-only field should be None for backwards-compatibility"
+        )
 
         global_concurrency_limit = json_response.get("global_concurrency_limit")
         assert global_concurrency_limit is not None
@@ -1146,9 +1147,9 @@ class TestReadDeployment:
         assert response.status_code == status.HTTP_200_OK
 
         json_response = response.json()
-        assert (
-            json_response["concurrency_limit"] is None
-        ), "Deprecated int-only field should be None for backwards-compatibility"
+        assert json_response["concurrency_limit"] is None, (
+            "Deprecated int-only field should be None for backwards-compatibility"
+        )
 
         global_concurrency_limit = json_response.get("global_concurrency_limit")
         assert global_concurrency_limit is not None
@@ -1515,6 +1516,45 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_update_deployment_with_schedule_allows_addition_of_concurrency(
+        self, client, deployment
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17227
+        """
+        # ensure there's a schedule
+        update_data = DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
+                    active=True,
+                )
+            ]
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        # no slug so that it deletes and recreates the schedule
+        update_again = DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
+                    active=True,
+                )
+            ],
+            concurrency_limit=4,  # add a limit
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json=update_again
+        )
+        assert response.status_code == 204
+
     async def test_update_deployment_enforces_parameter_schema(
         self,
         deployment_with_parameter_schema,
@@ -1529,6 +1569,105 @@ class TestUpdateDeployment:
             "Validation failed for field 'x'. Failure reason: 1 is not of type 'string'"
             in response.text
         )
+
+    async def test_update_deployment_enforces_new_parameter_schema(
+        self,
+        flow,
+        client,
+    ):
+        def hello(num: int):
+            pass
+
+        def byebye(num: dict):
+            pass
+
+        schema = parameter_schema(hello).model_dump_for_openapi()
+        new_schema = parameter_schema(byebye).model_dump_for_openapi()
+
+        data = DeploymentCreate(  # type: ignore
+            name="test-patch",
+            flow_id=flow.id,
+            enforce_parameter_schema=True,
+            parameters={"num": 42},
+            parameter_openapi_schema=schema,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        ## Providing parameters
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {"num": "foobar"}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 'foobar' is not of type 'integer'"
+            in response.text
+        )
+
+        ## Providing a new incompatible schema
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameter_openapi_schema": new_schema},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 42 is not of type 'object'"
+            in response.text
+        )
+
+        ## Providing both
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameter_openapi_schema": new_schema, "parameters": {"num": 11}},
+        )
+        assert response.status_code == 409
+        assert (
+            "Validation failed for field 'num'. Failure reason: 11 is not of type 'object'"
+            in response.text
+        )
+
+    async def test_update_deployment_allows_the_clearing_of_parameters_when_provided(
+        self,
+        flow,
+        client,
+        session,
+    ):
+        def hello(num: int):
+            pass
+
+        schema = parameter_schema(hello).model_dump_for_openapi()
+
+        data = DeploymentCreate(  # type: ignore
+            name="test-patch-2",
+            flow_id=flow.id,
+            enforce_parameter_schema=True,
+            parameters={"num": 42},
+            parameter_openapi_schema=schema,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json={"parameters": {}},
+        )
+        assert response.status_code == 204
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert deployment.parameters == {}
 
     async def test_update_deployment_does_not_enforce_parameter_schema_by_default(
         self,
@@ -1718,6 +1857,35 @@ class TestUpdateDeployment:
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.json()["parameters"] == {"x": value}
 
+    async def test_update_deployment_can_update_pull_steps(
+        self,
+        client,
+        deployment,
+        session,
+    ):
+        update_data = DeploymentUpdate(pull_steps=[{"test": "foobar"}]).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["pull_steps"] == [dict(test="foobar")]
+
+        # Now remove the pull_steps
+        update_data = DeploymentUpdate(pull_steps=[]).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        assert response.json()["pull_steps"] == []
+
     async def test_update_deployment_can_remove_schedules(
         self,
         client,
@@ -1726,7 +1894,7 @@ class TestUpdateDeployment:
     ):
         update_data = DeploymentUpdate(
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                schemas.actions.DeploymentScheduleUpdate(
                     schedule=schemas.schedules.IntervalSchedule(
                         interval=datetime.timedelta(days=1)
                     ),
@@ -1805,11 +1973,11 @@ class TestUpdateDeployment:
 
         update_data = DeploymentUpdate(
             schedules=[
-                schemas.actions.DeploymentScheduleCreate(
+                schemas.actions.DeploymentScheduleUpdate(
                     schedule=schedule3,
                     active=True,
                 ),
-                schemas.actions.DeploymentScheduleCreate(
+                schemas.actions.DeploymentScheduleUpdate(
                     schedule=schedule4,
                     active=False,
                 ),
@@ -1837,6 +2005,342 @@ class TestUpdateDeployment:
         assert isinstance(schedules[1].schedule, schemas.schedules.IntervalSchedule)
         assert schedules[1].schedule.interval == schedule3.interval
         assert schedules[1].active is True
+
+    async def test_update_deployment_with_multiple_schedules_and_existing_slugs(
+        self,
+        client,
+        flow,
+    ):
+        """
+        When the existing schedules have slugs, we should be able to update the a subest
+        of the schedules if slugs are provided in this PATCH request.
+        """
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="test-schedule-1",
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=False,
+                    slug="test-schedule-2",
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+        original_schedule_ids = [
+            schedule["id"] for schedule in response.json()["schedules"]
+        ]
+
+        # When we receive a PATCH request with schedules, we should replace the
+        # existing schedules with the newly created ones.
+
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule3,
+                    active=False,
+                    slug="test-schedule-1",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_id}",
+        )
+
+        schedules = [
+            schemas.core.DeploymentSchedule(**s) for s in response.json()["schedules"]
+        ]
+
+        assert len(schedules) == 2
+        assert [schedule.id for schedule in schedules] != original_schedule_ids
+
+        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
+        assert isinstance(schedules[1].schedule, schemas.schedules.IntervalSchedule)
+
+        expected_interval_active_and_slug = {
+            (schedule3.interval, False, "test-schedule-1"),
+            (schedule2.interval, False, "test-schedule-2"),
+        }
+        interval_active_and_slug = {
+            (schedule.schedule.interval, schedule.active, schedule.slug)
+            for schedule in schedules
+        }
+        assert expected_interval_active_and_slug == interval_active_and_slug
+
+    async def test_update_schedule_without_slug_and_specifying_active_defaults_to_true(
+        self,
+        client,
+        flow,
+    ):
+        """When a schedule is provided without active or a slug, active should default to true."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=False,
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule2,
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 204, response.text
+
+        response = await client.get(
+            f"/deployments/{deployment_id}",
+        )
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is True
+
+    async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
+        self,
+        client,
+        flow,
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="test-schedule-1",
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(  # type: ignore [call-arg]
+                    schedule=schedule2,
+                    active=False,
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 422
+        assert (
+            "Please provide a slug for each schedule in your request to ensure schedules are updated correctly."
+            in response.text
+        )
+
+    async def test_update_deployment_with_multiple_schedules_add_schedule(
+        self,
+        client,
+        flow,
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        data = DeploymentCreate(  # type: ignore
+            name="My Deployment",
+            version="mint",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="test-schedule-1",
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    active=False,
+                    slug="test-schedule-1",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule2,
+                    active=False,
+                    slug="test-schedule-2",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 204
+
+        response = await client.get(
+            f"/deployments/{deployment_id}",
+        )
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 2
+
+        expected_active_and_slug = {
+            (False, "test-schedule-1"),
+            (False, "test-schedule-2"),
+        }
+        actual_active_and_slug = {
+            (schedule["active"], schedule["slug"])
+            for schedule in response.json()["schedules"]
+        }
+        assert expected_active_and_slug == actual_active_and_slug
+
+    async def test_update_deployment_with_multiple_schedules_add_incomplete_schedule(
+        self,
+        client,
+        flow,
+    ):
+        """
+        Should raise a 422 if we try to add a schedule without a schedule configuration
+        (i.e. without a cron string, interval, or rrule).
+        """
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="test-schedule-1",
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post(
+            "/deployments/",
+            json=data,
+        )
+        assert response.status_code == 201
+
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule1,
+                    active=False,
+                    slug="test-schedule-1",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    active=False,
+                    slug="test-schedule-2",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}",
+            json=update_data,
+        )
+        assert response.status_code == 422, response.text
+        assert (
+            "Unable to create new deployment schedules without a schedule configuration."
+            in response.text
+        )
 
     async def test_can_pause_deployment_by_updating_paused(
         self,

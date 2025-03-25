@@ -5,13 +5,13 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 """
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
 
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.utilities.database import db_injector
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
@@ -20,6 +20,8 @@ from prefect.utilities.importtools import lazy_import
 if TYPE_CHECKING:
     import sqlalchemy as sa
     from sqlalchemy.dialects import postgresql
+
+    from prefect.server.database import PrefectDBInterface
 else:
     sa = lazy_import("sqlalchemy")
     postgresql = lazy_import("sqlalchemy.dialects.postgresql")
@@ -43,10 +45,10 @@ class Operator(AutoEnum):
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     @db_injector
-    def as_sql_filter(self, db: PrefectDBInterface) -> sa.ColumnElement[bool]:
+    def as_sql_filter(self, db: "PrefectDBInterface") -> sa.ColumnElement[bool]:
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
         filters = self._get_filter_list(db)
         if not filters:
@@ -54,7 +56,7 @@ class PrefectFilterBaseModel(PrefectBaseModel):
         return sa.and_(*filters)
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         """Return a list of boolean filter statements based on filter parameters"""
         raise NotImplementedError("_get_filter_list must be implemented")
@@ -69,7 +71,7 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
     )
 
     @db_injector
-    def as_sql_filter(self, db: PrefectDBInterface) -> sa.ColumnElement[bool]:
+    def as_sql_filter(self, db: "PrefectDBInterface") -> sa.ColumnElement[bool]:
         filters = self._get_filter_list(db)
         if not filters:
             return sa.true()
@@ -84,7 +86,7 @@ class FlowFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -101,7 +103,7 @@ class FlowFilterDeployment(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -142,7 +144,7 @@ class FlowFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -168,7 +170,7 @@ class FlowFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.all_ is not None:
@@ -195,7 +197,7 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -222,7 +224,7 @@ class FlowRunFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -252,7 +254,7 @@ class FlowRunFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -285,7 +287,7 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         def as_array(elems: Sequence[str]) -> sa.ColumnElement[Sequence[str]]:
             return sa.cast(postgresql.array(elems), type_=postgresql.ARRAY(sa.String()))
@@ -314,7 +316,7 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -342,7 +344,7 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -367,7 +369,7 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -388,7 +390,7 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -409,7 +411,7 @@ class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.type is not None:
@@ -431,7 +433,7 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -455,7 +457,7 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -487,7 +489,7 @@ class FlowRunFilterEndTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -516,7 +518,7 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -545,7 +547,7 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -563,7 +565,7 @@ class FlowRunFilterParentFlowRunId(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -594,7 +596,7 @@ class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -619,7 +621,7 @@ class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -676,8 +678,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
     )
 
-    def only_filters_on_id(self):
-        return (
+    def only_filters_on_id(self) -> bool:
+        return bool(
             self.id is not None
             and (self.id.any_ and not self.id.not_any_)
             and self.name is None
@@ -696,7 +698,7 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -744,7 +746,7 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.is_null_ is True:
@@ -765,7 +767,7 @@ class TaskRunFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -793,7 +795,7 @@ class TaskRunFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -819,7 +821,7 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
@@ -839,7 +841,7 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -855,7 +857,7 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -874,7 +876,7 @@ class TaskRunFilterState(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.type is not None:
@@ -900,7 +902,7 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.exists_ is True:
@@ -926,7 +928,7 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -955,7 +957,7 @@ class TaskRunFilterExpectedStartTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -994,7 +996,7 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1026,7 +1028,7 @@ class DeploymentFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1054,7 +1056,7 @@ class DeploymentFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1076,7 +1078,7 @@ class DeploymentOrFlowNameFilter(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.like_ is not None:
@@ -1098,7 +1100,7 @@ class DeploymentFilterPaused(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.eq_ is not None:
@@ -1116,7 +1118,7 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1141,7 +1143,9 @@ class DeploymentFilterConcurrencyLimit(PrefectFilterBaseModel):
         description="If true, only include deployments without a concurrency limit",
     )
 
-    def _get_filter_list(self, db: PrefectDBInterface) -> list[sa.ColumnElement[bool]]:
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> list[sa.ColumnElement[bool]]:
         # This used to filter on an `int` column that was moved to a `ForeignKey` relationship
         # This filter is now deprecated rather than support filtering on the new relationship
         return []
@@ -1158,16 +1162,26 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
             " superset of the list"
         ),
     )
+    any_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags to include",
+    )
+
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include deployments without tags"
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        from prefect.server.database import orm_models
+
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(db.Deployment.tags.has_all(_as_array(self.all_)))
+            filters.append(orm_models.Deployment.tags.has_all(_as_array(self.all_)))
+        if self.any_ is not None:
+            filters.append(orm_models.Deployment.tags.has_any(_as_array(self.any_)))
         if self.is_null_ is not None:
             filters.append(
                 db.Deployment.tags == [] if self.is_null_ else db.Deployment.tags != []
@@ -1203,7 +1217,7 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.id is not None:
@@ -1231,7 +1245,7 @@ class DeploymentScheduleFilterActive(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.eq_ is not None:
@@ -1247,7 +1261,7 @@ class DeploymentScheduleFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1267,7 +1281,7 @@ class LogFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1291,7 +1305,7 @@ class LogFilterLevel(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.ge_ is not None:
@@ -1314,7 +1328,7 @@ class LogFilterTimestamp(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -1332,7 +1346,7 @@ class LogFilterFlowRunId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1353,7 +1367,7 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1384,7 +1398,7 @@ class LogFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1432,7 +1446,7 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.like_ is not None:
@@ -1448,7 +1462,7 @@ class BlockTypeFilterSlug(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1469,7 +1483,7 @@ class BlockTypeFilter(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1489,7 +1503,7 @@ class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1505,7 +1519,7 @@ class BlockSchemaFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1526,7 +1540,7 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
@@ -1544,7 +1558,7 @@ class BlockSchemaFilterVersion(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnElement[bool]] = []
         if self.any_ is not None:
@@ -1569,7 +1583,7 @@ class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1596,7 +1610,7 @@ class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.eq_ is not None:
@@ -1612,7 +1626,7 @@ class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1628,7 +1642,7 @@ class BlockDocumentFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1652,7 +1666,7 @@ class BlockDocumentFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1684,7 +1698,7 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.id is not None:
@@ -1709,7 +1723,7 @@ class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.eq_ is not None:
@@ -1726,7 +1740,7 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.is_active is not None:
@@ -1744,7 +1758,7 @@ class WorkQueueFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1772,7 +1786,7 @@ class WorkQueueFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1799,7 +1813,7 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1819,7 +1833,7 @@ class WorkPoolFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1835,7 +1849,7 @@ class WorkPoolFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1851,7 +1865,7 @@ class WorkPoolFilterType(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1873,7 +1887,7 @@ class WorkPoolFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1895,7 +1909,7 @@ class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1914,7 +1928,7 @@ class WorkerFilterStatus(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -1941,7 +1955,7 @@ class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
@@ -1968,7 +1982,7 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -1989,7 +2003,7 @@ class ArtifactFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2022,7 +2036,7 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2046,7 +2060,7 @@ class ArtifactFilterFlowRunId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2062,7 +2076,7 @@ class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2081,7 +2095,7 @@ class ArtifactFilterType(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2111,7 +2125,7 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -2137,7 +2151,7 @@ class ArtifactCollectionFilterLatestId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2171,7 +2185,7 @@ class ArtifactCollectionFilterKey(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2195,7 +2209,7 @@ class ArtifactCollectionFilterFlowRunId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2211,7 +2225,7 @@ class ArtifactCollectionFilterTaskRunId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2230,7 +2244,7 @@ class ArtifactCollectionFilterType(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2260,7 +2274,7 @@ class ArtifactCollectionFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
@@ -2286,7 +2300,7 @@ class VariableFilterId(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2310,7 +2324,7 @@ class VariableFilterName(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
@@ -2336,7 +2350,7 @@ class VariableFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
@@ -2362,7 +2376,7 @@ class VariableFilter(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(
-        self, db: PrefectDBInterface
+        self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 

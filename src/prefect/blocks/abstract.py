@@ -1,21 +1,21 @@
+from __future__ import annotations
+
+import logging
+import sys
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from logging import Logger, LoggerAdapter
+from logging import Logger
 from pathlib import Path
 from typing import (
     Any,
     BinaryIO,
-    Dict,
     Generator,
     Generic,
-    List,
-    Optional,
-    Tuple,
     TypeVar,
     Union,
 )
 
-from typing_extensions import Self, TypeAlias
+from typing_extensions import TYPE_CHECKING, Self, TypeAlias
 
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
@@ -23,7 +23,15 @@ from prefect.logging.loggers import get_logger, get_run_logger
 
 T = TypeVar("T")
 
-LoggerOrAdapter: TypeAlias = Union[Logger, LoggerAdapter]
+if sys.version_info >= (3, 12):
+    LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+else:
+    if TYPE_CHECKING:
+        LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+    else:
+        LoggingAdapter = logging.LoggerAdapter
+
+LoggerOrAdapter: TypeAlias = Union[Logger, LoggingAdapter]
 
 
 class CredentialsBlock(Block, ABC):
@@ -52,7 +60,7 @@ class CredentialsBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def get_client(self, *args, **kwargs):
+    def get_client(self, *args: Any, **kwargs: Any) -> Any:
         """
         Returns a client for interacting with the external system.
 
@@ -94,7 +102,7 @@ class NotificationBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def notify(self, body: str, subject: Optional[str] = None) -> None:
+    async def notify(self, body: str, subject: str | None = None) -> None:
         """
         Send a notification.
 
@@ -153,7 +161,7 @@ class JobRun(ABC, Generic[T]):  # not a block
         """
 
 
-class JobBlock(Block, ABC):
+class JobBlock(Block, ABC, Generic[T]):
     """
     Block that represents an entity in an external service
     that can trigger a long running execution.
@@ -176,7 +184,7 @@ class JobBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def trigger(self) -> JobRun:
+    async def trigger(self) -> JobRun[T]:
         """
         Triggers a job run in an external service and returns a JobRun object
         to track the execution of the run.
@@ -221,8 +229,11 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_one(
-        self, operation, parameters=None, **execution_kwargs
-    ) -> Tuple[Any]:
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        **execution_kwargs: Any,
+    ) -> tuple[Any, ...]:
         """
         Fetch a single result from the database.
 
@@ -238,8 +249,12 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_many(
-        self, operation, parameters=None, size=None, **execution_kwargs
-    ) -> List[Tuple[Any]]:
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        size: int | None = None,
+        **execution_kwargs: Any,
+    ) -> list[tuple[Any, ...]]:
         """
         Fetch a limited number of results from the database.
 
@@ -256,8 +271,11 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_all(
-        self, operation, parameters=None, **execution_kwargs
-    ) -> List[Tuple[Any]]:
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        **execution_kwargs: Any,
+    ) -> list[tuple[Any, ...]]:
         """
         Fetch all results from the database.
 
@@ -272,7 +290,12 @@ class DatabaseBlock(Block, ABC):
         """
 
     @abstractmethod
-    async def execute(self, operation, parameters=None, **execution_kwargs) -> None:
+    async def execute(
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        **execution_kwargs: Any,
+    ) -> None:
         """
         Executes an operation on the database. This method is intended to be used
         for operations that do not return data, such as INSERT, UPDATE, or DELETE.
@@ -285,7 +308,10 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def execute_many(
-        self, operation, seq_of_parameters, **execution_kwargs
+        self,
+        operation: str,
+        seq_of_parameters: list[dict[str, Any]],
+        **execution_kwargs: Any,
     ) -> None:
         """
         Executes multiple operations on the database. This method is intended to be used
@@ -307,7 +333,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support async context management."
         )
 
-    async def __aexit__(self, *args) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         """
         Context management method for async databases.
         """
@@ -323,7 +349,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support context management."
         )
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any) -> None:
         """
         Context management method for databases.
         """
@@ -358,8 +384,8 @@ class ObjectStorageBlock(Block, ABC):
     async def download_object_to_path(
         self,
         from_path: str,
-        to_path: Union[str, Path],
-        **download_kwargs: Dict[str, Any],
+        to_path: str | Path,
+        **download_kwargs: Any,
     ) -> Path:
         """
         Downloads an object from the object storage service to a path.
@@ -378,7 +404,7 @@ class ObjectStorageBlock(Block, ABC):
         self,
         from_path: str,
         to_file_object: BinaryIO,
-        **download_kwargs: Dict[str, Any],
+        **download_kwargs: Any,
     ) -> BinaryIO:
         """
         Downloads an object from the object storage service to a file-like object,
@@ -397,8 +423,8 @@ class ObjectStorageBlock(Block, ABC):
     async def download_folder_to_path(
         self,
         from_folder: str,
-        to_folder: Union[str, Path],
-        **download_kwargs: Dict[str, Any],
+        to_folder: str | Path,
+        **download_kwargs: Any,
     ) -> Path:
         """
         Downloads a folder from the object storage service to a path.
@@ -414,7 +440,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_path(
-        self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]
+        self, from_path: str | Path, to_path: str, **upload_kwargs: Any
     ) -> str:
         """
         Uploads an object from a path to the object storage service.
@@ -430,7 +456,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_file_object(
-        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
+        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Any
     ) -> str:
         """
         Uploads an object to the object storage service from a file-like object,
@@ -448,9 +474,9 @@ class ObjectStorageBlock(Block, ABC):
     @abstractmethod
     async def upload_from_folder(
         self,
-        from_folder: Union[str, Path],
+        from_folder: str | Path,
         to_folder: str,
-        **upload_kwargs: Dict[str, Any],
+        **upload_kwargs: Any,
     ) -> str:
         """
         Uploads a folder to the object storage service from a path.
@@ -496,7 +522,7 @@ class SecretBlock(Block, ABC):
         """
 
     @abstractmethod
-    async def write_secret(self, secret_data) -> str:
+    async def write_secret(self, secret_data: bytes) -> str:
         """
         Writes secret data to the configured secret in the secret storage service.
 

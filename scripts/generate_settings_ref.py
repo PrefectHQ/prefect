@@ -1,23 +1,23 @@
-from typing import Any, Dict
+from typing import Any
 
 from prefect import __development_base_path__
 from prefect.settings import Settings
 
 
-def resolve_ref(schema: Dict[Any, Any], ref_path: str) -> Dict[str, Any]:
+def resolve_ref(schema: dict[Any, Any], ref_path: str) -> dict[str, Any]:
     """Resolve a reference to a nested model."""
     return schema.get("$defs", {}).get(ref_path.split("/")[-1], {})
 
 
-def build_ref_paths(schema: Dict[Any, Any]) -> Dict[str, str]:
+def build_ref_paths(schema: dict[Any, Any]) -> dict[str, str]:
     """Build a mapping of reference paths for all nested models."""
-    paths = {}
-    to_process = [("", "", schema)]
+    paths: dict[str, str] = {}
+    to_process: list[tuple[str, str, dict[Any, Any]]] = [("", "", schema)]
 
     defs = schema.get("$defs", {})
 
     while to_process:
-        current_path, current_name, current_schema = to_process.pop(0)
+        current_path, _, current_schema = to_process.pop(0)
 
         if "properties" in current_schema:
             for prop_name, prop_info in current_schema["properties"].items():
@@ -32,9 +32,9 @@ def build_ref_paths(schema: Dict[Any, Any]) -> Dict[str, str]:
     return paths
 
 
-def process_property_constraints(prop_info: Dict[Any, Any]) -> list:
+def process_property_constraints(prop_info: dict[Any, Any]) -> list[str]:
     """Extract constraints from a property's schema information."""
-    constraints = []
+    constraints: list[str] = []
 
     # Handle basic constraints
     for constraint in ["minimum", "maximum", "pattern", "enum"]:
@@ -52,10 +52,10 @@ def process_property_constraints(prop_info: Dict[Any, Any]) -> list:
 
 
 def generate_property_docs(
-    prop_name: str, prop_info: Dict[Any, Any], level: int = 3, parent_path: str = ""
+    prop_name: str, prop_info: dict[Any, Any], level: int = 3, parent_path: str = ""
 ) -> str:
     """Generate documentation for a single property."""
-    docs = []
+    docs: list[str] = []
     header = "#" * level
     docs.append(f"{header} `{prop_name}`")
 
@@ -72,7 +72,7 @@ def generate_property_docs(
         docs.append(f"\n**Type**: `{prop_type}`")
     elif "anyOf" in prop_info:
         # Handle complex type constraints
-        types = []
+        types: list[str] = []
         for type_info in prop_info["anyOf"]:
             if "type" in type_info:
                 if type_info["type"] == "null":
@@ -109,10 +109,10 @@ def generate_property_docs(
 
 
 def generate_model_docs(
-    schema: Dict[Any, Any], level: int = 1, parent_path: str = ""
+    schema: dict[Any, Any], level: int = 1, parent_path: str = ""
 ) -> str:
     """Generate documentation for a model and its properties."""
-    docs = []
+    docs: list[str] = []
     header = "#" * level
 
     if not schema.get("properties"):
@@ -139,9 +139,9 @@ def generate_model_docs(
     return "\n".join(docs)
 
 
-def process_definitions(defs: Dict[Any, Any], schema: Dict[Any, Any]) -> str:
+def process_definitions(defs: dict[Any, Any], schema: dict[Any, Any]) -> str:
     """Process all model definitions and generate their documentation."""
-    docs = []
+    docs: list[str] = []
 
     # Build complete reference paths
     ref_paths = build_ref_paths(schema)
@@ -157,7 +157,7 @@ def process_definitions(defs: Dict[Any, Any], schema: Dict[Any, Any]) -> str:
 def main():
     schema = Settings.model_json_schema()
     # Generate main documentation
-    docs_content = [
+    docs_content: list[str] = [
         "---",
         "title: Settings reference",
         "description: Reference for all available settings for Prefect.",

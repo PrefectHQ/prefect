@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { createElement, forwardRef } from "react";
+import { Ref, createElement } from "react";
 
 import { typographyVariants } from "./styles";
 
@@ -11,24 +11,50 @@ const VARIANTS_TO_ELEMENT_MAP = {
 	bodyLarge: "p",
 	body: "p",
 	bodySmall: "p",
+	xsmall: "p",
 } as const;
 
-type Variant = "h1" | "h2" | "h3" | "h4" | "bodyLarge" | "body" | "bodySmall";
+type Variant =
+	| "h1"
+	| "h2"
+	| "h3"
+	| "h4"
+	| "bodyLarge"
+	| "body"
+	| "bodySmall"
+	| "xsmall";
+type FontFamily = "sans" | "serif" | "mono";
 
-type Props = {
+type TypographyProps = {
 	className?: string;
 	variant?: Variant;
+	fontFamily?: FontFamily;
 	children: React.ReactNode;
+	ref?: Ref<HTMLElement>;
 };
 
-export const Typography = forwardRef<HTMLDivElement, Props>(
-	({ className, variant = "body", ...props }, ref) => {
-		return createElement(VARIANTS_TO_ELEMENT_MAP[variant], {
-			className: cn(typographyVariants({ variant }), className),
-			ref,
-			...props,
-		});
-	},
-);
+export function Typography({
+	className,
+	variant = "body",
+	fontFamily = "sans",
+	ref,
+	...props
+}: TypographyProps) {
+	return createElement(VARIANTS_TO_ELEMENT_MAP[variant], {
+		className: cn(
+			typographyVariants({
+				variant,
+				className: cn({
+					"font-sans": fontFamily === "sans",
+					"font-serif": fontFamily === "serif",
+					"font-mono": fontFamily === "mono",
+				}),
+			}),
+			className,
+		),
+		ref,
+		...props,
+	});
+}
 
 Typography.displayName = "Typography";

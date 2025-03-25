@@ -81,6 +81,17 @@ def test_get_client_cached(credentials, client_type):
 
 
 @pytest.mark.parametrize("client_type", [member.value for member in ClientType])
+def test_aws_credentials_region_properly_passed_to_client(client_type):
+    """
+    Test to ensure that region_name is properly passed to the client.
+    """
+    region_name = "mock-region-us-east-1"
+    credentials = AwsCredentials(region_name=region_name)
+    client = credentials.get_client(client_type)
+    assert client.meta.region_name == region_name
+
+
+@pytest.mark.parametrize("client_type", [member.value for member in ClientType])
 def test_aws_credentials_change_causes_cache_miss(client_type):
     """
     Test to ensure that changing configuration on an AwsCredentials instance
@@ -97,9 +108,9 @@ def test_aws_credentials_change_causes_cache_miss(client_type):
 
     new_client = credentials.get_client(client_type)
 
-    assert (
-        initial_client is not new_client
-    ), "Client should be different after configuration change"
+    assert initial_client is not new_client, (
+        "Client should be different after configuration change"
+    )
 
     assert _get_client_cached.cache_info().misses == 2, "Cache should miss twice"
 
@@ -125,9 +136,9 @@ def test_minio_credentials_change_causes_cache_miss(client_type):
 
     new_client = credentials.get_client(client_type)
 
-    assert (
-        initial_client is not new_client
-    ), "Client should be different after configuration change"
+    assert initial_client is not new_client, (
+        "Client should be different after configuration change"
+    )
 
     assert _get_client_cached.cache_info().misses == 2, "Cache should miss twice"
 

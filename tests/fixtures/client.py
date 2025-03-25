@@ -1,10 +1,12 @@
-from typing import AsyncGenerator, Dict
+from typing import AsyncGenerator, Dict, Generator
 
 import pytest
+from fastapi import FastAPI
+from pydantic import HttpUrl
 
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.settings import PREFECT_CLOUD_API_URL
 
 
@@ -17,7 +19,7 @@ async def prefect_client(
 
 
 @pytest.fixture
-async def in_memory_prefect_client(app) -> AsyncGenerator[PrefectClient, None]:
+async def in_memory_prefect_client(app: FastAPI) -> AsyncGenerator[PrefectClient, None]:
     """
     Yield a test client that communicates with an in-memory server
     """
@@ -31,7 +33,9 @@ async def in_memory_prefect_client(app) -> AsyncGenerator[PrefectClient, None]:
 
 
 @pytest.fixture
-def sync_prefect_client(test_database_connection_url):
+def sync_prefect_client(
+    test_database_connection_url: str,
+) -> Generator[SyncPrefectClient, None, None]:
     yield get_client(sync_client=True)
 
 
@@ -46,7 +50,7 @@ async def cloud_client(
 @pytest.fixture(scope="session")
 def flow_function():
     @flow(version="test", description="A test function")
-    def client_test_flow(param=1):
+    def client_test_flow(param: int = 1) -> int:
         return param
 
     return client_test_flow
@@ -67,8 +71,8 @@ def flow_function_dict_parameter():
 def test_block():
     class x(Block):
         _block_type_slug = "x-fixture"
-        _logo_url = "https://en.wiktionary.org/wiki/File:LetterX.svg"
-        _documentation_url = "https://en.wiktionary.org/wiki/X"
+        _logo_url = HttpUrl("https://en.wiktionary.org/wiki/File:LetterX.svg")
+        _documentation_url = HttpUrl("https://en.wiktionary.org/wiki/X")
         foo: str
 
     return x

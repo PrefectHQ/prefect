@@ -5,12 +5,12 @@ description: Learn how to use Prefect push work pools to schedule work on server
 
 <span class="badge cloud"></span> Push [work pools](/v3/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
 Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without requiring you to run a worker.
-Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, and Modal.
+Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, Modal, and Coiled.
 
 In this guide you will:
 
 - Create a push work pool that sends work to Amazon Elastic Container Service (AWS ECS), Azure Container Instances (ACI), 
-Google Cloud Run, or Modal
+Google Cloud Run, Modal, or Coiled
 - Deploy a flow to that work pool
 - Execute a flow without having to run a worker process to poll for flow runs
 
@@ -160,6 +160,30 @@ To use automatic infrastructure provisioning, you need:
     ```bash
     modal token new
     ```
+
+    See [Run flows on Modal](/v3/deploy/infrastructure-examples/modal) for more details.
+  </Tab>
+  <Tab title="Coiled">
+
+    Install `coiled` by running:
+
+    ```bash
+    pip install coiled prefect-coiled
+    ```
+
+    Create a Coiled API token by running:
+
+    ```bash
+    coiled login
+    ```
+
+    Connect Coiled to your cloud account by running
+
+    ```bash
+    coiled setup
+    ```
+
+    or by navigating to [cloud.coiled.io/get-started](https://cloud.coiled.io/get-started)
   </Tab>
 </Tabs>
 
@@ -432,6 +456,15 @@ Created work pool 'my-cloud-run-pool'!
     current Modal profile is used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal 
     API token for your current profile, you will be prompted to create a new one.
   </Tab>
+  <Tab title="Coiled">
+
+    ```bash
+    prefect work-pool create --type coiled:push --provision-infra my-coiled-pool 
+    ```
+
+    Using the `--provision-infra` flag triggers the creation of a `CoiledCredentials` block in your Prefect Cloud workspace. 
+    This block stores your Coiled API token, which authenticates with Coiled's API. 
+  </Tab>
 </Tabs>
 
 You're ready to create and schedule deployments that use your new push work pool.
@@ -567,6 +600,12 @@ In the examples below, you'll create a push work pool through the Prefect Cloud 
 
     Copy the token ID and token secret and store them somewhere safe for use in the next section.
   </Tab>
+  <Tab title="Coiled">
+
+    You need a Coiled API token to push work to Coiled.
+
+    In the Coiled UI click on your avatar and select **Profile**.  Then press the **Create API Token** button and copy the result.  You will need it in the next section.
+  </Tab>
 </Tabs>
 
 ### Work pool configuration
@@ -614,6 +653,11 @@ integrate securely with your serverless infrastructure, you need to store your c
     For use in a push work pool, this block must have the token ID and token secret stored in the Token ID and Token 
     Secret fields, respectively.
   </Tab>
+  <Tab title="Coiled">
+
+    Navigate to the blocks page, click create new block, and select Coiled Credentials for the type.  Provide the API token from the previous section.
+
+  </Tab>
 </Tabs>
 
 ### Create a push work pool
@@ -646,6 +690,13 @@ Click **Create** to configure your push work pool by selecting a push option in 
     [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/). 
     Select the block you created under the Modal Credentials field. 
     This allows Prefect Cloud to securely interact with your Modal account.
+ </Tab>
+ <Tab title="Coiled">
+
+    Each step has several optional fields that are detailed in the 
+    [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/). 
+    Select the block you created under the Coiled Credentials field. 
+    This allows Prefect Cloud to securely interact with your Coiled account.
  </Tab>
 </Tabs>
 Create your pool to be ready to deploy flows to your Push work pool.

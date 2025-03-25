@@ -14,8 +14,8 @@ There are several ways to create a schedule for a deployment:
 
 - Through the Prefect UI
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the
-[`serve` method](/v3/develop/write-flows/#serving-a-flow) of the `Flow` object or
-[the `serve` utility](/v3/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
+[`serve` method](/v3/deploy/run-flows-in-local-processes#serve-a-flow) of the `Flow` object or
+[the `serve` utility](/v3/deploy/run-flows-in-local-processes#serve-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/v3/deploy/infrastructure-concepts/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
@@ -49,7 +49,8 @@ Just add the keyword argument `cron`, `interval`, or `rrule`.
 | `cron`      | A cron schedule string of when to execute runs of this deployment. Also accepts an iterable of cron schedule strings to create multiple schedules.                                                                                                    |
 | `rrule`     | An rrule schedule string of when to execute runs of this deployment. Also accepts an iterable of rrule schedule strings to create multiple schedules.                                                                                                 |
 | `schedules` | A list of schedule objects defining when to execute runs of this deployment. Used to define multiple schedules or additional scheduling options such as `timezone`.                                                                                   |
-| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options such as `timezone`.                                                                                                                     |
+| `schedule`  | A schedule object defining when to execute runs of this deployment. Used to define additional scheduling options such as `timezone`.                                                                                                                  |
+| `slug`      | An optional unique identifier for the schedule containing only lowercase letters, numbers, and hyphens. If not provided for a given schedule, the schedule will be unnamed.                                                                           |
 
 The `serve` method below will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
 
@@ -65,7 +66,24 @@ If using work pool-based deployments, the `deploy` method has the same schedule-
 
 When `my_flow` is served with this interval schedule, it will run every 10 minutes beginning at midnight on January, 1, 2026 in the `America/Chicago` timezone:
 
-```python
+<CodeGroup>
+```python prefect >= 3.1.16
+from datetime import timedelta, datetime
+from prefect.schedules import Interval
+
+from myproject.flows import my_flow
+
+my_flow.serve(
+  name="flowing",
+  schedule=Interval(
+    timedelta(minutes=10),
+    anchor_date=datetime(2026, 1, 1, 0, 0),
+    timezone="America/Chicago"
+  )
+)
+```
+
+```python prefect < 3.1.16
 from datetime import timedelta, datetime
 from prefect.client.schemas.schedules import IntervalSchedule
 
@@ -83,7 +101,9 @@ my_flow.serve(
 )
 ```
 
-### Create schedules in the terminal
+</CodeGroup>
+
+### Create schedules with the CLI
 
 You can create a schedule through the interactive `prefect deploy` command. You will be prompted to choose which type of schedule to create.
 
@@ -97,15 +117,25 @@ deployments:
   ...
   schedules:
     - cron: "0 0 * * *"
+      slug: "chicago-schedule"
       timezone: "America/Chicago"
       active: false
     - cron: "0 12 * * *"
+      slug: "new-york-schedule"
       timezone: "America/New_York"
       active: true
     - cron: "0 18 * * *"
+      slug: "london-schedule"
       timezone: "Europe/London"
       active: true
 ```
+
+### Create schedules with Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="schedules" href={deployments.tf} />
 
 ## Schedule types
 
@@ -207,8 +237,6 @@ schedule:
 The `anchor_date` does not indicate a "start time" for the schedule, but a fixed point to
 compute intervals.
 If the anchor date is in the future, then schedule dates are computed by subtracting the `interval` from it.
-In this example, you import the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation.
-Pendulum isn't required, but it's a useful tool for specifying dates.
 
 <Note>
 **Daylight saving time considerations**
@@ -267,6 +295,78 @@ As a calendar-oriented standard, `RRules` are sensitive to the initial timezone 
 A 9 AM daily schedule with a DST-aware start date maintains a local 9 AM time through DST boundaries. A 9 AM daily schedule
 with a UTC start date maintains a 9 AM UTC time.
 </Note>
+
+## Associate parameters with schedules
+Using any of the above methods to create a schedule, you can bind parameters to your schedules.
+
+For example, say you have a flow that sends an email.
+Every day at 8:00 AM you want to send a message to one recipient, and at 8:05 AM you want to send a different message to another recipient.
+
+Instead of creating independent deployments with different default parameters and schedules, you can bind parameters to the schedules themselves:
+
+### Schedule parameters in Python
+
+Whether using `.serve` or `.deploy`, you can pass `parameters` to your deployment `schedules`:
+
+```python send_email_flow.py {13,17-20}
+from prefect import flow
+from prefect.schedules import Cron
+
+@flow
+def send_email(to: str, message: str = "Stop goofing off!"):
+    print(f"Sending email to {to} with message: {message}")
+
+send_email.serve(
+  name="my-flow",
+  schedules=[
+    Cron(
+      "0 8 * * *",
+      slug: "jim-email",
+      parameters={"to": "jim.halpert@dundermifflin.com"}
+    ),
+    Cron(
+      "5 8 * * *",
+      slug: "dwight-email",
+      parameters={
+        "to": "dwight.schrute@dundermifflin.com",
+        "message": "Stop goofing off! You're assistant _to_ the regional manager!"
+      }
+    )
+  ]
+)
+```
+Note that our flow has a default `message` parameter, but we've overridden it for the second schedule.
+
+This deployment will schedule runs that:
+
+- Send "Stop goofing off!" to Jim at 8:00 AM every day
+- Send "Stop goofing off! You're assistant _to_ the regional manager!" to Dwight at 8:05 AM every day
+
+<Tip>
+Use the same pattern to bind parameters to any schedule type in `prefect.schedules`.
+You can provide one schedule via the `schedule` kwarg or multiple schedules via `schedules`.
+</Tip>
+
+### Schedule parameters in `prefect.yaml`
+
+You can also provide parameters to schedules in your `prefect.yaml` file.
+
+```yaml prefect.yaml {4-11}
+deployments:
+  name: send-email
+  entrypoint: send_email_flow.py:send_email
+  schedules:
+    - cron: "0 8 * * *"
+      slug: "jim-email"
+      parameters:
+        to: "jim.halpert@dundermifflin.com"
+    - cron: "5 8 * * *"
+      slug: "dwight-email"
+      parameters:
+        to: "dwight.schrute@dundermifflin.com"
+        message: "Stop goofing off! You're assistant _to_ the regional manager!"
+```
+
 
 ## How scheduling works
 

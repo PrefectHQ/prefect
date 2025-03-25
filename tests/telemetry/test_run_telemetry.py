@@ -10,6 +10,10 @@ from prefect import flow, task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.flows import Flow
+from prefect.settings import (
+    PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY,
+    temporary_settings,
+)
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY
 
@@ -120,11 +124,11 @@ async def test_flow_run_creates_and_stores_traceparent(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="the-flow")
+    @flow(flow_run_name="the-flow")
     async def async_flow():
         pass
 
-    @flow(name="the-flow")
+    @flow(flow_run_name="the-flow")
     def sync_flow():
         pass
 
@@ -149,11 +153,11 @@ async def test_flow_run_instrumentation(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @flow(name="instrumented-flow")
+    @flow(flow_run_name="instrumented-flow")
     async def async_flow() -> str:
         return "hello"
 
-    @flow(name="instrumented-flow")
+    @flow(flow_run_name="instrumented-flow")
     def sync_flow() -> str:
         return "hello"
 
@@ -277,28 +281,28 @@ async def test_span_links(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task
+    @task(task_run_name="produces42")
     def produces42() -> int:
         return 42
 
     if engine_type == "async":
 
-        @task
+        @task(task_run_name="async_task")
         async def async_task(x: int, y: int):
             return x + y
 
-        @flow
+        @flow(flow_run_name="async-flow")
         async def async_flow():
             await async_task(x=produces42.submit(), y=2)
 
         await async_flow()
     else:
 
-        @task
+        @task(task_run_name="sync_task")
         def sync_task(x: int, y: int):
             return x + y
 
-        @flow
+        @flow(flow_run_name="sync-flow")
         def sync_flow():
             sync_task(x=produces42.submit(), y=2)
 
@@ -331,6 +335,60 @@ async def test_span_links(
         "prefect.input.name": "x",
         "prefect.input.type": "int",
     }
+
+
+async def test_span_links_wait_for_only(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/16708, where
+    we are looking for the parameter name of a future that is only used for waiting"""
+
+    @task(task_run_name="produces42")
+    def produces42() -> int:
+        return 42
+
+    if engine_type == "async":
+
+        @task(task_run_name="async_task")
+        async def async_task():
+            return "hi"
+
+        @flow(flow_run_name="async-flow")
+        async def async_flow():
+            f = produces42.submit()
+            await async_task(wait_for=[f])
+
+        await async_flow()
+    else:
+
+        @task(task_run_name="sync_task")
+        def sync_task():
+            return "hi"
+
+        @flow(flow_run_name="sync-flow")
+        def sync_flow():
+            f = produces42.submit()
+            sync_task(wait_for=[f])
+
+        sync_flow()
+
+    spans = instrumentation.get_finished_spans()
+
+    assert len(spans) == 3  # flow, producer, task
+
+    flow_span = next(span for span in spans if span.name.endswith("-flow"))
+    task_span = next(span for span in spans if span.name.endswith("_task"))
+    producer_span = next(span for span in spans if span.name == "produces42")
+
+    assert not flow_span.links
+    assert not producer_span.links
+
+    assert len(task_span.links) == 1
+    link = task_span.links[0]
+    assert link.context.trace_id == producer_span.context.trace_id
+    assert link.context.span_id == producer_span.context.span_id
+    assert link.attributes == {}
 
 
 async def test_span_status_on_success(
@@ -427,27 +485,27 @@ async def test_nested_flow_task_task(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def my_async_flow():
         await async_child_task()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def my_sync_flow():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
@@ -489,27 +547,27 @@ async def test_nested_flow_task_flow(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def my_async_flow():
         await async_child_task()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def my_sync_flow():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_flow()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
@@ -550,27 +608,27 @@ async def test_nested_task_flow_task(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_flow()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_task()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
@@ -612,27 +670,27 @@ async def test_nested_task_flow_flow(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_flow()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
@@ -670,27 +728,27 @@ async def test_nested_flow_flow_task(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def async_parent_flow():
         await async_child_flow()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def sync_parent_flow():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_task()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
@@ -732,27 +790,27 @@ async def test_nested_flow_flow_flow(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def async_parent_flow():
         await async_child_flow()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def sync_parent_flow():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
@@ -793,27 +851,27 @@ async def test_nested_task_task_task(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_task()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
@@ -854,27 +912,27 @@ async def test_nested_task_task_flow(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_task()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_flow()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
@@ -909,3 +967,68 @@ async def test_nested_task_task_flow(
     # The grandchild span should have the `child_span` as its parent
     assert grandchild_span.parent is not None
     assert grandchild_span.parent.span_id == child_span.context.span_id
+
+
+async def test_span_name_with_string_template(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+):
+    """Test that spans use the formatted name when string templates are used"""
+    test_value = "template-test"
+
+    @task(task_run_name=f"task-{test_value}")
+    async def async_task(value: str):
+        return value
+
+    @task(task_run_name=f"task-{test_value}")
+    def sync_task(value: str):
+        return value
+
+    task_fn = async_task if engine_type == "async" else sync_task
+    task_run_id = uuid4()
+
+    await run_task(
+        task_fn,
+        task_run_id=task_run_id,
+        parameters={"value": test_value},
+        engine_type=engine_type,
+    )
+
+    spans = instrumentation.get_finished_spans()
+    assert len(spans) == 1
+    span = spans[0]
+
+    expected_name = f"task-{test_value}"
+    assert span.name == expected_name
+    assert span.attributes["prefect.run.name"] == expected_name
+
+
+async def test_no_span_when_telemetry_disabled(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+):
+    """Test that no spans are created when telemetry is disabled"""
+    # Disable telemetry
+    with temporary_settings({PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY: False}):
+
+        @task(task_run_name="test-task")
+        async def async_task(x: int, y: int):
+            return x + y
+
+        @task(task_run_name="test-task")
+        def sync_task(x: int, y: int):
+            return x + y
+
+        task_fn = async_task if engine_type == "async" else sync_task
+        task_run_id = uuid4()
+
+        await run_task(
+            task_fn,
+            task_run_id=task_run_id,
+            parameters={"x": 1, "y": 2},
+            engine_type=engine_type,
+        )
+
+        # Verify no spans were created
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 0

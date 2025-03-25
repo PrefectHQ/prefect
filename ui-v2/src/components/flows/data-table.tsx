@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -11,14 +10,17 @@ import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "@tanstack/react-router";
 import {
+	RowSelectionState,
 	getCoreRowModel,
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 
+import { Flow, useDeleteFlowById } from "@/api/flows";
 import { useSet } from "@/hooks/use-set";
 import { useState } from "react";
 import { columns } from "./columns";
+import { TableCountHeader } from "./table-count-header";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -58,7 +60,7 @@ const FilterComponent = () => {
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" className="w-[150px] justify-between">
 					<span className="truncate">{renderSelectedTags()}</span>
-					<Icon id="ChevronDown" className="h-4 w-4 flex-shrink-0" />
+					<Icon id="ChevronDown" className="size-4 shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -116,7 +118,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -147,32 +149,59 @@ const SortComponent = () => {
 
 export default function FlowsTable({
 	flows,
+	count,
 }: {
-	flows: components["schemas"]["Flow"][];
+	flows: Flow[];
+	count: number;
 }) {
+	const { deleteFlow } = useDeleteFlowById();
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const table = useReactTable({
 		columns: columns,
 		data: flows,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
+		state: {
+			rowSelection,
+		},
 		initialState: {
 			pagination: {
 				pageIndex: 0,
 				pageSize: 10,
 			},
 		},
+		onRowSelectionChange: setRowSelection,
 	});
 
+	const handleDeleteRows = () => {
+		const selectedRows = Object.keys(rowSelection);
+
+		const idsToDelete = selectedRows.map((rowId) => flows[Number(rowId)].id);
+
+		idsToDelete.forEach((id) => {
+			deleteFlow(id);
+		});
+
+		table.toggleAllRowsSelected(false);
+	};
+
 	return (
-		<div className="h-full">
-			<header className="mb-2 flex flex-row justify-between">
-				<SearchComponent />
-				<div className="flex space-x-4">
-					<FilterComponent />
-					<SortComponent />
-				</div>
-			</header>
-			<DataTable table={table} />
-		</div>
+		<>
+			<div className="h-full">
+				<header className="mb-2 flex flex-row justify-between">
+					<TableCountHeader
+						count={count}
+						handleDeleteRows={handleDeleteRows}
+						rowSelectionState={rowSelection}
+					/>
+					<div className="flex space-x-4">
+						<SearchComponent />
+						<FilterComponent />
+						<SortComponent />
+					</div>
+				</header>
+				<DataTable table={table} />
+			</div>
+		</>
 	);
 }

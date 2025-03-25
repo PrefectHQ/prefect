@@ -6,12 +6,12 @@ Intended for internal use by the Prefect REST API.
 from typing import List, Optional, Sequence, Union
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.types._datetime import now
 
 
 @db_injector
@@ -28,7 +28,7 @@ async def create_concurrency_limit(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    concurrency_limit.updated = pendulum.now("UTC")  # type: ignore[assignment]
+    concurrency_limit.updated = now("UTC")  # type: ignore[assignment]
 
     insert_stmt = (
         db.queries.insert(db.ConcurrencyLimit)
@@ -121,6 +121,9 @@ async def filter_concurrency_limits_for_orchestration(
     these rows to prevent simultaneous read race conditions from enabling the
     the concurrency limit on these tags from being temporarily exceeded.
     """
+
+    if not tags:
+        return []
 
     query = (
         sa.select(db.ConcurrencyLimit)

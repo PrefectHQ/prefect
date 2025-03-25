@@ -21,7 +21,7 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.models.block_schemas import MissingBlockTypeException
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/block_schemas", tags=["Block schemas"])
+router: PrefectRouter = PrefectRouter(prefix="/block_schemas", tags=["Block schemas"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -30,6 +30,11 @@ async def create_block_schema(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
+    """
+    Create a block schema.
+
+    For more information, see https://docs.prefect.io/v3/develop/blocks.
+    """
     from prefect.blocks.core import Block
 
     async with db.session_context(begin_transaction=True) as session:
@@ -68,8 +73,8 @@ async def create_block_schema(
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    api_version=Depends(dependencies.provide_request_api_version),
-):
+    api_version: str = Depends(dependencies.provide_request_api_version),
+) -> None:
     """
     Delete a block schema by id.
     """

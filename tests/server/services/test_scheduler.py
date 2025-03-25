@@ -3,6 +3,7 @@ import datetime
 import pendulum
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
@@ -10,10 +11,12 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.types._datetime import DateTime, now
+from prefect.utilities.callables import parameter_schema
 
 
 @pytest.fixture
-async def deployment_without_schedules(flow, session):
+async def deployment_without_schedules(flow: schemas.core.Flow, session: AsyncSession):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -26,7 +29,9 @@ async def deployment_without_schedules(flow, session):
 
 
 @pytest.fixture
-async def deployment_with_inactive_schedules(flow, session):
+async def deployment_with_inactive_schedules(
+    flow: schemas.core.Flow, session: AsyncSession
+):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -59,7 +64,9 @@ async def deployment_with_inactive_schedules(flow, session):
 
 
 @pytest.fixture
-async def deployment_with_active_schedules(flow, session):
+async def deployment_with_active_schedules(
+    flow: schemas.core.Flow, session: AsyncSession
+):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -92,7 +99,8 @@ async def deployment_with_active_schedules(flow, session):
 
 
 async def test_create_schedules_from_deployment(
-    session, deployment_with_active_schedules
+    session: AsyncSession,
+    deployment_with_active_schedules: schemas.core.Deployment,
 ):
     active_schedules = [
         s.schedule
@@ -114,19 +122,163 @@ async def test_create_schedules_from_deployment(
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == service.min_runs * num_active_schedules
 
-    expected_dates = set()
+    expected_dates: set[DateTime] = set()
     for schedule in active_schedules:
         expected_dates.update(await schedule.get_dates(service.min_runs))
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
-    assert all(
-        [r.state_name == "Scheduled" for r in runs]
-    ), "Scheduler sets flow_run.state_name"
+    assert all([r.state_name == "Scheduled" for r in runs]), (
+        "Scheduler sets flow_run.state_name"
+    )
 
 
-async def test_create_schedule_respects_max_future_time(flow, session):
+async def test_create_parametrized_schedules_from_deployment(
+    flow: schemas.core.Flow, session: AsyncSession
+):
     schedule = schemas.schedules.IntervalSchedule(
-        interval=datetime.timedelta(days=30), anchor_date=pendulum.now("UTC")
+        interval=datetime.timedelta(days=30),
+        anchor_date=now("UTC"),
+    )
+
+    def func_for_params(name: str, x: int = 42):
+        pass
+
+    param_schema = parameter_schema(func_for_params).model_dump_for_openapi()
+
+    await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="test",
+            flow_id=flow.id,
+            parameters={"name": "deployment-test", "x": 11},
+            parameter_openapi_schema=param_schema,
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schedule,
+                    parameters={"name": "whoami"},
+                    active=True,
+                ),
+                schemas.core.DeploymentSchedule(
+                    schedule=schedule,  # Same schedule/timing
+                    parameters={"name": "whoami2"},  # Different parameters
+                    active=True,
+                ),
+            ],
+        ),
+    )
+    await session.commit()
+
+    n_runs = await models.flow_runs.count_flow_runs(session)
+    assert n_runs == 0
+
+    service = Scheduler()
+    await service.start(loops=1)
+    runs = await models.flow_runs.read_flow_runs(session)
+
+    # We expect min_runs * 2 because we have two schedules
+    # However, we only get min_runs because the second schedule's runs
+    # overwrite the first schedule's runs due to having the same idempotency key
+    # (scheduled {deployment.id} {date})
+    assert len(runs) == service.min_runs * 2  # Should create runs for both schedules
+
+    expected_dates = await schedule.get_dates(service.min_runs)
+    # Each expected date should have two runs with different parameters
+    assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
+
+    # Check that we have runs with both sets of parameters
+    run_params = {(r.parameters["name"], r.parameters["x"]) for r in runs}
+    assert run_params == {("whoami", 11), ("whoami2", 11)}
+
+    assert all([r.state_name == "Scheduled" for r in runs]), (
+        "Scheduler sets flow_run.state_name"
+    )
+
+
+async def test_create_parametrized_schedules_with_slugs(
+    flow: schemas.core.Flow, session: AsyncSession
+):
+    """Test that schedules with slugs use them in idempotency keys, and schedules without slugs fall back to ID"""
+    schedule = schemas.schedules.IntervalSchedule(
+        interval=datetime.timedelta(days=30),
+        anchor_date=now("UTC"),
+    )
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="test",
+            flow_id=flow.id,
+            parameters={"name": "deployment-test", "x": 11},
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schedule,
+                    parameters={"name": "whoami"},
+                    slug="my-schedule",
+                    active=True,
+                ),
+                schemas.core.DeploymentSchedule(
+                    schedule=schedule,  # Same schedule/timing
+                    parameters={"name": "whoami2"},  # Different parameters
+                    active=True,  # No slug on this one
+                ),
+            ],
+        ),
+    )
+    await session.commit()
+
+    n_runs = await models.flow_runs.count_flow_runs(session)
+    assert n_runs == 0
+
+    service = Scheduler()
+    await service.start(loops=1)
+    runs = await models.flow_runs.read_flow_runs(session)
+
+    # We should get min_runs * 2 because we have two schedules
+    assert len(runs) == service.min_runs * 2
+
+    # Check that we have runs with both sets of parameters
+    run_params = {(r.parameters["name"], r.parameters["x"]) for r in runs}
+    assert run_params == {("whoami", 11), ("whoami2", 11)}
+
+    # Get the deployment schedules to check their IDs/slugs
+    schedules = await models.deployments.read_deployment_schedules(
+        session=session,
+        deployment_id=deployment.id,
+    )
+    schedule_with_slug = next(s for s in schedules if s.slug == "my-schedule")
+    schedule_without_slug = next(s for s in schedules if not s.slug)
+
+    # Verify the schedule with slug has the expected properties
+    assert schedule_with_slug.slug == "my-schedule"
+    assert schedule_with_slug.parameters == {"name": "whoami"}
+    assert schedule_with_slug.active is True
+
+    # Check that idempotency keys use slugs when available and IDs when not
+    expected_dates = await schedule.get_dates(service.min_runs)
+    for date in expected_dates:
+        # Find runs for this date
+        date_runs = [r for r in runs if r.state.state_details.scheduled_time == date]
+        assert len(date_runs) == 2  # Should have two runs per date
+
+        # One run should use the slug in its idempotency key
+        assert any(
+            f"scheduled {deployment.id} {schedule_with_slug.id} {date}"
+            == r.idempotency_key
+            for r in date_runs
+        )
+        # One run should use the ID in its idempotency key
+        assert any(
+            f"scheduled {deployment.id} {schedule_without_slug.id} {date}"
+            == r.idempotency_key
+            for r in date_runs
+        )
+
+
+async def test_create_schedule_respects_max_future_time(
+    flow: schemas.core.Flow, session: AsyncSession
+):
+    schedule = schemas.schedules.IntervalSchedule(
+        interval=datetime.timedelta(days=30), anchor_date=now("UTC")
     )
 
     await models.deployments.create_deployment(
@@ -157,7 +309,9 @@ async def test_create_schedule_respects_max_future_time(flow, session):
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
-async def test_create_schedules_from_multiple_deployments(flow, session):
+async def test_create_schedules_from_multiple_deployments(
+    flow: schemas.core.Flow, session: AsyncSession
+):
     schedule1 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=1))
     schedule2 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(days=10))
     schedule3 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(days=5))
@@ -478,7 +632,11 @@ class TestScheduleRulesWaterfall:
         ],
     )
     async def test_create_schedule_respects_max_future_time(
-        self, flow, session, interval, n
+        self,
+        flow: schemas.core.Flow,
+        session: AsyncSession,
+        interval: datetime.timedelta,
+        n: int,
     ):
         await models.deployments.create_deployment(
             session=session,

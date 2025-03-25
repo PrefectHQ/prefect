@@ -2,6 +2,7 @@ import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
+	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
@@ -10,7 +11,6 @@ import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { format, parseISO } from "date-fns";
 import humanizeDuration from "humanize-duration";
@@ -19,8 +19,8 @@ const getValues = ({
 	flowRun,
 	taskRun,
 }: {
-	flowRun: undefined | components["schemas"]["FlowRun"];
-	taskRun: undefined | components["schemas"]["TaskRun"];
+	flowRun: null | undefined | components["schemas"]["FlowRun"];
+	taskRun: null | undefined | components["schemas"]["TaskRun"];
 }) => {
 	if (taskRun) {
 		const { state, start_time, tags, estimated_run_time } = taskRun;
@@ -34,14 +34,14 @@ const getValues = ({
 	throw new Error("Expecting taskRun or flowRun to be defined");
 };
 
-type Props = {
-	flow?: components["schemas"]["Flow"];
-	flowRun?: components["schemas"]["FlowRun"];
+type RunCardProps = {
+	flow?: components["schemas"]["Flow"] | null;
+	flowRun?: components["schemas"]["FlowRun"] | null;
 	/** If task run is included, uses fields from task run over flow run */
-	taskRun?: components["schemas"]["TaskRun"];
+	taskRun?: components["schemas"]["TaskRun"] | null;
 };
 
-export const RunCard = ({ flow, flowRun, taskRun }: Props) => {
+export const RunCard = ({ flow, flowRun, taskRun }: RunCardProps) => {
 	const { state, start_time, tags, estimated_run_time } = getValues({
 		flowRun,
 		taskRun,
@@ -60,7 +60,7 @@ export const RunCard = ({ flow, flowRun, taskRun }: Props) => {
 				</div>
 			</div>
 			<div className="flex gap-2 items-center text-slate-600">
-				{state && <StateBadge state={state} />}
+				{state && <StateBadge type={state.type} name={state.name} />}
 				{start_time && <StartTime time={start_time} />}
 				<TimeRan duration={estimated_run_time} />
 			</div>
@@ -72,7 +72,7 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 	flow,
 	flowRun,
 	taskRun,
-}: Props) => {
+}: RunCardProps) => {
 	if (!flow && !flowRun && !taskRun) {
 		throw new Error("Expecting flow, flowRun, or taskRun");
 	}
@@ -81,26 +81,30 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 		<Breadcrumb>
 			<BreadcrumbList>
 				{flow && (
-					<BreadcrumbItem className="text-lg font-semibold">
-						<Link to="/flows/flow/$id" params={{ id: flow.id }}>
+					<BreadcrumbItem>
+						<BreadcrumbLink
+							className="text-lg font-semibold"
+							to="/flows/flow/$id"
+							params={{ id: flow.id }}
+						>
 							{flow.name}
-						</Link>
+						</BreadcrumbLink>
 					</BreadcrumbItem>
 				)}
 				{flow && flowRun && <BreadcrumbSeparator />}
 				{flowRun && (
 					<BreadcrumbItem>
-						<Link to="/runs/flow-run/$id" params={{ id: flowRun.id }}>
+						<BreadcrumbLink to="/runs/flow-run/$id" params={{ id: flowRun.id }}>
 							{flowRun.name}
-						</Link>
+						</BreadcrumbLink>
 					</BreadcrumbItem>
 				)}
 				{flowRun && taskRun && <BreadcrumbSeparator />}
 				{taskRun && (
 					<BreadcrumbItem>
-						<Link to="/runs/task-run/$id" params={{ id: taskRun.id }}>
+						<BreadcrumbLink to="/runs/task-run/$id" params={{ id: taskRun.id }}>
 							{taskRun.name}
-						</Link>
+						</BreadcrumbLink>
 					</BreadcrumbItem>
 				)}
 			</BreadcrumbList>
@@ -114,7 +118,7 @@ type TimeRanProps = {
 const TimeRan = ({ duration }: TimeRanProps) => {
 	return (
 		<div className="flex gap-1 items-center">
-			<Icon id="Clock" className="h-4 w-4" />
+			<Icon id="Clock" className="size-4" />
 			<Typography variant="bodySmall">
 				{humanizeDuration(duration, { maxDecimalPoints: 3, units: ["s"] })}
 			</Typography>
@@ -127,7 +131,7 @@ type StartTimeProps = {
 };
 const StartTime = ({ time }: StartTimeProps) => (
 	<div className="flex gap-1 items-center">
-		<Icon id="Calendar" className="h-4 w-4" />
+		<Icon id="Calendar" className="size-4" />
 		<Typography variant="bodySmall" className="font-mono">
 			{format(parseISO(time), "yyyy/MM/dd pp")}
 		</Typography>

@@ -34,26 +34,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.9.18"
+          python-version: "3.9"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
 
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
-
-      - name: Install packages
-        run: |
-          python -m pip install -U uv pre-commit
-          uv pip install --upgrade --system -e .[dev]
+      - name: Install the project
+        run: uv sync --compile-bytecode --no-editable
 
       - name: Setup NodeJS
         uses: actions/setup-node@v4
@@ -66,10 +55,10 @@ jobs:
 
       - name: Run pre-commit
         run: |
-          pre-commit run --show-diff-on-failure --color=always --all-files
+          uv run pre-commit run --show-diff-on-failure --color=always --all-files
 
-  type-completeness-check:
-    name: Type completeness check
+  type-checks:
+    name: Type Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,48 +70,18 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      
+      - name: Install the project
+        run: uv sync --compile-bytecode --no-editable
 
-      - name: Calculate type completeness score
-        id: calculate_current_score
-        run: |
-          # `pyright` will exit with a non-zero status code if it finds any issues,
-          # so we need to explicitly ignore the exit code with `|| true`.
-          uv tool run --with-editable . pyright --verifytypes prefect --ignoreexternal --outputjson > prefect-analysis.json || true
-          SCORE=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis.json)
-          echo "current_score=$SCORE" >> $GITHUB_OUTPUT
+      - name: Run type completeness check
+        run: >-
+          uv run pyright --ignoreexternal --verifytypes prefect
 
-      - name: Checkout base branch
-        run: |
-          git checkout ${{ github.base_ref }}
+      - name: Run pyright check
+        run: >-
+          uv run pyright -p pyrightconfig-ci.json
 
-      - name: Calculate base branch score
-        id: calculate_base_score
-        run: |
-          uv tool run --with-editable . pyright --verifytypes prefect --ignoreexternal --outputjson > prefect-analysis-base.json || true
-          BASE_SCORE=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis-base.json)
-          echo "base_score=$BASE_SCORE" >> $GITHUB_OUTPUT
 
-      - name: Compare scores
-        run: |
-          CURRENT_SCORE=$(echo ${{ steps.calculate_current_score.outputs.current_score }})
-          BASE_SCORE=$(echo ${{ steps.calculate_base_score.outputs.base_score }})
-
-          if (( $(echo "$BASE_SCORE > $CURRENT_SCORE" | bc -l) )); then
-            echo "::notice title=Type Completeness Check::We noticed a decrease in type coverage with these changes. Check workflow summary for more details."
-            echo "### ℹ️ Type Completeness Check" >> $GITHUB_STEP_SUMMARY
-            echo "We noticed a decrease in type coverage with these changes. To maintain our codebase quality, we aim to keep or improve type coverage with each change." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Need help? Ping @desertaxle or @zzstoatzz for assistance!" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Here's what changed:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            uv run scripts/pyright_diff.py prefect-analysis-base.json prefect-analysis.json >> $GITHUB_STEP_SUMMARY
-            SCORE_DIFF=$(echo "$BASE_SCORE - $CURRENT_SCORE" | bc -l)
-            if (( $(echo "$SCORE_DIFF > 0.001" | bc -l) )); then
-                exit 1
-            fi
-          elif (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
-            echo "🎉 Great work! The type coverage has improved with these changes" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "✅ Type coverage maintained" >> $GITHUB_STEP_SUMMARY
-          fi

@@ -1,3 +1,4 @@
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,24 +8,22 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
-import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
+import { toast } from "sonner";
 
-type Props = CellContext<GlobalConcurrencyLimit, unknown> & {
+type ActionsCellProps = CellContext<GlobalConcurrencyLimit, unknown> & {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 };
 
-export const ActionsCell = ({ onEditRow, onDeleteRow, ...props }: Props) => {
-	const { toast } = useToast();
-
-	const handleCopyId = (id: string | undefined) => {
-		if (!id) {
-			throw new Error("'id' field expected in GlobalConcurrencyLimit");
-		}
+export const ActionsCell = ({
+	onEditRow,
+	onDeleteRow,
+	...props
+}: ActionsCellProps) => {
+	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	const row = props.row.original;
@@ -32,9 +31,9 @@ export const ActionsCell = ({ onEditRow, onDeleteRow, ...props }: Props) => {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="h-8 w-8 p-0">
+				<Button variant="outline" className="size-8 p-0">
 					<span className="sr-only">Open menu</span>
-					<Icon id="MoreVertical" className="h-4 w-4" />
+					<Icon id="MoreVertical" className="size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">

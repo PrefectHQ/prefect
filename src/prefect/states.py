@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import datetime
 import sys
@@ -6,17 +8,15 @@ import uuid
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import Any, Dict, Iterable, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
 
 import anyio
 import httpx
-import pendulum
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
 from prefect._internal.compatibility import deprecated
-from prefect.client.schemas import State as State
-from prefect.client.schemas import StateDetails, StateType
+from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
@@ -28,18 +28,49 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.results import (
-    BaseResult,
-    R,
-    ResultRecord,
-    ResultRecordMetadata,
-    ResultStore,
-)
+from prefect.types._datetime import DateTime, Duration, now
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
-logger = get_logger("states")
+if TYPE_CHECKING:
+    import logging
+
+    from prefect.client.schemas.actions import StateCreate
+    from prefect.results import (
+        R,
+        ResultStore,
+    )
+
+logger: "logging.Logger" = get_logger("states")
+
+
+def to_state_create(state: State) -> "StateCreate":
+    """
+    Convert the state to a `StateCreate` type which can be used to set the state of
+    a run in the API.
+
+    This method will drop this state's `data` if it is not a result type. Only
+    results should be sent to the API. Other data is only available locally.
+    """
+    from prefect.client.schemas.actions import StateCreate
+    from prefect.results import (
+        ResultRecord,
+        should_persist_result,
+    )
+
+    if isinstance(state.data, ResultRecord) and should_persist_result():
+        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
+    else:
+        data = None
+
+    return StateCreate(
+        type=state.type,
+        name=state.name,
+        message=state.message,
+        data=data,
+        state_details=state.state_details,
+    )
 
 
 @deprecated.deprecated_parameter(
@@ -50,11 +81,11 @@ logger = get_logger("states")
     help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
 )
 def get_state_result(
-    state: State[R],
+    state: "State[R]",
     raise_on_failure: bool = True,
     fetch: bool = True,
     retry_result_failure: bool = True,
-) -> R:
+) -> "R":
     """
     Get the result from a state.
 
@@ -87,13 +118,18 @@ RESULT_READ_RETRY_DELAY = 0.25
 
 
 async def _get_state_result_data_with_retries(
-    state: State[R], retry_result_failure: bool = True
-) -> R:
+    state: "State[R]", retry_result_failure: bool = True
+) -> "R":
     # Results may be written asynchronously, possibly after their corresponding
     # state has been written and events have been emitted, so we should give some
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
+    from prefect._result_records import (
+        ResultRecordMetadata,
+    )
+    from prefect.results import ResultStore
+
     if retry_result_failure is False:
         max_attempts = 1
     else:
@@ -102,7 +138,7 @@ async def _get_state_result_data_with_retries(
     for i in range(1, max_attempts + 1):
         try:
             if isinstance(state.data, ResultRecordMetadata):
-                record = await ResultRecord._from_metadata(state.data)
+                record = await ResultStore._from_metadata(state.data)
                 return record.result
             else:
                 return await state.data.get()
@@ -121,11 +157,16 @@ async def _get_state_result_data_with_retries(
 
 @sync_compatible
 async def _get_state_result(
-    state: State[R], raise_on_failure: bool, retry_result_failure: bool = True
-) -> R:
+    state: "State[R]", raise_on_failure: bool, retry_result_failure: bool = True
+) -> "R":
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
+    from prefect.results import (
+        ResultRecord,
+        ResultRecordMetadata,
+    )
+
     if state.is_paused():
         # Paused states are not truly terminal and do not have results associated with them
         raise PausedRun("Run is paused, its result is not available.", state=state)
@@ -140,7 +181,7 @@ async def _get_state_result(
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, (BaseResult, ResultRecordMetadata)):
+    if isinstance(state.data, ResultRecordMetadata):
         result = await _get_state_result_data_with_retries(
             state, retry_result_failure=retry_result_failure
         )
@@ -182,7 +223,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 async def exception_to_crashed_state(
     exc: BaseException,
-    result_store: Optional[ResultStore] = None,
+    result_store: Optional["ResultStore"] = None,
 ) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
@@ -234,10 +275,10 @@ async def exception_to_crashed_state(
 
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
-    result_store: Optional[ResultStore] = None,
+    result_store: Optional["ResultStore"] = None,
     write_result: bool = False,
-    **kwargs,
-) -> State:
+    **kwargs: Any,
+) -> State[BaseException]:
     """
     Convenience function for creating `Failed` states from exceptions
     """
@@ -286,12 +327,12 @@ async def exception_to_failed_state(
 
 
 async def return_value_to_state(
-    retval: R,
-    result_store: ResultStore,
+    retval: "R",
+    result_store: "ResultStore",
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
     write_result: bool = False,
-) -> State[R]:
+) -> "State[R]":
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
@@ -312,6 +353,11 @@ async def return_value_to_state(
     Callers should resolve all futures into states before passing return values to this
     function.
     """
+    from prefect.results import (
+        ResultRecord,
+        ResultRecordMetadata,
+    )
+
     try:
         local_logger = get_run_logger()
     except MissingContextError:
@@ -326,7 +372,7 @@ async def return_value_to_state(
         state = retval
         # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
-        if not isinstance(state.data, (BaseResult, ResultRecord, ResultRecordMetadata)):
+        if not isinstance(state.data, (ResultRecord, ResultRecordMetadata)):
             result_record = result_store.create_result_record(
                 state.data,
                 key=key,
@@ -402,7 +448,7 @@ async def return_value_to_state(
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    if isinstance(data, (BaseResult, ResultRecord)):
+    if isinstance(data, ResultRecord):
         return Completed(data=data)
     else:
         result_record = result_store.create_result_record(
@@ -444,6 +490,11 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
+    from prefect._result_records import (
+        ResultRecord,
+        ResultRecordMetadata,
+    )
+    from prefect.results import ResultStore
 
     if state.is_failed():
         wrapper = FailedRun
@@ -457,12 +508,10 @@ async def get_state_exception(state: State) -> BaseException:
     else:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
-    if isinstance(state.data, BaseResult):
-        result = await _get_state_result_data_with_retries(state)
-    elif isinstance(state.data, ResultRecord):
+    if isinstance(state.data, ResultRecord):
         result = state.data.result
     elif isinstance(state.data, ResultRecordMetadata):
-        record = await ResultRecord._from_metadata(state.data)
+        record = await ResultStore._from_metadata(state.data)
         result = record.result
     elif state.data is None:
         result = None
@@ -537,17 +586,17 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
 
 
 class StateGroup:
-    def __init__(self, states: Iterable[State]) -> None:
-        self.states = states
-        self.type_counts = self._get_type_counts(states)
-        self.total_count = len(states)
-        self.cancelled_count = self.type_counts[StateType.CANCELLED]
-        self.final_count = sum(state.is_final() for state in states)
-        self.not_final_count = self.total_count - self.final_count
-        self.paused_count = self.type_counts[StateType.PAUSED]
+    def __init__(self, states: list[State]) -> None:
+        self.states: list[State] = states
+        self.type_counts: dict[StateType, int] = self._get_type_counts(states)
+        self.total_count: int = len(states)
+        self.cancelled_count: int = self.type_counts[StateType.CANCELLED]
+        self.final_count: int = sum(state.is_final() for state in states)
+        self.not_final_count: int = self.total_count - self.final_count
+        self.paused_count: int = self.type_counts[StateType.PAUSED]
 
     @property
-    def fail_count(self):
+    def fail_count(self) -> int:
         return self.type_counts[StateType.FAILED] + self.type_counts[StateType.CRASHED]
 
     def all_completed(self) -> bool:
@@ -589,7 +638,7 @@ class StateGroup:
         return f"StateGroup<{self.counts_message()}>"
 
 
-def _traced(cls: Type[State[R]], **kwargs: Any) -> State[R]:
+def _traced(cls: Type["State[R]"], **kwargs: Any) -> "State[R]":
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
 
     carrier = {}
@@ -600,10 +649,10 @@ def _traced(cls: Type[State[R]], **kwargs: Any) -> State[R]:
 
 
 def Scheduled(
-    cls: Type[State[R]] = State,
+    cls: Type["State[R]"] = State,
     scheduled_time: Optional[datetime.datetime] = None,
     **kwargs: Any,
-) -> State[R]:
+) -> "State[R]":
     """Convenience function for creating `Scheduled` states.
 
     Returns:
@@ -611,7 +660,7 @@ def Scheduled(
     """
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = now()
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -619,7 +668,7 @@ def Scheduled(
     return _traced(cls, type=StateType.SCHEDULED, state_details=state_details, **kwargs)
 
 
-def Completed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Completed(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Completed` states.
 
     Returns:
@@ -629,7 +678,7 @@ def Completed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     return _traced(cls, type=StateType.COMPLETED, **kwargs)
 
 
-def Running(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Running(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Running` states.
 
     Returns:
@@ -638,7 +687,7 @@ def Running(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     return _traced(cls, type=StateType.RUNNING, **kwargs)
 
 
-def Failed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Failed(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Failed` states.
 
     Returns:
@@ -647,7 +696,7 @@ def Failed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     return _traced(cls, type=StateType.FAILED, **kwargs)
 
 
-def Crashed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Crashed(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Crashed` states.
 
     Returns:
@@ -656,7 +705,7 @@ def Crashed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     return _traced(cls, type=StateType.CRASHED, **kwargs)
 
 
-def Cancelling(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Cancelling(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Cancelling` states.
 
     Returns:
@@ -665,7 +714,7 @@ def Cancelling(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     return _traced(cls, type=StateType.CANCELLING, **kwargs)
 
 
-def Cancelled(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Cancelled(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Cancelled` states.
 
     Returns:
@@ -674,7 +723,7 @@ def Cancelled(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     return _traced(cls, type=StateType.CANCELLED, **kwargs)
 
 
-def Pending(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Pending(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Pending` states.
 
     Returns:
@@ -684,13 +733,13 @@ def Pending(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
 
 
 def Paused(
-    cls: Type[State[R]] = State,
+    cls: Type["State[R]"] = State,
     timeout_seconds: Optional[int] = None,
     pause_expiration_time: Optional[datetime.datetime] = None,
     reschedule: bool = False,
     pause_key: Optional[str] = None,
     **kwargs: Any,
-) -> State[R]:
+) -> "State[R]":
     """Convenience function for creating `Paused` states.
 
     Returns:
@@ -709,8 +758,10 @@ def Paused(
     if pause_expiration_time is None and timeout_seconds is None:
         pass
     else:
-        state_details.pause_timeout = pause_expiration_time or (
-            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+        state_details.pause_timeout = (
+            DateTime.instance(pause_expiration_time)
+            if pause_expiration_time
+            else now() + Duration(seconds=timeout_seconds or 0)
         )
 
     state_details.pause_reschedule = reschedule
@@ -720,12 +771,12 @@ def Paused(
 
 
 def Suspended(
-    cls: Type[State[R]] = State,
+    cls: Type["State[R]"] = State,
     timeout_seconds: Optional[int] = None,
     pause_expiration_time: Optional[datetime.datetime] = None,
     pause_key: Optional[str] = None,
     **kwargs: Any,
-):
+) -> "State[R]":
     """Convenience function for creating `Suspended` states.
 
     Returns:
@@ -743,10 +794,10 @@ def Suspended(
 
 
 def AwaitingRetry(
-    cls: Type[State[R]] = State,
+    cls: Type["State[R]"] = State,
     scheduled_time: Optional[datetime.datetime] = None,
     **kwargs: Any,
-) -> State[R]:
+) -> "State[R]":
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
@@ -758,10 +809,10 @@ def AwaitingRetry(
 
 
 def AwaitingConcurrencySlot(
-    cls: Type[State[R]] = State,
+    cls: Type["State[R]"] = State,
     scheduled_time: Optional[datetime.datetime] = None,
     **kwargs: Any,
-) -> State[R]:
+) -> "State[R]":
     """Convenience function for creating `AwaitingConcurrencySlot` states.
 
     Returns:
@@ -772,7 +823,7 @@ def AwaitingConcurrencySlot(
     )
 
 
-def Retrying(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
+def Retrying(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Retrying` states.
 
     Returns:
@@ -782,10 +833,10 @@ def Retrying(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
 
 
 def Late(
-    cls: Type[State[R]] = State,
+    cls: Type["State[R]"] = State,
     scheduled_time: Optional[datetime.datetime] = None,
     **kwargs: Any,
-) -> State[R]:
+) -> "State[R]":
     """Convenience function for creating `Late` states.
 
     Returns:

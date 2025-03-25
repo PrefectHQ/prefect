@@ -384,7 +384,7 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
 
     assert result == {"foo": "bar"}
     local_storage = await LocalFileSystem.load("my-result-storage")
-    result_bytes = await local_storage.read_path(f"{tmp_path/'my-result.pkl'}")
+    result_bytes = await local_storage.read_path(f"{tmp_path / 'my-result.pkl'}")
     saved_python_result = ResultRecord.deserialize(result_bytes).result
 
     assert saved_python_result == {"foo": "bar"}

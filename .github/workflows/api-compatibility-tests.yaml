@@ -5,8 +5,7 @@ on:
     paths:
       - .github/workflows/api-compatibility-tests.yaml
       - "**/*.py"
-      - requirements*.txt
-      - setup.cfg
+      - pyproject.toml
       - compat-tests
   push:
     branches:
@@ -37,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Versioneer only generates correct versions with a full fetch
+          # Versioningit only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
           submodules: true

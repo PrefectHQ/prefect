@@ -40,7 +40,7 @@ async def create_block_schema(
         "ClientBlockSchema",
     ],
     override: bool = False,
-    definitions: Optional[Dict] = None,
+    definitions: Optional[dict[str, Any]] = None,
 ) -> Union[BlockSchema, orm_models.BlockSchema]:
     """
     Create a new block schema.
@@ -97,10 +97,10 @@ async def create_block_schema(
             insert_values["fields"], definitions
         )
         if non_block_definitions:
-            insert_values["fields"][
-                "definitions"
-            ] = _get_non_block_reference_definitions(
-                insert_values["fields"], definitions
+            insert_values["fields"]["definitions"] = (
+                _get_non_block_reference_definitions(
+                    insert_values["fields"], definitions
+                )
             )
         else:
             # Prevent storing definitions for blocks. Those are reconstructed on read.
@@ -157,7 +157,7 @@ async def _register_nested_block_schemas(
     db: PrefectDBInterface,
     session: AsyncSession,
     parent_block_schema_id: UUID,
-    block_schema_references: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]],
+    block_schema_references: dict[str, Union[dict[str, str], List[dict[str, str]]]],
     base_fields: Dict,
     definitions: Optional[Dict],
     override: bool = False,
@@ -248,7 +248,7 @@ def _get_fields_for_child_schema(
     base_fields: Dict,
     reference_name: str,
     reference_block_type: orm_models.BlockType,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Returns the field definitions for a child schema. The fields definitions are pulled from the provided `definitions`
     dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
@@ -447,7 +447,7 @@ def _construct_block_schema_spec_definitions(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Constructs field definitions for a block schema based on the nested block schemas
     as defined in the block_schemas_with_references list.
@@ -498,7 +498,7 @@ def _find_block_schema_via_checksum(
 
 def _add_block_schemas_fields_to_definitions(
     definitions: Dict, child_block_schema: BlockSchema
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Returns a new definitions dict with the fields of a block schema and it's child
     block schemas added to the existing definitions.
@@ -522,7 +522,7 @@ def _construct_block_schema_fields_with_block_references(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Constructs the block_schema_references in a block schema's fields attributes. Returns
     a copy of the block schema with block_schema_references added.
@@ -548,9 +548,9 @@ def _construct_block_schema_fields_with_block_references(
         parent_block_schema_id,
     ) in block_schemas_with_references:
         if parent_block_schema_id == parent_block_schema.id:
-            assert (
-                nested_block_schema.block_type
-            ), f"{nested_block_schema} has no block type"
+            assert nested_block_schema.block_type, (
+                f"{nested_block_schema} has no block type"
+            )
 
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
@@ -558,9 +558,9 @@ def _construct_block_schema_fields_with_block_references(
             }
             # A block reference for this key does not yet exist
             if name not in block_schema_fields_copy["block_schema_references"]:
-                block_schema_fields_copy["block_schema_references"][
-                    name
-                ] = new_block_schema_reference
+                block_schema_fields_copy["block_schema_references"][name] = (
+                    new_block_schema_reference
+                )
             else:
                 # List of block references for this key already exist and the block
                 # reference that we are attempting add isn't present

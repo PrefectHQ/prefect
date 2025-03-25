@@ -161,7 +161,7 @@ For reference, the examples below live in their respective branches of
 
     build:
       - prefect_docker.deployments.steps.build_docker_image:
-          id: build_image
+          id: build-image
           requires: prefect-docker>=0.3.1
           image_name: my_registry/my_image
           tag: my_image_tag
@@ -170,8 +170,8 @@ For reference, the examples below live in their respective branches of
     push:
       - prefect_docker.deployments.steps.push_docker_image:
           requires: prefect-docker>=0.3.1
-          image_name: "{{ build_image.image_name }}"
-          tag: "{{ build_image.tag }}"
+          image_name: "{{ build-image.image_name }}"
+          tag: "{{ build-image.tag }}"
 
     pull: null
 
@@ -424,4 +424,7 @@ registry URL to the `registry` key in the `with:` part of the action and use an 
 
 ## See also
 
-If you're using Terraform to manage your infrastructure, check out the [Prefect Cloud Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started).
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { home } from "/snippets/resource-management/vars.mdx"
+
+<TF name="resources" href={home.tf} />

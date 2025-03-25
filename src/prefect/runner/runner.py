@@ -1,6 +1,8 @@
 """
-Runners are responsible for managing the execution of deployments created and managed by
-either `flow.serve` or the `serve` utility.
+Runners are responsible for managing the execution of all deployments.
+
+When creating a deployment using either `flow.serve` or the `serve` utility,
+they also will poll for scheduled runs.
 
 Example:
     ```python
@@ -30,10 +32,14 @@ Example:
 
 """
 
+from __future__ import annotations
+
 import asyncio
 import datetime
+import inspect
 import logging
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -59,15 +65,21 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
-import pendulum
+import anyio.to_thread
 from cachetools import LRUCache
+from typing_extensions import Self
 
+from prefect._experimental.bundles import (
+    SerializedBundle,
+    execute_bundle_in_subprocess,
+    extract_flow_from_bundle,
+)
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
     from_sync,
 )
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -77,42 +89,40 @@ from prefect.client.schemas.filters import (
 )
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
-    FlowRun,
     State,
     StateType,
 )
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.concurrency.asyncio import (
-    AcquireConcurrencySlotTimeoutError,
-    ConcurrencySlotAcquisitionError,
-)
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import Flow, load_flow_from_flow_run
+from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
+from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
 from prefect.states import (
+    AwaitingRetry,
     Crashed,
     Pending,
     exception_to_failed_state,
 )
+from prefect.types._datetime import DateTime
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
     sync_compatible,
 )
-from prefect.utilities.engine import propose_state
+from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.processutils import (
-    _register_signal,
     get_sys_executable,
     run_process,
 )
@@ -123,6 +133,9 @@ from prefect.utilities.services import (
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
+    import concurrent.futures
+
+    from prefect.client.schemas.objects import FlowRun
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
@@ -131,7 +144,7 @@ __all__ = ["Runner"]
 
 
 class ProcessMapEntry(TypedDict):
-    flow_run: FlowRun
+    flow_run: "FlowRun"
     pid: int
 
 
@@ -142,7 +155,7 @@ class Runner:
         query_seconds: Optional[float] = None,
         prefetch_seconds: float = 10,
         heartbeat_seconds: Optional[float] = None,
-        limit: Optional[int] = None,
+        limit: int | type[NotSet] | None = NotSet,
         pause_on_shutdown: bool = True,
         webserver: bool = False,
     ):
@@ -158,7 +171,8 @@ class Runner:
             heartbeat_seconds: The number of seconds to wait between emitting
                 flow run heartbeats. The runner will not emit heartbeats if the value is None.
                 Defaults to `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.
-            limit: The maximum number of flow runs this runner should be running at
+            limit: The maximum number of flow runs this runner should be running at. Provide `None` for no limit.
+                If not provided, the runner will use the value of `PREFECT_RUNNER_PROCESS_LIMIT`.
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
             webserver: a boolean flag for whether to start a webserver for this runner
@@ -193,36 +207,45 @@ class Runner:
 
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
-        self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
-        self._logger = get_logger("runner")
+        self.name: str = Path(name).stem if name is not None else f"runner-{uuid4()}"
+        self._logger: "logging.Logger" = get_logger("runner")
 
-        self.started = False
-        self.stopping = False
-        self.pause_on_shutdown = pause_on_shutdown
-        self.limit = limit or settings.runner.process_limit
-        self.webserver = webserver
+        self.started: bool = False
+        self.stopping: bool = False
+        self.pause_on_shutdown: bool = pause_on_shutdown
+        self.limit: int | None = (
+            settings.runner.process_limit
+            if limit is NotSet or isinstance(limit, type)
+            else limit
+        )
+        self.webserver: bool = webserver
 
-        self.query_seconds = query_seconds or settings.runner.poll_frequency
-        self._prefetch_seconds = prefetch_seconds
-        self.heartbeat_seconds = (
+        self.query_seconds: float = query_seconds or settings.runner.poll_frequency
+        self._prefetch_seconds: float = prefetch_seconds
+        self.heartbeat_seconds: float | None = (
             heartbeat_seconds or settings.runner.heartbeat_frequency
         )
         if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
             raise ValueError("Heartbeat must be 30 seconds or greater.")
+        self._heartbeat_task: asyncio.Task[None] | None = None
 
-        self._limiter: Optional[anyio.CapacityLimiter] = None
-        self._client = get_client()
+        self._limiter: anyio.CapacityLimiter | None = None
+        self._client: PrefectClient = get_client()
         self._submitting_flow_run_ids: set[UUID] = set()
         self._cancelling_flow_run_ids: set[UUID] = set()
-        self._scheduled_task_scopes: set[UUID] = set()
+        self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
         self._deployment_ids: set[UUID] = set()
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
+        self.__flow_run_process_map_lock: asyncio.Lock | None = None
+        self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
+        # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
+        self._rescheduling: bool = False
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
         )
-        self._storage_objs: List[RunnerStorage] = []
-        self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
+        self._storage_objs: list[RunnerStorage] = []
+        self._deployment_storage_map: dict[UUID, RunnerStorage] = {}
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -231,6 +254,12 @@ class Runner:
             maxsize=100
         )
         self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
+
+    @property
+    def _flow_run_process_map_lock(self) -> asyncio.Lock:
+        if self.__flow_run_process_map_lock is None:
+            self.__flow_run_process_map_lock = asyncio.Lock()
+        return self.__flow_run_process_map_lock
 
     @sync_compatible
     async def add_deployment(
@@ -244,10 +273,16 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        deployment_id = await deployment.apply()
+        apply_coro = deployment.apply()
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(apply_coro)
+        deployment_id = await apply_coro
         storage = deployment.storage
         if storage is not None:
-            storage = await self._add_storage(storage)
+            add_storage_coro = self._add_storage(storage)
+            if TYPE_CHECKING:
+                assert inspect.isawaitable(add_storage_coro)
+            storage = await add_storage_coro
             self._deployment_storage_map[deployment_id] = storage
         self._deployment_ids.add(deployment_id)
 
@@ -269,6 +304,7 @@ class Runner:
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -294,6 +330,8 @@ class Runner:
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set the created deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this flow.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs of this flow to allow.
@@ -308,18 +346,19 @@ class Runner:
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
         api = PREFECT_API_URL.value()
-        if any([interval, cron, rrule]) and not api:
+        if any([interval, cron, rrule, schedule, schedules]) and not api:
             self._logger.warning(
                 "Cannot schedule flows on an ephemeral server; run `prefect server"
                 " start` to start the scheduler."
             )
         name = self.name if name is None else name
 
-        deployment = await flow.to_deployment(
+        to_deployment_coro = flow.to_deployment(
             name=name,
             interval=interval,
             cron=cron,
             rrule=rrule,
+            schedule=schedule,
             schedules=schedules,
             paused=paused,
             triggers=triggers,
@@ -331,7 +370,14 @@ class Runner:
             entrypoint_type=entrypoint_type,
             concurrency_limit=concurrency_limit,
         )
-        return await self.add_deployment(deployment)
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(to_deployment_coro)
+        deployment = await to_deployment_coro
+
+        add_deployment_coro = self.add_deployment(deployment)
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(add_deployment_coro)
+        return await add_deployment_coro
 
     @sync_compatible
     async def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
@@ -358,7 +404,7 @@ class Runner:
         else:
             return next(s for s in self._storage_objs if s == storage)
 
-    def handle_sigterm(self, **kwargs: Any) -> None:
+    def handle_sigterm(self, *args: Any, **kwargs: Any) -> None:
         """
         Gracefully shuts down the runner when a SIGTERM is received.
         """
@@ -409,7 +455,8 @@ class Runner:
         """
         from prefect.runner.server import start_webserver
 
-        _register_signal(signal.SIGTERM, self.handle_sigterm)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGTERM, self.handle_sigterm)
 
         webserver = webserver if webserver is not None else self.webserver
 
@@ -463,20 +510,10 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
-                if self.heartbeat_seconds is not None:
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=runner._emit_flow_run_heartbeats,
-                            interval=self.heartbeat_seconds,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                        )
-                    )
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
-    ):
+    ) -> "concurrent.futures.Future[Any]":
         """
         Executes a function in the background.
         """
@@ -485,8 +522,8 @@ class Runner:
 
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
-    async def cancel_all(self):
-        runs_to_cancel = []
+    async def cancel_all(self) -> None:
+        runs_to_cancel: list["FlowRun"] = []
 
         # done to avoid dictionary size changing during iteration
         for info in self._flow_run_process_map.values():
@@ -521,13 +558,23 @@ class Runner:
             )
 
     async def execute_flow_run(
-        self, flow_run_id: UUID, entrypoint: Optional[str] = None
-    ):
+        self,
+        flow_run_id: UUID,
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | str | None = None,
+        env: dict[str, str | None] | None = None,
+        task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
+        stream_output: bool = True,
+    ) -> anyio.abc.Process | None:
         """
         Executes a single flow run with the given ID.
 
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
+
+        Returns:
+            The flow run process.
         """
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
@@ -541,17 +588,33 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    pid = await self._runs_task_group.start(
+                    process: (
+                        anyio.abc.Process | Exception
+                    ) = await self._runs_task_group.start(
                         partial(
                             self._submit_run_and_capture_errors,
                             flow_run=flow_run,
                             entrypoint=entrypoint,
+                            command=command,
+                            cwd=cwd,
+                            env=env,
+                            stream_output=stream_output,
                         ),
                     )
+                    if isinstance(process, Exception):
+                        return
 
-                    self._flow_run_process_map[flow_run.id] = dict(
-                        pid=pid, flow_run=flow_run
-                    )
+                    task_status.started(process.pid)
+
+                    if self.heartbeat_seconds is not None:
+                        await self._emit_flow_run_heartbeat(flow_run)
+
+                    async with self._flow_run_process_map_lock:
+                        # Only add the process to the map if it is still running
+                        if process.returncode is None:
+                            self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                                pid=process.pid, flow_run=flow_run
+                            )
 
                     # We want this loop to stop when the flow run process exits
                     # so we'll check if the flow run process is still alive on
@@ -570,15 +633,114 @@ class Runner:
                             jitter_range=0.3,
                         )
                     )
-                    if self.heartbeat_seconds is not None:
-                        tg.start_soon(
-                            partial(
-                                critical_service_loop,
-                                workload=self._emit_flow_run_heartbeats,
-                                interval=self.heartbeat_seconds,
-                                jitter_range=0.3,
-                            )
-                        )
+
+                    return process
+
+    async def execute_bundle(self, bundle: SerializedBundle) -> None:
+        """
+        Executes a bundle in a subprocess.
+        """
+        from prefect.client.schemas.objects import FlowRun
+
+        self.pause_on_shutdown = False
+        context = self if not self.started else asyncnullcontext()
+
+        flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+        async with context:
+            if not self._acquire_limit_slot(flow_run.id):
+                return
+
+            process = execute_bundle_in_subprocess(bundle)
+
+            if process.pid is None:
+                # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
+                # but we'll handle it gracefully anyway
+                msg = "Failed to start process for flow execution. No PID returned."
+                await self._propose_crashed_state(flow_run, msg)
+                raise RuntimeError(msg)
+
+            if self.heartbeat_seconds is not None:
+                await self._emit_flow_run_heartbeat(flow_run)
+
+            self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                pid=process.pid, flow_run=flow_run
+            )
+            self._flow_run_bundle_map[flow_run.id] = bundle
+
+            tasks: list[asyncio.Task[None]] = []
+            tasks.append(
+                asyncio.create_task(
+                    critical_service_loop(
+                        workload=self._check_for_cancelled_flow_runs,
+                        interval=self.query_seconds,
+                        jitter_range=0.3,
+                    )
+                )
+            )
+
+            await anyio.to_thread.run_sync(process.join)
+
+            for task in tasks:
+                task.cancel()
+
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+            self._flow_run_process_map.pop(flow_run.id)
+
+            flow_run_logger = self._get_flow_run_logger(flow_run)
+            if process.exitcode is None:
+                raise RuntimeError("Process has no exit code")
+
+            if process.exitcode:
+                help_message = None
+                level = logging.ERROR
+                if process.exitcode == -9:
+                    level = logging.INFO
+                    help_message = (
+                        "This indicates that the process exited due to a SIGKILL signal. "
+                        "Typically, this is either caused by manual cancellation or "
+                        "high memory usage causing the operating system to "
+                        "terminate the process."
+                    )
+                if process.exitcode == -15:
+                    level = logging.INFO
+                    help_message = (
+                        "This indicates that the process exited due to a SIGTERM signal. "
+                        "Typically, this is caused by manual cancellation."
+                    )
+                elif process.exitcode == 247:
+                    help_message = (
+                        "This indicates that the process was terminated due to high "
+                        "memory usage."
+                    )
+                elif (
+                    sys.platform == "win32"
+                    and process.exitcode == STATUS_CONTROL_C_EXIT
+                ):
+                    level = logging.INFO
+                    help_message = (
+                        "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
+                        "Typically, this is caused by manual cancellation."
+                    )
+
+                flow_run_logger.log(
+                    level,
+                    f"Process for flow run {flow_run.name!r} exited with status code:"
+                    f" {process.exitcode}"
+                    + (f"; {help_message}" if help_message else ""),
+                )
+                terminal_state = await self._propose_crashed_state(
+                    flow_run, help_message or "Process exited with non-zero exit code"
+                )
+                if terminal_state:
+                    await self._run_on_crashed_hooks(
+                        flow_run=flow_run, state=terminal_state
+                    )
+            else:
+                flow_run_logger.info(
+                    f"Process for flow run {flow_run.name!r} exited cleanly."
+                )
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
@@ -591,9 +753,15 @@ class Runner:
     async def _run_process(
         self,
         flow_run: "FlowRun",
-        task_status: Optional[anyio.abc.TaskStatus[Any]] = None,
-        entrypoint: Optional[str] = None,
-    ):
+        task_status: anyio.abc.TaskStatus[
+            anyio.abc.Process
+        ] = anyio.TASK_STATUS_IGNORED,
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | str | None = None,
+        env: dict[str, str | None] | None = None,
+        stream_output: bool = True,
+    ) -> anyio.abc.Process:
         """
         Runs the given flow run in a subprocess.
 
@@ -605,7 +773,10 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = [get_sys_executable(), "-m", "prefect.engine"]
+        if command is None:
+            runner_command = [get_sys_executable(), "-m", "prefect.engine"]
+        else:
+            runner_command = shlex.split(command)
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -618,7 +789,9 @@ class Runner:
 
         flow_run_logger.info("Opening process...")
 
-        env = get_current_settings().to_environment_variables(exclude_unset=True)
+        if env is None:
+            env = {}
+        env.update(get_current_settings().to_environment_variables(exclude_unset=True))
         env.update(
             {
                 **{
@@ -631,7 +804,11 @@ class Runner:
         )
         env.update(**os.environ)  # is this really necessary??
 
-        storage = self._deployment_storage_map.get(flow_run.deployment_id)
+        storage = (
+            self._deployment_storage_map.get(flow_run.deployment_id)
+            if flow_run.deployment_id
+            else None
+        )
         if storage and storage.pull_interval:
             # perform an adhoc pull of code before running the flow if an
             # adhoc pull hasn't been performed in the last pull_interval
@@ -652,15 +829,17 @@ class Runner:
                 setattr(storage, "last_adhoc_pull", datetime.datetime.now())
 
         process = await run_process(
-            command=command,
-            stream_output=True,
+            command=runner_command,
+            stream_output=stream_output,
             task_status=task_status,
+            task_status_handler=lambda process: process,
             env=env,
+            cwd=storage.destination if storage else cwd,
             **kwargs,
-            cwd=storage.destination if storage else None,
         )
 
-        # Use the pid for display if no name was given
+        if process.returncode is None:
+            raise RuntimeError("Process exited with None return code")
 
         if process.returncode:
             help_message = None
@@ -704,7 +883,7 @@ class Runner:
                 f"Process for flow run {flow_run.name!r} exited cleanly."
             )
 
-        return process.returncode
+        return process
 
     async def _kill_process(
         self,
@@ -759,6 +938,45 @@ class Runner:
                 # process ended right after the check above.
                 return
 
+    def reschedule_current_flow_runs(
+        self,
+    ) -> None:
+        """
+        Reschedules all flow runs that are currently running.
+
+        This should only be called when the runner is shutting down because it kill all
+        child processes and short-circuit the crash detection logic.
+        """
+        self._rescheduling = True
+        # Create a new sync client because this will often run in a separate thread
+        # as part of a signal handler.
+        with get_client(sync_client=True) as client:
+            self._logger.info("Rescheduling flow runs...")
+            for process_info in self._flow_run_process_map.values():
+                flow_run = process_info["flow_run"]
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.info(
+                    "Rescheduling flow run for resubmission in response to SIGTERM"
+                )
+                try:
+                    propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
+                    os.kill(process_info["pid"], signal.SIGTERM)
+                    run_logger.info("Rescheduled flow run for resubmission")
+                except ProcessLookupError:
+                    # Process may have already exited
+                    pass
+                except Abort as exc:
+                    run_logger.info(
+                        (
+                            "Aborted submission of flow run. "
+                            f"Server sent an abort signal: {exc}"
+                        ),
+                    )
+                except Exception:
+                    run_logger.exception(
+                        "Failed to reschedule flow run",
+                    )
+
     async def _pause_schedules(self):
         """
         Pauses all deployment schedules.
@@ -774,7 +992,7 @@ class Runner:
         if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled = pendulum.now("UTC")
+        self.last_polled: DateTime = DateTime.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
@@ -856,9 +1074,12 @@ class Runner:
     async def _cancel_run(self, flow_run: "FlowRun", state_msg: Optional[str] = None):
         run_logger = self._get_flow_run_logger(flow_run)
 
-        pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
+        process_map_entry = self._flow_run_process_map.get(flow_run.id)
+
+        pid = process_map_entry.get("pid") if process_map_entry else None
         if not pid:
-            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
+            if flow_run.state:
+                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -874,7 +1095,8 @@ class Runner:
             await self._kill_process(pid)
         except RuntimeError as exc:
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
-            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
+            if flow_run.state:
+                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(flow_run)
         except Exception:
             run_logger.exception(
@@ -884,7 +1106,8 @@ class Runner:
             # We will try again on generic exceptions
             self._cancelling_flow_run_ids.remove(flow_run.id)
         else:
-            await self._run_on_cancellation_hooks(flow_run, flow_run.state)
+            if flow_run.state:
+                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -1031,11 +1254,11 @@ class Runner:
 
     async def _get_scheduled_flow_runs(
         self,
-    ) -> List["FlowRun"]:
+    ) -> list["FlowRun"]:
         """
         Retrieve scheduled flow runs for this runner.
         """
-        scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = DateTime.now("utc").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
@@ -1056,9 +1279,11 @@ class Runner:
         Returns:
             - bool: True if the limit has not been reached, False otherwise.
         """
+        if not self._limiter:
+            return False
         return self._limiter.available_tokens > 0
 
-    def _acquire_limit_slot(self, flow_run_id: str) -> bool:
+    def _acquire_limit_slot(self, flow_run_id: UUID) -> bool:
         """
         Enforces flow run limit set on runner.
 
@@ -1083,14 +1308,16 @@ class Runner:
             else:
                 raise
         except anyio.WouldBlock:
+            if TYPE_CHECKING:
+                assert self._limiter is not None
             self._logger.info(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
-                " in progress. You can control this limit by passing a `limit` value"
-                " to `serve` or adjusting the PREFECT_RUNNER_PROCESS_LIMIT setting."
+                " in progress. You can control this limit by adjusting the "
+                "PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
             return False
 
-    def _release_limit_slot(self, flow_run_id: str) -> None:
+    def _release_limit_slot(self, flow_run_id: UUID) -> None:
         """
         Frees up a slot taken by the given flow run id.
         """
@@ -1100,15 +1327,17 @@ class Runner:
 
     async def _submit_scheduled_flow_runs(
         self,
-        flow_run_response: List["FlowRun"],
-        entrypoints: Optional[List[str]] = None,
-    ) -> List["FlowRun"]:
+        flow_run_response: list["FlowRun"],
+        entrypoints: list[str] | None = None,
+    ) -> list["FlowRun"]:
         """
         Takes a list of FlowRuns and submits the referenced flow runs
         for execution by the runner.
         """
-        submittable_flow_runs = flow_run_response
-        submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
+        submittable_flow_runs = sorted(
+            flow_run_response,
+            key=lambda run: run.next_scheduled_start_time or datetime.datetime.max,
+        )
 
         for i, flow_run in enumerate(submittable_flow_runs):
             if flow_run.id in self._submitting_flow_run_ids:
@@ -1157,9 +1386,10 @@ class Runner:
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):
-                self._flow_run_process_map[flow_run.id] = dict(
-                    pid=readiness_result, flow_run=flow_run
-                )
+                async with self._flow_run_process_map_lock:
+                    self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                        pid=readiness_result, flow_run=flow_run
+                    )
             # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
             if self.heartbeat_seconds is not None:
                 await self._emit_flow_run_heartbeat(flow_run)
@@ -1174,40 +1404,33 @@ class Runner:
     async def _submit_run_and_capture_errors(
         self,
         flow_run: "FlowRun",
-        task_status: Optional[anyio.abc.TaskStatus] = None,
-        entrypoint: Optional[str] = None,
+        task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | str | None = None,
+        env: dict[str, str | None] | None = None,
+        stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
 
         try:
-            status_code = await self._run_process(
+            process = await self._run_process(
                 flow_run=flow_run,
                 task_status=task_status,
                 entrypoint=entrypoint,
+                command=command,
+                cwd=cwd,
+                env=env,
+                stream_output=stream_output,
             )
-        except (
-            AcquireConcurrencySlotTimeoutError,
-            ConcurrencySlotAcquisitionError,
-        ) as exc:
-            self._logger.info(
-                (
-                    "Deployment %s reached its concurrency limit when attempting to execute flow run %s. Will attempt to execute later."
-                ),
-                flow_run.deployment_id,
-                flow_run.name,
-            )
-            await self._propose_scheduled_state(flow_run)
-
-            if not task_status._future.done():
-                task_status.started(exc)
-            return exc
+            status_code = process.returncode
         except Exception as exc:
-            if not task_status._future.done():
+            if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
                     f"Failed to start process for flow run '{flow_run.id}'."
                 )
-                # Mark the task as started to prevent agent crash
+                # Mark the task as started to prevent runner crash
                 task_status.started(exc)
                 message = f"Flow run process could not be started:\n{exc!r}"
                 await self._propose_crashed_state(flow_run, message)
@@ -1220,9 +1443,11 @@ class Runner:
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
-            self._flow_run_process_map.pop(flow_run.id, None)
 
-        if status_code != 0:
+            async with self._flow_run_process_map_lock:
+                self._flow_run_process_map.pop(flow_run.id, None)
+
+        if status_code != 0 and not self._rescheduling:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
@@ -1230,7 +1455,7 @@ class Runner:
 
         api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
         terminal_state = api_flow_run.state
-        if terminal_state.is_crashed():
+        if terminal_state and terminal_state.is_crashed():
             await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
         return status_code
@@ -1285,8 +1510,11 @@ class Runner:
                 exc_info=True,
             )
 
-    async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
+    async def _propose_crashed_state(
+        self, flow_run: "FlowRun", message: str
+    ) -> State[Any] | None:
         run_logger = self._get_flow_run_logger(flow_run)
+        state = None
         try:
             state = await propose_state(
                 self._client,
@@ -1303,14 +1531,22 @@ class Runner:
                 run_logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
+        return state
 
     async def _mark_flow_run_as_cancelled(
-        self, flow_run: "FlowRun", state_updates: Optional[dict] = None
+        self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> None:
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
         state_updates.setdefault("type", StateType.CANCELLED)
-        state = flow_run.state.model_copy(update=state_updates)
+        state = (
+            flow_run.state.model_copy(update=state_updates) if flow_run.state else None
+        )
+        if not state:
+            self._logger.warning(
+                f"Could not find state for flow run {flow_run.id} and cancellation cannot be guaranteed."
+            )
+            return
 
         await self._client.set_flow_run_state(flow_run.id, state, force=True)
 
@@ -1321,7 +1557,9 @@ class Runner:
             60 * 10, self._cancelling_flow_run_ids.remove, flow_run.id
         )
 
-    async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
+    async def _schedule_task(
+        self, __in_seconds: int, fn: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> None:
         """
         Schedule a background task to start after some time.
 
@@ -1330,7 +1568,7 @@ class Runner:
         The function may be async or sync. Async functions will be awaited.
         """
 
-        async def wrapper(task_status):
+        async def wrapper(task_status: anyio.abc.TaskStatus[None]) -> None:
             # If we are shutting down, do not sleep; otherwise sleep until the scheduled
             # time or shutdown
             if self.started:
@@ -1357,18 +1595,25 @@ class Runner:
         """
         Run the hooks for a flow.
         """
+        run_logger = self._get_flow_run_logger(flow_run)
         if state.is_cancelling():
             try:
-                flow = await load_flow_from_flow_run(
-                    flow_run, storage_base_path=str(self._tmp_dir)
-                )
+                if flow_run.id in self._flow_run_bundle_map:
+                    flow = extract_flow_from_bundle(
+                        self._flow_run_bundle_map[flow_run.id]
+                    )
+                else:
+                    run_logger.info("Loading flow to check for on_cancellation hooks")
+                    flow = await load_flow_from_flow_run(
+                        flow_run, storage_base_path=str(self._tmp_dir)
+                    )
                 hooks = flow.on_cancellation_hooks or []
 
                 await _run_hooks(hooks, flow_run, flow, state)
             except ObjectNotFound:
                 run_logger = self._get_flow_run_logger(flow_run)
                 run_logger.warning(
-                    f"Runner cannot retrieve flow to execute cancellation hooks for flow run {flow_run.id!r}."
+                    f"Runner failed to retrieve flow to execute on_cancellation hooks for flow run {flow_run.id!r}."
                 )
 
     async def _run_on_crashed_hooks(
@@ -1379,20 +1624,32 @@ class Runner:
         """
         Run the hooks for a flow.
         """
+        run_logger = self._get_flow_run_logger(flow_run)
         if state.is_crashed():
-            flow = await load_flow_from_flow_run(
-                flow_run, storage_base_path=str(self._tmp_dir)
-            )
-            hooks = flow.on_crashed_hooks or []
+            try:
+                if flow_run.id in self._flow_run_bundle_map:
+                    flow = extract_flow_from_bundle(
+                        self._flow_run_bundle_map[flow_run.id]
+                    )
+                else:
+                    run_logger.info("Loading flow to check for on_crashed hooks")
+                    flow = await load_flow_from_flow_run(
+                        flow_run, storage_base_path=str(self._tmp_dir)
+                    )
+                hooks = flow.on_crashed_hooks or []
 
-            await _run_hooks(hooks, flow_run, flow, state)
+                await _run_hooks(hooks, flow_run, flow, state)
+            except ObjectNotFound:
+                run_logger.warning(
+                    f"Runner failed to retrieve flow to execute on_crashed hooks for flow run {flow_run.id!r}."
+                )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
 
-        self._limiter = anyio.CapacityLimiter(self.limit)
+        self._limiter = anyio.CapacityLimiter(self.limit) if self.limit else None
 
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
@@ -1406,10 +1663,19 @@ class Runner:
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
+        if self.heartbeat_seconds is not None:
+            self._heartbeat_task = asyncio.create_task(
+                critical_service_loop(
+                    workload=self._emit_flow_run_heartbeats,
+                    interval=self.heartbeat_seconds,
+                    jitter_range=0.3,
+                )
+            )
+
         self.started = True
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> None:
         self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
@@ -1427,7 +1693,14 @@ class Runner:
         shutil.rmtree(str(self._tmp_dir))
         del self._runs_task_group, self._loops_task_group
 
-    def __repr__(self):
+        if self._heartbeat_task:
+            self._heartbeat_task.cancel()
+            try:
+                await self._heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
+    def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
 
 
@@ -1437,7 +1710,10 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+    hooks: list[FlowStateHook[Any, Any]],
+    flow_run: "FlowRun",
+    flow: "Flow[..., Any]",
+    state: State,
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:

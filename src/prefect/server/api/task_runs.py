@@ -4,10 +4,9 @@ Routes for interacting with task run objects.
 
 import asyncio
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
-import pendulum
 from fastapi import (
     Body,
     Depends,
@@ -17,6 +16,7 @@ from fastapi import (
     WebSocket,
     status,
 )
+from fastapi.responses import ORJSONResponse
 from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
@@ -27,17 +27,23 @@ from prefect.server.api.run_history import run_history
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.core_policy import CoreTaskPolicy
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
-from prefect.server.schemas.responses import OrchestrationResult
+from prefect.server.orchestration.policies import TaskRunOrchestrationPolicy
+from prefect.server.schemas.responses import (
+    OrchestrationResult,
+    TaskRunPaginationResponse,
+)
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
-logger = get_logger("server.api")
+if TYPE_CHECKING:
+    import logging
 
+logger: "logging.Logger" = get_logger("server.api")
 
-router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
+router: PrefectRouter = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
 @router.post("/")
@@ -55,6 +61,8 @@ async def create_task_run(
     run will be returned.
 
     If no state is provided, the task run will be created in a PENDING state.
+
+    For more information, see https://docs.prefect.io/v3/develop/write-tasks.
     """
     # hydrate the input model into a full task run / state model
     task_run_dict = task_run.model_dump()
@@ -65,7 +73,7 @@ async def create_task_run(
     if not task_run.state:
         task_run.state = schemas.states.Pending()
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.task_runs.create_task_run(
@@ -74,7 +82,7 @@ async def create_task_run(
             orchestration_parameters=orchestration_parameters,
         )
 
-    if model.created >= now:
+    if model.created >= right_now:
         response.status_code = status.HTTP_201_CREATED
 
     new_task_run: schemas.core.TaskRun = schemas.core.TaskRun.model_validate(model)
@@ -87,7 +95,7 @@ async def update_task_run(
     task_run: schemas.actions.TaskRunUpdate,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates a task run.
     """
@@ -210,11 +218,58 @@ async def read_task_runs(
         )
 
 
+@router.post("/paginate", response_class=ORJSONResponse)
+async def paginate_task_runs(
+    sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
+    limit: int = dependencies.LimitBody(),
+    page: int = Body(1, ge=1),
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> TaskRunPaginationResponse:
+    """
+    Pagination query for task runs.
+    """
+    offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        runs = await models.task_runs.read_task_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+        )
+
+        total_count = await models.task_runs.count_task_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )
+
+        return TaskRunPaginationResponse.model_validate(
+            dict(
+                results=runs,
+                count=total_count,
+                limit=limit,
+                pages=(total_count + limit - 1) // limit,
+                page=page,
+            )
+        )
+
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a task run by id.
     """
@@ -239,7 +294,7 @@ async def set_task_run_state(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
-    task_policy: BaseOrchestrationPolicy = Depends(
+    task_policy: TaskRunOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
@@ -248,7 +303,7 @@ async def set_task_run_state(
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     # create the state
     async with db.session_context(
@@ -266,7 +321,7 @@ async def set_task_run_state(
         )
 
     # set the 201 if a new state was created
-    if orchestration_result.state and orchestration_result.state.timestamp >= now:
+    if orchestration_result.state and orchestration_result.state.timestamp >= right_now:
         response.status_code = status.HTTP_201_CREATED
     else:
         response.status_code = status.HTTP_200_OK
@@ -275,7 +330,7 @@ async def set_task_run_state(
 
 
 @router.websocket("/subscriptions/scheduled")
-async def scheduled_task_subscription(websocket: WebSocket):
+async def scheduled_task_subscription(websocket: WebSocket) -> None:
     websocket = await subscriptions.accept_prefect_socket(websocket)
     if not websocket:
         return

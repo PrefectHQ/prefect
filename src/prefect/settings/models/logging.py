@@ -1,6 +1,6 @@
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Any, ClassVar, Literal, Optional, Union
 
 from pydantic import (
     AliasChoices,
@@ -9,13 +9,14 @@ from pydantic import (
     Field,
     model_validator,
 )
+from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.types import LogLevel, validate_set_T_from_delim_string
 
 
-def max_log_size_smaller_than_batch_size(values):
+def max_log_size_smaller_than_batch_size(values: dict[str, Any]) -> dict[str, Any]:
     """
     Validator for settings asserting the batch size and match log size are compatible
     """
@@ -32,7 +33,9 @@ class LoggingToAPISettings(PrefectBaseSettings):
     Settings for controlling logging to the API
     """
 
-    model_config = _build_settings_config(("logging", "to_api"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("logging", "to_api")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -85,7 +88,7 @@ class LoggingSettings(PrefectBaseSettings):
     Settings for controlling logging behavior
     """
 
-    model_config = _build_settings_config(("logging",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("logging",))
 
     level: LogLevel = Field(
         default="INFO",

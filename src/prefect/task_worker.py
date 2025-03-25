@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import os
@@ -12,16 +14,15 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
-import pendulum
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
-from typing_extensions import ParamSpec, TypeVar
-from websockets.exceptions import InvalidStatusCode
+from typing_extensions import ParamSpec, Self, TypeVar
+from websockets.exceptions import InvalidStatus
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.cache_policies import DEFAULT, NONE
+from prefect.cache_policies import DEFAULT, NO_CACHE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -33,6 +34,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
+from prefect.types._datetime import DateTime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event
@@ -42,7 +44,10 @@ from prefect.utilities.processutils import (
 from prefect.utilities.services import start_client_metrics_server
 from prefect.utilities.urls import url_for
 
-logger = get_logger("task_worker")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("task_worker")
 
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
@@ -85,7 +90,7 @@ class TaskWorker:
     def __init__(
         self,
         *tasks: Task[P, R],
-        limit: Optional[int] = 10,
+        limit: int | None = 10,
     ):
         self.tasks: list["Task[..., Any]"] = []
         for t in tasks:
@@ -93,16 +98,16 @@ class TaskWorker:
                 if not isinstance(t, Task):
                     continue
 
-            if t.cache_policy in [None, NONE, NotSet]:
+            if t.cache_policy in [None, NO_CACHE, NotSet]:
                 self.tasks.append(
                     t.with_options(persist_result=True, cache_policy=DEFAULT)
                 )
             else:
                 self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
+        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
 
-        self._started_at: Optional[pendulum.DateTime] = None
+        self._started_at: Optional[DateTime] = None
         self.stopping: bool = False
 
         self._client = get_client()
@@ -119,7 +124,7 @@ class TaskWorker:
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
-        self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
+        self.in_flight_task_runs: dict[str, dict[UUID, DateTime]] = {
             task_key: {} for task_key in self.task_keys
         }
         self.finished_task_runs: dict[str, int] = {
@@ -131,7 +136,7 @@ class TaskWorker:
         return f"{socket.gethostname()}-{os.getpid()}"
 
     @property
-    def started_at(self) -> Optional[pendulum.DateTime]:
+    def started_at(self) -> Optional[DateTime]:
         return self._started_at
 
     @property
@@ -154,7 +159,7 @@ class TaskWorker:
     def available_tasks(self) -> Optional[int]:
         return int(self._limiter.available_tokens) if self._limiter else None
 
-    def handle_sigterm(self, signum: int, frame: object):
+    def handle_sigterm(self, signum: int, frame: object) -> None:
         """
         Shuts down the task worker when a SIGTERM is received.
         """
@@ -176,8 +181,8 @@ class TaskWorker:
             logger.info("Starting task worker...")
             try:
                 await self._subscribe_to_task_scheduling()
-            except InvalidStatusCode as exc:
-                if exc.status_code == 403:
+            except InvalidStatus as exc:
+                if exc.response.status_code == 403:
                     logger.error(
                         "403: Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
                         f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
@@ -243,15 +248,15 @@ class TaskWorker:
 
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
-                assert (
-                    self._runs_task_group is not None
-                ), "Task group was not initialized"
+                assert self._runs_task_group is not None, (
+                    "Task group was not initialized"
+                )
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
-        self.in_flight_task_runs[task_run.task_key][task_run.id] = pendulum.now()
+        self.in_flight_task_runs[task_run.task_key][task_run.id] = DateTime.now()
         try:
             await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
@@ -355,14 +360,14 @@ class TaskWorker:
             )
             await asyncio.wrap_future(future)
 
-    async def execute_task_run(self, task_run: TaskRun):
+    async def execute_task_run(self, task_run: TaskRun) -> None:
         """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
                 await self._safe_submit_scheduled_task_run(task_run)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         logger.debug("Starting task worker...")
 
         if self._client._closed:  # pyright: ignore[reportPrivateUsage]
@@ -374,7 +379,7 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self._started_at = pendulum.now()
+        self._started_at = DateTime.now()
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:

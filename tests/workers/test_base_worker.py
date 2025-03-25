@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
+import anyio.abc
 import httpx
 import pendulum
 import pytest
@@ -12,11 +15,18 @@ from starlette import status
 
 import prefect
 import prefect.client.schemas as schemas
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas import FlowRun
-from prefect.client.schemas.objects import StateType, WorkerMetadata
+from prefect.client.schemas.objects import (
+    Flow,
+    FlowRun,
+    Integration,
+    StateType,
+    WorkerMetadata,
+    WorkPool,
+)
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -24,7 +34,7 @@ from prefect.exceptions import (
 from prefect.flows import flow
 from prefect.server import models
 from prefect.server.schemas.actions import WorkPoolUpdate as ServerWorkPoolUpdate
-from prefect.server.schemas.core import Deployment, Flow, WorkPool
+from prefect.server.schemas.core import Deployment
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
@@ -46,6 +56,7 @@ from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
     BaseWorker,
+    BaseWorkerResult,
 )
 
 
@@ -175,19 +186,17 @@ async def test_worker_sends_heartbeat_messages(
 async def test_worker_sends_heartbeat_gets_id(respx_mock):
     work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
+    # Pass through the non-relevant paths
+    respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
+    respx_mock.get("api/csrf-token?").pass_through()
+    respx_mock.post("api/work_pools/").pass_through()
+    respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
+
+    respx_mock.post(
+        f"api/work_pools/{work_pool_name}/workers/heartbeat",
+    ).mock(return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id)))
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
         setattr(worker, "_should_get_worker_id", lambda: True)
-        # Pass through the non-relevant paths
-        respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
-        respx_mock.get("api/csrf-token?").pass_through()
-        respx_mock.post("api/work_pools/").pass_through()
-        respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
-
-        respx_mock.post(
-            f"api/work_pools/{work_pool_name}/workers/heartbeat",
-        ).mock(
-            return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id))
-        )
 
         await worker.sync_with_backend()
 
@@ -525,37 +534,6 @@ async def test_worker_calls_run_with_expected_arguments(
     assert {call.kwargs["flow_run"].id for call in run_mock.call_args_list} == {
         fr.id for fr in flow_runs[1:4]
     }
-
-
-async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
-    prefect_client: PrefectClient, deployment, work_pool, caplog
-):
-    @flow
-    def test_flow():
-        pass
-
-    def create_run_with_deployment(state):
-        return prefect_client.create_flow_run_from_deployment(
-            deployment.id, state=state
-        )
-
-    flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-    )
-
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = work_pool
-        await worker.get_and_submit_flow_runs()
-
-    assert (
-        f"Flow run {flow_run.id!r} was created from deployment"
-        f" {deployment.name!r} which is configured with a storage block. Please use an"
-        + " agent to execute this flow run."
-        in caplog.text
-    )
-
-    flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert flow_run.state_name == "Scheduled"
 
 
 async def test_worker_creates_only_one_client_context(
@@ -1990,7 +1968,7 @@ class TestBaseWorkerHeartbeat:
                     "prefect.workers.base.load_prefect_collections"
                 ) as mock_load_prefect_collections,
                 mock.patch(
-                    "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+                    "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.send_worker_heartbeat",
                 ) as mock_send_worker_heartbeat_post,
                 mock.patch("prefect.workers.base.distributions") as mock_distributions,
             ):
@@ -2010,17 +1988,13 @@ class TestBaseWorkerHeartbeat:
                     await worker.sync_with_backend()
 
                 mock_send_worker_heartbeat_post.assert_called_once_with(
-                    f"/work_pools/{work_pool.name}/workers/heartbeat",
-                    json={
-                        "name": worker.name,
-                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "metadata": {
-                            "integrations": [
-                                {"name": "prefect-aws", "version": "1.0.0"}
-                            ]
-                        },
-                        "return_id": True,
-                    },
+                    work_pool_name=work_pool.name,
+                    worker_name=worker.name,
+                    heartbeat_interval_seconds=30.0,
+                    get_worker_id=True,
+                    worker_metadata=WorkerMetadata(
+                        integrations=[Integration(name="prefect-aws", version="1.0.0")]
+                    ),
                 )
 
             assert worker._worker_metadata_sent
@@ -2050,7 +2024,7 @@ class TestBaseWorkerHeartbeat:
                     "prefect.workers.base.load_prefect_collections"
                 ) as mock_load_prefect_collections,
                 mock.patch(
-                    "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+                    "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.send_worker_heartbeat",
                 ) as mock_send_worker_heartbeat_post,
                 mock.patch("prefect.workers.base.distributions") as mock_distributions,
             ):
@@ -2070,18 +2044,14 @@ class TestBaseWorkerHeartbeat:
                     await worker.sync_with_backend()
 
                 mock_send_worker_heartbeat_post.assert_called_once_with(
-                    f"/work_pools/{work_pool.name}/workers/heartbeat",
-                    json={
-                        "name": worker.name,
-                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "metadata": {
-                            "integrations": [
-                                {"name": "prefect-aws", "version": "1.0.0"}
-                            ],
-                            "custom_field": "heya",
-                        },
-                        "return_id": True,
-                    },
+                    work_pool_name=work_pool.name,
+                    worker_name=worker.name,
+                    heartbeat_interval_seconds=30.0,
+                    get_worker_id=True,
+                    worker_metadata=WorkerMetadata(
+                        integrations=[Integration(name="prefect-aws", version="1.0.0")],
+                        custom_field="heya",
+                    ),
                 )
 
             assert worker._worker_metadata_sent
@@ -2119,3 +2089,66 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
 
     for key, value in expected_labels.items():
         assert flow_run.labels[key] == value
+
+
+async def test_worker_removes_flow_run_from_submitting_when_not_ready(
+    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16027
+    """
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id, state=Pending()
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        # Mock _propose_pending_state to return False
+        worker._propose_pending_state = AsyncMock(return_value=False)
+
+        await worker.get_and_submit_flow_runs()
+        # Verify the flow run was removed from _submitting_flow_run_ids
+        assert flow_run.id not in worker._submitting_flow_run_ids
+
+
+class TestBackwardsCompatibility:
+    async def test_backwards_compatibility_with_old_prepare_for_flow_run(
+        self,
+        work_pool: WorkPool,
+        worker_deployment_wq1: Deployment,
+        prefect_client: PrefectClient,
+    ):
+        class OldStyleJobConfiguration(BaseJobConfiguration):
+            def prepare_for_flow_run(
+                self,
+                flow_run: FlowRun,
+                deployment: Deployment | None = None,
+                flow: Flow | None = None,
+            ):
+                pass
+
+        class InfrastructureResult(BaseWorkerResult):
+            pass
+
+        class OldStyleWorker(
+            BaseWorker[OldStyleJobConfiguration, Any, InfrastructureResult]
+        ):
+            type = "old-style"
+            job_configuration = OldStyleJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return InfrastructureResult(identifier="test", status_code=0)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id
+        )
+
+        # Should warn and not raise an error
+        with pytest.warns(PrefectDeprecationWarning):
+            async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
+                await worker._get_configuration(flow_run=flow_run)

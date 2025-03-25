@@ -11,7 +11,6 @@ from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect import states as client_states
 from prefect.server import models
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -44,6 +43,7 @@ from prefect.server.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.states import Cancelled, to_state_create
 
 
 @pytest.fixture(autouse=True)
@@ -583,6 +583,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.role": "work-pool",
                 "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
             }
         )
         in event.related
@@ -777,9 +778,7 @@ async def test_cancelling_to_cancelled_transitions(
     response = await client.post(
         f"flow_runs/{flow_run.id}/set_state",
         json={
-            "state": client_states.Cancelled()
-            .to_state_create()
-            .model_dump(mode="json"),
+            "state": to_state_create(Cancelled()).model_dump(mode="json"),
             "force": True,  # the Agent uses force=True here, which caused the bug
         },
     )
@@ -880,6 +879,7 @@ async def test_caches_resource_data(
             "name": work_pool.name,
             "tags": [],
             "role": "work-pool",
+            "type": work_pool.type,
         },
         "task-run": {},
     }
@@ -960,6 +960,7 @@ async def test_caches_resource_data_for_subflow_runs(
             "name": work_pool.name,
             "tags": [],
             "role": "work-pool",
+            "type": work_pool.type,
         },
         "task-run": {
             "id": str(task_run.id),

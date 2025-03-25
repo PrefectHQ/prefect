@@ -2,6 +2,8 @@
 Internal utilities for tests.
 """
 
+from __future__ import annotations
+
 import atexit
 import shutil
 import warnings
@@ -9,13 +11,14 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Generator
 
 import prefect.context
 import prefect.settings
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
+from prefect.client.schemas.filters import FlowFilter, FlowFilterName
 from prefect.client.utilities import inject_client
 from prefect.logging.handlers import APILogWorker
 from prefect.results import (
@@ -30,10 +33,11 @@ from prefect.states import State
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import FlowRun
     from prefect.filesystems import ReadableFileSystem
 
 
-def exceptions_equal(a, b):
+def exceptions_equal(a: Exception, b: Exception) -> bool:
     """
     Exceptions cannot be compared by `==`. They can be compared using `is` but this
     will fail if the exception is serialized/deserialized so this utility does its
@@ -41,7 +45,7 @@ def exceptions_equal(a, b):
     """
     if a == b:
         return True
-    return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
+    return type(a) is type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
 # AsyncMock has a new import path in Python 3.9+
@@ -50,11 +54,13 @@ from unittest.mock import AsyncMock  # noqa
 # MagicMock supports async magic methods in Python 3.9+
 from unittest.mock import MagicMock  # noqa
 
+from unittest.mock import call  # noqa
+
 
 def kubernetes_environments_equal(
-    actual: List[Dict[str, str]],
-    expected: Union[List[Dict[str, str]], Dict[str, str]],
-):
+    actual: list[dict[str, str]],
+    expected: list[dict[str, str]] | dict[str, str],
+) -> bool:
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
         expected = [{"name": key, "value": value} for key, value in expected.items()]
@@ -88,7 +94,9 @@ def kubernetes_environments_equal(
 
 
 @contextmanager
-def assert_does_not_warn(ignore_warnings=[]):
+def assert_does_not_warn(
+    ignore_warnings: list[type[Warning]] | None = None,
+) -> Generator[None, None, None]:
     """
     Converts warnings to errors within this context to assert warnings are not raised,
     except for those specified in ignore_warnings.
@@ -96,6 +104,7 @@ def assert_does_not_warn(ignore_warnings=[]):
     Parameters:
     - ignore_warnings: List of warning types to ignore. Example: [DeprecationWarning, UserWarning]
     """
+    ignore_warnings = ignore_warnings or []
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         for warning_type in ignore_warnings:
@@ -108,7 +117,7 @@ def assert_does_not_warn(ignore_warnings=[]):
 
 
 @contextmanager
-def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
+def prefect_test_harness(server_startup_timeout: int | None = 30):
     """
     Temporarily run flows against a local SQLite database for testing.
 
@@ -173,23 +182,29 @@ def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
         test_server.stop()
 
 
-async def get_most_recent_flow_run(client: "PrefectClient" = None):
+async def get_most_recent_flow_run(
+    client: "PrefectClient | None" = None, flow_name: str | None = None
+) -> "FlowRun":
     if client is None:
         client = get_client()
 
     flow_runs = await client.read_flow_runs(
-        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
+        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC,
+        limit=1,
+        flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        if flow_name
+        else None,
     )
 
     return flow_runs[0]
 
 
 def assert_blocks_equal(
-    found: Block, expected: Block, exclude_private: bool = True, **kwargs
-) -> bool:
-    assert isinstance(
-        found, type(expected)
-    ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+    found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any
+) -> None:
+    assert isinstance(found, type(expected)), (
+        f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+    )
 
     if exclude_private:
         exclude = set(kwargs.pop("exclude", set()))
@@ -202,8 +217,8 @@ def assert_blocks_equal(
 
 
 async def assert_uses_result_serializer(
-    state: State, serializer: Union[str, Serializer], client: "PrefectClient"
-):
+    state: State, serializer: str | Serializer, client: "PrefectClient"
+) -> None:
     assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
     if isinstance(state.data, ResultRecord):
         result_serializer = state.data.metadata.serializer
@@ -238,8 +253,8 @@ async def assert_uses_result_serializer(
 
 @inject_client
 async def assert_uses_result_storage(
-    state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
-):
+    state: State, storage: "str | ReadableFileSystem", client: "PrefectClient"
+) -> None:
     assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
     if isinstance(state.data, ResultRecord):
         assert_blocks_equal(
@@ -265,11 +280,17 @@ async def assert_uses_result_storage(
         )
 
 
-def a_test_step(**kwargs):
-    kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
+def a_test_step(**kwargs: Any) -> dict[str, Any]:
+    kwargs.update(
+        {
+            "output1": 1,
+            "output2": ["b", 2, 3],
+            "output3": "This one is actually a string",
+        }
+    )
     return kwargs
 
 
-def b_test_step(**kwargs):
+def b_test_step(**kwargs: Any) -> dict[str, Any]:
     kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
     return kwargs

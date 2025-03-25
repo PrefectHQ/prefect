@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { cn } from "@/lib/utils";
+import { capitalize } from "@/utils";
 import cronstrue from "cronstrue";
 import { format } from "date-fns";
 import humanizeDuration from "humanize-duration";
@@ -132,8 +133,7 @@ const RRuleScheduleBadge = ({
 	schedule: RRuleSchedule;
 }) => {
 	const scheduleText = rrulestr(schedule.rrule).toText();
-	const capitalizedScheduleText =
-		scheduleText.charAt(0).toUpperCase() + scheduleText.slice(1);
+	const capitalizedScheduleText = capitalize(scheduleText);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${capitalizedScheduleText} (${schedule.timezone})`;
 	return (
 		<TooltipProvider>

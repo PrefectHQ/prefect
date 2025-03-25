@@ -19,7 +19,7 @@ from prefect.runner.storage import (
     RunnerStorage,
     create_storage_from_source,
 )
-from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.testing.utilities import AsyncMock, MagicMock, call
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -140,6 +140,13 @@ class TestGitRepository:
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
         assert repo._name == "custom-name"
 
+    def test_init_with_slashed_branch_name(self):
+        """Test that branch names with forward slashes are correctly sanitized in the destination path."""
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", branch="feature/test-branch"
+        )
+        assert repo._name == "repo-feature-test-branch"
+
     def test_destination_property(self, monkeypatch):
         monkeypatch.chdir("/tmp")
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
@@ -187,6 +194,77 @@ class TestGitRepository:
                 "1",
                 str(Path.cwd() / "repo"),
             ]
+        )
+
+    async def test_clone_repo_sparse(self, mock_run_process: AsyncMock, monkeypatch):
+        """
+        Check if cloned repo can achieve sparse checkout with an access token
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "oauth2", "access_token": "token"},
+            directories=["dir_1", "dir_2"],
+        )
+        await repo.pull_code()
+
+        expected_calls = [
+            call(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:token@github.com/org/repo.git",
+                    "--sparse",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ]
+            ),
+            call(
+                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                cwd=Path.cwd() / "repo",
+            ),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert mock_run_process.await_args_list == expected_calls, (
+            f"Unexpected calls: {mock_run_process.await_args_list}"
+        )
+
+    async def test_clone_existing_repo_sparse(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        # pretend the repo already exists
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "oauth2", "access_token": "token"},
+            directories=["dir_1", "dir_2"],
+        )
+
+        await repo.pull_code()
+
+        expected_calls = [
+            call(
+                ["git", "config", "--get", "remote.origin.url"],
+                cwd=str(Path.cwd() / "repo"),
+            ),
+            call(
+                ["git", "config", "--get", "core.sparseCheckout"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(
+                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert mock_run_process.await_args_list == expected_calls, (
+            f"Unexpected calls: {mock_run_process.await_args_list}"
         )
 
     async def test_pull_code_with_username_and_password(
@@ -259,6 +337,50 @@ class TestGitRepository:
         mock_run_process.assert_awaited_with(
             [
                 "git",
+                "pull",
+                "origin",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+            ],
+            cwd=Path.cwd() / "repo",
+        )
+
+    async def test_include_submodules_with_credentials(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        access_token = Secret(value="token")
+        await access_token.save("test-token")
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            include_submodules=True,
+            credentials={"access_token": access_token},
+        )
+        await repo.pull_code()
+        mock_run_process.assert_awaited_with(
+            [
+                "git",
+                "-c",
+                "url.https://token@github.com.insteadOf=https://github.com",
+                "clone",
+                "https://token@github.com/org/repo.git",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
+
+        # pretend the repo already exists
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        await repo.pull_code()
+        mock_run_process.assert_awaited_with(
+            [
+                "git",
+                "-c",
+                "url.https://token@github.com.insteadOf=https://github.com",
                 "pull",
                 "origin",
                 "--recurse-submodules",

@@ -1,13 +1,23 @@
+from __future__ import annotations
+
+import os
+import signal
+import subprocess
+from time import sleep
+from typing import Any, Awaitable, Callable
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 
 import prefect.exceptions
 from prefect import flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
+from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
+from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -19,11 +29,12 @@ from prefect.states import (
     Retrying,
     Running,
     Scheduled,
+    State,
     StateType,
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.types import DateTime
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @flow(name="hello")
@@ -36,8 +47,16 @@ def goodbye_flow():
     return "Goodbye"
 
 
-@sync_compatible
-async def assert_flow_run_is_deleted(prefect_client, flow_run_id: UUID):
+@flow()
+def tired_flow():
+    print("I am so tired...")
+
+    for _ in range(100):
+        print("zzzzz...")
+        sleep(5)
+
+
+async def assert_flow_run_is_deleted(prefect_client: PrefectClient, flow_run_id: UUID):
     """
     Make sure that the flow run created for our CLI test is actually deleted.
     """
@@ -45,7 +64,17 @@ async def assert_flow_run_is_deleted(prefect_client, flow_run_id: UUID):
         await prefect_client.read_flow_run(flow_run_id)
 
 
-def assert_flow_runs_in_result(result, expected, unexpected=None):
+def assert_flow_run_is_deleted_sync(
+    prefect_client: SyncPrefectClient, flow_run_id: UUID
+):
+    """
+    Make sure that the flow run created for our CLI test is actually deleted.
+    """
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        prefect_client.read_flow_run(flow_run_id)
+
+
+def assert_flow_runs_in_result(result: Any, expected: Any, unexpected: Any = None):
     output = result.stdout.strip()
 
     # When running in tests the output of the columns in the table are
@@ -63,28 +92,28 @@ def assert_flow_runs_in_result(result, expected, unexpected=None):
 
 
 @pytest.fixture
-async def scheduled_flow_run(prefect_client):
+async def scheduled_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
         name="scheduled_flow_run", flow=hello_flow, state=Scheduled()
     )
 
 
 @pytest.fixture
-async def completed_flow_run(prefect_client):
+async def completed_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
         name="completed_flow_run", flow=hello_flow, state=Completed()
     )
 
 
 @pytest.fixture
-async def running_flow_run(prefect_client):
+async def running_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
         name="running_flow_run", flow=goodbye_flow, state=Running()
     )
 
 
 @pytest.fixture
-async def late_flow_run(prefect_client):
+async def late_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
         name="late_flow_run", flow=goodbye_flow, state=Late()
     )
@@ -100,7 +129,9 @@ def test_delete_flow_run_fails_correctly():
     )
 
 
-def test_delete_flow_run_succeeds(prefect_client, flow_run):
+def test_delete_flow_run_succeeds(
+    sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+):
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
         user_input="y",
@@ -108,14 +139,14 @@ def test_delete_flow_run_succeeds(prefect_client, flow_run):
         expected_code=0,
     )
 
-    assert_flow_run_is_deleted(prefect_client, flow_run.id)
+    assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run.id)
 
 
 def test_ls_no_args(
-    scheduled_flow_run,
-    completed_flow_run,
-    running_flow_run,
-    late_flow_run,
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+    late_flow_run: FlowRun,
 ):
     result = invoke_and_assert(
         command=["flow-run", "ls"],
@@ -134,10 +165,10 @@ def test_ls_no_args(
 
 
 def test_ls_flow_name_filter(
-    scheduled_flow_run,
-    completed_flow_run,
-    running_flow_run,
-    late_flow_run,
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+    late_flow_run: FlowRun,
 ):
     result = invoke_and_assert(
         command=["flow-run", "ls", "--flow-name", "goodbye"],
@@ -160,12 +191,12 @@ def test_ls_flow_name_filter(
     ],
 )
 def test_ls_state_type_filter(
-    scheduled_flow_run,
-    completed_flow_run,
-    running_flow_run,
-    late_flow_run,
-    state_type_1,
-    state_type_2,
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+    late_flow_run: FlowRun,
+    state_type_1: str,
+    state_type_2: str,
 ):
     result = invoke_and_assert(
         command=[
@@ -205,11 +236,11 @@ def test_ls_state_type_filter_invalid_raises():
     ],
 )
 def test_ls_state_name_filter(
-    scheduled_flow_run,
-    completed_flow_run,
-    running_flow_run,
-    late_flow_run,
-    state_name,
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+    late_flow_run: FlowRun,
+    state_name: str,
 ):
     result = invoke_and_assert(
         command=["flow-run", "ls", "--state", state_name],
@@ -237,10 +268,10 @@ def test_ls_state_name_filter_unofficial_state_warns(caplog):
 
 
 def test_ls_limit(
-    scheduled_flow_run,
-    completed_flow_run,
-    running_flow_run,
-    late_flow_run,
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+    late_flow_run: FlowRun,
 ):
     result = invoke_and_assert(
         command=["flow-run", "ls", "--limit", "2"],
@@ -272,7 +303,9 @@ class TestCancelFlowRun:
             Retrying,
         ],
     )
-    async def test_non_terminal_states_set_to_cancelling(self, prefect_client, state):
+    async def test_non_terminal_states_set_to_cancelling(
+        self, prefect_client: PrefectClient, state: State
+    ):
         """Should set the state of the flow to Cancelling. Does not include Scheduled
         states, because they should be set to Cancelled instead.
         """
@@ -304,7 +337,9 @@ class TestCancelFlowRun:
             Late,
         ],
     )
-    async def test_scheduled_states_set_to_cancelled(self, prefect_client, state):
+    async def test_scheduled_states_set_to_cancelled(
+        self, prefect_client: PrefectClient, state: State
+    ):
         """Should set the state of the flow run to Cancelled."""
         before = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
@@ -328,7 +363,7 @@ class TestCancelFlowRun:
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_cancelling_terminal_states_exits_with_error(
-        self, prefect_client, state
+        self, prefect_client: PrefectClient, state: State
     ):
         before = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
@@ -360,8 +395,10 @@ class TestCancelFlowRun:
 
 
 @pytest.fixture()
-def flow_run_factory(prefect_client):
-    async def create_flow_run(num_logs: int):
+def flow_run_factory(
+    prefect_client: PrefectClient,
+) -> Callable[[int], Awaitable[FlowRun]]:
+    async def create_flow_run(num_logs: int) -> FlowRun:
         flow_run = await prefect_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow
         )
@@ -794,3 +831,68 @@ class TestFlowRunExecute:
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
+
+
+class TestSignalHandling:
+    @pytest.mark.parametrize("sigterm_handling", ["reschedule", None])
+    async def test_flow_run_execute_sigterm_handling(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        sigterm_handling: str | None,
+    ):
+        if sigterm_handling is not None:
+            monkeypatch.setenv(
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", sigterm_handling
+            )
+
+        # Create a flow run that will take a while to run
+        deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Run the flow run in a new process with a Runner
+        popen = subprocess.Popen(
+            [
+                "prefect",
+                "flow-run",
+                "execute",
+                str(flow_run.id),
+            ],
+            env=get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ,
+        )
+
+        assert popen.pid is not None
+
+        # Wait for the flow run to start
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+
+        # Send the SIGTERM signal
+        popen.terminate()
+
+        # Wait for the process to exit
+        return_code = popen.wait(timeout=10)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+
+        if sigterm_handling == "reschedule":
+            assert flow_run.state.is_scheduled(), (
+                "The flow run should have been rescheduled"
+            )
+            assert return_code == 0, "The process should have exited with a 0 exit code"
+        else:
+            assert flow_run.state.is_running(), (
+                "The flow run should be stuck in running"
+            )
+            assert return_code == -signal.SIGTERM.value, (
+                "The process should have exited with a SIGTERM exit code"
+            )

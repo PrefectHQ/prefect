@@ -1,14 +1,30 @@
+from __future__ import annotations
+
 import asyncio
 from asyncio import Queue
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, AsyncIterable, Dict, Optional, Set
+from typing import (
+    TYPE_CHECKING,
+    AsyncGenerator,
+    AsyncIterable,
+    Dict,
+    NoReturn,
+    Optional,
+    Set,
+)
 
 from prefect.logging import get_logger
 from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities import messaging
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 subscribers: Set["Queue[ReceivedEvent]"] = set()
 filters: Dict["Queue[ReceivedEvent]", EventFilter] = {}
@@ -86,11 +102,11 @@ async def distributor() -> AsyncGenerator[messaging.MessageHandler, None]:
     yield message_handler
 
 
-_distributor_task: Optional[asyncio.Task] = None
-_distributor_started: Optional[asyncio.Event] = None
+_distributor_task: asyncio.Task[None] | None = None
+_distributor_started: asyncio.Event | None = None
 
 
-async def start_distributor():
+async def start_distributor() -> None:
     """Starts the distributor consumer as a global background task"""
     global _distributor_task
     global _distributor_started
@@ -102,7 +118,7 @@ async def start_distributor():
     await _distributor_started.wait()
 
 
-async def stop_distributor():
+async def stop_distributor() -> None:
     """Stops the distributor consumer global background task"""
     global _distributor_task
     global _distributor_started
@@ -120,21 +136,36 @@ async def stop_distributor():
         pass
 
 
-class Distributor:
+class Distributor(RunInAllServers, Service):
     name: str = "Distributor"
 
-    async def start(self):
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        raise NotImplementedError("Distributor does not have settings")
+
+    @classmethod
+    def environment_variable_name(cls) -> dict[str, str]:
+        return "PREFECT_API_EVENTS_STREAM_OUT_ENABLED"
+
+    @classmethod
+    def enabled(cls) -> bool:
+        return get_current_settings().server.events.stream_out_enabled
+
+    async def start(self) -> None:
         await start_distributor()
         try:
+            if TYPE_CHECKING:
+                # start_distributor should have set _distributor_task
+                assert _distributor_task
             await _distributor_task
         except asyncio.CancelledError:
             pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         await stop_distributor()
 
 
-async def run_distributor(started: asyncio.Event):
+async def run_distributor(started: asyncio.Event) -> NoReturn:
     """Runs the distributor consumer forever until it is cancelled"""
     global _distributor_started
     async with messaging.ephemeral_subscription(

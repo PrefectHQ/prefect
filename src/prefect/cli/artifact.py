@@ -1,6 +1,8 @@
-from typing import Optional
+from __future__ import annotations
 
-import pendulum
+from typing import Optional
+from uuid import UUID
+
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -13,7 +15,9 @@ from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
 
-artifact_app = PrefectTyper(name="artifact", help="Inspect and delete artifacts.")
+artifact_app: PrefectTyper = PrefectTyper(
+    name="artifact", help="Inspect and delete artifacts."
+)
 app.add_typer(artifact_app)
 
 
@@ -53,11 +57,12 @@ async def list_artifacts(
             )
 
             for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
+                updated = artifact.updated.diff_for_humans() if artifact.updated else ""
                 table.add_row(
                     str(artifact.id),
                     artifact.key,
                     artifact.type,
-                    pendulum.instance(artifact.updated).diff_for_humans(),
+                    updated,
                 )
 
         else:
@@ -67,11 +72,12 @@ async def list_artifacts(
             )
 
             for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
+                updated = artifact.updated.diff_for_humans() if artifact.updated else ""
                 table.add_row(
                     str(artifact.latest_id),
                     artifact.key,
                     artifact.type,
-                    pendulum.instance(artifact.updated).diff_for_humans(),
+                    updated,
                 )
 
         app.console.print(table)
@@ -141,7 +147,7 @@ async def delete(
     key: Optional[str] = typer.Argument(
         None, help="The key of the artifact to delete."
     ),
-    artifact_id: Optional[str] = typer.Option(
+    artifact_id: Optional[UUID] = typer.Option(
         None, "--id", help="The ID of the artifact to delete."
     ),
 ):
@@ -163,16 +169,16 @@ async def delete(
                 if is_interactive() and not typer.confirm(
                     (
                         "Are you sure you want to delete artifact with id"
-                        f" {artifact_id!r}?"
+                        f" {str(artifact_id)!r}?"
                     ),
                     default=False,
                 ):
                     exit_with_error("Deletion aborted.")
 
                 await client.delete_artifact(artifact_id)
-                exit_with_success(f"Deleted artifact with id {artifact_id!r}.")
+                exit_with_success(f"Deleted artifact with id {str(artifact_id)!r}.")
             except ObjectNotFound:
-                exit_with_error(f"Artifact with id {artifact_id!r} not found!")
+                exit_with_error(f"Artifact with id {str(artifact_id)!r} not found!")
 
         elif key is not None:
             artifacts = await client.read_artifacts(

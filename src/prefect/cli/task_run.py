@@ -7,7 +7,6 @@ from typing import List
 from uuid import UUID
 
 import httpx
-import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -21,8 +20,11 @@ from prefect.client.schemas.filters import LogFilter, TaskRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
+from prefect.types._datetime import create_datetime_instance
 
-task_run_app = PrefectTyper(name="task-run", help="View and inspect task runs.")
+task_run_app: PrefectTyper = PrefectTyper(
+    name="task-run", help="View and inspect task runs."
+)
 app.add_typer(task_run_app, aliases=["task-runs"])
 
 LOGS_DEFAULT_PAGE_SIZE = 200
@@ -94,7 +96,7 @@ async def ls(
             str(task.name),
             str(task_run.name),
             str(task_run.state.type.value),
-            pendulum.instance(timestamp).diff_for_humans(),
+            create_datetime_instance(timestamp).diff_for_humans(),
         )
 
     app.console.print(table)
@@ -192,7 +194,7 @@ async def logs(
                 app.console.print(
                     # Print following the task run format (declared in logging.yml)
                     (
-                        f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} |"
+                        f"{create_datetime_instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} |"
                         f" {logging.getLevelName(log.level):7s} | Task run"
                         f" {task_run.name!r} - {log.message}"
                     ),

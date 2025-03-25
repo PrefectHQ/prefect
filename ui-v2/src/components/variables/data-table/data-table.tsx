@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
+import { pluralize } from "@/utils";
 import {
 	type ColumnFiltersState,
 	type OnChangeFn,
@@ -154,7 +155,7 @@ export const VariablesDataTable = ({
 			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
 				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
 					<p className="text-sm text-muted-foreground">
-						{currentVariableCount} Variables
+						{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
 					</p>
 				</div>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
@@ -173,7 +174,7 @@ export const VariablesDataTable = ({
 				</div>
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
 					<Select value={sorting} onValueChange={onSortingChange}>
-						<SelectTrigger aria-label="Variable sort order">
+						<SelectTrigger aria-label="Variable sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>
 						<SelectContent>

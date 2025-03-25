@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.api.clients import OrchestrationClient
+from prefect.server.api.server import create_app
 from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
@@ -21,6 +22,11 @@ from prefect.server.schemas.responses import (
     SetStateStatus,
 )
 from prefect.server.schemas.states import Paused, Suspended
+from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
+    PREFECT_SERVER_API_AUTH_STRING,
+    temporary_settings,
+)
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMDeployment, ORMVariable
@@ -84,6 +90,16 @@ async def suspended_flow_run(session: AsyncSession) -> FlowRun:
     )
     await session.commit()
     return FlowRun.model_validate(flow_run, from_attributes=True)
+
+
+async def test_get_client_includes_auth_string_from_context():
+    with temporary_settings(updates={PREFECT_API_AUTH_STRING: "admin:test"}):
+        async with OrchestrationClient() as client:
+            assert "Authorization" not in client._http_client.headers
+
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "admin:test"}):
+        async with OrchestrationClient() as client:
+            assert client._http_client.headers["Authorization"].startswith("Basic")
 
 
 async def test_read_deployment(
@@ -223,3 +239,18 @@ async def test_read_variables_with_error(orchestration_client: OrchestrationClie
     ):
         with pytest.raises(httpx.HTTPStatusError):
             await orchestration_client.read_workspace_variables()
+
+
+async def test_get_orchestration_client_after_create_app_final():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/17451
+    """
+    # Using final=True so that the routes will be deleted off of all routers.
+    # Simulates what happens when the server starts up with `prefect server start`.
+    create_app(webserver_only=True, final=True)
+
+    # This will cause a cache miss for `create_app` because `webserver_only=True` was used above
+    # but the API app should still be cached. If this fails to cache we'll see an error like:
+    #
+    #    AttributeError: 'PrefectRouter' object has no attribute 'routes'. Did you mean: 'route'?
+    OrchestrationClient()

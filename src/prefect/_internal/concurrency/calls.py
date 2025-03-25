@@ -155,8 +155,7 @@ class Future(concurrent.futures.Future[T]):
 
     if TYPE_CHECKING:
 
-        def __get_result(self) -> T:
-            ...
+        def __get_result(self) -> T: ...
 
     def result(self, timeout: Optional[float] = None) -> T:
         """Return the result of the call that the future represents.

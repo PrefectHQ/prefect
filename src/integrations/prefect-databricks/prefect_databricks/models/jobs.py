@@ -261,7 +261,7 @@ class ClusterInstance(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
 
     cluster_id: Optional[str] = Field(
-        None,
+        default=None,
         description=(
             "The canonical identifier for the cluster used by a run. This field is"
             " always available for runs on existing clusters. For runs on new clusters,"
@@ -270,10 +270,10 @@ class ClusterInstance(BaseModel):
             " The logs continue to be available after the run completes.\n\nThe"
             " response won’t include this field if the identifier is not available yet."
         ),
-        example="0923-164208-meows279",
+        examples=["0923-164208-meows279"],
     )
     spark_context_id: Optional[str] = Field(
-        None,
+        default=None,
         description=(
             "The canonical identifier for the Spark context used by a run. This field"
             " is filled in once the run begins execution. This value can be used to"
@@ -370,7 +370,7 @@ class CronSchedule(BaseModel):
     pause_status: Optional[Literal["PAUSED", "UNPAUSED"]] = Field(
         None,
         description="Indicate whether this schedule is paused or not.",
-        example="PAUSED",
+        examples=["PAUSED"],
     )
     quartz_cron_expression: str = Field(
         ...,
@@ -380,7 +380,7 @@ class CronSchedule(BaseModel):
             " Trigger](http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html)"
             " for details. This field is required."
         ),
-        example="20 30 * * * ?",
+        examples=["20 30 * * * ?"],
     )
     timezone_id: str = Field(
         ...,
@@ -390,7 +390,7 @@ class CronSchedule(BaseModel):
             " TimeZone](https://docs.oracle.com/javase/7/docs/api/java/util/TimeZone.html)"
             " for details. This field is required."
         ),
-        example="Europe/London",
+        examples=["Europe/London"],
     )
 
 
@@ -445,7 +445,7 @@ class DbtTask(BaseModel):
             " catalog value can only be specified if a warehouse_id is specified."
             " Requires dbt-databricks >= 1.1.1."
         ),
-        example="main",
+        examples=["main"],
     )
     commands: List = Field(
         ...,
@@ -454,7 +454,7 @@ class DbtTask(BaseModel):
             " This parameter must not be empty. A maximum of up to 10 commands can be"
             " provided."
         ),
-        example=["dbt deps", "dbt seed", "dbt run --models 123"],
+        examples=[["dbt deps", "dbt seed", "dbt run --models 123"]],
     )
     profiles_directory: Optional[str] = Field(
         None,
@@ -488,7 +488,7 @@ class DbtTask(BaseModel):
             " overridden on a per-command basis by using the `--profiles-dir` command"
             " line argument."
         ),
-        example="30dade0507d960d1",
+        examples=["30dade0507d960d1"],
     )
 
 
@@ -528,14 +528,14 @@ class Error(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
 
     error_code: Optional[str] = Field(
-        None, description="Error code", example="INTERNAL_ERROR"
+        None, description="Error code", examples=["INTERNAL_ERROR"]
     )
     message: Optional[str] = Field(
         None,
         description=(
             "Human-readable error message that describes the cause of the error."
         ),
-        example="Unexpected error.",
+        examples=["Unexpected error."],
     )
 
 
@@ -567,7 +567,7 @@ class GitSnapshot(BaseModel):
             " points to the HEAD of the branch at the time of the run; if git_tag was"
             " specified, this points to the commit the tag points to."
         ),
-        example="4506fdf41e9fa98090570a34df7a5bce163ff15f",
+        examples=["4506fdf41e9fa98090570a34df7a5bce163ff15f"],
     )
 
 
@@ -589,7 +589,7 @@ class GitSource(BaseModel):
             " cannot be specified in conjunction with git_tag or git_commit.\nThe"
             " maximum length is 255 characters."
         ),
-        example="main",
+        examples=["main"],
     )
     git_commit: Optional[str] = Field(
         None,
@@ -598,7 +598,7 @@ class GitSource(BaseModel):
             " specified in conjunction with git_branch or git_tag.\nThe maximum length"
             " is 64 characters."
         ),
-        example="e0056d01",
+        examples=["e0056d01"],
     )
     git_provider: Optional[
         Literal[
@@ -617,7 +617,7 @@ class GitSource(BaseModel):
             "Unique identifier of the service used to host the Git repository. The"
             " value is case insensitive."
         ),
-        example="github",
+        examples=["github"],
     )
     git_snapshot: Optional[GitSnapshot] = None
     git_tag: Optional[str] = Field(
@@ -627,7 +627,7 @@ class GitSource(BaseModel):
             " be specified in conjunction with git_branch or git_commit.\nThe maximum"
             " length is 255 characters."
         ),
-        example="release-1.0.0",
+        examples=["release-1.0.0"],
     )
     git_url: Optional[str] = Field(
         None,
@@ -635,7 +635,7 @@ class GitSource(BaseModel):
             "URL of the repository to be cloned by this job.\nThe maximum length is 300"
             " characters."
         ),
-        example="https://github.com/databricks/databricks-cli",
+        examples=["https://github.com/databricks/databricks-cli"],
     )
 
 
@@ -676,7 +676,7 @@ class JobEmailNotifications(BaseModel):
             "If true, do not send email to recipients specified in `on_failure` if the"
             " run is skipped."
         ),
-        example=False,
+        examples=[False],
     )
     on_failure: Optional[List[str]] = Field(
         None,
@@ -692,7 +692,7 @@ class JobEmailNotifications(BaseModel):
             " task (including every failed retry), use task-level notifications"
             " instead."
         ),
-        example=["user.name@databricks.com"],
+        examples=["user.name@databricks.com"],
     )
     on_start: Optional[List[str]] = Field(
         None,
@@ -701,7 +701,7 @@ class JobEmailNotifications(BaseModel):
             " specified on job creation, reset, or update, the list is empty, and"
             " notifications are not sent."
         ),
-        example=["user.name@databricks.com"],
+        examples=["user.name@databricks.com"],
     )
     on_success: Optional[List[str]] = Field(
         None,
@@ -712,7 +712,7 @@ class JobEmailNotifications(BaseModel):
             " If not specified on job creation, reset, or update, the list is empty,"
             " and notifications are not sent."
         ),
-        example=["user.name@databricks.com"],
+        examples=["user.name@databricks.com"],
     )
 
 
@@ -791,7 +791,7 @@ class MavenLibrary(BaseModel):
             "Gradle-style Maven coordinates. For example: `org.jsoup:jsoup:1.7.2`. This"
             " field is required."
         ),
-        example="org.jsoup:jsoup:1.7.2",
+        examples=["org.jsoup:jsoup:1.7.2"],
     )
     exclusions: Optional[List[str]] = Field(
         None,
@@ -800,7 +800,7 @@ class MavenLibrary(BaseModel):
             ' "*:hadoop-client"]`.\n\nMaven dependency exclusions:'
             " <https://maven.apache.org/guides/introduction/introduction-to-optional-and-excludes-dependencies.html>."
         ),
-        example=["slf4j:slf4j", "*:hadoop-client"],
+        examples=[["slf4j:slf4j", "*:hadoop-client"]],
     )
     repo: Optional[str] = Field(
         None,
@@ -808,7 +808,7 @@ class MavenLibrary(BaseModel):
             "Maven repo to install the Maven package from. If omitted, both Maven"
             " Central Repository and Spark Packages are searched."
         ),
-        example="https://my-repo.com",
+        examples=["https://my-repo.com"],
     )
 
 
@@ -829,10 +829,10 @@ class NotebookOutput(BaseModel):
             " service. This field is absent if `dbutils.notebook.exit()` was never"
             " called."
         ),
-        example="An arbitrary string passed by calling dbutils.notebook.exit(...)",
+        examples=["An arbitrary string passed by calling dbutils.notebook.exit(...)"],
     )
     truncated: Optional[bool] = Field(
-        None, description="Whether or not the result was truncated.", example=False
+        None, description="Whether or not the result was truncated.", examples=[False]
     )
 
 
@@ -844,7 +844,7 @@ class NotebookTask(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
 
     base_parameters: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "Base parameters to be used for each run of this job. If the run is"
             " initiated by a call to"
@@ -859,20 +859,20 @@ class NotebookTask(BaseModel):
             " used.\n\nRetrieve these parameters in a notebook using"
             " [dbutils.widgets.get](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-widgets)."
         ),
-        example={"age": 35, "name": "John Doe"},
+        examples=[{"age": 35, "name": "John Doe"}],
     )
     notebook_path: str = Field(
-        ...,
+        default=...,
         description=(
             "The path of the notebook to be run in the Databricks workspace or remote"
             " repository. For notebooks stored in the Databricks workspace, the path"
             " must be absolute and begin with a slash. For notebooks stored in a remote"
             " repository, the path must be relative. This field is required."
         ),
-        example="/Users/user.name@databricks.com/notebook_to_run",
+        examples=["/Users/user.name@databricks.com/notebook_to_run"],
     )
     source: Optional[Literal["WORKSPACE", "GIT"]] = Field(
-        None,
+        default=None,
         description=(
             "Optional location type of the notebook. When set to `WORKSPACE`, the"
             " notebook will be retrieved from the local Databricks workspace. When set"
@@ -880,7 +880,7 @@ class NotebookTask(BaseModel):
             " `git_source`. If the value is empty, the task will use `GIT` if"
             " `git_source` is defined and `WORKSPACE` otherwise."
         ),
-        example="WORKSPACE",
+        examples=["WORKSPACE"],
     )
 
 
@@ -926,7 +926,7 @@ class PipelineTask(BaseModel):
     pipeline_id: Optional[str] = Field(
         None,
         description="The full name of the pipeline task to execute.",
-        example="a12cd3e4-0ab1-1abc-1a2b-1a2bcd3e4fg5",
+        examples=["a12cd3e4-0ab1-1abc-1a2b-1a2bcd3e4fg5"],
     )
 
 
@@ -954,7 +954,7 @@ class PythonPyPiLibrary(BaseModel):
             " specification is also supported. Examples: `simplejson` and"
             " `simplejson==3.8.0`. This field is required."
         ),
-        example="simplejson==3.8.0",
+        examples=["simplejson==3.8.0"],
     )
     repo: Optional[str] = Field(
         None,
@@ -962,7 +962,7 @@ class PythonPyPiLibrary(BaseModel):
             "The repository where the package can be found. If not specified, the"
             " default pip index is used."
         ),
-        example="https://my-repo.com",
+        examples=["https://my-repo.com"],
     )
 
 
@@ -982,24 +982,24 @@ class PythonWheelTask(BaseModel):
         ),
     )
     named_parameters: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "Command-line parameters passed to Python wheel task in the form of"
             ' `["--name=task", "--data=dbfs:/path/to/data.json"]`. Leave it empty if'
             " `parameters` is not null."
         ),
-        example={"data": "dbfs:/path/to/data.json", "name": "task"},
+        examples=[{"data": "dbfs:/path/to/data.json", "name": "task"}],
     )
     package_name: Optional[str] = Field(
         None, description="Name of the package to execute"
     )
     parameters: Optional[List[str]] = Field(
-        None,
+        default=None,
         description=(
             "Command-line parameters passed to Python wheel task. Leave it empty if"
             " `named_parameters` is not null."
         ),
-        example=["--name=task", "one", "two"],
+        examples=[["--name=task", "one", "two"]],
     )
 
 
@@ -1011,17 +1011,17 @@ class RCranLibrary(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
 
     package: str = Field(
-        ...,
+        default=...,
         description="The name of the CRAN package to install. This field is required.",
-        example="geojson",
+        examples=["geojson"],
     )
     repo: Optional[str] = Field(
-        None,
+        default=None,
         description=(
             "The repository where the package can be found. If not specified, the"
             " default CRAN repo is used."
         ),
-        example="https://my-repo.com",
+        examples=["https://my-repo.com"],
     )
 
 
@@ -1033,13 +1033,13 @@ class RepairRunInput(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
 
     latest_repair_id: Optional[int] = Field(
-        None,
+        default=None,
         description=(
             "The ID of the latest repair. This parameter is not required when repairing"
             " a run for the first time, but must be provided on subsequent requests to"
             " repair the same run."
         ),
-        example=734650698524280,
+        examples=[734650698524280],
     )
     rerun_all_failed_tasks: Optional[bool] = Field(
         False,
@@ -1049,16 +1049,16 @@ class RepairRunInput(BaseModel):
         ),
     )
     rerun_tasks: Optional[List[str]] = Field(
-        None,
+        default=None,
         description="The task keys of the task runs to repair.",
-        example=["task0", "task1"],
+        examples=["task0", "task1"],
     )
     run_id: Optional[int] = Field(
-        None,
+        default=None,
         description=(
             "The job run ID of the run to repair. The run must not be in progress."
         ),
-        example=455644833,
+        examples=[455644833],
     )
 
 
@@ -1116,10 +1116,10 @@ class RunNowInput(BaseModel):
             " more information, see [How to ensure idempotency for"
             " jobs](https://kb.databricks.com/jobs/jobs-idempotency.html)."
         ),
-        example="8f018174-4792-40d5-bcbc-3e6a527352c8",
+        examples=["8f018174-4792-40d5-bcbc-3e6a527352c8"],
     )
     job_id: Optional[int] = Field(
-        None, description="The ID of the job to be executed", example=11223344
+        None, description="The ID of the job to be executed", examples=[11223344]
     )
 
 
@@ -1142,13 +1142,13 @@ class RunParameters(BaseModel):
 
     model_config = ConfigDict(extra="allow", frozen=True)
 
-    dbt_commands: Optional[List] = Field(
+    dbt_commands: Optional[list[str]] = Field(
         None,
         description=(
             "An array of commands to execute for jobs with the dbt task, for example"
             ' `"dbt_commands": ["dbt deps", "dbt seed", "dbt run"]`'
         ),
-        example=["dbt deps", "dbt seed", "dbt run"],
+        examples=[["dbt deps", "dbt seed", "dbt run"]],
     )
     jar_params: Optional[List[str]] = Field(
         None,
@@ -1163,10 +1163,10 @@ class RunParameters(BaseModel):
             " variables](https://docs.databricks.com/jobs.html#parameter-variables) to"
             " set parameters containing information about job runs."
         ),
-        example=["john", "doe", "35"],
+        examples=[["john", "doe", "35"]],
     )
     notebook_params: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "A map from keys to values for jobs with notebook task, for example"
             ' `"notebook_params": {"name": "john doe", "age": "35"}`. The map is passed'
@@ -1181,20 +1181,20 @@ class RunParameters(BaseModel):
             ' `{"notebook_params":{"name":"john doe","age":"35"}}`) cannot exceed'
             " 10,000 bytes."
         ),
-        example={"age": "35", "name": "john doe"},
+        examples=[{"age": "35", "name": "john doe"}],
     )
     pipeline_params: Optional[PipelineParams] = None
     python_named_params: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "A map from keys to values for jobs with Python wheel task, for example"
             ' `"python_named_params": {"name": "task", "data":'
             ' "dbfs:/path/to/data.json"}`.'
         ),
-        example={"data": "dbfs:/path/to/data.json", "name": "task"},
+        examples=[{"data": "dbfs:/path/to/data.json", "name": "task"}],
     )
     python_params: Optional[List[str]] = Field(
-        None,
+        default=None,
         description=(
             "A list of parameters for jobs with Python tasks, for example"
             ' `"python_params": ["john doe", "35"]`. The parameters are passed to'
@@ -1209,10 +1209,10 @@ class RunParameters(BaseModel):
             " Examples of invalid, non-ASCII characters are Chinese, Japanese kanjis,"
             " and emojis."
         ),
-        example=["john doe", "35"],
+        examples=[["john doe", "35"]],
     )
     spark_submit_params: Optional[List[str]] = Field(
-        None,
+        default=None,
         description=(
             "A list of parameters for jobs with spark submit task, for example"
             ' `"spark_submit_params": ["--class",'
@@ -1229,16 +1229,16 @@ class RunParameters(BaseModel):
             " Examples of invalid, non-ASCII characters are Chinese, Japanese kanjis,"
             " and emojis."
         ),
-        example=["--class", "org.apache.spark.examples.SparkPi"],
+        examples=[["--class", "org.apache.spark.examples.SparkPi"]],
     )
     sql_params: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             'A map from keys to values for SQL tasks, for example `"sql_params":'
             ' {"name": "john doe", "age": "35"}`. The SQL alert task does not support'
             " custom parameters."
         ),
-        example={"age": "35", "name": "john doe"},
+        examples=[{"age": "35", "name": "john doe"}],
     )
 
 
@@ -1279,7 +1279,7 @@ class RunState(BaseModel):
             "A descriptive message for the current state. This field is unstructured,"
             " and its exact format is subject to change."
         ),
-        example="",
+        examples=[""],
     )
     user_cancelled_or_timedout: Optional[bool] = Field(
         None,
@@ -1287,7 +1287,7 @@ class RunState(BaseModel):
             "Whether a run was canceled manually by a user or by the scheduler because"
             " the run timed out."
         ),
-        example=False,
+        examples=[False],
     )
 
 
@@ -1417,7 +1417,7 @@ class SparkJarTask(BaseModel):
             " use `SparkContext.getOrCreate` to obtain a Spark context; otherwise, runs"
             " of the job fail."
         ),
-        example="com.databricks.ComputeModels",
+        examples=["com.databricks.ComputeModels"],
     )
     parameters: Optional[List[str]] = Field(
         None,
@@ -1426,7 +1426,7 @@ class SparkJarTask(BaseModel):
             " variables](https://docs.databricks.com/jobs.html#parameter-variables) to"
             " set parameters containing information about job runs."
         ),
-        example=["--data", "dbfs:/path/to/data.json"],
+        examples=[["--data", "dbfs:/path/to/data.json"]],
     )
 
 
@@ -1456,7 +1456,7 @@ class SparkPythonTask(BaseModel):
             " variables](https://docs.databricks.com/jobs.html#parameter-variables) to"
             " set parameters containing information about job runs."
         ),
-        example=["--data", "dbfs:/path/to/data.json"],
+        examples=[["--data", "dbfs:/path/to/data.json"]],
     )
     python_file: str = Field(
         ...,
@@ -1466,7 +1466,7 @@ class SparkPythonTask(BaseModel):
             " in the Databricks workspace, the path must be absolute and begin with"
             " `/Repos`. This field is required."
         ),
-        example="dbfs:/path/to/file.py",
+        examples=["dbfs:/path/to/file.py"],
     )
 
 
@@ -1484,11 +1484,13 @@ class SparkSubmitTask(BaseModel):
             " variables](https://docs.databricks.com/jobs.html#parameter-variables) to"
             " set parameters containing information about job runs."
         ),
-        example=[
-            "--class",
-            "org.apache.spark.examples.SparkPi",
-            "dbfs:/path/to/examples.jar",
-            "10",
+        examples=[
+            [
+                "--class",
+                "org.apache.spark.examples.SparkPi",
+                "dbfs:/path/to/examples.jar",
+                "10",
+            ]
         ],
     )
 
@@ -1881,7 +1883,7 @@ class WebhookNotifications(BaseModel):
             "An optional list of notification IDs to call when the run fails. A maximum"
             " of 3 destinations can be specified for the `on_failure` property."
         ),
-        example=[{"id": "0481e838-0a59-4eff-9541-a4ca6f149574"}],
+        examples=[[{"id": "0481e838-0a59-4eff-9541-a4ca6f149574"}]],
     )
     on_start: Optional[List[OnStartItem]] = Field(
         None,
@@ -1889,9 +1891,11 @@ class WebhookNotifications(BaseModel):
             "An optional list of notification IDs to call when the run starts. A"
             " maximum of 3 destinations can be specified for the `on_start` property."
         ),
-        example=[
-            {"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"},
-            {"id": "0481e838-0a59-4eff-9541-a4ca6f149574"},
+        examples=[
+            [
+                {"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"},
+                {"id": "0481e838-0a59-4eff-9541-a4ca6f149574"},
+            ]
         ],
     )
     on_success: Optional[List[OnSucces]] = Field(
@@ -1901,7 +1905,12 @@ class WebhookNotifications(BaseModel):
             " successfully. A maximum of 3 destinations can be specified for the"
             " `on_success` property."
         ),
-        example=[{"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"}],
+        examples=[
+            [
+                {"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"},
+                {"id": "0481e838-0a59-4eff-9541-a4ca6f149574"},
+            ]
+        ],
     )
 
 
@@ -2029,7 +2038,7 @@ class Library(BaseModel):
             " access on the library. You may need to launch the cluster with an"
             " instance profile to access the S3 URI."
         ),
-        example="dbfs:/my/egg",
+        examples=["dbfs:/my/egg"],
     )
     jar: Optional[str] = Field(
         None,
@@ -2040,7 +2049,7 @@ class Library(BaseModel):
             " read access on the library. You may need to launch the cluster with an"
             " instance profile to access the S3 URI."
         ),
-        example="dbfs:/my-jar.jar",
+        examples=["dbfs:/my-jar.jar"],
     )
     maven: Optional[MavenLibrary] = Field(
         None,
@@ -2071,7 +2080,7 @@ class Library(BaseModel):
             " zipped wheels are to be installed, the file name suffix should be"
             " `.wheelhouse.zip`."
         ),
-        example="dbfs:/my/whl",
+        examples=["dbfs:/my/whl"],
     )
 
 
@@ -2337,7 +2346,9 @@ class RepairHistoryItem(BaseModel):
     model_config = ConfigDict(extra="allow", frozen=True)
 
     end_time: Optional[int] = Field(
-        None, description="The end time of the (repaired) run.", example=1625060863413
+        None,
+        description="The end time of the (repaired) run.",
+        examples=[1625060863413],
     )
     id: Optional[int] = Field(
         None,
@@ -2345,10 +2356,12 @@ class RepairHistoryItem(BaseModel):
             "The ID of the repair. Only returned for the items that represent a repair"
             " in `repair_history`."
         ),
-        example=734650698524280,
+        examples=[734650698524280],
     )
     start_time: Optional[int] = Field(
-        None, description="The start time of the (repaired) run.", example=1625060460483
+        None,
+        description="The start time of the (repaired) run.",
+        examples=[1625060460483],
     )
     state: Optional[RunState] = None
     task_run_ids: Optional[List[int]] = Field(
@@ -2356,7 +2369,7 @@ class RepairHistoryItem(BaseModel):
         description=(
             "The run IDs of the task runs that ran as part of this repair history item."
         ),
-        example=[1106460542112844, 988297789683452],
+        examples=[[1106460542112844, 988297789683452]],
     )
     type: Optional[Literal["ORIGINAL", "REPAIR"]] = Field(
         None,
@@ -2514,12 +2527,12 @@ class SqlTask(BaseModel):
         ),
     )
     parameters: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "Parameters to be used for each run of this job. The SQL alert task does"
             " not support custom parameters."
         ),
-        example={"age": 35, "name": "John Doe"},
+        examples=[{"age": 35, "name": "John Doe"}],
     )
     query: Optional[SqlTaskQuery] = Field(
         None, description="If query, indicates that this job must execute a SQL query."
@@ -3076,7 +3089,7 @@ class ClusterSpec(BaseModel):
             " to manually restart the cluster if it stops responding. We suggest"
             " running jobs on new clusters for greater reliability."
         ),
-        example="0923-164208-meows279",
+        examples=["0923-164208-meows279"],
     )
     libraries: Optional[List[Library]] = Field(
         None,
@@ -3202,7 +3215,7 @@ class JobTask(BaseModel):
     spark_jar_task: Optional[SparkJarTask] = Field(
         None,
         description="If spark_jar_task, indicates that this job must run a JAR.",
-        example="",
+        examples=[""],
     )
     spark_python_task: Optional[SparkPythonTask] = Field(
         None,
@@ -3259,7 +3272,7 @@ class JobTaskSettings(BaseModel):
             " need to manually restart the cluster if it stops responding. We suggest"
             " running jobs on new clusters for greater reliability."
         ),
-        example="0923-164208-meows279",
+        examples=["0923-164208-meows279"],
     )
     job_cluster_key: Optional[str] = Field(
         None,
@@ -3287,7 +3300,7 @@ class JobTaskSettings(BaseModel):
             " to retry indefinitely and the value 0 means to never retry. The default"
             " behavior is to never retry."
         ),
-        example=10,
+        examples=[10],
     )
     min_retry_interval_millis: Optional[int] = Field(
         None,
@@ -3296,7 +3309,7 @@ class JobTaskSettings(BaseModel):
             " failed run and the subsequent retry run. The default behavior is that"
             " unsuccessful runs are immediately retried."
         ),
-        example=2000,
+        examples=[2000],
     )
     new_cluster: Optional[NewCluster] = Field(
         None,
@@ -3329,7 +3342,7 @@ class JobTaskSettings(BaseModel):
             "An optional policy to specify whether to retry a task when it times out."
             " The default behavior is to not retry on timeout."
         ),
-        example=True,
+        examples=[True],
     )
     spark_jar_task: Optional[SparkJarTask] = Field(
         None, description="If spark_jar_task, indicates that this task must run a JAR."
@@ -3361,7 +3374,7 @@ class JobTaskSettings(BaseModel):
             "An optional timeout applied to each run of this job task. The default"
             " behavior is to have no timeout."
         ),
-        example=86400,
+        examples=[86400],
     )
     webhook_notifications: Optional[WebhookNotifications] = Field(
         None,
@@ -3408,7 +3421,7 @@ class RunSubmitTaskSettings(BaseModel):
             " need to manually restart the cluster if it stops responding. We suggest"
             " running jobs on new clusters for greater reliability."
         ),
-        example="0923-164208-meows279",
+        examples=["0923-164208-meows279"],
     )
     libraries: Optional[List[Library]] = Field(
         None,
@@ -3472,7 +3485,7 @@ class RunSubmitTaskSettings(BaseModel):
             "An optional timeout applied to each run of this job task. The default"
             " behavior is to have no timeout."
         ),
-        example=86400,
+        examples=[86400],
     )
 
 
@@ -3494,7 +3507,7 @@ class RunTask(BaseModel):
             " retried only until they succeed, and the maximum `attempt_number` is the"
             " same as the `max_retries` value for the job."
         ),
-        example=0,
+        examples=[0],
     )
     cleanup_duration: Optional[int] = Field(
         None,
@@ -3503,7 +3516,7 @@ class RunTask(BaseModel):
             " associated artifacts. The total duration of the run is the sum of the"
             " setup_duration, the execution_duration, and the cleanup_duration."
         ),
-        example=0,
+        examples=[0],
     )
     cluster_instance: Optional[ClusterInstance] = Field(
         None,
@@ -3529,7 +3542,7 @@ class RunTask(BaseModel):
             "The time at which this run ended in epoch milliseconds (milliseconds since"
             " 1/1/1970 UTC). This field is set to 0 if the job is still running."
         ),
-        example=1625060863413,
+        examples=[1625060863413],
     )
     execution_duration: Optional[int] = Field(
         None,
@@ -3538,7 +3551,7 @@ class RunTask(BaseModel):
             " notebook until they completed, failed, timed out, were cancelled, or"
             " encountered an unexpected error."
         ),
-        example=0,
+        examples=[0],
     )
     existing_cluster_id: Optional[str] = Field(
         None,
@@ -3550,67 +3563,70 @@ class RunTask(BaseModel):
         ),
     )
     git_source: Optional[GitSource1] = Field(
-        None,
+        default=None,
         description=(
             "This functionality is in Public Preview.\n\nAn optional specification for"
             " a remote repository containing the notebooks used by this job's notebook"
             " tasks."
         ),
-        example={
-            "git_branch": "main",
-            "git_provider": "gitHub",
-            "git_url": "https://github.com/databricks/databricks-cli",
-        },
+        examples=[
+            {
+                "git_branch": "main",
+                "git_provider": "gitHub",
+                "git_url": "https://github.com/databricks/databricks-cli",
+            }
+        ],
     )
     libraries: Optional[List[Library]] = Field(
-        None,
+        default=None,
         description=(
             "An optional list of libraries to be installed on the cluster that executes"
             " the job. The default value is an empty list."
         ),
     )
     new_cluster: Optional[NewCluster] = Field(
-        None,
+        default=None,
         description=(
             "If new_cluster, a description of a cluster that is created for each run."
         ),
     )
     notebook_task: Optional[NotebookTask] = Field(
-        None,
+        default=None,
         description=(
             "If notebook_task, indicates that this job must run a notebook. This field"
             " may not be specified in conjunction with spark_jar_task."
         ),
     )
     pipeline_task: Optional[PipelineTask] = Field(
-        None,
+        default=None,
         description=(
             "If pipeline_task, indicates that this job must execute a Pipeline."
         ),
     )
     python_wheel_task: Optional[PythonWheelTask] = Field(
-        None,
+        default=None,
         description=(
             "If python_wheel_task, indicates that this job must execute a PythonWheel."
         ),
     )
     run_id: Optional[int] = Field(
-        None, description="The ID of the task run.", example=99887766
+        default=None, description="The ID of the task run.", examples=[99887766]
     )
     setup_duration: Optional[int] = Field(
-        None,
+        default=None,
         description=(
             "The time it took to set up the cluster in milliseconds. For runs that run"
             " on new clusters this is the cluster creation time, for runs that run on"
             " existing clusters this time should be very short."
         ),
-        example=0,
+        examples=[0],
     )
     spark_jar_task: Optional[SparkJarTask] = Field(
-        None, description="If spark_jar_task, indicates that this job must run a JAR."
+        default=None,
+        description="If spark_jar_task, indicates that this job must run a JAR.",
     )
     spark_python_task: Optional[SparkPythonTask] = Field(
-        None,
+        default=None,
         description=(
             "If spark_python_task, indicates that this job must run a Python file."
         ),
@@ -3630,14 +3646,14 @@ class RunTask(BaseModel):
         ),
     )
     start_time: Optional[int] = Field(
-        None,
+        default=None,
         description=(
             "The time at which this run was started in epoch milliseconds (milliseconds"
             " since 1/1/1970 UTC). This may not be the time when the job task starts"
             " executing, for example, if the job is scheduled to run on a new cluster,"
             " this is the time the cluster creation call is issued."
         ),
-        example=1625060460483,
+        examples=[1625060460483],
     )
     state: Optional[RunState] = Field(
         None, description="The result and lifecycle states of the run."
@@ -3722,12 +3738,12 @@ class JobParameter(BaseModel):
 
     model_config = ConfigDict(extra="allow", frozen=True)
 
-    name: str = Field(
+    name: Optional[str] = Field(
         None,
         description="The name of the defined parameter. May only contain alphanumeric characters, _, -, and .",
         examples=["table"],
     )
-    default: str = Field(
+    default: Optional[str] = Field(
         None,
         description="Default value of the parameter.",
         examples=["users"],
@@ -3750,45 +3766,52 @@ class JobSettings(BaseModel):
         ),
     )
     format: Optional[Literal["SINGLE_TASK", "MULTI_TASK"]] = Field(
-        None,
+        default=None,
         description=(
             "Used to tell what is the format of the job. This field is ignored in"
             " Create/Update/Reset calls. When using the Jobs API 2.1 this value is"
             ' always set to `"MULTI_TASK"`.'
         ),
-        example="MULTI_TASK",
+        examples=["MULTI_TASK"],
     )
     git_source: Optional[GitSource1] = Field(
-        None,
+        default=None,
         description=(
             "This functionality is in Public Preview.\n\nAn optional specification for"
             " a remote repository containing the notebooks used by this job's notebook"
             " tasks."
         ),
-        example={
-            "git_branch": "main",
-            "git_provider": "gitHub",
-            "git_url": "https://github.com/databricks/databricks-cli",
-        },
+        examples=[
+            {
+                "git_branch": "main",
+                "git_provider": "gitHub",
+                "git_url": "https://github.com/databricks/databricks-cli",
+            }
+        ],
     )
     job_clusters: Optional[List[JobCluster]] = Field(
-        None,
+        default=None,
         description=(
             "A list of job cluster specifications that can be shared and reused by"
             " tasks of this job. Libraries cannot be declared in a shared job cluster."
             " You must declare dependent libraries in task settings."
         ),
-        example=[
-            {
-                "job_cluster_key": "auto_scaling_cluster",
-                "new_cluster": {
-                    "autoscale": {"max_workers": 16, "min_workers": 2},
-                    "aws_attributes": {"availability": "SPOT", "zone_id": "us-west-2a"},
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {"spark.speculation": True},
-                    "spark_version": "7.3.x-scala2.12",
-                },
-            }
+        examples=[
+            [
+                {
+                    "job_cluster_key": "auto_scaling_cluster",
+                    "new_cluster": {
+                        "autoscale": {"max_workers": 16, "min_workers": 2},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "spark_version": "7.3.x-scala2.12",
+                    },
+                }
+            ]
         ],
         max_length=100,
     )
@@ -3808,12 +3831,12 @@ class JobSettings(BaseModel):
             " value to 0 causes all new runs to be skipped. The default behavior is to"
             " allow only 1 concurrent run."
         ),
-        example=10,
+        examples=[10],
     )
     name: Optional[str] = Field(
         "Untitled",
         description="An optional name for the job.",
-        example="A multitask job",
+        examples=["A multitask job"],
     )
     schedule: Optional[CronSchedule] = Field(
         None,
@@ -3831,76 +3854,81 @@ class JobSettings(BaseModel):
             " limitations as cluster tags. A maximum of 25 tags can be added to the"
             " job."
         ),
-        example={"cost-center": "engineering", "team": "jobs"},
+        examples=[{"cost-center": "engineering", "team": "jobs"}],
     )
     tasks: Optional[List[JobTaskSettings]] = Field(
-        None,
+        default=None,
         description="A list of task specifications to be executed by this job.",
-        example=[
-            {
-                "depends_on": [],
-                "description": "Extracts session data from events",
-                "existing_cluster_id": "0923-164208-meows279",
-                "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
-                "max_retries": 3,
-                "min_retry_interval_millis": 2000,
-                "retry_on_timeout": False,
-                "spark_jar_task": {
-                    "main_class_name": "com.databricks.Sessionize",
-                    "parameters": ["--data", "dbfs:/path/to/data.json"],
+        examples=[
+            [
+                {
+                    "depends_on": [],
+                    "description": "Extracts session data from events",
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
+                    "max_retries": 3,
+                    "min_retry_interval_millis": 2000,
+                    "retry_on_timeout": False,
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.Sessionize",
+                        "parameters": ["--data", "dbfs:/path/to/data.json"],
+                    },
+                    "task_key": "Sessionize",
+                    "timeout_seconds": 86400,
                 },
-                "task_key": "Sessionize",
-                "timeout_seconds": 86400,
-            },
-            {
-                "depends_on": [],
-                "description": "Ingests order data",
-                "job_cluster_key": "auto_scaling_cluster",
-                "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
-                "max_retries": 3,
-                "min_retry_interval_millis": 2000,
-                "retry_on_timeout": False,
-                "spark_jar_task": {
-                    "main_class_name": "com.databricks.OrdersIngest",
-                    "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+                {
+                    "depends_on": [],
+                    "description": "Ingests order data",
+                    "job_cluster_key": "auto_scaling_cluster",
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
+                    "max_retries": 3,
+                    "min_retry_interval_millis": 2000,
+                    "retry_on_timeout": False,
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.OrdersIngest",
+                        "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+                    },
+                    "task_key": "Orders_Ingest",
+                    "timeout_seconds": 86400,
                 },
-                "task_key": "Orders_Ingest",
-                "timeout_seconds": 86400,
-            },
-            {
-                "depends_on": [
-                    {"task_key": "Orders_Ingest"},
-                    {"task_key": "Sessionize"},
-                ],
-                "description": "Matches orders with user sessions",
-                "max_retries": 3,
-                "min_retry_interval_millis": 2000,
-                "new_cluster": {
-                    "autoscale": {"max_workers": 16, "min_workers": 2},
-                    "aws_attributes": {"availability": "SPOT", "zone_id": "us-west-2a"},
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {"spark.speculation": True},
-                    "spark_version": "7.3.x-scala2.12",
+                {
+                    "depends_on": [
+                        {"task_key": "Orders_Ingest"},
+                        {"task_key": "Sessionize"},
+                    ],
+                    "description": "Matches orders with user sessions",
+                    "max_retries": 3,
+                    "min_retry_interval_millis": 2000,
+                    "new_cluster": {
+                        "autoscale": {"max_workers": 16, "min_workers": 2},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "spark_version": "7.3.x-scala2.12",
+                    },
+                    "notebook_task": {
+                        "base_parameters": {"age": "35", "name": "John Doe"},
+                        "notebook_path": "/Users/user.name@databricks.com/Match",
+                        "source": "WORKSPACE",
+                    },
+                    "retry_on_timeout": False,
+                    "task_key": "Match",
+                    "timeout_seconds": 86400,
                 },
-                "notebook_task": {
-                    "base_parameters": {"age": "35", "name": "John Doe"},
-                    "notebook_path": "/Users/user.name@databricks.com/Match",
-                    "source": "WORKSPACE",
-                },
-                "retry_on_timeout": False,
-                "task_key": "Match",
-                "timeout_seconds": 86400,
-            },
+            ]
         ],
         max_length=100,
     )
     timeout_seconds: Optional[int] = Field(
-        None,
+        default=None,
         description=(
             "An optional timeout applied to each run of this job. The default behavior"
             " is to have no timeout."
         ),
-        example=86400,
+        examples=[86400],
     )
     webhook_notifications: Optional[WebhookNotifications] = Field(
         None,
@@ -3934,7 +3962,7 @@ class Run(BaseModel):
             " retried only until they succeed, and the maximum `attempt_number` is the"
             " same as the `max_retries` value for the job."
         ),
-        example=0,
+        examples=[0],
     )
     cleanup_duration: Optional[int] = Field(
         None,
@@ -3943,7 +3971,7 @@ class Run(BaseModel):
             " associated artifacts. The total duration of the run is the sum of the"
             " setup_duration, the execution_duration, and the cleanup_duration."
         ),
-        example=0,
+        examples=[0],
     )
     cluster_instance: Optional[ClusterInstance] = Field(
         None,
@@ -3965,7 +3993,7 @@ class Run(BaseModel):
             "The creator user name. This field won’t be included in the response if the"
             " user has already been deleted."
         ),
-        example="user.name@databricks.com",
+        examples=["user.name@databricks.com"],
     )
     end_time: Optional[int] = Field(
         None,
@@ -3973,7 +4001,7 @@ class Run(BaseModel):
             "The time at which this run ended in epoch milliseconds (milliseconds since"
             " 1/1/1970 UTC). This field is set to 0 if the job is still running."
         ),
-        example=1625060863413,
+        examples=[1625060863413],
     )
     execution_duration: Optional[int] = Field(
         None,
@@ -3982,55 +4010,62 @@ class Run(BaseModel):
             " notebook until they completed, failed, timed out, were cancelled, or"
             " encountered an unexpected error."
         ),
-        example=0,
+        examples=[0],
     )
     git_source: Optional[GitSource1] = Field(
-        None,
+        default=None,
         description=(
             "This functionality is in Public Preview.\n\nAn optional specification for"
             " a remote repository containing the notebooks used by this job's notebook"
             " tasks."
         ),
-        example={
-            "git_branch": "main",
-            "git_provider": "gitHub",
-            "git_url": "https://github.com/databricks/databricks-cli",
-        },
+        examples=[
+            {
+                "git_branch": "main",
+                "git_provider": "gitHub",
+                "git_url": "https://github.com/databricks/databricks-cli",
+            }
+        ],
     )
     job_clusters: Optional[List[JobCluster]] = Field(
-        None,
+        default=None,
         description=(
             "A list of job cluster specifications that can be shared and reused by"
             " tasks of this job. Libraries cannot be declared in a shared job cluster."
             " You must declare dependent libraries in task settings."
         ),
-        example=[
-            {
-                "job_cluster_key": "auto_scaling_cluster",
-                "new_cluster": {
-                    "autoscale": {"max_workers": 16, "min_workers": 2},
-                    "aws_attributes": {"availability": "SPOT", "zone_id": "us-west-2a"},
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {"spark.speculation": True},
-                    "spark_version": "7.3.x-scala2.12",
-                },
-            }
+        examples=[
+            [
+                {
+                    "job_cluster_key": "auto_scaling_cluster",
+                    "new_cluster": {
+                        "autoscale": {"max_workers": 16, "min_workers": 2},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "spark_version": "7.3.x-scala2.12",
+                    },
+                }
+            ]
         ],
         max_length=100,
     )
     job_id: Optional[int] = Field(
         None,
         description="The canonical identifier of the job that contains this run.",
-        example=11223344,
+        examples=[11223344],
     )
     number_in_job: Optional[int] = Field(
-        None,
+        default=None,
         deprecated=True,
         description=(
             "A unique identifier for this job run. This is set to the same value as"
             " `run_id`."
         ),
-        example=455644833,
+        examples=[455644833],
     )
     original_attempt_run_id: Optional[int] = Field(
         None,
@@ -4038,7 +4073,7 @@ class Run(BaseModel):
             "If this run is a retry of a prior run attempt, this field contains the"
             " run_id of the original attempt; otherwise, it is the same as the run_id."
         ),
-        example=455644833,
+        examples=[455644833],
     )
     overriding_parameters: Optional[RunParameters] = Field(
         None, description="The parameters used for this run."
@@ -4049,7 +4084,7 @@ class Run(BaseModel):
             "The canonical identifier of the run. This ID is unique across all runs of"
             " all jobs."
         ),
-        example=455644833,
+        examples=[455644833],
     )
     run_name: Optional[str] = Field(
         "Untitled",
@@ -4057,12 +4092,12 @@ class Run(BaseModel):
             "An optional name for the run. The maximum allowed length is 4096 bytes in"
             " UTF-8 encoding."
         ),
-        example="A multitask job run",
+        examples=["A multitask job run"],
     )
     run_page_url: Optional[str] = Field(
         None,
         description="The URL to the detail page of the run.",
-        example="https://my-workspace.cloud.databricks.com/#job/11223344/run/123",
+        examples=["https://my-workspace.cloud.databricks.com/#job/11223344/run/123"],
     )
     run_type: Optional[RunType] = None
     schedule: Optional[CronSchedule] = Field(
@@ -4079,7 +4114,7 @@ class Run(BaseModel):
             " on new clusters this is the cluster creation time, for runs that run on"
             " existing clusters this time should be very short."
         ),
-        example=0,
+        examples=[0],
     )
     start_time: Optional[int] = Field(
         None,
@@ -4089,7 +4124,7 @@ class Run(BaseModel):
             " executing, for example, if the job is scheduled to run on a new cluster,"
             " this is the time the cluster creation call is issued."
         ),
-        example=1625060460483,
+        examples=[1625060460483],
     )
     state: Optional[RunState] = Field(
         None, description="The result and lifecycle states of the run."
@@ -4098,106 +4133,113 @@ class Run(BaseModel):
         None,
         description=(
             "The list of tasks performed by the run. Each task has its own `run_id`"
-            " which you can use to call `JobsGetOutput` to retrieve the run resutls."
+            " which you can use to call `JobsGetOutput` to retrieve the run results."
         ),
-        example=[
-            {
-                "attempt_number": 0,
-                "cleanup_duration": 0,
-                "cluster_instance": {
-                    "cluster_id": "0923-164208-meows279",
-                    "spark_context_id": "4348585301701786933",
-                },
-                "description": "Ingests order data",
-                "end_time": 1629989930171,
-                "execution_duration": 0,
-                "job_cluster_key": "auto_scaling_cluster",
-                "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
-                "run_id": 2112892,
-                "run_page_url": (
-                    "https://my-workspace.cloud.databricks.com/#job/39832/run/20"
-                ),
-                "setup_duration": 0,
-                "spark_jar_task": {"main_class_name": "com.databricks.OrdersIngest"},
-                "start_time": 1629989929660,
-                "state": {
-                    "life_cycle_state": "INTERNAL_ERROR",
-                    "result_state": "FAILED",
-                    "state_message": (
-                        "Library installation failed for library due to user error."
-                        " Error messages:\n'Manage' permissions are required to install"
-                        " libraries on a cluster"
+        examples=[
+            [
+                {
+                    "attempt_number": 0,
+                    "cleanup_duration": 0,
+                    "cluster_instance": {
+                        "cluster_id": "0923-164208-meows279",
+                        "spark_context_id": "4348585301701786933",
+                    },
+                    "description": "Ingests order data",
+                    "end_time": 1629989930171,
+                    "execution_duration": 0,
+                    "job_cluster_key": "auto_scaling_cluster",
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
+                    "run_id": 2112892,
+                    "run_page_url": (
+                        "https://my-workspace.cloud.databricks.com/#job/39832/run/20"
                     ),
-                    "user_cancelled_or_timedout": False,
+                    "setup_duration": 0,
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.OrdersIngest"
+                    },
+                    "start_time": 1629989929660,
+                    "state": {
+                        "life_cycle_state": "INTERNAL_ERROR",
+                        "result_state": "FAILED",
+                        "state_message": (
+                            "Library installation failed for library due to user error."
+                            " Error messages:\n'Manage' permissions are required to install"
+                            " libraries on a cluster"
+                        ),
+                        "user_cancelled_or_timedout": False,
+                    },
+                    "task_key": "Orders_Ingest",
                 },
-                "task_key": "Orders_Ingest",
-            },
-            {
-                "attempt_number": 0,
-                "cleanup_duration": 0,
-                "cluster_instance": {"cluster_id": "0923-164208-meows279"},
-                "depends_on": [
-                    {"task_key": "Orders_Ingest"},
-                    {"task_key": "Sessionize"},
-                ],
-                "description": "Matches orders with user sessions",
-                "end_time": 1629989930238,
-                "execution_duration": 0,
-                "new_cluster": {
-                    "autoscale": {"max_workers": 16, "min_workers": 2},
-                    "aws_attributes": {"availability": "SPOT", "zone_id": "us-west-2a"},
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {"spark.speculation": True},
-                    "spark_version": "7.3.x-scala2.12",
-                },
-                "notebook_task": {
-                    "notebook_path": "/Users/user.name@databricks.com/Match",
-                    "source": "WORKSPACE",
-                },
-                "run_id": 2112897,
-                "run_page_url": (
-                    "https://my-workspace.cloud.databricks.com/#job/39832/run/21"
-                ),
-                "setup_duration": 0,
-                "start_time": 0,
-                "state": {
-                    "life_cycle_state": "SKIPPED",
-                    "state_message": "An upstream task failed.",
-                    "user_cancelled_or_timedout": False,
-                },
-                "task_key": "Match",
-            },
-            {
-                "attempt_number": 0,
-                "cleanup_duration": 0,
-                "cluster_instance": {
-                    "cluster_id": "0923-164208-meows279",
-                    "spark_context_id": "4348585301701786933",
-                },
-                "description": "Extracts session data from events",
-                "end_time": 1629989930144,
-                "execution_duration": 0,
-                "existing_cluster_id": "0923-164208-meows279",
-                "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
-                "run_id": 2112902,
-                "run_page_url": (
-                    "https://my-workspace.cloud.databricks.com/#job/39832/run/22"
-                ),
-                "setup_duration": 0,
-                "spark_jar_task": {"main_class_name": "com.databricks.Sessionize"},
-                "start_time": 1629989929668,
-                "state": {
-                    "life_cycle_state": "INTERNAL_ERROR",
-                    "result_state": "FAILED",
-                    "state_message": (
-                        "Library installation failed for library due to user error."
-                        " Error messages:\n'Manage' permissions are required to install"
-                        " libraries on a cluster"
+                {
+                    "attempt_number": 0,
+                    "cleanup_duration": 0,
+                    "cluster_instance": {"cluster_id": "0923-164208-meows279"},
+                    "depends_on": [
+                        {"task_key": "Orders_Ingest"},
+                        {"task_key": "Sessionize"},
+                    ],
+                    "description": "Matches orders with user sessions",
+                    "end_time": 1629989930238,
+                    "execution_duration": 0,
+                    "new_cluster": {
+                        "autoscale": {"max_workers": 16, "min_workers": 2},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "spark_version": "7.3.x-scala2.12",
+                    },
+                    "notebook_task": {
+                        "notebook_path": "/Users/user.name@databricks.com/Match",
+                        "source": "WORKSPACE",
+                    },
+                    "run_id": 2112897,
+                    "run_page_url": (
+                        "https://my-workspace.cloud.databricks.com/#job/39832/run/21"
                     ),
-                    "user_cancelled_or_timedout": False,
+                    "setup_duration": 0,
+                    "start_time": 0,
+                    "state": {
+                        "life_cycle_state": "SKIPPED",
+                        "state_message": "An upstream task failed.",
+                        "user_cancelled_or_timedout": False,
+                    },
+                    "task_key": "Match",
                 },
-                "task_key": "Sessionize",
-            },
+                {
+                    "attempt_number": 0,
+                    "cleanup_duration": 0,
+                    "cluster_instance": {
+                        "cluster_id": "0923-164208-meows279",
+                        "spark_context_id": "4348585301701786933",
+                    },
+                    "description": "Extracts session data from events",
+                    "end_time": 1629989930144,
+                    "execution_duration": 0,
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
+                    "run_id": 2112902,
+                    "run_page_url": (
+                        "https://my-workspace.cloud.databricks.com/#job/39832/run/22"
+                    ),
+                    "setup_duration": 0,
+                    "spark_jar_task": {"main_class_name": "com.databricks.Sessionize"},
+                    "start_time": 1629989929668,
+                    "state": {
+                        "life_cycle_state": "INTERNAL_ERROR",
+                        "result_state": "FAILED",
+                        "state_message": (
+                            "Library installation failed for library due to user error."
+                            " Error messages:\n'Manage' permissions are required to install"
+                            " libraries on a cluster"
+                        ),
+                        "user_cancelled_or_timedout": False,
+                    },
+                    "task_key": "Sessionize",
+                },
+            ]
         ],
         max_length=100,
     )
@@ -4224,11 +4266,13 @@ class RunSubmitSettings(BaseModel):
             " a remote repository containing the notebooks used by this job's notebook"
             " tasks."
         ),
-        example={
-            "git_branch": "main",
-            "git_provider": "gitHub",
-            "git_url": "https://github.com/databricks/databricks-cli",
-        },
+        examples=[
+            {
+                "git_branch": "main",
+                "git_provider": "gitHub",
+                "git_url": "https://github.com/databricks/databricks-cli",
+            }
+        ],
     )
     idempotency_token: Optional[str] = Field(
         None,
@@ -4243,61 +4287,66 @@ class RunSubmitSettings(BaseModel):
             " characters.\n\nFor more information, see [How to ensure idempotency for"
             " jobs](https://kb.databricks.com/jobs/jobs-idempotency.html)."
         ),
-        example="8f018174-4792-40d5-bcbc-3e6a527352c8",
+        examples=["8f018174-4792-40d5-bcbc-3e6a527352c8"],
     )
     run_name: Optional[str] = Field(
         None,
         description="An optional name for the run. The default value is `Untitled`.",
-        example="A multitask job run",
+        examples=["A multitask job run"],
     )
     tasks: Optional[List[RunSubmitTaskSettings]] = Field(
         None,
-        example=[
-            {
-                "depends_on": [],
-                "description": "Extracts session data from events",
-                "existing_cluster_id": "0923-164208-meows279",
-                "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
-                "spark_jar_task": {
-                    "main_class_name": "com.databricks.Sessionize",
-                    "parameters": ["--data", "dbfs:/path/to/data.json"],
+        examples=[
+            [
+                {
+                    "depends_on": [],
+                    "description": "Extracts session data from events",
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.Sessionize",
+                        "parameters": ["--data", "dbfs:/path/to/data.json"],
+                    },
+                    "task_key": "Sessionize",
+                    "timeout_seconds": 86400,
                 },
-                "task_key": "Sessionize",
-                "timeout_seconds": 86400,
-            },
-            {
-                "depends_on": [],
-                "description": "Ingests order data",
-                "existing_cluster_id": "0923-164208-meows279",
-                "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
-                "spark_jar_task": {
-                    "main_class_name": "com.databricks.OrdersIngest",
-                    "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+                {
+                    "depends_on": [],
+                    "description": "Ingests order data",
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.OrdersIngest",
+                        "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+                    },
+                    "task_key": "Orders_Ingest",
+                    "timeout_seconds": 86400,
                 },
-                "task_key": "Orders_Ingest",
-                "timeout_seconds": 86400,
-            },
-            {
-                "depends_on": [
-                    {"task_key": "Orders_Ingest"},
-                    {"task_key": "Sessionize"},
-                ],
-                "description": "Matches orders with user sessions",
-                "new_cluster": {
-                    "autoscale": {"max_workers": 16, "min_workers": 2},
-                    "aws_attributes": {"availability": "SPOT", "zone_id": "us-west-2a"},
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {"spark.speculation": True},
-                    "spark_version": "7.3.x-scala2.12",
+                {
+                    "depends_on": [
+                        {"task_key": "Orders_Ingest"},
+                        {"task_key": "Sessionize"},
+                    ],
+                    "description": "Matches orders with user sessions",
+                    "new_cluster": {
+                        "autoscale": {"max_workers": 16, "min_workers": 2},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "spark_version": "7.3.x-scala2.12",
+                    },
+                    "notebook_task": {
+                        "base_parameters": {"age": "35", "name": "John Doe"},
+                        "notebook_path": "/Users/user.name@databricks.com/Match",
+                        "source": "WORKSPACE",
+                    },
+                    "task_key": "Match",
+                    "timeout_seconds": 86400,
                 },
-                "notebook_task": {
-                    "base_parameters": {"age": "35", "name": "John Doe"},
-                    "notebook_path": "/Users/user.name@databricks.com/Match",
-                    "source": "WORKSPACE",
-                },
-                "task_key": "Match",
-                "timeout_seconds": 86400,
-            },
+            ]
         ],
         max_length=100,
     )
@@ -4307,7 +4356,7 @@ class RunSubmitSettings(BaseModel):
             "An optional timeout applied to each run of this job. The default behavior"
             " is to have no timeout."
         ),
-        example=86400,
+        examples=[86400],
     )
     webhook_notifications: Optional[WebhookNotifications] = Field(
         None,
@@ -4326,17 +4375,17 @@ class RunJobParameter(BaseModel):
 
     model_config = ConfigDict(extra="allow", frozen=True)
 
-    name: str = Field(
+    name: Optional[str] = Field(
         None,
         description="The name of the parameter.",
         examples=["table"],
     )
-    default: str = Field(
+    default: Optional[str] = Field(
         None,
         description="The optional default value of the parameter.",
         examples=["users"],
     )
-    value: str = Field(
+    value: Optional[str] = Field(
         None,
         description="The value used in the run.",
         examples=["customers"],
@@ -4356,7 +4405,7 @@ class Job(BaseModel):
             "The time at which this job was created in epoch milliseconds (milliseconds"
             " since 1/1/1970 UTC)."
         ),
-        example=1601370337343,
+        examples=[1601370337343],
     )
     creator_user_name: Optional[str] = Field(
         None,
@@ -4364,10 +4413,10 @@ class Job(BaseModel):
             "The creator user name. This field won’t be included in the response if the"
             " user has already been deleted."
         ),
-        example="user.name@databricks.com",
+        examples=["user.name@databricks.com"],
     )
     job_id: Optional[int] = Field(
-        None, description="The canonical identifier for this job.", example=11223344
+        None, description="The canonical identifier for this job.", examples=[11223344]
     )
     settings: Optional[JobSettings] = Field(
         None,

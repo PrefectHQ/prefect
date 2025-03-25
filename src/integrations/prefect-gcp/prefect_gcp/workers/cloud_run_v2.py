@@ -11,12 +11,12 @@ from googleapiclient import discovery
 # noinspection PyProtectedMember
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
+from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
-from prefect.utilities.pydantic import JsonPatch
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -28,9 +28,8 @@ from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelecto
 from prefect_gcp.utilities import slugify_name
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun
-    from prefect.server.schemas.core import Flow
-    from prefect.server.schemas.responses import DeploymentResponse
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.responses import DeploymentResponse
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -126,10 +125,10 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
     timeout: int = Field(
         default=600,
         gt=0,
-        le=86400,
+        le=604800,
         description=(
             "Max allowed duration the Job may be active before Cloud Run will "
-            "actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
+            "actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
     _job_name: str = PrivateAttr(default=None)
@@ -164,6 +163,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
+        work_pool: Optional["WorkPool"] = None,
+        worker_name: Optional[str] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -176,11 +177,15 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             deployment: The deployment associated with the flow run used for
                 preparation.
             flow: The flow associated with the flow run used for preparation.
+            work_pool: The work pool associated with the flow run used for preparation.
+            worker_name: The worker name associated with the flow run used for preparation.
         """
         super().prepare_for_flow_run(
             flow_run=flow_run,
             deployment=deployment,
             flow=flow,
+            work_pool=work_pool,
+            worker_name=worker_name,
         )
 
         self._populate_env()
@@ -242,9 +247,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with the image if not present.
         """
         if "image" not in self.job_body["template"]["template"]["containers"][0]:
-            self.job_body["template"]["template"]["containers"][0][
-                "image"
-            ] = f"docker.io/{get_prefect_image_name()}"
+            self.job_body["template"]["template"]["containers"][0]["image"] = (
+                f"docker.io/{get_prefect_image_name()}"
+            )
 
     def _populate_or_format_command(self):
         """
@@ -253,13 +258,13 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         command = self.job_body["template"]["template"]["containers"][0].get("command")
 
         if command is None:
-            self.job_body["template"]["template"]["containers"][0][
-                "command"
-            ] = shlex.split(self._base_flow_run_command())
+            self.job_body["template"]["template"]["containers"][0]["command"] = (
+                shlex.split(self._base_flow_run_command())
+            )
         elif isinstance(command, str):
-            self.job_body["template"]["template"]["containers"][0][
-                "command"
-            ] = shlex.split(command)
+            self.job_body["template"]["template"]["containers"][0]["command"] = (
+                shlex.split(command)
+            )
 
     def _format_args_if_present(self):
         """
@@ -268,9 +273,9 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         args = self.job_body["template"]["template"]["containers"][0].get("args")
 
         if args is not None and isinstance(args, str):
-            self.job_body["template"]["template"]["containers"][0][
-                "args"
-            ] = shlex.split(args)
+            self.job_body["template"]["template"]["containers"][0]["args"] = (
+                shlex.split(args)
+            )
 
     def _remove_vpc_access_if_unset(self):
         """
@@ -374,12 +379,14 @@ class CloudRunWorkerV2Variables(BaseVariables):
         default_factory=dict,
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
-        example={
-            "ENV_VAR_NAME": {
-                "secret": "SECRET_NAME",
-                "version": "latest",
+        examples=[
+            {
+                "ENV_VAR_NAME": {
+                    "secret": "SECRET_NAME",
+                    "version": "latest",
+                }
             }
-        },
+        ],
     )
     cloudsql_instances: Optional[List[str]] = Field(
         default_factory=list,
@@ -751,8 +758,7 @@ class CloudRunWorkerV2(BaseWorker):
             )
         except Exception as exc:
             logger.critical(
-                f"Encountered an exception while waiting for job run completion - "
-                f"{exc}"
+                f"Encountered an exception while waiting for job run completion - {exc}"
             )
             raise
 

@@ -8,7 +8,7 @@ import threading
 from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
-from typing import AnyStr, Optional, Union, cast
+from typing import Any, AnyStr, Optional, Union, cast
 
 # fsspec has no stubs, see https://github.com/fsspec/filesystem_spec/issues/625
 import fsspec  # type: ignore
@@ -114,7 +114,7 @@ def filename(path: str) -> str:
     return path.split(sep)[-1]
 
 
-def is_local_path(path: Union[str, pathlib.Path, OpenFile]) -> bool:
+def is_local_path(path: Union[str, pathlib.Path, Any]) -> bool:
     """Check if the given path points to a local or remote file system"""
     if isinstance(path, str):
         try:

@@ -518,10 +518,10 @@ class TestSystemBlockTypes:
             ).model_dump(
                 mode="json",
                 exclude_unset=True,
-                exclude={"id", "block_schema", "block_type"},
+                exclude={"id", "block_schema", "block_type", "block_type_name"},
             ),
         )
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_201_CREATED, response.text
 
         # load the datetime block
         api_block = await prefect.blocks.system.DateTime.load("my-test-date-time")

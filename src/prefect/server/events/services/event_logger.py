@@ -1,38 +1,48 @@
-import asyncio
-from typing import Optional
+from __future__ import annotations
 
-import pendulum
+import asyncio
+from typing import TYPE_CHECKING, NoReturn
+
 import rich
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
-from prefect.server.utilities.messaging import Message, create_consumer
+from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.utilities.messaging import Consumer, Message, create_consumer
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
-class EventLogger:
+class EventLogger(RunInAllServers, Service):
     """A debugging service that logs events to the console as they arrive."""
 
-    name: str = "EventLogger"
+    consumer_task: asyncio.Task[None] | None = None
 
-    consumer_task: Optional[asyncio.Task] = None
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_logger
 
-    async def start(self):
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Logger already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         console = rich.console.Console()
 
         async def handler(message: Message):
-            now = pendulum.now("UTC")
+            right_now = now("UTC")
             event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
 
             console.print(
                 "Event:",
                 str(event.id).partition("-")[0],
                 f"{event.occurred.isoformat()}",
-                f" ({(event.occurred - now).total_seconds():>6,.2f})",
+                f" ({(event.occurred - right_now).total_seconds():>6,.2f})",
                 f"\\[[bold green]{event.event}[/]]",
                 event.resource.id,
             )
@@ -46,7 +56,7 @@ class EventLogger:
         except asyncio.CancelledError:
             pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
         try:

@@ -20,15 +20,20 @@ Available attributes:
     - `run_count`: the number of times this flow run has been run
 """
 
-import os
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
 
-import pendulum
+import os
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
+from prefect.types._datetime import DateTime, Timezone, now, parse_datetime
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import Flow, FlowRun, TaskRun
 
 __all__ = [
     "id",
@@ -48,20 +53,21 @@ __all__ = [
 ]
 
 
-def _pendulum_parse(dt: str) -> pendulum.DateTime:
-    """
-    Use pendulum to cast different format date strings to pendulum.DateTime --
-    tzinfo is ignored (UTC forced)
-    """
-    return pendulum.parse(dt, tz=None, strict=False).set(tz="UTC")
+def _parse_datetime_UTC(dt: str) -> DateTime:
+    pendulum_dt = parse_datetime(dt, tz=Timezone("UTC"), strict=False)
+    assert isinstance(pendulum_dt, datetime)
+    return DateTime.instance(pendulum_dt)
 
 
-type_cast = {
+type_cast: dict[
+    type[bool] | type[int] | type[float] | type[str] | type[None] | type[DateTime],
+    Callable[[Any], Any],
+] = {
     bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
     str: str,
-    pendulum.DateTime: _pendulum_parse,
+    DateTime: _parse_datetime_UTC,
     # for optional defined attributes, when real value is NoneType, use str
     type(None): str,
 }
@@ -106,17 +112,17 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
-async def _get_flow_run(flow_run_id):
+async def _get_flow_run(flow_run_id: str) -> "FlowRun":
     async with get_client() as client:
         return await client.read_flow_run(flow_run_id)
 
 
-async def _get_task_run(task_run_id):
+async def _get_task_run(task_run_id: str) -> "TaskRun":
     async with get_client() as client:
         return await client.read_task_run(task_run_id)
 
 
-async def _get_flow_from_run(flow_run_id):
+async def _get_flow_from_run(flow_run_id: str) -> "Flow":
     async with get_client() as client:
         flow_run = await client.read_flow_run(flow_run_id)
         return await client.read_flow(flow_run.flow_id)
@@ -208,11 +214,11 @@ def get_flow_version() -> Optional[str]:
         return flow_run_ctx.flow.version
 
 
-def get_scheduled_start_time() -> pendulum.DateTime:
+def get_scheduled_start_time() -> DateTime:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
-        return pendulum.now("utc")
+        return now("UTC")
     elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
@@ -323,7 +329,7 @@ def get_job_variables() -> Optional[Dict[str, Any]]:
     return flow_run_ctx.flow_run.job_variables if flow_run_ctx else None
 
 
-FIELDS = {
+FIELDS: dict[str, Callable[[], Any]] = {
     "id": get_id,
     "tags": get_tags,
     "scheduled_start_time": get_scheduled_start_time,

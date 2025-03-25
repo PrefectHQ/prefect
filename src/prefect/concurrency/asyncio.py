@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from typing import Optional, Union
 
 import anyio
-import pendulum
+
+from prefect.types._datetime import now
 
 from ._asyncio import (
     AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
@@ -69,13 +70,13 @@ async def concurrency(
         max_retries=max_retries,
         strict=strict,
     )
-    acquisition_time = pendulum.now("UTC")
+    acquisition_time = now("UTC")
     emitted_events = emit_concurrency_acquisition_events(limits, occupy)
 
     try:
         yield
     finally:
-        occupancy_period = pendulum.now("UTC") - acquisition_time
+        occupancy_period = now("UTC") - acquisition_time
         try:
             await arelease_concurrency_slots(
                 names, occupy, occupancy_period.total_seconds()

@@ -1,3 +1,4 @@
+import { useCreateTaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -16,10 +17,9 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useCreateTaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -37,7 +37,7 @@ const DEFAULT_VALUES = {
 	concurrency_limit: 0,
 } as const;
 
-type Props = {
+type TaskRunConcurrencyLimitsCreateDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	onSubmit: () => void;
 };
@@ -45,9 +45,7 @@ type Props = {
 export const TaskRunConcurrencyLimitsCreateDialog = ({
 	onOpenChange,
 	onSubmit,
-}: Props) => {
-	const { toast } = useToast();
-
+}: TaskRunConcurrencyLimitsCreateDialogProps) => {
 	const { createTaskRunConcurrencyLimit, isPending } =
 		useCreateTaskRunConcurrencyLimit();
 
@@ -59,7 +57,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 	const handleAddLimit = (values: z.infer<typeof formSchema>) => {
 		createTaskRunConcurrencyLimit(values, {
 			onSuccess: () => {
-				toast({ title: "Concurrency limit added" });
+				toast.success("Concurrency limit added");
 			},
 			onError: (error) => {
 				const message = error.message || "Unknown error while updating limit.";
@@ -74,7 +72,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 
 	return (
 		<Dialog open onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>Add Task Run Concurrency Limit</DialogTitle>
 				</DialogHeader>

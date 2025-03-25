@@ -2,10 +2,13 @@
 Defines the Prefect REST API FastAPI app.
 """
 
+from __future__ import annotations
+
 import asyncio
 import atexit
 import base64
 import contextlib
+import gc
 import mimetypes
 import os
 import random
@@ -16,9 +19,9 @@ import subprocess
 import sys
 import time
 from contextlib import asynccontextmanager
-from functools import partial, wraps
+from functools import wraps
 from hashlib import sha256
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
@@ -35,20 +38,16 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
+from typing_extensions import Self
 
 import prefect
 import prefect.server.api as api
-import prefect.server.services as services
 import prefect.settings
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
-from prefect.server.events import stream
-from prefect.server.events.services.actions import Actions
-from prefect.server.events.services.event_persister import EventPersister
-from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.services.task_run_recorder import TaskRunRecorder
+from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -56,23 +55,27 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
     PREFECT_UI_SERVE_BASE,
     get_current_settings,
 )
 from prefect.utilities.hashing import hash_objects
 
+if TYPE_CHECKING:
+    import logging
+
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
-API_VERSION = prefect.__version__
+API_VERSION: str = prefect.__version__
 # migrations should run only once per app start; the ephemeral API can potentially
 # create multiple apps in a single process
-LIFESPAN_RAN_FOR_APP = set()
+LIFESPAN_RAN_FOR_APP: set[Any] = set()
 
-logger = get_logger("server")
+logger: "logging.Logger" = get_logger("server")
 
-enforce_minimum_version = EnforceMinimumAPIVersion(
+enforce_minimum_version: EnforceMinimumAPIVersion = EnforceMinimumAPIVersion(
     # this should be <= SERVER_API_VERSION; clients that send
     # a version header under this value will be rejected
     minimum_api_version="0.8.0",
@@ -125,7 +128,7 @@ class SPAStaticFiles(StaticFiles):
     application still returns the index.
     """
 
-    async def get_response(self, path: str, scope):
+    async def get_response(self, path: str, scope: Any) -> Response:
         try:
             return await super().get_response(path, scope)
         except HTTPException:
@@ -141,16 +144,18 @@ class RequestLimitMiddleware:
     writes.
     """
 
-    def __init__(self, app, limit: float):
+    def __init__(self, app: Any, limit: float):
         self.app = app
         self._limiter = anyio.CapacityLimiter(limit)
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         async with self._limiter:
             await self.app(scope, receive, send)
 
 
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Provide a detailed message for request validation errors."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -164,7 +169,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-async def integrity_exception_handler(request: Request, exc: Exception):
+async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Capture database integrity errors."""
     logger.error("Encountered exception in request:", exc_info=True)
     return JSONResponse(
@@ -179,7 +184,7 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     )
 
 
-def is_client_retryable_exception(exc: Exception):
+def is_client_retryable_exception(exc: Exception) -> bool:
     if isinstance(exc, sqlalchemy.exc.OperationalError) and isinstance(
         exc.orig, sqlite3.OperationalError
     ):
@@ -209,8 +214,11 @@ def is_client_retryable_exception(exc: Exception):
 
 
 def replace_placeholder_string_in_files(
-    directory, placeholder, replacement, allowed_extensions=None
-):
+    directory: str,
+    placeholder: str,
+    replacement: str,
+    allowed_extensions: list[str] | None = None,
+) -> None:
     """
     Recursively loops through all files in the given directory and replaces
     a placeholder string.
@@ -218,7 +226,7 @@ def replace_placeholder_string_in_files(
     if allowed_extensions is None:
         allowed_extensions = [".txt", ".html", ".css", ".js", ".json", ".txt"]
 
-    for root, dirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         for file in files:
             if any(file.endswith(ext) for ext in allowed_extensions):
                 file_path = os.path.join(root, file)
@@ -232,7 +240,7 @@ def replace_placeholder_string_in_files(
                     file.write(file_data)
 
 
-def copy_directory(directory, path):
+def copy_directory(directory: str, path: str) -> None:
     os.makedirs(path, exist_ok=True)
     for item in os.listdir(directory):
         source = os.path.join(directory, item)
@@ -242,11 +250,19 @@ def copy_directory(directory, path):
             if os.path.exists(destination):
                 shutil.rmtree(destination)
             shutil.copytree(source, destination, symlinks=True)
+            # ensure copied files are writeable
+            for root, dirs, files in os.walk(destination):
+                for f in files:
+                    os.chmod(os.path.join(root, f), 0o600)
         else:
             shutil.copy2(source, destination)
+            # Ensure copied file is writeable
+            os.chmod(destination, 0o600)
 
 
-async def custom_internal_exception_handler(request: Request, exc: Exception):
+async def custom_internal_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
     """
     Log a detailed exception for internal server errors before returning.
 
@@ -271,18 +287,23 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
 
 async def prefect_object_not_found_exception_handler(
     request: Request, exc: ObjectNotFoundError
-):
+) -> JSONResponse:
     """Return 404 status code on object not found exceptions."""
     return JSONResponse(
         content={"exception_message": str(exc)}, status_code=status.HTTP_404_NOT_FOUND
     )
 
 
+API_APP_CACHE: dict[tuple[str, str | None], FastAPI] = {}
+
+
 def create_api_app(
-    dependencies: Optional[List[Depends]] = None,
+    dependencies: list[Any] | None = None,
     health_check_path: str = "/health",
     version_check_path: str = "/version",
-    fast_api_app_kwargs: Optional[Dict[str, Any]] = None,
+    fast_api_app_kwargs: dict[str, Any] | None = None,
+    final: bool = False,
+    ignore_cache: bool = False,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Prefect REST API
@@ -291,20 +312,32 @@ def create_api_app(
         dependencies: a list of global dependencies to add to each Prefect REST API router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
+        final: whether this will be the last instance of the Prefect server to be
+            created in this process, so that additional optimizations may be applied
+        ignore_cache: if set, a new app will be created even if the settings and fast_api_app_kwargs match
+            an existing app in the cache
 
     Returns:
         a FastAPI app that serves the Prefect REST API
     """
+    cache_key = (
+        prefect.settings.get_current_settings().hash_key(),
+        hash_objects(fast_api_app_kwargs) if fast_api_app_kwargs else None,
+    )
+
+    if cache_key in API_APP_CACHE and not ignore_cache:
+        return API_APP_CACHE[cache_key]
+
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
     api_app.add_middleware(GZipMiddleware)
 
     @api_app.get(health_check_path, tags=["Root"])
-    async def health_check():
+    async def health_check() -> bool:  # type: ignore[reportUnusedFunction]
         return True
 
     @api_app.get(version_check_path, tags=["Root"])
-    async def server_version():
+    async def server_version() -> str:  # type: ignore[reportUnusedFunction]
         return SERVER_API_VERSION
 
     # always include version checking
@@ -315,16 +348,46 @@ def create_api_app(
 
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
+        if final:
+            # Important note about how FastAPI works:
+            #
+            # When including a router, FastAPI copies the routes and builds entirely new
+            # Pydantic models to represent the request bodies of the routes in the
+            # router.  This is because the dependencies may change if the same router is
+            # included multiple times, but it also means that we are holding onto an
+            # entire set of Pydantic models on the original routers for the duration of
+            # the server process that will never be used.
+            #
+            # Because Prefect does not reuse routers, we are free to clean up the routes
+            # because we know they won't be used again.  Thus, if we have the hint that
+            # this is the final instance we will create in this process, we can clean up
+            # the routes on the original source routers to conserve memory (~50-55MB as
+            # of introducing this change).
+            del router.routes
+
+    if final:
+        gc.collect()
 
     auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
 
     if auth_string is not None:
 
         @api_app.middleware("http")
-        async def token_validation(request: Request, call_next):
+        async def token_validation(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
             header_token = request.headers.get("Authorization")
 
+            # used for probes in k8s and such
+            if (
+                request.url.path.endswith(("health", "ready"))
+                and request.method.upper() == "GET"
+            ):
+                return await call_next(request)
             try:
+                if header_token is None:
+                    return JSONResponse(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        content={"exception_message": "Unauthorized"},
+                    )
                 scheme, creds = header_token.split()
                 assert scheme == "Basic"
                 decoded = base64.b64decode(creds).decode("utf-8")
@@ -339,6 +402,8 @@ def create_api_app(
                     content={"exception_message": "Unauthorized"},
                 )
             return await call_next(request)
+
+    API_APP_CACHE[cache_key] = api_app
 
     return api_app
 
@@ -360,7 +425,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         mimetypes.add_type("application/javascript", ".js")
 
     @ui_app.get(f"{stripped_base_url}/ui-settings")
-    def ui_settings() -> dict[str, Any]:
+    def ui_settings() -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
@@ -370,7 +435,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             "flags": [],
         }
 
-    def reference_file_matches_base_url():
+    def reference_file_matches_base_url() -> bool:
         reference_file_path = os.path.join(static_dir, reference_file_name)
 
         if os.path.exists(static_dir):
@@ -382,13 +447,13 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         else:
             return False
 
-    def create_ui_static_subpath():
+    def create_ui_static_subpath() -> None:
         if not os.path.exists(static_dir):
             os.makedirs(static_dir)
 
-        copy_directory(prefect.__ui_static_path__, static_dir)
+        copy_directory(str(prefect.__ui_static_path__), str(static_dir))
         replace_placeholder_string_in_files(
-            static_dir,
+            str(static_dir),
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
             stripped_base_url,
         )
@@ -420,10 +485,12 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     return ui_app
 
 
-APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
+APP_CACHE: dict[tuple[prefect.settings.Settings, bool], FastAPI] = {}
 
 
-def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
+def _memoize_block_auto_registration(
+    fn: Callable[[], Awaitable[None]],
+) -> Callable[[], Awaitable[None]]:
     """
     Decorator to handle skipping the wrapped function if the block registry has
     not changed since the last invocation
@@ -436,7 +503,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     from prefect.utilities.dispatch import get_registry_for_type
 
     @wraps(fn)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> None:
         if not PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value():
             await fn(*args, **kwargs)
             return
@@ -502,6 +569,8 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
+    webserver_only: bool = False,
+    final: bool = False,
     ignore_cache: bool = False,
 ) -> FastAPI:
     """
@@ -510,14 +579,20 @@ def create_app(
     Args:
         settings: The settings to use to create the app. If not set, settings are pulled
             from the context.
-        ignore_cache: If set, a new application will be created even if the settings
-            match. Otherwise, an application is returned from the cache.
         ephemeral: If set, the application will be treated as ephemeral. The UI
             and services will be disabled.
+        webserver_only: If set, the webserver and UI will be available but all background
+            services will be disabled.
+        final: whether this will be the last instance of the Prefect server to be
+            created in this process, so that additional optimizations may be applied
+        ignore_cache: If set, a new application will be created even if the settings
+            match. Otherwise, an application is returned from the cache.
     """
     settings = settings or prefect.settings.get_current_settings()
-    cache_key = (settings.hash_key(), ephemeral)
+    cache_key = (settings.hash_key(), ephemeral, webserver_only)
     ephemeral = ephemeral or bool(os.getenv("PREFECT__SERVER_EPHEMERAL"))
+    webserver_only = webserver_only or bool(os.getenv("PREFECT__SERVER_WEBSERVER_ONLY"))
+    final = final or bool(os.getenv("PREFECT__SERVER_FINAL"))
 
     from prefect.logging.configuration import setup_logging
 
@@ -551,92 +626,23 @@ def create_app(
         async with session:
             await run_block_auto_registration(session=session)
 
-    async def start_services():
-        """Start additional services when the Prefect REST API starts up."""
-
-        service_instances = []
-
-        if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
-            service_instances.append(services.telemetry.Telemetry())
-
-        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
-            service_instances.append(TaskRunRecorder())
-
-        if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
-            service_instances.append(EventPersister())
-
-        if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
-            service_instances.append(stream.Distributor())
-
-        # don't run services in ephemeral mode
-        if not ephemeral:
-            if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
-                service_instances.append(services.scheduler.Scheduler())
-                service_instances.append(
-                    services.scheduler.RecentDeploymentsScheduler()
-                )
-
-            if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
-                service_instances.append(services.late_runs.MarkLateRuns())
-
-            if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
-                service_instances.append(services.pause_expirations.FailExpiredPauses())
-
-            if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
-                service_instances.append(
-                    services.cancellation_cleanup.CancellationCleanup()
-                )
-
-            if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
-                service_instances.append(
-                    services.flow_run_notifications.FlowRunNotifications()
-                )
-
-            if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
-                service_instances.append(services.foreman.Foreman())
-
-            if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
-                service_instances.append(ReactiveTriggers())
-                service_instances.append(ProactiveTriggers())
-                service_instances.append(Actions())
-
-        loop = asyncio.get_running_loop()
-
-        app.state.services = {
-            service: loop.create_task(service.start()) for service in service_instances
-        }
-
-        for service, task in app.state.services.items():
-            logger.info(f"{service.name} service scheduled to start in-app")
-            task.add_done_callback(partial(on_service_exit, service))
-
-    async def stop_services():
-        """Ensure services are stopped before the Prefect REST API shuts down."""
-        if hasattr(app.state, "services") and app.state.services:
-            await asyncio.gather(*[service.stop() for service in app.state.services])
-            try:
-                await asyncio.gather(
-                    *[task.stop() for task in app.state.services.values()]
-                )
-            except Exception:
-                # `on_service_exit` should handle logging exceptions on exit
-                pass
-
     @asynccontextmanager
-    async def lifespan(app):
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if app not in LIFESPAN_RAN_FOR_APP:
-            try:
-                await run_migrations()
-                await add_block_types()
-                await start_services()
+            await run_migrations()
+            await add_block_types()
+
+            Services: type[Service] = Service
+            if ephemeral or webserver_only:
+                Services = RunInAllServers
+
+            async with Services.running():
                 LIFESPAN_RAN_FOR_APP.add(app)
                 yield
-            finally:
-                await stop_services()
         else:
             yield
 
-    def on_service_exit(service, task):
+    def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
         """
         Added as a callback for completion of services to log exit
         """
@@ -664,6 +670,8 @@ def create_app(
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         },
+        final=final,
+        ignore_cache=ignore_cache,
     )
     ui_app = create_ui_app(ephemeral)
 
@@ -697,7 +705,7 @@ def create_app(
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
         @api_app.get("/metrics")
-        async def metrics():
+        async def metrics() -> Response:  # type: ignore[reportUnusedFunction]
             return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     api_app.mount(
@@ -710,7 +718,10 @@ def create_app(
         name="static",
     )
     app.api_app = api_app
-    app.mount("/api", app=api_app, name="api")
+    if PREFECT_SERVER_API_BASE_PATH:
+        app.mount(PREFECT_SERVER_API_BASE_PATH.value(), app=api_app, name="api")
+    else:
+        app.mount("/api", app=api_app, name="api")
     app.mount("/", app=ui_app, name="ui")
 
     def openapi():
@@ -738,14 +749,14 @@ def create_app(
     return app
 
 
-subprocess_server_logger = get_logger()
+subprocess_server_logger: "logging.Logger" = get_logger()
 
 
 class SubprocessASGIServer:
-    _instances: Dict[Union[int, None], "SubprocessASGIServer"] = {}
+    _instances: dict[int | None, "SubprocessASGIServer"] = {}
     _port_range: range = range(8000, 9000)
 
-    def __new__(cls, port: Optional[int] = None, *args, **kwargs):
+    def __new__(cls, port: int | None = None, *args: Any, **kwargs: Any) -> Self:
         """
         Return an instance of the server associated with the provided port.
         Prevents multiple instances from being created for the same port.
@@ -759,12 +770,11 @@ class SubprocessASGIServer:
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
             self.port: Optional[int] = port
-            self.server_process = None
-            self.server = None
-            self.running = False
+            self.server_process: subprocess.Popen[Any] | None = None
+            self.running: bool = False
             self._initialized = True
 
-    def find_available_port(self):
+    def find_available_port(self) -> int:
         max_attempts = 10
         for _ in range(max_attempts):
             port = random.choice(self._port_range)
@@ -774,7 +784,7 @@ class SubprocessASGIServer:
         raise RuntimeError("Unable to find an available port after multiple attempts")
 
     @staticmethod
-    def is_port_available(port: int):
+    def is_port_available(port: int) -> bool:
         with contextlib.closing(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ) as sock:
@@ -792,7 +802,7 @@ class SubprocessASGIServer:
     def api_url(self) -> str:
         return f"{self.address}/api"
 
-    def start(self, timeout: Optional[int] = None):
+    def start(self, timeout: Optional[int] = None) -> None:
         """
         Start the server in a separate process. Safe to call multiple times; only starts
         the server once.
@@ -854,11 +864,12 @@ class SubprocessASGIServer:
                 self.running = False
                 raise
 
-    def _run_uvicorn_command(self) -> subprocess.Popen:
+    def _run_uvicorn_command(self) -> subprocess.Popen[Any]:
         # used to turn off serving the UI
         server_env = {
             "PREFECT_UI_ENABLED": "0",
             "PREFECT__SERVER_EPHEMERAL": "1",
+            "PREFECT__SERVER_FINAL": "1",
         }
         return subprocess.Popen(
             args=[
@@ -885,7 +896,7 @@ class SubprocessASGIServer:
             },
         )
 
-    def stop(self):
+    def stop(self) -> None:
         if self.server_process:
             subprocess_server_logger.info(
                 f"Stopping temporary server on {self.address}"
@@ -902,9 +913,9 @@ class SubprocessASGIServer:
         if self.running:
             self.running = False
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self.start()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         self.stop()

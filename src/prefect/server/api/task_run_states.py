@@ -12,7 +12,9 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/task_run_states", tags=["Task Run States"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/task_run_states", tags=["Task Run States"]
+)
 
 
 @router.get("/{id}")
@@ -24,6 +26,8 @@ async def read_task_run_state(
 ) -> schemas.states.State:
     """
     Get a task run state by id.
+
+    For more information, see https://docs.prefect.io/v3/develop/write-tasks.
     """
     async with db.session_context() as session:
         task_run_state = await models.task_run_states.read_task_run_state(

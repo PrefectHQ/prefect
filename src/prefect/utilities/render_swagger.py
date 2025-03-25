@@ -63,7 +63,7 @@ def swagger_lib(config: MkDocsConfig) -> dict[str, Any]:
     }
 
     extra_javascript = config.extra_javascript
-    extra_css = cast(list[str], config.extra_css)
+    extra_css = cast(list[str], config.extra_css)  # pyright: ignore[reportUnknownMemberType] incomplete type hint
     for lib in extra_javascript:
         if (
             os.path.basename(urllib.parse.urlparse(str(lib)).path)

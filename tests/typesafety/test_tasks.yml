@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/typeddjango/pytest-mypy-plugins/master/pytest_mypy_plugins/schema.json
+- case: prefect_task_decorator_no_args
+  main: |
+    from prefect import task
+    @task
+    def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:5: note: Revealed type is \"\
+      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+    \""
+
+- case: prefect_task_decorator_call_with_no_args
+  main: |
+    from prefect import task
+    @task()
+    def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:5: note: Revealed type is \"\
+      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+    \""
+
+- case: prefect_task_decorator_with_name_arg
+  main: |
+    from prefect import task
+    @task(name="bar")
+    def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:5: note: Revealed type is \"\
+      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+    \""
+
+- case: prefect_task_decorator_with_retry_condition_fn_as_none_arg
+  main: |
+    from prefect.tasks import task
+    @task(retry_condition_fn=None)
+    def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:5: note: Revealed type is \"\
+      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+    \""
+
+- case: prefect_task_decorator_with_retry_condition_fn_arg
+  main: |
+    from prefect.tasks import P, R, Task, task
+    from prefect.client.schemas import TaskRun
+    from prefect.states import State
+    def retry_condition_fn(task: Task[P, R], task_run: TaskRun, state: State) -> bool:
+        return False
+    @task(retry_condition_fn=retry_condition_fn)
+    def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:9: note: Revealed type is \"\
+      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+    \""
+
+- case: prefect_task_call
+  main: |
+    from prefect import task
+    @task
+    def foo(bar: str) -> int:
+        return 42
+    ret = foo(bar="baz")
+    reveal_type(ret)
+  out: "main:6: note: Revealed type is \"\
+      builtins.int\
+    \""

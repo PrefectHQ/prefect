@@ -1,7 +1,6 @@
-from typing import List, Optional, Tuple, cast
+from typing import Optional
 from uuid import UUID
 
-import pendulum
 from pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -23,7 +22,7 @@ class AutomationFilterCreated(PrefectBaseModel):
 class AutomationFilterName(PrefectBaseModel):
     """Filter by `Automation.created`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="Only include automations with names that match any of these strings",
     )
@@ -41,8 +40,8 @@ class AutomationFilter(PrefectBaseModel):
 class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-arg]
     """A base class for filtering event data."""
 
-    def get_filters(self) -> List["EventDataFilter"]:
-        filters: List["EventDataFilter"] = [
+    def get_filters(self) -> list["EventDataFilter"]:
+        filters: list["EventDataFilter"] = [
             filter
             for filter in [getattr(self, name) for name in self.model_fields]
             if isinstance(filter, EventDataFilter)
@@ -60,14 +59,11 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: cast(
-            DateTime,
-            pendulum.now("UTC").start_of("day").subtract(days=180),
-        ),
+        default_factory=lambda: DateTime.now("UTC").start_of("day").subtract(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
+        default_factory=lambda: DateTime.now("UTC"),
         description="Only include events prior to this time (inclusive)",
     )
 
@@ -76,18 +72,18 @@ class EventOccurredFilter(EventDataFilter):
 
 
 class EventNameFilter(EventDataFilter):
-    prefix: Optional[List[str]] = Field(
+    prefix: Optional[list[str]] = Field(
         default=None, description="Only include events matching one of these prefixes"
     )
-    exclude_prefix: Optional[List[str]] = Field(
+    exclude_prefix: Optional[list[str]] = Field(
         default=None, description="Exclude events matching one of these prefixes"
     )
 
-    name: Optional[List[str]] = Field(
+    name: Optional[list[str]] = Field(
         default=None,
         description="Only include events matching one of these names exactly",
     )
-    exclude_name: Optional[List[str]] = Field(
+    exclude_name: Optional[list[str]] = Field(
         default=None, description="Exclude events matching one of these names exactly"
     )
 
@@ -112,20 +108,20 @@ class EventNameFilter(EventDataFilter):
 
 
 class EventResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
-        None, description="Only include events for resources with these IDs"
+    id: Optional[list[str]] = Field(
+        default=None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
-        None,
+    id_prefix: Optional[list[str]] = Field(
+        default=None,
         description=(
             "Only include events for resources with IDs starting with these prefixes."
         ),
     )
     labels: Optional[ResourceSpecification] = Field(
-        None, description="Only include events for resources with these labels"
+        default=None, description="Only include events for resources with these labels"
     )
     distinct: bool = Field(
-        False,
+        default=False,
         description="Only include events for distinct resources",
     )
 
@@ -148,35 +144,39 @@ class EventResourceFilter(EventDataFilter):
 
 
 class EventRelatedFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
-        None, description="Only include events for related resources with these IDs"
+    id: Optional[list[str]] = Field(
+        default=None,
+        description="Only include events for related resources with these IDs",
     )
-    role: Optional[List[str]] = Field(
-        None, description="Only include events for related resources in these roles"
+    role: Optional[list[str]] = Field(
+        default=None,
+        description="Only include events for related resources in these roles",
     )
-    resources_in_roles: Optional[List[Tuple[str, str]]] = Field(
-        None,
+    resources_in_roles: Optional[list[tuple[str, str]]] = Field(
+        default=None,
         description=(
             "Only include events with specific related resources in specific roles"
         ),
     )
     labels: Optional[ResourceSpecification] = Field(
-        None, description="Only include events for related resources with these labels"
+        default=None,
+        description="Only include events for related resources with these labels",
     )
 
 
 class EventAnyResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
-        None, description="Only include events for resources with these IDs"
+    id: Optional[list[str]] = Field(
+        default=None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
-        None,
+    id_prefix: Optional[list[str]] = Field(
+        default=None,
         description=(
             "Only include events for resources with IDs starting with these prefixes"
         ),
     )
     labels: Optional[ResourceSpecification] = Field(
-        None, description="Only include events for related resources with these labels"
+        default=None,
+        description="Only include events for related resources with these labels",
     )
 
     def includes(self, event: Event) -> bool:
@@ -202,8 +202,8 @@ class EventAnyResourceFilter(EventDataFilter):
 
 
 class EventIDFilter(EventDataFilter):
-    id: Optional[List[UUID]] = Field(
-        None, description="Only include events with one of these IDs"
+    id: Optional[list[UUID]] = Field(
+        default=None, description="Only include events with one of these IDs"
     )
 
     def includes(self, event: Event) -> bool:

@@ -2,18 +2,20 @@
 The Scheduler service.
 """
 
+from __future__ import annotations
+
 import asyncio
 import datetime
-from typing import Dict, List, Optional
+from typing import Any, Sequence
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.dependencies import db_injector
 from prefect.server.schemas.states import StateType
-from prefect.server.services.loop_service import LoopService, run_multiple_services
+from prefect.server.services.base import LoopService, run_multiple_services
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
@@ -23,6 +25,9 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 from prefect.utilities.collections import batched_iterable
 
 
@@ -32,14 +37,18 @@ class TryAgain(Exception):
 
 class Scheduler(LoopService):
     """
-    A loop service that schedules flow runs from deployments.
+    Schedules flow runs from deployments.
     """
 
     # the main scheduler takes its loop interval from
     # PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS
-    loop_seconds = None
+    loop_seconds: float
 
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.scheduler
+
+    def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
         super().__init__(
             loop_seconds=(
                 loop_seconds
@@ -59,12 +68,12 @@ class Scheduler(LoopService):
         self.min_scheduled_time: datetime.timedelta = (
             PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
         )
-        self.insert_batch_size = (
+        self.insert_batch_size: int = (
             PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
         )
 
-    @inject_db
-    async def run_once(self, db: PrefectDBInterface):
+    @db_injector
+    async def run_once(self, db: PrefectDBInterface) -> None:
         """
         Schedule flow runs by:
 
@@ -101,7 +110,7 @@ class Scheduler(LoopService):
             for batch in batched_iterable(runs_to_insert, self.insert_batch_size):
                 async with db.session_context(begin_transaction=True) as session:
                     inserted_runs = await self._insert_scheduled_flow_runs(
-                        session=session, runs=batch
+                        session=session, runs=list(batch)
                     )
                     total_inserted_runs += len(inserted_runs)
 
@@ -114,8 +123,10 @@ class Scheduler(LoopService):
 
         self.logger.info(f"Scheduled {total_inserted_runs} runs.")
 
-    @inject_db
-    def _get_select_deployments_to_schedule_query(self, db: PrefectDBInterface):
+    @db_injector
+    def _get_select_deployments_to_schedule_query(
+        self, db: PrefectDBInterface
+    ) -> sa.Select[tuple[UUID]]:
         """
         Returns a sqlalchemy query for selecting deployments to schedule.
 
@@ -126,7 +137,7 @@ class Scheduler(LoopService):
                 - fewer than `min_runs` auto-scheduled runs
                 - OR the max scheduled time is less than `max_scheduled_time` in the future
         """
-        now = pendulum.now("UTC")
+        right_now = now("UTC")
         query = (
             sa.select(db.Deployment.id)
             .select_from(db.Deployment)
@@ -141,7 +152,7 @@ class Scheduler(LoopService):
                 sa.and_(
                     db.Deployment.id == db.FlowRun.deployment_id,
                     db.FlowRun.state_type == StateType.SCHEDULED,
-                    db.FlowRun.next_scheduled_start_time >= now,
+                    db.FlowRun.next_scheduled_start_time >= right_now,
                     db.FlowRun.auto_scheduled.is_(True),
                 ),
                 isouter=True,
@@ -169,7 +180,7 @@ class Scheduler(LoopService):
                 sa.or_(
                     sa.func.count(db.FlowRun.next_scheduled_start_time) < self.min_runs,
                     sa.func.max(db.FlowRun.next_scheduled_start_time)
-                    < now + self.min_scheduled_time,
+                    < right_now + self.min_scheduled_time,
                 )
             )
             .order_by(db.Deployment.id)
@@ -180,19 +191,19 @@ class Scheduler(LoopService):
     async def _collect_flow_runs(
         self,
         session: sa.orm.Session,
-        deployment_ids: List[UUID],
-    ) -> List[Dict]:
-        runs_to_insert = []
+        deployment_ids: Sequence[UUID],
+    ) -> list[dict[str, Any]]:
+        runs_to_insert: list[dict[str, Any]] = []
         for deployment_id in deployment_ids:
-            now = pendulum.now("UTC")
+            right_now = now("UTC")
             # guard against erroneously configured schedules
             try:
                 runs_to_insert.extend(
                     await self._generate_scheduled_flow_runs(
                         session=session,
                         deployment_id=deployment_id,
-                        start_time=now,
-                        end_time=now + self.max_scheduled_time,
+                        start_time=right_now,
+                        end_time=right_now + self.max_scheduled_time,
                         min_time=self.min_scheduled_time,
                         min_runs=self.min_runs,
                         max_runs=self.max_runs,
@@ -224,9 +235,10 @@ class Scheduler(LoopService):
                     raise TryAgain()
         return runs_to_insert
 
-    @inject_db
+    @db_injector
     async def _generate_scheduled_flow_runs(
         self,
+        db: PrefectDBInterface,
         session: sa.orm.Session,
         deployment_id: UUID,
         start_time: datetime.datetime,
@@ -234,8 +246,7 @@ class Scheduler(LoopService):
         min_time: datetime.timedelta,
         min_runs: int,
         max_runs: int,
-        db: PrefectDBInterface,
-    ) -> List[Dict]:
+    ) -> list[dict[str, Any]]:
         """
         Given a `deployment_id` and schedule params, generates a list of flow run
         objects and associated scheduled states that represent scheduled flow runs.
@@ -274,13 +285,11 @@ class Scheduler(LoopService):
             max_runs=max_runs,
         )
 
-    @inject_db
     async def _insert_scheduled_flow_runs(
         self,
         session: sa.orm.Session,
-        runs: List[Dict],
-        db: PrefectDBInterface,
-    ) -> List[UUID]:
+        runs: list[dict[str, Any]],
+    ) -> Sequence[UUID]:
         """
         Given a list of flow runs to schedule, as generated by
         `_generate_scheduled_flow_runs`, inserts them into the database. Note this is a
@@ -295,7 +304,8 @@ class Scheduler(LoopService):
 
 class RecentDeploymentsScheduler(Scheduler):
     """
-    A scheduler that only schedules deployments that were updated very recently.
+    Schedules deployments that were updated very recently
+
     This scheduler can run on a tight loop and ensure that runs from
     newly-created or updated deployments are rapidly scheduled without having to
     wait for the "main" scheduler to complete its loop.
@@ -306,10 +316,16 @@ class RecentDeploymentsScheduler(Scheduler):
     """
 
     # this scheduler runs on a tight loop
-    loop_seconds = 5
+    loop_seconds: float = 5
 
-    @inject_db
-    def _get_select_deployments_to_schedule_query(self, db: PrefectDBInterface):
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.scheduler
+
+    @db_injector
+    def _get_select_deployments_to_schedule_query(
+        self, db: PrefectDBInterface
+    ) -> sa.Select[tuple[UUID]]:
         """
         Returns a sqlalchemy query for selecting deployments to schedule
         """
@@ -324,7 +340,7 @@ class RecentDeploymentsScheduler(Scheduler):
                     # second to run). Scheduling is idempotent so picking up schedules
                     # multiple times is not a concern.
                     db.Deployment.updated
-                    >= pendulum.now("UTC").subtract(seconds=self.loop_seconds + 1),
+                    >= now("UTC").subtract(seconds=self.loop_seconds + 1),
                     (
                         # Only include deployments that have at least one
                         # active schedule.

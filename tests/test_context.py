@@ -1,7 +1,10 @@
+import inspect
+import multiprocessing
+import os
 import textwrap
 import uuid
 from contextvars import ContextVar
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,6 +12,7 @@ import pytest
 import prefect.settings
 from prefect import flow, task
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.context import (
     GLOBAL_SETTINGS_CONTEXT,
     ContextModel,
@@ -26,6 +30,8 @@ from prefect.context import (
 )
 from prefect.exceptions import MissingContextError
 from prefect.filesystems import LocalFileSystem
+from prefect.flow_engine import run_flow
+from prefect.flows import Flow
 from prefect.results import ResultStore, get_result_store
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -37,9 +43,12 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.root import Settings
 from prefect.states import Running
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.types import DateTime
+from prefect.utilities.callables import cloudpickle_wrapped_call
 
 
 class ExampleContext(ContextModel):
@@ -402,6 +411,74 @@ class TestSerializeContext:
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
             }
+
+    async def test_serialize_from_subprocess_with_flow_run_from_deployment(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/16766 and https://github.com/PrefectHQ/prefect/issues/16756
+
+        This test ensures that context serialization works when the flow run is running in a subprocess, which replicates
+        the behavior of a flow run that is created from a deployment.
+        """
+
+        # Our hero, the flow
+        @flow
+        def foo():
+            serialize_context()
+
+        # Create a deployment and avoid red squiggles
+        to_deployment_coro = foo.to_deployment(name="foo")
+        if TYPE_CHECKING:
+            assert inspect.iscoroutine(to_deployment_coro)
+        deployment = await to_deployment_coro
+        deployment_id_coro = deployment.apply()
+        if TYPE_CHECKING:
+            assert inspect.iscoroutine(deployment_id_coro)
+        deployment_id = await deployment_id_coro
+
+        # Create a flow run from the deployment
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Define a wrapper function to ensure environment variables and settings propagate because
+        # PYTHON WON'T DO IT FOR US
+        def run_flow_with_env(
+            flow: Flow[Any, Any], flow_run: FlowRun, env: dict[str, Any]
+        ):
+            """
+            This whole song and dance is to ensure that the test settings get to the engine running in a subprocess.
+            """
+            os.environ.update(env)
+            settings_context = get_settings_context()
+            with SettingsContext(
+                profile=settings_context.profile,
+                # Create a new settings object to pick up the new environment variables
+                settings=Settings(),
+            ):
+                return run_flow(flow, flow_run)
+
+        # Run the flow in a subprocess. Need to use cloudpickle to serialize the flow because
+        # to flow wasn't declared in the global scope and we can't pickle flows right now. If
+        # you're reading this and you're thinking "we should be able to pickle flows", you're
+        # right, and you should try and fix it.
+        process = multiprocessing.Process(
+            target=cloudpickle_wrapped_call(
+                run_flow_with_env,
+                foo,
+                flow_run,
+                os.environ
+                | get_current_settings().to_environment_variables(exclude_unset=True),
+            )
+        )
+        process.start()
+        process.join()
+
+        # Check that the flow run completed successfully
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.type == StateType.COMPLETED
 
     async def test_with_task_run_context(self, prefect_client, flow_run):
         @task

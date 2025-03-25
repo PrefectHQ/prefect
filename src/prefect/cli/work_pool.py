@@ -2,10 +2,12 @@
 Command line interface for working with work queues.
 """
 
+from __future__ import annotations
+
 import json
 import textwrap
+from typing import Annotated
 
-import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -20,23 +22,29 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.objects import (
+    FlowRun,
+    WorkPool,
+    WorkPoolStorageConfiguration,
+)
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
     _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
 from prefect.settings import update_current_profile
+from prefect.types._datetime import DateTime, PendulumDuration
 from prefect.utilities import urls
 from prefect.workers.utilities import (
     get_available_work_pool_types,
     get_default_base_job_template_for_infrastructure_type,
 )
 
-work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
+work_pool_app: PrefectTyper = PrefectTyper(name="work-pool", help="Manage work pools.")
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
-def set_work_pool_as_default(name: str):
+def set_work_pool_as_default(name: str) -> None:
     profile = update_current_profile({"PREFECT_DEFAULT_WORK_POOL_NAME": name})
     app.console.print(
         f"Set {name!r} as default work pool for profile {profile.name!r}\n",
@@ -278,8 +286,9 @@ async def ls(
     async with get_client() as client:
         pools = await client.read_work_pools()
 
-    def sort_by_created_key(q):
-        return pendulum.now("utc") - q.created
+    def sort_by_created_key(q: WorkPool) -> PendulumDuration:
+        assert q.created is not None
+        return DateTime.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
         row = [
@@ -649,18 +658,19 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    pendulum.now("utc").add(hours=hours or 1)
+    DateTime.now("utc").add(hours=hours or 1)
 
-    now = pendulum.now("utc")
+    now = DateTime.now("utc")
 
-    def sort_by_created_key(r):
+    def sort_by_created_key(r: FlowRun) -> PendulumDuration:
+        assert r.created is not None
         return now - r.created
 
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
             (
                 f"{run.expected_start_time} [red](**)"
-                if run.expected_start_time < now
+                if run.expected_start_time and run.expected_start_time < now
                 else f"{run.expected_start_time}"
             ),
             str(run.id),
@@ -678,3 +688,154 @@ async def preview(
             ),
             style="yellow",
         )
+
+
+# --------------------------------------------------------------------------
+# Work Pool Storage Configuration
+# --------------------------------------------------------------------------
+
+work_pool_storage_app: PrefectTyper = PrefectTyper(
+    name="storage", help="EXPERIMENTAL: Manage work pool storage."
+)
+work_pool_app.add_typer(work_pool_storage_app)
+
+
+def _determine_storage_type(storage_config: WorkPoolStorageConfiguration) -> str | None:
+    if storage_config.bundle_upload_step is None:
+        return None
+    if storage_config.bundle_upload_step and any(
+        "prefect_aws" in step for step in storage_config.bundle_upload_step.keys()
+    ):
+        return "S3"
+    return "Unknown"
+
+
+@work_pool_storage_app.command(name="inspect")
+async def storage_inspect(
+    work_pool_name: Annotated[
+        str,
+        typer.Argument(
+            ..., help="The name of the work pool to display storage configuration for."
+        ),
+    ],
+):
+    """
+    EXPERIMENTAL: Inspect the storage configuration for a work pool.
+
+    Examples:
+        $ prefect work-pool storage inspect "my-pool"
+    """
+    async with get_client() as client:
+        try:
+            work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
+            from rich.panel import Panel
+            from rich.table import Table
+
+            storage_table = Table(show_header=True, header_style="bold")
+            storage_table.add_column("Setting", style="cyan")
+            storage_table.add_column("Value")
+
+            storage_type = _determine_storage_type(work_pool.storage_configuration)
+            if not storage_type:
+                app.console.print(
+                    f"No storage configuration found for work pool {work_pool_name!r}",
+                    style="yellow",
+                )
+                return
+
+            storage_table.add_row("type", storage_type)
+
+            # Add other storage settings, filtering out None values
+            if work_pool.storage_configuration.bundle_upload_step is not None:
+                fqn = list(work_pool.storage_configuration.bundle_upload_step.keys())[0]
+                config_values = work_pool.storage_configuration.bundle_upload_step[fqn]
+                for key, value in config_values.items():
+                    storage_table.add_row(key, str(value))
+
+            panel = Panel(
+                storage_table,
+                title=f"[bold]Storage Configuration for {work_pool_name}[/bold]",
+                expand=False,
+            )
+
+            app.console.print(panel)
+
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
+
+
+work_pool_storage_configure_app: PrefectTyper = PrefectTyper(
+    name="configure", help="EXPERIMENTAL: Configure work pool storage."
+)
+work_pool_storage_app.add_typer(work_pool_storage_configure_app)
+
+
+@work_pool_storage_configure_app.command()
+async def s3(
+    work_pool_name: Annotated[
+        str,
+        typer.Argument(
+            ...,
+            help="The name of the work pool to configure storage for.",
+            show_default=False,
+        ),
+    ],
+    bucket: str = typer.Option(
+        ...,
+        "--bucket",
+        help="The name of the S3 bucket to use.",
+        show_default=False,
+        prompt="Enter the name of the S3 bucket to use",
+    ),
+    credentials_block_name: str = typer.Option(
+        ...,
+        "--aws-credentials-block-name",
+        help="The name of the credentials block to use.",
+        show_default=False,
+        prompt="Enter the name of the AWS credentials block to use",
+    ),
+):
+    """
+    EXPERIMENTAL: Configure AWS S3 storage for a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --credentials-block-name my-credentials
+    """
+    # TODO: Allow passing in AWS keys and creating a block for the user.
+    async with get_client() as client:
+        try:
+            await client.read_block_document_by_name(
+                name=credentials_block_name, block_type_slug="aws-credentials"
+            )
+        except ObjectNotFound:
+            exit_with_error(
+                f"AWS credentials block {credentials_block_name!r} does not exist. Please create one using `prefect block create aws-credentials`."
+            )
+
+        try:
+            await client.update_work_pool(
+                work_pool_name=work_pool_name,
+                work_pool=WorkPoolUpdate(
+                    storage_configuration=WorkPoolStorageConfiguration(
+                        bundle_upload_step={
+                            "prefect_aws.experimental.bundles.upload": {
+                                "requires": "prefect-aws",
+                                "bucket": bucket,
+                                "aws_credentials_block_name": credentials_block_name,
+                            }
+                        },
+                        bundle_execution_step={
+                            "prefect_aws.experimental.bundles.execute": {
+                                "requires": "prefect-aws",
+                                "bucket": bucket,
+                                "aws_credentials_block_name": credentials_block_name,
+                            }
+                        },
+                    ),
+                ),
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
+
+        exit_with_success(f"Configured S3 storage for work pool {work_pool_name!r}")

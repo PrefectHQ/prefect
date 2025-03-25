@@ -35,3 +35,15 @@
   out: "main:5: note: Revealed type is \"\
       prefect.flows.Flow[[bar: builtins.str], builtins.int]\
     \""
+
+- case: prefect_flow_call
+  main: |
+    from prefect import flow
+    @flow
+    def foo(bar: str) -> int:
+        return 42
+    ret = foo(bar="baz")
+    reveal_type(ret)
+  out: "main:6: note: Revealed type is \"\
+      builtins.int\
+    \""

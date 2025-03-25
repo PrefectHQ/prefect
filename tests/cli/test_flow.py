@@ -1,8 +1,10 @@
 import datetime
+from typing import Any
 
 import pytest
 
 from prefect.client.orchestration import PrefectClient
+from prefect.runner import Runner
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -116,6 +118,43 @@ class TestFlowServe:
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY;COUNT=5"
+
+    async def test_flow_serve_cli_accepts_limit(
+        self,
+        prefect_client: PrefectClient,
+        mock_runner_start,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner_init_args: dict[str, Any] = {}
+
+        original_runner_init = Runner.__init__
+
+        def runner_spy_init(self: Runner, *args: Any, **kwargs: Any):
+            runner_init_args.update(kwargs)
+            return original_runner_init(self, *args, **kwargs)
+
+        monkeypatch.setattr(Runner, "__init__", runner_spy_init)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow",
+                "serve",
+                "flows/hello_world.py:hello",
+                "--name",
+                "test",
+                "--limit",
+                "5",
+                "--global-limit",
+                "13",
+            ],
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 13
+        assert runner_init_args["limit"] == 5
 
     async def test_flow_serve_cli_accepts_metadata_fields(
         self, prefect_client: PrefectClient, mock_runner_start

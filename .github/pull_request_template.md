@@ -1,6 +1,6 @@
 <!-- 
 Thanks for opening a pull request to Prefect! 
-If this is your first contribution, please make sure to review our contribution guidelines: https://docs.prefect.io/latest/contributing/overview/
+If this is your first contribution, please make sure to review our contribution guidelines: https://docs.prefect.io/contribute/index
 -->
 
 <!-- Include an overview of the proposed changes here -->

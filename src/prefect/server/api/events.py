@@ -1,5 +1,5 @@
 import base64
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import Response, WebSocket, status
 from fastapi.exceptions import HTTPException
@@ -34,18 +34,25 @@ from prefect.settings import (
     PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE,
 )
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
-router = PrefectRouter(prefix="/events", tags=["Events"])
+router: PrefectRouter = PrefectRouter(prefix="/events", tags=["Events"])
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def create_events(
     events: List[Event],
     ephemeral_request: bool = Depends(is_ephemeral_request),
-):
-    """Record a batch of Events"""
+) -> None:
+    """
+    Record a batch of Events.
+
+    For more information, see https://docs.prefect.io/v3/automate/events/events.
+    """
     if ephemeral_request:
         await EventsPipeline().process_events(events)
     else:

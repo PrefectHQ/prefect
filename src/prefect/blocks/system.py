@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import json
 from typing import Annotated, Any, Generic, TypeVar, Union
 
 from pydantic import (
     Field,
+    HttpUrl,
     JsonValue,
     SecretStr,
     StrictStr,
@@ -43,8 +46,10 @@ class JSON(Block):
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/4fcef2294b6eeb423b1332d1ece5156bf296ff96-48x48.png"
-    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
+    _logo_url = HttpUrl(
+        "https://cdn.sanity.io/images/3ugk85nk/production/4fcef2294b6eeb423b1332d1ece5156bf296ff96-48x48.png"
+    )
+    _documentation_url = HttpUrl("https://docs.prefect.io/latest/develop/blocks")
 
     value: Any = Field(default=..., description="A JSON-compatible value.")
 
@@ -70,8 +75,10 @@ class String(Block):
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c262ea2c80a2c043564e8763f3370c3db5a6b3e6-48x48.png"
-    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
+    _logo_url = HttpUrl(
+        "https://cdn.sanity.io/images/3ugk85nk/production/c262ea2c80a2c043564e8763f3370c3db5a6b3e6-48x48.png"
+    )
+    _documentation_url = HttpUrl("https://docs.prefect.io/latest/develop/blocks")
 
     value: str = Field(default=..., description="A string value.")
 
@@ -98,8 +105,10 @@ class DateTime(Block):
     """
 
     _block_type_name = "Date Time"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/8b3da9a6621e92108b8e6a75b82e15374e170ff7-48x48.png"
-    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
+    _logo_url = HttpUrl(
+        "https://cdn.sanity.io/images/3ugk85nk/production/8b3da9a6621e92108b8e6a75b82e15374e170ff7-48x48.png"
+    )
+    _documentation_url = HttpUrl("https://docs.prefect.io/latest/develop/blocks")
 
     value: PydanticDateTime = Field(
         default=...,
@@ -128,8 +137,10 @@ class Secret(Block, Generic[T]):
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png"
-    _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
+    _logo_url = HttpUrl(
+        "https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png"
+    )
+    _documentation_url = HttpUrl("https://docs.prefect.io/latest/develop/blocks")
     _description = "A block that represents a secret value. The value stored in this block will be obfuscated when this block is viewed or edited in the UI."
 
     value: Union[SecretStr, PydanticSecret[T]] = Field(
@@ -151,9 +162,11 @@ class Secret(Block, Generic[T]):
         else:
             return PydanticSecret[type(value)](value)
 
-    def get(self) -> T:
+    def get(self) -> T | str:
+        value = self.value.get_secret_value()
         try:
-            value = self.value.get_secret_value()
-            return json.loads(value)
+            if isinstance(value, (str)):
+                return json.loads(value)
+            return value
         except (TypeError, json.JSONDecodeError):
             return value

@@ -92,6 +92,19 @@ Learn more about creating deployments with a YAML file in [Define deployments wi
 
 Prefect also provides [CI/CD options](/v3/deploy/infrastructure-concepts/deploy-ci-cd) for automatically creating YAML-based deployments. 
 
+### Create a deployment with Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="deployments" href={deployments.tf} />
+
+### Create a deployment with the API
+
+import { API } from "/snippets/resource-management/api.mdx"
+
+<API name="deployments" href={deployments.api} />
+
 ### Work pools
 
 [Work pools](/v3/deploy/infrastructure-concepts/work-pools/) allow you to switch between different types of infrastructure and to create a template for deployments. 
@@ -255,7 +268,7 @@ For example, to trigger a deployment run from the Prefect CLI:
 prefect deployment run my-first-flow/my-first-deployment
 ```
 
-or from the Python SDK with [`run_deployment`](https://prefect-python-sdk-docs.netlify.app/prefect/deployments/flow_runs/#prefect.deployments.flow_runs.run_deployment):
+or from the Python SDK with [`run_deployment`](https://reference.prefect.io/prefect/deployments/flow_runs/#prefect.deployments.flow_runs.run_deployment):
 
 {/* pmd-metadata: notest */}
 ```python

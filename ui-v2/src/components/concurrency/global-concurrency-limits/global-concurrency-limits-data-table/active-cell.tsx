@@ -1,23 +1,17 @@
-import { useToast } from "@/hooks/use-toast";
-import type { CellContext } from "@tanstack/react-table";
-
-import { Switch } from "@/components/ui/switch";
 import {
 	type GlobalConcurrencyLimit,
 	useUpdateGlobalConcurrencyLimit,
-} from "@/hooks/global-concurrency-limits";
+} from "@/api/global-concurrency-limits";
+import { Switch } from "@/components/ui/switch";
+import type { CellContext } from "@tanstack/react-table";
+import { toast } from "sonner";
 
 export const ActiveCell = (
 	props: CellContext<GlobalConcurrencyLimit, boolean>,
 ) => {
-	const { toast } = useToast();
 	const { updateGlobalConcurrencyLimit } = useUpdateGlobalConcurrencyLimit();
 
-	const handleCheckedChange = (checked: boolean, id: string | undefined) => {
-		if (!id) {
-			throw new Error("Expecting 'id' of global concurrency limit");
-		}
-
+	const handleCheckedChange = (checked: boolean, id: string) => {
 		updateGlobalConcurrencyLimit(
 			{
 				id_or_name: id,
@@ -25,7 +19,7 @@ export const ActiveCell = (
 			},
 			{
 				onSuccess: () => {
-					toast({ description: "Concurrency limit updated" });
+					toast.success("Concurrency limit updated");
 				},
 				onError: (error) => {
 					const message =

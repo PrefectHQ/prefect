@@ -1,4 +1,7 @@
-from typing import Dict, List, Optional
+from __future__ import annotations
+
+import base64
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
 
@@ -15,20 +18,33 @@ from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
 from prefect.server.schemas.responses import DeploymentResponse, OrchestrationResult
+from prefect.settings import PREFECT_SERVER_API_AUTH_STRING
 from prefect.types import StrictVariableValue
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class BaseClient:
     _http_client: PrefectHttpxAsyncClient
 
-    def __init__(self, additional_headers: Dict[str, str] = {}):
+    def __init__(self, additional_headers: dict[str, str] | None = None):
         from prefect.server.api.server import create_app
+
+        additional_headers = additional_headers or {}
 
         # create_app caches application instances, and invoking it with no arguments
         # will point it to the the currently running server instance
         api_app = create_app()
+
+        # we pull the auth string from _server_ settings because this client is run on the server
+        auth_string = PREFECT_SERVER_API_AUTH_STRING.value()
+
+        if auth_string:
+            token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+            additional_headers.setdefault("Authorization", f"Basic {token}")
 
         self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
@@ -42,7 +58,7 @@ class BaseClient:
         await self._http_client.__aenter__()
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         await self._http_client.__aexit__(*args)
 
 

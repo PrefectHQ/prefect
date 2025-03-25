@@ -25,7 +25,7 @@ classifiers = [
 dependencies = ["prefect>=3.0.0"]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "aiohttp",
   "coverage",
@@ -81,3 +81,6 @@ show_missing = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }

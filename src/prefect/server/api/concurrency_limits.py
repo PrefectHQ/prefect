@@ -5,7 +5,6 @@ Routes for interacting with concurrency limit objects.
 from typing import List, Optional, Sequence
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
@@ -16,8 +15,11 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.models import concurrency_limits
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.types._datetime import now
 
-router = PrefectRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/concurrency_limits", tags=["Concurrency Limits"]
+)
 
 
 @router.post("/")
@@ -26,6 +28,11 @@ async def create_concurrency_limit(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
+    """
+    Create a task run concurrency limit.
+
+    For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
+    """
     # hydrate the input model into a full model
     concurrency_limit_model = schemas.core.ConcurrencyLimit(
         **concurrency_limit.model_dump()
@@ -36,7 +43,7 @@ async def create_concurrency_limit(
             session=session, concurrency_limit=concurrency_limit_model
         )
 
-    if model.created >= pendulum.now("UTC"):
+    if model.created >= now("UTC"):
         response.status_code = status.HTTP_201_CREATED
 
     return model
@@ -119,7 +126,7 @@ async def reset_concurrency_limit_by_tag(
         description="Manual override for active concurrency limit slots.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
             session=session, tag=tag, slot_override=slot_override
@@ -136,7 +143,7 @@ async def delete_concurrency_limit(
         ..., description="The concurrency limit id", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit(
             session=session, concurrency_limit_id=concurrency_limit_id
@@ -151,7 +158,7 @@ async def delete_concurrency_limit(
 async def delete_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit_by_tag(
             session=session, tag=tag
@@ -263,7 +270,7 @@ async def decrement_concurrency_limits_v1(
         ..., description="The ID of the task run releasing the slot"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         filtered_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(

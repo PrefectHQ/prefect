@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import urllib.parse
-from typing import Any, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 
 from jinja2 import pass_context
 
@@ -16,7 +18,7 @@ from prefect.server.utilities.schemas import ORMBaseModel
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.urls import url_for
 
-model_to_kind = {
+model_to_kind: dict[type[ORMBaseModel], str] = {
     Deployment: "prefect.deployment",
     Flow: "prefect.flow",
     FlowRun: "prefect.flow-run",
@@ -64,4 +66,7 @@ def ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]:
         return None
 
 
-all_filters = {"ui_url": ui_url, "ui_resource_events_url": ui_resource_events_url}
+all_filters: dict[str, Callable[[Mapping[str, Any], Any], str | None]] = {
+    "ui_url": ui_url,
+    "ui_resource_events_url": ui_resource_events_url,
+}

@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import anyio
-import pendulum
 
 from prefect.concurrency.v1._asyncio import (
     acquire_concurrency_slots,
@@ -15,6 +14,7 @@ from prefect.concurrency.v1._events import (
     emit_concurrency_release_events,
 )
 from prefect.concurrency.v1.context import ConcurrencyContext
+from prefect.types._datetime import now
 
 from ._asyncio import (
     AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
@@ -67,13 +67,13 @@ async def concurrency(
     if TYPE_CHECKING:
         assert not isinstance(acquire_slots, list)
     limits = await acquire_slots
-    acquisition_time = pendulum.now("UTC")
+    acquisition_time = now("UTC")
     emitted_events = emit_concurrency_acquisition_events(limits, task_run_id)
 
     try:
         yield
     finally:
-        occupancy_period = pendulum.now("UTC") - acquisition_time
+        occupancy_period = now("UTC") - acquisition_time
         try:
             release_slots = release_concurrency_slots(
                 names_normalized, task_run_id, occupancy_period.total_seconds()

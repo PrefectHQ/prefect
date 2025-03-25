@@ -5,7 +5,6 @@ from collections.abc import Hashable, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, Union
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.dialects import postgresql
@@ -46,10 +45,8 @@ from prefect.server.utilities.database import (
     Timestamp,
 )
 from prefect.server.utilities.encryption import decrypt_fernet, encrypt_fernet
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.names import generate_slug
-
-if TYPE_CHECKING:
-    DateTime = pendulum.DateTime
 
 # for 'plain JSON' columns, use the postgresql variant (which comes with an
 # extra operator) and fall back to the generic JSON variant for SQLite
@@ -89,7 +86,7 @@ class Base(DeclarativeBase):
         ),
         type_annotation_map={
             uuid.UUID: UUID,
-            pendulum.DateTime: Timestamp,
+            DateTime: Timestamp,
         },
     )
 
@@ -121,17 +118,17 @@ class Base(DeclarativeBase):
         default=uuid.uuid4,
     )
 
-    created: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
+    created: Mapped[DateTime] = mapped_column(
+        server_default=sa.func.now(), default=lambda: now("UTC")
     )
 
     # onupdate is only called when statements are actually issued
     # against the database. until COMMIT is issued, this column
     # will not be updated
-    updated: Mapped[pendulum.DateTime] = mapped_column(
+    updated: Mapped[DateTime] = mapped_column(
         index=True,
         server_default=sa.func.now(),
-        default=lambda: pendulum.now("UTC"),
+        default=lambda: now("UTC"),
         onupdate=sa.func.now(),
         server_onupdate=FetchedValue(),
     )
@@ -170,8 +167,8 @@ class FlowRunState(Base):
     type: Mapped[schemas.states.StateType] = mapped_column(
         sa.Enum(schemas.states.StateType, name="state_type"), index=True
     )
-    timestamp: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
+    timestamp: Mapped[DateTime] = mapped_column(
+        server_default=sa.func.now(), default=lambda: now("UTC")
     )
     name: Mapped[str] = mapped_column(index=True)
     message: Mapped[Optional[str]]
@@ -235,8 +232,8 @@ class TaskRunState(Base):
     type: Mapped[schemas.states.StateType] = mapped_column(
         sa.Enum(schemas.states.StateType, name="state_type"), index=True
     )
-    timestamp: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
+    timestamp: Mapped[DateTime] = mapped_column(
+        server_default=sa.func.now(), default=lambda: now("UTC")
     )
     name: Mapped[str] = mapped_column(index=True)
     message: Mapped[Optional[str]]
@@ -358,7 +355,7 @@ class TaskRunStateCache(Base):
     """
 
     cache_key: Mapped[str] = mapped_column()
-    cache_expiration: Mapped[Optional[pendulum.DateTime]]
+    cache_expiration: Mapped[Optional[DateTime]]
     task_run_state_id: Mapped[uuid.UUID]
 
     @declared_attr.directive
@@ -385,12 +382,12 @@ class Run(Base):
         sa.Enum(schemas.states.StateType, name="state_type")
     )
     state_name: Mapped[Optional[str]]
-    state_timestamp: Mapped[Optional[pendulum.DateTime]]
+    state_timestamp: Mapped[Optional[DateTime]]
     run_count: Mapped[int] = mapped_column(server_default="0", default=0)
-    expected_start_time: Mapped[Optional[pendulum.DateTime]]
-    next_scheduled_start_time: Mapped[Optional[pendulum.DateTime]]
-    start_time: Mapped[Optional[pendulum.DateTime]]
-    end_time: Mapped[Optional[pendulum.DateTime]]
+    expected_start_time: Mapped[Optional[DateTime]]
+    next_scheduled_start_time: Mapped[Optional[DateTime]]
+    start_time: Mapped[Optional[DateTime]]
+    end_time: Mapped[Optional[DateTime]]
     total_run_time: Mapped[datetime.timedelta] = mapped_column(
         server_default="0", default=datetime.timedelta(0)
     )
@@ -403,7 +400,7 @@ class Run(Base):
         if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
             if TYPE_CHECKING:
                 assert self.state_timestamp is not None
-            return self.total_run_time + (pendulum.now("UTC") - self.state_timestamp)
+            return self.total_run_time + (now("UTC") - self.state_timestamp)
         else:
             return self.total_run_time
 
@@ -445,10 +442,10 @@ class Run(Base):
         elif (
             self.start_time is None
             and self.expected_start_time
-            and self.expected_start_time < pendulum.now("UTC")
+            and self.expected_start_time < now("UTC")
             and self.state_type not in schemas.states.TERMINAL_STATES
         ):
-            return pendulum.now("UTC") - self.expected_start_time
+            return now("UTC") - self.expected_start_time
         else:
             return datetime.timedelta(0)
 
@@ -660,7 +657,7 @@ class TaskRun(Run):
     task_key: Mapped[str] = mapped_column()
     dynamic_key: Mapped[str] = mapped_column()
     cache_key: Mapped[Optional[str]]
-    cache_expiration: Mapped[Optional[pendulum.DateTime]]
+    cache_expiration: Mapped[Optional[DateTime]]
     task_version: Mapped[Optional[str]]
     flow_run_run_count: Mapped[int] = mapped_column(server_default="0", default=0)
     empirical_policy: Mapped[schemas.core.TaskRunPolicy] = mapped_column(
@@ -784,6 +781,10 @@ class DeploymentSchedule(Base):
     )
     active: Mapped[bool] = mapped_column(default=True)
     max_scheduled_runs: Mapped[Optional[int]]
+    parameters: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict, nullable=False
+    )
+    slug: Mapped[Optional[str]] = mapped_column(sa.String, nullable=True)
 
 
 class Deployment(Base):
@@ -799,7 +800,7 @@ class Deployment(Base):
     path: Mapped[Optional[str]]
     entrypoint: Mapped[Optional[str]]
 
-    last_polled: Mapped[Optional[pendulum.DateTime]]
+    last_polled: Mapped[Optional[DateTime]]
     status: Mapped[DeploymentStatus] = mapped_column(
         sa.Enum(DeploymentStatus, name="deployment_status"),
         default=DeploymentStatus.NOT_READY,
@@ -828,18 +829,18 @@ class Deployment(Base):
     concurrency_limit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
     )
-    global_concurrency_limit: Mapped[
-        Optional["ConcurrencyLimitV2"]
-    ] = sa.orm.relationship(
-        lazy="selectin",
+    global_concurrency_limit: Mapped[Optional["ConcurrencyLimitV2"]] = (
+        sa.orm.relationship(
+            lazy="selectin",
+        )
     )
-    concurrency_options: Mapped[
-        Optional[schemas.core.ConcurrencyOptions]
-    ] = mapped_column(
-        Pydantic(schemas.core.ConcurrencyOptions),
-        server_default=None,
-        nullable=True,
-        default=None,
+    concurrency_options: Mapped[Optional[schemas.core.ConcurrencyOptions]] = (
+        mapped_column(
+            Pydantic(schemas.core.ConcurrencyOptions),
+            server_default=None,
+            nullable=True,
+            default=None,
+        )
     )
 
     tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
@@ -909,7 +910,7 @@ class Log(Base):
     message: Mapped[str] = mapped_column(sa.Text)
 
     # The client-side timestamp of this logged statement.
-    timestamp: Mapped[pendulum.DateTime] = mapped_column(index=True)
+    timestamp: Mapped[DateTime] = mapped_column(index=True)
 
     __table_args__: Any = (
         sa.Index(
@@ -1100,7 +1101,7 @@ class WorkQueue(Base):
     concurrency_limit: Mapped[Optional[int]]
     priority: Mapped[int]
 
-    last_polled: Mapped[Optional[pendulum.DateTime]]
+    last_polled: Mapped[Optional[DateTime]]
     status: Mapped[WorkQueueStatus] = mapped_column(
         sa.Enum(WorkQueueStatus, name="work_queue_status"),
         default=WorkQueueStatus.NOT_READY,
@@ -1146,8 +1147,17 @@ class WorkPool(Base):
         default=WorkPoolStatus.NOT_READY,
         server_default=WorkPoolStatus.NOT_READY,
     )
-    last_transitioned_status_at: Mapped[Optional[pendulum.DateTime]]
+    last_transitioned_status_at: Mapped[Optional[DateTime]]
     last_status_event_id: Mapped[Optional[uuid.UUID]]
+
+    storage_configuration: Mapped[schemas.core.WorkPoolStorageConfiguration] = (
+        mapped_column(
+            Pydantic(schemas.core.WorkPoolStorageConfiguration),
+            server_default="{}",
+            default=schemas.core.WorkPoolStorageConfiguration,
+            nullable=False,
+        )
+    )
 
     __table_args__: Any = (sa.UniqueConstraint("name"),)
 
@@ -1160,8 +1170,8 @@ class Worker(Base):
     )
 
     name: Mapped[str]
-    last_heartbeat_time: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
+    last_heartbeat_time: Mapped[DateTime] = mapped_column(
+        server_default=sa.func.now(), default=lambda: now("UTC")
     )
     heartbeat_interval_seconds: Mapped[Optional[int]]
 
@@ -1190,8 +1200,8 @@ class Agent(Base):
         sa.ForeignKey("work_queue.id"), index=True
     )
 
-    last_activity_time: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
+    last_activity_time: Mapped[DateTime] = mapped_column(
+        server_default=sa.func.now(), default=lambda: now("UTC")
     )
 
     __table_args__: Any = (sa.UniqueConstraint("name"),)
@@ -1245,7 +1255,7 @@ class FlowRunInput(Base):
 class CsrfToken(Base):
     token: Mapped[str]
     client: Mapped[str] = mapped_column(unique=True)
-    expiration: Mapped[pendulum.DateTime]
+    expiration: Mapped[DateTime]
 
 
 class Automation(Base):
@@ -1310,14 +1320,14 @@ class AutomationBucket(Base):
 
     last_event: Mapped[Optional[ReceivedEvent]] = mapped_column(Pydantic(ReceivedEvent))
 
-    start: Mapped[pendulum.DateTime]
-    end: Mapped[pendulum.DateTime]
+    start: Mapped[DateTime]
+    end: Mapped[DateTime]
 
     count: Mapped[int]
 
     last_operation: Mapped[Optional[str]]
 
-    triggered_at: Mapped[Optional[pendulum.DateTime]]
+    triggered_at: Mapped[Optional[DateTime]]
 
 
 class AutomationRelatedResource(Base):
@@ -1363,7 +1373,7 @@ class CompositeTriggerChildFiring(Base):
 
     child_trigger_id: Mapped[uuid.UUID]
     child_firing_id: Mapped[uuid.UUID]
-    child_fired_at: Mapped[Optional[pendulum.DateTime]]
+    child_fired_at: Mapped[Optional[DateTime]]
     child_firing: Mapped[Firing] = mapped_column(Pydantic(Firing))
 
 
@@ -1379,7 +1389,7 @@ class AutomationEventFollower(Base):
     scope: Mapped[str] = mapped_column(default="", index=True)
     leader_event_id: Mapped[uuid.UUID] = mapped_column(index=True)
     follower_event_id: Mapped[uuid.UUID]
-    received: Mapped[pendulum.DateTime] = mapped_column(index=True)
+    received: Mapped[DateTime] = mapped_column(index=True)
     follower: Mapped[ReceivedEvent] = mapped_column(Pydantic(ReceivedEvent))
 
 
@@ -1403,7 +1413,7 @@ class Event(Base):
         sa.Index("ix_events__event_related_occurred", "event", "related", "occurred"),
     )
 
-    occurred: Mapped[pendulum.DateTime]
+    occurred: Mapped[DateTime]
     event: Mapped[str] = mapped_column(sa.Text())
     resource_id: Mapped[str] = mapped_column(sa.Text())
     resource: Mapped[dict[str, Any]] = mapped_column(JSON())
@@ -1414,8 +1424,8 @@ class Event(Base):
         JSON(), server_default="[]", default=list
     )
     payload: Mapped[dict[str, Any]] = mapped_column(JSON())
-    received: Mapped[pendulum.DateTime]
-    recorded: Mapped[pendulum.DateTime]
+    received: Mapped[DateTime]
+    recorded: Mapped[DateTime]
     follows: Mapped[Optional[uuid.UUID]]
 
 
@@ -1432,7 +1442,7 @@ class EventResource(Base):
         ),
     )
 
-    occurred: Mapped[pendulum.DateTime]
+    occurred: Mapped[DateTime]
     resource_id: Mapped[str] = mapped_column(sa.Text())
     resource_role: Mapped[str] = mapped_column(sa.Text())
     resource: Mapped[dict[str, Any]] = mapped_column(sa_JSON)

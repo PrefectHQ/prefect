@@ -12,7 +12,10 @@ from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import run_coro_as_sync
 
-deployment_logger = get_logger("deployment")
+if TYPE_CHECKING:
+    import logging
+
+deployment_logger: "logging.Logger" = get_logger("deployment")
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
@@ -50,6 +53,7 @@ async def agit_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
+    directories: Optional[list[str]] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -81,6 +85,7 @@ async def agit_clone(
         credentials=_credentials,
         branch=branch,
         include_submodules=include_submodules,
+        directories=directories,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -95,6 +100,7 @@ def git_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
+    directories: Optional[list[str]] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -107,6 +113,7 @@ def git_clone(
             the repository will be cloned using the default git credentials
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
+        directories: Specify directories you want to be included (uses git sparse-checkout)
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -164,6 +171,14 @@ def git_clone(
             - prefect.deployments.steps.git_clone:
                 repository: git@github.com:org/repo.git
         ```
+
+        Clone a repository using sparse-checkout (allows specific folders of the repository to be checked out)
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/repo.git
+                directories: ["dir_1", "dir_2", "prefect"]
+        ```
     """
     if access_token and credentials:
         raise ValueError(
@@ -177,6 +192,7 @@ def git_clone(
         credentials=_credentials,
         branch=branch,
         include_submodules=include_submodules,
+        directories=directories,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))
@@ -184,7 +200,7 @@ def git_clone(
     return dict(directory=str(storage.destination.relative_to(Path.cwd())))
 
 
-async def pull_from_remote_storage(url: str, **settings: Any):
+async def pull_from_remote_storage(url: str, **settings: Any) -> dict[str, Any]:
     """
     Pulls code from a remote storage location into the current working directory.
 
@@ -226,7 +242,9 @@ async def pull_from_remote_storage(url: str, **settings: Any):
     return {"directory": directory}
 
 
-async def pull_with_block(block_document_name: str, block_type_slug: str):
+async def pull_with_block(
+    block_document_name: str, block_type_slug: str
+) -> dict[str, Any]:
     """
     Pulls code using a block.
 

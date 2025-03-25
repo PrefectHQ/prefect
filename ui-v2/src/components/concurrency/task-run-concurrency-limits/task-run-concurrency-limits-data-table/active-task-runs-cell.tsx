@@ -1,9 +1,12 @@
-import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import type { CellContext } from "@tanstack/react-table";
 
-type Props = CellContext<TaskRunConcurrencyLimit, Array<string>>;
+type ActiveTaskRunCellsProps = CellContext<
+	TaskRunConcurrencyLimit,
+	Array<string>
+>;
 
-export const ActiveTaskRunCells = (props: Props) => {
+export const ActiveTaskRunCells = (props: ActiveTaskRunCellsProps) => {
 	const activeTaskRuns = props.getValue();
 	const numActiveTaskRuns = activeTaskRuns.length;
 	if (numActiveTaskRuns === 0) {

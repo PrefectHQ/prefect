@@ -77,7 +77,7 @@ If the task does not have a name specified, the name is derived from the decorat
 **How big should a task be?**
 
 Prefect encourages "small tasks." Each one should represent a single logical step of your workflow. 
-This allows Prefect to better contain task failures.
+This allows Prefect to better contain task failures and offer more granular observability and control of results.
 
 There's nothing stopping you from putting all of your code in a single task. However, if any line of 
 code fails, the entire task fails and must be retried from the beginning. 
@@ -236,10 +236,10 @@ list(generator) # prints 'Generator consumed!'
 
 ## Concurrency
 
-Tasks enable concurrent execution, allowing you to execute multiple tasks asynchronously.
+Tasks enable concurrent execution, allowing you to execute multiple tasks concurrently.
 This concurrency can greatly enhance the efficiency and performance of your workflows.
 
-Expand the script to calculate the average open issues per user by making more requests:
+To motivate task concurrency, let's imagine expanding the [example script](/v3/develop/write-tasks/#example-task) to calculate the average open issues per user by making more requests:
 
 ```python repo_info.py
 import httpx
@@ -286,10 +286,12 @@ if __name__ == "__main__":
 ```
 
 Now you're fetching the data you need, but the requests happen sequentially.
-Tasks expose a [`submit`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
+
+
+Tasks expose a [`submit`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.Task.submit) method that changes 
 the execution from sequential to concurrent.
 In this example, you also need to use the 
-[`result`](https://prefect-python-sdk-docs.netlify.app/prefect/futures/#prefect.futures.PrefectFuture.result) 
+[`result`](https://reference.prefect.io/prefect/futures/#prefect.futures.PrefectFuture.result) 
 method to unpack a list of return values:
 
 ```python 
@@ -306,8 +308,7 @@ def get_open_issues(repo_name: str, open_issues_count: int, per_page: int = 100)
     return [i for p in issues for i in p.result()]
 ```
 
-The logs show that each task is running concurrently:
-
+<Accordion title="Logs showing concurrent task execution">
 
 ```bash
 12:45:28.241 | INFO    | prefect.engine - Created flow run 'intrepid-coua' for flow 'get-repo-info'
@@ -339,9 +340,13 @@ Average open issues per user 💌 : 2.27
 12:45:29.838 | INFO    | Flow run 'intrepid-coua' - Finished in state Completed('All states completed.')
 ```
 
+</Accordion>
+
+Read more about implementing task concurrency in the [Task Runners](/v3/develop/task-runners) guide.
+
 ## Task configuration
 
-Tasks allow for customization through optional arguments that can be provided to the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+Tasks allow for customization through optional arguments that can be provided to the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 | Argument              | Description                                                                                                                                                                                                             |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -350,13 +355,13 @@ Tasks allow for customization through optional arguments that can be provided to
 | `tags`                | An optional set of tags associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
 | `timeout_seconds`     | An optional number of seconds indicating a maximum runtime for the task. If the task exceeds this runtime, it will be marked as failed. |
 | `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result is restored instead of running the task again. |
-| `cache_policy`        | An optional policy that determines what information is used to generate cache keys. Available policies include `INPUTS`, `TASK_SOURCE`, `RUN_ID`, `FLOW_PARAMETERS`, and `NONE`. Can be combined using the + operator. |
+| `cache_policy`        | An optional policy that determines what information is used to generate cache keys. Available policies include `INPUTS`, `TASK_SOURCE`, `RUN_ID`, `FLOW_PARAMETERS`, and `NO_CACHE`. Can be combined using the + operator. |
 | `cache_expiration`    | An optional amount of time indicating how long cached states for this task are restorable; if not provided, cached states will never expire. |
 | `retries`             | An optional number of times to retry on task run failure. |
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
 | `log_prints`|An optional boolean indicating whether to log print statements. |
 
-See all possible options in the [Python SDK docs](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+See all possible options in the [Python SDK docs](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 For example, provide optional `name` and `description` arguments to a task:
 
@@ -458,7 +463,7 @@ Tags are useful to:
 - Filter task runs by tag in the UI and through the [Prefect REST API](/v3/api-ref/rest-api/#filtering).
 - Set [concurrency limits](#task-run-concurrency-limits) on task runs by tag.
 
-You may specify tags as a keyword argument on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+You may specify tags as a keyword argument on the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 ```python 
 @task(name="hello-task", tags=["test"])
@@ -466,7 +471,7 @@ def my_task():
     print("Hello, I'm a task")
 ```
 
-Alternatively, specify tags when the task is called rather than in its definition with a [`tags` context manager](https://prefect-python-sdk-docs.netlify.app/prefect/context/#prefect.context.tags), .
+Alternatively, specify tags when the task is called rather than in its definition with a [`tags` context manager](https://reference.prefect.io/prefect/context/#prefect.context.tags), .
 
 ```python 
 from prefect import flow, task
@@ -618,7 +623,7 @@ if __name__ == "__main__":
 ```
 
 Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. 
-Prefect includes an [`exponential_backoff`](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. 
+Prefect includes an [`exponential_backoff`](https://reference.prefect.io/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. 
 The following flow will wait for 10, 20, then 40 seconds before each retry.
 
 ```python
@@ -666,3 +671,28 @@ These settings will not override the `retries` or `retry_delay_seconds` that are
 prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
 prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
+
+
+## Decorator syntax
+
+Though it is typically recommended to use `@task` decorators to define tasks:
+
+```python
+from prefect import task
+
+@task
+def my_static_task(): ...
+```
+
+if needed you can use the `task` decorator inline with any callable to create tasks on the fly:
+```python
+from prefect import flow, task
+
+@flow
+def dynamic_flow() -> list[int]:
+    return task(name="dynamic-task")(lambda x: x + 1).map([1, 2, 3]).result()
+
+assert dynamic_flow() == [2, 3, 4]
+```
+
+See a more realistic example of this pattern in the [Task Runners](/v3/develop/task-runners/#nested-mapped-tasks) guide.

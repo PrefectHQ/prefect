@@ -13,7 +13,7 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/flow_run_notification_policies", tags=["Flow Run Notification Policies"]
 )
 
@@ -25,6 +25,8 @@ async def create_flow_run_notification_policy(
 ) -> schemas.core.FlowRunNotificationPolicy:
     """
     Creates a new flow run notification policy.
+
+    For more information, see https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations.
     """
     async with db.session_context(begin_transaction=True) as session:
         return await models.flow_run_notification_policies.create_flow_run_notification_policy(
@@ -39,7 +41,7 @@ async def update_flow_run_notification_policy(
         ..., description="The flow run notification policy id", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates an existing flow run notification policy.
     """
@@ -104,7 +106,7 @@ async def delete_flow_run_notification_policy(
         ..., description="The flow run notification policy id", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a flow run notification policy by id.
     """

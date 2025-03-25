@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 
 import cloudpickle
@@ -6,11 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from prefect.utilities.dispatch import register_type
 from prefect.utilities.pydantic import (
-    JsonPatch,
     PartialModel,
     add_cloudpickle_reduction,
     get_class_fields_only,
 )
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from prefect.utilities.pydantic import JsonPatch
 
 
 class SimplePydantic(BaseModel):
@@ -66,9 +70,9 @@ class TestCloudpickleReduction:
         # field instead
         result = cloudpickle.loads(cloudpickle.dumps(model))
 
-        assert (
-            result.x == 0
-        ), "'x' should return to the default value since it was excluded"
+        assert result.x == 0, (
+            "'x' should return to the default value since it was excluded"
+        )
         assert result.y == "test"
 
 

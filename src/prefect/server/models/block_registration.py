@@ -13,10 +13,12 @@ from prefect.logging import get_logger
 from prefect.server import models, schemas
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.schemas import BlockSchema as ClientBlockSchema
     from prefect.client.schemas import BlockType as ClientBlockType
 
-logger = get_logger("server")
+logger: "logging.Logger" = get_logger("server")
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
     Path(__file__).parent.parent / "collection_blocks_data.json"
@@ -42,9 +44,9 @@ async def _install_protected_system_blocks(session: AsyncSession) -> None:
             orm_block_type = await models.block_types.create_block_type(
                 session=session, block_type=server_block_type, override=True
             )
-            assert (
-                orm_block_type is not None
-            ), f"Failed to create block type {block_type}"
+            assert orm_block_type is not None, (
+                f"Failed to create block type {block_type}"
+            )
 
             await models.block_schemas.create_block_schema(
                 session=session,
@@ -172,7 +174,7 @@ async def _register_collection_blocks(session: AsyncSession) -> None:
 
     # due to schema reference dependencies, we need to register all block types first
     # and then register all block schemas
-    block_schemas: dict[str, dict] = {}
+    block_schemas: dict[str, dict[str, Any]] = {}
 
     async with session.begin():
         for block_type in block_types:

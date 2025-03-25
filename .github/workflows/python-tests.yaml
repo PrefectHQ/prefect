@@ -11,10 +11,7 @@ on:
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
       - scripts/entrypoint.sh
   push:
@@ -24,10 +21,7 @@ on:
       - .github/workflows/python-tests.yaml
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
-      - requirements.txt
-      - requirements-client.txt
-      - requirements-dev.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
       - scripts/entrypoint.sh
 permissions:
@@ -49,18 +43,30 @@ concurrency:
 
 jobs:
   run-tests:
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
+      fail-fast: false
       matrix:
         test-type:
           - name: Server Tests
-            modules: tests/server/ tests/events/server
+            modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
+          - name: Database and Orchestration Tests
+            modules: tests/server/database/ tests/server/orchestration/
           - name: Client Tests
-            modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
-          - name: Runner and Worker Tests
-            modules: tests/test_task_runners.py tests/runner tests/workers
+            modules: >-
+              tests/
+              --ignore=tests/typesafety
+              --ignore=tests/server/
+              --ignore=tests/events/server
+              --ignore=tests/test_task_runners.py
+              --ignore=tests/runner
+              --ignore=tests/workers
+              --ignore=tests/cli/
+              --ignore=tests/test_settings.py
+              --ignore=tests/input/
+          - name: Runner, Worker, Settings, Input, and CLI Tests
+            modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
           - "postgres:14"
           - "sqlite"
@@ -69,17 +75,26 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
         exclude:
           - database: "sqlite"
             test-type:
               name: Client Tests
-              modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+              modules: >-
+                tests/
+                --ignore=tests/typesafety
+                --ignore=tests/server/
+                --ignore=tests/events/server
+                --ignore=tests/test_task_runners.py
+                --ignore=tests/runner
+                --ignore=tests/workers
+                --ignore=tests/cli/
+                --ignore=tests/test_settings.py
+                --ignore=tests/input/
           - database: "sqlite"
             test-type:
-              name: Runner and Worker Tests
-              modules: tests/test_task_runners.py tests/runner tests/workers
-
-      fail-fast: true
+              name: Runner, Worker, Settings, Input, and CLI Tests
+              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
     timeout-minutes: 15
 
@@ -92,26 +107,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
-        run: |
-          python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+        run: uv sync --frozen
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -148,27 +152,9 @@ jobs:
           --publish 6379:6379
           redis:latest
 
-      - name: Set coverage file and artifact name
-        id: set_coverage_and_artifact_name
-        run: |
-          sanitized_test_type="${{ matrix.test-type.name }}"
-          sanitized_test_type="${sanitized_test_type// /_}"
-          sanitized_database="${{ matrix.database }}"
-          sanitized_database="${sanitized_database//:/\-}"
-          sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE=".coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
-          echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
-          echo "artifact_name=coverage-data-${sanitized_test_type}-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
-
-      - name: Set coverage core
-        if: ${{ matrix.python-version == '3.12' }}
-        run: |
-          echo "COVERAGE_CORE=sysmon" >> $GITHUB_ENV
-
       - name: Run tests
         run: |
-          echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest ${{ matrix.test-type.modules }} \
+          uv run pytest ${{ matrix.test-type.modules }} \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -176,33 +162,6 @@ jobs:
           --exclude-service kubernetes \
           --exclude-service docker \
           --durations 26 \
-          --cov=prefect \
-          --cov-config=setup.cfg \
-          --cov-report=''
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
-          path: ${{ env.COVERAGE_FILE }}
-          include-hidden-files: true
-          retention-days: 1
-
-      - name: Create and Upload failure flag
-        if: ${{ failure() }}
-        id: create_failure_flag
-        run: |
-          sanitized_name="${{ matrix.python-version }}-${{ matrix.database }}"
-          sanitized_name="${sanitized_name//:/-}"
-          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
-          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
-
-      - name: Upload failure flag
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.create_failure_flag.outputs.artifact_name }}
-          path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
@@ -213,8 +172,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-docker-tests:
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
     strategy:
       matrix:
@@ -226,7 +184,7 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: true
+      fail-fast: false
 
     timeout-minutes: 45
 
@@ -244,21 +202,12 @@ jobs:
         with:
           driver-opts: image=moby/buildkit:v0.12.5
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Get image tag
         id: get_image_tag
@@ -299,9 +248,7 @@ jobs:
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
-        run: |
-          python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+        run: uv sync --frozen
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -346,58 +293,19 @@ jobs:
           --publish 6379:6379
           redis:latest
 
-      - name: Set coverage file and artifact name
-        id: set_coverage_and_artifact_name
+      - name: Check git diff
         run: |
-          sanitized_database="${{ matrix.database }}"
-          sanitized_database="${sanitized_database//:/\-}"
-          sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE=".coverage.${sanitized_python_version}.${sanitized_database}"
-          echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
-          echo "artifact_name=coverage-data-docker-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
-
-      - name: Set coverage core
-        if: ${{ matrix.python-version == '3.12' }}
-        run: |
-          echo "COVERAGE_CORE=sysmon" >> $GITHUB_ENV
+          git diff --exit-code
 
       - name: Run tests
         run: |
-          echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest tests --ignore=tests/typesafety \
+          uv run pytest tests --ignore=tests/typesafety \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
           --disable-docker-image-builds \
           --only-service docker \
-          --durations 26 \
-          --cov=prefect \
-          --cov-config=setup.cfg \
-          --cov-report=''
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
-          path: ${{ env.COVERAGE_FILE }}
-          include-hidden-files: true
-          retention-days: 1
-
-      - name: Create and Upload failure flag
-        if: ${{ failure() }}
-        id: create_failure_flag
-        run: |
-          sanitized_name="${{ matrix.python-version }}-${{ matrix.database }}"
-          sanitized_name="${sanitized_name//:/-}"
-          echo "Failure in $sanitized_name" > "${sanitized_name}-failure.txt"
-          echo "artifact_name=${sanitized_name}-failure" >> $GITHUB_OUTPUT
-
-      - name: Upload failure flag
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.create_failure_flag.outputs.artifact_name }}
-          path: "${{ steps.create_failure_flag.outputs.artifact_name }}.txt"
+          --durations 26
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
@@ -407,82 +315,27 @@ jobs:
           && docker container logs postgres \
           || echo "Ignoring bad exit code"
 
-  combine-coverage:
-    runs-on: ubuntu-latest
-    needs:
-      - run-tests
-      - run-docker-tests
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        id: setup_python
-        with:
-          python-version: "3.12"
-
-      - name: Download coverage data artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: coverage-data-*
-          merge-multiple: true
-
-      - name: Install coverage
-        run: pip install coverage
-
-      - name: Combine coverage data
-        run: coverage combine
-
-      - name: Generate HTML coverage report
-        run: coverage html
-
-      - name: Upload combined coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: combined-coverage-report
-          path: htmlcov/
-
-      - name: Publish coverage markdown report
-        run: |
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "[Detailed Report](${{ steps.upload_combined_coverage_report.outputs.artifact_url }})" >> $GITHUB_STEP_SUMMARY
-          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
-
   run-typesafety-test:
     name: typesafety
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-        fetch-depth: 0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      id: setup_python
-      with:
-        python-version: 3.12
+      - name: Install packages
+        run: uv sync
 
-    - name: UV Cache
-      # Manually cache the uv cache directory
-      # until setup-python supports it:
-      # https://github.com/actions/setup-python/issues/822
-      uses: actions/cache@v4
-      id: cache-uv
-      with:
-        path: ~/.cache/uv
-        key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
-
-    - name: Install packages
-      run: |
-        python -m pip install -U uv
-        uv pip install --upgrade --system -e .[dev]
-
-    - name: Run tests
-      run: |
-        pytest tests/typesafety \
-        --disable-docker-image-builds
+      - name: Run tests
+        run: |
+          uv run pytest tests/typesafety \
+          --disable-docker-image-builds

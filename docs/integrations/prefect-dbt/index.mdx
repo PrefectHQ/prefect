@@ -106,6 +106,238 @@ if __name__ == "__main__":
 
 ## dbt Core
 
+### prefect-dbt 0.7.0 and later
+
+<Info>
+During the prerelease phase of `prefect-dbt==0.7.0`, use the `--pre` flag to install the latest release candidate.
+
+<CodeGroup>
+
+```bash pip
+pip install -U --pre prefect-dbt
+```
+
+```bash uv
+uv pip install -U --pre prefect-dbt
+```
+
+</CodeGroup>
+</Info>
+
+Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and additional features.
+
+<Tip>
+The `PrefectDbtRunner` is inspired by the `DbtRunner` from dbt Core, and its `invoke` method accepts the same arguments.
+Refer to the [`DbtRunner` documentation](https://docs.getdbt.com/reference/programmatic-invocations) for more information on how to call `invoke`.
+</Tip>
+
+Basic usage:
+
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner().invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+#### dbt settings
+
+The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
+If no environment variables are set, dbt's defaults are used.
+
+Provide a `PrefectDbtSettings` instance to `PrefectDbtRunner` to customize dbt settings or override environment variables.
+
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner(
+        settings=PrefectDbtSettings(
+            project_dir="test",
+            profiles_dir="examples/run_dbt"
+        )
+    ).invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+#### `profiles.yml` templating
+
+The `PrefectDbtRunner` class supports templating in your `profiles.yml` file, allowing you to reference Prefect blocks and variables that will be resolved at runtime.
+This enables you to store sensitive credentials securely using Prefect blocks, and configure different targets based on the Prefect workspace.
+
+For example, a Prefect variable called `target` can have a different value in development (`dev`) and production (`prod`) workspaces.
+This allows you to use the same `profiles.yml` file to automatically reference a local DuckDB instance in development and a Snowflake instance in production.
+
+```yaml
+example:
+  outputs:
+    dev:
+      type: duckdb
+      path: dev.duckdb
+      threads: 1
+
+    prod:
+      type: snowflake
+      account: "{{ prefect.blocks.snowflake-credentials.warehouse-access.account }}"
+      user: "{{ prefect.blocks.snowflake-credentials.warehouse-access.user }}"
+      password: "{{ prefect.blocks.snowflake-credentials.warehouse-access.password }}"
+      database: "{{ prefect.blocks.snowflake-connector.prod-connector.database }}"
+      schema: "{{ prefect.blocks.snowflake-connector.prod-connector.schema }}"
+      warehouse: "{{ prefect.blocks.snowflake-connector.prod-connector.warehouse }}"
+      threads: 4
+
+  target: "{{ prefect.variables.target }}"
+```
+
+#### Logging
+
+The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
+It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
+
+#### Failure handling
+
+The `PrefectDbtRunner` class raises exceptions with standardized messages containing detailed information about the failure.
+
+```
+Failures detected during invocation of dbt command 'build':
+Test not_null_my_first_dbt_model_id failed with message: "Got 1 result, configured to fail if != 0"
+```
+
+It also offers a `raise_on_failure` option to control whether non-exception dbt failures, like failed tests, are raised as exceptions.
+
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner(
+        raise_on_failure=False  # Failed tests will not fail the flow run
+    ).invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+#### Events
+
+The `PrefectDbtRunner` automatically emits Prefect events for completed dbt nodes with status information.
+
+An event for a skipped model may look like this, for example:
+
+```json
+{
+  "event": "my_second_dbt_model skipped",
+  "occurred": "2025-02-06T17:05:02.614Z",
+  "payload": {
+    "node_info": {
+      "node_path": "test/my_second_dbt_model.sql",
+      "node_name": "my_second_dbt_model",
+      "unique_id": "model.test.my_second_dbt_model",
+      "resource_type": "model",
+      "materialized": "view",
+      "node_status": "skipped",
+      "node_started_at": "2025-02-06T17:05:02.614034",
+      "meta": {},
+      "node_relation": {
+        "database": "dev",
+        "schema": "main",
+        "alias": "my_second_dbt_model",
+        "relation_name": "\"dev\".\"main\".\"my_second_dbt_model\""
+      }
+    },
+    "run_result": {
+      "status": "skipped",
+      "thread": "Thread-2 (worker)",
+      "adapter_response": {}
+    }
+  },
+  "received": "2025-02-06T17:05:02.843Z",
+  "resource": {
+    "prefect.resource.id": "dbt.model.test.my_second_dbt_model",
+    "prefect.resource.name": "my_second_dbt_model",
+    "dbt.node.status": "skipped"
+  },
+  "workspace": "87a4870c-8152-46cb-93aa-06482f9aa1df"
+}
+```
+
+These events contain both the `node_info` and `run_result` for processed nodes in your dbt project, as well as the final status of the node's execution in the primary resource.
+This enables you to set up alerting for specific node states through Prefect's automations system.
+To be notified when this model is skipped, the following automation trigger could be set up:
+
+```json
+{
+  "type": "event",
+  "match": {
+    "prefect.resource.id": [
+      "dbt.model.test.my_second_dbt_model"
+    ],
+    "dbt.node.status": "skipped"
+  },
+  "match_related": {},
+  "after": [],
+  "expect": [
+    "my_second_dbt_model skipped"
+  ],
+  "for_each": [],
+  "posture": "Reactive",
+  "threshold": 1,
+  "within": 0
+}
+```
+
+#### Resources and lineage
+
+<Info>
+Resources in Prefect Cloud are currently experimental. Enable them by setting the `PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED` environment variable to `true` wherever flow runs are executed.
+</Info>
+
+The `PrefectDbtRunner` class automatically emits lineage events describing the relationships between the resources in your dbt project.
+Resources can be viewed in Prefect Cloud on the flow run page.
+Click "View graph" to display a lineage graph with nodes directly upstream and downstream of the selected resource.
+
+When running in Prefect Cloud, the lineage graph for executed nodes will be visible on the flow run page, showing upstream and downstream dependencies.
+
+To describe resource that exist outside of your dbt project and are upstream of a given node, supply the resource in your dbt config.
+For example, to describe a BigQuery table as an upstream resource of a dbt model, add the following to your model's config:
+
+```yaml
+prefect:
+  upstream_resources:
+    - name: "my_bigquery_table"
+      role: "table"
+      id: "bigquery://my-project.my_dataset.my_table"
+```
+
+#### Native dbt configuration
+
+You can disable these features for all resources in your dbt project config, or for specific resources in their own config:
+
+```yaml
+prefect:
+  emit_events: False  # Disable all events
+  emit_node_events: False  # Disable node events
+  emit_lineage_events: False  # Disable lineage events
+```
+
+### prefect-dbt 0.6.6 and earlier
+
 `prefect-dbt` supports a couple of ways to run dbt Core commands.
 A `DbtCoreOperation` block will run the commands as shell commands, while other tasks use dbt's [Programmatic Invocation](#programmatic-invocation).
 
@@ -113,7 +345,7 @@ Optionally, specify the `project_dir`.
 If `profiles_dir` is not set, the `DBT_PROFILES_DIR` environment variable will be used.
 If `DBT_PROFILES_DIR` is not set, the default directory will be used `$HOME/.dbt/`.
 
-### Use an existing profile
+#### Use an existing profile
 
 If you have an existing dbt `profiles.yml` file, specify the `profiles_dir` where the file is located:
 
@@ -140,7 +372,7 @@ if __name__ == "__main__":
 If you are already using Prefect blocks such as the [Snowflake Connector block](integrations/prefect-snowflake), you can use those blocks to [create a new `profiles.yml` with a `DbtCliProfile` block](#create-a-new-profile-with-blocks). 
 
 
-#### Use environment variables with Prefect secret blocks
+##### Use environment variables with Prefect secret blocks
 
 If you use environment variables in `profiles.yml`, set a Prefect Secret block as an environment variable:
 
@@ -171,7 +403,7 @@ profile:
 ```
 
 
-### Create a new `profiles.yml` file with blocks
+#### Create a new `profiles.yml` file with blocks
 
 If you don't have a `profiles.yml` file, you can use a DbtCliProfile block to create `profiles.yml`.
 Then, specify `profiles_dir` where `profiles.yml` will be written.
@@ -213,7 +445,7 @@ Visit the SDK reference in the side navigation to see other built-in `TargetConf
 
 If the desired service profile is not available, you can build one from the generic `TargetConfigs` class.
 
-### Programmatic Invocation
+#### Programmatic Invocation
 
 `prefect-dbt` has some pre-built tasks that use dbt's [programmatic invocation](https://docs.getdbt.com/reference/programmatic-invocations).  
 
@@ -242,15 +474,15 @@ if __name__ == "__main__":
     dbt_build_flow()
 ```
 
-See the [SDK docs](https://prefect-python-sdk-docs.netlify.app/prefect_dbt/) for other pre-built tasks.
+See the [SDK docs](https://reference.prefect.io/prefect_dbt/) for other pre-built tasks.
 
-#### Create a summary artifact
+##### Create a summary artifact
 
 These pre-built tasks can also create artifacts. These artifacts have extra information about dbt Core runs, such as messages and compiled code for nodes that fail or have errors.
 
 ![prefect-dbt Summary Artifact](/images/prefect-dbt-summary-artifact.png)
 
-### BigQuery CLI profile block example
+#### BigQuery CLI profile block example
 To create dbt Core target config and profile blocks for BigQuery:
 
 1. Save and load a `GcpCredentials` block.
@@ -308,7 +540,7 @@ DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 
 For assistance using dbt, consult the [dbt documentation](https://docs.getdbt.com/docs/building-a-dbt-project/documentation).
 
-Refer to the `prefect-dbt` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-dbt` library.
+Refer to the `prefect-dbt` [SDK documentation](https://reference.prefect.io/prefect_dbt/) to explore all the capabilities of the `prefect-dbt` library.
 
 ### Additional installation options
 

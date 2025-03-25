@@ -1,0 +1,372 @@
+---
+title: " "
+sidebarTitle: prefect automations
+---
+
+# `prefect automations`
+
+
+
+```command
+prefect automations [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage automations.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect automations ls`
+
+
+
+```command
+prefect automations ls [OPTIONS]
+```
+
+
+
+<Info>
+List all automations.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect automations inspect`
+
+
+
+```command
+prefect automations inspect [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Inspect an automation.
+
+Arguments:
+
+    name: the name of the automation to inspect
+
+    id: the id of the automation to inspect
+
+    yaml: output as YAML
+
+    json: output as JSON
+
+Examples:
+
+    \$ prefect automation inspect "my-automation"
+
+    \$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+
+    \$ prefect automation inspect "my-automation" --yaml
+
+    \$ prefect automation inspect "my-automation" --json
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    An automation's name
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    An automation's id
+</ResponseField>
+
+<ResponseField name="--yaml">
+    Output as YAML
+</ResponseField>
+
+<ResponseField name="--json">
+    Output as JSON
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect automations resume`
+
+
+
+```command
+prefect automations resume [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Resume an automation.
+
+Arguments:
+
+        name: the name of the automation to resume
+
+        id: the id of the automation to resume
+
+Examples:
+
+        \$ prefect automation resume "my-automation"
+
+        \$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    An automation's name
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    An automation's id
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect automations enable`
+
+
+
+```command
+prefect automations enable [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Resume an automation.
+
+Arguments:
+
+        name: the name of the automation to resume
+
+        id: the id of the automation to resume
+
+Examples:
+
+        \$ prefect automation resume "my-automation"
+
+        \$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    An automation's name
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    An automation's id
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect automations pause`
+
+
+
+```command
+prefect automations pause [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Pause an automation.
+
+Arguments:
+
+        name: the name of the automation to pause
+
+        id: the id of the automation to pause
+
+Examples:
+
+    \$ prefect automation pause "my-automation"
+
+    \$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    An automation's name
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    An automation's id
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect automations disable`
+
+
+
+```command
+prefect automations disable [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Pause an automation.
+
+Arguments:
+
+        name: the name of the automation to pause
+
+        id: the id of the automation to pause
+
+Examples:
+
+    \$ prefect automation pause "my-automation"
+
+    \$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    An automation's name
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    An automation's id
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect automations delete`
+
+
+
+```command
+prefect automations delete [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Delete an automation.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    An automation's name
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    An automation's id
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

@@ -7,7 +7,7 @@ from prefect.server import models
 from prefect.server.models.task_workers import TaskWorkerResponse
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/task_workers", tags=["Task Workers"])
+router: PrefectRouter = PrefectRouter(prefix="/task_workers", tags=["Task Workers"])
 
 
 class TaskWorkerFilter(BaseModel):
@@ -20,7 +20,11 @@ async def read_task_workers(
         default=None, description="The task worker filter", embed=True
     ),
 ) -> List[TaskWorkerResponse]:
-    """Read active task workers. Optionally filter by task keys."""
+    """
+    Read active task workers. Optionally filter by task keys.
+
+    For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
+    """
 
     if task_worker_filter and task_worker_filter.task_keys:
         return await models.task_workers.get_workers_for_task_keys(

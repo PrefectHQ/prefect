@@ -4,10 +4,10 @@ from pathlib import Path
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 from _pytest.capture import CaptureFixture
 
+from prefect.types._datetime import DateTime
 from prefect.utilities.dockerutils import (
     ImageBuilder,
     PushError,
@@ -30,13 +30,13 @@ def contexts() -> Path:
 
 @pytest.fixture(scope="module")
 def frozen_now():
-    now = pendulum.now("UTC")
-    with mock.patch("pendulum.now", return_value=now):
-        yield now
+    frozen_now = DateTime.now("UTC")
+    with mock.patch("prefect.types._datetime.DateTime.now", return_value=frozen_now):
+        yield frozen_now
 
 
 @pytest.fixture(scope="module")
-def howdy(docker: DockerClient, worker_id: str, frozen_now: pendulum.DateTime) -> str:
+def howdy(docker: DockerClient, worker_id: str, frozen_now: DateTime) -> str:
     # Give the image something completely unique so that we know it will generate a
     # new image each time
     message = f"hello from the registry, {str(uuid4())}!"
@@ -57,7 +57,7 @@ def howdy(docker: DockerClient, worker_id: str, frozen_now: pendulum.DateTime) -
 
 
 def test_pushing_to_registry(
-    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+    docker: DockerClient, registry: str, howdy: str, frozen_now: DateTime
 ):
     tag_prefix = slugify(frozen_now.isoformat())[:20]
 
@@ -77,7 +77,7 @@ def test_pushing_to_registry_with_tag(docker: DockerClient, registry: str, howdy
 
 
 def test_pushing_with_owner(
-    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+    docker: DockerClient, registry: str, howdy: str, frozen_now: DateTime
 ):
     tag_prefix = slugify(frozen_now.isoformat())[:20]
 
@@ -89,7 +89,7 @@ def test_pushing_with_owner(
 
 
 def test_does_not_leave_registry_tag_locally(
-    docker: DockerClient, registry: str, howdy: str, frozen_now: pendulum.DateTime
+    docker: DockerClient, registry: str, howdy: str, frozen_now: DateTime
 ):
     tag_prefix = slugify(frozen_now.isoformat())[:20]
 

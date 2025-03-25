@@ -10,15 +10,23 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from prefect import states as client_states
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
+from prefect.states import (
+    Completed,
+    Paused,
+    Pending,
+    Running,
+    Scheduled,
+    to_state_create,
+)
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -29,7 +37,7 @@ class TestCreateFlowRun:
             json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
                 name="orange you glad i didn't say yellow salamander",
-                state=client_states.Pending().to_state_create(),
+                state=to_state_create(Pending()),
                 labels={"env": "dev"},
             ).model_dump(mode="json"),
         )
@@ -75,9 +83,9 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
-                state=client_states.Completed(
-                    timestamp=pendulum.now("UTC").add(months=1)
-                ).to_state_create(),
+                state=to_state_create(
+                    Completed(timestamp=pendulum.now("UTC").add(months=1))
+                ),
             ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED, response.text
@@ -98,13 +106,13 @@ class TestCreateFlowRun:
         response1 = await client.post(
             "/flow_runs/",
             json=client_actions.FlowRunCreate(
-                flow_id=flow.id, state=client_states.Pending().to_state_create()
+                flow_id=flow.id, state=to_state_create(Pending())
             ).model_dump(mode="json"),
         )
         response2 = await client.post(
             "/flow_runs/",
             json=client_actions.FlowRunCreate(
-                flow_id=flow.id, state=client_states.Pending().to_state_create()
+                flow_id=flow.id, state=to_state_create(Pending())
             ).model_dump(mode="json"),
         )
         assert response1.status_code == status.HTTP_201_CREATED
@@ -124,7 +132,7 @@ class TestCreateFlowRun:
     ):
         data = client_actions.FlowRunCreate(
             flow_id=flow.id,
-            state=client_states.Pending().to_state_create(),
+            state=to_state_create(Pending()),
             idempotency_key="test-key",
         ).model_dump(mode="json")
         response1 = await client.post("/flow_runs/", json=data)
@@ -147,12 +155,12 @@ class TestCreateFlowRun:
 
         data = client_actions.FlowRunCreate(
             flow_id=flow.id,
-            state=client_states.Pending().to_state_create(),
+            state=to_state_create(Pending()),
             idempotency_key="test-key",
         )
         data2 = client_actions.FlowRunCreate(
             flow_id=flow2.id,
-            state=client_states.Pending().to_state_create(),
+            state=to_state_create(Pending()),
             idempotency_key="test-key",
         )
         response1 = await client.post("/flow_runs/", json=data.model_dump(mode="json"))
@@ -171,7 +179,7 @@ class TestCreateFlowRun:
         flow_run_data = client_actions.FlowRunCreate(
             flow_id=flow.id,
             parent_task_run_id=task_run.id,
-            state=client_states.Pending().to_state_create(),
+            state=to_state_create(Pending()),
         )
         response = await client.post(
             "/flow_runs/", json=flow_run_data.model_dump(mode="json")
@@ -185,7 +193,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_running_state(self, flow, client, session):
         flow_run_data = client_actions.FlowRunCreate(
             flow_id=str(flow.id),
-            state=client_states.Running().to_state_create(),
+            state=to_state_create(Running()),
         )
         response = await client.post(
             "/flow_runs/", json=flow_run_data.model_dump(mode="json")
@@ -219,6 +227,81 @@ class TestCreateFlowRun:
         )
 
         assert response.json()["deployment_id"] == str(deployment.id)
+
+    async def test_create_flow_run_with_work_pool(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+        work_pool: WorkPool,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["work_pool_name"] == work_pool.name
+        assert res["work_queue_name"] == "default"
+
+    async def test_create_flow_run_with_work_pool_and_work_queue(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+        work_pool: WorkPool,
+        work_queue_1: WorkQueue,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+                work_queue_name=work_queue_1.name,
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["work_pool_name"] == work_pool.name
+        assert res["work_queue_name"] == work_queue_1.name
+
+    async def test_create_flow_run_with_non_existent_work_pool(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name="non-existent-work-pool",
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 404
+        assert (
+            'Work pool "non-existent-work-pool" not found' in response.json()["detail"]
+        )
+
+    async def test_create_flow_run_with_job_variables(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                job_variables={
+                    "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
+                },
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["job_variables"] == {
+            "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
+        }
 
 
 class TestUpdateFlowRun:
@@ -1271,7 +1354,7 @@ class TestResumeFlowrun:
         class SimpleInput(RunInput):
             approved: bool
 
-        client_state = client_states.Paused(pause_key="1")
+        client_state = Paused(pause_key="1")
         server_state = schemas.states.Paused(pause_key="1")
         keyset = keyset_from_paused_state(client_state)
         server_state.state_details.run_input_keyset = keyset
@@ -1308,7 +1391,7 @@ class TestResumeFlowrun:
             how_many: Optional[str] = "5"
             approved: Optional[bool] = True
 
-        client_state = client_states.Paused(pause_key="1")
+        client_state = Paused(pause_key="1")
         server_state = schemas.states.Paused(pause_key="1")
         keyset = keyset_from_paused_state(client_state)
         server_state.state_details.run_input_keyset = keyset
@@ -1658,7 +1741,7 @@ class TestSetFlowRunState:
         run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert run.state.type == client_states.StateType.RUNNING
+        assert run.state.type == StateType.RUNNING
         assert run.state.name == "Test State"
 
     @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
@@ -1747,11 +1830,9 @@ class TestSetFlowRunState:
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
-                state=client_states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
-                )
-                .to_state_create()
-                .model_dump(mode="json")
+                state=to_state_create(
+                    Scheduled(scheduled_time=pendulum.now("UTC").add(days=1))
+                ).model_dump(mode="json")
             ),
         )
         assert response.status_code == 201, response.text
@@ -1760,9 +1841,7 @@ class TestSetFlowRunState:
 
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(
-                state=client_states.Pending().to_state_create().model_dump(mode="json")
-            ),
+            json=dict(state=to_state_create(Pending()).model_dump(mode="json")),
         )
         assert response.status_code == 201, response.text
         api_response = OrchestrationResult.model_validate(response.json())
@@ -1770,9 +1849,7 @@ class TestSetFlowRunState:
 
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(
-                state=client_states.Running().to_state_create().model_dump(mode="json")
-            ),
+            json=dict(state=to_state_create(Running()).model_dump(mode="json")),
         )
         assert response.status_code == 200, response.text
         api_response = OrchestrationResult.model_validate(response.json())
@@ -1892,9 +1969,9 @@ class TestSetFlowRunState:
                 "headers": {},
             }
             if client_version:
-                post_kwargs["headers"][
-                    "User-Agent"
-                ] = f"prefect/{client_version} (API 2.19.3)"
+                post_kwargs["headers"]["User-Agent"] = (
+                    f"prefect/{client_version} (API 2.19.3)"
+                )
             response = await client.post(
                 f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
                 **post_kwargs,
@@ -1998,9 +2075,9 @@ class TestFlowRunHistory:
                 history_interval_seconds=0.9,
             ),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert b"History interval must not be less than 1 second" in response.content
 
 
@@ -2895,6 +2972,6 @@ class TestDownloadFlowRunLogs:
             # number of logs generated plus 1 for the header row
             expected_line_count = len(flow_run_1_logs) + 1
 
-            assert (
-                line_count == expected_line_count
-            ), f"Expected {expected_line_count} lines, got {line_count}"
+            assert line_count == expected_line_count, (
+                f"Expected {expected_line_count} lines, got {line_count}"
+            )

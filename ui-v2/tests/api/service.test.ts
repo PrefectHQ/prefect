@@ -6,7 +6,7 @@ import type { paths } from "../../src/api/prefect";
 describe("API Service", () => {
 	it("can paginate flows", async () => {
 		const QueryService = createClient<paths>({
-			baseUrl: "http://localhost:4200/api",
+			baseUrl: import.meta.env.VITE_API_URL as string,
 		});
 		const flows = await QueryService.POST("/flows/paginate", {
 			page: 1,

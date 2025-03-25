@@ -29,7 +29,7 @@ def retry_async_fn(
     retry_on_exceptions: tuple[type[Exception], ...] = (Exception,),
     operation_name: Optional[str] = None,
 ) -> Callable[
-    [Callable[P, Coroutine[Any, Any, R]]], Callable[P, Coroutine[Any, Any, Optional[R]]]
+    [Callable[P, Coroutine[Any, Any, R]]], Callable[P, Coroutine[Any, Any, R]]
 ]:
     """A decorator for retrying an async function.
 
@@ -48,9 +48,9 @@ def retry_async_fn(
 
     def decorator(
         func: Callable[P, Coroutine[Any, Any, R]],
-    ) -> Callable[P, Coroutine[Any, Any, Optional[R]]]:
+    ) -> Callable[P, Coroutine[Any, Any, R]]:
         @wraps(func)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> Optional[R]:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             name = operation_name or func.__name__
             for attempt in range(max_attempts):
                 try:
@@ -67,6 +67,9 @@ def retry_async_fn(
                         f"Retrying in {delay:.2f} seconds..."
                     )
                     await asyncio.sleep(delay)
+            # Technically unreachable, but this raise helps pyright know that this function
+            # won't return None.
+            raise Exception(f"Function {name!r} failed after {max_attempts} attempts")
 
         return wrapper
 

@@ -48,8 +48,8 @@ if __name__ == "__main__":
 
         actual_run_count = count_runs(counter_dir)
 
-        assert (
-            actual_run_count >= MINIMUM_EXPECTED_N_FLOW_RUNS
-        ), f"Expected at least {MINIMUM_EXPECTED_N_FLOW_RUNS} flow runs, got {actual_run_count}"
+        assert actual_run_count >= MINIMUM_EXPECTED_N_FLOW_RUNS, (
+            f"Expected at least {MINIMUM_EXPECTED_N_FLOW_RUNS} flow runs, got {actual_run_count}"
+        )
 
         print(f"Successfully completed and audited {actual_run_count} flow runs")

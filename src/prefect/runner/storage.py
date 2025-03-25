@@ -1,12 +1,21 @@
+from __future__ import annotations
+
 import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
+from typing import (
+    Any,
+    Optional,
+    Protocol,
+    TypedDict,
+    Union,
+    runtime_checkable,
+)
 from urllib.parse import urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
-import fsspec
+import fsspec  # pyright: ignore[reportMissingTypeStubs]
 from anyio import run_process
 from pydantic import SecretStr
 
@@ -25,7 +34,7 @@ class RunnerStorage(Protocol):
     remotely stored flow code.
     """
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         """
         Sets the base path to use when pulling contents from remote storage to
         local storage.
@@ -47,13 +56,13 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         """
         Pulls contents from remote storage to the local filesystem.
         """
         ...
 
-    def to_pull_step(self) -> dict[str, Any]:
+    def to_pull_step(self) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
@@ -69,7 +78,7 @@ class RunnerStorage(Protocol):
 
 class GitCredentials(TypedDict, total=False):
     username: str
-    access_token: Union[str, Secret[str]]
+    access_token: str | Secret[str]
 
 
 class GitRepository:
@@ -87,6 +96,7 @@ class GitRepository:
         pull_interval: The interval in seconds at which to pull contents from
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
+        directories: The directories to pull from the Git repository (uses git sparse-checkout)
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -106,11 +116,12 @@ class GitRepository:
     def __init__(
         self,
         url: str,
-        credentials: Union[GitCredentials, Block, Dict[str, Any], None] = None,
-        name: Optional[str] = None,
-        branch: Optional[str] = None,
+        credentials: Union[GitCredentials, Block, dict[str, Any], None] = None,
+        name: str | None = None,
+        branch: str | None = None,
         include_submodules: bool = False,
-        pull_interval: Optional[int] = 60,
+        pull_interval: int | None = 60,
+        directories: list[str] | None = None,
     ):
         if credentials is None:
             credentials = {}
@@ -129,17 +140,19 @@ class GitRepository:
         self._credentials = credentials
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
-        default_name = f"{repo_name}-{branch}" if branch else repo_name
+        safe_branch = branch.replace("/", "-") if branch else None
+        default_name = f"{repo_name}-{safe_branch}" if safe_branch else repo_name
         self._name = name or default_name
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
+        self._directories = directories
 
     @property
     def destination(self) -> Path:
         return self._storage_base_path / self._name
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
@@ -147,11 +160,9 @@ class GitRepository:
         return self._pull_interval
 
     @property
-    def _repository_url_with_credentials(self) -> str:
+    def _formatted_credentials(self) -> Optional[str]:
         if not self._credentials:
-            return self._url
-
-        url_components = urlparse(self._url)
+            return None
 
         credentials = (
             self._credentials.model_dump()
@@ -165,20 +176,54 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        formatted_credentials = _format_token_from_credentials(
-            urlparse(self._url).netloc, credentials
+        return _format_token_from_credentials(urlparse(self._url).netloc, credentials)
+
+    def _add_credentials_to_url(self, url: str) -> str:
+        """Add credentials to given url if possible."""
+        components = urlparse(url)
+        credentials = self._formatted_credentials
+
+        if components.scheme != "https" or not credentials:
+            return url
+
+        return urlunparse(
+            components._replace(netloc=f"{credentials}@{components.netloc}")
         )
-        if url_components.scheme == "https" and formatted_credentials is not None:
-            updated_components = url_components._replace(
-                netloc=f"{formatted_credentials}@{url_components.netloc}"
+
+    @property
+    def _repository_url_with_credentials(self) -> str:
+        return self._add_credentials_to_url(self._url)
+
+    @property
+    def _git_config(self) -> list[str]:
+        """Build a git configuration to use when running git commands."""
+        config: dict[str, str] = {}
+
+        # Submodules can be private. The url in .gitmodules
+        # will not include the credentials, we need to
+        # propagate them down here if they exist.
+        if self._include_submodules and self._formatted_credentials:
+            base_url = urlparse(self._url)._replace(path="")
+            without_auth = urlunparse(base_url)
+            with_auth = self._add_credentials_to_url(without_auth)
+            config[f"url.{with_auth}.insteadOf"] = without_auth
+
+        return ["-c", " ".join(f"{k}={v}" for k, v in config.items())] if config else []
+
+    async def is_sparsely_checked_out(self) -> bool:
+        """
+        Check if existing repo is sparsely checked out
+        """
+
+        try:
+            result = await run_process(
+                ["git", "config", "--get", "core.sparseCheckout"], cwd=self.destination
             )
-            repository_url = urlunparse(updated_components)
-        else:
-            repository_url = self._url
+            return result.stdout.decode().strip().lower() == "true"
+        except Exception:
+            return False
 
-        return repository_url
-
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
         """
@@ -197,8 +242,7 @@ class GitRepository:
                 cwd=str(self.destination),
             )
             existing_repo_url = None
-            if result.stdout is not None:
-                existing_repo_url = _strip_auth_from_url(result.stdout.decode().strip())
+            existing_repo_url = _strip_auth_from_url(result.stdout.decode().strip())
 
             if existing_repo_url != self._url:
                 raise ValueError(
@@ -206,9 +250,20 @@ class GitRepository:
                     f"does not match the configured repository {self._url}"
                 )
 
+            # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
+            if self._directories and not await self.is_sparsely_checked_out():
+                await run_process(
+                    ["git", "sparse-checkout", "set", *self._directories],
+                    cwd=self.destination,
+                )
+
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
-            cmd = ["git", "pull", "origin"]
+            cmd = ["git"]
+            # Add the git configuration, must be given after `git` and before the command
+            cmd += self._git_config
+            # Add the pull command and parameters
+            cmd += ["pull", "origin"]
             if self._branch:
                 cmd += [self._branch]
             if self._include_submodules:
@@ -234,16 +289,20 @@ class GitRepository:
         self._logger.debug("Cloning repository %s", self._url)
 
         repository_url = self._repository_url_with_credentials
+        cmd = ["git"]
+        # Add the git configuration, must be given after `git` and before the command
+        cmd += self._git_config
+        # Add the clone command and its parameters
+        cmd += ["clone", repository_url]
 
-        cmd = [
-            "git",
-            "clone",
-            repository_url,
-        ]
         if self._branch:
             cmd += ["--branch", self._branch]
         if self._include_submodules:
             cmd += ["--recurse-submodules"]
+
+        # This will only checkout the top-level directory
+        if self._directories:
+            cmd += ["--sparse"]
 
         # Limit git history and set path to clone to
         cmd += ["--depth", "1", str(self.destination)]
@@ -258,7 +317,15 @@ class GitRepository:
                 f" {exc.returncode}."
             ) from exc_chain
 
-    def __eq__(self, __value) -> bool:
+        # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
+        if self._directories:
+            self._logger.debug("Will add %s", self._directories)
+            await run_process(
+                ["git", "sparse-checkout", "set", *self._directories],
+                cwd=self.destination,
+            )
+
+    def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, GitRepository):
             return (
                 self._url == __value._url
@@ -273,28 +340,29 @@ class GitRepository:
             f" branch={self._branch!r})"
         )
 
-    def to_pull_step(self) -> Dict:
-        pull_step = {
+    def to_pull_step(self) -> dict[str, Any]:
+        pull_step: dict[str, Any] = {
             "prefect.deployments.steps.git_clone": {
                 "repository": self._url,
                 "branch": self._branch,
             }
         }
         if self._include_submodules:
-            pull_step["prefect.deployments.steps.git_clone"][
-                "include_submodules"
-            ] = self._include_submodules
+            pull_step["prefect.deployments.steps.git_clone"]["include_submodules"] = (
+                self._include_submodules
+            )
         if isinstance(self._credentials, Block):
-            pull_step["prefect.deployments.steps.git_clone"][
-                "credentials"
-            ] = f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
-        elif isinstance(self._credentials, dict):
-            if isinstance(self._credentials.get("access_token"), Secret):
+            pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (
+                f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
+            )
+        elif isinstance(self._credentials, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+            if isinstance(
+                access_token := self._credentials.get("access_token"), Secret
+            ):
                 pull_step["prefect.deployments.steps.git_clone"]["credentials"] = {
                     **self._credentials,
                     "access_token": (
-                        "{{"
-                        f" {self._credentials['access_token'].get_block_placeholder()} }}}}"
+                        f"{{{{ {access_token.get_block_placeholder()} }}}}"
                     ),
                 }
             elif self._credentials.get("access_token") is not None:
@@ -386,10 +454,10 @@ class RemoteStorage:
 
         def replace_blocks_with_values(obj: Any) -> Any:
             if isinstance(obj, Block):
-                if hasattr(obj, "get"):
-                    return obj.get()
+                if get := getattr(obj, "get", None):
+                    return get()
                 if hasattr(obj, "value"):
-                    return obj.value
+                    return getattr(obj, "value")
                 else:
                     return obj.model_dump()
             return obj
@@ -398,9 +466,9 @@ class RemoteStorage:
             self._settings, replace_blocks_with_values, return_data=True
         )
 
-        return fsspec.filesystem(scheme, **settings_with_block_values)
+        return fsspec.filesystem(scheme, **settings_with_block_values)  # pyright: ignore[reportUnknownMemberType] missing type stubs
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
@@ -426,7 +494,7 @@ class RemoteStorage:
         _, netloc, urlpath, _, _ = urlsplit(self._url)
         return Path(netloc) / Path(urlpath.lstrip("/"))
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         """
         Pulls contents from remote storage to the local filesystem.
         """
@@ -444,7 +512,7 @@ class RemoteStorage:
         try:
             await from_async.wait_for_call_in_new_thread(
                 create_call(
-                    self._filesystem.get,
+                    self._filesystem.get,  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type stubs
                     remote_path,
                     str(self.destination),
                     recursive=True,
@@ -456,7 +524,7 @@ class RemoteStorage:
                 f" {self.destination!r}"
             ) from exc
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
@@ -480,12 +548,12 @@ class RemoteStorage:
             }
         }
         if required_package:
-            step["prefect.deployments.steps.pull_from_remote_storage"][
-                "requires"
-            ] = required_package
+            step["prefect.deployments.steps.pull_from_remote_storage"]["requires"] = (
+                required_package
+            )
         return step
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         """
         Equality check for runner storage objects.
         """
@@ -511,20 +579,16 @@ class BlockStorageAdapter:
         self._block = block
         self._pull_interval = pull_interval
         self._storage_base_path = Path.cwd()
-        if not isinstance(block, Block):
+        if not isinstance(block, Block):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 f"Expected a block object. Received a {type(block).__name__!r} object."
             )
         if not hasattr(block, "get_directory"):
             raise ValueError("Provided block must have a `get_directory` method.")
 
-        self._name = (
-            f"{block.get_block_type_slug()}-{block._block_document_name}"
-            if block._block_document_name
-            else str(uuid4())
-        )
+        self._name = f"{block.get_block_type_slug()}-{getattr(block, '_block_document_name', uuid4())}"
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
@@ -535,17 +599,17 @@ class BlockStorageAdapter:
     def destination(self) -> Path:
         return self._storage_base_path / self._name
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         if not self.destination.exists():
             self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 
-    def to_pull_step(self) -> dict:
-        # Give blocks the change to implement their own pull step
+    def to_pull_step(self) -> dict[str, Any]:
+        # Give blocks the chance to implement their own pull step
         if hasattr(self._block, "get_pull_step"):
-            return self._block.get_pull_step()
+            return getattr(self._block, "get_pull_step")()
         else:
-            if not self._block._block_document_name:
+            if getattr(self._block, "_block_document_name", None) is None:
                 raise BlockNotSavedError(
                     "Block must be saved with `.save()` before it can be converted to a"
                     " pull step."
@@ -553,11 +617,11 @@ class BlockStorageAdapter:
             return {
                 "prefect.deployments.steps.pull_with_block": {
                     "block_type_slug": self._block.get_block_type_slug(),
-                    "block_document_name": self._block._block_document_name,
+                    "block_document_name": getattr(self._block, "_block_document_name"),
                 }
             }
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, BlockStorageAdapter):
             return self._block == __value._block
         return False
@@ -592,19 +656,19 @@ class LocalStorage:
     def destination(self) -> Path:
         return self._path
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
     def pull_interval(self) -> Optional[int]:
         return self._pull_interval
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         # Local storage assumes the code already exists on the local filesystem
         # and does not need to be pulled from a remote location
         pass
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
@@ -616,7 +680,7 @@ class LocalStorage:
         }
         return step
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, LocalStorage):
             return self._path == __value._path
         return False
@@ -654,7 +718,9 @@ def create_storage_from_source(
         return LocalStorage(path=source, pull_interval=pull_interval)
 
 
-def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
+def _format_token_from_credentials(
+    netloc: str, credentials: dict[str, Any] | GitCredentials
+) -> str:
     """
     Formats the credentials block for the git provider.
 
@@ -667,7 +733,10 @@ def _format_token_from_credentials(netloc: str, credentials: dict) -> str:
     token = credentials.get("token") if credentials else None
     access_token = credentials.get("access_token") if credentials else None
 
-    user_provided_token = access_token or token or password
+    user_provided_token: str | Secret[str] | None = access_token or token or password
+
+    if isinstance(user_provided_token, Secret):
+        user_provided_token = user_provided_token.get()
 
     if not user_provided_token:
         raise ValueError(
@@ -718,7 +787,7 @@ def _strip_auth_from_url(url: str) -> str:
 
     # Construct a new netloc without the auth info
     netloc = parsed.hostname
-    if parsed.port:
+    if parsed.port and netloc:
         netloc += f":{parsed.port}"
 
     # Build the sanitized URL

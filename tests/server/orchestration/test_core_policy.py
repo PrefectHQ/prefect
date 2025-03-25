@@ -10,7 +10,7 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.results import ResultRecordMetadata
+from prefect._result_records import ResultRecordMetadata
 from prefect.server import schemas
 from prefect.server.database import orm_models as orm
 from prefect.server.exceptions import ObjectNotFoundError
@@ -89,15 +89,15 @@ async def assert_deployment_concurrency_limit(
     """
     await session.refresh(deployment)
     limit = deployment.global_concurrency_limit
-    assert (
-        limit is not None
-    ), f"No concurrency limit found for deployment {deployment.id}"
-    assert (
-        limit.limit == expected_limit
-    ), f"Expected concurrency limit {expected_limit}, but got {limit.limit}"
-    assert (
-        limit.active_slots == expected_active_slots
-    ), f"Expected {expected_active_slots} active slots, but got {limit.active_slots}"
+    assert limit is not None, (
+        f"No concurrency limit found for deployment {deployment.id}"
+    )
+    assert limit.limit == expected_limit, (
+        f"Expected concurrency limit {expected_limit}, but got {limit.limit}"
+    )
+    assert limit.active_slots == expected_active_slots, (
+        f"Expected {expected_active_slots} active slots, but got {limit.active_slots}"
+    )
 
 
 @pytest.fixture
@@ -487,10 +487,8 @@ class TestFlowRetryingRule:
         session,
         initialize_orchestration,
         monkeypatch,
+        frozen_time,
     ):
-        now = pendulum.now("UTC")
-        monkeypatch.setattr("pendulum.now", lambda *args: now)
-
         failed_task_runs = [
             mock.Mock(id="task_run_001"),
             mock.Mock(id="task_run_002"),
@@ -782,9 +780,9 @@ class TestUpdatingFlowRunTrackerOnTasks:
                         missing_flow_run,
                     )
 
-        assert (
-            ctx.run.flow_run_run_count == 1
-        ), "The run count should not be updated if the flow run is missing"
+        assert ctx.run.flow_run_run_count == 1, (
+            "The run count should not be updated if the flow run is missing"
+        )
 
 
 class TestPermitRerunningFailedTaskRuns:
@@ -824,9 +822,9 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 0
         assert ctx.proposed_state.name == "Retrying"
-        assert (
-            ctx.run.flow_run_run_count == 4
-        ), "Orchestration should update the flow run run count tracker"
+        assert ctx.run.flow_run_run_count == 4, (
+            "Orchestration should update the flow run run count tracker"
+        )
 
     async def test_can_run_again_even_if_exceeding_flow_runs_count(
         self,
@@ -894,9 +892,9 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 0
         assert ctx.proposed_state.name == "Retrying"
-        assert (
-            ctx.run.flow_run_run_count == 4
-        ), "Orchestration should update the flow run run count tracker"
+        assert ctx.run.flow_run_run_count == 4, (
+            "Orchestration should update the flow run run count tracker"
+        )
 
     async def test_cleans_up_after_invalid_transition(
         self,
@@ -3587,7 +3585,7 @@ class TestFlowConcurrencyLimits:
         )
 
         with mock.patch(
-            "prefect.server.orchestration.core_policy.pendulum.now"
+            "prefect.server.orchestration.core_policy.DateTime.now"
         ) as mock_pendulum_now:
             expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
             mock_pendulum_now.return_value = expected_now
@@ -3646,7 +3644,7 @@ class TestFlowConcurrencyLimits:
             )
 
             with mock.patch(
-                "prefect.server.orchestration.core_policy.pendulum.now"
+                "prefect.server.orchestration.core_policy.DateTime.now"
             ) as mock_pendulum_now:
                 expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
                 mock_pendulum_now.return_value = expected_now
@@ -3779,7 +3777,7 @@ class TestFlowConcurrencyLimits:
         )
 
         with mock.patch(
-            "prefect.server.orchestration.core_policy.pendulum.now"
+            "prefect.server.orchestration.core_policy.DateTime.now"
         ) as mock_pendulum_now:
             expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
             mock_pendulum_now.return_value = expected_now
@@ -3864,7 +3862,7 @@ class TestFlowConcurrencyLimits:
         )
 
         with mock.patch(
-            "prefect.server.orchestration.core_policy.pendulum.now"
+            "prefect.server.orchestration.core_policy.DateTime.now"
         ) as mock_pendulum_now:
             expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
             mock_pendulum_now.return_value = expected_now

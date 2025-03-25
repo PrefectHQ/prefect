@@ -77,7 +77,7 @@ def get_thread_limiter() -> anyio.CapacityLimiter:
 
 def is_async_fn(
     func: _SyncOrAsyncCallable[P, R],
-) -> TypeGuard[Callable[P, Awaitable[R]]]:
+) -> TypeGuard[Callable[P, Coroutine[Any, Any, Any]]]:
     """
     Returns `True` if a function returns a coroutine.
 
@@ -129,8 +129,7 @@ def run_coro_as_sync(
     *,
     force_new_thread: bool = ...,
     wait_for_result: Literal[True] = ...,
-) -> R:
-    ...
+) -> R: ...
 
 
 @overload
@@ -139,8 +138,7 @@ def run_coro_as_sync(
     *,
     force_new_thread: bool = ...,
     wait_for_result: Literal[False] = False,
-) -> R:
-    ...
+) -> R: ...
 
 
 def run_coro_as_sync(
@@ -366,15 +364,13 @@ def sync_compatible(
 @overload
 def asyncnullcontext(
     value: None = None, *args: Any, **kwargs: Any
-) -> AbstractAsyncContextManager[None, None]:
-    ...
+) -> AbstractAsyncContextManager[None, None]: ...
 
 
 @overload
 def asyncnullcontext(
     value: R, *args: Any, **kwargs: Any
-) -> AbstractAsyncContextManager[R, None]:
-    ...
+) -> AbstractAsyncContextManager[R, None]: ...
 
 
 @asynccontextmanager

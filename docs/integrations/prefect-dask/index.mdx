@@ -13,15 +13,31 @@ The `prefect-dask` integration makes it easy to accelerate your flow runs with D
 The following command will install a version of `prefect-dask` compatible with your installed version of `prefect`.
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-```bash
+<CodeGroup>
+
+```bash pip
 pip install "prefect[dask]"
 ```
 
+```bash uv
+uv pip install "prefect[dask]"
+```
+
+</CodeGroup>
+
 Upgrade to the latest versions of `prefect` and `prefect-dask`:
 
-```bash
+<CodeGroup>
+
+```bash pip
 pip install -U "prefect[dask]"
 ```
+
+```bash uv
+uv pip install -U "prefect[dask]"
+```
+
+</CodeGroup>
 
 ## Why use Dask?
 
@@ -382,6 +398,31 @@ if __name__ == "__main__":
 
 ## Additional Resources
 
-Refer to the `prefect-dask` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-dask` library.
+Refer to the `prefect-dask` [SDK documentation](https://reference.prefect.io/prefect_dask/) to explore all the capabilities of the `prefect-dask` library.
 
 For assistance using Dask, consult the [Dask documentation](https://docs.dask.org/en/stable/)
+
+<Warning>
+**Resolving futures in sync client**
+
+Note, by default, `dask_collection.compute()` returns concrete values while `client.compute(dask_collection)` returns Dask Futures. Therefore, if you call `client.compute`, you must resolve all futures before exiting out of the context manager by either:
+
+1. setting `sync=True`
+```python
+with get_dask_client() as client:
+    df = dask.datasets.timeseries("2000", "2001", partition_freq="4w")
+    summary_df = client.compute(df.describe(), sync=True)
+```
+
+2. calling `result()`
+```python
+with get_dask_client() as client:
+    df = dask.datasets.timeseries("2000", "2001", partition_freq="4w")
+    summary_df = client.compute(df.describe()).result()
+```
+For more information, visit the docs on [Waiting on Futures](https://docs.dask.org/en/stable/futures.html#waiting-on-futures).
+</Warning>
+
+There is also an equivalent context manager for asynchronous tasks and flows: `get_async_dask_client`. When using the async client, you must `await client.compute(dask_collection)` before exiting the context manager.
+
+Note that task submission (`.submit()`) and future resolution (`.result()`) are always synchronous operations in Prefect, even when working with async tasks and flows.

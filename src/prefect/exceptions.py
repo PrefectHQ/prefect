@@ -161,7 +161,7 @@ class ParameterTypeError(PrefectException):
     @classmethod
     def from_validation_error(cls, exc: ValidationError) -> Self:
         bad_params = [
-            f'{".".join(str(item) for item in err["loc"])}: {err["msg"]}'
+            f"{'.'.join(str(item) for item in err['loc'])}: {err['msg']}"
             for err in exc.errors()
         ]
         msg = "Flow run received invalid parameters:\n - " + "\n - ".join(bad_params)

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 dependencies = [
-    "prefect>=3.1.1",
-    "kubernetes-asyncio>=29.0.0",
+    "prefect>=3.2.8",
+    "kubernetes-asyncio>=32.0.0",
     "tenacity>=8.2.3",
     "exceptiongroup",
     "pyopenssl>=24.1.0",
@@ -32,7 +32,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "aiohttp",
     "coverage",
@@ -51,6 +51,7 @@ dev = [
     "pytest-xdist",
 ]
 
+
 [project.urls]
 Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-kubernetes"
 
@@ -63,6 +64,10 @@ root = "../../.."
 tag_regex = "^prefect-kubernetes-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-kubernetes-*[0-9]*"'
+
+
+[tool.setuptools]
+packages = ["prefect_kubernetes"]
 
 [tool.interrogate]
 ignore-init-module = true
@@ -83,3 +88,9 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
 timeout = 30
+
+[tool.uv.sources]
+prefect = { path = "../../../", editable = true }
+
+[tool.uv.workspace]
+members = ["integration_tests"]

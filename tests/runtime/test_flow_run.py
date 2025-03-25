@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
+from typing import Any
 
-import pendulum
 import pytest
 
 from prefect import flow, states, tags, task
@@ -11,6 +11,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
+from prefect.types._datetime import DateTime, Timezone, now
 
 
 class TestAttributeAccessPatterns:
@@ -20,13 +21,13 @@ class TestAttributeAccessPatterns:
 
     async def test_import_unknown_attribute_fails(self):
         with pytest.raises(ImportError, match="boop"):
-            from prefect.runtime.flow_run import boop  # noqa
+            from prefect.runtime.flow_run import boop  # noqa # type: ignore
 
     async def test_known_attributes_autocomplete(self):
         assert "id" in dir(flow_run)
         assert "foo" not in dir(flow_run)
 
-    async def test_new_attribute_via_env_var(self, monkeypatch):
+    async def test_new_attribute_via_env_var(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv(name="PREFECT__RUNTIME__FLOW_RUN__NEW_KEY", value="foobar")
         assert flow_run.new_key == "foobar"
 
@@ -40,14 +41,19 @@ class TestAttributeAccessPatterns:
             ("str_attribute", "foo", "bar", "bar"),
             (
                 "datetime_attribute",
-                pendulum.DateTime(2022, 1, 1, 0, tzinfo=pendulum.UTC),
+                DateTime(2022, 1, 1, 0, tzinfo=Timezone("UTC")),
                 "2023-05-13 20:00:00",
-                pendulum.DateTime(2023, 5, 13, 20, tzinfo=pendulum.UTC),
+                DateTime(2023, 5, 13, 20, tzinfo=Timezone("UTC")),
             ),
         ],
     )
     async def test_attribute_override_via_env_var(
-        self, monkeypatch, attribute_name, attribute_value, env_value, expected_value
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        attribute_name: str,
+        attribute_value: Any,
+        env_value: str,
+        expected_value: Any,
     ):
         # mock attribute_name to be a function that generates attribute_value
         monkeypatch.setitem(flow_run.FIELDS, attribute_name, lambda: attribute_value)
@@ -71,7 +77,7 @@ class TestAttributeAccessPatterns:
         ],
     )
     async def test_attribute_override_via_env_var_not_allowed(
-        self, monkeypatch, attribute_name, attribute_value
+        self, monkeypatch: pytest.MonkeyPatch, attribute_name: str, attribute_value: Any
     ):
         # mock attribute_name to be a function that generates attribute_value
         monkeypatch.setitem(flow_run.FIELDS, attribute_name, lambda: attribute_value)
@@ -96,12 +102,12 @@ class TestID:
     async def test_id_is_none_when_not_set(self):
         assert flow_run.id is None
 
-    async def test_id_uses_env_var_when_set(self, monkeypatch):
+    async def test_id_uses_env_var_when_set(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value="foo")
         assert flow_run.id == "foo"
 
     async def test_id_prioritizes_context_info_over_env_var_dynamically(
-        self, monkeypatch
+        self, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value="foo")
 
@@ -142,7 +148,9 @@ class TestTags:
 
         assert flow_run.tags == []
 
-    async def test_tags_pulls_from_api_when_needed(self, monkeypatch, prefect_client):
+    async def test_tags_pulls_from_api_when_needed(
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
+    ):
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"), tags=["red", "green"]
         )
@@ -170,7 +178,9 @@ class TestRunCount:
 
         assert flow_run.run_count == 0
 
-    async def test_run_count_from_api(self, monkeypatch, prefect_client):
+    async def test_run_count_from_api(
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
+    ):
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test", retries=5)
         )
@@ -193,9 +203,9 @@ class TestStartTime:
         assert isinstance(flow_run.scheduled_start_time, datetime.datetime)
 
     async def test_scheduled_start_time_pulls_from_api_when_needed(
-        self, monkeypatch, prefect_client
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
-        TIMESTAMP = pendulum.now("utc").add(days=7)
+        TIMESTAMP = now("utc").add(days=7)
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"),
             state=states.Scheduled(scheduled_time=TIMESTAMP),
@@ -224,7 +234,9 @@ class TestName:
 
         assert flow_run.name is None
 
-    async def test_name_pulls_from_api_when_needed(self, monkeypatch, prefect_client):
+    async def test_name_pulls_from_api_when_needed(
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
+    ):
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"), name="foo"
         )
@@ -253,7 +265,7 @@ class TestFlowName:
         assert flow_run.flow_name is None
 
     async def test_flow_name_pulls_from_api_when_needed(
-        self, monkeypatch, prefect_client
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="foo"), name="bar"
@@ -279,7 +291,9 @@ class TestParameters:
         ):
             assert flow_run.parameters == {"x": "foo", "y": "bar"}
 
-    async def test_parameters_from_api(self, monkeypatch, prefect_client):
+    async def test_parameters_from_api(
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
+    ):
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="foo"), parameters={"x": "foo", "y": "bar"}
         )
@@ -300,7 +314,9 @@ class TestParameters:
 
         assert my_flow(foo) == {"x": foo}
 
-    async def test_outside_flow_run_uses_serialized_parameters(self, monkeypatch):
+    async def test_outside_flow_run_uses_serialized_parameters(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         @dataclasses.dataclass
         class Foo:
             y: int
@@ -325,7 +341,7 @@ class TestParentFlowRunId:
         assert flow_run.parent_flow_run_id is None
 
     async def test_parent_flow_run_id_returns_parent_flow_run_id_when_present_dynamically(
-        self, prefect_client
+        self, prefect_client: PrefectClient
     ):
         assert flow_run.parent_flow_run_id is None
 
@@ -360,7 +376,7 @@ class TestParentFlowRunId:
         assert flow_run.parent_flow_run_id is None
 
     async def test_parent_flow_run_id_pulls_from_api_when_needed(
-        self, monkeypatch, prefect_client
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
         assert flow_run.parent_flow_run_id is None
 
@@ -402,7 +418,7 @@ class TestParentDeploymentId:
         assert flow_run.parent_deployment_id is None
 
     async def test_parent_deployment_id_returns_parent_deployment_id_when_present_dynamically(
-        self, prefect_client
+        self, prefect_client: PrefectClient
     ):
         assert flow_run.parent_deployment_id is None
 
@@ -460,7 +476,7 @@ class TestParentDeploymentId:
             assert flow_run.parent_deployment_id is None
 
     async def test_parent_deployment_id_pulls_from_api_when_needed(
-        self, monkeypatch, prefect_client: PrefectClient
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
         assert flow_run.parent_deployment_id is None
 
@@ -536,7 +552,7 @@ class TestRootFlowRunId:
         assert flow_run.root_flow_run_id is None
 
     async def test_root_flow_run_id_pulls_from_api_when_needed(
-        self, monkeypatch, prefect_client
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
         assert flow_run.root_flow_run_id is None
 
@@ -591,11 +607,11 @@ class TestRootFlowRunId:
 
 class TestURL:
     @pytest.mark.parametrize("url_type", ["api_url", "ui_url"])
-    async def test_url_is_attribute(self, url_type):
+    async def test_url_is_attribute(self, url_type: str):
         assert url_type in dir(flow_run)
 
     @pytest.mark.parametrize("url_type", ["api_url", "ui_url"])
-    async def test_url_is_none_when_id_not_set(self, url_type):
+    async def test_url_is_none_when_id_not_set(self, url_type: str):
         assert getattr(flow_run, url_type) is None
 
     @pytest.mark.parametrize(
@@ -604,13 +620,15 @@ class TestURL:
     )
     async def test_url_returns_correct_url_when_id_present(
         self,
-        url_type,
+        url_type: str,
     ):
         test_id = "12345"
         if url_type == "api_url":
             base_url_value = PREFECT_API_URL.value()
         elif url_type == "ui_url":
             base_url_value = PREFECT_UI_URL.value()
+        else:
+            raise ValueError(f"Invalid url_type: {url_type}")
 
         expected_url = f"{base_url_value}/flow-runs/flow-run/{test_id}"
 
@@ -627,9 +645,9 @@ class TestURL:
     )
     async def test_url_pulls_from_api_when_needed(
         self,
-        monkeypatch,
-        prefect_client,
-        url_type,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        url_type: str,
     ):
         run = await prefect_client.create_flow_run(flow=flow(lambda: None, name="test"))
 
@@ -639,6 +657,8 @@ class TestURL:
             base_url_value = PREFECT_API_URL.value()
         elif url_type == "ui_url":
             base_url_value = PREFECT_UI_URL.value()
+        else:
+            raise ValueError(f"Invalid url_type: {url_type}")
 
         expected_url = f"{base_url_value}/flow-runs/flow-run/{str(run.id)}"
 

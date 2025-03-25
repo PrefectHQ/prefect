@@ -2,15 +2,26 @@
 Command line interface for interacting with Prefect Cloud
 """
 
+from __future__ import annotations
+
 import os
 import traceback
 import uuid
 import urllib.parse
+import warnings
 import webbrowser
 from contextlib import asynccontextmanager
-from typing import Dict, Hashable, Iterable, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import anyio
+import anyio.abc
 import httpx
 import readchar
 import typer
@@ -18,7 +29,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-
+from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from typing_extensions import Literal
@@ -44,23 +55,25 @@ from prefect.utilities.collections import listrepr
 
 from pydantic import BaseModel
 
+T = TypeVar("T")
+
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
-cloud_app = PrefectTyper(
+cloud_app: PrefectTyper = PrefectTyper(
     name="cloud", help="Authenticate and interact with Prefect Cloud"
 )
-workspace_app = PrefectTyper(
+workspace_app: PrefectTyper = PrefectTyper(
     name="workspace", help="View and set Prefect Cloud Workspaces"
 )
 cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
 
 
-def set_login_api_ready_event():
+def set_login_api_ready_event() -> None:
     login_api.extra["ready-event"].set()
 
 
 @asynccontextmanager
-async def lifespan(app):
+async def lifespan(app: FastAPI):
     try:
         set_login_api_ready_event()
         yield
@@ -68,7 +81,7 @@ async def lifespan(app):
         pass
 
 
-login_api = FastAPI(lifespan=lifespan)
+login_api: FastAPI = FastAPI(lifespan=lifespan)
 """
 This small API server is used for data transmission for browser-based log in.
 """
@@ -99,31 +112,46 @@ class ServerExit(Exception):
 
 
 @login_api.post("/success")
-def receive_login(payload: LoginSuccess):
+def receive_login(payload: LoginSuccess) -> None:
     login_api.extra["result"] = LoginResult(type="success", content=payload)
     login_api.extra["result-event"].set()
 
 
 @login_api.post("/failure")
-def receive_failure(payload: LoginFailed):
+def receive_failure(payload: LoginFailed) -> None:
     login_api.extra["result"] = LoginResult(type="failure", content=payload)
     login_api.extra["result-event"].set()
 
 
-async def serve_login_api(cancel_scope, task_status):
+async def serve_login_api(
+    cancel_scope: anyio.CancelScope, task_status: anyio.abc.TaskStatus[uvicorn.Server]
+) -> None:
     config = uvicorn.Config(login_api, port=0, log_level="critical")
     server = uvicorn.Server(config)
 
     try:
         # Yield the server object
         task_status.started(server)
-        await server.serve()
+        with warnings.catch_warnings():
+            # Uvicorn uses the deprecated pieces of websockets, filter out
+            # the warnings until uvicorn has its dependencies updated
+            warnings.filterwarnings(
+                "ignore", category=DeprecationWarning, module="websockets"
+            )
+            warnings.filterwarnings(
+                "ignore",
+                category=DeprecationWarning,
+                module="uvicorn.protocols.websockets",
+            )
+            await server.serve()
     except anyio.get_cancelled_exc_class():
         pass  # Already cancelled, do not cancel again
     except SystemExit as exc:
         # If uvicorn is misconfigured, it will throw a system exit and hide the exc
         app.console.print("[red][bold]X Error starting login service!")
         cause = exc.__context__  # Hide the system exit
+        if TYPE_CHECKING:
+            assert isinstance(cause, BaseException)
         traceback.print_exception(type(cause), value=cause, tb=cause.__traceback__)
         cancel_scope.cancel()
     else:
@@ -132,7 +160,7 @@ async def serve_login_api(cancel_scope, task_status):
         cancel_scope.cancel()
 
 
-def confirm_logged_in():
+def confirm_logged_in() -> None:
     if not PREFECT_API_KEY:
         profile = prefect.context.get_settings_context().profile
         exit_with_error(
@@ -141,7 +169,7 @@ def confirm_logged_in():
         )
 
 
-def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace]:
+def get_current_workspace(workspaces: Iterable[Workspace]) -> Workspace | None:
     current_api_url = PREFECT_API_URL.value()
 
     if not current_api_url:
@@ -154,9 +182,21 @@ def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace
     return None
 
 
+@overload
 def prompt_select_from_list(
-    console, prompt: str, options: Union[List[str], List[Tuple[Hashable, str]]]
-) -> str:
+    console: Console, prompt: str, options: list[str]
+) -> str: ...
+
+
+@overload
+def prompt_select_from_list(
+    console: Console, prompt: str, options: list[tuple[T, str]]
+) -> T: ...
+
+
+def prompt_select_from_list(
+    console: Console, prompt: str, options: list[str] | list[tuple[T, str]]
+) -> str | T:
     """
     Given a list of options, display the values to user in a table and prompt them
     to select one.
@@ -169,7 +209,6 @@ def prompt_select_from_list(
     Returns:
         str: the selected option
     """
-
     current_idx = 0
     selected_option = None
 
@@ -178,7 +217,7 @@ def prompt_select_from_list(
         Generate a table of options. The `current_idx` will be highlighted.
         """
 
-        table = Table(box=False, header_style=None, padding=(0, 0))
+        table = Table(box=None, header_style=None, padding=(0, 0))
         table.add_column(
             f"? [bold]{prompt}[/] [bright_blue][Use arrows to move; enter to select]",
             justify="left",
@@ -215,12 +254,16 @@ def prompt_select_from_list(
                 exit_with_error("")
             elif key == readchar.key.ENTER or key == readchar.key.CR:
                 selected_option = options[current_idx]
-                if isinstance(selected_option, tuple):
-                    selected_option = selected_option[0]
+                # Break out of the loop immediately after setting selected_option
+                break
 
             live.update(build_table(), refresh=True)
 
-        return selected_option
+    # Convert tuple to its first element if needed
+    if isinstance(selected_option, tuple):
+        selected_option = selected_option[0]
+
+    return selected_option
 
 
 async def login_with_browser() -> str:
@@ -278,11 +321,11 @@ async def login_with_browser() -> str:
 
     if result.type == "success":
         return result.content.api_key
-    elif result.type == "failure":
+    else:
         exit_with_error(f"Failed to log in. {result.content.reason}")
 
 
-async def check_key_is_valid_for_login(key: str):
+async def check_key_is_valid_for_login(key: str) -> bool:
     """
     Attempt to use a key to see if it is valid
     """
@@ -295,11 +338,11 @@ async def check_key_is_valid_for_login(key: str):
 
 
 async def _prompt_for_account_and_workspace(
-    workspaces: List[Workspace],
-) -> Tuple[Optional[Workspace], bool]:
+    workspaces: list[Workspace],
+) -> tuple[Workspace | None, bool]:
     if len(workspaces) > 10:
         # Group workspaces by account_id
-        workspace_by_account: Dict[uuid.UUID, List[Workspace]] = {}
+        workspace_by_account: dict[uuid.UUID, list[Workspace]] = {}
         for workspace in workspaces:
             workspace_by_account.setdefault(workspace.account_id, []).append(workspace)
 
@@ -316,22 +359,34 @@ async def _prompt_for_account_and_workspace(
                 }
                 for account_id in workspace_by_account.keys()
             ]
+            account_options = [
+                (account, str(account["account_handle"])) for account in accounts
+            ]
             account = prompt_select_from_list(
                 app.console,
                 "Which account would you like to use?",
-                [(account, account["account_handle"]) for account in accounts],
+                options=account_options,
             )
-            workspaces = workspace_by_account[account["account_id"]]
+            account_id = account["account_id"]
+            if TYPE_CHECKING:
+                assert isinstance(account_id, uuid.UUID)
+            workspaces = workspace_by_account[account_id]
+
+    workspace_options: list[tuple[Workspace | None, str]] = [
+        (workspace, workspace.handle) for workspace in workspaces
+    ]
+    go_back_option = (
+        None,
+        "[bold]Go back to account selection[/bold]",
+    )
 
     result = prompt_select_from_list(
         app.console,
         "Which workspace would you like to use?",
-        [(workspace, workspace.handle) for workspace in workspaces]
-        + [
-            "[bold]Go back to account selection[/bold]",
-        ],
+        options=workspace_options + [go_back_option],
     )
-    if "Go back" in result:
+
+    if not result:
         return None, True
     else:
         return result, False
@@ -384,7 +439,7 @@ async def login(
                 f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
 
-    already_logged_in_profiles = []
+    already_logged_in_profiles: list[str] = []
     for name, profile in profiles.items():
         profile_key = profile.settings.get(PREFECT_API_KEY)
         if (
@@ -444,6 +499,9 @@ async def login(
             key = typer.prompt("Paste your API key", hide_input=True)
         elif choice == "browser":
             key = await login_with_browser()
+
+    if TYPE_CHECKING:
+        assert isinstance(key, str)
 
     async with get_cloud_client(api_key=key) as client:
         try:
@@ -521,6 +579,9 @@ async def login(
                 f" {PREFECT_CLOUD_UI_URL.value()} and try again."
             )
 
+    if TYPE_CHECKING:
+        assert isinstance(selected_workspace, Workspace)
+
     update_current_profile(
         {
             PREFECT_API_KEY: key,
@@ -540,8 +601,6 @@ async def logout():
     Reset PREFECT_API_KEY and PREFECT_API_URL to default.
     """
     current_profile = prefect.context.get_settings_context().profile
-    if current_profile is None:
-        exit_with_error("There is no current profile set.")
 
     if current_profile.settings.get(PREFECT_API_KEY) is None:
         exit_with_error("Current profile is not logged into Prefect Cloud.")
@@ -568,20 +627,14 @@ async def open():
     """
     confirm_logged_in()
 
-    current_profile = prefect.context.get_settings_context().profile
-    if current_profile is None:
-        exit_with_error(
-            "There is no current profile set - set one with `prefect profile create"
-            " <name>` and `prefect profile use <name>`."
-        )
     async with get_cloud_client() as client:
-        current_workspace = await client.read_current_workspace()
-
-    if current_workspace is None:
-        exit_with_error(
-            "There is no current workspace set - set one with `prefect cloud workspace"
-            " set --workspace <workspace>`."
-        )
+        try:
+            current_workspace = await client.read_current_workspace()
+        except ValueError:
+            exit_with_error(
+                "There is no current workspace set - set one with `prefect cloud workspace"
+                " set --workspace <workspace>`."
+            )
 
     ui_url = current_workspace.ui_url()
 
@@ -652,9 +705,22 @@ async def set(
             if not workspaces:
                 exit_with_error("No workspaces found in the selected account.")
 
+            # Store the original list of workspaces
+            original_workspaces = workspaces.copy()
+
             go_back = True
+            workspace = None
+            loop_count = 0
+
             while go_back:
+                loop_count += 1
+
+                # If we're going back, use the original list of workspaces
+                if loop_count > 1:
+                    workspaces = original_workspaces.copy()
+
                 workspace, go_back = await _prompt_for_account_and_workspace(workspaces)
+
             if workspace is None:
                 exit_with_error("No workspace selected.")
 

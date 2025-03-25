@@ -13,11 +13,7 @@ on:
     paths:
       - .github/workflows/markdown-tests.yaml
       - "docs/**"
-      - requirements-client.txt
-      - requirements-dev.txt
-      - requirements-markdown-tests.txt
-      - requirements.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
 
   push:
@@ -27,11 +23,7 @@ on:
       - .github/workflows/markdown-tests.yaml
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
-      - requirements-client.txt
-      - requirements-dev.txt
-      - requirements-markdown-tests.txt
-      - requirements.txt
-      - setup.cfg
+      - pyproject.toml
       - Dockerfile
 
 permissions:
@@ -52,8 +44,7 @@ concurrency:
 
 jobs:
   run-markdown-tests:
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     name: markdown:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
@@ -64,7 +55,7 @@ jobs:
 
       fail-fast: true
 
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - name: Display current test matrix
@@ -75,36 +66,23 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        id: setup_python
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-
-      - name: UV Cache
-        # Manually cache the uv cache directory
-        # until setup-python supports it:
-        # https://github.com/actions/setup-python/issues/822
-        uses: actions/cache@v4
-        id: cache-uv
-        with:
-          path: ~/.cache/uv
-          key: uvcache-markdown-tests-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt', 'requirements-markdown.txt') }}
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
-        run: |
-          python -m pip install -U uv
-          uv pip install --upgrade -r requirements-markdown-tests.txt
-          uv pip install --upgrade -e '.[dev]'
-          uv pip uninstall pytest-benchmark
+        run: uv sync --group markdown-docs
 
       - name: Start server
         run: |
-          PREFECT_HOME=$(pwd) prefect server start&
-          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+          PREFECT_HOME=$(pwd) uv run prefect server start&
+          PREFECT_API_URL="http://127.0.0.1:4200/api" uv run ./scripts/wait-for-server.py
 
       - name: Run tests
         run: >
-          PREFECT_API_URL="http://127.0.0.1:4200/api" pytest docs/ --markdown-docs -m markdown-docs
+          PREFECT_API_URL="http://127.0.0.1:4200/api" uv run pytest docs/ --markdown-docs -m markdown-docs
           --numprocesses auto
           --maxprocesses 6

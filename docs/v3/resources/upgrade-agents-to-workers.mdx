@@ -7,7 +7,7 @@ Upgrading from agents to workers significantly enhances the experience of deploy
 by simplifying the specification of each flow's infrastructure and runtime environment.
 
 <Note>
-This guide is for users who are on `prefect<3.0` who are upgrading from agents to workers.
+This guide is for users who are upgrading from agents (a deployment pattern specific to `prefect>2.0,<3.0`) to workers.
 If you are new to Prefect, we recommend starting with the 
 [Prefect Quickstart](/v3/get-started/quickstart/).
 </Note>
@@ -61,7 +61,7 @@ to enable [dryer deployment definitions](/v3/deploy/infrastructure-examples/dock
     Prefect now automatically detects flows in your repo and provides a [wizard](/v3/#step-5-deploy-the-flow)  
     to guide you through setting required attributes for your deployments.
 
-    `Deployment.build_from_flow` --> [`flow.deploy`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.flows.Flow.deploy)
+    `Deployment.build_from_flow` --> [`flow.deploy`](https://reference.prefect.io/prefect/flows/#prefect.flows.Flow.deploy)
 
 2. **Configuring remote flow code storage:**
 
@@ -344,7 +344,7 @@ if __name__ == "__main__":
 
 <Note>
 When using `flow.from_source().deploy()` with a remote `source`such as a `GitHub` block or `str` URL like https://github.com/me/myrepo.git), the flow you're deploying doesn't need to be available locally before running your script.
-See the [SDK reference](https://prefect-python-sdk-docs.netlify.app/prefect/#prefect.Flow.from_source) for more info on `from_source`.
+See the [SDK reference](https://reference.prefect.io/prefect/#prefect.Flow.from_source) for more info on `from_source`.
 </Note>
 
 {/*

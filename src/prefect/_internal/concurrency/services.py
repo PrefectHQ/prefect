@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import asyncio
 import concurrent.futures
@@ -32,7 +34,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         self._task: Optional[asyncio.Task[None]] = None
         self._stopped: bool = False
         self._started: bool = False
-        self._key = hash(args)
+        self._key = hash((self.__class__, *args))
         self._lock = threading.Lock()
         self._queue_get_thread = WorkerThread(
             # TODO: This thread should not need to be a daemon but when it is not, it
@@ -65,7 +67,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         # failure to process items. This is particularly relevant for services
         # which use an httpx client. See related issue at
         # https://github.com/python/cpython/issues/86813
-        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
     def _at_exit(self) -> None:
         self.drain(at_exit=True)
@@ -256,7 +258,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         If an instance already exists with the given arguments, it will be returned.
         """
         with cls._instance_lock:
-            key = hash(args)
+            key = hash((cls, *args))
             if key not in cls._instances:
                 cls._instances[key] = cls._new_instance(*args)
 
@@ -375,6 +377,14 @@ class BatchedQueueService(QueueService[T]):
     _max_batch_size: int
     _min_interval: Optional[float] = None
 
+    @property
+    def min_interval(self) -> float | None:
+        return self.__class__._min_interval
+
+    @property
+    def max_batch_size(self) -> int:
+        return self.__class__._max_batch_size
+
     async def _main_loop(self):
         done = False
 
@@ -383,8 +393,8 @@ class BatchedQueueService(QueueService[T]):
             batch_size = 0
 
             # Pull items from the queue until we reach the batch size
-            deadline = get_deadline(self._min_interval)
-            while batch_size < self._max_batch_size:
+            deadline = get_deadline(self.min_interval)
+            while batch_size < self.max_batch_size:
                 try:
                     item = await self._queue_get_thread.submit(
                         create_call(self._queue.get, timeout=get_timeout(deadline))
@@ -401,7 +411,7 @@ class BatchedQueueService(QueueService[T]):
                         self,
                         item,
                         batch_size,
-                        self._max_batch_size,
+                        self.max_batch_size,
                     )
                 except queue.Empty:
                     # Process the batch after `min_interval` even if it is smaller than

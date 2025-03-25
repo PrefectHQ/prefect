@@ -7,6 +7,7 @@ import contextlib
 import datetime
 from itertools import chain
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -20,7 +21,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,9 @@ from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MinimalFlowPolicy
 from prefect.server.orchestration.global_policy import GlobalFlowPolicy
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    FlowRunOrchestrationPolicy,
+)
 from prefect.server.orchestration.rules import FlowOrchestrationContext
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.graph import Graph
@@ -46,14 +48,15 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
 from prefect.types import KeyValueLabels
+from prefect.types._datetime import DateTime, earliest_possible_datetime, now
 
-logger = get_logger("flow_runs")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("flow_runs")
 
 
-logger = get_logger("flow_runs")
-
-
-T = TypeVar("T", bound=tuple)
+T = TypeVar("T", bound=tuple[Any, ...])
 
 
 @db_injector
@@ -74,7 +77,7 @@ async def create_flow_run(
     Returns:
         orm_models.FlowRun: the newly-created flow run
     """
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
     # model: Union[orm_models.FlowRun, None] = None
 
     flow_run.labels = await with_system_labels_for_flow_run(
@@ -91,7 +94,7 @@ async def create_flow_run(
             },
             exclude_unset=True,
         ),
-        created=now,
+        created=right_now,
     )
 
     # if no idempotency key was provided, create the run directly
@@ -131,7 +134,7 @@ async def create_flow_run(
 
     # if the flow run was created in this function call then we need to set the
     # state. If it was created idempotently, the created time won't match.
-    if model.created == now and flow_run.state:
+    if model.created == right_now and flow_run.state:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=model.id,
@@ -279,7 +282,7 @@ async def _apply_flow_run_filters(
 async def read_flow_runs(
     db: PrefectDBInterface,
     session: AsyncSession,
-    columns: Optional[List] = None,
+    columns: Optional[list[str]] = None,
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
     task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
@@ -342,7 +345,7 @@ async def read_flow_runs(
 async def cleanup_flow_run_concurrency_slots(
     session: AsyncSession,
     flow_run: orm_models.FlowRun,
-):
+) -> None:
     """
     Cleanup flow run related resources, such as releasing concurrency slots.
     All operations should be idempotent and safe to call multiple times.
@@ -506,7 +509,7 @@ async def set_flow_run_state(
     flow_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    flow_policy: Optional[Type[BaseOrchestrationPolicy]] = None,
+    flow_policy: Optional[Type[FlowRunOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
@@ -600,10 +603,13 @@ async def read_flow_run_graph(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
-    since: pendulum.DateTime = pendulum.DateTime.min,
+    since: DateTime = earliest_possible_datetime(),
 ) -> Graph:
     """Given a flow run, return the graph of it's task and subflow runs. If a `since`
     datetime is provided, only return items that may have changed since that time."""
+    if isinstance(since, str):
+        since = DateTime.fromisoformat(since)
+
     return await db.queries.flow_run_graph_v2(
         session=session,
         flow_run_id=flow_run_id,

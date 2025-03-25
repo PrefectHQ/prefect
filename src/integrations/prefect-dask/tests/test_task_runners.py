@@ -14,45 +14,49 @@ from prefect import flow, task
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
-from prefect.testing.fixtures import (  # noqa: F401
-    hosted_api_server,
-    use_hosted_api_server,
-)
+
+
+@pytest.fixture(scope="module")
+def cluster():
+    with distributed.LocalCluster(dashboard_address=None) as cluster:
+        yield cluster
 
 
 @pytest.fixture
-def dask_task_runner_with_existing_cluster(use_hosted_api_server):  # noqa
+def dask_task_runner_with_existing_cluster(cluster: distributed.LocalCluster):  # noqa
     """
     Generate a dask task runner that's connected to a local cluster
     """
-    with distributed.LocalCluster(n_workers=2) as cluster:
-        yield DaskTaskRunner(cluster=cluster)
+    yield DaskTaskRunner(cluster=cluster)
 
 
 @pytest.fixture
-def dask_task_runner_with_existing_cluster_address(use_hosted_api_server):  # noqa
+def dask_task_runner_with_existing_cluster_address(cluster: distributed.LocalCluster):  # noqa
     """
     Generate a dask task runner that's connected to a local cluster
     """
-    with distributed.LocalCluster(n_workers=2) as cluster:
-        with distributed.Client(cluster) as client:
-            address = client.scheduler.address
-            yield DaskTaskRunner(address=address)
+    with distributed.Client(cluster) as client:
+        address = client.scheduler.address
+        yield DaskTaskRunner(address=address)
 
 
 @pytest.fixture
-def dask_task_runner_with_process_pool(use_hosted_api_server):  # noqa
-    yield DaskTaskRunner(cluster_kwargs={"processes": True})
+def dask_task_runner_with_process_pool():  # noqa
+    yield DaskTaskRunner(cluster_kwargs={"processes": True, "dashboard_address": None})
 
 
 @pytest.fixture
-def dask_task_runner_with_thread_pool(use_hosted_api_server):  # noqa
-    yield DaskTaskRunner(cluster_kwargs={"processes": False})
+def dask_task_runner_with_thread_pool():  # noqa
+    yield DaskTaskRunner(cluster_kwargs={"processes": False, "dashboard_address": None})
 
 
 @pytest.fixture
-def default_dask_task_runner(use_hosted_api_server):  # noqa
-    yield DaskTaskRunner()
+def default_dask_task_runner():  # noqa
+    yield DaskTaskRunner(
+        cluster_kwargs={
+            "dashboard_address": None,  # Prevent port conflicts
+        }
+    )
 
 
 class TestDaskTaskRunner:
@@ -192,7 +196,7 @@ class TestDaskTaskRunner:
             state = future.state
             assert await state.result() == "a"
 
-    async def test_async_task_timeout(self, task_runner):
+    async def test_async_task_timeout(self, task_runner: DaskTaskRunner):
         @task(timeout_seconds=0.1)
         async def my_timeout_task():
             await asyncio.sleep(2)
@@ -342,9 +346,9 @@ class TestDaskTaskRunner:
             with task_runner:
                 assert task_runner._cluster._adapt_called
 
-    def test_warns_if_future_garbage_collection_before_resolving(
-        self, caplog, task_runner
-    ):
+    def test_warns_if_future_garbage_collection_before_resolving(self, caplog):
+        task_runner = DaskTaskRunner(cluster_kwargs={"dashboard_address": None})
+
         @task
         def test_task():
             return 42
@@ -358,9 +362,9 @@ class TestDaskTaskRunner:
 
         assert "A future was garbage collected before it resolved" in caplog.text
 
-    def test_does_not_warn_if_future_resolved_when_garbage_collected(
-        self, task_runner, caplog
-    ):
+    def test_does_not_warn_if_future_resolved_when_garbage_collected(self, caplog):
+        task_runner = DaskTaskRunner(cluster_kwargs={"dashboard_address": None})
+
         @task
         def test_task():
             return 42
@@ -498,3 +502,34 @@ class TestDaskTaskRunner:
         a_time, b_time, c_time = test_flow()
 
         assert c_time > a_time and c_time > b_time
+
+    async def test_performance_report_generation(self, tmp_path):
+        report_path = tmp_path / "dask-report.html"
+        task_runner_with_performance_report_path = DaskTaskRunner(
+            performance_report_path=str(report_path)
+        )
+
+        @task
+        def task_a():
+            return "a"
+
+        @task
+        def task_b():
+            return "b"
+
+        @task
+        def task_c(b):
+            return b + "c"
+
+        @flow(version="test", task_runner=task_runner_with_performance_report_path)
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(b)
+            return a, b, c
+
+        test_flow()
+
+        assert report_path.exists()
+        report_content = report_path.read_text()
+        assert "Dask Performance Report" in report_content

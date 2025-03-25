@@ -3,6 +3,7 @@ State schemas.
 """
 
 import warnings
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,21 +16,17 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
 from prefect.client.schemas import objects
 from prefect.server.utilities.schemas.bases import IDBaseModel, PrefectBaseModel
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMFlowRunState, ORMTaskRunState
     from prefect.server.schemas.actions import StateCreate
-
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
 
 
 R = TypeVar("R")
@@ -63,7 +60,7 @@ class CountByState(PrefectBaseModel):
 
     @field_validator("*")
     @classmethod
-    def check_key(cls, value: Optional[Any], info: ValidationInfo):
+    def check_key(cls, value: Optional[Any], info: ValidationInfo) -> Optional[Any]:
         if info.field_name not in StateType.__members__:
             raise ValueError(f"{info.field_name} is not a valid StateType")
         return value
@@ -122,7 +119,7 @@ class State(StateBaseModel):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     data: Optional[Any] = Field(
         default=None,
@@ -175,7 +172,7 @@ class State(StateBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = now("utc")
 
         return self
 
@@ -216,29 +213,28 @@ class State(StateBaseModel):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": now("utc"),
+                "updated": now("utc"),
+                "timestamp": now("utc"),
             },
             deep=True,
             **kwargs,
         )
 
     @overload
-    def result(self, raise_on_failure: Literal[True] = ..., fetch: bool = ...) -> Any:
-        ...
+    def result(
+        self, raise_on_failure: Literal[True] = ..., fetch: bool = ...
+    ) -> Any: ...
 
     @overload
     def result(
         self, raise_on_failure: Literal[False] = False, fetch: bool = ...
-    ) -> Union[Any, Exception]:
-        ...
+    ) -> Union[Any, Exception]: ...
 
     @overload
     def result(
         self, raise_on_failure: bool = ..., fetch: bool = ...
-    ) -> Union[Any, Exception]:
-        ...
+    ) -> Union[Any, Exception]: ...
 
     def result(
         self, raise_on_failure: bool = True, fetch: bool = True
@@ -316,7 +312,7 @@ class State(StateBaseModel):
 
 
 def Scheduled(
-    scheduled_time: Optional[pendulum.DateTime] = None,
+    scheduled_time: Optional[DateTime] = None,
     cls: type[_State] = State,
     **kwargs: Any,
 ) -> _State:
@@ -329,7 +325,7 @@ def Scheduled(
 
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = now("UTC")
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -403,7 +399,7 @@ def Pending(cls: type[_State] = State, **kwargs: Any) -> _State:
 def Paused(
     cls: type[_State] = State,
     timeout_seconds: Optional[int] = None,
-    pause_expiration_time: Optional[pendulum.DateTime] = None,
+    pause_expiration_time: Optional[DateTime] = None,
     reschedule: bool = False,
     pause_key: Optional[str] = None,
     **kwargs: Any,
@@ -426,9 +422,7 @@ def Paused(
     if pause_expiration_time:
         state_details.pause_timeout = pause_expiration_time
     elif timeout_seconds is not None:
-        state_details.pause_timeout = pendulum.now("UTC") + pendulum.Duration(
-            seconds=timeout_seconds
-        )
+        state_details.pause_timeout = now("UTC") + timedelta(seconds=timeout_seconds)
 
     state_details.pause_reschedule = reschedule
     state_details.pause_key = pause_key
@@ -439,7 +433,7 @@ def Paused(
 def Suspended(
     cls: type[_State] = State,
     timeout_seconds: Optional[int] = None,
-    pause_expiration_time: Optional[pendulum.DateTime] = None,
+    pause_expiration_time: Optional[DateTime] = None,
     pause_key: Optional[str] = None,
     **kwargs: Any,
 ) -> _State:
@@ -461,7 +455,7 @@ def Suspended(
 
 def AwaitingRetry(
     cls: type[_State] = State,
-    scheduled_time: Optional[pendulum.DateTime] = None,
+    scheduled_time: Optional[DateTime] = None,
     **kwargs: Any,
 ) -> _State:
     """Convenience function for creating `AwaitingRetry` states.
@@ -485,7 +479,7 @@ def Retrying(cls: type[_State] = State, **kwargs: Any) -> _State:
 
 def Late(
     cls: type[_State] = State,
-    scheduled_time: Optional[pendulum.DateTime] = None,
+    scheduled_time: Optional[DateTime] = None,
     **kwargs: Any,
 ) -> _State:
     """Convenience function for creating `Late` states.

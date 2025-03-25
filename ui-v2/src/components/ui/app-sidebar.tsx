@@ -19,7 +19,7 @@ export function AppSidebar() {
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"
 					viewBox="0 0 76 76"
-					className="w-11 h-11"
+					className="size-11"
 					aria-label="Prefect Logo"
 				>
 					<title>Prefect Logo</title>
@@ -123,15 +123,6 @@ export function AppSidebar() {
 								{({ isActive }) => (
 									<SidebarMenuButton asChild isActive={isActive}>
 										<span>Event Feed</span>
-									</SidebarMenuButton>
-								)}
-							</Link>
-						</SidebarMenuItem>
-						<SidebarMenuItem>
-							<Link to="/notifications">
-								{({ isActive }) => (
-									<SidebarMenuButton asChild isActive={isActive}>
-										<span>Notifications</span>
 									</SidebarMenuButton>
 								)}
 							</Link>

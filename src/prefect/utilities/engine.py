@@ -45,7 +45,7 @@ from prefect.exceptions import (
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.results import BaseResult, ResultRecord, should_persist_result
+from prefect.results import ResultRecord, should_persist_result
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
 from prefect.tasks import Task
@@ -63,7 +63,7 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunInput]:
+async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunResult]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -76,7 +76,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunInput] = set()
+    inputs: set[TaskRunResult] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
@@ -283,10 +283,6 @@ async def resolve_inputs(
     return resolved_parameters
 
 
-def _is_base_result(data: Any) -> TypeIs[BaseResult[Any]]:
-    return isinstance(data, BaseResult)
-
-
 def _is_result_record(data: Any) -> TypeIs[ResultRecord[Any]]:
     return isinstance(data, ResultRecord)
 
@@ -335,11 +331,7 @@ async def propose_state(
     # Handle task and sub-flow tracing
     if state.is_final():
         result: Any
-        if _is_base_result(state.data) and state.data.has_cached_object():
-            # Avoid fetching the result unless it is cached, otherwise we defeat
-            # the purpose of disabling `cache_result_in_memory`
-            result = state.result(raise_on_failure=False, fetch=True)
-        elif _is_result_record(state.data):
+        if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
@@ -451,13 +443,7 @@ def propose_state_sync(
 
     # Handle task and sub-flow tracing
     if state.is_final():
-        if _is_base_result(state.data) and state.data.has_cached_object():
-            # Avoid fetching the result unless it is cached, otherwise we defeat
-            # the purpose of disabling `cache_result_in_memory`
-            result = state.result(raise_on_failure=False, fetch=True)
-            if asyncio.iscoroutine(result):
-                result = run_coro_as_sync(result)
-        elif _is_result_record(state.data):
+        if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
@@ -636,8 +622,6 @@ def emit_task_run_state_change_event(
 
     if _is_result_record(validated_state.data) and should_persist_result():
         data = validated_state.data.metadata.model_dump(mode="json")
-    elif _is_base_result(validated_state.data):
-        data = validated_state.data.model_dump(mode="json")
     else:
         data = None
 
@@ -773,12 +757,19 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
         parameter_context = propagate.extract(
             {"traceparent": state.state_details.traceparent}
         )
-        trace.get_current_span().add_link(
-            context=trace.get_current_span(parameter_context).get_span_context(),
-            attributes={
+        attributes = {}
+
+        # If this future is being used as a parameter (as opposed to just a wait_for),
+        # add attributes to the span to indicate the parameter name and type
+        if "parameter_name" in context:
+            attributes = {
                 "prefect.input.name": context["parameter_name"],
                 "prefect.input.type": type(result).__name__,
-            },
+            }
+
+        trace.get_current_span().add_link(
+            context=trace.get_current_span(parameter_context).get_span_context(),
+            attributes=attributes,
         )
 
     return result

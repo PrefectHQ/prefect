@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.0.0",
+  "prefect>=3.1.16.dev2",
   "dbt-core>=1.7.0",
   "prefect_shell>=0.3.0",
   "sgqlc>=16.0.0",
@@ -42,6 +42,8 @@ all_extras = [
   "prefect-snowflake>=0.28.0",
   "prefect-sqlalchemy>=0.5.1",
 ]
+
+[dependency-groups]
 dev = [
   "coverage",
   "dbt-bigquery",
@@ -96,3 +98,10 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
+prefect-shell = { path = "../prefect-shell" }
+prefect-gcp = { path = "../prefect-gcp" }
+prefect-snowflake = { path = "../prefect-snowflake" }
+prefect-sqlalchemy = { path = "../prefect-sqlalchemy" }

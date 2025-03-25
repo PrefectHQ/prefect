@@ -15,11 +15,9 @@ T_contra = TypeVar("T_contra", contravariant=True)
 
 
 class OTLPExporter(Protocol[T_contra]):
-    def export(self, __items: Sequence[T_contra]) -> Any:
-        ...
+    def export(self, __items: Sequence[T_contra]) -> Any: ...
 
-    def shutdown(self) -> Any:
-        ...
+    def shutdown(self) -> Any: ...
 
 
 class BaseQueueingExporter(BatchedQueueService[BatchItem]):
@@ -53,6 +51,8 @@ class QueueingSpanExporter(BaseQueueingExporter[ReadableSpan], SpanExporter):
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         for item in spans:
+            if self._stopped:
+                break
             self.send(item)
         return SpanExportResult.SUCCESS
 
@@ -65,4 +65,6 @@ class QueueingLogExporter(BaseQueueingExporter[LogData], LogExporter):
 
     def export(self, batch: Sequence[LogData]) -> None:
         for item in batch:
+            if self._stopped:
+                break
             self.send(item)

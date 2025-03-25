@@ -5,7 +5,7 @@ Utilities for working with clients.
 # This module must not import from `prefect.client` when it is imported to avoid
 # circular imports for decorators such as `inject_client` which are widely used.
 
-from collections.abc import Awaitable, Coroutine
+from collections.abc import Coroutine
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
@@ -61,8 +61,8 @@ def get_or_create_client(
 
 
 def client_injector(
-    func: Callable[Concatenate["PrefectClient", P], Awaitable[R]],
-) -> Callable[P, Awaitable[R]]:
+    func: Callable[Concatenate["PrefectClient", P], Coroutine[Any, Any, R]],
+) -> Callable[P, Coroutine[Any, Any, R]]:
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         client, _ = get_or_create_client()

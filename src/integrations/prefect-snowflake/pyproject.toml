@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-snowflake"
-dependencies = ["snowflake>=1.0.2", "snowflake-connector-python>=2.7.6", "prefect>=3.0.0"]
+dependencies = ["snowflake>=1.0.5", "snowflake-connector-python>=3.0.4", "prefect>=3.0.0"]
 dynamic = ["version"]
 description = "Prefect integrations for interacting with Snowflake"
 readme = "README.md"
@@ -25,7 +25,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "coverage",
   "interrogate",
@@ -73,3 +73,6 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }

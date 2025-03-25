@@ -19,7 +19,7 @@ from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.utilities import urls
 
-flow_app = PrefectTyper(name="flow", help="View and serve flows.")
+flow_app: PrefectTyper = PrefectTyper(name="flow", help="View and serve flows.")
 app.add_typer(flow_app, aliases=["flows"])
 
 
@@ -120,11 +120,30 @@ async def serve(
             " stopped. If not set, the schedules will continue running."
         ),
     ),
+    limit: Optional[int] = typer.Option(
+        None,
+        help=(
+            "The maximum number of runs that can be executed concurrently by the"
+            " created runner; only applies to this served flow."
+            " To apply a limit across multiple served flows, use global_limit."
+        ),
+    ),
+    global_limit: Optional[int] = typer.Option(
+        None,
+        help=(
+            "The maximum number of concurrent runs allowed across all served"
+            " flow instances associated with the same deployment."
+        ),
+    ),
 ):
     """
     Serve a flow via an entrypoint.
     """
-    runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
+    runner = Runner(
+        name=name,
+        pause_on_shutdown=pause_on_shutdown,
+        limit=limit,
+    )
     try:
         schedules = []
         if interval or cron or rrule:
@@ -144,6 +163,7 @@ async def serve(
             description=description,
             tags=tags or [],
             version=version,
+            concurrency_limit=global_limit,
         )
     except (MissingFlowError, ValueError) as exc:
         exit_with_error(str(exc))

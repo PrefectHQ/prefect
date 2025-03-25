@@ -1,5 +1,5 @@
+import { buildConcurrenyLimitDetailsActiveRunsQuery } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitPage } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-page";
-import { buildDetailTaskRunConcurrencyLimitsQuery } from "@/hooks/task-run-concurrency-limits";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -22,7 +22,7 @@ export const Route = createFileRoute(
 	wrapInSuspense: true,
 	loader: ({ context, params }) =>
 		context.queryClient.ensureQueryData(
-			buildDetailTaskRunConcurrencyLimitsQuery(params.id),
+			buildConcurrenyLimitDetailsActiveRunsQuery(params.id),
 		),
 });
 

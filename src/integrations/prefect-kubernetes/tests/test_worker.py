@@ -1,16 +1,17 @@
 import base64
 import json
 import re
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from time import monotonic, sleep
+from typing import Any
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
 import anyio.abc
 import kubernetes_asyncio
-import pendulum
 import pytest
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Pod
 from kubernetes_asyncio.client.exceptions import ApiException
@@ -34,9 +35,12 @@ from pydantic import ValidationError
 
 import prefect
 from prefect.client.schemas import FlowRun
+from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
 from prefect.exceptions import (
     InfrastructureError,
 )
+from prefect.futures import PrefectFlowRunFuture
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
@@ -44,6 +48,8 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
+from prefect.states import Running
+from prefect.types._datetime import DateTime, parse_datetime
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CLUSTER = "fake-cluster"
@@ -51,19 +57,19 @@ MOCK_CLUSTER_UID = "1234"
 
 
 @pytest.fixture
-def mock_watch(monkeypatch):
+def mock_watch(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock(return_value=AsyncMock())
     monkeypatch.setattr("kubernetes_asyncio.watch.Watch", mock)
     return mock
 
 
-async def mock_stream(*args, **kwargs):
+async def mock_stream(*args: Any, **kwargs: Any):
     async for event in mock_pods_stream_that_returns_completed_pod(*args, **kwargs):
         yield event
 
 
 @pytest.fixture
-def mock_cluster_config(monkeypatch):
+def mock_cluster_config(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
     # We cannot mock this or the `except` clause will complain
     mock.ConfigException.return_value = ConfigException
@@ -80,11 +86,11 @@ def mock_cluster_config(monkeypatch):
 
 
 @pytest.fixture
-def mock_anyio_sleep_monotonic(monkeypatch, event_loop):
+def mock_anyio_sleep_monotonic(monkeypatch: pytest.MonkeyPatch, event_loop: Any):
     def mock_monotonic():
         return mock_sleep.current_time
 
-    async def mock_sleep(duration):
+    async def mock_sleep(duration: float):
         mock_sleep.current_time += duration
 
     mock_sleep.current_time = monotonic()
@@ -112,7 +118,7 @@ def mock_pod():
 
 
 @pytest.fixture
-def mock_core_client(monkeypatch, mock_cluster_config):
+def mock_core_client(monkeypatch: pytest.MonkeyPatch, mock_cluster_config: MagicMock):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
     mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
@@ -130,7 +136,7 @@ def mock_core_client(monkeypatch, mock_cluster_config):
 
 
 @pytest.fixture
-def mock_core_client_lean(monkeypatch):
+def mock_core_client_lean(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
     monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
@@ -139,11 +145,11 @@ def mock_core_client_lean(monkeypatch):
 
 
 @pytest.fixture
-def mock_batch_client(monkeypatch, mock_job):
+def mock_batch_client(monkeypatch: pytest.MonkeyPatch, mock_job: MagicMock):
     mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
 
     @asynccontextmanager
-    async def get_batch_client(*args, **kwargs):
+    async def get_batch_client(*args: Any, **kwargs: Any):
         yield mock()
 
     monkeypatch.setattr(
@@ -158,13 +164,13 @@ def mock_batch_client(monkeypatch, mock_job):
 
 @pytest.fixture
 async def mock_pods_stream_that_returns_running_pod(
-    mock_core_client, mock_pod, mock_job
+    mock_core_client: MagicMock, mock_pod: MagicMock, mock_job: MagicMock
 ):
-    async def mock_stream(*args, **kwargs):
+    async def mock_stream(*args: Any, **kwargs: Any):
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
             yield {"object": mock_pod, "type": "MODIFIED"}
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_job:
-            mock_job.status.completion_time = pendulum.now("utc").timestamp()
+            mock_job.status.completion_time = DateTime.now("utc").timestamp()
             yield {"object": mock_job, "type": "MODIFIED"}
 
     return mock_stream
@@ -187,6 +193,13 @@ async def mock_pods_stream_that_returns_completed_pod(
 
 
 @pytest.fixture
+def mock_run_process(monkeypatch: pytest.MonkeyPatch):
+    mock = AsyncMock()
+    monkeypatch.setattr(anyio, "run_process", mock)
+    return mock
+
+
+@pytest.fixture
 def enable_store_api_key_in_secret(monkeypatch):
     monkeypatch.setenv(
         "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_SECRET_FOR_API_KEY", "true"
@@ -194,11 +207,14 @@ def enable_store_api_key_in_secret(monkeypatch):
 
 
 @pytest.fixture
-def mock_api_key_secret_name(monkeypatch):
+def mock_api_key_secret_name_and_key(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(
         "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_KEY_SECRET_NAME", "test-secret"
     )
-    return "test-secret"
+    monkeypatch.setenv(
+        "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_KEY_SECRET_KEY", "value"
+    )
+    return "test-secret", "value"
 
 
 from_template_and_values_cases = [
@@ -242,11 +258,16 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="prefect flow-run execute",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -258,6 +279,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
             },
             name=flow_run.name,
             namespace="default",
@@ -277,6 +301,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                     },
                 },
                 "spec": {
@@ -302,6 +329,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
                                         },
                                     ],
                                     "image": get_prefect_image_name(),
@@ -527,11 +558,16 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="prefect flow-run execute",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
             },
             labels={
                 "prefect.io/flow-run-id": str(flow_run.id),
@@ -543,6 +579,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
             },
             name=flow_run.name,
             namespace="default",
@@ -562,6 +601,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                     },
                 },
                 "spec": {
@@ -587,6 +629,10 @@ from_template_and_values_cases = [
                                         {
                                             "name": "PREFECT__FLOW_RUN_ID",
                                             "value": str(flow_run.id),
+                                        },
+                                        {
+                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                            "value": "reschedule",
                                         },
                                         {
                                             "name": "TEST_ENV",
@@ -617,7 +663,7 @@ from_template_and_values_cases = [
         ),
     ),
     (
-        # default base template with no values
+        # default base template with values
         KubernetesWorker.get_default_base_job_template(),
         {
             "name": "test",
@@ -636,6 +682,7 @@ from_template_and_values_cases = [
             "image": "test-image:latest",
             "finished_job_ttl": 60,
             "namespace": "test-namespace",
+            "backoff_limit": 6,
         },
         KubernetesWorkerJobConfiguration(
             command="echo hello",
@@ -656,7 +703,7 @@ from_template_and_values_cases = [
                     "generateName": "test-",
                 },
                 "spec": {
-                    "backoffLimit": 0,
+                    "backoffLimit": 6,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
                         "spec": {
@@ -684,7 +731,11 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=False,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="echo hello",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -701,6 +752,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
                 "TEST_LABEL": "test label",
             },
             name="test",
@@ -721,11 +775,14 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                         "test_label": "test-label",
                     },
                 },
                 "spec": {
-                    "backoffLimit": 0,
+                    "backoffLimit": 6,
                     "ttlSecondsAfterFinished": 60,
                     "template": {
                         "spec": {
@@ -966,7 +1023,11 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=True,
         ),
-        lambda flow_run, deployment, flow: KubernetesWorkerJobConfiguration(
+        lambda flow_run,
+        deployment,
+        flow,
+        work_pool,
+        worker_name: KubernetesWorkerJobConfiguration(
             command="echo hello",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -981,6 +1042,9 @@ from_template_and_values_cases = [
                 "prefect.io/deployment-name": deployment.name,
                 "prefect.io/flow-id": str(flow.id),
                 "prefect.io/flow-name": flow.name,
+                "prefect.io/worker-name": worker_name,
+                "prefect.io/work-pool-name": work_pool.name,
+                "prefect.io/work-pool-id": str(work_pool.id),
                 "TEST_LABEL": "test label",
             },
             name="test",
@@ -1001,6 +1065,9 @@ from_template_and_values_cases = [
                         "prefect.io/deployment-name": deployment.name,
                         "prefect.io/flow-id": str(flow.id),
                         "prefect.io/flow-name": flow.name,
+                        "prefect.io/worker-name": worker_name,
+                        "prefect.io/work-pool-name": work_pool.name,
+                        "prefect.io/work-pool-id": str(work_pool.id),
                         "test_label": "test-label",
                     },
                 },
@@ -1067,6 +1134,10 @@ class TestKubernetesWorkerJobConfiguration:
         return DeploymentResponse(name="my-deployment-name", flow_id=uuid.uuid4())
 
     @pytest.fixture
+    def work_pool(self):
+        return WorkPool(name="my-work-pool-name", type="kubernetes")
+
+    @pytest.fixture
     def flow(self):
         return Flow(name="my-flow-name")
 
@@ -1076,7 +1147,7 @@ class TestKubernetesWorkerJobConfiguration:
         ids=[
             "default base template with no values",
             "default base template with custom env",
-            "default base template with no values",
+            "default base template with values",
             "custom template with values",
         ],
     )
@@ -1089,6 +1160,7 @@ class TestKubernetesWorkerJobConfiguration:
         flow_run,
         deployment,
         flow,
+        work_pool,
     ):
         """Tests that the job configuration is correctly templated and prepared."""
         result = await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -1098,11 +1170,23 @@ class TestKubernetesWorkerJobConfiguration:
         # comparing dictionaries produces cleaner diffs
         assert result.model_dump() == expected_after_template.model_dump()
 
-        result.prepare_for_flow_run(flow_run=flow_run, deployment=deployment, flow=flow)
+        result.prepare_for_flow_run(
+            flow_run=flow_run,
+            deployment=deployment,
+            flow=flow,
+            work_pool=work_pool,
+            worker_name="test-worker",
+        )
 
         assert (
             result.model_dump()
-            == expected_after_preparation(flow_run, deployment, flow).model_dump()
+            == expected_after_preparation(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                work_pool=work_pool,
+                worker_name="test-worker",
+            ).model_dump()
         )
 
     async def test_validates_against_an_empty_job(self):
@@ -1626,8 +1710,11 @@ class TestKubernetesWorker:
         mock_watch,
         mock_pods_stream_that_returns_running_pod,
         mock_batch_client,
-        mock_api_key_secret_name,
+        mock_api_key_secret_name_and_key: tuple[str, str],
     ):
+        mock_api_key_secret_name, mock_api_key_secret_key = (
+            mock_api_key_secret_name_and_key
+        )
         mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
 
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -1662,7 +1749,7 @@ class TestKubernetesWorker:
                     "valueFrom": {
                         "secretKeyRef": {
                             "name": mock_api_key_secret_name,
-                            "key": "value",
+                            "key": mock_api_key_secret_key,
                         }
                     },
                 } in env
@@ -1674,9 +1761,12 @@ class TestKubernetesWorker:
         mock_watch,
         mock_pods_stream_that_returns_running_pod,
         mock_batch_client,
-        mock_api_key_secret_name,
+        mock_api_key_secret_name_and_key: tuple[str, str],
         enable_store_api_key_in_secret,
     ):
+        mock_api_key_secret_name, mock_api_key_secret_key = (
+            mock_api_key_secret_name_and_key
+        )
         mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
 
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -1711,7 +1801,7 @@ class TestKubernetesWorker:
                     "valueFrom": {
                         "secretKeyRef": {
                             "name": mock_api_key_secret_name,
-                            "key": "value",
+                            "key": mock_api_key_secret_key,
                         }
                     },
                 } in env
@@ -1989,6 +2079,7 @@ class TestKubernetesWorker:
                     **configuration._base_flow_run_environment(flow_run),
                     "foo": "FOO",
                     "bar": "BAR",
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 }.items()
             ]
 
@@ -2045,6 +2136,70 @@ class TestKubernetesWorker:
             and env["valueFrom"]["secretKeyRef"]["key"] == "SECRET"
         )
 
+        assert any(env for env in created_env if env["name"] == "PREFECT__FLOW_RUN_ID")
+
+    async def test_merges_env_list_from_work_pool_and_deployment(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        """Test that environment variables in list format from work pool and deployment are merged.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17406
+        """
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        custom_base_template = KubernetesWorker.get_default_base_job_template()
+        custom_base_template["job_configuration"]["env"] = [
+            {"name": "WORK_POOL_ENV", "value": "work_pool_value"},
+            {
+                "name": "WORK_POOL_SECRET",
+                "valueFrom": {
+                    "secretKeyRef": {"name": "work-pool-secret", "key": "SECRET_KEY"}
+                },
+            },
+        ]
+
+        deployment_env = [{"name": "DEPLOYMENT_ENV", "value": "deployment_value"}]
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            custom_base_template,
+            {"env": deployment_env},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+
+        mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+        created_job = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+            1
+        ]
+        created_env = created_job["spec"]["template"]["spec"]["containers"][0]["env"]
+
+        # make sure both work pool and deployment env vars are present
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "WORK_POOL_ENV" and env["value"] == "work_pool_value"
+        )
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "WORK_POOL_SECRET"
+            and env["valueFrom"]["secretKeyRef"]["name"] == "work-pool-secret"
+            and env["valueFrom"]["secretKeyRef"]["key"] == "SECRET_KEY"
+        )
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "DEPLOYMENT_ENV" and env["value"] == "deployment_value"
+        )
+
+        # Also check that standard Prefect env vars are present
         assert any(env for env in created_env if env["name"] == "PREFECT__FLOW_RUN_ID")
 
     async def test_allows_unsetting_environment_variables(
@@ -2338,7 +2493,7 @@ class TestKubernetesWorker:
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 yield {"object": mock_job, "type": "MODIFIED"}
 
         mock_watch.return_value.stream = mock_stream
@@ -2364,7 +2519,7 @@ class TestKubernetesWorker:
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 yield {"object": mock_job, "type": "MODIFIED"}
 
         mock_watch.return_value.stream = mock_stream
@@ -2388,7 +2543,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2409,7 +2564,6 @@ class TestKubernetesWorker:
                 func=mock_batch_client.return_value.list_namespaced_job,
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
-                _request_timeout=mock.ANY,
             )
 
             if job_timeout is not None:
@@ -2431,7 +2585,6 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=42,
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(**expected_job_call_kwargs),
                 ]
@@ -2451,7 +2604,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2475,13 +2628,11 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector=mock.ANY,
-                        _request_timeout=mock.ANY,
                         # Note: timeout_seconds is excluded here
                     ),
                 ]
@@ -2498,7 +2649,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2522,13 +2673,11 @@ class TestKubernetesWorker:
                         namespace="my-awesome-flows",
                         label_selector=mock.ANY,
                         timeout_seconds=60,
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace="my-awesome-flows",
                         field_selector=mock.ANY,
-                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2556,7 +2705,7 @@ class TestKubernetesWorker:
             ]
 
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2665,7 +2814,6 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
-                        _request_timeout=mock.ANY,
                     ),
                     # Starts with the full timeout minus the amount we slept streaming logs
                     mock.call(
@@ -2673,7 +2821,6 @@ class TestKubernetesWorker:
                         field_selector=mock.ANY,
                         namespace=mock.ANY,
                         timeout_seconds=pytest.approx(50, 1),
-                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2792,6 +2939,10 @@ class TestKubernetesWorker:
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
 
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                k8s_worker._client = AsyncMock()
+                mock_flow_run = MagicMock(spec=FlowRun)
+                mock_flow_run.state = Running()
+                k8s_worker._client.read_flow_run.return_value = mock_flow_run
                 result = await k8s_worker.run(flow_run, default_configuration)
 
             assert result.status_code == -1
@@ -2858,7 +3009,7 @@ class TestKubernetesWorker:
             mock_pod,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
+                mock_job.status.completion_time = DateTime.now("utc").timestamp()
                 items = [
                     {"object": mock_pod, "type": "MODIFIED"},
                     {"object": mock_job, "type": "MODIFIED"},
@@ -2892,14 +3043,12 @@ class TestKubernetesWorker:
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
                         resource_version="1",
-                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2921,7 +3070,7 @@ class TestKubernetesWorker:
                 spec=kubernetes_asyncio.client.V1ContainerStatus
             )
             mock_container_status.state.running = MagicMock(
-                start_time=pendulum.now("utc")
+                start_time=DateTime.now("utc")
             )
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
@@ -2942,6 +3091,50 @@ class TestKubernetesWorker:
 
             assert result.status_code == 0
 
+        async def test_watch_no_timeout_after_five_minutes_without_data(
+            self,
+            flow_run,
+            default_configuration,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+            mock_pod,
+            caplog: pytest.LogCaptureFixture,
+        ):
+            """
+            Regressio test for https://github.com/PrefectHQ/prefect/issues/16210
+            """
+            # The job should not be completed to start
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    yield {"object": mock_pod, "type": "MODIFIED"}
+
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+                    job.status.completion_time = None
+                    job.status.failed = 0
+                    job.spec.backoff_limit = 6
+
+                    # First event
+                    yield {"object": job, "type": "ADDED"}
+
+                    # Simulate 5 minutes passing
+                    with patch("anyio.sleep", return_value=None):
+                        await anyio.sleep(310)
+
+                    # Send another event after the delay
+                    job.status.completion_time = DateTime.now("utc").timestamp()
+                    yield {"object": job, "type": "MODIFIED"}
+
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
+            assert "Error occurred while streaming logs" not in caplog.text
+            assert result.status_code == 0
+
     @pytest.fixture
     async def mock_events(self, mock_core_client):
         mock_core_client.return_value.list_namespaced_event.return_value = (
@@ -2958,7 +3151,7 @@ class TestKubernetesWorker:
                         ),
                         reason="StuffBlewUp",
                         count=2,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="Whew, that was baaaaad",
                     ),
                     CoreV1Event(
@@ -2971,7 +3164,7 @@ class TestKubernetesWorker:
                         ),
                         reason="NahChief",
                         count=2,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="You do not want to know about this one",
                     ),
                     CoreV1Event(
@@ -2984,7 +3177,7 @@ class TestKubernetesWorker:
                         ),
                         reason="ImageWhatImage",
                         count=1,
-                        event_time=pendulum.parse("2022-01-02T03:04:05Z"),
+                        event_time=parse_datetime("2022-01-02T03:04:05Z"),
                         message="I don't see no image",
                     ),
                     CoreV1Event(
@@ -2997,7 +3190,7 @@ class TestKubernetesWorker:
                         ),
                         reason="GoodLuck",
                         count=1,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="You ain't getting no more RAM",
                     ),
                     CoreV1Event(
@@ -3010,7 +3203,7 @@ class TestKubernetesWorker:
                         ),
                         reason="NotMeDude",
                         count=1,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="You ain't getting no more RAM",
                     ),
                     CoreV1Event(
@@ -3023,7 +3216,7 @@ class TestKubernetesWorker:
                         ),
                         reason="StuffBlewUp",
                         count=2,
-                        last_timestamp=pendulum.parse("2022-01-02T03:04:05Z"),
+                        last_timestamp=parse_datetime("2022-01-02T03:04:05Z"),
                         message="I mean really really bad",
                     ),
                 ],
@@ -3097,3 +3290,192 @@ class TestKubernetesWorker:
             # The event for another job or pod shouldn't be included
             assert "NahChief" not in caplog.text
             assert "NotMeDude" not in caplog.text
+
+    class TestSubmit:
+        @pytest.fixture
+        async def work_pool(self):
+            async with prefect.get_client() as client:
+                work_pool = await client.create_work_pool(
+                    WorkPoolCreate(
+                        name=f"test-{uuid.uuid4()}",
+                        base_job_template=KubernetesWorker.get_default_base_job_template(),
+                    )
+                )
+                try:
+                    yield work_pool
+                finally:
+                    await client.delete_work_pool(work_pool.name)
+
+        @pytest.fixture(autouse=True)
+        async def mock_steps(self, work_pool: WorkPool):
+            UPLOAD_STEP = {
+                "prefect_mock.experimental.bundles.upload": {
+                    "requires": "prefect-mock==0.5.5",
+                    "bucket": "test-bucket",
+                    "credentials_block_name": "my-creds",
+                }
+            }
+
+            EXECUTE_STEP = {
+                "prefect_mock.experimental.bundles.execute": {
+                    "requires": "prefect-mock==0.5.5",
+                    "bucket": "test-bucket",
+                    "credentials_block_name": "my-creds",
+                }
+            }
+
+            async with prefect.get_client() as client:
+                await client.update_work_pool(
+                    work_pool.name,
+                    WorkPoolUpdate(
+                        storage_configuration=WorkPoolStorageConfiguration(
+                            bundle_execution_step=EXECUTE_STEP,
+                            bundle_upload_step=UPLOAD_STEP,
+                        ),
+                    ),
+                )
+
+        @pytest.fixture
+        def test_flow(self):
+            @prefect.flow
+            def my_flow():
+                return "Hello, world!"
+
+            return my_flow
+
+        async def test_submit_adhoc_run(
+            self,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_events,
+            mock_pods_stream_that_returns_completed_pod,
+            default_configuration,
+            test_flow,
+            mock_run_process: AsyncMock,
+            caplog: pytest.LogCaptureFixture,
+            work_pool: WorkPool,
+            monkeypatch: pytest.MonkeyPatch,
+        ):
+            frozen_uuid = uuid.uuid4()
+            monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
+            mock_watch.return_value.stream = mock.Mock(
+                side_effect=mock_pods_stream_that_returns_completed_pod
+            )
+            python_version_info = sys.version_info
+            async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
+                future = await k8s_worker.submit(test_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+            expected_upload_command = [
+                "uv",
+                "run",
+                "--quiet",
+                "--with",
+                "prefect-mock==0.5.5",
+                "--python",
+                f"{python_version_info.major}.{python_version_info.minor}",
+                "-m",
+                "prefect_mock.experimental.bundles.upload",
+                "--bucket",
+                "test-bucket",
+                "--credentials-block-name",
+                "my-creds",
+                "--key",
+                str(frozen_uuid),
+                str(frozen_uuid),
+            ]
+            mock_run_process.assert_called_once_with(
+                expected_upload_command,
+                cwd=ANY,
+            )
+            expected_execute_command = [
+                "uv",
+                "run",
+                "--with",
+                "prefect-mock==0.5.5",
+                "--python",
+                f"{python_version_info.major}.{python_version_info.minor}",
+                "-m",
+                "prefect_mock.experimental.bundles.execute",
+                "--bucket",
+                "test-bucket",
+                "--credentials-block-name",
+                "my-creds",
+                "--key",
+                str(frozen_uuid),
+            ]
+            async with prefect.get_client() as client:
+                flow_run = await client.read_flow_run(future.flow_run_id)
+                assert flow_run.work_pool_name == work_pool.name
+                assert flow_run.work_queue_name == "default"
+                assert flow_run.job_variables == {
+                    "command": " ".join(expected_execute_command)
+                }
+
+        async def test_submit_adhoc_run_failed_submission(
+            self,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_events,
+            mock_pods_stream_that_returns_completed_pod,
+            default_configuration,
+            test_flow,
+            mock_run_process: AsyncMock,
+            caplog: pytest.LogCaptureFixture,
+            work_pool: WorkPool,
+        ):
+            response = MagicMock()
+            response.data = None
+            response.status = 403
+            response.reason = "Test"
+
+            mock_batch_client.return_value.create_namespaced_job.side_effect = (
+                ApiException(http_resp=response)
+            )
+
+            async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
+                future = await k8s_worker.submit(test_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+            async with prefect.get_client() as client:
+                flow_run = await client.read_flow_run(future.flow_run_id)
+                assert flow_run.state.is_crashed()
+
+        async def test_submit_adhoc_run_non_zero_exit_code(
+            self,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_events,
+            mock_pods_stream_that_returns_completed_pod,
+            default_configuration,
+            test_flow,
+            mock_run_process: AsyncMock,
+            caplog: pytest.LogCaptureFixture,
+            work_pool: WorkPool,
+        ):
+            mock_watch.return_value.stream = mock.Mock(
+                side_effect=mock_pods_stream_that_returns_completed_pod
+            )
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            job_pod.status.phase = "Running"
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.terminated.exit_code = 1
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
+
+            async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
+                future = await k8s_worker.submit(test_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+            async with prefect.get_client() as client:
+                flow_run = await client.read_flow_run(future.flow_run_id)
+                assert flow_run.state.is_crashed()

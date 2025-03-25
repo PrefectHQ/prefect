@@ -259,6 +259,15 @@
                     "title": "Api Url",
                     "type": "string"
                 },
+                "enable_orchestration_telemetry": {
+                    "default": true,
+                    "description": "Whether or not to enable orchestration telemetry.",
+                    "supported_environment_variables": [
+                        "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY"
+                    ],
+                    "title": "Enable Orchestration Telemetry",
+                    "type": "boolean"
+                },
                 "ui_url": {
                     "anyOf": [
                         {
@@ -335,15 +344,6 @@
                         "PREFECT_EXPERIMENTAL_WARN"
                     ],
                     "title": "Warn",
-                    "type": "boolean"
-                },
-                "telemetry_enabled": {
-                    "default": false,
-                    "description": "Enables sending telemetry to Prefect Cloud.",
-                    "supported_environment_variables": [
-                        "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED"
-                    ],
-                    "title": "Telemetry Enabled",
                     "type": "boolean"
                 },
                 "lineage_events_enabled": {
@@ -665,7 +665,7 @@
                     "type": "integer"
                 },
                 "log_level": {
-                    "default": "error",
+                    "default": "ERROR",
                     "description": "The log level of the runner's webserver.",
                     "enum": [
                         "DEBUG",
@@ -739,6 +739,118 @@
             "title": "RunnerSettings",
             "type": "object"
         },
+        "SQLAlchemyConnectArgsSettings": {
+            "description": "Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
+            "properties": {
+                "application_name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME"
+                    ],
+                    "title": "Application Name"
+                },
+                "statement_cache_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE"
+                    ],
+                    "title": "Statement Cache Size"
+                },
+                "prepared_statement_cache_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE"
+                    ],
+                    "title": "Prepared Statement Cache Size"
+                }
+            },
+            "title": "SQLAlchemyConnectArgsSettings",
+            "type": "object"
+        },
+        "SQLAlchemySettings": {
+            "description": "Settings for controlling SQLAlchemy behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
+            "properties": {
+                "connect_args": {
+                    "$ref": "#/$defs/SQLAlchemyConnectArgsSettings",
+                    "description": "Settings for controlling SQLAlchemy connection behavior",
+                    "supported_environment_variables": []
+                },
+                "pool_size": {
+                    "default": 5,
+                    "description": "Controls connection pool size of database connection pools from the Prefect backend.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
+                        "PREFECT_SQLALCHEMY_POOL_SIZE"
+                    ],
+                    "title": "Pool Size",
+                    "type": "integer"
+                },
+                "pool_recycle": {
+                    "default": 3600,
+                    "description": "This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE"
+                    ],
+                    "title": "Pool Recycle",
+                    "type": "integer"
+                },
+                "pool_timeout": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 30.0,
+                    "description": "Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT"
+                    ],
+                    "title": "Pool Timeout"
+                },
+                "max_overflow": {
+                    "default": 10,
+                    "description": "Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW",
+                        "PREFECT_SQLALCHEMY_MAX_OVERFLOW"
+                    ],
+                    "title": "Max Overflow",
+                    "type": "integer"
+                }
+            },
+            "title": "SQLAlchemySettings",
+            "type": "object"
+        },
         "ServerAPISettings": {
             "description": "Settings for controlling API server behavior",
             "properties": {
@@ -754,7 +866,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.",
+                    "description": "A string to use for basic authentication with the API in the form 'user:password'.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_API_AUTH_STRING"
                     ],
@@ -777,6 +889,25 @@
                     ],
                     "title": "Port",
                     "type": "integer"
+                },
+                "base_path": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The base URL path to serve the API under.",
+                    "examples": [
+                        "/v2/api"
+                    ],
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_BASE_PATH"
+                    ],
+                    "title": "Base Path"
                 },
                 "default_limit": {
                     "default": 200,
@@ -855,6 +986,11 @@
         "ServerDatabaseSettings": {
             "description": "Settings for controlling server database behavior",
             "properties": {
+                "sqlalchemy": {
+                    "$ref": "#/$defs/SQLAlchemySettings",
+                    "description": "Settings for controlling SQLAlchemy behavior",
+                    "supported_environment_variables": []
+                },
                 "connection_url": {
                     "anyOf": [
                         {
@@ -1012,7 +1148,7 @@
                         }
                     ],
                     "default": 10.0,
-                    "description": "A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+                    "description": "A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_TIMEOUT",
                         "PREFECT_API_DATABASE_TIMEOUT"
@@ -1028,47 +1164,13 @@
                             "type": "null"
                         }
                     ],
-                    "default": 5,
+                    "default": 5.0,
                     "description": "A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT",
                         "PREFECT_API_DATABASE_CONNECTION_TIMEOUT"
                     ],
                     "title": "Connection Timeout"
-                },
-                "sqlalchemy_pool_size": {
-                    "anyOf": [
-                        {
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
-                        "PREFECT_SQLALCHEMY_POOL_SIZE"
-                    ],
-                    "title": "Sqlalchemy Pool Size"
-                },
-                "sqlalchemy_max_overflow": {
-                    "anyOf": [
-                        {
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW",
-                        "PREFECT_SQLALCHEMY_MAX_OVERFLOW"
-                    ],
-                    "title": "Sqlalchemy Max Overflow"
                 }
             },
             "title": "ServerDatabaseSettings",
@@ -1106,7 +1208,7 @@
                 },
                 "startup_timeout_seconds": {
                     "default": 20,
-                    "description": "\n        The number of seconds to wait for the server to start when ephemeral mode is enabled.\n        Defaults to `10`.\n        ",
+                    "description": "\n        The number of seconds to wait for the server to start when ephemeral mode is enabled.\n        Defaults to `20`.\n        ",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS"
                     ],
@@ -1314,6 +1416,23 @@
             "title": "ServerServicesCancellationCleanupSettings",
             "type": "object"
         },
+        "ServerServicesEventLoggerSettings": {
+            "description": "Settings for controlling the event logger service",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Whether or not to start the event logger service in the server application.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED",
+                        "PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            },
+            "title": "ServerServicesEventLoggerSettings",
+            "type": "object"
+        },
         "ServerServicesEventPersisterSettings": {
             "description": "Settings for controlling the event persister service",
             "properties": {
@@ -1348,6 +1467,16 @@
                     ],
                     "title": "Flush Interval",
                     "type": "number"
+                },
+                "batch_size_delete": {
+                    "default": 10000,
+                    "description": "The number of expired events and event resources the event persister will attempt to delete in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
+                    ],
+                    "title": "Batch Size Delete",
+                    "type": "integer"
                 }
             },
             "title": "ServerServicesEventPersisterSettings",
@@ -1600,6 +1729,10 @@
                 },
                 "event_persister": {
                     "$ref": "#/$defs/ServerServicesEventPersisterSettings",
+                    "supported_environment_variables": []
+                },
+                "event_logger": {
+                    "$ref": "#/$defs/ServerServicesEventLoggerSettings",
                     "supported_environment_variables": []
                 },
                 "flow_run_notifications": {
@@ -2007,6 +2140,15 @@
                         "PREFECT_TASKS_REFRESH_CACHE"
                     ],
                     "title": "Refresh Cache",
+                    "type": "boolean"
+                },
+                "default_no_cache": {
+                    "default": false,
+                    "description": "If `True`, sets the default cache policy on all tasks to `NO_CACHE`.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_DEFAULT_NO_CACHE"
+                    ],
+                    "title": "Default No Cache",
                     "type": "boolean"
                 },
                 "default_retries": {

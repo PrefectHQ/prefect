@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Protocol, Type
 
+from prefect.infrastructure.provisioners.coiled import CoiledPushProvisioner
 from prefect.infrastructure.provisioners.modal import ModalPushProvisioner
 from .cloud_run import CloudRunPushProvisioner
 from .container_instance import ContainerInstancePushProvisioner
@@ -15,25 +16,23 @@ _provisioners = {
     "azure-container-instance:push": ContainerInstancePushProvisioner,
     "ecs:push": ElasticContainerServicePushProvisioner,
     "modal:push": ModalPushProvisioner,
+    "coiled:push": CoiledPushProvisioner,
 }
 
 
 class Provisioner(Protocol):
     @property
-    def console(self) -> rich.console.Console:
-        ...
+    def console(self) -> rich.console.Console: ...
 
     @console.setter
-    def console(self, value: rich.console.Console) -> None:
-        ...
+    def console(self, value: rich.console.Console) -> None: ...
 
     async def provision(
         self,
         work_pool_name: str,
         base_job_template: Dict[str, Any],
         client: Optional["PrefectClient"] = None,
-    ) -> Dict[str, Any]:
-        ...
+    ) -> Dict[str, Any]: ...
 
 
 def get_infrastructure_provisioner_for_work_pool_type(

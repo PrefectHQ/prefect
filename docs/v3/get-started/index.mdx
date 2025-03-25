@@ -1,31 +1,29 @@
 ---
-title: Welcome to Prefect
-sidebarTitle: Overview
-description: Prefect is a workflow orchestration framework for building resilient data pipelines in Python.
-mode: wide
+title: Introduction
+sidebarTitle: Introduction
 ---
+Prefect is an open-source orchestration engine that turns your Python functions into production-grade data pipelines with minimal friction. You can build and schedule workflows in pure Python—no DSLs or complex config files—and run them anywhere. Prefect handles the heavy lifting for you out of the box: automatic state tracking, failure handling, real-time monitoring, and more.
 
-```python
-from prefect import flow, task
+**Why?** In 2018, we set out to solve a problem many of you know too well: orchestrating data workflows shouldn’t feel like pulling teeth (e.g. writing DAGs in YAML). Prefect was designed to handle the challenges that tools like Airflow struggled with: dynamic workflows, modern infrastructure, and the complexity of today’s data pipelines. Since then, it’s become a go-to tool for everyone from startups to Fortune 100 companies. Prefect helps you ship production-ready workflows without the headaches, so you can spend more time building and less time debugging.
 
-@task(log_prints=True)
-def say_hello(name: str):
-    print(f"Hello, {name}!")
-
-@flow
-def hello_universe(names: list[str]):
-    for name in names:
-        say_hello(name)
-
-if __name__ == "__main__":
-    hello_universe(['Marvin', 'Trillian', 'Ford'])
-```
+### Essential features
+<div className="t-full-width">
+| Feature | Description |
+|---------|-------------|
+| **Pythonic** | Write workflows in native Python—no DSLs, YAML, or special syntax. Full support for type hints, async/await, and modern Python patterns. Use your existing IDE, debugger, and testing tools. |
+| **State & Recovery** | Robust state management that tracks success, failure, and retry states. Resume interrupted runs from the last successful point, and cache expensive computations to avoid unnecessary rework. |
+| **Flexible & Portable Execution** | Start flows locally for easy development, then deploy them anywhere—from a single process to containers, Kubernetes, or cloud services—without locking into a vendor. Infrastructure is defined by code (not just configuration), making it simple to scale or change environments. |
+| **Event-Driven** | Trigger flows on schedules, external events, or via API. Pause flows for human intervention or approval. Chain flows together based on states, conditions, or any custom logic. |
+| **Dynamic Runtime** | Create tasks dynamically at runtime based on actual data or conditions. Easily spawn new tasks and branches during execution for truly data-driven workflows. |
+| **Modern UI** | Real-time flow run monitoring, logging, and state tracking through an intuitive interface. View dependency graphs and DAGs automatically—just run your flow and open the UI. |
+| **CI/CD First** | Test and simulate flows like normal Python code, giving you fast feedback during development. Integrate seamlessly into your existing CI/CD pipeline for automated testing and deployment. |
+</div>
 
 ## Get started
 
 <CardGroup cols={3}>
   <Card title="Quickstart" icon="play" href="/v3/get-started/quickstart">
-    In five minutes, create your first deployable workflow tracked with Prefect.
+    Quickly create your first deployable workflow tracked by Prefect.
   </Card>
   <Card title="Prefect Cloud" icon="cloud" href="/v3/manage/cloud/index">
     Supercharge Prefect with enhanced governance, security, and performance capabilities.
@@ -35,7 +33,7 @@ if __name__ == "__main__":
   </Card>
 </CardGroup>
 
-## Tutorials for data engineers and platform engineers
+## Tutorials
 
 <CardGroup cols={3}>
   <Card title="Schedule a flow" icon="calendar" href="/v3/tutorials/schedule">
@@ -71,6 +69,21 @@ if __name__ == "__main__":
     Enable workflows to react to their environment with events, automations, and webhooks.
   </Card>
 </CardGroup>
+
+## Mini-history of Prefect
+
+**2018-2021:** Our story begins in 2018, when we introduced the idea that workflow orchestration should be Pythonic.
+Inspired by distributed tools like Dask, and building on the experience of our founder, Jeremiah Lowin (a PMC member of Apache Airflow), we created a system based on simple Python decorators for tasks and flows.
+But what made Prefect truly special was our introduction of task mapping—a feature that would later become foundational to our dynamic execution capabilities (and eventually imitated by other orchestration SDKs).
+
+
+**2022:** Prefect's 2.0 release became inevitable once we recognized that real-world workflows don't always fit into neat, pre-planned DAG structures: sometimes you need to update a job definition based on runtime information, for example by skipping a branch of your workflow.
+So we removed a key constraint that workflows be written explicitly as DAGs, fully embracing native Python control flow—if/else conditionals, while loops-everything that makes Python…Python.
+
+
+**2023-present:** With our release of Prefect 3.0 in 2024, we fully embraced these dynamic patterns by open-sourcing our events and automations backend, allowing users to natively represent event-driven workflows and gain additional observability into their execution.
+Prefect 3.0 also unlocked a leap forward in performance, improving the runtime overhead of Prefect by up to 90%.
+
 
 ## Join our community
 

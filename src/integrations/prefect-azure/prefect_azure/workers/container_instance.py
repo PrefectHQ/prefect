@@ -73,7 +73,7 @@ import datetime
 import sys
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import anyio
 import dateutil.parser
@@ -88,13 +88,11 @@ from azure.mgmt.resource.resources.models import (
     DeploymentMode,
     DeploymentProperties,
 )
+from prefect_docker.credentials import DockerRegistryCredentials
 from pydantic import Field, SecretStr
 from slugify import slugify
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas import FlowRun
-from prefect.server.schemas.core import Flow
-from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -105,6 +103,10 @@ from prefect.workers.base import (
 )
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.credentials import AzureContainerInstanceCredentials
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.responses import DeploymentResponse
 
 # import aio Azure container instance client
 
@@ -122,7 +124,7 @@ ENV_SECRETS = ["PREFECT_API_KEY"]
 # has gone wrong and we should raise an exception to inform the user they should
 # check their Azure account for orphaned container groups.
 CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS = 30
-DockerRegistry = Union[ACRManagedIdentity, Any, None]
+DockerRegistry = Union[ACRManagedIdentity, DockerRegistryCredentials, None]
 
 
 def _get_default_arm_template():
@@ -235,11 +237,13 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
+        work_pool: Optional["WorkPool"] = None,
+        worker_name: Optional[str] = None,
     ):
         """
         Prepares the job configuration for a flow run.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         # expectations:
         # - the first resource in the template is the container group
@@ -307,11 +311,7 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
                     "identity": image_registry.identity,
                 }
             ]
-        elif (
-            hasattr(image_registry, "username")
-            and hasattr(image_registry, "password")
-            and hasattr(image_registry, "registry_url")
-        ):
+        elif isinstance(image_registry, DockerRegistryCredentials):
             self.arm_template["resources"][0]["properties"][
                 "imageRegistryCredentials"
             ] = [
@@ -530,7 +530,7 @@ class AzureContainerWorker(BaseWorker):
 
     async def run(
         self,
-        flow_run: FlowRun,
+        flow_run: "FlowRun",
         configuration: AzureContainerJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ):

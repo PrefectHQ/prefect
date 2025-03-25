@@ -23,11 +23,9 @@ from prefect.exceptions import (
     MissingContextError,
     SerializationError,
 )
+from prefect.filesystems import NullFileSystem
 from prefect.logging.loggers import LoggingAdapter, get_logger, get_run_logger
-from prefect.records import RecordStore
-from prefect.records.base import TransactionRecord
 from prefect.results import (
-    BaseResult,
     ResultRecord,
     ResultStore,
     get_result_store,
@@ -61,7 +59,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    store: Union[RecordStore, ResultStore, None] = None
+    store: Optional[ResultStore] = None
     key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
@@ -176,7 +174,7 @@ class Transaction(ContextModel):
     def is_active(self) -> bool:
         return self.state == TransactionState.ACTIVE
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self._token is not None:
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
@@ -209,7 +207,7 @@ class Transaction(ContextModel):
         self._token = self.__var__.set(self)
         return self
 
-    def __exit__(self, *exc_info: Any):
+    def __exit__(self, *exc_info: Any) -> None:
         exc_type, exc_val, _ = exc_info
         if not self._token:
             raise RuntimeError(
@@ -238,7 +236,7 @@ class Transaction(ContextModel):
 
         self.reset()
 
-    def begin(self):
+    def begin(self) -> None:
         if (
             self.store
             and self.key
@@ -254,15 +252,11 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> Union["BaseResult[Any]", ResultRecord[Any], None]:
+    def read(self) -> Optional[ResultRecord[Any]]:
         if self.store and self.key:
             record = self.store.read(key=self.key)
             if isinstance(record, ResultRecord):
                 return record
-            # for backwards compatibility, if we encounter a transaction record, return the result
-            # This happens when the transaction is using a `ResultStore`
-            if isinstance(record, TransactionRecord):
-                return record.result
         return None
 
     def reset(self) -> None:
@@ -315,11 +309,7 @@ class Transaction(ContextModel):
 
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self.store, ResultStore):
-                    if isinstance(self._staged_value, BaseResult):
-                        self.store.write(
-                            key=self.key, obj=self._staged_value.get(_sync=True)
-                        )
-                    elif isinstance(self._staged_value, ResultRecord):
+                    if isinstance(self._staged_value, ResultRecord):
                         self.store.persist_result_record(
                             result_record=self._staged_value
                         )
@@ -436,7 +426,7 @@ def get_transaction() -> Optional[Transaction]:
 @contextmanager
 def transaction(
     key: Optional[str] = None,
-    store: Union[RecordStore, ResultStore, None] = None,
+    store: Optional[ResultStore] = None,
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
@@ -463,6 +453,10 @@ def transaction(
     # if there is no key, we won't persist a record
     if key and not store:
         store = get_result_store()
+
+    # Avoid inheriting a NullFileSystem for metadata_storage from a flow's result store
+    if store and isinstance(store.metadata_storage, NullFileSystem):
+        store = store.model_copy(update={"metadata_storage": None})
 
     try:
         _logger: Union[logging.Logger, LoggingAdapter] = logger or get_run_logger()

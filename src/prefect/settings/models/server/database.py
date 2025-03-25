@@ -1,11 +1,94 @@
 import warnings
-from typing import Optional
+from typing import Any, ClassVar, Optional
 from urllib.parse import quote_plus
 
-from pydantic import AliasChoices, AliasPath, Field, SecretStr, model_validator
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    Field,
+    SecretStr,
+    model_validator,
+)
+from pydantic_settings import SettingsConfigDict
 from typing_extensions import Literal, Self
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
+
+
+class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
+    """
+    Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
+    using a PostgreSQL database.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database", "sqlalchemy", "connect_args")
+    )
+
+    application_name: Optional[str] = Field(
+        default=None,
+        description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
+    )
+
+    statement_cache_size: Optional[int] = Field(
+        default=None,
+        description="Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
+    )
+
+    prepared_statement_cache_size: Optional[int] = Field(
+        default=None,
+        description=(
+            "Controls the size of the statement cache for PostgreSQL connections. "
+            "When set to 0, statement caching is disabled. Defaults to None to use "
+            "SQLAlchemy's default behavior."
+        ),
+    )
+
+
+class SQLAlchemySettings(PrefectBaseSettings):
+    """
+    Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+    using a PostgreSQL database.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database", "sqlalchemy")
+    )
+
+    connect_args: SQLAlchemyConnectArgsSettings = Field(
+        default_factory=SQLAlchemyConnectArgsSettings,
+        description="Settings for controlling SQLAlchemy connection behavior",
+    )
+
+    pool_size: int = Field(
+        default=5,
+        description="Controls connection pool size of database connection pools from the Prefect backend.",
+        validation_alias=AliasChoices(
+            AliasPath("pool_size"),
+            "prefect_server_database_sqlalchemy_pool_size",
+            "prefect_sqlalchemy_pool_size",
+        ),
+    )
+
+    pool_recycle: int = Field(
+        default=3600,
+        description="This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.",
+    )
+
+    pool_timeout: Optional[float] = Field(
+        default=30.0,
+        description="Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.",
+    )
+
+    max_overflow: int = Field(
+        default=10,
+        description="Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
+        validation_alias=AliasChoices(
+            AliasPath("max_overflow"),
+            "prefect_server_database_sqlalchemy_max_overflow",
+            "prefect_sqlalchemy_max_overflow",
+        ),
+    )
 
 
 class ServerDatabaseSettings(PrefectBaseSettings):
@@ -13,7 +96,14 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     Settings for controlling server database behavior
     """
 
-    model_config = _build_settings_config(("server", "database"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database")
+    )
+
+    sqlalchemy: SQLAlchemySettings = Field(
+        default_factory=SQLAlchemySettings,
+        description="Settings for controlling SQLAlchemy behavior",
+    )
 
     connection_url: Optional[SecretStr] = Field(
         default=None,
@@ -121,7 +211,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
 
     timeout: Optional[float] = Field(
         default=10.0,
-        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+        description="A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.",
         validation_alias=AliasChoices(
             AliasPath("timeout"),
             "prefect_server_database_timeout",
@@ -130,7 +220,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     )
 
     connection_timeout: Optional[float] = Field(
-        default=5,
+        default=5.0,
         description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
         validation_alias=AliasChoices(
             AliasPath("connection_timeout"),
@@ -139,25 +229,49 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         ),
     )
 
-    sqlalchemy_pool_size: Optional[int] = Field(
-        default=None,
-        description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
-        validation_alias=AliasChoices(
-            AliasPath("sqlalchemy_pool_size"),
-            "prefect_server_database_sqlalchemy_pool_size",
-            "prefect_sqlalchemy_pool_size",
-        ),
-    )
+    # handle deprecated fields
 
-    sqlalchemy_max_overflow: Optional[int] = Field(
-        default=None,
-        description="Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
-        validation_alias=AliasChoices(
-            AliasPath("sqlalchemy_max_overflow"),
-            "prefect_server_database_sqlalchemy_max_overflow",
-            "prefect_sqlalchemy_max_overflow",
-        ),
-    )
+    def __getattribute__(self, name: str) -> Any:
+        if name in ["sqlalchemy_pool_size", "sqlalchemy_max_overflow"]:
+            warnings.warn(
+                f"Setting {name} has been moved to the `sqlalchemy` settings group.",
+                DeprecationWarning,
+            )
+            field_name = name.replace("sqlalchemy_", "")
+            return getattr(super().__getattribute__("sqlalchemy"), field_name)
+        return super().__getattribute__(name)
+
+    # validators
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_deprecated_sqlalchemy_settings_on_child_model_and_warn(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set deprecated settings on the child model.
+        """
+        # Initialize sqlalchemy settings if not present
+        if "sqlalchemy" not in values:
+            values["sqlalchemy"] = SQLAlchemySettings()
+
+        if "sqlalchemy_pool_size" in values:
+            warnings.warn(
+                "`sqlalchemy_pool_size` has been moved to the `sqlalchemy` settings group as `pool_size`.",
+                DeprecationWarning,
+            )
+            if "pool_size" not in values["sqlalchemy"].model_fields_set:
+                values["sqlalchemy"].pool_size = values["sqlalchemy_pool_size"]
+
+        if "sqlalchemy_max_overflow" in values:
+            warnings.warn(
+                "`sqlalchemy_max_overflow` has been moved to the `sqlalchemy` settings group as `max_overflow`.",
+                DeprecationWarning,
+            )
+            if "max_overflow" not in values["sqlalchemy"].model_fields_set:
+                values["sqlalchemy"].max_overflow = values["sqlalchemy_max_overflow"]
+
+        return values
 
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:  # noqa: F821
@@ -166,7 +280,9 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         return self
 
 
-def warn_on_database_password_value_without_usage(settings: ServerDatabaseSettings):
+def warn_on_database_password_value_without_usage(
+    settings: ServerDatabaseSettings,
+) -> None:
     """
     Validator for settings warning if the database password is set but not used.
     """
@@ -194,4 +310,4 @@ def warn_on_database_password_value_without_usage(settings: ServerDatabaseSettin
             "PREFECT_SERVER_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
-    return settings
+    return None

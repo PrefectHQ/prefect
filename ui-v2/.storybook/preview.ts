@@ -1,6 +1,12 @@
+import { ModeDecorator } from "@/storybook/utils";
 import type { Preview } from "@storybook/react";
+import { handlers } from "@tests/utils/handlers";
+import { initialize, mswLoader } from "msw-storybook-addon";
 
 import "../src/index.css";
+
+// Initialize MSW
+initialize({ onUnhandledRequest: "bypass" }, handlers);
 
 export default {
 	parameters: {
@@ -11,4 +17,7 @@ export default {
 			},
 		},
 	},
+	decorators: [ModeDecorator],
+	// Provide the MSW addon loader globally
+	loaders: [mswLoader],
 } satisfies Preview;

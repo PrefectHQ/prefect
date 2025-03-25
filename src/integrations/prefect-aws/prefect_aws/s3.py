@@ -7,6 +7,8 @@ import uuid
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union, get_args
 
+import boto3
+from botocore.client import Config
 from botocore.paginate import PageIterator
 from botocore.response import StreamingBody
 from pydantic import Field, field_validator
@@ -21,6 +23,58 @@ from prefect.utilities.filesystem import filter_files
 from prefect.utilities.pydantic import lookup_type
 from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
+
+
+def get_s3_client(
+    credentials: Optional[dict[str, Any]] = None,
+    client_parameters: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    if credentials is None:
+        credentials = {}
+    if client_parameters is None:
+        client_parameters = {}
+
+    # Get credentials from credentials (regardless if block or not)
+    aws_access_key_id = credentials.get(
+        "aws_access_key_id", credentials.get("minio_root_user", None)
+    )
+    aws_secret_access_key = credentials.get(
+        "aws_secret_access_key", credentials.get("minio_root_password", None)
+    )
+    aws_session_token = credentials.get("aws_session_token", None)
+
+    # Get remaining session info from credentials, or client_parameters
+    profile_name = credentials.get(
+        "profile_name", client_parameters.get("profile_name", None)
+    )
+    region_name = credentials.get(
+        "region_name", client_parameters.get("region_name", None)
+    )
+
+    # Get additional info from client_parameters, otherwise credentials input (if block)
+    aws_client_parameters = credentials.get("aws_client_parameters", client_parameters)
+    api_version = aws_client_parameters.get("api_version", None)
+    endpoint_url = aws_client_parameters.get("endpoint_url", None)
+    use_ssl = aws_client_parameters.get("use_ssl", True)
+    verify = aws_client_parameters.get("verify", None)
+    config_params = aws_client_parameters.get("config", {})
+    config = Config(**config_params)
+
+    session = boto3.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
+        profile_name=profile_name,
+        region_name=region_name,
+    )
+    return session.client(
+        "s3",
+        api_version=api_version,
+        endpoint_url=endpoint_url,
+        use_ssl=use_ssl,
+        verify=verify,
+        config=config,
+    )
 
 
 @task
@@ -86,8 +140,8 @@ async def adownload_from_bucket(
     return output
 
 
-@task
 @async_dispatch(adownload_from_bucket)
+@task
 def download_from_bucket(
     bucket: str,
     key: str,
@@ -217,8 +271,8 @@ async def aupload_to_bucket(
     return key
 
 
-@task
 @async_dispatch(aupload_to_bucket)
+@task
 def upload_to_bucket(
     data: bytes,
     bucket: str,
@@ -386,8 +440,8 @@ async def acopy_objects(
     return target_path
 
 
-@task
 @async_dispatch(acopy_objects)
+@task
 def copy_objects(
     source_path: str,
     target_path: str,
@@ -549,8 +603,8 @@ async def amove_objects(
     return target_path
 
 
-@task
 @async_dispatch(amove_objects)
+@task
 def move_objects(
     source_path: str,
     target_path: str,
@@ -695,8 +749,8 @@ async def alist_objects(
     return await run_sync_in_worker_thread(_list_objects_sync, page_iterator)
 
 
-@task
 @async_dispatch(alist_objects)
+@task
 def list_objects(
     bucket: str,
     aws_credentials: AwsCredentials,

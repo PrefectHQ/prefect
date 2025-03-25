@@ -15,10 +15,10 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-import pendulum
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
+from prefect.types._datetime import DateTime, from_format
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
     AliasedModuleDefinition,
@@ -56,22 +56,22 @@ def generate_deprecation_message(
     end_date: Optional[str] = None,
     help: str = "",
     when: str = "",
-):
+) -> str:
     if not start_date and not end_date:
         raise ValueError(
             "A start date is required if an end date is not provided. Suggested start"
-            f" date is {pendulum.now('UTC').format(DEPRECATED_DATEFMT)!r}"
+            f" date is {DateTime.now('UTC').format(DEPRECATED_DATEFMT)!r}"
         )
 
     if not end_date:
         if TYPE_CHECKING:
             assert start_date is not None
-        parsed_start_date = pendulum.from_format(start_date, DEPRECATED_DATEFMT)
+        parsed_start_date = from_format(start_date, DEPRECATED_DATEFMT)
         parsed_end_date = parsed_start_date.add(months=6)
         end_date = parsed_end_date.format(DEPRECATED_DATEFMT)
     else:
         # Validate format
-        pendulum.from_format(end_date, DEPRECATED_DATEFMT)
+        from_format(end_date, DEPRECATED_DATEFMT)
 
     if when:
         when = " when " + when

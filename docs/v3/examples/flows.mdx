@@ -1,0 +1,21 @@
+---
+title: Flow Examples
+sidebarTitle: Flows
+---
+
+The following examples demonstrate various features and patterns of Prefect [flows](/v3/develop/write-flows).
+These examples are sourced from the [PrefectHQ/examples](https://github.com/PrefectHQ/examples) repository.
+
+| Example | Description |
+|---------|-------------|
+| [hello_world.py](https://github.com/PrefectHQ/examples/blob/main/flows/hello_world.py) | A simple "Hello World" flow demonstrating basic flow creation and execution. |
+| [access_run_context.py](https://github.com/PrefectHQ/examples/blob/main/flows/access_run_context.py) | Shows how to access and use flow run context information within flows and tasks. |
+| [conditionally_retry_with_delay.py](https://github.com/PrefectHQ/examples/blob/main/flows/conditionally_retry_with_delay.py) | Shows how to implement conditional retries with increasing delays based on specific HTTP status codes. Useful for handling transient API failures. |
+| [force_out_of_memory.py](https://github.com/PrefectHQ/examples/blob/main/flows/force_out_of_memory.py) | Demonstrates how to reproduce and diagnose memory issues in flows. |
+| [local_concurrency_with_async.py](https://github.com/PrefectHQ/examples/blob/main/flows/local_concurrency_with_async.py) | Implements concurrent API requests using Python's native async capabilities. |
+| [local_concurrency_with_task_runner.py](https://github.com/PrefectHQ/examples/blob/main/flows/local_concurrency_with_task_runner.py) | Shows how to achieve concurrency using Prefect's ThreadPoolTaskRunner. |
+| [return_custom_state.py](https://github.com/PrefectHQ/examples/blob/main/flows/return_custom_state.py) | Demonstrates returning custom states from tasks, specifically for implementing retry logic. |
+| [schedule_specific_parameters.py](https://github.com/PrefectHQ/examples/blob/main/flows/schedule_specific_parameters.py) | Shows how to bind specific parameters to a schedule. |
+| [update_flow_run_state_via_client.py](https://github.com/PrefectHQ/examples/blob/main/flows/update_flow_run_state_via_client.py) | Shows how to update flow run states using hooks and the Prefect client. |
+| [update_flow_run_tags.py](https://github.com/PrefectHQ/examples/blob/main/flows/update_flow_run_tags.py) | Demonstrates updating flow run tags during execution. |
+| [whoami.py](https://github.com/PrefectHQ/examples/blob/main/flows/whoami.py) | A diagnostic flow that logs information about the current execution environment. |

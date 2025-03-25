@@ -1,0 +1,554 @@
+---
+title: " "
+sidebarTitle: prefect deployments
+---
+
+# `prefect deployments`
+
+
+
+```command
+prefect deployments [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage deployments.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect deployments inspect`
+
+
+
+```command
+prefect deployments inspect [OPTIONS] NAME
+```
+
+
+
+<Info>
+View details about a deployment.
+
+
+Example:
+    
+    \$ prefect deployment inspect "hello-world/my-deployment"
+    &#123;
+        'id': '610df9c3-0fb4-4856-b330-67f588d20201',
+        'created': '2022-08-01T18:36:25.192102+00:00',
+        'updated': '2022-08-01T18:36:25.188166+00:00',
+        'name': 'my-deployment',
+        'description': None,
+        'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
+        'schedules': None,
+        'parameters': &#123;'name': 'Marvin'&#125;,
+        'tags': ['test'],
+        'parameter_openapi_schema': &#123;
+            'title': 'Parameters',
+            'type': 'object',
+            'properties': &#123;
+                'name': &#123;
+                    'title': 'name',
+                    'type': 'string'
+                &#125;
+            &#125;,
+            'required': ['name']
+        &#125;,
+        'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
+        'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
+        'infrastructure': &#123;
+            'type': 'process',
+            'env': &#123;&#125;,
+            'labels': &#123;&#125;,
+            'name': None,
+            'command': ['python', '-m', 'prefect.engine'],
+            'stream_output': True
+        &#125;
+    &#125;
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect deployments ls`
+
+
+
+```command
+prefect deployments ls [OPTIONS]
+```
+
+
+
+<Info>
+View all deployments or deployments for specific flows.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--flow-name">
+    
+</ResponseField>
+
+<ResponseField name="--by-created">
+    
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect deployments run`
+
+
+
+```command
+prefect deployments run [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Create a flow run for the given flow and deployment.
+
+The flow run will be scheduled to run immediately unless \`--start-in\` or \`--start-at\` is specified.
+The flow run will not execute until a worker starts.
+To watch the flow run until it reaches a terminal state, use the \`--watch\` flag.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    A deployed flow's name: &lt;FLOW_NAME&gt;/&lt;DEPLOYMENT_NAME&gt;
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    A deployment id to search for if no name is given
+</ResponseField>
+
+<ResponseField name="-jv">
+    A key, value pair (key=value) specifying a flow run job variable. The value will be interpreted as JSON. May be passed multiple times to specify multiple job variable values.
+</ResponseField>
+
+<ResponseField name="-p">
+    A key, value pair (key=value) specifying a flow parameter. The value will be interpreted as JSON. May be passed multiple times to specify multiple parameter values.
+</ResponseField>
+
+<ResponseField name="--params">
+    A mapping of parameters to values. To use a stdin, pass '-'. Any parameters passed with \`--param\` will take precedence over these values.
+</ResponseField>
+
+<ResponseField name="--start-in">
+    A human-readable string specifying a time interval to wait before starting the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'.
+</ResponseField>
+
+<ResponseField name="--start-at">
+    A human-readable string specifying a time to start the flow run. E.g. 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'.
+</ResponseField>
+
+<ResponseField name="--tag">
+    Tag(s) to be applied to flow run.
+</ResponseField>
+
+<ResponseField name="--watch">
+    Whether to poll the flow run until a terminal state is reached.
+</ResponseField>
+
+<ResponseField name="--watch-interval">
+    How often to poll the flow run for state changes (in seconds).
+</ResponseField>
+
+<ResponseField name="--watch-timeout">
+    Timeout for --watch.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect deployments delete`
+
+
+
+```command
+prefect deployments delete [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Delete a deployment.
+
+
+Examples:
+    
+    \$ prefect deployment delete test_flow/test_deployment
+    \$ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    A deployed flow's name: &lt;FLOW_NAME&gt;/&lt;DEPLOYMENT_NAME&gt;
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    A deployment id to search for if no name is given
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect deployments schedule`
+
+
+
+```command
+prefect deployments schedule [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage deployment schedules.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect deployments schedule create`
+
+
+
+```command
+prefect deployments schedule create [OPTIONS] NAME
+```
+
+
+
+<Info>
+Create a schedule for a given deployment.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--interval">
+    An interval to schedule on, specified in seconds
+</ResponseField>
+
+<ResponseField name="--anchor-date">
+    The anchor date for an interval schedule
+</ResponseField>
+
+<ResponseField name="--rrule">
+    Deployment schedule rrule string
+</ResponseField>
+
+<ResponseField name="--cron">
+    Deployment schedule cron string
+</ResponseField>
+
+<ResponseField name="--day_or">
+    Control how croniter handles \`day\` and \`day_of_week\` entries
+</ResponseField>
+
+<ResponseField name="--timezone">
+    Deployment schedule timezone string e.g. 'America/New_York'
+</ResponseField>
+
+<ResponseField name="--active">
+    Whether the schedule is active. Defaults to True.
+</ResponseField>
+
+<ResponseField name="--replace">
+    Replace the deployment's current schedule(s) with this new schedule.
+</ResponseField>
+
+<ResponseField name="--accept-yes">
+    Accept the confirmation prompt without prompting
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect deployments schedule delete`
+
+
+
+```command
+prefect deployments schedule delete [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+```
+
+
+
+<Info>
+Delete a deployment schedule.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="DEPLOYMENT_NAME" type="string" required>
+    \[required]
+</ResponseField>
+<ResponseField name="SCHEDULE_ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--accept-yes">
+    Accept the confirmation prompt without prompting
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect deployments schedule pause`
+
+
+
+```command
+prefect deployments schedule pause [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+```
+
+
+
+<Info>
+Pause a deployment schedule.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="DEPLOYMENT_NAME" type="string" required>
+    \[required]
+</ResponseField>
+<ResponseField name="SCHEDULE_ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+### `prefect deployments schedule resume`
+
+
+
+```command
+prefect deployments schedule resume [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+```
+
+
+
+<Info>
+Resume a deployment schedule.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="DEPLOYMENT_NAME" type="string" required>
+    \[required]
+</ResponseField>
+<ResponseField name="SCHEDULE_ID" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+### `prefect deployments schedule ls`
+
+
+
+```command
+prefect deployments schedule ls [OPTIONS] DEPLOYMENT_NAME
+```
+
+
+
+<Info>
+View all schedules for a deployment.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="DEPLOYMENT_NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+### `prefect deployments schedule clear`
+
+
+
+```command
+prefect deployments schedule clear [OPTIONS] DEPLOYMENT_NAME
+```
+
+
+
+<Info>
+Clear all schedules for a deployment.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="DEPLOYMENT_NAME" type="string" required>
+    \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--accept-yes">
+    Accept the confirmation prompt without prompting
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

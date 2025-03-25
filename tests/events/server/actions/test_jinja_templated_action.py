@@ -1324,8 +1324,8 @@ async def test_work_pool_is_available_to_templates(
     assert (
         rendered
         == f"""
-    Name: { work_queue.name }
-    Pool: { work_pool.name }
+    Name: {work_queue.name}
+    Pool: {work_pool.name}
     """
     )
 

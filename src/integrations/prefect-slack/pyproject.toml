@@ -25,7 +25,7 @@ classifiers = [
 dependencies = ["aiohttp", "slack_sdk>=3.15.1", "prefect>=3.0.0"]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "coverage",
   "interrogate",
@@ -73,3 +73,6 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }

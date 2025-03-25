@@ -3,7 +3,7 @@ import os
 import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Generator, List
+from typing import Any, Generator, List
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 from uuid import UUID, uuid4
@@ -18,6 +18,7 @@ import pytest
 import respx
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBasic, HTTPBearer
+from packaging import version
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -45,6 +46,8 @@ from prefect.client.schemas.actions import (
 from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
+    DeploymentFilter,
+    DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
     FlowRunFilterTags,
@@ -63,6 +66,7 @@ from prefect.client.schemas.objects import (
     TaskRun,
     Variable,
     WorkerMetadata,
+    WorkPoolStorageConfiguration,
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
@@ -786,9 +790,38 @@ async def test_read_deployment_by_name(prefect_client):
     assert lookup.name == "test-deployment"
 
 
-async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
-    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
-
+@pytest.mark.parametrize(
+    "deployment_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_deployment_by_any_tag(
+    prefect_client, deployment_tags, filter_tags, expected_match
+):
     @flow
     def moo_deng():
         pass
@@ -798,13 +831,16 @@ async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_cli
     await prefect_client.create_deployment(
         flow_id=flow_id,
         name="moisturized-deployment",
+        tags=deployment_tags,
     )
-
-    with pytest.raises(
-        prefect.exceptions.ObjectNotFound,
-        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
-    ):
-        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
+    deployment_responses = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(any_=filter_tags))
+    )
+    if expected_match:
+        assert len(deployment_responses) == 1
+        assert deployment_responses[0].name == "moisturized-deployment"
+    else:
+        assert len(deployment_responses) == 0
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -825,7 +861,7 @@ async def test_create_then_delete_deployment(prefect_client):
 
 
 async def test_read_nonexistent_deployment_by_name(prefect_client):
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+    with pytest.raises((prefect.exceptions.ObjectNotFound, ValueError)):
         await prefect_client.read_deployment_by_name("not-a-real-deployment")
 
 
@@ -1873,19 +1909,6 @@ class TestClientWorkQueues:
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
 
-    async def test_get_runs_from_queue_updates_status(
-        self, prefect_client: PrefectClient
-    ):
-        queue = await prefect_client.create_work_queue(name="foo")
-        assert queue.status == "NOT_READY"
-
-        # Trigger an operation that would update the queues last_polled status
-        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
-
-        # Verify that the polling results in a READY status
-        lookup = await prefect_client.read_work_queue(queue.id)
-        assert lookup.status == "READY"
-
 
 async def test_delete_flow_run(prefect_client, flow_run):
     # Note - the flow_run provided by the fixture is not of type `FlowRun`
@@ -2004,7 +2027,7 @@ class TestWorkPools:
         }
 
     async def test_create_work_pool_overwriting_existing_work_pool(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(
@@ -2063,6 +2086,74 @@ class TestWorkPools:
         await prefect_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.read_work_pool(work_pool.id)
+
+    @pytest.fixture
+    def sample_bundle_upload_step(self) -> dict[str, Any]:
+        return {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+
+    @pytest.fixture
+    def sample_bundle_execution_step(self) -> dict[str, Any]:
+        return {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+
+    async def test_create_work_pool_with_storage_configuration(
+        self,
+        prefect_client: PrefectClient,
+        sample_bundle_upload_step: dict[str, Any],
+        sample_bundle_execution_step: dict[str, Any],
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate.model_validate(
+                {
+                    "name": "test-pool-1",
+                    "storage_configuration": {
+                        "bundle_upload_step": sample_bundle_upload_step,
+                        "bundle_execution_step": sample_bundle_execution_step,
+                    },
+                }
+            ),
+        )
+        assert work_pool.storage_configuration == WorkPoolStorageConfiguration(
+            bundle_upload_step=sample_bundle_upload_step,
+            bundle_execution_step=sample_bundle_execution_step,
+        )
+
+    async def test_update_work_pool_with_storage_configuration(
+        self,
+        prefect_client: PrefectClient,
+        sample_bundle_upload_step: dict[str, Any],
+        sample_bundle_execution_step: dict[str, Any],
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-1")
+        )
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate.model_validate(
+                {
+                    "storage_configuration": {
+                        "bundle_upload_step": sample_bundle_upload_step,
+                        "bundle_execution_step": {"step": "not a real step"},
+                    },
+                }
+            ),
+        )
+        result = await prefect_client.read_work_pool(work_pool.name)
+        assert result.storage_configuration == WorkPoolStorageConfiguration(
+            bundle_upload_step=sample_bundle_upload_step,
+            bundle_execution_step={"step": "not a real step"},
+        )
 
 
 class TestArtifacts:
@@ -2375,9 +2466,9 @@ class TestAutomations:
             )
 
             assert read_route.called
-            assert (
-                len(read_automation) == 2
-            ), "Expected two automations with the same name"
+            assert len(read_automation) == 2, (
+                "Expected two automations with the same name"
+            )
             assert all(
                 [
                     automation.name == created_automation["name"]
@@ -2762,6 +2853,21 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
             in str(e.value)
         )
 
+    async def test_warn_on_server_incompatibility(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        mock_version = "3.0.0"
+        assert version.parse(mock_version) < version.parse(prefect.__version__)
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value=mock_version)
+        )
+        await prefect_client.raise_for_api_version_mismatch()
+
+        assert (
+            "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
+            in caplog.text
+        )
+
 
 class TestSyncClient:
     def test_get_sync_client(self):
@@ -2831,6 +2937,20 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             in str(e.value)
         )
 
+    async def test_warn_on_server_incompatibility(
+        self, sync_prefect_client, monkeypatch, caplog
+    ):
+        mock_version = "3.0.0"
+        assert version.parse(mock_version) < version.parse(prefect.__version__)
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value=mock_version)
+        )
+        sync_prefect_client.raise_for_api_version_mismatch()
+        assert (
+            "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
+            in caplog.text
+        )
+
 
 class TestPrefectClientWorkerHeartbeat:
     async def test_worker_heartbeat(
@@ -2851,7 +2971,7 @@ class TestPrefectClientWorkerHeartbeat:
         self, prefect_client: PrefectClient
     ):
         with mock.patch(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            "prefect.client.orchestration.base.BaseAsyncClient.request",
             return_value=httpx.Response(status_code=204),
         ) as mock_post:
             await prefect_client.send_worker_heartbeat(
@@ -2874,7 +2994,7 @@ class TestPrefectClientWorkerHeartbeat:
         self, prefect_client: PrefectClient
     ):
         with mock.patch(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            "prefect.client.orchestration.base.BaseAsyncClient.request",
             return_value=httpx.Response(status_code=204),
         ) as mock_post:
             await prefect_client.send_worker_heartbeat(

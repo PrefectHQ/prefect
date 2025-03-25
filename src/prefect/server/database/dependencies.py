@@ -32,17 +32,13 @@ from prefect.server.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.server.database.orm_models import (
-    AioSqliteORMConfiguration,
-    AsyncPostgresORMConfiguration,
-    BaseORMConfiguration,
-)
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.schemas import PrefectDescriptorBase
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
     from prefect.server.database.interface import PrefectDBInterface
+    from prefect.server.database.orm_models import BaseORMConfiguration
     from prefect.server.database.query_components import BaseQueryComponents
 
 P = ParamSpec("P")
@@ -58,7 +54,7 @@ _DBMethod: TypeAlias = Callable[Concatenate[T, "PrefectDBInterface", P], R]
 class _ModelDependencies(TypedDict):
     database_config: Optional[BaseDatabaseConfiguration]
     query_components: Optional["BaseQueryComponents"]
-    orm: Optional[BaseORMConfiguration]
+    orm: Optional["BaseORMConfiguration"]
     interface_class: Optional[type["PrefectDBInterface"]]
 
 
@@ -78,6 +74,10 @@ def provide_database_interface() -> "PrefectDBInterface":
     based on the dialect of the connection URL.
     """
     from prefect.server.database.interface import PrefectDBInterface
+    from prefect.server.database.orm_models import (
+        AioSqliteORMConfiguration,
+        AsyncPostgresORMConfiguration,
+    )
     from prefect.server.database.query_components import (
         AioSqliteQueryComponents,
         AsyncPostgresQueryComponents,
@@ -168,13 +168,11 @@ def inject_db(fn: Callable[P, R]) -> Callable[P, R]:
 
 
 @overload
-def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]:
-    ...
+def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]: ...
 
 
 @overload
-def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]:
-    ...
+def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]: ...
 
 
 def db_injector(
@@ -265,17 +263,14 @@ class DBInjector(
     if TYPE_CHECKING:
 
         @overload
-        def __new__(cls, func: _DBMethod[T, P, R]) -> "DBInjector[T, P, R]":
-            ...
+        def __new__(cls, func: _DBMethod[T, P, R]) -> "DBInjector[T, P, R]": ...
 
         @overload
-        def __new__(cls, func: _DBFunction[P, R]) -> "DBInjector[None, P, R]":
-            ...
+        def __new__(cls, func: _DBFunction[P, R]) -> "DBInjector[None, P, R]": ...
 
         def __new__(
             cls, func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]
-        ) -> Union["DBInjector[T, P, R]", "DBInjector[None, P, R]"]:
-            ...
+        ) -> Union["DBInjector[T, P, R]", "DBInjector[None, P, R]"]: ...
 
     def __init__(self, func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]) -> None:
         super().__init__(cast(Callable[P, R], func))
@@ -289,18 +284,15 @@ class DBInjector(
         object.__setattr__(self, "__name__", name)
 
     @overload
-    def __get__(self, instance: None, owner: type[T]) -> Self:
-        ...
+    def __get__(self, instance: None, owner: type[T]) -> Self: ...
 
     @overload
     def __get__(
         self, instance: T, owner: Optional[type[T]] = None
-    ) -> "_DBInjectorMethod[T, P, R]":
-        ...
+    ) -> "_DBInjectorMethod[T, P, R]": ...
 
     @overload
-    def __get__(self, instance: None, owner: None) -> Never:
-        ...
+    def __get__(self, instance: None, owner: None) -> Never: ...
 
     def __get__(
         self, instance: Optional[T], owner: Optional[type[T]] = None
@@ -409,7 +401,7 @@ def temporary_query_components(
 
 @contextmanager
 def temporary_orm_config(
-    tmp_orm_config: Optional[BaseORMConfiguration],
+    tmp_orm_config: Optional["BaseORMConfiguration"],
 ) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API ORM configuration.
@@ -452,7 +444,7 @@ def temporary_interface_class(
 def temporary_database_interface(
     tmp_database_config: Optional[BaseDatabaseConfiguration] = None,
     tmp_queries: Optional["BaseQueryComponents"] = None,
-    tmp_orm_config: Optional[BaseORMConfiguration] = None,
+    tmp_orm_config: Optional["BaseORMConfiguration"] = None,
     tmp_interface_class: Optional[type["PrefectDBInterface"]] = None,
 ) -> Generator[None, object, None]:
     """
@@ -494,7 +486,7 @@ def set_query_components(query_components: Optional["BaseQueryComponents"]) -> N
     MODELS_DEPENDENCIES["query_components"] = query_components
 
 
-def set_orm_config(orm_config: Optional[BaseORMConfiguration]) -> None:
+def set_orm_config(orm_config: Optional["BaseORMConfiguration"]) -> None:
     """Set Prefect REST API orm configuration."""
     MODELS_DEPENDENCIES["orm"] = orm_config
 

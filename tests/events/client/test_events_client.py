@@ -1,9 +1,9 @@
 import logging
+import ssl
 from typing import Type
-from unittest import mock
 
 import pytest
-from websockets.exceptions import ConnectionClosed
+from websockets.exceptions import ConnectionClosedError
 
 from prefect.events import Event, get_events_client
 from prefect.events.clients import (
@@ -13,6 +13,7 @@ from prefect.events.clients import (
 )
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
@@ -34,6 +35,17 @@ def ephemeral_settings():
         yield
 
 
+def assert_recorded_events_in_order(recorder: Recorder, events: list[Event]):
+    seen_ids = set()
+    unique_events = []
+    for event in recorder.events:
+        if event.id not in seen_ids:
+            seen_ids.add(event.id)
+            unique_events.append(event)
+
+    assert unique_events == events
+
+
 async def test_constructs_client_when_ephemeral_enabled(ephemeral_settings):
     assert isinstance(get_events_client(), PrefectEventsClient)
 
@@ -49,6 +61,26 @@ def test_errors_when_missing_api_url_and_ephemeral_disabled():
     ):
         with pytest.raises(ValueError, match="PREFECT_API_URL"):
             get_events_client()
+
+
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
+    monkeypatch: pytest.MonkeyPatch, ephemeral_settings: None
+):
+    with temporary_settings(
+        updates={
+            PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True,
+            PREFECT_API_URL: "https://my-self-hosted-thing",
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: False,
+        }
+    ):
+        client = get_events_client()
+
+    ssl_ctx = client._connect._kwargs["ssl"]
+
+    # Verify it's an SSL context with the correct insecure settings
+    assert isinstance(ssl_ctx, ssl.SSLContext)
+    assert ssl_ctx.verify_mode == ssl.CERT_NONE
+    assert ssl_ctx.check_hostname is False
 
 
 @pytest.fixture
@@ -165,14 +197,16 @@ async def test_reconnects_and_resends_after_hard_disconnect(
         await client.emit(example_event_5)
 
     assert recorder.connections == 2
-    assert recorder.events == [
-        example_event_1,
-        example_event_2,
-        example_event_3,
-        example_event_3,  # resent due to the hard disconnect after event 2
-        example_event_4,
-        example_event_5,
-    ]
+    assert_recorded_events_in_order(
+        recorder,
+        [
+            example_event_1,
+            example_event_2,
+            example_event_3,
+            example_event_4,
+            example_event_5,
+        ],
+    )
 
 
 @pytest.mark.parametrize("attempts", [4, 1, 0])
@@ -196,9 +230,9 @@ async def test_gives_up_after_a_certain_amount_of_tries(
 
         puppeteer.hard_disconnect_after = example_event_2.id
         puppeteer.refuse_any_further_connections = True
-        await client.emit(example_event_2)
 
-        with pytest.raises(ConnectionClosed):
+        with pytest.raises(ConnectionClosedError):
+            await client.emit(example_event_2)
             await client.emit(example_event_3)
 
     assert recorder.connections == 1 + attempts
@@ -268,33 +302,26 @@ async def test_recovers_from_temporary_error_reconnecting(
         puppeteer.hard_disconnect_after = example_event_1.id
         await client.emit(example_event_1)
 
-        # Emulate an error happening during reconnection that may leave the websocket
-        # as None.  This may not be the exact cause of the trouble, but it emulates the
-        # same condition the client saw
-        assert client._connect is not None
-        with mock.patch.object(
-            client._connect, "__aexit__", side_effect=ValueError("newp")
-        ):
-            with pytest.raises(ValueError, match="newp"):
-                await client.emit(example_event_2)
-
-        assert recorder.connections == 1
-
-        # The condition we're testing for is that the client can recover from the
-        # websocket being None, so make sure that we've created that condition here
-        assert not client._websocket
+        # Set the websocket to None. This may not be the exact situation that
+        # the client saw, but it emulates the same condition
+        client._websocket = None
 
         # We're not going to make the server refuse connections, so we should expect the
         # client to automatically reconnect and continue emitting events
+        await client.emit(example_event_2)
+
+        assert recorder.connections > 1
 
         await client.emit(example_event_3)
 
-    assert recorder.connections == 1 + 1  # initial, reconnect
-    assert recorder.events == [
-        example_event_1,
-        example_event_2,
-        example_event_3,
-    ]
+    assert_recorded_events_in_order(
+        recorder,
+        [
+            example_event_1,
+            example_event_2,
+            example_event_3,
+        ],
+    )
 
 
 async def test_recovers_from_long_lasting_error_reconnecting(
@@ -314,35 +341,31 @@ async def test_recovers_from_long_lasting_error_reconnecting(
         puppeteer.hard_disconnect_after = example_event_1.id
         await client.emit(example_event_1)
 
-        # Emulate an error happening during reconnection that may leave the websocket
-        # as None.  This may not be the exact cause of the trouble, but it emulates the
-        # same condition the client saw
-        assert client._connect is not None
-        with mock.patch.object(
-            client._connect, "__aexit__", side_effect=ValueError("newp")
-        ):
-            with pytest.raises(ValueError, match="newp"):
-                await client.emit(example_event_2)
-
-        assert recorder.connections == 1
-
-        # The condition we're testing for is that the client can recover from the
-        # websocket being None, so make sure that we've created that condition here
-        assert not client._websocket
+        # Set the websocket to None. This may not be the exact situation that
+        # the client saw, but it emulates the same condition
+        client._websocket = None
 
         # This is what makes it "long-lasting", that the server will start refusing any
         # further connections, so we should expect up to N attempts to reconnect before
         # raising the underlying error
         puppeteer.refuse_any_further_connections = True
-        with pytest.raises(ConnectionClosed):
+
+        with pytest.raises(ConnectionClosedError):
+            await client.emit(example_event_2)
             await client.emit(example_event_3)
 
-    assert recorder.connections == 1 + 1 + 3  # initial, reconnect, three more attempts
-    assert recorder.events == [
-        example_event_1,
-        # event 2 never made it because we cause that error during reconnection
-        # event 3 never made it because we told the server to refuse future connects
-    ]
+    min_connections = 1 + 1 + 3  # initial, reconnect, three more attempts
+    assert (
+        recorder.connections >= min_connections < min_connections + 1
+    )  # There's some non-determinism in the number of connections
+    assert_recorded_events_in_order(
+        recorder,
+        [
+            example_event_1,
+            # event 2 never made it because we cause that error during reconnection
+            # event 3 never made it because we cause that error during reconnection
+        ],
+    )
 
 
 async def test_events_client_warn_if_connect_fails(

@@ -1,0 +1,462 @@
+---
+title: Run flows on Modal
+description: Learn how to use Modal as a push work pool to schedule, run, and debug your Prefect flows
+---
+
+Prefect is the world's best orchestrator.
+Modal is the world's best serverless compute framework.
+It only makes sense that they would fit together perfectly. 
+
+In this tutorial, you'll build your first Prefect deployment that runs on Modal every hour, and create a scalable framework to grow your project.
+
+Here's an architecture diagram which shows what you'll build.
+
+![image.png](/v3/img/tutorials/modal/modal%200.png)
+
+You'll build a full serverless infrastructure framework for scheduling and provisioning workflows.
+GitHub will act as the source of truth, Prefect will be the orchestrator, and Modal will be the serverless infrastructure.
+You'll only pay for the Modal CPU time you use. 
+
+First, here's a recap of some important terms:
+
+| Term | Definition |
+|------|------------|
+| _Flow_ | A Python function in a file, decorated with `@flow`, that is an entrypoint to perform a task in Prefect. |
+| _Run_ | An instance of a flow, executed at a specific time with a specific payload. |
+| _Deployment_ | A manifest around a flow, including where it should run, when it should run, and any variables it needs to run. A deployment can schedule your flows, creating runs when needed. |
+| _Work Pool_ | An interface to the hardware used to run a given flow. |
+
+## Prerequisites
+
+- A free [Prefect Cloud](https://app.prefect.cloud/auth/sign-in) account.
+- A free [Modal](https://modal.com/signup?next=%2Fapps) account.
+
+## Create a GitHub repository
+
+Create a GitHub repository containing your Prefect flows.
+You can reference the [Ben-Epstein/prefect-modal](https://github.com/Ben-Epstein/prefect-modal) repository for a complete example.
+Your repository should have a `prefect.yaml` deployment configuration file, standard Python tooling, and CI/CD.
+
+1. Start by creating the following `Makefile` to keep things easy:
+
+   ```makefile Makefile
+   export PYTHONPATH = .venv
+
+   .PHONY: uv
+   uv:
+     pip install --upgrade 'uv>=0.5.6,<0.6'
+     uv venv
+
+   setup:
+     @if [ ! -d ".venv" ] || ! command -v uv > /dev/null; then \
+       echo "UV not installed or .venv does not exist, running uv"; \
+       make uv; \
+     fi
+     @if [ ! -f "uv.lock" ]; then \
+       echo "Can't find lockfile. Locking"; \
+       uv lock; \
+     fi
+     uv sync --all-extras --all-groups
+     uv pip install --no-deps -e .
+   ```
+
+1. Set up and manage your environment with `uv`.
+
+   ```bash
+   make setup
+   ```
+
+1. Create your Python project.
+
+   ```bash
+   uv init --lib --name prefect_modal --python 3.12
+   ```
+
+   <Info>
+   If `uv` creates a `python-version` that is pinned to a micro version (for example, 3.12.6), remove the micro version (for example, 3.12) to avoid downstream issues.
+   </Info>
+
+1. Add your dependencies:
+
+   ```bash
+   uv add modal 'prefect[github]'
+   ```
+
+1. Add the following to the end of the `pyproject.toml` file created by `uv`:
+
+   ```makefile
+   [tool.hatch.build.targets.wheel]
+   packages = ["src/prefect_modal"]
+   ```
+
+1. Initialize the Prefect environment:
+
+   ```bash
+   uv run prefect init
+   ```
+
+   You will be prompted to choose your code storage; select `git` to store code within a git repository.
+
+   ![image.png](/v3/img/tutorials/modal/modal%201.png)
+
+1. Because this is meant to be a scalable repository, create a submodule just for your workflows.
+
+   ```bash
+   mkdir src/prefect_modal/flows
+   touch src/prefect_modal/flows/__init__.py
+   ```
+
+Now that your repository is set up, take a look at the `prefect.yaml` file that you generated.
+
+```yaml prefect.yaml
+# Welcome to your prefect.yaml file! You can use this file for storing and managing
+# configuration for deploying your flows. We recommend committing this file to source
+# control along with your flow code.
+
+# Generic metadata about this project
+name: prefect-modal
+prefect-version: 3.1.15
+
+# build section allows you to manage and build docker images
+build: null
+
+# push section allows you to manage if and how this project is uploaded to remote locations
+push: null
+
+# pull section allows you to provide instructions for cloning this project in remote locations
+pull:
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/Ben-Epstein/prefect-modal
+    branch: main
+    access_token: null
+
+# the deployments section allows you to provide configuration for deploying flows
+deployments:
+- name: null
+  version: null
+  tags: []
+  description: null
+  schedule: {}
+  flow_name: null
+  entrypoint: null
+  parameters: {}
+  work_pool:
+    name: null
+    work_queue_name: null
+    job_variables: {}
+```
+
+The important sections here are `pull`, which defines the repository and branch to pull from, as well as `deployments`, which define the `flows` that will be `run` at some `schedule` on a `work_pool`.
+The work pool will be set to modal later in this tutorial.
+
+Finally, create your flow.
+
+```bash
+touch src/prefect_modal/flows/flow1.py
+```
+
+You can do anything in your flow, but use the following code to keep it simple.
+
+```python src/prefect_modal/flows/flow1.py
+from prefect import flow, task
+
+@task()
+def do_print(param: str) -> None:
+    print("Doing the task")
+    print(param)
+
+@flow(log_prints=True)
+def run_my_flow(param: str) -> None:
+    print("flow 2")
+    do_print(param)
+
+@flow(log_prints=True)
+def main(name: str = "world", goodbye: bool = False):
+    print(f"Hello {name} from Prefect! 🤗")
+    run_my_flow(name)
+    if goodbye:
+        print(f"Goodbye {name}!")
+```
+
+## Give Prefect access to your GitHub repository
+
+First, authenticate to Prefect Cloud.
+
+```bash
+uv run prefect cloud login
+```
+
+You'll need a Personal Access Token (PAT) for authentication.
+For simplicity, use a classic token, but you can configure a fine-grained token if you want.
+
+In GitHub, go to [Personal access tokens](https://github.com/settings/tokens) and click **Generate new token (classic)**.
+
+![image.png](/v3/img/tutorials/modal/modal%202.png)
+
+Give the token a name, an expiration date, and repository access.
+
+![image.png](/v3/img/tutorials/modal/modal%203.png)
+
+Once you've created the token, copy it and give it to Prefect.
+First, run:
+
+```bash
+# Register the block
+uv run prefect block register -m prefect_github
+
+# Create the block
+uv run prefect block create prefect_github
+```
+
+The second command returns a URL.
+Click that URL to give your block a name and paste in the token you got from GitHub.
+Name the block `prefect-modal`.
+
+In `prefect.yaml`, edit the `pull:` section as follows:
+
+```yaml
+pull:
+- prefect.deployments.steps.git_clone:
+    id: clone-step
+    repository: https://github.com/Ben-Epstein/prefect-modal
+    branch: main
+    credentials: '{{ prefect.blocks.github-credentials.prefect-modal }}'
+```
+
+- Replace the `access_token` key name with `credentials`.
+- Change the repository name to the name of your repository.
+
+Now, add the following section to configure how you install your package and what your working directory is:
+
+```yaml
+- prefect.deployments.steps.run_shell_script:
+    directory: '{{ clone-step.directory }}'
+    script: pip install --upgrade 'uv>=0.5.6,<0.6'
+- prefect.deployments.steps.run_shell_script:
+    directory: '{{ clone-step.directory }}'
+    script: uv sync --no-editable --no-dev
+```
+
+<Info>
+Typically, `uv sync` creates a new virtual environment.
+The following steps show how to tell `uv` to use the root Python version.
+</Info>
+
+This configuration tells Prefect how to download the code from GitHub into the Modal pod before running the flow.
+This is important: you are telling Modal to load the code from `main`.
+This means that if you push new code to main, the next run of a flow in Modal will change to whatever is in main.
+To keep this stable, you can set that to a release branch, for example, to only update that release branch when you’re stable and ready.
+
+Now, configure a few more options on the `deployment` to get it ready: `entrypoint`, `schedule`, and `description`.
+
+```yaml
+  name: prefect-modal-example
+  description: "Your first deployment which runs daily at 12:00 on Modal"
+  entrypoint: prefect_modal.flows.flow1:main
+  schedules:
+  - cron: '0 12 * * *'
+    timezone: America/New_York
+    active: true
+```
+
+This schedule runs once a day at 12PM EST.
+You can add another schedule by adding another list element.
+
+<Info>
+Because you referenced the entrypoint as a module and not a path, you can call it from anywhere (as long as it’s installed).
+This is much more flexible.
+</Info>
+
+## Connect Prefect and Modal
+
+You need to give Prefect access to your Modal account to provision a serverless instance to run your flows and tasks.
+Modal will be the _Work Pool_ in Prefect terms, remaining off when unused, and spinning up the infrastructure you need when a new flow run is scheduled.
+Prefect makes this incredibly easy. 
+
+First, authenticate with Modal:
+
+```bash
+uv run modal setup
+```
+
+Next, create a token:
+
+```bash
+uv run modal token new
+```
+
+Finally, create a work pool:
+
+```bash
+uv run prefect work-pool create --type modal:push --provision-infra pref-modal-pool
+```
+
+The name `pref-modal-pool` in the last command is custom, you can name it whatever you want.
+Take the work pool name and update your `prefect.yaml` file with it.
+
+```yaml prefect.yaml {2}
+...
+work_pool:
+    name: "pref-modal-pool"
+    work_queue_name: "default"
+    job_variables: {
+        "env": {"UV_PROJECT_ENVIRONMENT": "/usr/local"}
+    }
+```
+
+<Info>
+This `UV_PROJECT_ENVIRONMENT` is how you tell uv to use the root python.
+You could `pip install` without `uv` but it would be significantly slower (minutes instead of seconds) and you can't leverage your lockfile, resulting in unexpected behavior!
+</Info>
+
+You can create multiple work queues across the same pool (for example, if you have another job using this pool).
+Multiple work queues let you handle concurrency and swim-lane priorities.
+To keep things simple, this tutorial will use the the default queue name that comes with every new pool.
+
+When you deploy to Prefect, it will know to schedule all of the flow runs for this particular deployment on your modal work pool!
+
+At this point, you could `git add . && git commit -m "prefect modal" && git push` to get your code into GitHub, and then `uv run prefect deploy --all` to get your deployment live.
+But first, learn how to automate Prefect deployments.
+
+## Configure CI/CD
+
+Since the code must exist in GitHub in order for Modal to download, install, and run it, GitHub should also be the source of truth for telling Prefect what to do with the code.
+
+First, create two secrets to add to the GitHub repository: `PREFECT_API_KEY` and `PREFECT_API_URL`.
+
+1. For `PREFECT_API_URL`, the format is as follows: `https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}`.
+
+   Go to the Prefect Cloud Dashboard, and then extract the account ID and workspace ID from the URL.
+
+   <Note>
+   The Prefect console URL uses `/account` and `/workspace` but the API uses `/accounts` and `/workspaces`, respectively.
+   </Note>
+
+2. For `PREFECT_API_KEY`, go to the [API keys](https://app.prefect.cloud/my/api-keys) page and create a new API key.
+
+   ![image.png](/v3/img/tutorials/modal/modal%204.png)
+
+Go to your repository, and then **Settings** / **Secrets and variables** / **Actions**.
+
+![image.png](/v3/img/tutorials/modal/modal%205.png)
+
+Click **New repository secret** to add these secrets to your GitHub repository.
+
+Now, add a simple GitHub workflow.
+Create a new folder in the root of your GitHub repository:
+
+```bash
+mkdir -p .github/workflows
+```
+
+Create a workflow file.
+
+```bash
+touch .github/workflows/prefect_cd.yaml
+```
+
+Add the following code to this workflow.
+
+```yaml .github/workflows/prefect_cd.yaml
+name: Deploy Prefect flow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prefect Deploy
+        env:
+          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+          PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
+        run: |
+          make prefect-deploy
+
+```
+
+The `make prefect-deploy` command is used to deploy the flows in your deployment.
+
+<Tip>
+You can run `make prefect-deploy` locally at any time to keep your deployment up to date.
+</Tip>
+
+Add the following command to your `Makefile`.
+
+```makefile Makefile
+prefect-deploy: setup
+    uv run prefect deploy --prefect-file prefect.yaml --all
+```
+
+Before pushing your code, run `make prefect-deploy` once to make sure everything works.
+Prefect will suggest changes to `prefect.yaml`, which you should accept.
+
+![image.png](/v3/img/tutorials/modal/modal%206.png)
+
+You let Prefect override your deployment spec, which allowed your CD to run without any interruptions or prompts.
+If you go to the **Deployment** page in Prefect Cloud, you'll see your deployment!
+
+![image.png](/v3/img/tutorials/modal/modal%207.png)
+
+There are no runs yet.
+The output from `make prefect-deploy` shows the command to run your deployed flow.
+However, since the code isn’t in GitHub yet, this will fail.
+To fix this, push your code:
+
+```bash
+git push
+```
+
+Go to the repository in **GitHub**, and then open **Actions** to verify that your CI/CD is running successfully.
+
+![image.png](/v3/img/tutorials/modal/modal%208.png)
+
+You can see the flow run in Prefect Cloud as well.
+
+The flow will run automatically at 12 PM, but you can also run it manually.
+
+In a new browser tab, open your [https://modal.com/apps/](Modal dashboard) alongside your Prefect Cloud dashboard.
+
+In your terminal, run the following command:
+
+```bash
+uv run prefect deployment run main/prefect-modal-example
+```
+
+You should see the run start in your Prefect dashboard.
+In 30-60 seconds, you should see it run in Modal.
+You can click on the run to see the logs.
+
+![image.png](/v3/img/tutorials/modal/modal%209.png)
+
+Click into the app and then click **App Logs** on the left to show everything that’s happening inside the flow run!
+
+![image.png](/v3/img/tutorials/modal/modal%2010.png)
+
+Click on a specific log line to get more details.
+
+![image.png](/v3/img/tutorials/modal/modal%2011.png)
+
+If you open the URL in that log, you’ll see the corresponding logs in Prefect Cloud.
+
+![image.png](/v3/img/tutorials/modal/modal%2012.png)
+
+As you make changes to either the code or deployment file, Prefect will redeploy and Modal will automatically pick up changes.
+You've successfully built your first Prefect deployment that runs on Modal every hour!
+
+<Note>
+For more information about CI/CD in Prefect, see [Build deployments via CI/CD](https://docs.prefect.io/v3/deploy/infrastructure-concepts/deploy-ci-cd).
+</Note>

@@ -4,11 +4,11 @@ from typing import Generator, List
 from unittest import mock
 from uuid import UUID
 
-import pendulum
 import pytest
 from httpx import AsyncClient
 from pydantic.networks import AnyHttpUrl
 
+import prefect.types._datetime
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import (
     EventFilter,
@@ -37,7 +37,7 @@ def filter(frozen_time: DateTime) -> EventFilter:
 def events_page_one() -> List[ReceivedEvent]:
     return [
         ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=prefect.types._datetime.now("UTC"),
             event="first.page.material",
             resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
@@ -51,7 +51,7 @@ def events_page_one() -> List[ReceivedEvent]:
 def events_page_two() -> List[ReceivedEvent]:
     return [
         ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=prefect.types._datetime.now("UTC"),
             event="second.page.material",
             resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
@@ -65,7 +65,7 @@ def events_page_two() -> List[ReceivedEvent]:
 def events_page_three() -> List[ReceivedEvent]:
     return [
         ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=prefect.types._datetime.now("UTC"),
             event="second.page.material",
             resource=Resource({"prefect.resource.id": "my.resource"}),
             payload={"goodbye": "moon"},
@@ -302,15 +302,15 @@ def count_events() -> Generator[mock.AsyncMock, None, None]:
                 value="hello",
                 label="world",
                 count=42,
-                start_time=pendulum.now("UTC").subtract(days=7),
-                end_time=pendulum.now("UTC"),
+                start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+                end_time=prefect.types._datetime.now("UTC"),
             ),
             EventCount(
                 value="goodbye",
                 label="moon",
                 count=24,
-                start_time=pendulum.now("UTC").subtract(days=7),
-                end_time=pendulum.now("UTC"),
+                start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+                end_time=prefect.types._datetime.now("UTC"),
             ),
         ]
         yield count_events
@@ -333,15 +333,15 @@ async def test_counting_events_by_day(
             value="hello",
             label="world",
             count=42,
-            start_time=pendulum.now("UTC").subtract(days=7),
-            end_time=pendulum.now("UTC"),
+            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            end_time=prefect.types._datetime.now("UTC"),
         ),
         EventCount(
             value="goodbye",
             label="moon",
             count=24,
-            start_time=pendulum.now("UTC").subtract(days=7),
-            end_time=pendulum.now("UTC"),
+            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            end_time=prefect.types._datetime.now("UTC"),
         ),
     ]
 
@@ -377,15 +377,15 @@ async def test_counting_events_by_time(
             value="hello",
             label="world",
             count=42,
-            start_time=pendulum.now("UTC").subtract(days=7),
-            end_time=pendulum.now("UTC"),
+            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            end_time=prefect.types._datetime.now("UTC"),
         ),
         EventCount(
             value="goodbye",
             label="moon",
             count=24,
-            start_time=pendulum.now("UTC").subtract(days=7),
-            end_time=pendulum.now("UTC"),
+            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            end_time=prefect.types._datetime.now("UTC"),
         ),
     ]
 
@@ -439,15 +439,15 @@ async def test_counting_events_by_event_with_a_filter(
             value="hello",
             label="world",
             count=42,
-            start_time=pendulum.now("UTC").subtract(days=7),
-            end_time=pendulum.now("UTC"),
+            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            end_time=prefect.types._datetime.now("UTC"),
         ),
         EventCount(
             value="goodbye",
             label="moon",
             count=24,
-            start_time=pendulum.now("UTC").subtract(days=7),
-            end_time=pendulum.now("UTC"),
+            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            end_time=prefect.types._datetime.now("UTC"),
         ),
     ]
 

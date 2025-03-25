@@ -1,22 +1,20 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.2.1"
+    rev: v0.9.5
     hooks:
       - id: ruff
         language_version: python3
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
       - id: ruff-format
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
+    rev: v2.4.1
     hooks:
       - id: codespell
+        additional_dependencies:
+          - tomli
         exclude: package-lock.json|_vendor/.*|docs/styles/.*
-  - repo: https://github.com/netromdk/vermin
-    rev: v1.6.0
-    hooks:
-      - id: vermin
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
+    rev: v1.14.1
     hooks:
       - id: mypy
         additional_dependencies:
@@ -30,6 +28,19 @@ repos:
             src/prefect/events/.*|
             src/prefect/input/.*
           )$
+  - repo: local
+    hooks:
+      # https://docs.astral.sh/uv/concepts/projects/sync/#checking-if-the-lockfile-is-up-to-date
+      - id: check-uv-lock
+        name: Check uv.lock
+        language: system
+        entry: uv lock --check
+        pass_filenames: false
+        files: |
+          (?x)^(
+            uv.lock
+          )$
+
   - repo: local
     hooks:
       - id: generate-mintlify-openapi-docs
@@ -74,7 +85,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run lint",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run lint-staged",
           ]
         files: |
           (?x)^(
@@ -89,7 +100,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run format",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run format",
           ]
         files: |
           (?x)^(
@@ -104,7 +115,7 @@ repos:
         args:
           [
             "-c",
-            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run service-sync",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run service-sync",
           ]
         files: |
           (?x)^(

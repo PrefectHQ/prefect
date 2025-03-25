@@ -1,7 +1,8 @@
-import uuid
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional, Tuple
+from __future__ import annotations
 
-import pendulum
+import uuid
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional
+
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -22,16 +23,19 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
+from prefect.types._datetime import DateTime
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
 from pydantic import BaseModel
 
-logger = get_logger("webserver")
+logger: "logging.Logger" = get_logger("runner.webserver")
 
 RunnableEndpoint = Literal["deployment", "flow", "task"]
 
@@ -43,7 +47,7 @@ class RunnerGenericFlowRunRequest(BaseModel):
 
 
 def perform_health_check(
-    runner: "Runner", delay_threshold: Optional[int] = None
+    runner: "Runner", delay_threshold: int | None = None
 ) -> Callable[..., JSONResponse]:
     if delay_threshold is None:
         delay_threshold = (
@@ -52,8 +56,11 @@ def perform_health_check(
         )
 
     def _health_check():
-        now = pendulum.now("utc")
+        now = DateTime.now("utc")
         poll_delay = (now - runner.last_polled).total_seconds()
+
+        if TYPE_CHECKING:
+            assert delay_threshold is not None
 
         if poll_delay > delay_threshold:
             return JSONResponse(
@@ -118,7 +125,7 @@ async def _build_endpoint_for_deployment(
 
 async def get_deployment_router(
     runner: "Runner",
-) -> Tuple[APIRouter, dict[Hashable, Any]]:
+) -> tuple[APIRouter, dict[Hashable, Any]]:
     router = APIRouter()
     schemas: dict[Hashable, Any] = {}
     async with get_client() as client:
@@ -137,9 +144,9 @@ async def get_deployment_router(
             )
 
             # Used for updating the route schemas later on
-            schemas[
-                f"{deployment.name}-{deployment_id}"
-            ] = deployment.parameter_openapi_schema
+            schemas[f"{deployment.name}-{deployment_id}"] = (
+                deployment.parameter_openapi_schema
+            )
             schemas[deployment_id] = deployment.name
     return router, schemas
 
@@ -214,14 +221,14 @@ def _build_generic_endpoint_for_flows(
         # Verify that the flow we're loading is a subflow this runner is
         # managing
         if not _flow_in_schemas(flow, schemas):
-            runner._logger.warning(
+            logger.warning(
                 f"Flow {flow.name} is not directly managed by the runner. Please "
                 "include it in the runner's served flows' import namespace."
             )
         # Verify that the flow we're loading hasn't changed since the webserver
         # was started
         if _flow_schema_changed(flow, schemas):
-            runner._logger.warning(
+            logger.warning(
                 "A change in flow parameters has been detected. Please "
                 "restart the runner."
             )
@@ -289,7 +296,7 @@ async def build_server(runner: "Runner") -> FastAPI:
     return webserver
 
 
-def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
+def start_webserver(runner: "Runner", log_level: str | None = None) -> None:
     """
     Run a FastAPI server for a runner.
 

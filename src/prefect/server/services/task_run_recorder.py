@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, NoReturn, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,12 +18,25 @@ from prefect.server.events.ordering import CausalOrdering, EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
-from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
+from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.utilities.messaging import (
+    Consumer,
+    Message,
+    MessageHandler,
+    create_consumer,
+)
+from prefect.server.utilities.messaging.memory import log_metrics_periodically
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
-def causal_ordering():
+def causal_ordering() -> CausalOrdering:
     return CausalOrdering(
         "task-run-recorder",
     )
@@ -35,10 +49,12 @@ async def _insert_task_run(
     task_run: TaskRun,
     task_run_attributes: Dict[str, Any],
 ):
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     await session.execute(
         db.queries.insert(db.TaskRun)
         .values(
-            created=pendulum.now("UTC"),
+            created=now("UTC"),
             **task_run_attributes,
         )
         .on_conflict_do_update(
@@ -46,7 +62,7 @@ async def _insert_task_run(
                 "id",
             ],
             set_={
-                "updated": pendulum.now("UTC"),
+                "updated": now("UTC"),
                 **task_run_attributes,
             },
             where=db.TaskRun.state_timestamp < task_run.state.timestamp,
@@ -58,10 +74,12 @@ async def _insert_task_run(
 async def _insert_task_run_state(
     db: PrefectDBInterface, session: AsyncSession, task_run: TaskRun
 ):
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     await session.execute(
         db.queries.insert(db.TaskRunState)
         .values(
-            created=pendulum.now("UTC"),
+            created=now("UTC"),
             task_run_id=task_run.id,
             **task_run.state.model_dump(),
         )
@@ -80,6 +98,8 @@ async def _update_task_run_with_state(
     task_run: TaskRun,
     denormalized_state_attributes: Dict[str, Any],
 ):
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     await session.execute(
         sa.update(db.TaskRun)
         .where(
@@ -121,7 +141,7 @@ def task_run_from_event(event: ReceivedEvent) -> TaskRun:
     )
 
 
-async def record_task_run_event(event: ReceivedEvent):
+async def record_task_run_event(event: ReceivedEvent) -> None:
     task_run = task_run_from_event(event)
 
     task_run_attributes = task_run.model_dump_for_orm(
@@ -145,12 +165,13 @@ async def record_task_run_event(event: ReceivedEvent):
     }
 
     db = provide_database_interface()
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(
             session, task_run, denormalized_state_attributes
         )
+        await session.commit()
 
     logger.debug(
         "Recorded task run state change",
@@ -196,14 +217,18 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
     yield message_handler
 
 
-class TaskRunRecorder:
-    """A service to record task run and task run states from events."""
+class TaskRunRecorder(RunInAllServers, Service):
+    """Constructs task runs and states from client-emitted events"""
 
-    name: str = "TaskRunRecorder"
+    consumer_task: asyncio.Task[None] | None = None
+    metrics_task: asyncio.Task[None] | None = None
 
-    consumer_task: Optional[asyncio.Task] = None
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.task_run_recorder
 
     def __init__(self):
+        super().__init__()
         self._started_event: Optional[asyncio.Event] = None
 
     @property
@@ -216,12 +241,14 @@ class TaskRunRecorder:
     def started_event(self, value: asyncio.Event) -> None:
         self._started_event = value
 
-    async def start(self):
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "TaskRunRecorder already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
+            self.metrics_task = asyncio.create_task(log_metrics_periodically())
+
             logger.debug("TaskRunRecorder started")
             self.started_event.set()
 
@@ -230,13 +257,18 @@ class TaskRunRecorder:
             except asyncio.CancelledError:
                 pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
+        if self.metrics_task:
+            self.metrics_task.cancel()
         try:
             await self.consumer_task
+            if self.metrics_task:
+                await self.metrics_task
         except asyncio.CancelledError:
             pass
         finally:
             self.consumer_task = None
+            self.metrics_task = None
         logger.debug("TaskRunRecorder stopped")

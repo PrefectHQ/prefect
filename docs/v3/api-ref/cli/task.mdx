@@ -1,0 +1,66 @@
+---
+title: " "
+sidebarTitle: prefect task
+---
+
+# `prefect task`
+
+
+
+```command
+prefect task [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Work with task scheduling.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect task serve`
+
+
+
+```command
+prefect task serve [OPTIONS] ENTRYPOINTS...
+```
+
+
+
+<Info>
+Serve the provided tasks so that their runs may be submitted to and
+executed in the engine.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="ENTRYPOINTS..." type="string" required>
+    The paths to one or more tasks, in the form of \`./path/to/file.py:task_func_name\`.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--limit">
+    The maximum number of tasks that can be run concurrently. Defaults to 10.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>

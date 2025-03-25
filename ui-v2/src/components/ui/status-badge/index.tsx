@@ -1,4 +1,5 @@
 import type { components } from "@/api/prefect";
+import { capitalize } from "@/utils";
 import { cva } from "class-variance-authority";
 import { Circle, Pause } from "lucide-react";
 import { Badge } from "../badge";
@@ -30,15 +31,14 @@ const statusBadgeVariants = cva(
 	},
 );
 
+export const StatusIcon = ({ status }: StatusBadgeProps) =>
+	STATUS_ICONS[status];
+
 export const StatusBadge = ({ status }: StatusBadgeProps) => {
-	const Icon = STATUS_ICONS[status];
-	const statusText = status
-		.split("_")
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-		.join(" ");
+	const statusText = status.split("_").map(capitalize).join(" ");
 	return (
 		<Badge className={statusBadgeVariants({ status })}>
-			{Icon}
+			<StatusIcon status={status} />
 			{statusText}
 		</Badge>
 	);

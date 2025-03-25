@@ -16,7 +16,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from pydantic import TypeAdapter
 from sqlalchemy import delete, select
@@ -35,6 +34,7 @@ from prefect.server.models.workers import (
 from prefect.server.schemas.states import StateType
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
+from prefect.types._datetime import DateTime, now
 
 WORK_QUEUE_LAST_POLLED_TIMEOUT = datetime.timedelta(seconds=60)
 
@@ -206,10 +206,10 @@ async def read_work_queues(
     return result.scalars().unique().all()
 
 
-def is_last_polled_recent(last_polled: Optional[pendulum.DateTime]) -> bool:
+def is_last_polled_recent(last_polled: Optional[DateTime]) -> bool:
     if last_polled is None:
         return False
-    return (pendulum.now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
+    return (now("UTC") - last_polled) <= WORK_QUEUE_LAST_POLLED_TIMEOUT
 
 
 @db_injector
@@ -257,9 +257,9 @@ async def update_work_queue(
             update_data["status"] = WorkQueueStatus.NOT_READY
 
             # Determine source of last_polled: update_data or database
-            last_polled: Optional[pendulum.DateTime]
+            last_polled: Optional[DateTime]
             if "last_polled" in update_data:
-                last_polled = cast(pendulum.DateTime, update_data["last_polled"])
+                last_polled = cast(DateTime, update_data["last_polled"])
             else:
                 last_polled = wq.last_polled
 
@@ -516,7 +516,7 @@ async def record_work_queue_polls(
 ) -> None:
     """Record that the given work queues were polled, and also update the given
     ready_work_queue_ids to READY."""
-    polled = pendulum.now("UTC")
+    polled = now("UTC")
 
     if polled_work_queue_ids:
         await session.execute(
@@ -533,7 +533,6 @@ async def record_work_queue_polls(
         )
 
 
-@db_injector
 async def mark_work_queues_ready(
     db: PrefectDBInterface,
     polled_work_queue_ids: Sequence[UUID],
@@ -561,7 +560,7 @@ async def mark_work_queues_ready(
             await work_queue_status_event(
                 session=session,
                 work_queue=work_queue,
-                occurred=pendulum.now("UTC"),
+                occurred=now("UTC"),
             )
             for work_queue in newly_ready_work_queues.scalars().all()
         ]
@@ -599,7 +598,7 @@ async def mark_work_queues_not_ready(
             await work_queue_status_event(
                 session=session,
                 work_queue=work_queue,
-                occurred=pendulum.now("UTC"),
+                occurred=now("UTC"),
             )
             for work_queue in newly_unready_work_queues.scalars().all()
         ]
@@ -618,7 +617,7 @@ async def emit_work_queue_status_event(
         event = await work_queue_status_event(
             session=session,
             work_queue=work_queue,
-            occurred=pendulum.now(),
+            occurred=now("UTC"),
         )
 
     async with PrefectServerEventsClient() as events_client:

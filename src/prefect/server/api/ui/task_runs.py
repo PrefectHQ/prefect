@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import List, Optional, cast
+from typing import TYPE_CHECKING, List, Optional
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer
@@ -12,11 +11,14 @@ from prefect.server import models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
-from prefect.types import DateTime
+from prefect.types._datetime import end_of_period, now
 
-logger = get_logger("orion.api.ui.task_runs")
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/ui/task_runs", tags=["Task Runs", "UI"])
+logger: "logging.Logger" = get_logger("server.api.ui.task_runs")
+
+router: PrefectRouter = PrefectRouter(prefix="/ui/task_runs", tags=["Task Runs", "UI"])
 
 FAILED_STATES = [schemas.states.StateType.CRASHED, schemas.states.StateType.FAILED]
 
@@ -28,7 +30,7 @@ class TaskRunCount(PrefectBaseModel):
     failed: int = Field(default=..., description="The number of failed task runs.")
 
     @model_serializer
-    def ser_model(self) -> dict:
+    def ser_model(self) -> dict[str, int]:
         return {
             "completed": int(self.completed),
             "failed": int(self.failed),
@@ -61,13 +63,10 @@ async def read_dashboard_task_run_counts(
 
     bucket_count = 20
     start_time = task_runs.start_time.after_.start_of("minute")
-    end_time = cast(
-        DateTime,
-        (
-            task_runs.start_time.before_.end_of("minute")
-            if task_runs.start_time.before_
-            else pendulum.now("UTC").end_of("minute")
-        ),
+    end_time = (
+        end_of_period(task_runs.start_time.before_, "minute")
+        if task_runs.start_time.before_
+        else end_of_period(now("UTC"), "minute")
     )
     window = end_time - start_time
     delta = window.as_timedelta() / bucket_count

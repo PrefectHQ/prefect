@@ -21,7 +21,6 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database import (
     PrefectDBInterface,
-    db_injector,
     provide_database_interface,
 )
 from prefect.server.models.deployments import mark_deployments_ready
@@ -33,7 +32,7 @@ from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
-router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
+router: PrefectRouter = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -46,6 +45,8 @@ async def create_work_queue(
 
     If a work queue with the same name already exists, an error
     will be raised.
+
+    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
     """
 
     try:
@@ -69,7 +70,7 @@ async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates an existing work queue.
     """
@@ -139,14 +140,6 @@ async def read_work_queue_runs(
             "Only flow runs scheduled to start before this time will be returned."
         ),
     ),
-    agent_id: Optional[UUID] = Body(
-        None,
-        description=(
-            "An optional unique identifier for the agent making this query. If"
-            " provided, the Prefect REST API will track the last time this agent polled"
-            " the work queue."
-        ),
-    ),
     x_prefect_ui: Optional[bool] = Header(
         default=False,
         description="A header to indicate this request came from the Prefect UI.",
@@ -171,37 +164,20 @@ async def read_work_queue_runs(
 
     background_tasks.add_task(
         mark_work_queues_ready,
+        db=db,
         polled_work_queue_ids=[work_queue_id],
         ready_work_queue_ids=(
             [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
         ),
     )
 
-    if agent_id:
-        background_tasks.add_task(
-            _record_agent_poll,
-            work_queue_id=work_queue_id,
-            agent_id=agent_id,
-        )
-
     background_tasks.add_task(
         mark_deployments_ready,
+        db=db,
         work_queue_ids=[work_queue_id],
     )
 
     return flow_runs
-
-
-@db_injector
-async def _record_agent_poll(
-    db: PrefectDBInterface,
-    work_queue_id: UUID,
-    agent_id: UUID,
-):
-    async with db.session_context(begin_transaction=True) as session:
-        await models.agents.record_agent_poll(
-            session=session, agent_id=agent_id, work_queue_id=work_queue_id
-        )
 
 
 @router.post("/filter")
@@ -229,7 +205,7 @@ async def read_work_queues(
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work queue by id.
     """

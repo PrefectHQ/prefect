@@ -386,7 +386,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
             namespace=self._kubernetes_job.namespace,
             **self._kubernetes_job.api_kwargs,
         )
-        self.logger.info(f"Job {job_name} deleted " f"with {deleted_v1_job.status!r}.")
+        self.logger.info(f"Job {job_name} deleted with {deleted_v1_job.status!r}.")
 
     @sync_compatible
     async def wait_for_completion(self, print_func: Optional[Callable] = None):

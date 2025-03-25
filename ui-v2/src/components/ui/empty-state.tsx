@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import { Icon, type IconId } from "./icons";
 
 const EmptyStateIcon = ({ id }: { id: IconId }): JSX.Element => {
-	return <Icon id={id} className="h-12 w-12 text-muted-foreground mb-8" />;
+	return <Icon id={id} className="size-12 text-muted-foreground mb-8" />;
 };
 const EmptyStateTitle = ({
 	children,
@@ -23,10 +23,10 @@ const EmptyStateActions = ({
 	<div className="flex gap-2 mt-4">{children}</div>
 );
 
-type Props = {
+type EmptyStateProps = {
 	children: React.ReactNode;
 };
-const EmptyState = ({ children }: Props): JSX.Element => (
+const EmptyState = ({ children }: EmptyStateProps): JSX.Element => (
 	<Card>
 		<CardContent className="flex flex-col gap-2 items-center justify-center py-16">
 			{children}

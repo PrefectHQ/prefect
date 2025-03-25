@@ -68,12 +68,12 @@ Prefect comes prepackaged with a few common cache policies:
 - `DEFAULT`: this cache policy uses the task's inputs, its code definition, as well as the prevailing flow run ID
 to compute the task's cache key.
 - `INPUTS`: this cache policy uses _only_ the task's inputs to compute the cache key.
-- `TASK_SOURCE`: this cache policy uses _only_ the task's code definition to compute the cache key.
+- `TASK_SOURCE`: this cache policy only considers raw lines of code in the task (and not the source code of nested tasks) to compute the cache key.
 - `FLOW_PARAMETERS`: this cache policy uses _only_ the parameter values provided to the parent flow run
 to compute the cache key.
-- `NONE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether.
+- `NO_CACHE`: this cache policy always returns `None` and therefore avoids caching and result persistence altogether.
 
-These policies can be set using the `cache_policy` keyword on the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task):
+These policies can be set using the `cache_policy` keyword on the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task):
 
 ```python
 from prefect import task
@@ -113,7 +113,7 @@ Prefect allows you to configure task caching behavior in numerous ways.
 ### Cache expiration
 
 All cache keys can optionally be given an _expiration_ through the `cache_expiration` keyword on 
-the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 This keyword accepts a `datetime.timedelta` specifying a duration for which the cached value should be
 considered valid.
 
@@ -124,7 +124,7 @@ This expiration is then applied to _all_ other tasks that may share this cache k
 ### Cache policies
 
 Cache policies can be composed and altered using basic Python syntax to form more complex policies.
-For example, all task policies except for `NONE` can be _added_ together to form new policies that combine
+For example, all task policies except for `NO_CACHE` can be _added_ together to form new policies that combine
 the individual policies' logic into a larger cache key computation.
 Combining policies in this way results in caches that are _easier_ to invalidate.
 
@@ -171,7 +171,7 @@ custom logic.
 if your task has the signature `fn(x, y, z)` then the dictionary will have keys "x", "y", and "z" with corresponding values that can be used to compute your cache key.
 
 This function can then be specified using the `cache_key_fn` argument on 
-the [task decorator](https://prefect-python-sdk-docs.netlify.app/prefect/tasks/#prefect.tasks.task).
+the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 For example:
 

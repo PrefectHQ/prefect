@@ -1,3 +1,4 @@
+import warnings
 from typing import (
     Any,
     Callable,
@@ -10,18 +11,13 @@ from typing import (
     overload,
 )
 
-from jsonpatch import (  # type: ignore  # no typing stubs available, see https://github.com/stefankoegl/python-json-patch/issues/158
-    JsonPatch as JsonPatchBase,
-)
 from pydantic import (
     BaseModel,
-    GetJsonSchemaHandler,
     Secret,
     TypeAdapter,
     ValidationError,
 )
-from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import core_schema, to_jsonable_python
+from pydantic_core import to_jsonable_python
 from typing_extensions import Literal
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
@@ -56,15 +52,13 @@ def _unreduce_model(model_name: str, json: str) -> Any:
 
 
 @overload
-def add_cloudpickle_reduction(__model_cls: type[M]) -> type[M]:
-    ...
+def add_cloudpickle_reduction(__model_cls: type[M]) -> type[M]: ...
 
 
 @overload
 def add_cloudpickle_reduction(
     __model_cls: None = None, **kwargs: Any
-) -> Callable[[type[M]], type[M]]:
-    ...
+) -> Callable[[type[M]], type[M]]: ...
 
 
 def add_cloudpickle_reduction(
@@ -148,7 +142,7 @@ def add_type_dispatch(model_cls: type[M]) -> type[M]:
 
     elif not defines_dispatch_key and defines_type_field:
         field_type_annotation = model_cls.model_fields["type"].annotation
-        if field_type_annotation != str and field_type_annotation is not None:
+        if field_type_annotation is not str and field_type_annotation is not None:
             raise TypeError(
                 f"Model class {model_cls.__name__!r} defines a 'type' field with "
                 f"type {field_type_annotation.__name__!r} but it must be 'str'."
@@ -173,7 +167,7 @@ def add_type_dispatch(model_cls: type[M]) -> type[M]:
     def __init__(__pydantic_self__: M, **data: Any) -> None:
         type_string = (
             get_dispatch_key(__pydantic_self__)
-            if type(__pydantic_self__) != model_cls
+            if type(__pydantic_self__) is not model_cls
             else "__base__"
         )
         data.setdefault("type", type_string)
@@ -260,36 +254,6 @@ class PartialModel(Generic[M]):
             f"{key}={repr(value)}" for key, value in self.fields.items()
         )
         return f"PartialModel(cls={self.model_cls.__name__}, {dsp_fields})"
-
-
-class JsonPatch(JsonPatchBase):
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetJsonSchemaHandler
-    ) -> core_schema.CoreSchema:
-        return core_schema.typed_dict_schema(
-            {"patch": core_schema.typed_dict_field(core_schema.dict_schema())}
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        json_schema = handler(core_schema)
-        json_schema = handler.resolve_ref_schema(json_schema)
-        json_schema.pop("required", None)
-        json_schema.pop("properties", None)
-        json_schema.update(
-            {
-                "type": "array",
-                "format": "rfc6902",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": {"type": "string"},
-                },
-            }
-        )
-        return json_schema
 
 
 def custom_pydantic_encoder(
@@ -382,3 +346,22 @@ def handle_secret_render(value: object, context: dict[str, Any]) -> object:
     elif isinstance(value, BaseModel):
         return value.model_dump(context=context)
     return value
+
+
+def __getattr__(name: str) -> Any:
+    """
+    Handles imports from this module that are deprecated.
+    """
+
+    if name == "JsonPatch":
+        warnings.warn(
+            "JsonPatch is deprecated and will be removed after March 2025. "
+            "Please use `JsonPatch` from the `jsonpatch` package instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from ._deprecated import JsonPatch
+
+        return JsonPatch
+    else:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

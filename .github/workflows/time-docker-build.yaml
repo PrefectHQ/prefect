@@ -20,6 +20,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -30,6 +33,7 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           clean: true
+          fetch-depth: 0
 
       - name: Clean Docker system
         run: |
@@ -41,7 +45,11 @@ jobs:
         id: base_build_time
         run: |
           start_time=$(date +%s)
-          DOCKER_BUILDKIT=1 docker build . --no-cache --progress=plain
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --no-cache \
+            --progress=plain \
+            .
           end_time=$(date +%s)
           base_time=$((end_time - start_time))
           echo "base_time=$base_time" >> $GITHUB_OUTPUT
@@ -53,6 +61,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           clean: true
+          fetch-depth: 0
 
       - name: Clean Docker system again
         run: |
@@ -63,7 +72,11 @@ jobs:
         id: build_time
         run: |
           start_time=$(date +%s)
-          DOCKER_BUILDKIT=1 docker build . --no-cache --progress=plain
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --no-cache \
+            --progress=plain \
+            .
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
           echo "build_time=$build_time" >> $GITHUB_OUTPUT
@@ -74,16 +87,16 @@ jobs:
 
           if [ "${{ github.base_ref }}" != "" ]; then
             BASE_TIME=${{ steps.base_build_time.outputs.base_time }}
-            
+
             echo "### 🏗️ Docker Build Time Comparison" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Branch | Build Time | Difference |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|------------|------------|" >> $GITHUB_STEP_SUMMARY
             echo "| base (${{ github.base_ref }}) | ${BASE_TIME}s | - |" >> $GITHUB_STEP_SUMMARY
-            
+
             DIFF=$((CURRENT_TIME - BASE_TIME))
             PERCENT=$(echo "scale=2; ($CURRENT_TIME - $BASE_TIME) * 100 / $BASE_TIME" | bc)
-            
+
             if [ $DIFF -gt 0 ]; then
               DIFF_TEXT="⬆️ +${DIFF}s (+${PERCENT}%)"
             elif [ $DIFF -lt 0 ]; then
@@ -91,9 +104,9 @@ jobs:
             else
               DIFF_TEXT="✨ No change"
             fi
-            
+
             echo "| current (${{ github.head_ref }}) | ${CURRENT_TIME}s | $DIFF_TEXT |" >> $GITHUB_STEP_SUMMARY
-            
+
             # Fail if build time increased by more than 5%
             if (( $(echo "$PERCENT > 5" | bc -l) )); then
               echo "" >> $GITHUB_STEP_SUMMARY

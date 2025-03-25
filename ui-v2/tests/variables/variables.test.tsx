@@ -1,5 +1,5 @@
 import "./mocks";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { router } from "@/router";
 import { RouterProvider } from "@tanstack/react-router";
@@ -9,9 +9,11 @@ import {
 	getByText,
 	render,
 	screen,
+	waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWrapper, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
 import { http, HttpResponse } from "msw";
 import {
 	afterEach,
@@ -82,9 +84,10 @@ describe("Variables page", () => {
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await userEvent.type(screen.getByLabelText("Tags"), "tag1");
 			await user.click(screen.getByRole("button", { name: "Create" }));
-
-			expect(screen.getByText("Variable created")).toBeVisible();
-			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText("Variable created")).toBeVisible();
+				expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+			});
 		});
 
 		it("should show validation errors", async () => {
@@ -110,7 +113,7 @@ describe("Variables page", () => {
 
 		it("should show error when API call fails with detail", async () => {
 			server.use(
-				http.post("http://localhost:4200/api/variables/", () => {
+				http.post(buildApiUrl("/variables/"), () => {
 					return HttpResponse.json(
 						{ detail: "Failed to create variable" },
 						{ status: 500 },
@@ -129,7 +132,7 @@ describe("Variables page", () => {
 
 		it("should show error when API call fails without detail", async () => {
 			server.use(
-				http.post("http://localhost:4200/api/variables/", () => {
+				http.post(buildApiUrl("/variables/"), () => {
 					return HttpResponse.json(
 						{ error: "Internal server error" },
 						{ status: 500 },
@@ -167,10 +170,10 @@ describe("Variables page", () => {
 				},
 			];
 			server.use(
-				http.post("http://localhost:4200/api/variables/filter", () => {
+				http.post(buildApiUrl("/variables/filter"), () => {
 					return HttpResponse.json(variables);
 				}),
-				http.post("http://localhost:4200/api/variables/count", () => {
+				http.post(buildApiUrl("/variables/count"), () => {
 					return HttpResponse.json(1);
 				}),
 			);
@@ -188,7 +191,9 @@ describe("Variables page", () => {
 
 			await user.type(getByLabelText(dialog, "Name"), "new_name");
 			await user.click(screen.getByRole("button", { name: "Save" }));
-			expect(screen.getByText("Variable updated")).toBeVisible();
+			await waitFor(() => {
+				expect(screen.getByText("Variable updated")).toBeVisible();
+			});
 		});
 
 		it("should show an error when API call fails with detail", async () => {
@@ -203,16 +208,16 @@ describe("Variables page", () => {
 				},
 			];
 			server.use(
-				http.patch("http://localhost:4200/api/variables/:id", () => {
+				http.patch(buildApiUrl("/variables/:id"), () => {
 					return HttpResponse.json(
 						{ detail: "Failed to update variable. Here's some detail..." },
 						{ status: 500 },
 					);
 				}),
-				http.post("http://localhost:4200/api/variables/filter", () => {
+				http.post(buildApiUrl("/variables/filter"), () => {
 					return HttpResponse.json(variables);
 				}),
-				http.post("http://localhost:4200/api/variables/count", () => {
+				http.post(buildApiUrl("/variables/count"), () => {
 					return HttpResponse.json(1);
 				}),
 			);
@@ -247,16 +252,16 @@ describe("Variables page", () => {
 			},
 		];
 		server.use(
-			http.patch("http://localhost:4200/api/variables/:id", () => {
+			http.patch(buildApiUrl("/variables/:id"), () => {
 				return HttpResponse.json(
 					{ error: "Internal server error" },
 					{ status: 500 },
 				);
 			}),
-			http.post("http://localhost:4200/api/variables/filter", () => {
+			http.post(buildApiUrl("/variables/filter"), () => {
 				return HttpResponse.json(variables);
 			}),
-			http.post("http://localhost:4200/api/variables/count", () => {
+			http.post(buildApiUrl("/variables/count"), () => {
 				return HttpResponse.json(1);
 			}),
 		);
@@ -277,24 +282,7 @@ describe("Variables page", () => {
 
 	describe("Variables table", () => {
 		beforeAll(() => {
-			// Need to mock PointerEvent for the selects to work
-			class MockPointerEvent extends Event {
-				button: number;
-				ctrlKey: boolean;
-				pointerType: string;
-
-				constructor(type: string, props: PointerEventInit) {
-					super(type, props);
-					this.button = props.button || 0;
-					this.ctrlKey = props.ctrlKey || false;
-					this.pointerType = props.pointerType || "mouse";
-				}
-			}
-			window.PointerEvent =
-				MockPointerEvent as unknown as typeof window.PointerEvent;
-			window.HTMLElement.prototype.scrollIntoView = vi.fn();
-			window.HTMLElement.prototype.releasePointerCapture = vi.fn();
-			window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+			mockPointerEvents();
 		});
 		const originalToLocaleString = Date.prototype.toLocaleString; // eslint-disable-line @typescript-eslint/unbound-method
 		beforeEach(() => {
@@ -559,7 +547,9 @@ describe("Variables page", () => {
 
 			await user.click(screen.getByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Delete"));
-			expect(screen.getByText("Variable deleted")).toBeVisible();
+			await waitFor(() => {
+				expect(screen.getByText("Variable deleted")).toBeVisible();
+			});
 		});
 
 		it("should handle filtering by name", async () => {

@@ -3,6 +3,7 @@ import type { JSX } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Icon } from "@/components/ui/icons";
+import { fn } from "@storybook/test";
 import { Button } from "./button";
 import { DocsLink } from "./docs-link";
 import {
@@ -39,8 +40,8 @@ function EmptyStateExample(): JSX.Element {
 				Variables store non-sensitive pieces of JSON.
 			</EmptyStateDescription>
 			<EmptyStateActions>
-				<Button onClick={console.log}>
-					Add Variable <Icon id="Plus" className="h-4 w-4 ml-2" />
+				<Button onClick={fn()}>
+					Add Variable <Icon id="Plus" className="size-4 ml-2" />
 				</Button>
 				<DocsLink id="variables-guide" />
 			</EmptyStateActions>

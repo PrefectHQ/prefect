@@ -25,7 +25,7 @@ classifiers = [
 dependencies = ["prefect>=3.0.0", "redis>=5.0.1"]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "coverage",
   "interrogate",
@@ -69,6 +69,9 @@ omit = ["tests/*", "prefect_redis/_version.py"]
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

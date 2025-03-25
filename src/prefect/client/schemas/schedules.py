@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional, Union
 import dateutil
 import dateutil.rrule
 import dateutil.tz
-import pendulum
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import TypeAlias, TypeGuard
 
@@ -19,18 +18,28 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-
-if TYPE_CHECKING:
-    # type checkers have difficulty accepting that
-    # pydantic_extra_types.pendulum_dt and pendulum.DateTime can be used
-    # together.
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
+from prefect.types._datetime import Date, DateTime
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
 MAX_RRULE_LENGTH = 6500
+
+
+def is_valid_timezone(v: str) -> bool:
+    """
+    Validate that the provided timezone is a valid IANA timezone.
+
+    Unfortunately this list is slightly different from the list of valid
+    timezones we use for cron and interval timezone validation.
+    """
+    from prefect._internal.pytz import HAS_PYTZ
+
+    if HAS_PYTZ:
+        import pytz
+    else:
+        from prefect._internal import pytz
+
+    return v in pytz.all_timezones_set
 
 
 class IntervalSchedule(PrefectBaseModel):
@@ -66,7 +75,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: DateTime.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -82,12 +91,9 @@ class IntervalSchedule(PrefectBaseModel):
             self,
             /,
             interval: datetime.timedelta,
-            anchor_date: Optional[
-                Union[pendulum.DateTime, datetime.datetime, str]
-            ] = None,
+            anchor_date: Optional[Union[DateTime, datetime.datetime, str]] = None,
             timezone: Optional[str] = None,
-        ) -> None:
-            ...
+        ) -> None: ...
 
 
 class CronSchedule(PrefectBaseModel):
@@ -128,7 +134,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("timezone")
     @classmethod
-    def valid_timezone(cls, v: Optional[str]) -> str:
+    def valid_timezone(cls, v: Optional[str]) -> Optional[str]:
         return default_timezone(v)
 
     @field_validator("cron")
@@ -137,7 +143,7 @@ class CronSchedule(PrefectBaseModel):
         return validate_cron_string(v)
 
 
-DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
+DEFAULT_ANCHOR_DATE = Date(2020, 1, 1)
 
 
 def _rrule_dt(
@@ -203,7 +209,7 @@ class RRuleSchedule(PrefectBaseModel):
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         rrules = _rrule(rrule)
         dtstarts = [dts for rr in rrules if (dts := _rrule_dt(rr)) is not None]
-        unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
+        unique_dstarts = set(DateTime.instance(d).in_tz("UTC") for d in dtstarts)
         unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
         if len(unique_timezones) > 1:
@@ -259,7 +265,7 @@ class RRuleSchedule(PrefectBaseModel):
                 kwargs.update(
                     until=until.replace(tzinfo=timezone),
                 )
-            return rrule.replace(**kwargs)
+            return rrule.replace(**kwargs)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType] missing type hints
 
         # update rrules
         localized_rrules: list[dateutil.rrule.rrule] = []
@@ -269,7 +275,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs: dict[str, Any] = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(rr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_rrules.append(rr.replace(**kwargs))
+            localized_rrules.append(rr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_rrule", localized_rrules)
 
         # update exrules
@@ -280,7 +286,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(exr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_exrules.append(exr.replace(**kwargs))
+            localized_exrules.append(exr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_exrule", localized_exrules)
 
         # update rdates
@@ -303,20 +309,15 @@ class RRuleSchedule(PrefectBaseModel):
         Validate that the provided timezone is a valid IANA timezone.
 
         Unfortunately this list is slightly different from the list of valid
-        timezones in pendulum that we use for cron and interval timezone validation.
+        timezones we use for cron and interval timezone validation.
         """
-        from prefect._internal.pytz import HAS_PYTZ
-
-        if HAS_PYTZ:
-            import pytz
-        else:
-            from prefect._internal import pytz
-
-        if v and v not in pytz.all_timezones_set:
-            raise ValueError(f'Invalid timezone: "{v}"')
-        elif v is None:
+        if v is None:
             return "UTC"
-        return v
+
+        if is_valid_timezone(v):
+            return v
+
+        raise ValueError(f'Invalid timezone: "{v}"')
 
 
 class NoSchedule(PrefectBaseModel):
@@ -369,7 +370,7 @@ def construct_schedule(
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
         if not anchor_date:
-            anchor_date = pendulum.DateTime.now()
+            anchor_date = DateTime.now()
         schedule = IntervalSchedule(
             interval=interval, anchor_date=anchor_date, timezone=timezone
         )

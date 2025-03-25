@@ -3,25 +3,33 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 """
 
 import asyncio
-from typing import Optional
+from typing import Any, Optional
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.dependencies import db_injector
+from prefect.server.database.orm_models import FlowRun
 from prefect.server.schemas import states
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types._datetime import now
 
 
 class FailExpiredPauses(LoopService):
     """
-    A simple loop service responsible for identifying Paused flow runs that no longer can be resumed.
+    Fails flow runs that have been paused and never resumed
     """
 
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.pause_expirations
+
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value(),
@@ -31,13 +39,14 @@ class FailExpiredPauses(LoopService):
         # query for this many runs to mark failed at once
         self.batch_size = 200
 
-    @inject_db
-    async def run_once(self, db: PrefectDBInterface):
+    @db_injector
+    async def run_once(self, db: PrefectDBInterface) -> None:
         """
         Mark flow runs as failed by:
 
         - Querying for flow runs in a Paused state that have timed out
-        - For any runs past the "expiration" threshold, setting the flow run state to a new `Failed` state
+        - For any runs past the "expiration" threshold, setting the flow run state to a
+          new `Failed` state
         """
         while True:
             async with db.session_context(begin_transaction=True) as session:
@@ -63,14 +72,18 @@ class FailExpiredPauses(LoopService):
         self.logger.info("Finished monitoring for late runs.")
 
     async def _mark_flow_run_as_failed(
-        self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun
+        self, session: AsyncSession, flow_run: FlowRun
     ) -> None:
         """
         Mark a flow run as failed.
 
         Pass-through method for overrides.
         """
-        if flow_run.state.state_details.pause_timeout < pendulum.now("UTC"):
+        if (
+            flow_run.state is not None
+            and flow_run.state.state_details.pause_timeout is not None
+            and flow_run.state.state_details.pause_timeout < now("UTC")
+        ):
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,

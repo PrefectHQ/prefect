@@ -31,11 +31,11 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import docker.errors
-import pendulum
 from docker.models.images import Image
 from typing_extensions import TypedDict
 
 from prefect.logging.loggers import get_logger
+from prefect.types import DateTime
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
@@ -241,7 +241,7 @@ def build_docker_image(
             raise BuildError("Docker did not return an image ID for built image.")
 
         if not tag:
-            tag = slugify(pendulum.now("utc").isoformat())
+            tag = slugify(DateTime.now("utc").isoformat())
 
         image: Image = client.images.get(image_id)
         image.tag(repository=image_name, tag=tag)

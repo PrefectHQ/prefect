@@ -108,15 +108,19 @@ class TestSignatureMismatchError:
             "Function expects parameters ['dog', 'cat'] but was provided with"
             " parameters ['puppy', 'kitty']"
         )
-        sme = SignatureMismatchError.from_bad_params(["dog", "cat"], ["puppy", "kitty"])
-        assert str(sme) == expected
+        signature_mismatch_error = SignatureMismatchError.from_bad_params(
+            ["dog", "cat"], ["puppy", "kitty"]
+        )
+        assert str(signature_mismatch_error) == expected
 
     def test_pickle_roundtrip(self):
-        sme = SignatureMismatchError.from_bad_params(["dog", "cat"], ["puppy", "kitty"])
-        pickled = cloudpickle.dumps(sme)
+        signature_mismatch_error = SignatureMismatchError.from_bad_params(
+            ["dog", "cat"], ["puppy", "kitty"]
+        )
+        pickled = cloudpickle.dumps(signature_mismatch_error)
         unpickled = cloudpickle.loads(pickled)
-        assert str(sme) == str(unpickled)
-        assert sme.args == unpickled.args
+        assert str(signature_mismatch_error) == str(unpickled)
+        assert signature_mismatch_error.args == unpickled.args
 
 
 class TestPrefectModuleImportExceptions:

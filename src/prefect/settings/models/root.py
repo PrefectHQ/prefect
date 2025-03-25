@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
+    ClassVar,
     Iterable,
     Mapping,
     Optional,
@@ -11,9 +12,10 @@ from typing import (
 from urllib.parse import urlparse
 
 from pydantic import BeforeValidator, Field, SecretStr, model_validator
+from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
 from prefect.settings.models.worker import WorkerSettings
@@ -43,7 +45,7 @@ class Settings(PrefectBaseSettings):
     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
     """
 
-    model_config = _build_settings_config()
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config()
 
     home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
         default=Path("~") / ".prefect",
@@ -213,11 +215,7 @@ class Settings(PrefectBaseSettings):
         if self.server.database.connection_url is None:
             self.server.database.connection_url = _default_database_connection_url(self)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
-        db_url = (
-            self.server.database.connection_url.get_secret_value()
-            if isinstance(self.server.database.connection_url, SecretStr)
-            else self.server.database.connection_url
-        )
+        db_url = self.server.database.connection_url.get_secret_value()
         if (
             "PREFECT_API_DATABASE_PASSWORD" in db_url
             or "PREFECT_SERVER_DATABASE_PASSWORD" in db_url
@@ -274,7 +272,7 @@ class Settings(PrefectBaseSettings):
         # To restore defaults, we need to resolve the setting path and then
         # set the default value on the new settings object. When restoring
         # defaults, all settings sources will be ignored.
-        restore_defaults_obj = {}
+        restore_defaults_obj: dict[str, Any] = {}
         for r in restore_defaults or []:
             path = r.accessor.split(".")
             model = self
@@ -300,11 +298,11 @@ class Settings(PrefectBaseSettings):
         updates = updates or {}
         set_defaults = set_defaults or {}
 
-        set_defaults_obj = {}
+        set_defaults_obj: dict[str, Any] = {}
         for setting, value in set_defaults.items():
             set_in_dict(set_defaults_obj, setting.accessor, value)
 
-        updates_obj = {}
+        updates_obj: dict[str, Any] = {}
         for setting, value in updates.items():
             set_in_dict(updates_obj, setting.accessor, value)
 
@@ -376,14 +374,18 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
                 "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
             ),
         }
-        warnings_list = []
+        warnings_list: list[str] = []
 
         for misconfig, warning in misconfigured_mappings.items():
             if misconfig in api_url:
                 warnings_list.append(warning)
 
         parsed_url = urlparse(api_url)
-        if parsed_url.path and not parsed_url.path.startswith("/api"):
+        if (
+            parsed_url.path
+            and "api.prefect.cloud" in api_url
+            and not parsed_url.path.startswith("/api")
+        ):
             warnings_list.append(
                 "`PREFECT_API_URL` should have `/api` after the base URL."
             )
@@ -398,7 +400,7 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
 
 
 def _default_database_connection_url(settings: "Settings") -> SecretStr:
-    value = None
+    value: str = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     if settings.server.database.driver == "postgresql+asyncpg":
         required = [
             "host",
@@ -416,7 +418,7 @@ def _default_database_connection_url(settings: "Settings") -> SecretStr:
 
         from sqlalchemy import URL
 
-        return URL(
+        value = URL(
             drivername=settings.server.database.driver,
             host=settings.server.database.host,
             port=settings.server.database.port or 5432,
@@ -442,6 +444,8 @@ def _default_database_connection_url(settings: "Settings") -> SecretStr:
         raise ValueError(
             f"Unsupported database driver: {settings.server.database.driver}"
         )
-
-    value = value if value else f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     return SecretStr(value)
+
+
+def canonical_environment_prefix(settings: "Settings") -> str:
+    return settings.model_config.get("env_prefix") or ""

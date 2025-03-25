@@ -5,7 +5,6 @@ Routes for interacting with artifact objects.
 from typing import List
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
@@ -13,8 +12,9 @@ from prefect.server import models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types._datetime import now
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/artifacts",
     tags=["Artifacts"],
 )
@@ -26,9 +26,14 @@ async def create_artifact(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
+    """
+    Create an artifact.
+
+    For more information, see https://docs.prefect.io/v3/develop/artifacts.
+    """
     artifact = core.Artifact(**artifact.model_dump())
 
-    now = pendulum.now("UTC")
+    right_now = now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.artifacts.create_artifact(
@@ -36,7 +41,7 @@ async def create_artifact(
             artifact=artifact,
         )
 
-    if model.created >= now:
+    if model.created >= right_now:
         response.status_code = status.HTTP_201_CREATED
     return model
 
@@ -191,7 +196,7 @@ async def update_artifact(
         ..., description="The ID of the artifact to update.", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update an artifact in the database.
     """
@@ -211,7 +216,7 @@ async def delete_artifact(
         ..., description="The ID of the artifact to delete.", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete an artifact from the database.
     """

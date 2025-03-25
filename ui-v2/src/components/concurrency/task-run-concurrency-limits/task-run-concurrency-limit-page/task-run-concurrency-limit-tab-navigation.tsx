@@ -19,14 +19,15 @@ const TAB_OPTIONS: Record<TabOptions, TabOptionValues> = {
 	},
 } as const;
 
-type Props = {
-	activetaskRunsView: React.ReactNode;
+type TaskRunConcurrencyLimitTabNavigationProps = {
+	/** Should add ActiveTaskRun component */
+	children: React.ReactNode;
 };
 
 // TODO: Move Tabs for navigation to a generic styled component
 export const TaskRunConcurrencyLimitTabNavigation = ({
-	activetaskRunsView,
-}: Props) => {
+	children,
+}: TaskRunConcurrencyLimitTabNavigationProps) => {
 	const { tab } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
@@ -48,7 +49,7 @@ export const TaskRunConcurrencyLimitTabNavigation = ({
 				</TabsTrigger>
 			</TabsList>
 			<TabsContent value={TAB_OPTIONS["active-task-runs"].tabSearchValue}>
-				{activetaskRunsView}
+				{children}
 			</TabsContent>
 		</Tabs>
 	);

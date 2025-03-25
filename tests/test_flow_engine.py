@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import signal
 import time
+import uuid
 from textwrap import dedent
-from typing import Optional
+from typing import Literal, Optional
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -12,18 +14,20 @@ import pydantic
 import pytest
 
 from prefect import Flow, __development_base_path__, flow, task
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient
-from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
+from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
     FlowRunContext,
+    TagsContext,
     TaskRunContext,
     get_run_context,
 )
 from prefect.exceptions import (
+    Abort,
     CrashedRun,
     FlowPauseTimeout,
     ParameterTypeError,
@@ -35,6 +39,7 @@ from prefect.flow_engine import (
     load_flow_and_flow_run,
     run_flow,
     run_flow_async,
+    run_flow_in_subprocess,
     run_flow_sync,
 )
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
@@ -317,6 +322,19 @@ class TestFlowRunsAsync:
         # assert the parent of the dummy task is task 2
         assert l3_dummy.task_inputs["__parents__"][0].id == tracker["task_2"]
 
+    async def test_with_provided_context(self, prefect_client: PrefectClient):
+        tags_context = TagsContext(current_tags={"foo", "bar"})
+
+        @flow
+        async def foo():
+            return TagsContext.get().current_tags
+
+        context = {"tags_context": tags_context.serialize()}
+
+        result = await run_flow_async(foo, context=context)
+
+        assert result == {"foo", "bar"}
+
 
 class TestFlowRunsSync:
     async def test_basic(self):
@@ -459,6 +477,19 @@ class TestFlowRunsSync:
         run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
+
+    async def test_with_provided_context(self, prefect_client: PrefectClient):
+        tags_context = TagsContext(current_tags={"foo", "bar"})
+
+        @flow
+        def foo():
+            return TagsContext.get().current_tags
+
+        context = {"tags_context": tags_context.serialize()}
+
+        result = run_flow_sync(foo, context=context)
+
+        assert result == {"foo", "bar"}
 
 
 class TestFlowRetries:
@@ -898,9 +929,9 @@ class TestFlowRetries:
 
         assert parent_flow() == "hello"
         assert flow_run_count == 2, "Parent flow should exhaust retries"
-        assert (
-            child_flow_run_count == 4
-        ), "Child flow should run 2 times for each parent run"
+        assert child_flow_run_count == 4, (
+            "Child flow should run 2 times for each parent run"
+        )
 
 
 class TestFlowCrashDetection:
@@ -1849,3 +1880,281 @@ class TestConcurrencyRelease:
             concurrency_limit_v2.name
         )
         assert response.active_slots == 0
+
+
+@pytest.mark.parametrize("engine_type", ["sync", "async"])
+class TestRunFlowInSubprocess:
+    async def get_flow_run_for_flow(self, flow_name: str):
+        async with get_client() as prefect_client:
+            flow_runs = await prefect_client.read_flow_runs(
+                flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+            )
+        assert len(flow_runs) == 1
+        return flow_runs[0]
+
+    async def test_basic(self, engine_type: Literal["sync", "async"]):
+        if engine_type == "sync":
+
+            @flow(name=f"test_basic_{uuid.uuid4()}", persist_result=True)
+            def foo():
+                return 42
+        else:
+
+            @flow(name=f"test_basic_{uuid.uuid4()}", persist_result=True)
+            async def foo():
+                return 42
+
+        process = run_flow_in_subprocess(foo)
+
+        process.join()
+        assert process.exitcode == 0
+        flow_run = await self.get_flow_run_for_flow(foo.name)
+
+        assert flow_run.state.is_completed()
+        assert await flow_run.state.result() == 42
+
+    async def test_with_params(self, engine_type: Literal["sync", "async"]):
+        if engine_type == "sync":
+
+            @flow(name=f"test_with_params_{uuid.uuid4()}", persist_result=True)
+            def bar(x: int, y: Optional[str] = None):
+                return x, y
+        else:
+
+            @flow(name=f"test_with_params_{uuid.uuid4()}", persist_result=True)
+            async def bar(x: int, y: Optional[str] = None):
+                return x, y
+
+        parameters = get_call_parameters(bar.fn, (42,), dict(y="nate"))
+        process = run_flow_in_subprocess(bar, parameters=parameters)
+
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await self.get_flow_run_for_flow(bar.name)
+
+        assert flow_run.state.is_completed()
+        assert await flow_run.state.result() == (42, "nate")
+
+    async def test_flow_ends_in_failed(self, engine_type: Literal["sync", "async"]):
+        if engine_type == "sync":
+
+            @flow(name=f"test_flow_ends_in_failed_{uuid.uuid4()}")
+            def foo():
+                raise ValueError("xyz")
+        else:
+
+            @flow(name=f"test_flow_ends_in_failed_{uuid.uuid4()}")
+            async def foo():
+                raise ValueError("xyz")
+
+        process = run_flow_in_subprocess(foo)
+
+        process.join()
+        assert process.exitcode == 1
+
+        flow_run = await self.get_flow_run_for_flow(foo.name)
+
+        assert flow_run.state.is_failed()
+
+    async def test_tracks_parent_when_run_in_flow(
+        self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]
+    ):
+        if engine_type == "sync":
+
+            @flow(name=f"child_flow_{uuid.uuid4()}", persist_result=True)
+            def child_flow():
+                return 42
+        else:
+
+            @flow(name=f"child_flow_{uuid.uuid4()}", persist_result=True)
+            async def child_flow():
+                return 42
+
+        @flow(name=f"parent_flow_{uuid.uuid4()}", persist_result=True)
+        def parent_flow():
+            process = run_flow_in_subprocess(child_flow)
+            process.join()
+            return process.exitcode
+
+        assert run_flow(parent_flow) == 0
+
+        parent_flow_run = await self.get_flow_run_for_flow(parent_flow.name)
+
+        child_flow_run = await self.get_flow_run_for_flow(child_flow.name)
+        dummy_task_run = await prefect_client.read_task_run(
+            child_flow_run.parent_task_run_id
+        )
+
+        assert dummy_task_run.flow_run_id == parent_flow_run.id
+
+    async def test_with_provided_context(
+        self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]
+    ):
+        tags_context = TagsContext(current_tags={"foo", "bar"})
+
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_with_provided_context_{uuid.uuid4()}", persist_result=True
+            )
+            def foo():
+                return TagsContext.get().current_tags
+        else:
+
+            @flow(
+                name=f"test_with_provided_context_{uuid.uuid4()}", persist_result=True
+            )
+            async def foo():
+                return TagsContext.get().current_tags
+
+        context = {"tags_context": tags_context.serialize()}
+
+        process = run_flow_in_subprocess(foo, context=context)
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await self.get_flow_run_for_flow(foo.name)
+        assert flow_run.state.is_completed()
+        assert await flow_run.state.result() == {"foo", "bar"}
+
+    async def test_with_provided_flow_run(
+        self, engine_type: Literal["sync", "async"], prefect_client: PrefectClient
+    ):
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_with_provided_flow_run_{uuid.uuid4()}", persist_result=True
+            )
+            def foo():
+                return 42
+        else:
+
+            @flow(
+                name=f"test_with_provided_flow_run_{uuid.uuid4()}", persist_result=True
+            )
+            async def foo():
+                return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=foo,
+        )
+        process = run_flow_in_subprocess(foo, flow_run=flow_run)
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+        assert await flow_run.state.result() == 42
+
+    async def test_flow_is_suspended(
+        self, engine_type: Literal["sync", "async"], prefect_client: PrefectClient
+    ):
+        if engine_type == "sync":
+
+            @flow(name=f"test_flow_is_suspended_{uuid.uuid4()}", persist_result=True)
+            def foo():
+                suspend_flow_run()
+                return 42
+        else:
+
+            @flow(name=f"test_flow_is_suspended_{uuid.uuid4()}", persist_result=True)
+            async def foo():
+                await suspend_flow_run()
+                return 42
+
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_flow_is_suspended_{uuid.uuid4()}",
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = run_flow_in_subprocess(foo, flow_run)
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused()
+
+    async def test_flow_is_aborted(
+        self, engine_type: Literal["sync", "async"], prefect_client: PrefectClient
+    ):
+        if engine_type == "sync":
+
+            @flow(name=f"test_flow_is_aborted_{uuid.uuid4()}", persist_result=True)
+            def foo():
+                raise Abort()
+        else:
+
+            @flow(name=f"test_flow_is_aborted_{uuid.uuid4()}", persist_result=True)
+            async def foo():
+                raise Abort()
+
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_flow_is_suspended_{uuid.uuid4()}",
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = run_flow_in_subprocess(foo, flow_run)
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        # Stays in running state because the flow run is aborted manually
+        assert flow_run.state.is_running()
+
+    async def test_flow_raises_a_base_exception(
+        self, engine_type: Literal["sync", "async"]
+    ):
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_flow_raises_a_base_exception_{uuid.uuid4()}",
+                persist_result=True,
+            )
+            def foo():
+                raise BaseException()
+        else:
+
+            @flow(
+                name=f"test_flow_raises_a_base_exception_{uuid.uuid4()}",
+                persist_result=True,
+            )
+            async def foo():
+                raise BaseException()
+
+        process = run_flow_in_subprocess(foo)
+        process.join()
+        assert process.exitcode == 1
+
+        flow_run = await self.get_flow_run_for_flow(foo.name)
+        assert flow_run.state.is_crashed()
+
+    async def test_flow_process_is_killed(self, engine_type: Literal["sync", "async"]):
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_flow_process_is_killed_{uuid.uuid4()}", persist_result=True
+            )
+            def foo():
+                signal.raise_signal(signal.SIGKILL)
+        else:
+
+            @flow(
+                name=f"test_flow_process_is_killed_{uuid.uuid4()}", persist_result=True
+            )
+            async def foo():
+                signal.raise_signal(signal.SIGKILL)
+
+        process = run_flow_in_subprocess(foo)
+        process.join()
+        assert process.exitcode == -9
+
+        flow_run = await self.get_flow_run_for_flow(foo.name)
+        # Stays in running state because the process died
+        assert flow_run.state.is_running()

@@ -5,27 +5,21 @@ build system for managing flows and deployments.
 To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
 """
 
-import ast
-import asyncio
-import math
+from __future__ import annotations
+
 import os
-import subprocess
-import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional
 
-import anyio
 import yaml
 from ruamel.yaml import YAML
 
-from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
-from prefect.logging import get_logger
-from prefect.settings import PREFECT_DEBUG_MODE
-from prefect.utilities.asyncutils import LazySemaphore
-from prefect.utilities.filesystem import create_default_ignore_file, get_open_file_limit
+from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
+from prefect.utilities.annotations import NotSet
+from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values
 
 
@@ -119,7 +113,9 @@ def create_default_prefect_yaml(
     return True
 
 
-def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
+def configure_project_by_recipe(
+    recipe: str, **formatting_kwargs: Any
+) -> dict[str, Any] | type[NotSet]:
     """
     Given a recipe name, returns a dictionary representing base configuration options.
 
@@ -137,43 +133,13 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
         raise ValueError(f"Unknown recipe {recipe!r} provided.")
 
     with recipe_path.open(mode="r") as f:
-        config = yaml.safe_load(f)
+        config: dict[str, Any] = yaml.safe_load(f)
 
-    config = apply_values(
+    templated_config = apply_values(
         template=config, values=formatting_kwargs, remove_notset=False
     )
 
-    return config
-
-
-def _get_git_remote_origin_url() -> Optional[str]:
-    """
-    Returns the git remote origin URL for the current directory.
-    """
-    try:
-        origin_url = subprocess.check_output(
-            ["git", "config", "--get", "remote.origin.url"],
-            shell=sys.platform == "win32",
-            stderr=subprocess.DEVNULL,
-        )
-        origin_url = origin_url.decode().strip()
-    except subprocess.CalledProcessError:
-        return None
-
-    return origin_url
-
-
-def _get_git_branch() -> Optional[str]:
-    """
-    Returns the git branch for the current directory.
-    """
-    try:
-        branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-        branch = branch.decode().strip()
-    except subprocess.CalledProcessError:
-        return None
-
-    return branch
+    return templated_config
 
 
 def initialize_project(
@@ -198,11 +164,11 @@ def initialize_project(
     formatting_kwargs = {"directory": str(Path(".").absolute().resolve())}
     dir_name = os.path.basename(os.getcwd())
 
-    remote_url = _get_git_remote_origin_url()
+    remote_url = get_git_remote_origin_url()
     if remote_url:
         formatting_kwargs["repository"] = remote_url
         is_git_based = True
-        branch = _get_git_branch()
+        branch = get_git_branch()
         formatting_kwargs["branch"] = branch or "main"
 
     formatting_kwargs["name"] = dir_name
@@ -240,8 +206,8 @@ def initialize_project(
 
 
 def _format_deployment_for_saving_to_prefect_file(
-    deployment: Dict,
-) -> Dict:
+    deployment: dict[str, Any],
+) -> dict[str, Any]:
     """
     Formats a deployment into a templated deploy config for saving to prefect.yaml.
 
@@ -260,10 +226,8 @@ def _format_deployment_for_saving_to_prefect_file(
     deployment.pop("flow_name", None)
 
     if deployment.get("schedules"):
-        schedules = []
-        for deployment_schedule in cast(
-            List[DeploymentScheduleCreate], deployment["schedules"]
-        ):
+        schedules: list[dict[str, Any]] = []
+        for deployment_schedule in deployment["schedules"]:
             if isinstance(deployment_schedule.schedule, IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
@@ -290,7 +254,7 @@ def _format_deployment_for_saving_to_prefect_file(
     return deployment
 
 
-def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
+def _interval_schedule_to_dict(schedule: IntervalSchedule) -> dict[str, Any]:
     """
     Converts an IntervalSchedule to a dictionary.
 
@@ -298,7 +262,7 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
         - schedule (IntervalSchedule): the schedule to convert
 
     Returns:
-        - Dict: the schedule as a dictionary
+        - dict[str, Any]: the schedule as a dictionary
     """
     schedule_config = schedule.model_dump()
     schedule_config["interval"] = schedule_config["interval"].total_seconds()
@@ -308,11 +272,12 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
 
 
 def _save_deployment_to_prefect_file(
-    deployment: Dict,
-    build_steps: Optional[List[Dict]] = None,
-    push_steps: Optional[List[Dict]] = None,
-    pull_steps: Optional[List[Dict]] = None,
-    triggers: Optional[List[Dict]] = None,
+    deployment: dict[str, Any],
+    build_steps: list[dict[str, Any]] | None = None,
+    push_steps: list[dict[str, Any]] | None = None,
+    pull_steps: list[dict[str, Any]] | None = None,
+    triggers: list[dict[str, Any]] | None = None,
+    sla: list[dict[str, Any]] | None = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     """
@@ -357,6 +322,9 @@ def _save_deployment_to_prefect_file(
         if triggers and triggers != parsed_prefect_file_contents.get("triggers"):
             deployment["triggers"] = triggers
 
+        if sla and sla != parsed_prefect_file_contents.get("sla"):
+            deployment["sla"] = sla
+
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:
             parsed_prefect_file_contents["deployments"] = [deployment]
@@ -373,105 +341,3 @@ def _save_deployment_to_prefect_file(
 
         with prefect_file.open(mode="w") as f:
             ryaml.dump(parsed_prefect_file_contents, f)
-
-
-# Only allow half of the open file limit to be open at once to allow for other
-# actors to open files.
-OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
-
-
-async def _find_flow_functions_in_file(filename: str) -> List[Dict]:
-    decorator_name = "flow"
-    decorator_module = "prefect"
-    decorated_functions = []
-    async with OPEN_FILE_SEMAPHORE:
-        try:
-            async with await anyio.open_file(filename) as f:
-                try:
-                    tree = ast.parse(await f.read())
-                except SyntaxError:
-                    if PREFECT_DEBUG_MODE:
-                        get_logger().debug(
-                            f"Could not parse {filename} as a Python file. Skipping."
-                        )
-                    return decorated_functions
-        except Exception as exc:
-            if PREFECT_DEBUG_MODE:
-                get_logger().debug(f"Could not open {filename}: {exc}. Skipping.")
-            return decorated_functions
-
-    for node in ast.walk(tree):
-        if isinstance(
-            node,
-            (
-                ast.FunctionDef,
-                ast.AsyncFunctionDef,
-            ),
-        ):
-            for decorator in node.decorator_list:
-                # handles @flow
-                is_name_match = (
-                    isinstance(decorator, ast.Name) and decorator.id == decorator_name
-                )
-                # handles @flow()
-                is_func_name_match = (
-                    isinstance(decorator, ast.Call)
-                    and isinstance(decorator.func, ast.Name)
-                    and decorator.func.id == decorator_name
-                )
-                # handles @prefect.flow
-                is_module_attribute_match = (
-                    isinstance(decorator, ast.Attribute)
-                    and isinstance(decorator.value, ast.Name)
-                    and decorator.value.id == decorator_module
-                    and decorator.attr == decorator_name
-                )
-                # handles @prefect.flow()
-                is_module_attribute_func_match = (
-                    isinstance(decorator, ast.Call)
-                    and isinstance(decorator.func, ast.Attribute)
-                    and decorator.func.attr == decorator_name
-                    and isinstance(decorator.func.value, ast.Name)
-                    and decorator.func.value.id == decorator_module
-                )
-                if is_name_match or is_module_attribute_match:
-                    decorated_functions.append(
-                        {
-                            "flow_name": node.name,
-                            "function_name": node.name,
-                            "filepath": str(filename),
-                        }
-                    )
-                if is_func_name_match or is_module_attribute_func_match:
-                    name_kwarg_node = next(
-                        (kw for kw in decorator.keywords if kw.arg == "name"), None
-                    )
-                    flow_name = (
-                        name_kwarg_node.value.value
-                        if isinstance(name_kwarg_node, ast.Constant)
-                        else node.name
-                    )
-                    decorated_functions.append(
-                        {
-                            "flow_name": flow_name,
-                            "function_name": node.name,
-                            "filepath": str(filename),
-                        }
-                    )
-    return decorated_functions
-
-
-async def _search_for_flow_functions(directory: str = ".") -> List[Dict]:
-    """
-    Search for flow functions in the provided directory. If no directory is provided,
-    the current working directory is used.
-
-    Returns:
-        List[Dict]: the flow name, function name, and filepath of all flow functions found
-    """
-    path = anyio.Path(directory)
-    coros = []
-    async for file in path.rglob("*.py"):
-        coros.append(_find_flow_functions_in_file(file))
-
-    return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]

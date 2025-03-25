@@ -52,7 +52,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
 
     _deployment_id: Optional[UUID] = PrivateAttr(default=None)
 
-    def set_deployment_id(self, deployment_id: UUID):
+    def set_deployment_id(self, deployment_id: UUID) -> None:
         self._deployment_id = deployment_id
 
     def owner_resource(self) -> Optional[str]:
@@ -84,7 +84,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
                 getattr(self, "name", None)
                 or f"Automation for deployment {self._deployment_id}"
             ),
-            description="",
+            description=getattr(self, "description", ""),
             enabled=getattr(self, "enabled", True),
             trigger=trigger,
             actions=self.actions(),
@@ -198,7 +198,9 @@ class EventTrigger(ResourceTrigger):
                     "10 seconds"
                 )
 
-        return data | {"within": within} if within else data
+        if within:
+            data = {**data, "within": within}
+        return data
 
     def describe_for_cli(self, indent: int = 0) -> str:
         """Return a human-readable description of this trigger for the CLI"""
@@ -248,7 +250,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     threshold: float = Field(
         ...,
         description=(
-            "The threshold value against which we'll compare " "the query result."
+            "The threshold value against which we'll compare the query result."
         ),
     )
     operator: MetricTriggerOperator = Field(
@@ -277,7 +279,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
 
     @field_validator("range", "firing_for")
-    def enforce_minimum_range(cls, value: timedelta):
+    def enforce_minimum_range(cls, value: timedelta) -> timedelta:
         if value < timedelta(seconds=300):
             raise ValueError("The minimum range is 300 seconds (5 minutes)")
         return value
@@ -404,13 +406,17 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 
-    name: str = Field(..., description="The name of this automation")
-    description: str = Field("", description="A longer description of this automation")
+    name: str = Field(default=..., description="The name of this automation")
+    description: str = Field(
+        default="", description="A longer description of this automation"
+    )
 
-    enabled: bool = Field(True, description="Whether this automation will be evaluated")
+    enabled: bool = Field(
+        default=True, description="Whether this automation will be evaluated"
+    )
 
     trigger: TriggerTypes = Field(
-        ...,
+        default=...,
         description=(
             "The criteria for which events this Automation covers and how it will "
             "respond to the presence or absence of those events"
@@ -418,7 +424,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
     )
 
     actions: List[ActionTypes] = Field(
-        ...,
+        default=...,
         description="The actions to perform when this Automation triggers",
     )
 
@@ -438,4 +444,4 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
 
 
 class Automation(AutomationCore):
-    id: UUID = Field(..., description="The ID of this automation")
+    id: UUID = Field(default=..., description="The ID of this automation")

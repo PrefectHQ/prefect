@@ -1,7 +1,18 @@
+from __future__ import annotations
+
 import inspect
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import (
+    Annotated,
+    Any,
+    ClassVar,
+    Dict,
+    Iterable,
+    Iterator,
+    Optional,
+    Union,
+)
 
 import toml
 from pydantic import (
@@ -22,8 +33,8 @@ from prefect.settings.models.root import Settings
 
 
 def _cast_settings(
-    settings: Union[Dict[Union[str, Setting], Any], Any],
-) -> Dict[Setting, Any]:
+    settings: dict[str | Setting, Any] | Any,
+) -> dict[Setting, Any]:
     """For backwards compatibility, allow either Settings objects as keys or string references to settings."""
     if not isinstance(settings, dict):
         raise ValueError("Settings must be a dictionary.")
@@ -48,10 +59,12 @@ def _cast_settings(
 class Profile(BaseModel):
     """A user profile containing settings."""
 
-    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="ignore", arbitrary_types_allowed=True
+    )
 
     name: str
-    settings: Annotated[Dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
+    settings: Annotated[dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
         default_factory=dict
     )
     source: Optional[Path] = None
@@ -64,8 +77,8 @@ class Profile(BaseModel):
             if value is not None
         }
 
-    def validate_settings(self):
-        errors: List[Tuple[Setting, ValidationError]] = []
+    def validate_settings(self) -> None:
+        errors: list[tuple[Setting, ValidationError]] = []
         for setting, value in self.settings.items():
             try:
                 model_fields = Settings.model_fields
@@ -96,11 +109,13 @@ class ProfilesCollection:
     def __init__(
         self, profiles: Iterable[Profile], active: Optional[str] = None
     ) -> None:
-        self.profiles_by_name = {profile.name: profile for profile in profiles}
+        self.profiles_by_name: dict[str, Profile] = {
+            profile.name: profile for profile in profiles
+        }
         self.active_name = active
 
     @property
-    def names(self) -> Set[str]:
+    def names(self) -> set[str]:
         """
         Return a set of profile names in this collection.
         """
@@ -115,7 +130,7 @@ class ProfilesCollection:
             return None
         return self[self.active_name]
 
-    def set_active(self, name: Optional[str], check: bool = True):
+    def set_active(self, name: Optional[str], check: bool = True) -> None:
         """
         Set the active profile name in the collection.
 
@@ -129,7 +144,7 @@ class ProfilesCollection:
     def update_profile(
         self,
         name: str,
-        settings: Dict[Setting, Any],
+        settings: dict[Setting, Any],
         source: Optional[Path] = None,
     ) -> Profile:
         """
@@ -201,7 +216,7 @@ class ProfilesCollection:
             active=self.active_name,
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to a dictionary suitable for writing to disk.
         """
@@ -216,11 +231,11 @@ class ProfilesCollection:
     def __getitem__(self, name: str) -> Profile:
         return self.profiles_by_name[name]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self.profiles_by_name.__iter__()
 
-    def items(self):
-        return self.profiles_by_name.items()
+    def items(self) -> list[tuple[str, Profile]]:
+        return list(self.profiles_by_name.items())
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
@@ -312,7 +327,7 @@ def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
     return profiles
 
 
-def load_current_profile():
+def load_current_profile() -> Profile:
     """
     Load the current profile from the default and current profile paths.
 

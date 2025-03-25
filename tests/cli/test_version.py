@@ -4,7 +4,6 @@ import sys
 from textwrap import dedent
 from unittest.mock import Mock
 
-import pendulum
 import pydantic
 import pytest
 
@@ -17,9 +16,11 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.types._datetime import parse_datetime
 
 
-def test_version_ephemeral_server_type(disable_hosted_api_server):
+@pytest.mark.usefixtures("disable_hosted_api_server")
+def test_version_ephemeral_server_type():
     with temporary_settings(
         {
             PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
@@ -30,7 +31,8 @@ def test_version_ephemeral_server_type(disable_hosted_api_server):
         )
 
 
-def test_version_unconfigured_server_type(disable_hosted_api_server):
+@pytest.mark.usefixtures("disable_hosted_api_server")
+def test_version_unconfigured_server_type():
     invoke_and_assert(
         ["version"], expected_output_contains="Server type:         unconfigured"
     )
@@ -56,9 +58,11 @@ def test_version_cloud_server_type():
         )
 
 
-def test_correct_output_ephemeral_sqlite(monkeypatch, disable_hosted_api_server):
+@pytest.mark.usefixtures("disable_hosted_api_server")
+def test_correct_output_ephemeral_sqlite(monkeypatch: pytest.MonkeyPatch):
     version_info = prefect.__version_info__
-    built = pendulum.parse(prefect.__version_info__["date"])
+    assert version_info["date"] is not None, "date is not set"
+    built = parse_datetime(version_info["date"])
     profile = prefect.context.get_settings_context().profile
 
     dialect = Mock()
@@ -77,7 +81,7 @@ def test_correct_output_ephemeral_sqlite(monkeypatch, disable_hosted_api_server)
                 Version:             {prefect.__version__}
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
-                Git commit:          {version_info['full-revisionid'][:8]}
+                Git commit:          {version_info["full-revisionid"][:8]}
                 Built:               {built.to_day_datetime_string()}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
@@ -91,9 +95,11 @@ def test_correct_output_ephemeral_sqlite(monkeypatch, disable_hosted_api_server)
         )
 
 
-def test_correct_output_ephemeral_postgres(monkeypatch, disable_hosted_api_server):
+@pytest.mark.usefixtures("disable_hosted_api_server")
+def test_correct_output_ephemeral_postgres(monkeypatch: pytest.MonkeyPatch):
     version_info = prefect.__version_info__
-    built = pendulum.parse(prefect.__version_info__["date"])
+    assert version_info["date"] is not None, "date is not set"
+    built = parse_datetime(version_info["date"])
     profile = prefect.context.get_settings_context().profile
 
     dialect = Mock()
@@ -112,7 +118,7 @@ def test_correct_output_ephemeral_postgres(monkeypatch, disable_hosted_api_serve
                 Version:             {prefect.__version__}
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
-                Git commit:          {version_info['full-revisionid'][:8]}
+                Git commit:          {version_info["full-revisionid"][:8]}
                 Built:               {built.to_day_datetime_string()}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
@@ -128,7 +134,8 @@ def test_correct_output_ephemeral_postgres(monkeypatch, disable_hosted_api_serve
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_correct_output_non_ephemeral_server_type():
     version_info = prefect.__version_info__
-    built = pendulum.parse(prefect.__version_info__["date"])
+    assert version_info["date"] is not None, "date is not set"
+    built = parse_datetime(version_info["date"])
     profile = prefect.context.get_settings_context().profile
 
     invoke_and_assert(
@@ -136,7 +143,7 @@ def test_correct_output_non_ephemeral_server_type():
         expected_output=f"""Version:             {prefect.__version__}
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
-Git commit:          {version_info['full-revisionid'][:8]}
+Git commit:          {version_info["full-revisionid"][:8]}
 Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}

@@ -1,14 +1,14 @@
 import threading
 import uuid
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 from prefect.exceptions import ConfigurationError
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, NullFileSystem
 from prefect.flows import flow
 from prefect.locking.memory import MemoryLockManager
-from prefect.records.memory import MemoryRecordStore
 from prefect.results import (
     ResultRecord,
     ResultStore,
@@ -385,112 +385,6 @@ class TestDefaultTransactionStorage:
         assert await test_task() == {"foo": "bar"}
 
 
-class TestWithMemoryRecordStore:
-    @pytest.fixture(autouse=True)
-    def ignore_deprecations(self, ignore_prefect_deprecation_warnings):
-        """This file will be removed in a future release when MemoryRecordStore is removed."""
-
-    @pytest.fixture()
-    def default_storage_setting(self, tmp_path):
-        name = str(uuid.uuid4())
-        LocalFileSystem(basepath=tmp_path).save(name)
-        with temporary_settings(
-            {
-                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
-                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
-            }
-        ):
-            yield
-
-    @pytest.fixture
-    async def result_1(self, default_storage_setting):
-        result_store = ResultStore(persist_result=True)
-        return await result_store.create_result(obj={"foo": "bar"})
-
-    @pytest.fixture
-    async def result_2(self, default_storage_setting):
-        result_store = ResultStore(persist_result=True)
-        return await result_store.create_result(obj={"fizz": "buzz"})
-
-    async def test_basic_transaction(self, result_1):
-        store = MemoryRecordStore()
-        with transaction(
-            key="test_basic_transaction", store=store, write_on_commit=True
-        ) as txn:
-            assert isinstance(txn.store, MemoryRecordStore)
-            txn.stage(result_1)
-
-        result_1 = txn.read()
-        assert result_1
-        assert await result_1.get() == {"foo": "bar"}
-
-        record = store.read("test_basic_transaction")
-        assert record
-        assert record.result == result_1
-        assert record.key == "test_basic_transaction"
-
-    async def test_competing_read_transaction(self, result_1):
-        transaction_1_open = threading.Event()
-        transaction_2_open = threading.Event()
-        store = MemoryRecordStore()
-
-        def writing_transaction():
-            # isolation level is SERIALIZABLE, so a lock will be taken
-            with transaction(
-                key="test_competing_read_transaction",
-                store=store,
-                isolation_level=IsolationLevel.SERIALIZABLE,
-                write_on_commit=True,
-            ) as txn:
-                transaction_1_open.set()
-                transaction_2_open.wait()
-                txn.stage(result_1)
-
-        thread = threading.Thread(target=writing_transaction)
-        thread.start()
-        transaction_1_open.wait()
-        with transaction(
-            key="test_competing_read_transaction", store=store, write_on_commit=True
-        ) as txn:
-            transaction_2_open.set()
-            read_result = txn.read()
-
-        assert read_result == result_1
-        thread.join()
-
-    async def test_competing_write_transaction(self, result_1, result_2):
-        transaction_1_open = threading.Event()
-        store = MemoryRecordStore()
-
-        def winning_transaction():
-            with transaction(
-                key="test_competing_write_transaction",
-                store=store,
-                isolation_level=IsolationLevel.SERIALIZABLE,
-                write_on_commit=True,
-            ) as txn:
-                transaction_1_open.set()
-                txn.stage(result_1)
-
-        thread = threading.Thread(target=winning_transaction)
-        thread.start()
-        transaction_1_open.wait()
-        with transaction(
-            key="test_competing_write_transaction",
-            store=store,
-            isolation_level=IsolationLevel.SERIALIZABLE,
-            write_on_commit=True,
-        ) as txn:
-            txn.stage(result_2)
-
-        thread.join()
-        record = store.read("test_competing_write_transaction")
-        assert record
-        # the first transaction should have written its result
-        # and the second transaction should not have written on exit
-        assert record.result == result_1
-
-
 class TestWithResultStore:
     @pytest.fixture()
     def default_storage_setting(self, tmp_path):
@@ -524,6 +418,45 @@ class TestWithResultStore:
         assert record_2
         assert record_2 == record_1
         assert record_2.metadata.storage_key == "test_basic_transaction"
+
+    async def test_transaction_with_nullfilesystem_metadata(self, tmp_path: Path):
+        """Test transactions correctly handle NullFileSystem for metadata storage.
+
+        This tests for the bug where a file would exist at the expected path, but
+        the transaction would not recognize it as committed because the exists check
+        used metadata_storage (which is a NullFileSystem).
+
+        The fix ensures that when a transaction is created with a ResultStore that has
+        NullFileSystem for metadata_storage, it replaces it with None to enable
+        metadata persistence and proper idempotency detection.
+        """
+        # Create a result store with explicit NullFileSystem for metadata_storage
+        local_storage = LocalFileSystem(basepath=str(tmp_path))
+        result_store = ResultStore(
+            result_storage=local_storage,
+            metadata_storage=NullFileSystem(),
+        )
+
+        # Verify it's using NullFileSystem
+        assert isinstance(result_store.metadata_storage, NullFileSystem)
+
+        # First transaction - creates a file
+        transaction_key = "test-null-metadata-transaction"
+        with transaction(
+            key=transaction_key, store=result_store, write_on_commit=True
+        ) as txn:
+            # Verify transaction has replaced NullFileSystem with None
+            assert txn.store.metadata_storage is None
+            txn.stage({"foo": "bar"})
+
+        # Verify the file was created
+        assert (tmp_path / transaction_key).exists()
+
+        # Second transaction - should recognize the file as already committed
+        with transaction(key=transaction_key, store=result_store) as txn:
+            assert txn.is_committed(), (
+                "Transaction should correctly identify existing file after replacing NullFileSystem"
+            )
 
     async def test_competing_read_transaction(self, result_store):
         write_transaction_open = threading.Event()
@@ -580,22 +513,6 @@ class TestWithResultStore:
         # the first transaction should have written its result
         # and the second transaction should not have written on exit
         assert record.result == {"foo": "bar"}
-
-    async def test_can_handle_staged_base_result(
-        self, result_store, ignore_prefect_deprecation_warnings
-    ):
-        result_1 = await result_store.create_result(obj={"foo": "bar"})
-        with transaction(
-            key="test_can_handle_staged_base_result",
-            store=result_store,
-            write_on_commit=True,
-        ) as txn:
-            txn.stage(result_1)
-
-        record = txn.read()
-        assert record
-        assert record.result == {"foo": "bar"}
-        assert record.metadata.storage_block_id == result_1.storage_block_id
 
 
 class TestHooks:

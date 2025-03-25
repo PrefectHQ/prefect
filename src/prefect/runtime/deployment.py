@@ -25,8 +25,10 @@ Available attributes:
         object or those directly provided via API for this run
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
@@ -34,12 +36,17 @@ from prefect.context import FlowRunContext
 
 from .flow_run import _get_flow_run
 
+if TYPE_CHECKING:
+    from prefect.client.schemas.responses import DeploymentResponse
+
 __all__ = ["id", "flow_run_id", "name", "parameters", "version"]
 
-CACHED_DEPLOYMENT = {}
+CACHED_DEPLOYMENT: dict[str, "DeploymentResponse"] = {}
 
 
-type_cast = {
+type_cast: dict[
+    type[bool] | type[int] | type[float] | type[str] | type[None], Callable[[Any], Any]
+] = {
     bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
@@ -88,7 +95,7 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
-async def _get_deployment(deployment_id):
+async def _get_deployment(deployment_id: str) -> "DeploymentResponse":
     # deployments won't change between calls so let's avoid the lifecycle of a client
     if CACHED_DEPLOYMENT.get(deployment_id):
         return CACHED_DEPLOYMENT[deployment_id]
@@ -115,7 +122,7 @@ def get_id() -> Optional[str]:
         return str(deployment_id)
 
 
-def get_parameters() -> Dict:
+def get_parameters() -> dict[str, Any]:
     run_id = get_flow_run_id()
     if run_id is None:
         return {}
@@ -126,7 +133,7 @@ def get_parameters() -> Dict:
     return flow_run.parameters or {}
 
 
-def get_name() -> Optional[Dict]:
+def get_name() -> Optional[str]:
     dep_id = get_id()
 
     if dep_id is None:
@@ -138,7 +145,7 @@ def get_name() -> Optional[Dict]:
     return deployment.name
 
 
-def get_version() -> Optional[Dict]:
+def get_version() -> Optional[str]:
     dep_id = get_id()
 
     if dep_id is None:
@@ -154,7 +161,7 @@ def get_flow_run_id() -> Optional[str]:
     return os.getenv("PREFECT__FLOW_RUN_ID")
 
 
-FIELDS = {
+FIELDS: dict[str, Callable[[], Any]] = {
     "id": get_id,
     "flow_run_id": get_flow_run_id,
     "parameters": get_parameters,

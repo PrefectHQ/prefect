@@ -8,7 +8,7 @@ from prefect.server.utilities.user_templates import (
     validate_user_template,
 )
 
-router = PrefectRouter(prefix="/templates", tags=["Automations"])
+router: PrefectRouter = PrefectRouter(prefix="/templates", tags=["Automations"])
 
 
 @router.post(

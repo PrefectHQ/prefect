@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import logging.config
 import os
@@ -6,7 +8,7 @@ import string
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable
 
 import yaml
 
@@ -21,13 +23,13 @@ from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 
 # Stores the configuration used to setup logging in this Python process
-PROCESS_LOGGING_CONFIG: Optional[Dict[str, Any]] = None
+PROCESS_LOGGING_CONFIG: dict[str, Any] = {}
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
-to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
+to_envvar: Callable[[str], str] = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 
 
-def load_logging_config(path: Path) -> dict:
+def load_logging_config(path: Path) -> dict[str, Any]:
     """
     Loads logging configuration from a path allowing override from the environment
     """
@@ -38,7 +40,9 @@ def load_logging_config(path: Path) -> dict:
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         config = yaml.safe_load(
             # Substitute settings into the template in format $SETTING / ${SETTING}
-            template.substitute(current_settings.to_environment_variables())
+            template.substitute(
+                current_settings.to_environment_variables(include_aliases=True)
+            )
         )
 
     # Load overrides from the environment
@@ -58,7 +62,7 @@ def load_logging_config(path: Path) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
+def setup_logging(incremental: bool | None = None) -> dict[str, Any]:
     """
     Sets up logging.
 
@@ -94,13 +98,10 @@ def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
 
     for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value():
         logger = logging.getLogger(logger_name)
-        for handler in extra_config.handlers:
-            if not config["incremental"]:
+        if not config["incremental"]:
+            for handler in extra_config.handlers:
                 logger.addHandler(handler)
-            if logger.level == logging.NOTSET:
-                logger.setLevel(extra_config.level)
-            logger.propagate = extra_config.propagate
 
-    PROCESS_LOGGING_CONFIG = config
+    PROCESS_LOGGING_CONFIG.update(config)
 
     return config

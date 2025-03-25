@@ -1,3 +1,4 @@
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -17,11 +18,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 
 import { useCreateOrEditGlobalConcurrencyLimitForm } from "./use-create-or-edit-global-concurrency-limit-form";
 
-type Props = {
+type GlobalConcurrencyLimitsCreateOrEditDialogProps = {
 	limitToUpdate?: GlobalConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: () => void;
@@ -31,7 +31,7 @@ export const GlobalConcurrencyLimitsCreateOrEditDialog = ({
 	limitToUpdate,
 	onOpenChange,
 	onSubmit,
-}: Props) => {
+}: GlobalConcurrencyLimitsCreateOrEditDialogProps) => {
 	const { form, isLoading, saveOrUpdate } =
 		useCreateOrEditGlobalConcurrencyLimitForm({
 			limitToUpdate,
@@ -44,7 +44,7 @@ export const GlobalConcurrencyLimitsCreateOrEditDialog = ({
 
 	return (
 		<Dialog open onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>{dialogTitle}</DialogTitle>
 				</DialogHeader>

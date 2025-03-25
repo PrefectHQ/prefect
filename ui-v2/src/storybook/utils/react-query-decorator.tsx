@@ -1,4 +1,5 @@
-import { StoryFn } from "@storybook/react";
+import type { ReactRenderer } from "@storybook/react";
+import type { DecoratorFunction } from "@storybook/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
@@ -18,7 +19,9 @@ const queryClient = new QueryClient();
  *
  * export default meta;
  */
-export const reactQueryDecorator = (Story: StoryFn) => (
+export const reactQueryDecorator: DecoratorFunction<ReactRenderer> = (
+	Story,
+) => (
 	<QueryClientProvider client={queryClient}>
 		<Story />
 		<ReactQueryDevtools />

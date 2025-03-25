@@ -1,6 +1,8 @@
 import sys
 import urllib.parse
 import uuid
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
@@ -30,7 +32,7 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 
 
-def gen_test_workspace(**kwargs) -> Workspace:
+def gen_test_workspace(**kwargs: Any) -> Workspace:
     kwargs.setdefault("account_id", uuid.uuid4())
     kwargs.setdefault("account_name", "account name")
     kwargs.setdefault("account_handle", "account-handle")
@@ -42,12 +44,12 @@ def gen_test_workspace(**kwargs) -> Workspace:
 
 
 @pytest.fixture
-def interactive_console(monkeypatch):
+def interactive_console(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect.cli.cloud.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
-    def readchar():
+    def readchar() -> str:
         sys.stdin.flush()
         position = sys.stdin.tell()
         if not sys.stdin.read():
@@ -68,7 +70,7 @@ def restore_logging_setup():
 
 
 @pytest.fixture(autouse=True)
-def temporary_profiles_path(tmp_path):
+def temporary_profiles_path(tmp_path: Path):
     path = tmp_path / "profiles.toml"
     with temporary_settings({PREFECT_PROFILES_PATH: path}):
         # Ensure the test profile is persisted already to simplify assertions
@@ -79,7 +81,7 @@ def temporary_profiles_path(tmp_path):
 
 
 @pytest.fixture
-def mock_webbrowser(monkeypatch):
+def mock_webbrowser(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
     monkeypatch.setattr("prefect.cli.cloud.webbrowser", mock)
     yield mock
@@ -112,7 +114,9 @@ def mock_webbrowser(monkeypatch):
         ),
     ],
 )
-def test_login_with_invalid_key(key, expected_output, respx_mock):
+def test_login_with_invalid_key(
+    key: str, expected_output: str, respx_mock: respx.MockRouter
+):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(status.HTTP_403_FORBIDDEN)
     )
@@ -131,7 +135,7 @@ def test_login_with_invalid_key(key, expected_output, respx_mock):
     ],
 )
 def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
-    key, monkeypatch
+    key: str, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("PREFECT_API_KEY", "pnu_baz")
     invoke_and_assert(
@@ -166,7 +170,7 @@ def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
     ],
 )
 def test_login_with_prefect_api_key_env_var_equal_to_invalid_key_exits_with_error(
-    key, expected_output, env_var_api_key, respx_mock
+    key: str, expected_output: str, env_var_api_key: str, respx_mock: respx.MockRouter
 ):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(status.HTTP_403_FORBIDDEN)
@@ -179,7 +183,9 @@ def test_login_with_prefect_api_key_env_var_equal_to_invalid_key_exits_with_erro
         )
 
 
-def test_login_with_prefect_api_key_env_var_equal_to_valid_key_succeeds(respx_mock):
+def test_login_with_prefect_api_key_env_var_equal_to_valid_key_succeeds(
+    respx_mock: respx.MockRouter,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -199,7 +205,7 @@ def test_login_with_prefect_api_key_env_var_equal_to_valid_key_succeeds(respx_mo
         )
 
 
-def test_login_with_key_and_missing_workspace(respx_mock):
+def test_login_with_key_and_missing_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
@@ -223,7 +229,7 @@ def test_login_with_key_and_missing_workspace(respx_mock):
     )
 
 
-def test_login_with_key_and_workspace_with_no_workspaces(respx_mock):
+def test_login_with_key_and_workspace_with_no_workspaces(respx_mock: respx.MockRouter):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(status.HTTP_200_OK, json=[])
     )
@@ -234,7 +240,7 @@ def test_login_with_key_and_workspace_with_no_workspaces(respx_mock):
     )
 
 
-def test_login_with_key_and_workspace(respx_mock):
+def test_login_with_key_and_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
@@ -260,7 +266,7 @@ def test_login_with_key_and_workspace(respx_mock):
 
 
 @pytest.mark.parametrize("args", [[], ["--workspace", "test/foo"], ["--key", "key"]])
-def test_login_with_non_interactive_missing_args(args):
+def test_login_with_non_interactive_missing_args(args: list[str]):
     invoke_and_assert(
         ["cloud", "login", *args],
         expected_code=1,
@@ -271,7 +277,9 @@ def test_login_with_non_interactive_missing_args(args):
     )
 
 
-def test_login_with_key_and_workspace_overrides_current_workspace(respx_mock):
+def test_login_with_key_and_workspace_overrides_current_workspace(
+    respx_mock: respx.MockRouter,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
@@ -304,7 +312,7 @@ def test_login_with_key_and_workspace_overrides_current_workspace(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_key_and_no_workspaces(respx_mock):
+def test_login_with_key_and_no_workspaces(respx_mock: respx.MockRouter):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
@@ -323,7 +331,7 @@ def test_login_with_key_and_no_workspaces(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_key_and_select_first_workspace(respx_mock):
+def test_login_with_key_and_select_first_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -353,7 +361,7 @@ def test_login_with_key_and_select_first_workspace(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_key_and_select_second_workspace(respx_mock):
+def test_login_with_key_and_select_second_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -383,7 +391,7 @@ def test_login_with_key_and_select_second_workspace(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_interactive_key_single_workspace(respx_mock):
+def test_login_with_interactive_key_single_workspace(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -415,7 +423,7 @@ def test_login_with_interactive_key_single_workspace(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_interactive_key_multiple_workspaces(respx_mock):
+def test_login_with_interactive_key_multiple_workspaces(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
@@ -460,7 +468,9 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
+def test_login_with_browser_single_workspace(
+    respx_mock: respx.MockRouter, mock_webbrowser: MagicMock
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -470,7 +480,7 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
         )
     )
 
-    def post_success(ui_url):
+    def post_success(ui_url: str):
         # Parse the callback url that the UI would send a response to
         callback = urllib.parse.unquote(
             urllib.parse.urlparse(ui_url).query.split("=")[1]
@@ -507,8 +517,10 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
-    def post_failure(ui_url):
+def test_login_with_browser_failure_in_browser(
+    respx_mock: respx.MockRouter, mock_webbrowser: MagicMock
+):
+    def post_failure(ui_url: str):
         # Parse the callback url that the UI would send a response to
         callback = urllib.parse.unquote(
             urllib.parse.urlparse(ui_url).query.split("=")[1]
@@ -547,7 +559,9 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_already_logged_in_to_current_profile_no_reauth(respx_mock):
+def test_login_already_logged_in_to_current_profile_no_reauth(
+    respx_mock: respx.MockRouter,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -591,7 +605,9 @@ def test_login_already_logged_in_to_current_profile_no_reauth(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(respx_mock):
+def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(
+    respx_mock: respx.MockRouter,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
@@ -653,7 +669,9 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(resp
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
+def test_login_already_logged_in_to_current_profile_yes_reauth(
+    respx_mock: respx.MockRouter,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -714,7 +732,7 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
 
 @pytest.mark.usefixtures("interactive_console")
 def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
-    respx_mock,
+    respx_mock: respx.MockRouter,
 ):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
@@ -776,7 +794,7 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_already_logged_in_to_another_profile(respx_mock):
+def test_login_already_logged_in_to_another_profile(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -824,6 +842,7 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
 
     profiles = load_profiles()
     assert profiles.active_name == "logged-in-profile"
+    assert profiles.active_profile
     settings = profiles.active_profile.settings
     assert settings[PREFECT_API_KEY] == "foo"
     assert settings[PREFECT_API_URL] == foo_workspace.api_url()
@@ -834,7 +853,9 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_mock):
+def test_login_already_logged_in_to_another_profile_cancel_during_select(
+    respx_mock: respx.MockRouter,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
@@ -957,7 +978,7 @@ def test_cannot_set_workspace_if_you_are_not_logged_in():
         )
 
 
-def test_set_workspace_updates_profile(respx_mock):
+def test_set_workspace_updates_profile(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
@@ -1056,7 +1077,7 @@ def test_set_workspace_with_account_selection():
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_set_workspace_with_less_than_10_workspaces(respx_mock):
+def test_set_workspace_with_less_than_10_workspaces(respx_mock: respx.MockRouter):
     foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
 
@@ -1105,7 +1126,7 @@ def test_set_workspace_with_less_than_10_workspaces(respx_mock):
 
 class TestCloudWorkspaceLs:
     @pytest.fixture
-    def workspaces(self, respx_mock):
+    def workspaces(self, respx_mock: respx.MockRouter):
         foo_workspace = gen_test_workspace(
             account_handle="test1", workspace_handle="foo"
         )
@@ -1142,8 +1163,8 @@ class TestCloudWorkspaceLs:
         with use_profile(cloud_profile):
             yield foo_workspace, bar_workspace
 
-    def test_ls(self, monkeypatch, workspaces):
-        foo_workspace, bar_workspace = workspaces
+    def test_ls(self, workspaces: tuple[Workspace, Workspace]):
+        _, _ = workspaces
         invoke_and_assert(
             ["cloud", "workspace", "ls"],
             expected_code=0,
@@ -1153,10 +1174,11 @@ class TestCloudWorkspaceLs:
             ],
         )
 
-    def test_ls_without_active_workspace(self, workspaces, monkeypatch):
+    def test_ls_without_active_workspace(self, workspaces: tuple[Workspace, Workspace]):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/16098
         """
+        _, _ = workspaces
         wonky_profile = "wonky-profile"
         save_profiles(
             ProfilesCollection(
@@ -1186,3 +1208,168 @@ class TestCloudWorkspaceLs:
                     "* test2/bar",
                 ],
             )
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_set_workspace_with_go_back_to_account_selection():
+    # Create workspaces in different accounts - need more than 10 total to trigger account selection
+    account1_id = uuid.uuid4()
+    account2_id = uuid.uuid4()
+
+    # Create 6 workspaces for account1
+    account1_workspaces: list[Workspace] = []
+    for i in range(1, 7):
+        workspace = gen_test_workspace(
+            account_handle="account1",
+            workspace_handle=f"workspace{i}",
+            account_id=account1_id,
+        )
+        account1_workspaces.append(workspace)
+
+    # Create 6 workspaces for account2
+    account2_workspaces: list[Workspace] = []
+    for i in range(1, 7):
+        workspace = gen_test_workspace(
+            account_handle="account2",
+            workspace_handle=f"workspace{i}",
+            account_id=account2_id,
+        )
+        account2_workspaces.append(workspace)
+
+    # Combine all workspaces
+    all_workspaces = account1_workspaces + account2_workspaces
+
+    # We'll target selecting the second workspace in account2
+    target_workspace = account2_workspaces[1]  # workspace2 in account2
+
+    with respx.mock(
+        using="httpx", base_url=PREFECT_CLOUD_API_URL.value()
+    ) as respx_mock:
+        respx_mock.get("/me/workspaces").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK,
+                json=[
+                    workspace.model_dump(mode="json") for workspace in all_workspaces
+                ],
+            )
+        )
+
+        cloud_profile = "cloud-foo"
+        save_profiles(
+            ProfilesCollection(
+                [
+                    Profile(
+                        name=cloud_profile,
+                        settings={
+                            PREFECT_API_URL: account1_workspaces[0].api_url(),
+                            PREFECT_API_KEY: "fake-key",
+                        },
+                    )
+                ],
+                active=None,
+            )
+        )
+
+        with use_profile(cloud_profile):
+            invoke_and_assert(
+                ["cloud", "workspace", "set"],
+                expected_code=0,
+                user_input=(
+                    # First select account1
+                    readchar.key.ENTER
+                    # Then select "Go back to account selection" option (last option) - using UP once
+                    + readchar.key.UP
+                    + readchar.key.ENTER
+                    # Now select account2
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                    # Select workspace2 in account2
+                    + readchar.key.DOWN
+                    + readchar.key.ENTER
+                ),
+                expected_output_contains=[
+                    "Which account would you like to use?",
+                    "Which workspace would you like to use?",
+                    "Go back to account selection",
+                    f"Successfully set workspace to {target_workspace.handle!r} in profile {cloud_profile!r}.",
+                ],
+            )
+
+        profiles = load_profiles()
+        assert profiles[cloud_profile].settings == {
+            PREFECT_API_URL: target_workspace.api_url(),
+            PREFECT_API_KEY: "fake-key",
+        }
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_login_with_go_back_to_account_selection(respx_mock: respx.MockRouter):
+    # Create workspaces in different accounts - need more than 10 total to trigger account selection
+    account1_id = uuid.uuid4()
+    account2_id = uuid.uuid4()
+
+    # Create 6 workspaces for account1
+    account1_workspaces: list[Workspace] = []
+    for i in range(1, 7):
+        workspace = gen_test_workspace(
+            account_handle="account1",
+            workspace_handle=f"workspace{i}",
+            account_id=account1_id,
+        )
+        account1_workspaces.append(workspace)
+
+    # Create 6 workspaces for account2
+    account2_workspaces: list[Workspace] = []
+    for i in range(1, 7):
+        workspace = gen_test_workspace(
+            account_handle="account2",
+            workspace_handle=f"workspace{i}",
+            account_id=account2_id,
+        )
+        account2_workspaces.append(workspace)
+
+    all_workspaces = account1_workspaces + account2_workspaces
+
+    target_workspace = account2_workspaces[1]  # workspace2 in account2
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[workspace.model_dump(mode="json") for workspace in all_workspaces],
+        )
+    )
+
+    invoke_and_assert(
+        ["cloud", "login"],
+        expected_code=0,
+        user_input=(
+            # Select paste a key
+            readchar.key.DOWN
+            + readchar.key.ENTER
+            # Send a key
+            + "foo"
+            + readchar.key.ENTER
+            # First select account1
+            + readchar.key.ENTER
+            # Then select "Go back to account selection" option (last option) - using UP once
+            + readchar.key.UP
+            + readchar.key.ENTER
+            # Now select account2
+            + readchar.key.DOWN
+            + readchar.key.ENTER
+            # Select workspace2 in account2
+            + readchar.key.DOWN
+            + readchar.key.ENTER
+        ),
+        expected_output_contains=[
+            "Paste your API key:",
+            "Which account would you like to use?",
+            "Which workspace would you like to use?",
+            "Go back to account selection",
+            f"Authenticated with Prefect Cloud! Using workspace {target_workspace.handle!r}.",
+        ],
+    )
+
+    settings = load_current_profile().settings
+    assert settings[PREFECT_API_KEY] == "foo"
+    assert settings[PREFECT_API_URL] == target_workspace.api_url()

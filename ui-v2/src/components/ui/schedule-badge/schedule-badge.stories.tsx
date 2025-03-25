@@ -1,10 +1,15 @@
-import { faker } from "@faker-js/faker";
-import type { Meta, StoryObj } from "@storybook/react";
 import {
 	generateRandomCronSchedule,
 	generateRandomIntervalSchedule,
 	generateRandomRRuleSchedule,
-} from "@tests/utils/mock-factories";
+} from "@/mocks/create-fake-schedule";
+import {
+	randBoolean,
+	randNumber,
+	randRecentDate,
+	randUuid,
+} from "@ngneat/falso";
+import type { Meta, StoryObj } from "@storybook/react";
 import { ScheduleBadge } from ".";
 
 export default {
@@ -20,12 +25,12 @@ type Story = StoryObj<typeof ScheduleBadge>;
 export const CronSchedule: Story = {
 	args: {
 		schedule: {
-			id: faker.string.uuid(),
-			created: faker.date.recent().toISOString(),
-			updated: faker.date.recent().toISOString(),
-			deployment_id: faker.string.uuid(),
-			active: faker.datatype.boolean(),
-			max_scheduled_runs: faker.number.int({ min: 1, max: 100 }),
+			id: randUuid(),
+			created: randRecentDate().toISOString(),
+			updated: randRecentDate().toISOString(),
+			deployment_id: randUuid(),
+			active: randBoolean(),
+			max_scheduled_runs: randNumber({ min: 1, max: 100 }),
 			schedule: generateRandomCronSchedule(),
 		},
 	},
@@ -34,12 +39,12 @@ export const CronSchedule: Story = {
 export const IntervalSchedule: Story = {
 	args: {
 		schedule: {
-			id: faker.string.uuid(),
-			created: faker.date.recent().toISOString(),
-			updated: faker.date.recent().toISOString(),
-			deployment_id: faker.string.uuid(),
-			active: faker.datatype.boolean(),
-			max_scheduled_runs: faker.number.int({ min: 1, max: 100 }),
+			id: randUuid(),
+			created: randRecentDate().toISOString(),
+			updated: randRecentDate().toISOString(),
+			deployment_id: randUuid(),
+			active: randBoolean(),
+			max_scheduled_runs: randNumber({ min: 1, max: 100 }),
 			schedule: generateRandomIntervalSchedule(),
 		},
 	},
@@ -48,12 +53,12 @@ export const IntervalSchedule: Story = {
 export const RRuleSchedule: Story = {
 	args: {
 		schedule: {
-			id: faker.string.uuid(),
-			created: faker.date.recent().toISOString(),
-			updated: faker.date.recent().toISOString(),
-			deployment_id: faker.string.uuid(),
-			active: faker.datatype.boolean(),
-			max_scheduled_runs: faker.number.int({ min: 1, max: 100 }),
+			id: randUuid(),
+			created: randRecentDate().toISOString(),
+			updated: randRecentDate().toISOString(),
+			deployment_id: randUuid(),
+			active: randBoolean(),
+			max_scheduled_runs: randNumber({ min: 1, max: 100 }),
 			schedule: generateRandomRRuleSchedule(),
 		},
 	},

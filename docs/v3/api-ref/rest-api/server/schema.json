@@ -20,7 +20,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "boolean",
+                                    "title": "Response Health Check Health Get"
+                                }
                             }
                         }
                     }
@@ -39,7 +42,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Server Version Version Get"
+                                }
                             }
                         }
                     }
@@ -52,7 +58,7 @@
                     "Flows"
                 ],
                 "summary": "Create Flow",
-                "description": "Gracefully creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.",
+                "description": "Gracefully creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-flows.",
                 "operationId": "create_flow_flows__post",
                 "parameters": [
                     {
@@ -477,7 +483,7 @@
                     "Flow Runs"
                 ],
                 "summary": "Create Flow Run",
-                "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.",
+                "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-flows.",
                 "operationId": "create_flow_run_flow_runs__post",
                 "parameters": [
                     {
@@ -854,7 +860,8 @@
         "/api/flow_runs/{id}/graph": {
             "get": {
                 "tags": [
-                    "Flow Runs"
+                    "Flow Runs",
+                    "Flow Run Graph"
                 ],
                 "summary": "Read Flow Run Graph V1",
                 "description": "Get a task run dependency map for a given flow run.",
@@ -913,7 +920,8 @@
         "/api/flow_runs/{id}/graph-v2": {
             "get": {
                 "tags": [
-                    "Flow Runs"
+                    "Flow Runs",
+                    "Flow Run Graph"
                 ],
                 "summary": "Read Flow Run Graph V2",
                 "description": "Get a graph of the tasks and subflow runs for the given flow run",
@@ -1587,7 +1595,7 @@
                     "Task Runs"
                 ],
                 "summary": "Create Task Run",
-                "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.",
+                "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-tasks.",
                 "operationId": "create_task_run_task_runs__post",
                 "parameters": [
                     {
@@ -1957,6 +1965,58 @@
                 }
             }
         },
+        "/api/task_runs/paginate": {
+            "post": {
+                "tags": [
+                    "Task Runs"
+                ],
+                "summary": "Paginate Task Runs",
+                "description": "Pagination query for task runs.",
+                "operationId": "paginate_task_runs_task_runs_paginate_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_paginate_task_runs_task_runs_paginate_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskRunPaginationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/task_runs/{id}/set_state": {
             "post": {
                 "tags": [
@@ -2028,7 +2088,7 @@
                     "Flow Run States"
                 ],
                 "summary": "Read Flow Run State",
-                "description": "Get a flow run state by id.",
+                "description": "Get a flow run state by id.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-flows#final-state-determination.",
                 "operationId": "read_flow_run_state_flow_run_states__id__get",
                 "parameters": [
                     {
@@ -2140,7 +2200,7 @@
                     "Task Run States"
                 ],
                 "summary": "Read Task Run State",
-                "description": "Get a task run state by id.",
+                "description": "Get a task run state by id.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-tasks.",
                 "operationId": "read_task_run_state_task_run_states__id__get",
                 "parameters": [
                     {
@@ -2252,7 +2312,7 @@
                     "Flow Run Notification Policies"
                 ],
                 "summary": "Create Flow Run Notification Policy",
-                "description": "Creates a new flow run notification policy.",
+                "description": "Creates a new flow run notification policy.\n\nFor more information, see https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations.",
                 "operationId": "create_flow_run_notification_policy_flow_run_notification_policies__post",
                 "parameters": [
                     {
@@ -2518,7 +2578,7 @@
                     "Deployments"
                 ],
                 "summary": "Create Deployment",
-                "description": "Gracefully creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.",
+                "description": "Gracefully creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://docs.prefect.io/v3/deploy.",
                 "operationId": "create_deployment_deployments__post",
                 "parameters": [
                     {
@@ -3769,7 +3829,7 @@
                     "Logs"
                 ],
                 "summary": "Create Logs",
-                "description": "Create new logs from the provided schema.",
+                "description": "Create new logs from the provided schema.\n\nFor more information, see https://docs.prefect.io/v3/develop/logging.",
                 "operationId": "create_logs_logs__post",
                 "parameters": [
                     {
@@ -3880,6 +3940,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Create Concurrency Limit",
+                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/develop/task-run-limits.",
                 "operationId": "create_concurrency_limit_concurrency_limits__post",
                 "parameters": [
                     {
@@ -4362,6 +4423,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Create Concurrency Limit V2",
+                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.",
                 "operationId": "create_concurrency_limit_v2_v2_concurrency_limits__post",
                 "parameters": [
                     {
@@ -4756,7 +4818,7 @@
                     "Block types"
                 ],
                 "summary": "Create Block Type",
-                "description": "Create a new block type",
+                "description": "Create a new block type.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
                 "operationId": "create_block_type_block_types__post",
                 "parameters": [
                     {
@@ -5264,7 +5326,7 @@
                     "Block documents"
                 ],
                 "summary": "Create Block Document",
-                "description": "Create a new block document.",
+                "description": "Create a new block document.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
                 "operationId": "create_block_document_block_documents__post",
                 "parameters": [
                     {
@@ -5592,7 +5654,7 @@
                     "Work Pools"
                 ],
                 "summary": "Create Work Pool",
-                "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.",
+                "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.",
                 "operationId": "create_work_pool_work_pools__post",
                 "parameters": [
                     {
@@ -5975,7 +6037,7 @@
                     "Work Pools"
                 ],
                 "summary": "Create Work Queue",
-                "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.",
+                "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.",
                 "operationId": "create_work_queue_work_pools__work_pool_name__queues_post",
                 "parameters": [
                     {
@@ -6474,7 +6536,7 @@
                     "Task Workers"
                 ],
                 "summary": "Read Task Workers",
-                "description": "Read active task workers. Optionally filter by task keys.",
+                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://docs.prefect.io/v3/develop/deferred-tasks.",
                 "operationId": "read_task_workers_task_workers_filter_post",
                 "parameters": [
                     {
@@ -6530,7 +6592,7 @@
                     "Work Queues"
                 ],
                 "summary": "Create Work Queue",
-                "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.",
+                "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.\n\nFor more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.",
                 "operationId": "create_work_queue_work_queues__post",
                 "parameters": [
                     {
@@ -6992,6 +7054,7 @@
                     "Artifacts"
                 ],
                 "summary": "Create Artifact",
+                "description": "Create an artifact.\n\nFor more information, see https://docs.prefect.io/v3/develop/artifacts.",
                 "operationId": "create_artifact_artifacts__post",
                 "parameters": [
                     {
@@ -7473,6 +7536,7 @@
                     "Block schemas"
                 ],
                 "summary": "Create Block Schema",
+                "description": "Create a block schema.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
                 "operationId": "create_block_schema_block_schemas__post",
                 "parameters": [
                     {
@@ -7753,6 +7817,7 @@
                     "Block capabilities"
                 ],
                 "summary": "Read Available Block Capabilities",
+                "description": "Get available block capabilities.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
                 "operationId": "read_available_block_capabilities_block_capabilities__get",
                 "parameters": [
                     {
@@ -7852,6 +7917,7 @@
                     "Variables"
                 ],
                 "summary": "Create Variable",
+                "description": "Create a variable.\n\nFor more information, see https://docs.prefect.io/v3/develop/variables.",
                 "operationId": "create_variable_variables__post",
                 "parameters": [
                     {
@@ -8355,7 +8421,7 @@
                     "Events"
                 ],
                 "summary": "Create Events",
-                "description": "Record a batch of Events",
+                "description": "Record a batch of Events.\n\nFor more information, see https://docs.prefect.io/v3/automate/events/events.",
                 "operationId": "create_events_events_post",
                 "parameters": [
                     {
@@ -8574,6 +8640,7 @@
                     "Automations"
                 ],
                 "summary": "Create Automation",
+                "description": "Create an automation.\n\nFor more information, see https://docs.prefect.io/v3/automate.",
                 "operationId": "create_automation_automations__post",
                 "parameters": [
                     {
@@ -9349,7 +9416,9 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "$ref": "#/components/schemas/SchemaValuesValidationResponse"
+                                }
                             }
                         }
                     },
@@ -9721,7 +9790,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Hello Hello Get"
+                                }
                             }
                         }
                     },
@@ -11863,6 +11935,7 @@
                         "description": "The block schema's unique checksum"
                     },
                     "fields": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -12684,22 +12757,64 @@
             "Body_count_deployments_deployments_count_post": {
                 "properties": {
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -13107,22 +13222,64 @@
                         "default": 1
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "sort": {
                         "$ref": "#/components/schemas/DeploymentSort",
@@ -13288,6 +13445,67 @@
                 },
                 "type": "object",
                 "title": "Body_paginate_flows_flows_paginate_post"
+            },
+            "Body_paginate_task_runs_task_runs_paginate_post": {
+                "properties": {
+                    "sort": {
+                        "$ref": "#/components/schemas/TaskRunSort",
+                        "default": "ID_DESC"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "flows": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "task_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "deployments": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_paginate_task_runs_task_runs_paginate_post"
             },
             "Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post": {
                 "properties": {
@@ -13589,22 +13807,64 @@
                         "default": 0
                     },
                     "flows": {
-                        "$ref": "#/components/schemas/FlowFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "flow_runs": {
-                        "$ref": "#/components/schemas/FlowRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "task_runs": {
-                        "$ref": "#/components/schemas/TaskRunFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "deployments": {
-                        "$ref": "#/components/schemas/DeploymentFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pools": {
-                        "$ref": "#/components/schemas/WorkPoolFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "work_pool_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "sort": {
                         "$ref": "#/components/schemas/DeploymentSort",
@@ -14085,19 +14345,6 @@
                         "title": "Scheduled Before",
                         "description": "Only flow runs scheduled to start before this time will be returned."
                     },
-                    "agent_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Agent Id",
-                        "description": "An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue."
-                    },
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
@@ -14328,18 +14575,20 @@
             },
             "Body_validate_obj_ui_schemas_validate_post": {
                 "properties": {
-                    "json_schema": {
+                    "schema": {
+                        "additionalProperties": true,
                         "type": "object",
-                        "title": "Json Schema"
+                        "title": "Schema"
                     },
                     "values": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Values"
                     }
                 },
                 "type": "object",
                 "required": [
-                    "json_schema",
+                    "schema",
                     "values"
                 ],
                 "title": "Body_validate_obj_ui_schemas_validate_post"
@@ -15305,10 +15554,12 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
@@ -15470,6 +15721,7 @@
                         "title": "Entrypoint"
                     },
                     "job_variables": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
@@ -15735,6 +15987,27 @@
                             ]
                         ]
                     },
+                    "any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any",
+                        "description": "A list of tags to include",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
                     "is_null_": {
                         "anyOf": [
                             {
@@ -15804,6 +16077,7 @@
                         ]
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters"
                     },
@@ -15865,6 +16139,40 @@
                         "title": "Idempotency Key",
                         "description": "An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned."
                     },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
+                    },
                     "parent_task_run_id": {
                         "anyOf": [
                             {
@@ -15897,6 +16205,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Job Variables"
                     }
                 },
@@ -16161,6 +16470,7 @@
                                 "type": "null"
                             }
                         ],
+                        "additionalProperties": true,
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
@@ -16369,6 +16679,23 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "A dictionary of parameter value overrides."
+                    },
+                    "slug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Slug",
+                        "description": "A unique slug for the schedule."
                     }
                 },
                 "type": "object",
@@ -16415,6 +16742,23 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "A dictionary of parameter value overrides."
+                    },
+                    "slug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Slug",
+                        "description": "A unique identifier for the schedule."
                     }
                 },
                 "additionalProperties": false,
@@ -16468,6 +16812,23 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "A dictionary of parameter value overrides."
+                    },
+                    "slug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Slug",
+                        "description": "A unique identifier for the schedule."
                     }
                 },
                 "additionalProperties": false,
@@ -16526,7 +16887,7 @@
                     },
                     "schedules": {
                         "items": {
-                            "$ref": "#/components/schemas/DeploymentScheduleCreate"
+                            "$ref": "#/components/schemas/DeploymentScheduleUpdate"
                         },
                         "type": "array",
                         "title": "Schedules",
@@ -16567,6 +16928,18 @@
                         ],
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
+                    },
+                    "parameter_openapi_schema": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameter Openapi Schema",
+                        "description": "The parameter schema of the flow, including defaults."
                     },
                     "tags": {
                         "items": {
@@ -16630,6 +17003,20 @@
                         ],
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
+                    },
+                    "pull_steps": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Pull Steps"
                     },
                     "entrypoint": {
                         "anyOf": [
@@ -18212,6 +18599,42 @@
                         "title": "Idempotency Key",
                         "description": "An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned."
                     },
+                    "work_pool_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Pool Name",
+                        "description": "The name of the work pool to run the flow run in."
+                    },
+                    "work_queue_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Queue Name",
+                        "description": "The name of the work queue to place the flow run in."
+                    },
+                    "job_variables": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Job Variables",
+                        "description": "The job variables to use when setting up flow run infrastructure."
+                    },
                     "deployment_id": {
                         "anyOf": [
                             {
@@ -19447,7 +19870,9 @@
                     "pause_keys": {
                         "anyOf": [
                             {
-                                "items": {},
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array",
                                 "uniqueItems": true
                             },
@@ -21550,6 +21975,99 @@
                 "title": "SavedSearchFilter",
                 "description": "A filter for a saved search model. Intended for use by the Prefect UI."
             },
+            "SchemaValueIndexError": {
+                "properties": {
+                    "index": {
+                        "type": "integer",
+                        "title": "Index"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "errors"
+                ],
+                "title": "SchemaValueIndexError"
+            },
+            "SchemaValuePropertyError": {
+                "properties": {
+                    "property": {
+                        "type": "string",
+                        "title": "Property"
+                    },
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "property",
+                    "errors"
+                ],
+                "title": "SchemaValuePropertyError"
+            },
+            "SchemaValuesValidationResponse": {
+                "properties": {
+                    "errors": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValuePropertyError"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SchemaValueIndexError"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Errors"
+                    },
+                    "valid": {
+                        "type": "boolean",
+                        "title": "Valid"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "errors",
+                    "valid"
+                ],
+                "title": "SchemaValuesValidationResponse"
+            },
             "SendNotification": {
                 "properties": {
                     "type": {
@@ -22531,6 +23049,9 @@
                 "description": "An ORM representation of task run data."
             },
             "TaskRunCount": {
+                "additionalProperties": {
+                    "type": "integer"
+                },
                 "type": "object"
             },
             "TaskRunCreate": {
@@ -23146,6 +23667,42 @@
                 "title": "TaskRunFilterTags",
                 "description": "Filter by `TaskRun.tags`."
             },
+            "TaskRunPaginationResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/TaskRunResponse"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "title": "Count"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "results",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
+                ],
+                "title": "TaskRunPaginationResponse"
+            },
             "TaskRunPolicy": {
                 "properties": {
                     "max_retries": {
@@ -23208,6 +23765,156 @@
                 "type": "object",
                 "title": "TaskRunPolicy",
                 "description": "Defines of how a task run should retry."
+            },
+            "TaskRunResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "The name of the task run. Defaults to a random slug if not specified.",
+                        "examples": [
+                            "my-task-run"
+                        ]
+                    },
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id",
+                        "description": "The id of the flow run this task run belongs to."
+                    },
+                    "task_key": {
+                        "type": "string",
+                        "title": "Task Key",
+                        "description": "The key of the task this run represents."
+                    },
+                    "state_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Id",
+                        "description": "The id of the task run's current state."
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current state of the task run."
+                    },
+                    "task_version": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Task Version",
+                        "description": "The version of the task executed in this task run.",
+                        "examples": [
+                            "1.0"
+                        ]
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "Parameters for the task run."
+                    },
+                    "task_inputs": {
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/TaskRunResult"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Task Inputs",
+                        "description": "Inputs provided to the task run."
+                    },
+                    "context": {
+                        "type": "object",
+                        "title": "Context",
+                        "description": "Additional context for the task run.",
+                        "examples": [
+                            {
+                                "my_var": "my_val"
+                            }
+                        ]
+                    },
+                    "empirical_policy": {
+                        "$ref": "#/components/schemas/TaskRunPolicy",
+                        "description": "The task run's empirical retry policy."
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags for the task run.",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_key",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "TaskRunResponse"
             },
             "TaskRunResult": {
                 "properties": {
@@ -23893,6 +24600,10 @@
                         ],
                         "title": "Default Queue Id",
                         "description": "The id of the pool's default queue."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "type": "object",
@@ -23955,6 +24666,10 @@
                         ],
                         "title": "Concurrency Limit",
                         "description": "A concurrency limit for the work pool."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "additionalProperties": false,
@@ -24091,6 +24806,38 @@
                 "title": "WorkPoolStatus",
                 "description": "Enumeration of work pool statuses."
             },
+            "WorkPoolStorageConfiguration": {
+                "properties": {
+                    "bundle_upload_step": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bundle Upload Step",
+                        "description": "The step to use for uploading bundles to storage."
+                    },
+                    "bundle_execution_step": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bundle Execution Step",
+                        "description": "The step to use for executing bundles."
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "WorkPoolStorageConfiguration",
+                "description": "A representation of a work pool's storage configuration"
+            },
             "WorkPoolUpdate": {
                 "properties": {
                     "description": {
@@ -24137,6 +24884,17 @@
                             }
                         ],
                         "title": "Concurrency Limit"
+                    },
+                    "storage_configuration": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolStorageConfiguration"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "additionalProperties": false,

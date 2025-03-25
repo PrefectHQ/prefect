@@ -25,7 +25,7 @@ classifiers = [
 dependencies = ["prefect>=3.1.1", "docker>=6.1.1", "exceptiongroup"]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
   "coverage",
   "interrogate",
@@ -68,6 +68,9 @@ omit = ["tests/*", "prefect_docker/_version.py"]
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

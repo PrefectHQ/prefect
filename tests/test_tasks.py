@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import sys
 import threading
 import time
 from asyncio import Event, sleep
@@ -22,7 +23,7 @@ from prefect.blocks.core import Block
 from prefect.cache_policies import (
     DEFAULT,
     INPUTS,
-    NONE,
+    NO_CACHE,
     TASK_SOURCE,
     CachePolicy,
     Inputs,
@@ -53,6 +54,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASKS_DEFAULT_NO_CACHE,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
     temporary_settings,
@@ -420,13 +422,26 @@ class TestTaskCall:
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_task_supports_class_methods(self, T):
         class Foo(T):
+            @task
+            @classmethod
+            def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @task
-            def class_method(cls):
+            def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
+
+        if sys.version_info < (3, 13):
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Task)
+        else:
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Task)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_task_supports_static_methods(self, T):
@@ -436,8 +451,16 @@ class TestTaskCall:
             def static_method():
                 return "static"
 
+            @staticmethod
+            @task
+            def static_method_of_a_different_order():
+                return "static"
+
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
+
+        assert Foo.static_method_of_a_different_order() == "static"
+        assert isinstance(Foo.static_method_of_a_different_order, Task)
 
     def test_instance_method_doesnt_create_copy_of_self(self):
         class Foo(pydantic.BaseModel):
@@ -511,46 +534,45 @@ class TestTaskCall:
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_class_methods(self, T):
         class Foo(T):
+            @task
+            @classmethod
+            async def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @task
-            async def class_method(cls):
+            async def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert await Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
 
+        if sys.version_info < (3, 13):
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Task)
+        else:
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Task)
+
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_static_methods(self, T):
         class Foo(T):
+            @task
+            @staticmethod
+            async def static_method():
+                return "static"
+
             @staticmethod
             @task
-            async def static_method():
+            async def static_method_of_a_different_order():
                 return "static"
 
         assert await Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
 
-    def test_error_message_if_decorate_classmethod(self):
-        with pytest.raises(
-            TypeError, match="@classmethod should be applied on top of @task"
-        ):
-
-            class Foo:
-                @task
-                @classmethod
-                def bar():
-                    pass
-
-    def test_error_message_if_decorate_staticmethod(self):
-        with pytest.raises(
-            TypeError, match="@staticmethod should be applied on top of @task"
-        ):
-
-            class Foo:
-                @task
-                @staticmethod
-                def bar():
-                    pass
+        assert await Foo.static_method_of_a_different_order() == "static"
+        assert isinstance(Foo.static_method_of_a_different_order, Task)
 
     def test_returns_when_cache_result_in_memory_is_false_sync_task(self):
         @task(cache_result_in_memory=False)
@@ -910,35 +932,6 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
-    @pytest.mark.skip(
-        reason="This test is not compatible with the current state of client side task orchestration"
-    )
-    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
-        """
-        If submitted tasks aren't waited on before a flow exits, they may fail to run
-        because they're transition from PENDING to RUNNING is denied. This test ensures
-        that a message is logged when this happens.
-        """
-
-        @task
-        def find_palindromes():
-            """This is a computationally expensive task that never ends,
-            allowing the flow to exit before the task is completed."""
-            num = 10
-            while True:
-                _ = str(num) == str(num)[::-1]
-                num += 1
-
-        @flow
-        def test_flow():
-            find_palindromes.submit()
-
-        test_flow()
-        assert (
-            "Please wait for all submitted tasks to complete before exiting your flow"
-            in caplog.text
-        )
-
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
@@ -1285,9 +1278,9 @@ class TestTaskRetries:
 
             if i > 0:
                 last_start_time = start_times[i - 1]
-                assert (
-                    last_start_time < start_times[i]
-                ), "Timestamps should be increasing"
+                assert last_start_time < start_times[i], (
+                    "Timestamps should be increasing"
+                )
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
@@ -1328,7 +1321,7 @@ class TestResultPersistence:
 
     @pytest.mark.parametrize(
         "cache_policy",
-        [policy for policy in CachePolicy.__subclasses__() if policy != NONE],
+        [policy for policy in CachePolicy.__subclasses__() if policy != NO_CACHE],
     )
     def test_setting_cache_policy_sets_persist_result_to_true(self, cache_policy):
         @task(cache_policy=cache_policy)
@@ -1861,7 +1854,7 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        assert foo.cache_policy == NONE
+        assert foo.cache_policy == NO_CACHE
         assert (
             "Ignoring `cache_policy` because `persist_result` is False"
             not in caplog.text
@@ -1872,13 +1865,53 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        assert foo.cache_policy == NONE
+        assert foo.cache_policy == NO_CACHE
 
         assert (
             "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
         )
 
-    @pytest.mark.parametrize("cache_policy", [NONE, None])
+    async def test_no_cache_can_be_configured_as_default(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+
+    async def test_no_cache_default_can_be_overrided(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(cache_policy=DEFAULT)
+            def foo(x):
+                return x
+
+            @task(cache_key_fn=lambda **kwargs: "")
+            def bar(x):
+                return x
+
+        assert foo.cache_policy == DEFAULT
+        assert bar.cache_policy != NO_CACHE
+
+    async def test_no_cache_default_is_respected_even_with_result_persistence(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(persist_result=True)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(result_storage_key="foo-bar")
+            def zig(x):
+                return x
+
+        assert zig.cache_policy == NO_CACHE
+
+    @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
     async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(
         self, caplog, cache_policy
     ):
@@ -1993,7 +2026,7 @@ class TestTaskCaching:
             "1. Exclude these arguments by defining a custom `cache_key_fn`"
             in error_msg
         )
-        assert "2. Disable caching by passing `cache_policy=NONE`" in error_msg
+        assert "2. Disable caching by passing `cache_policy=NO_CACHE`" in error_msg
 
         # Then we see the original HashError details
         assert "Unable to create hash - objects could not be serialized." in error_msg
@@ -2016,8 +2049,13 @@ class TestTaskCaching:
             return x
 
         # Solution 2: Disable caching entirely
-        @task(cache_policy=NONE, persist_result=True)
+        @task(cache_policy=NO_CACHE, persist_result=True)
         def foo_with_none_policy(x, lock_obj):
+            return x
+
+        # Solution 3: Subtract the problematic argument from the cache policy
+        @task(cache_policy=DEFAULT - "lock_obj", persist_result=True)
+        def foo_with_subtraction(x, lock_obj):
             return x
 
         @flow
@@ -2028,9 +2066,11 @@ class TestTaskCaching:
                 foo_with_key_fn(42, lock_obj=lock, return_state=True),
                 foo_with_none_policy(42, lock_obj=lock, return_state=True),
                 foo_with_none_policy(42, lock_obj=lock, return_state=True),
+                foo_with_subtraction(42, lock_obj=lock, return_state=True),
+                foo_with_subtraction(42, lock_obj=lock, return_state=True),
             )
 
-        s1, s2, s3, s4 = test_flow()
+        s1, s2, s3, s4, s5, s6 = test_flow()
 
         # Key fn approach should still cache based on x
         assert s1.name == "Completed"
@@ -2038,11 +2078,17 @@ class TestTaskCaching:
         assert await s1.result() == 42
         assert await s2.result() == 42
 
-        # NONE policy approach should never cache
+        # NO_CACHE policy approach should never cache
         assert s3.name == "Completed"
         assert s4.name == "Completed"
         assert await s3.result() == 42
         assert await s4.result() == 42
+
+        # Subtraction approach should cache based on x
+        assert s5.name == "Completed"
+        assert s6.name == "Cached"
+        assert await s5.result() == 42
+        assert await s6.result() == 42
 
 
 class TestCacheFunctionBuiltins:
@@ -4797,8 +4843,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:
@@ -5245,7 +5290,7 @@ class TestCachePolicies:
         def my_task():
             pass
 
-        assert my_task.cache_policy is NONE
+        assert my_task.cache_policy is NO_CACHE
 
     def test_cache_policy_init_to_default_when_persisting_results(self):
         @task(persist_result=True)

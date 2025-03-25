@@ -1,8 +1,11 @@
+from typing import Any
+
 import pytest
 
 from prefect.client.schemas import TaskRun
 from prefect.context import TaskRunContext
 from prefect.runtime import task_run
+from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
 from prefect.tasks import Task
 
 
@@ -13,13 +16,13 @@ class TestAttributeAccessPatterns:
 
     async def test_import_unknown_attribute_fails(self):
         with pytest.raises(ImportError, match="boop"):
-            from prefect.runtime.task_run import boop  # noqa
+            from prefect.runtime.task_run import boop  # noqa # type: ignore
 
     async def test_known_attributes_autocomplete(self):
         assert "id" in dir(task_run)
         assert "foo" not in dir(task_run)
 
-    async def test_new_attribute_via_env_var(self, monkeypatch):
+    async def test_new_attribute_via_env_var(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv(name="PREFECT__RUNTIME__TASK_RUN__NEW_KEY", value="foobar")
         assert task_run.new_key == "foobar"
 
@@ -34,7 +37,12 @@ class TestAttributeAccessPatterns:
         ],
     )
     async def test_attribute_override_via_env_var(
-        self, monkeypatch, attribute_name, attribute_value, env_value, expected_value
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        attribute_name: str,
+        attribute_value: Any,
+        env_value: str,
+        expected_value: Any,
     ):
         # mock attribute_name to be a function that generates attribute_value
         monkeypatch.setitem(task_run.FIELDS, attribute_name, lambda: attribute_value)
@@ -58,7 +66,7 @@ class TestAttributeAccessPatterns:
         ],
     )
     async def test_attribute_override_via_env_var_not_allowed(
-        self, monkeypatch, attribute_name, attribute_value
+        self, monkeypatch: pytest.MonkeyPatch, attribute_name: str, attribute_value: Any
     ):
         # mock attribute_name to be a function that generates attribute_value
         monkeypatch.setitem(task_run.FIELDS, attribute_name, lambda: attribute_value)
@@ -150,3 +158,38 @@ class TestTaskName:
     async def test_task_name_from_context(self):
         with TaskRunContext.model_construct(task=Task(fn=lambda: None, name="foo")):
             assert task_run.task_name == "foo"
+
+
+class TestURL:
+    @pytest.mark.parametrize("url_type", ["api_url", "ui_url"])
+    async def test_url_is_attribute(self, url_type: str):
+        assert url_type in dir(task_run)
+
+    @pytest.mark.parametrize("url_type", ["api_url", "ui_url"])
+    async def test_url_is_none_when_id_not_set(self, url_type: str):
+        assert getattr(task_run, url_type) is None
+
+    @pytest.mark.parametrize(
+        "url_type,",
+        ["api_url", "ui_url"],
+    )
+    async def test_url_returns_correct_url_when_id_present(
+        self,
+        url_type: str,
+    ):
+        test_id = "12345"
+        if url_type == "api_url":
+            base_url_value = PREFECT_API_URL.value()
+        elif url_type == "ui_url":
+            base_url_value = PREFECT_UI_URL.value()
+        else:
+            raise ValueError(f"Invalid url_type: {url_type}")
+
+        expected_url = f"{base_url_value}/runs/task-run/{test_id}"
+
+        with TaskRunContext.model_construct(
+            task_run=TaskRun.model_construct(id=test_id)
+        ):
+            assert getattr(task_run, url_type) == expected_url
+
+        assert not getattr(task_run, url_type)

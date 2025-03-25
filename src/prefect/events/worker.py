@@ -82,7 +82,7 @@ class EventsWorker(QueueService[Event]):
 
         await self._client.emit(event)
 
-    async def attach_related_resources_from_context(self, event: Event):
+    async def attach_related_resources_from_context(self, event: Event) -> None:
         if "prefect.resource.lineage-group" in event.resource:
             # We attach related resources to lineage events in `emit_lineage_event`,
             # instead of the worker, because not all run-related resources are

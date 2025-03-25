@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -21,14 +23,23 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
+    WorkPoolStorageConfiguration,
 )
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.client.schemas.schedules import (
+    SCHEDULE_TYPES,
+    CronSchedule,
+    IntervalSchedule,
+    NoSchedule,
+    RRuleSchedule,
+)
+from prefect.schedules import Schedule
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     DateTime,
     KeyValueLabelsField,
     Name,
+    NameOrEmpty,
     NonEmptyishName,
     NonNegativeFloat,
     NonNegativeInteger,
@@ -39,7 +50,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.results import BaseResult, ResultRecordMetadata
+    from prefect._result_records import ResultRecordMetadata
 
 R = TypeVar("R")
 
@@ -51,7 +62,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[Any]", "ResultRecordMetadata", Any] = Field(
+    data: Union["ResultRecordMetadata", Any] = Field(
         default=None,
     )
 
@@ -92,6 +103,24 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
+    )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
+    )
+
+    @field_validator("active", mode="wrap")
+    @classmethod
+    def validate_active(cls, v: Any, handler: Callable[[Any], Any]) -> bool:
+        try:
+            return handler(v)
+        except Exception:
+            raise ValueError(
+                f"active must be able to be parsed as a boolean, got {v!r} of type {type(v)}"
+            )
 
     @field_validator("max_scheduled_runs")
     @classmethod
@@ -99,6 +128,45 @@ class DeploymentScheduleCreate(ActionBaseModel):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
+
+    @classmethod
+    def from_schedule(cls, schedule: Schedule) -> "DeploymentScheduleCreate":
+        if schedule.interval is not None:
+            return cls(
+                schedule=IntervalSchedule(
+                    interval=schedule.interval,
+                    timezone=schedule.timezone,
+                    anchor_date=schedule.anchor_date,
+                ),
+                parameters=schedule.parameters,
+                active=schedule.active,
+                slug=schedule.slug,
+            )
+        elif schedule.cron is not None:
+            return cls(
+                schedule=CronSchedule(
+                    cron=schedule.cron,
+                    timezone=schedule.timezone,
+                    day_or=schedule.day_or,
+                ),
+                parameters=schedule.parameters,
+                active=schedule.active,
+                slug=schedule.slug,
+            )
+        elif schedule.rrule is not None:
+            return cls(
+                schedule=RRuleSchedule(
+                    rrule=schedule.rrule,
+                    timezone=schedule.timezone,
+                ),
+                parameters=schedule.parameters,
+                active=schedule.active,
+                slug=schedule.slug,
+            )
+        else:
+            return cls(
+                schedule=NoSchedule(),
+            )
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):
@@ -112,6 +180,14 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+    parameters: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Parameter overrides for the schedule.",
+    )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -137,7 +213,7 @@ class DeploymentCreate(ActionBaseModel):
     ) -> Union[str, list[str]]:
         return convert_to_strings(values)
 
-    name: str = Field(..., description="The name of the deployment.")
+    name: NameOrEmpty = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     paused: Optional[bool] = Field(default=None)
     schedules: list[DeploymentScheduleCreate] = Field(
@@ -254,6 +330,8 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(default_factory=dict)
+    pull_steps: Optional[list[dict[str, Any]]] = Field(default=None)
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """Check that the combination of base_job_template defaults
@@ -367,6 +445,9 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = Field(default=None)
 
     labels: KeyValueLabelsField = Field(default_factory=dict)
+    work_pool_name: Optional[str] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
 
 
 class DeploymentFlowRunCreate(ActionBaseModel):
@@ -608,6 +689,10 @@ class WorkPoolCreate(ActionBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkPoolUpdate(ActionBaseModel):
@@ -617,6 +702,10 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = Field(default=None)
     base_job_template: Optional[dict[str, Any]] = Field(default=None)
     concurrency_limit: Optional[int] = Field(default=None)
+    storage_configuration: Optional[WorkPoolStorageConfiguration] = Field(
+        default=None,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkQueueCreate(ActionBaseModel):

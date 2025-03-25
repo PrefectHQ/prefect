@@ -2,10 +2,10 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Optional, TypeVar, Union
 
-import pendulum
 from typing_extensions import Literal
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 from ._asyncio import (
@@ -98,13 +98,13 @@ def concurrency(
         strict=strict,
         max_retries=max_retries,
     )
-    acquisition_time = pendulum.now("UTC")
+    acquisition_time = now("UTC")
     emitted_events = emit_concurrency_acquisition_events(limits, occupy)
 
     try:
         yield
     finally:
-        occupancy_period = pendulum.now("UTC") - acquisition_time
+        occupancy_period = now("UTC") - acquisition_time
         _release_concurrency_slots(names, occupy, occupancy_period.total_seconds())
         emit_concurrency_release_events(limits, occupy, emitted_events)
 

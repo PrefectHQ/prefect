@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import warnings
 from collections.abc import Callable, Mapping
@@ -10,13 +12,11 @@ from typing import (
     Generic,
     Optional,
     Union,
-    cast,
     overload,
 )
 from uuid import UUID, uuid4
 
 import orjson
-import pendulum
 from pydantic import (
     ConfigDict,
     Discriminator,
@@ -49,6 +49,7 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
@@ -59,25 +60,17 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._datetime import DateTime
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
-if TYPE_CHECKING:
-    from prefect.client.schemas.actions import StateCreate
-    from prefect.results import BaseResult, ResultRecordMetadata
-
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
-
-
 R = TypeVar("R", default=Any)
 
 
-DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
-DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
-FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
+DEFAULT_BLOCK_SCHEMA_VERSION: Literal["non-versioned"] = "non-versioned"
+DEFAULT_AGENT_WORK_POOL_NAME: Literal["default-agent-pool"] = "default-agent-pool"
+FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS: list[str] = [
     "flow_run_notification_policy_id",
     "flow_id",
     "flow_name",
@@ -106,7 +99,7 @@ class StateType(AutoEnum):
     CANCELLING = AutoEnum.auto()
 
 
-TERMINAL_STATES = {
+TERMINAL_STATES: set[StateType] = {
     StateType.COMPLETED,
     StateType.CANCELLED,
     StateType.FAILED,
@@ -122,7 +115,7 @@ class WorkPoolStatus(AutoEnum):
     PAUSED = AutoEnum.auto()
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         return self.name.replace("_", " ").capitalize()
 
 
@@ -195,9 +188,7 @@ class StateDetails(PrefectBaseModel):
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x and x["type"] != "unpersisted":
-        return "BaseResult"
-    elif isinstance(x, dict) and "storage_key" in x:
+    if isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
     return "Any"
 
@@ -214,7 +205,6 @@ class State(ObjectBaseModel, Generic[R]):
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
         Union[
-            Annotated["BaseResult[R]", Tag("BaseResult")],
             Annotated["ResultRecordMetadata", Tag("ResultRecordMetadata")],
             Annotated[Any, Tag("Any")],
         ],
@@ -227,8 +217,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: Literal[True] = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> R:
-        ...
+    ) -> R: ...
 
     @overload
     def result(
@@ -236,8 +225,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: Literal[False] = False,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> Union[R, Exception]:
-        ...
+    ) -> Union[R, Exception]: ...
 
     @overload
     def result(
@@ -245,8 +233,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: bool = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> Union[R, Exception]:
-        ...
+    ) -> Union[R, Exception]: ...
 
     @deprecated.deprecated_parameter(
         "fetch",
@@ -337,36 +324,6 @@ class State(ObjectBaseModel, Generic[R]):
             retry_result_failure=retry_result_failure,
         )
 
-    def to_state_create(self) -> "StateCreate":
-        """
-        Convert this state to a `StateCreate` type which can be used to set the state of
-        a run in the API.
-
-        This method will drop this state's `data` if it is not a result type. Only
-        results should be sent to the API. Other data is only available locally.
-        """
-        from prefect.client.schemas.actions import StateCreate
-        from prefect.results import (
-            BaseResult,
-            ResultRecord,
-            should_persist_result,
-        )
-
-        if isinstance(self.data, BaseResult):
-            data = cast(BaseResult[R], self.data)
-        elif isinstance(self.data, ResultRecord) and should_persist_result():
-            data = self.data.metadata
-        else:
-            data = None
-
-        return StateCreate(
-            type=self.type,
-            name=self.name,
-            message=self.message,
-            data=data,
-            state_details=self.state_details,
-        )
-
     @model_validator(mode="after")
     def default_name_from_type(self) -> Self:
         """If a name is not provided, use the type"""
@@ -381,12 +338,12 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.DateTime.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
         return self
 
     @model_validator(mode="after")
     def set_unpersisted_results_to_none(self) -> Self:
-        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":  # pyright: ignore[reportUnknownMemberType] unable to narrow dict type
             self.data = None
         return self
 
@@ -531,7 +488,7 @@ class FlowRunPolicy(PrefectBaseModel):
     @classmethod
     def populate_deprecated_fields(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return set_run_policy_deprecated_fields(values)
+            return set_run_policy_deprecated_fields(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 
@@ -1106,6 +1063,14 @@ class DeploymentSchedule(ObjectBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameter overrides for the schedule.",
+    )
+    slug: Optional[str] = Field(
+        default=None,
+        description="A unique identifier for the schedule.",
+    )
 
 
 class Deployment(ObjectBaseModel):
@@ -1262,7 +1227,7 @@ class BlockDocumentReference(ObjectBaseModel):
     @classmethod
     def validate_parent_and_ref_are_different(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return validate_parent_and_ref_diff(values)
+            return validate_parent_and_ref_diff(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 
@@ -1381,7 +1346,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: Optional[pendulum.DateTime] = None
+        self, late_runs_count: int, last_polled: DateTime | None = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1403,7 +1368,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or DateTime.now("UTC").diff(last_polled).in_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False
@@ -1480,6 +1445,19 @@ class Agent(ObjectBaseModel):
     )
 
 
+class WorkPoolStorageConfiguration(PrefectBaseModel):
+    """A work pool storage configuration"""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    bundle_upload_step: Optional[dict[str, Any]] = Field(
+        default=None, description="The bundle upload step for the work pool."
+    )
+    bundle_execution_step: Optional[dict[str, Any]] = Field(
+        default=None, description="The bundle execution step for the work pool."
+    )
+
+
 class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 
@@ -1502,6 +1480,11 @@ class WorkPool(ObjectBaseModel):
     )
     status: Optional[WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
+    )
+
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="The storage configuration for the work pool.",
     )
 
     # this required field has a default of None so that the custom validator

@@ -25,7 +25,7 @@ If there are no concurrency slots available for any one of your task's tags, it 
 and instructs the client to try entering a `Running` state again in 30 seconds 
 (or the value specified by the `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting).
 
-### Configure concurrency limits
+### Configure task run concurrency limits
 
 <Tip>
 **Flow run concurrency limits are set at a work pool, work queue, or deployment level**
@@ -36,12 +36,17 @@ While task run concurrency limits are configured through tags (as shown below), 
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 
 - Prefect [CLI](#cli)
+- Prefect [API](#api)
+- [Terraform](#terraform)
 - Prefect API by using `PrefectClient` [Python client](#python-client)
 - Prefect server UI or Prefect Cloud
 
 #### CLI
 
-You can create, list, and remove concurrency limits with Prefect CLI `concurrency-limit` commands.
+import { CLI } from "/snippets/resource-management/cli.mdx"
+import { task_run_concurrency } from "/snippets/resource-management/vars.mdx"
+
+<CLI name="task run concurrency" href={task_run_concurrency.cli} />
 
 ```bash
 prefect concurrency-limit [command] [arguments]
@@ -72,10 +77,22 @@ To view details about the concurrency limit on the 'small_instance' tag:
 prefect concurrency-limit inspect small_instance
 ```
 
+#### API
+
+import { API } from "/snippets/resource-management/api.mdx"
+
+<API name="task run concurrency" href={task_run_concurrency.api} />
+
+#### Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="task run concurrency" href={task_run_concurrency.tf} />
+
 #### Python client
 
 To update your tag concurrency limits programmatically, use 
-[`PrefectClient.orchestration.create_concurrency_limit`](https://prefect-python-sdk-docs.netlify.app//prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit).
+[`PrefectClient.orchestration.create_concurrency_limit`](https://reference.prefect.io//prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.create_concurrency_limit).
 
 `create_concurrency_limit` takes two arguments:
 
@@ -95,7 +112,7 @@ async with get_client() as client:
         )
 ```
 
-To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
+To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](https://reference.prefect.io/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.delete_concurrency_limit_by_tag/), passing the tag:
 
 ```python
 async with get_client() as client:
@@ -103,9 +120,9 @@ async with get_client() as client:
     await client.delete_concurrency_limit_by_tag(tag="small_instance")
 ```
 
-If you wish to query for the current limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
+If you wish to query for the current limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](https://reference.prefect.io/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
 
-To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
+To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](https://reference.prefect.io/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient.read_concurrency_limits).
 
 ```python
 async with get_client() as client:

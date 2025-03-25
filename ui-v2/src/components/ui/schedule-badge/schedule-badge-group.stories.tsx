@@ -1,5 +1,5 @@
+import { createFakeSchedule } from "@/mocks";
 import type { Meta, StoryObj } from "@storybook/react";
-import { generateRandomSchedule } from "@tests/utils/mock-factories";
 import { ScheduleBadgeGroup } from ".";
 
 export default {
@@ -18,6 +18,6 @@ type Story = StoryObj<typeof ScheduleBadgeGroup>;
 
 export const CollapsedGroup: Story = {
 	args: {
-		schedules: Array.from({ length: 3 }, () => generateRandomSchedule()),
+		schedules: Array.from({ length: 3 }, () => createFakeSchedule()),
 	},
 };

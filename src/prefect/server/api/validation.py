@@ -35,7 +35,7 @@ Note some important details:
    allow None values, the Pydantic model will fail to validate at runtime.
 """
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 from uuid import UUID
 
 import pydantic
@@ -45,11 +45,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Deployment as BaseDeployment
 from prefect.server.events.actions import RunDeployment
-from prefect.server.schemas.core import Deployment, WorkPool
+from prefect.server.schemas.core import WorkPool
 from prefect.utilities.schema_tools import ValidationError, is_valid_schema, validate
 
-logger = get_logger("server.api.validation")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("server.api.validation")
 
 DeploymentAction = Union[
     schemas.actions.DeploymentCreate, schemas.actions.DeploymentUpdate
@@ -61,12 +65,12 @@ FlowRunAction = Union[
 
 async def _get_base_config_defaults(
     session: AsyncSession,
-    base_config: dict,
+    base_config: dict[str, Any],
     ignore_invalid_defaults: bool = True,
-) -> Tuple[dict, bool]:
+) -> tuple[dict[str, Any], bool]:
     variables_schema = base_config.get("variables", {})
-    fields_schema: dict = variables_schema.get("properties", {})
-    defaults: Dict[str, Any] = dict()
+    fields_schema: dict[str, Any] = variables_schema.get("properties", {})
+    defaults: dict[str, Any] = dict()
     has_invalid_defaults = False
 
     if not fields_schema:
@@ -106,7 +110,7 @@ async def _get_base_config_defaults(
 
 
 async def _resolve_default_reference(
-    variable: Dict[str, Any], session: AsyncSession
+    variable: dict[str, Any], session: AsyncSession
 ) -> Optional[Any]:
     """
     Resolve a reference to a block. The input variable should have a format of:
@@ -217,7 +221,7 @@ async def _validate_work_pool_job_variables(
 
 async def validate_job_variables_for_deployment_flow_run(
     session: AsyncSession,
-    deployment: Deployment,
+    deployment: BaseDeployment,
     flow_run: FlowRunAction,
 ) -> None:
     """
@@ -229,7 +233,7 @@ async def validate_job_variables_for_deployment_flow_run(
     # If we aren't able to access a deployment's work pool, we don't have a base job
     # template to validate job variables against. This is not a validation failure because
     # some deployments may not have a work pool, such as those created by flow.serve().
-    if deployment.work_queue is None or deployment.work_queue.work_pool is None:
+    if not (deployment.work_queue and deployment.work_queue.work_pool):
         logger.info(
             "Cannot validate job variables for deployment %s "
             "because it does not have a work pool",
@@ -337,6 +341,12 @@ async def validate_job_variables_for_run_deployment_action(
     This action is equivalent to creating a flow run for a deployment, so we validate
     required job variables because all variables should now be present.
     """
+    if not run_action.deployment_id:
+        logger.error(
+            "Cannot validate job variables for RunDeployment action because it does not have a deployment ID"
+        )
+        return
+
     try:
         deployment = await models.deployments.read_deployment(
             session, run_action.deployment_id
@@ -349,7 +359,7 @@ async def validate_job_variables_for_run_deployment_action(
     if not deployment:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
-    if deployment.work_queue is None or deployment.work_queue.work_pool is None:
+    if not (deployment.work_queue and deployment.work_queue.work_pool):
         logger.info(
             "Cannot validate job variables for deployment %s "
             "because it does not have a work pool",

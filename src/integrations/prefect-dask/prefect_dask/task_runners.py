@@ -195,6 +195,8 @@ class DaskTaskRunner(TaskRunner):
             is only enabled if `adapt_kwargs` are provided.
         client_kwargs (dict, optional): Additional kwargs to use when creating a
             [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client).
+        performance_report_path (str, optional): Path where the Dask performance report
+            will be saved. If not provided, no performance report will be generated.
 
     Examples:
         Using a temporary local dask cluster:
@@ -233,6 +235,7 @@ class DaskTaskRunner(TaskRunner):
         cluster_kwargs: Optional[Dict] = None,
         adapt_kwargs: Optional[Dict] = None,
         client_kwargs: Optional[Dict] = None,
+        performance_report_path: Optional[str] = None,
     ):
         # Validate settings and infer defaults
         if address:
@@ -278,6 +281,7 @@ class DaskTaskRunner(TaskRunner):
         self.cluster_kwargs = cluster_kwargs
         self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
+        self.performance_report_path = performance_report_path
 
         # Runtime attributes
         self._client: PrefectDaskClient = None
@@ -312,6 +316,7 @@ class DaskTaskRunner(TaskRunner):
             cluster_kwargs=self.cluster_kwargs,
             adapt_kwargs=self.adapt_kwargs,
             client_kwargs=self.client_kwargs,
+            performance_report_path=self.performance_report_path,
         )
 
     @overload
@@ -321,8 +326,7 @@ class DaskTaskRunner(TaskRunner):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDaskFuture[R]:
-        ...
+    ) -> PrefectDaskFuture[R]: ...
 
     @overload
     def submit(
@@ -331,8 +335,7 @@ class DaskTaskRunner(TaskRunner):
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDaskFuture[R]:
-        ...
+    ) -> PrefectDaskFuture[R]: ...
 
     def submit(
         self,
@@ -367,8 +370,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectDaskFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectDaskFuture[R]]: ...
 
     @overload
     def map(
@@ -376,8 +378,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
         wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ) -> PrefectFutureList[PrefectDaskFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectDaskFuture[R]]: ...
 
     def map(
         self,
@@ -416,8 +417,10 @@ class DaskTaskRunner(TaskRunner):
             in_dask = True
         except ValueError:
             pass
+
         super().__enter__()
         exit_stack = self._exit_stack.__enter__()
+
         if self._cluster:
             self.logger.info(f"Connecting to existing Dask cluster {self._cluster}")
             self._connect_to = self._cluster
@@ -447,6 +450,13 @@ class DaskTaskRunner(TaskRunner):
         self._client = exit_stack.enter_context(
             PrefectDaskClient(self._connect_to, **self.client_kwargs)
         )
+
+        if self.performance_report_path:
+            # Register our client as current so that it's found by distributed.get_client()
+            exit_stack.enter_context(distributed.Client.as_current(self._client))
+            exit_stack.enter_context(
+                distributed.performance_report(self.performance_report_path)
+            )
 
         if self._client.dashboard_link and not in_dask:
             self.logger.info(

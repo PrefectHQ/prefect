@@ -7,7 +7,6 @@ from textwrap import dedent
 from typing import Optional, Union
 from uuid import UUID
 
-import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -17,10 +16,15 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
-from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.client.schemas.objects import (
+    DEFAULT_AGENT_WORK_POOL_NAME,
+    FlowRun,
+    WorkQueue,
+)
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.types._datetime import DateTime
 
-work_app = PrefectTyper(name="work-queue", help="Manage work queues.")
+work_app: PrefectTyper = PrefectTyper(name="work-queue", help="Manage work queues.")
 app.add_typer(work_app, aliases=["work-queues"])
 
 
@@ -371,8 +375,9 @@ async def ls(
             pools = await client.read_work_pools(work_pool_filter=wp_filter)
             pool_id_name_map = {p.id: p.name for p in pools}
 
-            def sort_by_created_key(q):
-                return pendulum.now("utc") - q.created
+            def sort_by_created_key(q: WorkQueue):
+                assert q.created is not None, "created is not None"
+                return DateTime.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -407,8 +412,9 @@ async def ls(
             except ObjectNotFound:
                 exit_with_error(f"No work pool found: {pool!r}")
 
-            def sort_by_created_key(q):
-                return pendulum.now("utc") - q.created
+            def sort_by_created_key(q: WorkQueue):
+                assert q.created is not None, "created is not None"
+                return DateTime.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -461,7 +467,7 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = pendulum.now("utc").add(hours=hours or 1)
+    window = DateTime.now("utc").add(hours=hours or 1)
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name, work_pool_name=pool
@@ -485,9 +491,10 @@ async def preview(
                 )
             except ObjectNotFound:
                 exit_with_error(f"No work queue found: {name!r}")
-    now = pendulum.now("utc")
+    now = DateTime.now("utc")
 
-    def sort_by_created_key(r):
+    def sort_by_created_key(r: FlowRun):
+        assert r.created is not None, "created is not None"
         return now - r.created
 
     for run in sorted(runs, key=sort_by_created_key):

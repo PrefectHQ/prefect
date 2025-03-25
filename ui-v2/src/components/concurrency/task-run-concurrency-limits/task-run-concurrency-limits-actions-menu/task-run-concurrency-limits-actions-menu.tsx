@@ -7,10 +7,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
-type Props = {
-	id: string | undefined;
+type TaskRunConcurrencyLimitsActionsMenuProps = {
+	id: string;
 	onDelete: () => void;
 	onReset: () => void;
 };
@@ -19,23 +19,18 @@ export const TaskRunConcurrencyLimitsActionsMenu = ({
 	id,
 	onDelete,
 	onReset,
-}: Props) => {
-	const { toast } = useToast();
-
-	const handleCopyId = (id: string | undefined) => {
-		if (!id) {
-			throw new Error("'id' field expected in GlobalConcurrencyLimit");
-		}
+}: TaskRunConcurrencyLimitsActionsMenuProps) => {
+	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
-		toast({ title: "ID copied" });
+		toast.success("ID copied");
 	};
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="h-8 w-8 p-0">
+				<Button variant="outline" className="size-8 p-0">
 					<span className="sr-only">Open menu</span>
-					<Icon id="MoreVertical" className="h-4 w-4" />
+					<Icon id="MoreVertical" className="size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">

@@ -3,10 +3,9 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Literal, Self
 
@@ -19,6 +18,7 @@ from prefect.server.schemas.core import (
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
 from prefect.types import DateTime, KeyValueLabelsField
+from prefect.types._datetime import create_datetime_instance
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
@@ -142,7 +142,7 @@ class HistoryResponse(PrefectBaseModel):
         for field in d.keys():
             val = values.get(field)
             if isinstance(val, datetime.datetime):
-                d[field] = pendulum.instance(values[field])
+                d[field] = create_datetime_instance(values[field])
             else:
                 d[field] = val
 
@@ -165,7 +165,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID
@@ -344,6 +344,53 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+class TaskRunResponse(ORMBaseModel):
+    name: str = Field(
+        default_factory=lambda: generate_slug(2),
+        description=(
+            "The name of the task run. Defaults to a random slug if not specified."
+        ),
+        examples=["my-task-run"],
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The id of the flow run this task run belongs to."
+    )
+    task_key: str = Field(
+        default=..., description="The key of the task this run represents."
+    )
+    state_id: Optional[UUID] = Field(
+        default=None, description="The id of the task run's current state."
+    )
+    state: Optional[schemas.states.State] = Field(
+        default=None, description="The current state of the task run."
+    )
+    task_version: Optional[str] = Field(
+        default=None,
+        description="The version of the task executed in this task run.",
+        examples=["1.0"],
+    )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Parameters for the task run."
+    )
+    task_inputs: dict[str, list[schemas.core.TaskRunResult]] = Field(
+        default_factory=dict, description="Inputs provided to the task run."
+    )
+    context: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional context for the task run.",
+        examples=[{"my_var": "my_val"}],
+    )
+    empirical_policy: schemas.core.TaskRunPolicy = Field(
+        default_factory=schemas.core.TaskRunPolicy,
+        description="The task run's empirical retry policy.",
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="A list of tags for the task run.",
+        examples=[["tag-1", "tag-2"]],
+    )
+
+
 class DeploymentResponse(ORMBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
@@ -402,6 +449,7 @@ class DeploymentResponse(ORMBaseModel):
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
+        json_schema_extra={"additionalProperties": True},
     )
     path: Optional[str] = Field(
         default=None,
@@ -410,7 +458,7 @@ class DeploymentResponse(ORMBaseModel):
             " storage or an absolute path."
         ),
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None, description="Pull steps for cloning and running this deployment."
     )
     entrypoint: Optional[str] = Field(
@@ -580,9 +628,35 @@ class FlowRunPaginationResponse(BaseModel):
     page: int
 
 
+class TaskRunPaginationResponse(BaseModel):
+    results: list[TaskRunResponse]
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
 class DeploymentPaginationResponse(BaseModel):
     results: list[DeploymentResponse]
     count: int
     limit: int
     pages: int
     page: int
+
+
+class SchemaValuePropertyError(BaseModel):
+    property: str
+    errors: List["SchemaValueError"]
+
+
+class SchemaValueIndexError(BaseModel):
+    index: int
+    errors: List["SchemaValueError"]
+
+
+SchemaValueError = Union[str, SchemaValuePropertyError, SchemaValueIndexError]
+
+
+class SchemaValuesValidationResponse(BaseModel):
+    errors: List[SchemaValueError]
+    valid: bool

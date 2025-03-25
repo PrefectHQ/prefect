@@ -413,6 +413,18 @@ API URL for Prefect Cloud. Used for authentication with Prefect Cloud.
 **Supported environment variables**:
 `PREFECT_CLOUD_API_URL`
 
+### `enable_orchestration_telemetry`
+Whether or not to enable orchestration telemetry.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `cloud.enable_orchestration_telemetry`
+
+**Supported environment variables**:
+`PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY`
+
 ### `ui_url`
 The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
 
@@ -466,18 +478,6 @@ If `True`, warn on usage of experimental features.
 
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
-
-### `telemetry_enabled`
-Enables sending telemetry to Prefect Cloud.
-
-**Type**: `boolean`
-
-**Default**: `False`
-
-**TOML dotted key path**: `experiments.telemetry_enabled`
-
-**Supported environment variables**:
-`PREFECT_EXPERIMENTS_TELEMETRY_ENABLED`
 
 ### `lineage_events_enabled`
 If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.
@@ -804,7 +804,7 @@ The log level of the runner's webserver.
 
 **Type**: `string`
 
-**Default**: `error`
+**Default**: `ERROR`
 
 **Constraints**:
 - Allowed values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
@@ -872,10 +872,109 @@ Number of seconds a runner should wait between heartbeats for flow runs.
 **TOML dotted key path**: `runner.server`
 
 ---
+## SQLAlchemyConnectArgsSettings
+Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
+using a PostgreSQL database.
+### `application_name`
+Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.application_name`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME`
+
+### `statement_cache_size`
+Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE`
+
+### `prepared_statement_cache_size`
+Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.prepared_statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE`
+
+---
+## SQLAlchemySettings
+Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+using a PostgreSQL database.
+### `connect_args`
+Settings for controlling SQLAlchemy connection behavior
+
+**Type**: [SQLAlchemyConnectArgsSettings](#sqlalchemyconnectargssettings)
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args`
+
+### `pool_size`
+Controls connection pool size of database connection pools from the Prefect backend.
+
+**Type**: `integer`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.database.sqlalchemy.pool_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
+
+### `pool_recycle`
+This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.
+
+**Type**: `integer`
+
+**Default**: `3600`
+
+**TOML dotted key path**: `server.database.sqlalchemy.pool_recycle`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE`
+
+### `pool_timeout`
+Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.
+
+**Type**: `number | None`
+
+**Default**: `30.0`
+
+**TOML dotted key path**: `server.database.sqlalchemy.pool_timeout`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT`
+
+### `max_overflow`
+Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
+
+**Type**: `integer`
+
+**Default**: `10`
+
+**TOML dotted key path**: `server.database.sqlalchemy.max_overflow`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
+
+---
 ## ServerAPISettings
 Settings for controlling API server behavior
 ### `auth_string`
-A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.
+A string to use for basic authentication with the API in the form 'user:password'.
 
 **Type**: `string | None`
 
@@ -909,6 +1008,18 @@ The API's port address (defaults to `4200`).
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_PORT`
+
+### `base_path`
+The base URL path to serve the API under.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.base_path`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_BASE_PATH`
 
 ### `default_limit`
 The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.
@@ -1039,6 +1150,13 @@ The default limit applied to queries that can return multiple objects, such as `
 ---
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
+### `sqlalchemy`
+Settings for controlling SQLAlchemy behavior
+
+**Type**: [SQLAlchemySettings](#sqlalchemysettings)
+
+**TOML dotted key path**: `server.database.sqlalchemy`
+
 ### `connection_url`
 
         A database connection URL in a SQLAlchemy-compatible
@@ -1159,7 +1277,7 @@ If `True`, the database will be migrated on application startup.
 `PREFECT_SERVER_DATABASE_MIGRATE_ON_START`, `PREFECT_API_DATABASE_MIGRATE_ON_START`
 
 ### `timeout`
-A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.
+A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.
 
 **Type**: `number | None`
 
@@ -1175,36 +1293,12 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 
 **Type**: `number | None`
 
-**Default**: `5`
+**Default**: `5.0`
 
 **TOML dotted key path**: `server.database.connection_timeout`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
-
-### `sqlalchemy_pool_size`
-Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
-
-**Type**: `integer | None`
-
-**Default**: `None`
-
-**TOML dotted key path**: `server.database.sqlalchemy_pool_size`
-
-**Supported environment variables**:
-`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
-
-### `sqlalchemy_max_overflow`
-Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
-
-**Type**: `integer | None`
-
-**Default**: `None`
-
-**TOML dotted key path**: `server.database.sqlalchemy_max_overflow`
-
-**Supported environment variables**:
-`PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
 
 ---
 ## ServerDeploymentsSettings
@@ -1243,7 +1337,7 @@ Settings for controlling ephemeral server behavior
 ### `startup_timeout_seconds`
 
         The number of seconds to wait for the server to start when ephemeral mode is enabled.
-        Defaults to `10`.
+        Defaults to `20`.
         
 
 **Type**: `integer`
@@ -1469,6 +1563,21 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
 
 ---
+## ServerServicesEventLoggerSettings
+Settings for controlling the event logger service
+### `enabled`
+Whether or not to start the event logger service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.services.event_logger.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED`, `PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED`
+
+---
 ## ServerServicesEventPersisterSettings
 Settings for controlling the event persister service
 ### `enabled`
@@ -1506,6 +1615,18 @@ The maximum number of seconds between flushes of the event persister.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`, `PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`
+
+### `batch_size_delete`
+The number of expired events and event resources the event persister will attempt to delete in one batch.
+
+**Type**: `integer`
+
+**Default**: `10000`
+
+**TOML dotted key path**: `server.services.event_persister.batch_size_delete`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE`
 
 ---
 ## ServerServicesFlowRunNotificationsSettings
@@ -1832,6 +1953,12 @@ Settings for controlling server services
 **Type**: [ServerServicesEventPersisterSettings](#serverserviceseventpersistersettings)
 
 **TOML dotted key path**: `server.services.event_persister`
+
+### `event_logger`
+
+**Type**: [ServerServicesEventLoggerSettings](#serverserviceseventloggersettings)
+
+**TOML dotted key path**: `server.services.event_logger`
 
 ### `flow_run_notifications`
 
@@ -2248,6 +2375,18 @@ If `True`, enables a refresh of cached results: re-executing the task will refre
 
 **Supported environment variables**:
 `PREFECT_TASKS_REFRESH_CACHE`
+
+### `default_no_cache`
+If `True`, sets the default cache policy on all tasks to `NO_CACHE`.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `tasks.default_no_cache`
+
+**Supported environment variables**:
+`PREFECT_TASKS_DEFAULT_NO_CACHE`
 
 ### `default_retries`
 This value sets the default number of retries for all tasks.

@@ -1,15 +1,13 @@
 # Import user-facing API
 from typing import Any
-
-from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow, serve, aserve
+from prefect.flows import FlowDecorator, flow, Flow, serve, aserve
 from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.utilities.annotations import unmapped, allow_failure
-from prefect.results import BaseResult, ResultRecordMetadata
+from prefect._result_records import ResultRecordMetadata
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client
 from prefect.client.cloud import get_cloud_client
@@ -30,7 +28,6 @@ import prefect.client.schemas
 _types: dict[str, Any] = dict(
     Task=Task,
     Flow=Flow,
-    BaseResult=BaseResult,
     ResultRecordMetadata=ResultRecordMetadata,
 )
 prefect.context.FlowRunContext.model_rebuild(_types_namespace=_types)
@@ -60,6 +57,8 @@ from prefect._internal.compatibility.deprecated import (
 
 inject_renamed_module_alias_finder()
 
+flow: FlowDecorator
+
 
 # Declare API for type-checkers
 __all__ = [
@@ -77,7 +76,6 @@ __all__ = [
     "unmapped",
     "serve",
     "aserve",
-    "deploy",
     "pause_flow_run",
     "resume_flow_run",
     "suspend_flow_run",

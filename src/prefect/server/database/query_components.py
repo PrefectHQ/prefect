@@ -15,7 +15,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from cachetools import Cache, TTLCache
 from jinja2 import Environment, PackageLoader, select_autoescape
@@ -35,6 +34,7 @@ from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState,
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.database import Timestamp, bindparams_from_clause
+from prefect.types._datetime import DateTime
 
 T = TypeVar("T", infer_variance=True)
 
@@ -51,7 +51,7 @@ class FlowRunNotificationsFromQueue(NamedTuple):
     flow_run_parameters: dict[str, Any]
     flow_run_state_type: StateType
     flow_run_state_name: str
-    flow_run_state_timestamp: pendulum.DateTime
+    flow_run_state_timestamp: DateTime
     flow_run_state_message: Optional[str]
 
 
@@ -60,8 +60,8 @@ class FlowRunGraphV2Node(NamedTuple):
     id: UUID
     label: str
     state_type: StateType
-    start_time: pendulum.DateTime
-    end_time: Optional[pendulum.DateTime]
+    start_time: DateTime
+    end_time: Optional[DateTime]
     parent_ids: Optional[list[UUID]]
     child_ids: Optional[list[UUID]]
     encapsulating_ids: Optional[list[UUID]]
@@ -126,19 +126,17 @@ class BaseQueryComponents(ABC):
     @abstractmethod
     def make_timestamp_intervals(
         self,
-        start_time: pendulum.DateTime,
-        end_time: pendulum.DateTime,
+        start_time: DateTime,
+        end_time: DateTime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[pendulum.DateTime, pendulum.DateTime]]:
-        ...
+    ) -> sa.Select[tuple[DateTime, DateTime]]: ...
 
     @abstractmethod
     def set_state_id_on_inserted_flow_runs_statement(
         self,
         inserted_flow_run_ids: Sequence[UUID],
         insert_flow_run_states: Iterable[dict[str, Any]],
-    ) -> sa.Update:
-        ...
+    ) -> sa.Update: ...
 
     @abstractmethod
     async def get_flow_run_notifications_from_queue(
@@ -206,7 +204,7 @@ class BaseQueryComponents(ABC):
         db: PrefectDBInterface,
         limit_per_queue: Optional[int] = None,
         work_queue_ids: Optional[list[UUID]] = None,
-        scheduled_before: Optional[pendulum.DateTime] = None,
+        scheduled_before: Optional[DateTime] = None,
     ) -> sa.Select[tuple[orm_models.FlowRun, UUID]]:
         """
         Returns all scheduled runs in work queues, subject to provided parameters.
@@ -285,7 +283,7 @@ class BaseQueryComponents(ABC):
         db: PrefectDBInterface,
         work_queue_query: sa.CTE,
         limit_per_queue: Optional[int],
-        scheduled_before: Optional[pendulum.DateTime],
+        scheduled_before: Optional[DateTime],
     ) -> tuple[sa.FromClause, sa.ColumnExpressionArgument[bool]]:
         """Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
         this function to be changed on a per-dialect basis"""
@@ -342,8 +340,8 @@ class BaseQueryComponents(ABC):
         queue_limit: Optional[int] = None,
         work_pool_ids: Optional[list[UUID]] = None,
         work_queue_ids: Optional[list[UUID]] = None,
-        scheduled_before: Optional[pendulum.DateTime] = None,
-        scheduled_after: Optional[pendulum.DateTime] = None,
+        scheduled_before: Optional[DateTime] = None,
+        scheduled_after: Optional[DateTime] = None,
         respect_queue_priorities: bool = False,
     ) -> list[schemas.responses.WorkerFlowRunResponse]:
         template = jinja_env.get_template(
@@ -475,7 +473,7 @@ class BaseQueryComponents(ABC):
         The query must accept the following bind parameters:
 
             flow_run_id: UUID
-            since: pendulum.DateTime
+            since: DateTime
             max_nodes: int
 
         """
@@ -486,7 +484,7 @@ class BaseQueryComponents(ABC):
         db: PrefectDBInterface,
         session: AsyncSession,
         flow_run_id: UUID,
-        since: pendulum.DateTime,
+        since: DateTime,
         max_nodes: int,
         max_artifacts: int,
     ) -> Graph:
@@ -645,10 +643,10 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     def make_timestamp_intervals(
         self,
-        start_time: pendulum.DateTime,
-        end_time: pendulum.DateTime,
+        start_time: DateTime,
+        end_time: DateTime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[pendulum.DateTime, pendulum.DateTime]]:
+    ) -> sa.Select[tuple[DateTime, DateTime]]:
         dt = sa.func.generate_series(
             start_time, end_time, interval, type_=Timestamp()
         ).column_valued("dt")
@@ -925,6 +923,7 @@ class UUIDList(sa.TypeDecorator[list[UUID]]):
     """Map a JSON list of strings back to a list of UUIDs at the result loading stage"""
 
     impl: Union[TypeEngine[Any], type[TypeEngine[Any]]] = sa.JSON()
+    cache_ok: Optional[bool] = True
 
     def process_result_value(
         self, value: Optional[list[Union[str, UUID]]], dialect: sa.Dialect
@@ -961,10 +960,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def make_timestamp_intervals(
         self,
-        start_time: pendulum.DateTime,
-        end_time: pendulum.DateTime,
+        start_time: DateTime,
+        end_time: DateTime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[pendulum.DateTime, pendulum.DateTime]]:
+    ) -> sa.Select[tuple[DateTime, DateTime]]:
         start = sa.bindparam("start_time", start_time, Timestamp)
         # subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
         stop = sa.bindparam("end_time", end_time - interval, Timestamp)
@@ -1093,7 +1092,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         db: PrefectDBInterface,
         work_queue_query: sa.CTE,
         limit_per_queue: Optional[int],
-        scheduled_before: Optional[pendulum.DateTime],
+        scheduled_before: Optional[DateTime],
     ) -> tuple[sa.FromClause, sa.ColumnExpressionArgument[bool]]:
         # precompute for readability
         FlowRun = db.FlowRun

@@ -2,6 +2,8 @@
 Utilities for managing worker threads.
 """
 
+from __future__ import annotations
+
 import asyncio
 import atexit
 import concurrent.futures
@@ -133,9 +135,9 @@ class EventLoopThread(Portal):
         self.thread = threading.Thread(
             name=name, daemon=daemon, target=self._entrypoint
         )
-        self._ready_future: concurrent.futures.Future[
-            bool
-        ] = concurrent.futures.Future()
+        self._ready_future: concurrent.futures.Future[bool] = (
+            concurrent.futures.Future()
+        )
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._shutdown_event: Event = Event()
         self._run_once: bool = run_once
@@ -196,6 +198,10 @@ class EventLoopThread(Portal):
     @property
     def running(self) -> bool:
         return not self._shutdown_event.is_set()
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop | None:
+        return self._loop
 
     def _entrypoint(self):
         """

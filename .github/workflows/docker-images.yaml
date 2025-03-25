@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'release' && github.event.release.prerelease && 'pre-release' || github.event_name == 'release' && 'prod' || 'dev' }}
     strategy:
+      fail-fast: false
       matrix:
         flavor:
           - ""
@@ -115,7 +116,7 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
-            ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[kubernetes]' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[redis,kubernetes]' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true

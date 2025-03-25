@@ -35,7 +35,7 @@ from prefect.logging import get_run_logger
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import PREFECT_TASK_DEFAULT_RETRIES, temporary_settings
-from prefect.states import Completed, Running, State
+from prefect.states import Completed, Pending, Running, State
 from prefect.task_engine import (
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
@@ -100,6 +100,37 @@ class TestSyncTaskRunEngine:
             new_state = engine.set_state(completed_state)
             assert new_state == completed_state
             assert new_state.timestamp > running_state.timestamp
+
+    def test_logs_message_when_submitted_tasks_end_in_pending(self, caplog):
+        """
+        If submitted tasks aren't waited on before a flow exits, they may fail to run
+        because they're transition from PENDING to RUNNING is denied. This test ensures
+        that a message is logged when this happens.
+        """
+        engine = SyncTaskRunEngine(task=foo)
+        with engine.initialize_run():
+            assert engine.state.is_pending()
+
+        assert (
+            "Please wait for all submitted tasks to complete before exiting your flow"
+            in caplog.text
+        )
+
+    def test_doesnt_log_message_when_submitted_tasks_end_in_not_ready(self, caplog):
+        """
+        Regression test for tasks that didn't run because of upstream issues, not because of
+        a lack of wait call. See https://github.com/PrefectHQ/prefect/issues/16848
+        """
+
+        engine = SyncTaskRunEngine(task=foo)
+        with engine.initialize_run():
+            assert engine.state.is_pending()
+            engine.set_state(Pending(name="NotReady"))
+
+        assert (
+            "Please wait for all submitted tasks to complete before exiting your flow"
+            not in caplog.text
+        )
 
 
 class TestAsyncTaskRunEngine:
@@ -1172,9 +1203,9 @@ class TestTaskRetries:
 
             if i > 0:
                 last_start_time = start_times[i - 1]
-                assert (
-                    last_start_time < start_times[i]
-                ), "Timestamps should be increasing"
+                assert last_start_time < start_times[i], (
+                    "Timestamps should be increasing"
+                )
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
@@ -1961,9 +1992,9 @@ class TestCachePolicy:
         second_state = await async_task(return_state=True)
         assert second_state.is_completed()
 
-        assert (
-            await first_state.result() != await second_state.result()
-        ), "Cache did not expire"
+        assert await first_state.result() != await second_state.result(), (
+            "Cache did not expire"
+        )
 
     async def test_none_policy_with_persist_result_false(self, prefect_client):
         @task(cache_policy=None, result_storage_key=None, persist_result=False)

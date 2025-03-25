@@ -50,13 +50,14 @@ Below is a list of available worker types. Most worker types require installatio
 
 | Worker Type | Description | Required Package |
 | --- | --- | --- |
-| [`process`](https://prefect-python-sdk-docs.netlify.app/prefect/workers/process/) | Executes flow runs in subprocesses | |
-| [`kubernetes`](https://prefect-python-sdk-docs.netlify.app/prefect_kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
-| [`docker`](https://prefect-python-sdk-docs.netlify.app/prefect_docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
-| [`ecs`](https://prefect-python-sdk-docs.netlify.app/prefect_aws/workers/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
-| [`cloud-run v2`](https://prefect-python-sdk-docs.netlify.app/prefect_gcp/workers/cloud_run_v2/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
-| [`vertex-ai`](https://prefect-python-sdk-docs.netlify.app/prefect_gcp/workers/vertex/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
-| [`azure-container-instance`](https://prefect-python-sdk-docs.netlify.app/prefect_azure/workers/container_instance/) | Execute flow runs in ACI containers | `prefect-azure` |
+| [`process`](https://reference.prefect.io/prefect/workers/process/) | Executes flow runs in subprocesses | |
+| [`kubernetes`](https://reference.prefect.io/prefect_kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
+| [`docker`](https://reference.prefect.io/prefect_docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
+| [`ecs`](https://reference.prefect.io/prefect_aws/workers/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
+| [`cloud-run v2`](https://reference.prefect.io/prefect_gcp/workers/cloud_run_v2/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
+| [`vertex-ai`](https://reference.prefect.io/prefect_gcp/workers/vertex/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
+| [`azure-container-instance`](https://reference.prefect.io/prefect_azure/workers/container_instance/) | Execute flow runs in ACI containers | `prefect-azure` |
+| [`coiled`](https://github.com/coiled/prefect-worker/blob/main/example/README.md) | Execute flow runs in your cloud with Coiled | `prefect-coiled` |
 
 If you don't see a worker type that meets your needs, consider 
 [developing a new worker type](/contribute/develop-a-new-worker-type/).
@@ -196,5 +197,9 @@ See how to [daemonize a Prefect worker](/v3/deploy/daemonize-processes/).
 
 See more information on [overriding a work pool's job variables](/v3/deploy/infrastructure-concepts/customize).
 
+import { HELM } from "/snippets/resource-management/helm.mdx"
+import { workers } from "/snippets/resource-management/vars.mdx"
+
+<HELM name="workers" href={workers.helm} />
 
 ---------

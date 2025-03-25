@@ -5,7 +5,6 @@ Routes for interacting with work queue objects.
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     BackgroundTasks,
@@ -31,11 +30,12 @@ from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkQueue
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/work_pools",
     tags=["Work Pools"],
 )
@@ -161,6 +161,8 @@ async def create_work_pool(
     """
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
+
+    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.
     """
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
@@ -179,7 +181,7 @@ async def create_work_pool(
 
             await emit_work_pool_status_event(
                 event_id=uuid4(),
-                occurred=pendulum.now("UTC"),
+                occurred=now("UTC"),
                 pre_update_work_pool=None,
                 work_pool=model,
             )
@@ -257,7 +259,7 @@ async def update_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update a work pool
     """
@@ -292,7 +294,7 @@ async def delete_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work pool
     """
@@ -373,6 +375,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_work_queues_ready,
+        db=db,
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -383,6 +386,7 @@ async def get_scheduled_flow_runs(
 
     background_tasks.add_task(
         mark_deployments_ready,
+        db=db,
         work_queue_ids=[wq.id for wq in work_queues],
     )
 
@@ -408,6 +412,8 @@ async def create_work_queue(
     """
     Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
+
+    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
     """
 
     try:
@@ -505,7 +511,7 @@ async def update_work_queue(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update a work pool queue
     """
@@ -535,7 +541,7 @@ async def delete_work_queue(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work pool queue
     """
@@ -573,7 +579,7 @@ async def worker_heartbeat(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         work_pool = await models.workers.read_work_pool_by_name(
             session=session,
@@ -638,7 +644,7 @@ async def delete_worker(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work pool's worker
     """

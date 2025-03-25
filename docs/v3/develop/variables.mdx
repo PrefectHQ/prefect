@@ -47,18 +47,28 @@ To create a new variable:
 
 ### Through the REST API
 
-You can create and delete variables through the REST API. You can also set and get variables through the API 
-with either the variable name or ID.
+import { API } from "/snippets/resource-management/api.mdx"
+import { variables } from "/snippets/resource-management/vars.mdx"
 
-See the [REST reference](https://app.prefect.cloud/api/docs#tag/Variables) for more information.
+<API name="variables" href={variables.api} />
 
 ### Through the CLI
+
+import { CLI } from "/snippets/resource-management/cli.mdx"
+
+<CLI name="variables" href={variables.cli} />
 
 - `prefect variable set` creates or updates a variable.
 - `prefect variable get` retrieves a variable's value.
 - `prefect variable unset` deletes a variable.
 - `prefect variable ls` lists all variables.
 - `prefect variable inspect` shows a variable's details.
+
+### Through Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="variables" href={variables.tf} />
 
 ## Access variables
 

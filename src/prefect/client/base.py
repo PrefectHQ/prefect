@@ -55,8 +55,7 @@ Send = Callable[[Message], Awaitable[None]]
 
 @runtime_checkable
 class ASGIApp(Protocol):
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        ...
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None: ...
 
 
 @asynccontextmanager
@@ -301,9 +300,9 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
             )
             await anyio.sleep(retry_seconds)
 
-        assert (
-            response is not None
-        ), "Retry handling ended without response or exception"
+        assert response is not None, (
+            "Retry handling ended without response or exception"
+        )
 
         # We ran out of retries, return the failed response
         return response
@@ -520,9 +519,9 @@ class PrefectHttpxSyncClient(httpx.Client):
             )
             time.sleep(retry_seconds)
 
-        assert (
-            response is not None
-        ), "Retry handling ended without response or exception"
+        assert response is not None, (
+            "Retry handling ended without response or exception"
+        )
 
         # We ran out of retries, return the failed response
         return response

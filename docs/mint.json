@@ -1,15 +1,16 @@
 {
   "$schema": "https://mintlify.com/schema.json",
+  "rounded": "sharp",
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-8GR5P04T5Y"
+    }
+  },
   "anchors": [
     {
-      "icon": "github",
-      "name": "GitHub",
-      "url": "https://github.com/PrefectHQ/prefect"
-    },
-    {
       "icon": "slack",
-      "name": "Community",
-      "url": "https://communityinviter.com/apps/prefect-community/prefect-community"
+      "name": "Join our Community",
+      "url": "https://prefect.io/slack"
     },
     {
       "icon": "cloud",
@@ -53,8 +54,8 @@
       "group": "Get started",
       "pages": [
         "v3/get-started/index",
-        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/install",
+        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/quickstart"
       ],
       "version": "v3"
@@ -67,7 +68,10 @@
           "pages": [
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
-            "v3/tutorials/scraping"
+            "v3/tutorials/scraping",
+            "v3/tutorials/ml",
+            "v3/tutorials/s3-motherduck",
+            "v3/tutorials/resilience-and-deployment"
           ]
         },
         {
@@ -114,8 +118,7 @@
             "v3/develop/pause-resume",
             "v3/develop/cancel",
             "v3/develop/inputs",
-            "v3/develop/runtime-context",
-            "v3/develop/interact-with-api"
+            "v3/develop/runtime-context"
           ],
           "version": "v3"
         },
@@ -146,6 +149,7 @@
             "v3/develop/settings-ref"
           ]
         },
+        "v3/develop/interact-with-api",
         "v3/develop/test-workflows"
       ],
       "version": "v3"
@@ -174,7 +178,8 @@
             "v3/deploy/infrastructure-examples/managed",
             "v3/deploy/infrastructure-examples/serverless",
             "v3/deploy/infrastructure-examples/docker",
-            "v3/deploy/infrastructure-examples/kubernetes"
+            "v3/deploy/infrastructure-examples/kubernetes",
+            "v3/deploy/infrastructure-examples/coiled"
           ],
           "version": "v3"
         },
@@ -197,7 +202,8 @@
         "v3/automate/events/events",
         "v3/automate/events/automations-triggers",
         "v3/automate/events/custom-triggers",
-        "v3/automate/events/webhook-triggers"
+        "v3/automate/events/webhook-triggers",
+        "v3/automate/events/slas"
       ],
       "version": "v3"
     },
@@ -222,23 +228,38 @@
                 "v3/manage/cloud/manage-users/configure-sso",
                 "v3/manage/cloud/manage-users/audit-logs",
                 "v3/manage/cloud/manage-users/object-access-control-lists",
-                "v3/manage/cloud/manage-users/secure-access-by-ip-address"
+                "v3/manage/cloud/manage-users/secure-access-by-ip-address",
+                "v3/manage/cloud/manage-users/secure-access-by-private-link"
               ],
               "version": "v3"
             },
             "v3/manage/cloud/rate-limits",
-            "v3/manage/cloud/terraform-provider",
             "v3/manage/cloud/troubleshoot-cloud"
           ],
           "version": "v3"
         },
-        "v3/manage/self-host"
+        {
+          "group": "Prefect server",
+          "pages": [
+            "v3/manage/server/index",
+            {
+              "group": "Self-hosting examples",
+              "pages": [
+                "v3/manage/server/examples/cli",
+                "v3/manage/server/examples/docker",
+                "v3/manage/server/examples/helm"
+              ]
+            }
+          ]
+        },
+        "v3/manage/infrastructure-as-code"
       ],
       "version": "v3"
     },
     {
       "group": "Migrate",
       "pages": [
+        "v3/tutorials/airflow",
         "v3/resources/upgrade-to-prefect-3",
         "v3/resources/upgrade-agents-to-workers"
       ],
@@ -276,7 +297,6 @@
           "group": "Dask",
           "pages": [
             "integrations/prefect-dask/index",
-            "integrations/prefect-dask/usage_guide",
             "integrations/prefect-dask/sdk"
           ]
         },
@@ -382,7 +402,7 @@
       ]
     },
     {
-      "group": "APIs & SDK",
+      "group": "API Reference",
       "pages": [
         "v3/api-ref/index",
         "v3/api-ref/python/index",
@@ -461,6 +481,7 @@
                     "v3/api-ref/rest-api/server/task-runs/count-task-runs",
                     "v3/api-ref/rest-api/server/task-runs/task-run-history",
                     "v3/api-ref/rest-api/server/task-runs/read-task-runs",
+                    "v3/api-ref/rest-api/server/task-runs/paginate-task-runs",
                     "v3/api-ref/rest-api/server/task-runs/set-task-run-state",
                     "v3/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
                     "v3/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state"
@@ -715,7 +736,47 @@
             }
           ],
           "version": "v3"
+        },
+        {
+          "group": "CLI Reference",
+          "pages": [
+            "v3/api-ref/cli/artifact",
+            "v3/api-ref/cli/automation",
+            "v3/api-ref/cli/block",
+            "v3/api-ref/cli/concurrency-limit",
+            "v3/api-ref/cli/config",
+            "v3/api-ref/cli/dashboard",
+            "v3/api-ref/cli/deployment",
+            "v3/api-ref/cli/dev",
+            "v3/api-ref/cli/event",
+            "v3/api-ref/cli/flow-run",
+            "v3/api-ref/cli/flow",
+            "v3/api-ref/cli/global-concurrency-limit",
+            "v3/api-ref/cli/init",
+            "v3/api-ref/cli/profile",
+            "v3/api-ref/cli/profiles",
+            "v3/api-ref/cli/server",
+            "v3/api-ref/cli/shell",
+            "v3/api-ref/cli/task-run",
+            "v3/api-ref/cli/task",
+            "v3/api-ref/cli/variable",
+            "v3/api-ref/cli/version",
+            "v3/api-ref/cli/work-pool",
+            "v3/api-ref/cli/work-queue",
+            "v3/api-ref/cli/worker"
+          ]
         }
+      ],
+      "version": "v3"
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "v3/examples/index",
+        "v3/examples/flows",
+        "v3/examples/deployments",
+        "v3/examples/infrastructure",
+        "v3/examples/scripts"
       ],
       "version": "v3"
     },
@@ -732,6 +793,22 @@
     }
   ],
   "redirects": [
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/reference/:slug*"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/v3/reference/:slug*"
+    },
     {
       "destination": "/v3/getting-started/:slug*",
       "source": "/getting-started/:slug*"
@@ -791,6 +868,14 @@
     {
       "destination": "/v3/develop/settings-and-profiles",
       "source": "/v3/manage/settings-and-profiles"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/latest/reference"
+    },
+    {
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/latest/reference/:slug*"
     },
     {
       "destination": "/v3",
@@ -1361,6 +1446,18 @@
       "source": "/v3/resources/interact-with-api"
     },
     {
+      "destination": "/v3/manage/infrastructure-as-code",
+      "source": "/v3/manage/cloud/terraform-provider"
+    },
+    {
+      "destination": "/v3/deploy/infrastructure-examples/modal",
+      "source": "/v3/tutorials/modal"
+    },
+    {
+      "destination": "/v3/manage/server/examples/helm",
+      "source": "/v3/tutorials/server-and-worker"
+    },
+    {
       "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
     },
@@ -1391,8 +1488,12 @@
   ],
   "tabs": [
     {
-      "name": "APIs & SDK",
+      "name": "API Reference",
       "url": "v3/api-ref"
+    },
+    {
+      "name": "Examples",
+      "url": "v3/examples"
     },
     {
       "name": "Integrations",

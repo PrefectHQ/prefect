@@ -122,7 +122,7 @@ async def test_set_obj(redis_credentials: RedisDatabase, random_key: str):
     await redis_set.fn(redis_credentials, random_key, ref_obj, ex=60)
     test_value = await redis_get.fn(redis_credentials, random_key)
 
-    assert type(ref_obj) == type(test_value)
+    assert type(ref_obj) is type(test_value)
     assert len(ref_obj) == len(test_value)
 
     assert ref_obj[0] == test_value[0]

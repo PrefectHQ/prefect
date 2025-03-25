@@ -5,6 +5,8 @@ Prefect supports both SQLite and Postgres. Many of these utilities
 allow the Prefect REST API to seamlessly switch between the two.
 """
 
+from __future__ import annotations
+
 import datetime
 import json
 import operator
@@ -12,15 +14,15 @@ import re
 import uuid
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Optional,
-    TypeVar,
+    Type,
     Union,
     overload,
 )
 
-import pendulum
 import pydantic
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
@@ -38,12 +40,45 @@ from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.operators import OperatorType
 from sqlalchemy.sql.visitors import replacement_traverse
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
-from typing_extensions import TypeAlias
+from typing_extensions import (
+    Concatenate,
+    ParamSpec,
+    TypeAlias,
+    TypeVar,
+)
 
-T = TypeVar("T")
+from prefect.types._datetime import DateTime
+
+P = ParamSpec("P")
+R = TypeVar("R", infer_variance=True)
+T = TypeVar("T", infer_variance=True)
+
 _SQLExpressionOrLiteral: TypeAlias = Union[sa.SQLColumnExpression[T], T]
+_Function = Callable[P, R]
+_Method = Callable[Concatenate[T, P], R]
+_DBFunction: TypeAlias = Callable[Concatenate["PrefectDBInterface", P], R]
+_DBMethod: TypeAlias = Callable[Concatenate[T, "PrefectDBInterface", P], R]
 
 CAMEL_TO_SNAKE: re.Pattern[str] = re.compile(r"(?<!^)(?=[A-Z])")
+
+if TYPE_CHECKING:
+    from prefect.server.database.interface import PrefectDBInterface
+
+
+@overload
+def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]: ...
+
+
+@overload
+def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]: ...
+
+
+def db_injector(
+    func: Union[_DBMethod[T, P, R], _DBFunction[P, R]],
+) -> Union[_Method[T, P, R], _Function[P, R]]:
+    from prefect.server.database import db_injector
+
+    return db_injector(func)
 
 
 class GenerateUUID(functions.FunctionElement[uuid.UUID]):
@@ -94,15 +129,15 @@ def generate_uuid_sqlite(
     """
 
 
-class Timestamp(TypeDecorator[pendulum.DateTime]):
+class Timestamp(TypeDecorator[DateTime]):
     """TypeDecorator that ensures that timestamps have a timezone.
 
     For SQLite, all timestamps are converted to UTC (since they are stored
     as naive timestamps without timezones) and recovered as UTC.
     """
 
-    impl = sa.TIMESTAMP(timezone=True)
-    cache_ok = True
+    impl: TypeEngine[Any] | type[TypeEngine[Any]] = sa.TIMESTAMP(timezone=True)
+    cache_ok: bool | None = True
 
     def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
         if dialect.name == "postgresql":
@@ -118,27 +153,27 @@ class Timestamp(TypeDecorator[pendulum.DateTime]):
 
     def process_bind_param(
         self,
-        value: Optional[pendulum.DateTime],
+        value: Optional[DateTime],
         dialect: sa.Dialect,
-    ) -> Optional[pendulum.DateTime]:
+    ) -> Optional[DateTime]:
         if value is None:
             return None
         else:
             if value.tzinfo is None:
                 raise ValueError("Timestamps must have a timezone.")
             elif dialect.name == "sqlite":
-                return pendulum.instance(value).in_timezone("UTC")
+                return DateTime.instance(value).in_timezone("UTC")
             else:
                 return value
 
     def process_result_value(
         self,
-        value: Optional[Union[datetime.datetime, pendulum.DateTime]],
+        value: Optional[Union[datetime.datetime, DateTime]],
         dialect: sa.Dialect,
-    ) -> Optional[pendulum.DateTime]:
+    ) -> Optional[DateTime]:
         # retrieve timestamps in their native timezone (or UTC)
         if value is not None:
-            return pendulum.instance(value).in_timezone("UTC")
+            return DateTime.instance(value).in_timezone("UTC")
 
 
 class UUID(TypeDecorator[uuid.UUID]):
@@ -150,8 +185,8 @@ class UUID(TypeDecorator[uuid.UUID]):
     hyphens.
     """
 
-    impl = TypeEngine
-    cache_ok = True
+    impl: type[TypeEngine[Any]] | TypeEngine[Any] = TypeEngine
+    cache_ok: bool | None = True
 
     def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
         if dialect.name == "postgresql":
@@ -191,8 +226,10 @@ class JSON(TypeDecorator[Any]):
     to SQL compilation
     """
 
-    impl = postgresql.JSONB
-    cache_ok = True
+    impl: type[postgresql.JSONB] | type[TypeEngine[Any]] | TypeEngine[Any] = (
+        postgresql.JSONB
+    )
+    cache_ok: bool | None = True
 
     def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
         if dialect.name == "postgresql":
@@ -230,15 +267,14 @@ class Pydantic(TypeDecorator[T]):
     """
 
     impl = JSON
-    cache_ok = True
+    cache_ok: bool | None = True
 
     @overload
     def __init__(
         self,
         pydantic_type: type[T],
         sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     # This overload is needed to allow for typing special forms (e.g.
     # Union[...], etc.) as these can't be married with `type[...]`. Also see
@@ -248,8 +284,7 @@ class Pydantic(TypeDecorator[T]):
         self: "Pydantic[Any]",
         pydantic_type: Any,
         sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -259,7 +294,9 @@ class Pydantic(TypeDecorator[T]):
         super().__init__()
         self._pydantic_type = pydantic_type
         if sa_column_type is not None:
-            self.impl = sa_column_type
+            self.impl: type[JSON] | type[TypeEngine[Any]] | TypeEngine[Any] = (
+                sa_column_type
+            )
 
     def process_bind_param(
         self, value: Optional[T], dialect: sa.Dialect
@@ -305,11 +342,11 @@ def bindparams_from_clause(
 # Platform-independent datetime and timedelta arithmetic functions
 
 
-class date_add(functions.GenericFunction[pendulum.DateTime]):
+class date_add(functions.GenericFunction[DateTime]):
     """Platform-independent way to add a timestamp and an interval"""
 
-    type = Timestamp()
-    inherit_cache = True
+    type: Timestamp = Timestamp()
+    inherit_cache: bool = True
 
     def __init__(
         self,
@@ -327,8 +364,8 @@ class date_add(functions.GenericFunction[pendulum.DateTime]):
 class interval_add(functions.GenericFunction[datetime.timedelta]):
     """Platform-independent way to add two intervals."""
 
-    type = sa.Interval()
-    inherit_cache = True
+    type: sa.Interval = sa.Interval()
+    inherit_cache: bool = True
 
     def __init__(
         self,
@@ -346,8 +383,8 @@ class interval_add(functions.GenericFunction[datetime.timedelta]):
 class date_diff(functions.GenericFunction[datetime.timedelta]):
     """Platform-independent difference of two timestamps. Computes d1 - d2."""
 
-    type = sa.Interval()
-    inherit_cache = True
+    type: sa.Interval = sa.Interval()
+    inherit_cache: bool = True
 
     def __init__(
         self,
@@ -363,8 +400,8 @@ class date_diff(functions.GenericFunction[datetime.timedelta]):
 class date_diff_seconds(functions.GenericFunction[float]):
     """Platform-independent calculation of the number of seconds between two timestamps or from 'now'"""
 
-    type = sa.REAL
-    inherit_cache = True
+    type: Type[sa.REAL[float]] = sa.REAL
+    inherit_cache: bool = True
 
     def __init__(
         self,
@@ -664,7 +701,7 @@ def sqlite_json_operators(
 
 
 class greatest(functions.ReturnTypeFromArgs[T]):
-    inherit_cache = True
+    inherit_cache: bool = True
 
 
 @compiles(greatest, "sqlite")

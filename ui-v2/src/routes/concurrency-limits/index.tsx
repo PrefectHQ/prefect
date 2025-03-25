@@ -1,6 +1,6 @@
+import { buildListGlobalConcurrencyLimitsQuery } from "@/api/global-concurrency-limits";
+import { buildListTaskRunConcurrencyLimitsQuery } from "@/api/task-run-concurrency-limits";
 import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limits-page";
-import { buildListGlobalConcurrencyLimitsQuery } from "@/hooks/global-concurrency-limits";
-import { buildListTaskRunConcurrencyLimitsQuery } from "@/hooks/task-run-concurrency-limits";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";

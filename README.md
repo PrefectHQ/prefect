@@ -16,15 +16,42 @@
         <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" /></a>
 </p>
 
+<p align="center">
+    <a href="https://docs.prefect.io/v3/get-started/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+        Installation
+    </a>
+    ·
+    <a href="https://docs.prefect.io/v3/get-started/quickstart?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+        Quickstart
+    </a>
+    ·
+    <a href="https://docs.prefect.io/v3/develop/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+        Build workflows
+    </a>
+    ·
+    <a href="https://docs.prefect.io/v3/deploy/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+        Deploy workflows
+    </a>
+    ·
+    <a href="https://app.prefect.cloud/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+        Prefect Cloud
+    </a>
+</p>
+
 # Prefect
 
 Prefect is a workflow orchestration framework for building data pipelines in Python.
-It's the simplest way to elevate a script into a resilient production workflow.
+It's the simplest way to elevate a script into a production workflow.
 With Prefect, you can build resilient, dynamic data pipelines that react to the world around them and recover from unexpected changes.
 
 With just a few lines of code, data teams can confidently automate any data process with features such as scheduling, caching, retries, and event-based automations.
 
 Workflow activity is tracked and can be monitored with a self-hosted [Prefect server](https://docs.prefect.io/latest/manage/self-host/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) instance or managed [Prefect Cloud](https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) dashboard.
+
+> [!TIP]
+> Prefect flows can handle retries, dependencies, and even complex branching logic
+> 
+> [Check our docs](https://docs.prefect.io/v3/get-started/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) or see the example below to learn more!
 
 ## Getting started
 
@@ -38,7 +65,6 @@ Then create and run a Python file that uses Prefect `flow` and `task` decorators
 
 ```python
 from prefect import flow, task
-from typing import List
 import httpx
 
 
@@ -50,17 +76,17 @@ def get_stars(repo: str):
 
 
 @flow(name="GitHub Stars")
-def github_stars(repos: List[str]):
+def github_stars(repos: list[str]):
     for repo in repos:
         get_stars(repo)
 
 
 # run the flow!
-if __name__=="__main__":
+if __name__ == "__main__":
     github_stars(["PrefectHQ/Prefect"])
 ```
 
-Fire up the Prefect UI to see what happened:
+Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened:
 
 ```bash
 prefect server start
@@ -77,8 +103,16 @@ if __name__ == "__main__":
     )
 ```
 
-You now have a server running locally that is looking for scheduled deployments!
+You now have a process running locally that is looking for scheduled deployments!
 Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/automate/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
+
+> [!TIP]
+> Where to go next - check out our [documentation](https://docs.prefect.io/v3/get-started/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) to learn more about:
+> - [Deploying flows to production environments](https://docs.prefect.io/v3/deploy?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none)
+> - [Adding error handling and retries](https://docs.prefect.io/v3/develop/write-tasks#retries?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none)
+> - [Integrating with your existing tools](https://docs.prefect.io/integrations/integrations?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none)
+> - [Setting up team collaboration features](https://docs.prefect.io/v3/manage/cloud/manage-users/manage-teams#manage-teams?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none)
+
 
 ## Prefect Cloud
 

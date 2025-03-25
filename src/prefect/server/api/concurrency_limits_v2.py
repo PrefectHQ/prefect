@@ -11,7 +11,9 @@ from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
+)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -19,6 +21,11 @@ async def create_concurrency_limit_v2(
     concurrency_limit: actions.ConcurrencyLimitV2Create,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimitV2:
+    """
+    Create a task run concurrency limit.
+
+    For more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.
+    """
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits_v2.create_concurrency_limit(
             session=session, concurrency_limit=concurrency_limit
@@ -85,7 +92,7 @@ async def update_concurrency_limit_v2(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
             id_or_name = UUID(id_or_name)
@@ -115,7 +122,7 @@ async def delete_concurrency_limit_v2(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
             id_or_name = UUID(id_or_name)

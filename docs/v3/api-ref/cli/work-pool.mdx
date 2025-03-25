@@ -1,0 +1,595 @@
+---
+title: " "
+sidebarTitle: prefect work-pool
+---
+
+# `prefect work-pool`
+
+
+
+```command
+prefect work-pool [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage work pools.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect work-pool create`
+
+
+
+```command
+prefect work-pool create [OPTIONS] NAME
+```
+
+
+
+<Info>
+Create a new work pool or update an existing one.
+
+
+Examples:
+    
+    Create a Kubernetes work pool in a paused state:
+        
+        \$ prefect work-pool create "my-pool" --type kubernetes --paused
+    
+    Create a Docker work pool with a custom base job template:
+        
+        \$ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+    
+    Update an existing work pool:
+        
+        \$ prefect work-pool create "existing-pool" --base-job-template ./base-job-template.json --overwrite
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--base-job-template">
+    The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type.
+</ResponseField>
+
+<ResponseField name="--paused">
+    Whether or not to create the work pool in a paused state.
+</ResponseField>
+
+<ResponseField name="-t">
+    The type of work pool to create.
+</ResponseField>
+
+<ResponseField name="--set-as-default">
+    Whether or not to use the created work pool as the local default for deployment.
+</ResponseField>
+
+<ResponseField name="--provision-infrastructure">
+    Whether or not to provision infrastructure for the work pool if supported for the given work pool type.
+</ResponseField>
+
+<ResponseField name="--overwrite">
+    Whether or not to overwrite an existing work pool with the same name.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool ls`
+
+
+
+```command
+prefect work-pool ls [OPTIONS]
+```
+
+
+
+<Info>
+List work pools.
+
+
+Examples:
+    \$ prefect work-pool ls
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--verbose">
+    Show additional information about work pools.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool inspect`
+
+
+
+```command
+prefect work-pool inspect [OPTIONS] NAME
+```
+
+
+
+<Info>
+Inspect a work pool.
+
+
+Examples:
+    \$ prefect work-pool inspect "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to inspect.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool pause`
+
+
+
+```command
+prefect work-pool pause [OPTIONS] NAME
+```
+
+
+
+<Info>
+Pause a work pool.
+
+
+Examples:
+    \$ prefect work-pool pause "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to pause.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool resume`
+
+
+
+```command
+prefect work-pool resume [OPTIONS] NAME
+```
+
+
+
+<Info>
+Resume a work pool.
+
+
+Examples:
+    \$ prefect work-pool resume "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to resume.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool update`
+
+
+
+```command
+prefect work-pool update [OPTIONS] NAME
+```
+
+
+
+<Info>
+Update a work pool.
+
+
+Examples:
+    \$ prefect work-pool update "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to update.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--base-job-template">
+    The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. If None, the base job template will not be modified.
+</ResponseField>
+
+<ResponseField name="--concurrency-limit">
+    The concurrency limit for the work pool. If None, the concurrency limit will not be modified.
+</ResponseField>
+
+<ResponseField name="--description">
+    The description for the work pool. If None, the description will not be modified.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool provision-infrastructure`
+
+
+
+```command
+prefect work-pool provision-infrastructure [OPTIONS] NAME
+```
+
+
+
+<Info>
+Provision infrastructure for a work pool.
+
+
+Examples:
+    \$ prefect work-pool provision-infrastructure "my-pool"
+
+    \$ prefect work-pool provision-infra "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to provision infrastructure for.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool provision-infra`
+
+
+
+```command
+prefect work-pool provision-infra [OPTIONS] NAME
+```
+
+
+
+<Info>
+Provision infrastructure for a work pool.
+
+
+Examples:
+    \$ prefect work-pool provision-infrastructure "my-pool"
+
+    \$ prefect work-pool provision-infra "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to provision infrastructure for.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool delete`
+
+
+
+```command
+prefect work-pool delete [OPTIONS] NAME
+```
+
+
+
+<Info>
+Delete a work pool.
+
+
+Examples:
+    \$ prefect work-pool delete "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to delete.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool set-concurrency-limit`
+
+
+
+```command
+prefect work-pool set-concurrency-limit [OPTIONS] NAME CONCURRENCY_LIMIT
+```
+
+
+
+<Info>
+Set the concurrency limit for a work pool.
+
+
+Examples:
+    \$ prefect work-pool set-concurrency-limit "my-pool" 10
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to update.  \[required]
+</ResponseField>
+<ResponseField name="CONCURRENCY_LIMIT" type="string" required>
+    The new concurrency limit for the work pool.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool clear-concurrency-limit`
+
+
+
+```command
+prefect work-pool clear-concurrency-limit [OPTIONS] NAME
+```
+
+
+
+<Info>
+Clear the concurrency limit for a work pool.
+
+
+Examples:
+    \$ prefect work-pool clear-concurrency-limit "my-pool"
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to update.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool get-default-base-job-template`
+
+
+
+```command
+prefect work-pool get-default-base-job-template [OPTIONS]
+```
+
+
+
+<Info>
+Get the default base job template for a given work pool type.
+
+
+Examples:
+    \$ prefect work-pool get-default-base-job-template --type kubernetes
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-t">
+    The type of work pool for which to get the default base job template.
+</ResponseField>
+
+<ResponseField name="-f">
+    If set, write the output to a file.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool preview`
+
+
+
+```command
+prefect work-pool preview [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Preview the work pool's scheduled work for all queues.
+
+
+Examples:
+    \$ prefect work-pool preview "my-pool" --hours 24
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    The name or ID of the work pool to preview
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="-h">
+    The number of hours to look ahead; defaults to 1 hour
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
