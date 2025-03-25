@@ -167,6 +167,7 @@ dev = [
     "mkdocs-material>=9.6.4",
     "mkdocstrings[python]>=0.28.0",
     "mkdocs-gen-files>=0.5.0",
+    "whenever>=0.7.3,<1.0.0",
     # Need to stay in sync with otel extra
     "opentelemetry-distro>=0.48b0,<1.0.0",
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",

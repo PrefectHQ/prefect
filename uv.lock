@@ -3528,6 +3528,7 @@ dev = [
     { name = "vale" },
     { name = "virtualenv" },
     { name = "watchfiles" },
+    { name = "whenever" },
 ]
 markdown-docs = [
     { name = "prefect", extra = ["aws", "azure", "bitbucket", "dask", "databricks", "email", "gcp", "github", "gitlab", "kubernetes", "ray", "shell", "slack", "snowflake", "sqlalchemy"] },
@@ -3664,6 +3665,7 @@ dev = [
     { name = "vale", specifier = ">=3.9.5" },
     { name = "virtualenv", specifier = ">=20.29.2" },
     { name = "watchfiles", specifier = ">=1.0.4" },
+    { name = "whenever", specifier = ">=0.7.3,<1.0.0" },
 ]
 markdown-docs = [
     { name = "prefect", extras = ["aws"] },
@@ -6564,7 +6566,7 @@ name = "whenever"
 version = "0.7.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "tzdata", marker = "python_full_version >= '3.13' and sys_platform == 'win32'" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/26/08/49181903bb52523f5e5e0b4ffc172c9bcc7edc7cda9bd626173fa99b46cf/whenever-0.7.3.tar.gz", hash = "sha256:fc2b3756c35a0694c4159ad877405949ec283623fd2082b66cdafab6e883e65b", size = 181498 }
 wheels = [
