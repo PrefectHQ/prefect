@@ -4,10 +4,8 @@ from unittest import mock
 from zoneinfo import ZoneInfo
 
 import dateutil
-import pendulum
 import pytest
 from dateutil import rrule
-from packaging import version
 from pydantic import ValidationError
 from whenever import Instant, ZonedDateTime
 
@@ -518,12 +516,7 @@ class TestCronScheduleDaylightSavingsTime:
 
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
 
-        # pendulum fixed a UTC-offset issue in 3.0
-        # https://github.com/PrefectHQ/prefect/issues/11619
-        if version.parse(pendulum.__version__) >= version.parse("3.0"):
-            assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
-        else:
-            assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 6, 7, 8]
+        assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
 
     async def test_cron_schedule_daily_start_daylight_savings_time_forward(self):
         """
