@@ -15,7 +15,7 @@ from prefect.server.schemas.filters import (
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types._datetime import DateTime, now, start_of_period
+from prefect.types._datetime import DateTime, now, start_of_day
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
@@ -110,8 +110,7 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: start_of_period(now("UTC"), "day")
-        - timedelta(days=180),
+        default_factory=lambda: start_of_day(now("UTC")) - timedelta(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(

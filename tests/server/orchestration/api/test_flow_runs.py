@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
@@ -83,7 +84,9 @@ class TestCreateFlowRun:
             "/flow_runs/",
             json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
-                state=to_state_create(Completed(timestamp=now("UTC").add(months=1))),
+                state=to_state_create(
+                    Completed(timestamp=now("UTC") + datetime.timedelta(days=30))
+                ),
             ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED, response.text
@@ -393,7 +396,9 @@ class TestUpdateFlowRun:
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 flow_version="1.0",
-                state=schemas.states.Scheduled(scheduled_time=now("UTC").add(days=1)),
+                state=schemas.states.Scheduled(
+                    scheduled_time=now("UTC") + datetime.timedelta(days=1)
+                ),
             ),
         )
         await session.commit()
@@ -428,7 +433,9 @@ class TestUpdateFlowRun:
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 flow_version="1.0",
-                state=schemas.states.Scheduled(scheduled_time=now("UTC").add(days=1)),
+                state=schemas.states.Scheduled(
+                    scheduled_time=now("UTC") + datetime.timedelta(days=1)
+                ),
                 deployment_id=deployment.id,
             ),
         )
@@ -821,7 +828,7 @@ class TestReadFlowRuns:
                 name="Flow Run 1",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=current_time.subtract(minutes=1),
+                    timestamp=current_time - datetime.timedelta(minutes=1),
                 ),
             ),
         )
@@ -832,9 +839,9 @@ class TestReadFlowRuns:
                 name="Flow Run 2",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=current_time.add(minutes=1),
+                    timestamp=current_time + datetime.timedelta(minutes=1),
                 ),
-                start_time=current_time.subtract(minutes=2),
+                start_time=current_time - datetime.timedelta(minutes=2),
             ),
         )
         await session.commit()
@@ -1773,7 +1780,9 @@ class TestSetFlowRunState:
                 state=dict(
                     type=StateType.SCHEDULED,
                     name="Scheduled",
-                    state_details=dict(scheduled_time=str(now("UTC").add(months=1))),
+                    state_details=dict(
+                        scheduled_time=str(now("UTC") + datetime.timedelta(days=30))
+                    ),
                 )
             ),
         )
@@ -1819,7 +1828,7 @@ class TestSetFlowRunState:
     async def test_flow_run_receives_wait_until_scheduled_start_time(
         self, flow_run, client, session
     ):
-        scheduled_time = now("UTC").add(days=1)
+        scheduled_time = now("UTC") + datetime.timedelta(days=1)
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
@@ -2064,7 +2073,7 @@ class TestFlowRunHistory:
             "/flow_runs/history",
             json=dict(
                 history_start=str(now("UTC")),
-                history_end=str(now("UTC").add(days=1)),
+                history_end=str(now("UTC") + datetime.timedelta(days=1)),
                 history_interval_seconds=0.9,
             ),
         )
@@ -2083,7 +2092,7 @@ class TestFlowRunLateness:
     async def late_flow_runs(self, session, flow):
         flow_runs = []
         for i in range(5):
-            one_minute_ago = now("UTC").subtract(minutes=1)
+            one_minute_ago = now("UTC") - datetime.timedelta(minutes=1)
             flow_run = await models.flow_runs.create_flow_run(
                 session=session,
                 flow_run=schemas.core.FlowRun(
@@ -2094,7 +2103,9 @@ class TestFlowRunLateness:
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=schemas.states.Running(timestamp=one_minute_ago.add(seconds=i)),
+                state=schemas.states.Running(
+                    timestamp=one_minute_ago + datetime.timedelta(seconds=i)
+                ),
             )
             flow_runs.append(flow_run)
 
@@ -2630,7 +2641,7 @@ class TestPaginateFlowRuns:
                 name="Flow Run 1",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=current_time.subtract(minutes=1),
+                    timestamp=current_time - datetime.timedelta(minutes=1),
                 ),
             ),
         )
@@ -2641,9 +2652,9 @@ class TestPaginateFlowRuns:
                 name="Flow Run 2",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=current_time.add(minutes=1),
+                    timestamp=current_time + datetime.timedelta(minutes=1),
                 ),
-                start_time=current_time.subtract(minutes=2),
+                start_time=current_time - datetime.timedelta(minutes=2),
             ),
         )
         await session.commit()

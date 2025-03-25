@@ -3006,8 +3006,9 @@ class TestScheduleDeployment:
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
-            start=now_fn("UTC").add(days=120),
-            end=now_fn("UTC").add(days=120)
+            start=now_fn("UTC") + datetime.timedelta(days=120),
+            end=now_fn("UTC")
+            + datetime.timedelta(days=120)
             + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
@@ -3032,7 +3033,7 @@ class TestScheduleDeployment:
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=100,
             start=now_fn("UTC"),
-            end=now_fn("UTC").add(days=7),
+            end=now_fn("UTC") + datetime.timedelta(days=7),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)

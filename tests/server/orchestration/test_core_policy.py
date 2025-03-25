@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import math
 import random
 from datetime import timedelta
@@ -56,7 +57,7 @@ from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.testing.utilities import AsyncMock
-from prefect.types._datetime import DateTime, parse_datetime
+from prefect.types._datetime import DateTime, now, parse_datetime
 
 # Convert constants from sets to lists for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -142,7 +143,9 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={"scheduled_time": DateTime.now("UTC").subtract(minutes=5)},
+            initial_details={
+                "scheduled_time": now("UTC") - datetime.timedelta(minutes=5)
+            },
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:

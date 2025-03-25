@@ -1,5 +1,7 @@
+import datetime
 from datetime import timedelta
 from typing import Callable, Optional, Union
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -7,13 +9,18 @@ from prefect.types._datetime import DateTime, Timezone, now
 
 
 @pytest.fixture
-def frozen_time(monkeypatch: pytest.MonkeyPatch) -> DateTime:
+def frozen_time(monkeypatch: pytest.MonkeyPatch) -> DateTime | datetime.datetime:
     frozen = now("UTC")
 
     def frozen_time(tz: Optional[Union[str, Timezone]] = None):
         if tz is None:
             return frozen
-        return frozen.in_timezone(tz)
+        if isinstance(frozen, DateTime):
+            return frozen.in_timezone(tz)
+        else:
+            return frozen.astimezone(
+                tz=ZoneInfo(tz.name if isinstance(tz, Timezone) else tz)
+            )
 
     monkeypatch.setattr(DateTime, "now", frozen_time)
     return frozen

@@ -1,3 +1,4 @@
+import datetime
 import json
 from datetime import timezone
 from uuid import uuid4
@@ -12,6 +13,7 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should():
@@ -168,7 +170,7 @@ def test_server_events_can_be_received_from_client_events_with_times(
         id=uuid4(),
     )
 
-    expected_received = DateTime.now("UTC").subtract(minutes=5)
+    expected_received = now("UTC") - datetime.timedelta(minutes=5)
 
     server_event = client_event.receive(received=expected_received)
 

@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 from typing import Callable, List, Union, cast
 from unittest import mock
@@ -835,7 +836,7 @@ async def test_regression_3803_negative_case(
 ):
     await triggers.reactive_evaluation(
         Event(
-            occurred=start_of_test.subtract(minutes=20),
+            occurred=start_of_test - datetime.timedelta(minutes=20),
             event="prefect.flow-run.Pending",
             resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             id=uuid4(),
@@ -859,7 +860,7 @@ async def test_regression_3803_negative_case(
     # 19 minutes ago
     await triggers.reactive_evaluation(
         Event(
-            occurred=start_of_test.subtract(minutes=19),
+            occurred=start_of_test - datetime.timedelta(minutes=19),
             event="prefect.flow-run.Running",
             resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             id=uuid4(),
@@ -882,7 +883,7 @@ async def test_regression_3803_positive_case_no_events_at_all(
 ):
     await triggers.reactive_evaluation(
         Event(
-            occurred=start_of_test.subtract(minutes=20),
+            occurred=start_of_test - datetime.timedelta(minutes=20),
             event="prefect.flow-run.Pending",
             resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             id=uuid4(),
@@ -920,7 +921,7 @@ async def test_regression_3803_positive_case_no_relevant_event(
 ):
     await triggers.reactive_evaluation(
         Event(
-            occurred=start_of_test.subtract(minutes=20),
+            occurred=start_of_test - datetime.timedelta(minutes=20),
             event="prefect.flow-run.Pending",
             resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             id=uuid4(),
@@ -945,7 +946,7 @@ async def test_regression_3803_positive_case_no_relevant_event(
     # pending automation should have fired
     await triggers.reactive_evaluation(
         Event(
-            occurred=start_of_test.subtract(minutes=6),
+            occurred=start_of_test - datetime.timedelta(minutes=6),
             event="something.else",
             resource={"prefect.resource.id": "any.other.resource"},
             id=uuid4(),

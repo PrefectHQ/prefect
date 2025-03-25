@@ -11,7 +11,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import now
 from prefect.utilities.callables import parameter_schema
 
 
@@ -122,7 +122,7 @@ async def test_create_schedules_from_deployment(
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == service.min_runs * num_active_schedules
 
-    expected_dates: set[DateTime] = set()
+    expected_dates: set[datetime.datetime] = set()
     for schedule in active_schedules:
         expected_dates.update(await schedule.get_dates(service.min_runs))
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}

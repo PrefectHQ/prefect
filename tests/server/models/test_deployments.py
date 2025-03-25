@@ -12,7 +12,7 @@ from prefect.server.database import orm_models
 from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
-from prefect.types._datetime import now, start_of_period
+from prefect.types._datetime import now, start_of_day
 
 
 class TestCreateDeployment:
@@ -722,7 +722,7 @@ class TestScheduledRuns:
         assert {r.id for r in db_scheduled_runs} == set(scheduled_runs)
 
         expected_times = {
-            start_of_period(now("UTC"), "day") + datetime.timedelta(days=i + 1)
+            start_of_day(now("UTC")) + datetime.timedelta(days=i + 1)
             for i in range(PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value())
         }
 
@@ -942,7 +942,7 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 10
 
         expected_times = {
-            start_of_period(now("UTC"), "day") + datetime.timedelta(days=i + 1)
+            start_of_day(now("UTC")) + datetime.timedelta(days=i + 1)
             for i in range(100, 110)
         }
         actual_times = set()
@@ -966,7 +966,7 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 3
 
         expected_times = {
-            start_of_period(now("UTC"), "day") + datetime.timedelta(days=i + 1)
+            start_of_day(now("UTC")) + datetime.timedelta(days=i + 1)
             for i in range(100, 103)
         }
         actual_times = set()
@@ -991,7 +991,7 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 10
 
         expected_times = {
-            start_of_period(now("UTC"), "day") - datetime.timedelta(days=i)
+            start_of_day(now("UTC")) - datetime.timedelta(days=i)
             for i in range(990, 1000)
         }
 

@@ -1,3 +1,4 @@
+import datetime
 from datetime import timezone
 from typing import List
 from uuid import UUID, uuid4
@@ -21,7 +22,7 @@ from prefect.server.events.storage.database import (
     read_events,
     write_events,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 
 
 @pytest.fixture
@@ -84,7 +85,7 @@ class TestWriteEvents:
                 events_filter=EventFilter(
                     id=EventIDFilter(id=[event.id]),
                     occurred=EventOccurredFilter(
-                        since=DateTime.now("UTC").subtract(days=1)
+                        since=now("UTC") - datetime.timedelta(days=1)
                     ),
                 ),
             )
@@ -191,7 +192,7 @@ class TestReadEvents:
     @pytest.fixture
     async def event_2(self, session: AsyncSession) -> ReceivedEvent:
         event = ReceivedEvent(
-            occurred=DateTime.now("UTC").subtract(days=2),
+            occurred=now("UTC") - datetime.timedelta(days=2),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -216,7 +217,7 @@ class TestReadEvents:
                 session=session,
                 events_filter=EventFilter(
                     occurred=EventOccurredFilter(
-                        since=DateTime.now("UTC").subtract(days=1)
+                        since=now("UTC") - datetime.timedelta(days=1)
                     ),
                 ),
             )
@@ -228,8 +229,8 @@ class TestReadEvents:
                 session=session,
                 events_filter=EventFilter(
                     occurred=EventOccurredFilter(
-                        since=DateTime.now("UTC").subtract(days=3),
-                        until=DateTime.now("UTC").subtract(days=1),
+                        since=now("UTC") - datetime.timedelta(days=3),
+                        until=now("UTC") - datetime.timedelta(days=1),
                     ),
                 ),
             )
@@ -244,7 +245,7 @@ class TestReadEvents:
                 events_filter=EventFilter(
                     resource=EventResourceFilter(id=["prefect.garbage.foo"]),
                     occurred=EventOccurredFilter(
-                        since=DateTime.now("UTC").subtract(days=1)
+                        since=now("UTC") - datetime.timedelta(days=1)
                     ),
                 ),
             )
