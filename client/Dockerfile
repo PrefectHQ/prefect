@@ -67,4 +67,5 @@ RUN python -c "import prefect; print(prefect.__version__)"
 
 # Setup entrypoint
 COPY ./client/run-flow /run-flow
-ENTRYPOINT ["/run-flow"]
+COPY ./scripts/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh", "/run-flow"]
