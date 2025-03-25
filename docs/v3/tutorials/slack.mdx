@@ -67,6 +67,13 @@ async def notify_slack(flow: Flow, flow_run: FlowRun, state: State):
 ```
 If you have a sync flow (ie your main flow entrypoint is defined with `def` instead of `async def`, it's the same imports, but the function will look like so:
 ```python notify.py
+from prefect import Flow
+from prefect.blocks.notifications import SlackWebhook
+from prefect.server.schemas.core import FlowRun
+from prefect.server.schemas.states import State
+from prefect.settings import PREFECT_UI_URL
+
+
 def notify_slack(flow: Flow, flow_run: FlowRun, state: State):
     slack_webhook_block = SlackWebhook.load("prefect-flow-failures")
     slack_webhook_block.notify(
@@ -83,6 +90,9 @@ def notify_slack(flow: Flow, flow_run: FlowRun, state: State):
 
 Whichever way you define your notify, you will add it to your flow with the same syntax:
 ```python flow.py
+from prefect import flow
+
+
 @flow(on_failure=[notify_slack], on_crashed=[notify_slack], on_cancellation=[notify_slack])
 async def main():
     ...
