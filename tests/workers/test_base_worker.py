@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import timedelta, timezone
 from typing import Any, Dict, Optional, Type
@@ -1718,6 +1719,7 @@ class TestInfrastructureIntegration:
             await state.result()
 
 
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="Test requires Python 3.13")
 async def test_worker_set_last_polled_time(work_pool: WorkPool):
     now = DateTime.now("UTC")
 

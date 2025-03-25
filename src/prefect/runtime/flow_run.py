@@ -54,9 +54,9 @@ __all__ = [
 
 
 def _parse_datetime_UTC(dt: str) -> DateTime:
-    pendulum_dt = parse_datetime(dt, tz=Timezone("UTC"), strict=False)
-    assert isinstance(pendulum_dt, datetime)
-    return DateTime.instance(pendulum_dt)
+    dt_instance = parse_datetime(dt, tz=Timezone("UTC"), strict=False)
+    assert isinstance(dt_instance, datetime)
+    return DateTime.instance(dt_instance)
 
 
 type_cast: dict[

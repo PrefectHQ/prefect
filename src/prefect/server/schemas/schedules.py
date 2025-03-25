@@ -148,8 +148,8 @@ class IntervalSchedule(PrefectBaseModel):
         offset = (start - anchor_tz).total_seconds() / self.interval.total_seconds()
         next_date = anchor_tz.add(seconds=self.interval.total_seconds() * int(offset))
 
-        # break the interval into `days` and `seconds` because pendulum
-        # will handle DST boundaries properly if days are provided, but not
+        # break the interval into `days` and `seconds` because the datetime
+        # library will handle DST boundaries properly if days are provided, but not
         # if we add `total seconds`. Therefore, `next_date + self.interval`
         # fails while `next_date.add(days=days, seconds=seconds)` works.
         interval_days = self.interval.days
