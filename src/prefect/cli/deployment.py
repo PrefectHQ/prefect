@@ -46,6 +46,9 @@ from prefect.types._datetime import (
     in_local_tz,
     parse_datetime,
 )
+from prefect.types._datetime import (
+    now as now_fn,
+)
 from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
 
@@ -755,7 +758,7 @@ async def run(
     """
     import dateparser
 
-    now = DateTime.now("UTC")
+    now = now_fn("UTC")
 
     multi_params: dict[str, Any] = {}
     if multiparams:

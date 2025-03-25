@@ -209,7 +209,7 @@ class RRuleSchedule(PrefectBaseModel):
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         rrules = _rrule(rrule)
         dtstarts = [dts for rr in rrules if (dts := _rrule_dt(rr)) is not None]
-        unique_dstarts = set(DateTime.instance(d).in_tz("UTC") for d in dtstarts)
+        unique_dstarts = set(d.astimezone("UTC") for d in dtstarts)
         unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
         if len(unique_timezones) > 1:

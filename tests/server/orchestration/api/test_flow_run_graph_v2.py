@@ -1,3 +1,4 @@
+import datetime
 from collections import defaultdict
 from operator import attrgetter
 from typing import Iterable, List, Union
@@ -88,8 +89,8 @@ def assert_graph_is_connected(graph: Graph, incremental: bool = False) -> None:
 
 
 @pytest.fixture
-def base_time(start_of_test: DateTime) -> DateTime:
-    return start_of_test.subtract(minutes=5)
+def base_time(start_of_test: datetime.datetime) -> datetime.datetime:
+    return start_of_test - datetime.timedelta(minutes=5)
 
 
 @pytest.fixture
@@ -97,14 +98,14 @@ async def unstarted_flow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow,  # : db.Flow,
-    base_time: DateTime,
+    base_time: datetime.datetime,
 ):
     flow_run = db.FlowRun(
         id=uuid4(),
         flow_id=flow.id,
         state_type=StateType.COMPLETED,
         state_name="Irrelevant",
-        expected_start_time=base_time.subtract(seconds=1),
+        expected_start_time=base_time - datetime.timedelta(seconds=1),
         start_time=None,
         end_time=None,
     )
@@ -135,16 +136,16 @@ async def flow_run(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow,  # : db.Flow,
-    base_time: DateTime,
+    base_time: datetime.datetime,
 ):
     flow_run = db.FlowRun(
         id=uuid4(),
         flow_id=flow.id,
         state_type=StateType.COMPLETED,
         state_name="Irrelevant",
-        expected_start_time=base_time.subtract(seconds=1),
+        expected_start_time=base_time - datetime.timedelta(seconds=1),
         start_time=base_time,
-        end_time=base_time.add(minutes=5),
+        end_time=base_time + datetime.timedelta(minutes=5),
     )
     session.add(flow_run)
     await session.commit()
@@ -189,7 +190,7 @@ async def flat_tasks(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run,  # db.FlowRun,
-    base_time: DateTime,
+    base_time: datetime.datetime,
 ):
     task_runs = [
         db.TaskRun(
@@ -200,9 +201,11 @@ async def flat_tasks(
             dynamic_key=f"task-{i}",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=i).subtract(microseconds=1),
-            start_time=base_time.add(seconds=i),
-            end_time=base_time.add(minutes=1, seconds=i),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=i)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=i),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=i),
         )
         for i in range(5)
     ]
@@ -218,9 +221,11 @@ async def flat_tasks(
             dynamic_key="task-pending",
             state_type=StateType.PENDING,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=3).subtract(microseconds=1),
-            start_time=base_time.add(seconds=3),
-            end_time=base_time.add(minutes=1, seconds=3),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=3)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=3),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
         )
     )
 
@@ -327,9 +332,11 @@ async def nested_tasks(
             dynamic_key="task-0",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=1).subtract(microseconds=1),
-            start_time=base_time.add(seconds=1),
-            end_time=base_time.add(minutes=1, seconds=1),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=1)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=1),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=1),
             task_inputs={},
         )
     )
@@ -343,9 +350,11 @@ async def nested_tasks(
             dynamic_key="task-1",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=2).subtract(microseconds=1),
-            start_time=base_time.add(seconds=2),
-            end_time=base_time.add(minutes=1, seconds=2),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=2)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=2),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=2),
             task_inputs={
                 "__parents__": [
                     {"id": task_runs[0].id, "input_type": "task_run"},
@@ -363,9 +372,11 @@ async def nested_tasks(
             dynamic_key="task-2",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=3).subtract(microseconds=1),
-            start_time=base_time.add(seconds=3),
-            end_time=base_time.add(minutes=1, seconds=3),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=3)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=3),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
             task_inputs={
                 "x": [
                     {"id": task_runs[1].id, "input_type": "task_run"},
@@ -480,9 +491,11 @@ async def nested_tasks_including_parent_with_multiple_params(
             dynamic_key="task-0",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=1).subtract(microseconds=1),
-            start_time=base_time.add(seconds=1),
-            end_time=base_time.add(minutes=1, seconds=1),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=1)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=1),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=1),
             task_inputs={
                 "first_arg": [],
                 "second_arg": [],
@@ -499,9 +512,11 @@ async def nested_tasks_including_parent_with_multiple_params(
             dynamic_key="task-1",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=2).subtract(microseconds=1),
-            start_time=base_time.add(seconds=2),
-            end_time=base_time.add(minutes=1, seconds=2),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=2)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=2),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=2),
             task_inputs={
                 "__parents__": [
                     {"id": task_runs[0].id, "input_type": "task_run"},
@@ -563,9 +578,11 @@ async def linked_tasks(
             dynamic_key=f"task-{i}",
             state_type=StateType.COMPLETED,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=i).subtract(microseconds=1),
-            start_time=base_time.add(seconds=i),
-            end_time=base_time.add(minutes=1, seconds=i),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=i)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=i),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=i),
         )
         for i in range(4)
     ]
@@ -581,11 +598,11 @@ async def linked_tasks(
                 dynamic_key=f"task-{index + j}",
                 state_type=StateType.COMPLETED,
                 state_name="Irrelevant",
-                expected_start_time=base_time.add(seconds=index + j).subtract(
-                    microseconds=1
-                ),
-                start_time=base_time.add(seconds=index + j),
-                end_time=base_time.add(minutes=1, seconds=index + j),
+                expected_start_time=base_time
+                + datetime.timedelta(seconds=index + j)
+                - datetime.timedelta(microseconds=1),
+                start_time=base_time + datetime.timedelta(seconds=index + j),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=index + j),
                 task_inputs={
                     "x": [
                         {"id": task_runs[2 * j].id, "input_type": "task_run"},
@@ -611,9 +628,11 @@ async def linked_tasks(
             dynamic_key="task-pending",
             state_type=StateType.PENDING,
             state_name="Irrelevant",
-            expected_start_time=base_time.add(seconds=3).subtract(microseconds=1),
-            start_time=base_time.add(seconds=3),
-            end_time=base_time.add(minutes=1, seconds=3),
+            expected_start_time=base_time
+            + datetime.timedelta(seconds=3)
+            - datetime.timedelta(microseconds=1),
+            start_time=base_time + datetime.timedelta(seconds=3),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
         )
     )
 
@@ -655,8 +674,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 id=linked_tasks[0].id,
                 label="task-0",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=0),
-                end_time=base_time.add(minutes=1, seconds=0),
+                start_time=base_time + datetime.timedelta(seconds=0),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=0),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[4].id),
@@ -672,8 +691,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 id=linked_tasks[1].id,
                 label="task-1",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=1),
-                end_time=base_time.add(minutes=1, seconds=1),
+                start_time=base_time + datetime.timedelta(seconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=1),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[4].id),
@@ -689,8 +708,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 id=linked_tasks[2].id,
                 label="task-2",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=2),
-                end_time=base_time.add(minutes=1, seconds=2),
+                start_time=base_time + datetime.timedelta(seconds=2),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=2),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[5].id),
@@ -706,8 +725,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 id=linked_tasks[3].id,
                 label="task-3",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=3),
-                end_time=base_time.add(minutes=1, seconds=3),
+                start_time=base_time + datetime.timedelta(seconds=3),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[5].id),
@@ -723,8 +742,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 id=linked_tasks[4].id,
                 label="task-4",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=4),
-                end_time=base_time.add(minutes=1, seconds=4),
+                start_time=base_time + datetime.timedelta(seconds=4),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=4),
                 parents=[
                     Edge(id=linked_tasks[0].id),
                     Edge(id=linked_tasks[1].id),
@@ -741,8 +760,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                 id=linked_tasks[5].id,
                 label="task-5",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=5),
-                end_time=base_time.add(minutes=1, seconds=5),
+                start_time=base_time + datetime.timedelta(seconds=5),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=5),
                 parents=[
                     Edge(id=linked_tasks[2].id),
                     Edge(id=linked_tasks[3].id),
@@ -796,8 +815,10 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 id=linked_tasks[0].id,
                 label="task-0",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=0).subtract(microseconds=1),
-                end_time=base_time.add(minutes=1, seconds=0),
+                start_time=base_time
+                + datetime.timedelta(seconds=0)
+                - datetime.timedelta(microseconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=0),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[4].id),
@@ -813,8 +834,10 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 id=linked_tasks[1].id,
                 label="task-1",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=1).subtract(microseconds=1),
-                end_time=base_time.add(minutes=1, seconds=1),
+                start_time=base_time
+                + datetime.timedelta(seconds=1)
+                - datetime.timedelta(microseconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=1),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[4].id),
@@ -830,8 +853,10 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 id=linked_tasks[2].id,
                 label="task-2",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=2).subtract(microseconds=1),
-                end_time=base_time.add(minutes=1, seconds=2),
+                start_time=base_time
+                + datetime.timedelta(seconds=2)
+                - datetime.timedelta(microseconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=2),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[5].id),
@@ -847,8 +872,10 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 id=linked_tasks[3].id,
                 label="task-3",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=3).subtract(microseconds=1),
-                end_time=base_time.add(minutes=1, seconds=3),
+                start_time=base_time
+                + datetime.timedelta(seconds=3)
+                - datetime.timedelta(microseconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[5].id),
@@ -864,8 +891,10 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 id=linked_tasks[4].id,
                 label="task-4",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=4).subtract(microseconds=1),
-                end_time=base_time.add(minutes=1, seconds=4),
+                start_time=base_time
+                + datetime.timedelta(seconds=4)
+                - datetime.timedelta(microseconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=4),
                 parents=[
                     Edge(id=linked_tasks[0].id),
                     Edge(id=linked_tasks[1].id),
@@ -882,8 +911,10 @@ async def test_reading_graph_for_flow_run_with_linked_unstarted_tasks(
                 id=linked_tasks[5].id,
                 label="task-5",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=5).subtract(microseconds=1),
-                end_time=base_time.add(minutes=1, seconds=5),
+                start_time=base_time
+                + datetime.timedelta(seconds=5)
+                - datetime.timedelta(microseconds=1),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=5),
                 parents=[
                     Edge(id=linked_tasks[2].id),
                     Edge(id=linked_tasks[3].id),
@@ -903,7 +934,7 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
     base_time: DateTime,
 ):
     # `since` is just after the second task ends, so we should only get the last four
-    since = base_time.add(minutes=1, seconds=1, microseconds=1000)
+    since = base_time + datetime.timedelta(minutes=1, seconds=1, microseconds=1000)
     assert linked_tasks[1].end_time
     assert linked_tasks[2].end_time
     assert linked_tasks[1].end_time < since < linked_tasks[2].end_time
@@ -940,8 +971,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 id=linked_tasks[2].id,
                 label="task-2",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=2),
-                end_time=base_time.add(minutes=1, seconds=2),
+                start_time=base_time + datetime.timedelta(seconds=2),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=2),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[5].id),
@@ -957,8 +988,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 id=linked_tasks[3].id,
                 label="task-3",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=3),
-                end_time=base_time.add(minutes=1, seconds=3),
+                start_time=base_time + datetime.timedelta(seconds=3),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
                 parents=[],
                 children=[
                     Edge(id=linked_tasks[5].id),
@@ -974,8 +1005,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 id=linked_tasks[4].id,
                 label="task-4",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=4),
-                end_time=base_time.add(minutes=1, seconds=4),
+                start_time=base_time + datetime.timedelta(seconds=4),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=4),
                 parents=[
                     # important: these are not present in the node list because they
                     # already ended but we still have the edges referencing them
@@ -994,8 +1025,8 @@ async def test_reading_graph_for_flow_run_with_linked_tasks_incrementally(
                 id=linked_tasks[5].id,
                 label="task-5",
                 state_type=StateType.COMPLETED,
-                start_time=base_time.add(seconds=5),
-                end_time=base_time.add(minutes=1, seconds=5),
+                start_time=base_time + datetime.timedelta(seconds=5),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=5),
                 parents=[
                     Edge(id=linked_tasks[2].id),
                     Edge(id=linked_tasks[3].id),
@@ -1023,9 +1054,9 @@ async def subflow_run(
         dynamic_key="task-0",
         state_type=StateType.COMPLETED,
         state_name="Irrelevant",
-        expected_start_time=base_time.subtract(microseconds=1),
-        start_time=base_time.add(seconds=1),
-        end_time=base_time.add(minutes=1),
+        expected_start_time=base_time - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=1),
+        end_time=base_time + datetime.timedelta(minutes=1),
     )
     session.add(wrapper_task)
     await session.flush()
@@ -1035,9 +1066,9 @@ async def subflow_run(
         flow_id=flow_run.flow_id,
         state_type=StateType.COMPLETED,
         state_name="Irrelevant",
-        expected_start_time=base_time.subtract(microseconds=1),
+        expected_start_time=base_time - datetime.timedelta(microseconds=1),
         start_time=base_time,
-        end_time=base_time.add(minutes=5),
+        end_time=base_time + datetime.timedelta(minutes=5),
         parent_task_run_id=wrapper_task.id,
     )
     session.add(subflow_run)
@@ -1236,7 +1267,7 @@ async def flow_run_task_artifacts(
         flow_run_id=flow_run.id,
         task_run_id=flat_tasks[4].id,
         type="table",
-        created=now("UTC").subtract(minutes=2),
+        created=now("UTC") - datetime.timedelta(minutes=2),
     )
 
     # second artifact from same task with a different created time
@@ -1244,7 +1275,7 @@ async def flow_run_task_artifacts(
         flow_run_id=flow_run.id,
         task_run_id=flat_tasks[4].id,
         type="table",
-        created=now("UTC").subtract(minutes=1),
+        created=now("UTC") - datetime.timedelta(minutes=1),
     )
 
     result_type_artifact = db.Artifact(
@@ -1371,7 +1402,7 @@ async def flow_run_states(
             flow_run_id=flow_run.id,
             type=StateType.RUNNING,
             name="Running",
-            timestamp=now("UTC").subtract(minutes=1),
+            timestamp=now("UTC") - datetime.timedelta(minutes=1),
         ),
         db.FlowRunState(
             flow_run_id=flow_run.id,
@@ -1383,13 +1414,13 @@ async def flow_run_states(
             flow_run_id=flow_run.id,
             type=StateType.SCHEDULED,
             name="Scheduled",
-            timestamp=now("UTC").subtract(minutes=3),
+            timestamp=now("UTC") - datetime.timedelta(minutes=3),
         ),
         db.FlowRunState(
             flow_run_id=flow_run.id,
             type=StateType.PENDING,
             name="Pending",
-            timestamp=now("UTC").subtract(seconds=2),
+            timestamp=now("UTC") - datetime.timedelta(seconds=2),
         ),
     ]
     session.add_all(states)

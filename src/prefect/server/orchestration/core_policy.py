@@ -7,6 +7,7 @@ Prefect enforces on a state transition.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any, Union, cast
 from uuid import uuid4
 
@@ -689,7 +690,7 @@ class RetryFailedFlows(FlowRunOrchestrationRule):
         if run_settings.retries is None or run_count > run_settings.retries:
             return  # Retry count exceeded, allow transition to failed
 
-        scheduled_start_time = DateTime.now("UTC").add(
+        scheduled_start_time = DateTime.now("UTC") + datetime.timedelta(
             seconds=run_settings.retry_delay or 0
         )
 

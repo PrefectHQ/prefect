@@ -65,7 +65,7 @@ from prefect.settings import (
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import now
 from prefect.utilities.dispatch import get_registry_for_type
 
 # isort: split
@@ -545,7 +545,7 @@ def disable_csrf_protection():
 
 
 @pytest.fixture
-def start_of_test() -> DateTime:
+def start_of_test() -> datetime.datetime:
     return now("UTC")
 
 

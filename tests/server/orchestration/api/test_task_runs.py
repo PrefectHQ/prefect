@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from uuid import uuid4
 
@@ -294,7 +295,7 @@ class TestReadTaskRuns:
                 name="Task Run 1",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.subtract(minutes=5),
+                expected_start_time=now - datetime.timedelta(minutes=5),
                 dynamic_key="0",
             ),
         )
@@ -304,7 +305,7 @@ class TestReadTaskRuns:
                 name="Task Run 2",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.add(minutes=5),
+                expected_start_time=now + datetime.timedelta(minutes=5),
                 dynamic_key="1",
             ),
         )
@@ -411,7 +412,7 @@ class TestPaginateTaskRuns:
                     name=f"Task Run {i}",
                     flow_run_id=flow_run.id,
                     task_key="my-key",
-                    expected_start_time=now.add(minutes=i),
+                    expected_start_time=now + datetime.timedelta(minutes=i),
                     dynamic_key=str(i),
                 ),
             )
@@ -553,7 +554,7 @@ class TestPaginateTaskRuns:
                 name="Task Run 1",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.subtract(minutes=5),
+                expected_start_time=now - datetime.timedelta(minutes=5),
                 dynamic_key="0",
             ),
         )
@@ -563,7 +564,7 @@ class TestPaginateTaskRuns:
                 name="Task Run 2",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.add(minutes=5),
+                expected_start_time=now + datetime.timedelta(minutes=5),
                 dynamic_key="1",
             ),
         )
@@ -906,7 +907,7 @@ class TestTaskRunHistory:
             "/task_runs/history",
             json=dict(
                 history_start=str(now_fn("UTC")),
-                history_end=str(now_fn("UTC").add(days=1)),
+                history_end=str(now_fn("UTC") + datetime.timedelta(days=1)),
                 history_interval_seconds=0.9,
             ),
         )

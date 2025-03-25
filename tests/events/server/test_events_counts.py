@@ -1,3 +1,4 @@
+import datetime
 import math
 from datetime import timedelta
 from typing import AsyncGenerator, Dict, List, Tuple
@@ -16,7 +17,7 @@ from prefect.server.events.storage.database import (
     count_events,
     write_events,
 )
-from prefect.types._datetime import Date, DateTime, Duration
+from prefect.types._datetime import Date, DateTime, Duration, now
 
 # Note: the counts in this module are sensitive to the number and shape of events
 # we produce in conftest.py and may need to be adjusted if we make changes.
@@ -24,7 +25,10 @@ from prefect.types._datetime import Date, DateTime, Duration
 
 @pytest.fixture(scope="module")
 def known_dates() -> Tuple[Date, ...]:
-    dates = [Date.today().subtract(days=days_ago) for days_ago in [5, 4, 3, 2, 1]]
+    dates = [
+        datetime.date.today() - datetime.timedelta(days=days_ago)
+        for days_ago in [5, 4, 3, 2, 1]
+    ]
     return tuple(dates)
 
 
@@ -156,9 +160,9 @@ async def events_query_session(
 
 
 def datetime_from_date(
-    date: Date, hour: int = 0, minute: int = 0, second: int = 0, microsecond=0
-) -> DateTime:
-    return DateTime(
+    date: Date, hour: int = 0, minute: int = 0, second: int = 0, microsecond: int = 0
+) -> datetime.datetime:
+    return datetime.datetime(
         date.year,
         date.month,
         date.day,
@@ -166,7 +170,7 @@ def datetime_from_date(
         minute=minute,
         second=second,
         microsecond=microsecond,
-    ).in_timezone("UTC")
+    ).astimezone(datetime.timezone.utc)
 
 
 async def test_counting_by_day_legacy(
@@ -680,9 +684,13 @@ async def test_counting_by_time_per_two_days(
         expected = [
             EventCount(
                 value="0",
-                label=datetime_from_date(known_dates[0].subtract(days=1)).isoformat(),
+                label=datetime_from_date(
+                    known_dates[0] - datetime.timedelta(days=1)
+                ).isoformat(),
                 count=20,
-                start_time=datetime_from_date(known_dates[0].subtract(days=1)),
+                start_time=datetime_from_date(
+                    known_dates[0] - datetime.timedelta(days=1)
+                ),
                 end_time=datetime_from_date(known_dates[0], 23, 59, 59, 999999),
             ),
             EventCount(
@@ -872,8 +880,8 @@ async def test_counting_by_time_must_result_in_reasonable_number_of_buckets(
             session=events_query_session,
             filter=EventFilter(
                 occurred=EventOccurredFilter(
-                    since=DateTime.now("UTC").subtract(days=7),
-                    until=DateTime.now("UTC"),
+                    since=now("UTC") - datetime.timedelta(days=7),
+                    until=now("UTC"),
                 ),
             ),
             countable=Countable.time,

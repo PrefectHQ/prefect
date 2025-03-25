@@ -32,7 +32,7 @@ async def many_flow_run_states(flow, session, db):
                         1: schemas.states.StateType.RUNNING,
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
-                    timestamp=now("UTC").add(minutes=i),
+                    timestamp=now("UTC") + datetime.timedelta(minutes=i),
                 ).orm_dict(),
             )
             for i in range(3)
@@ -71,7 +71,7 @@ async def many_task_run_states(flow_run, session, db):
                         1: schemas.states.StateType.RUNNING,
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
-                    timestamp=now("UTC").add(minutes=i),
+                    timestamp=now("UTC") + datetime.timedelta(minutes=i),
                 ).orm_dict(),
             )
             for i in range(3)
@@ -406,12 +406,14 @@ class TestTotalRunTimeEstimate:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+            state=schemas.states.Running(timestamp=dt + datetime.timedelta(seconds=1)),
         )
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
+            state=schemas.states.Completed(
+                timestamp=dt + datetime.timedelta(seconds=4)
+            ),
         )
 
         assert fr.total_run_time == datetime.timedelta(seconds=3)
@@ -441,7 +443,7 @@ class TestTotalRunTimeEstimate:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+            state=schemas.states.Running(timestamp=dt + datetime.timedelta(seconds=1)),
         )
 
         assert fr.total_run_time == datetime.timedelta(0)
@@ -480,12 +482,14 @@ class TestTotalRunTimeEstimate:
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=tr.id,
-            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+            state=schemas.states.Running(timestamp=dt + datetime.timedelta(seconds=1)),
         )
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=tr.id,
-            state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
+            state=schemas.states.Completed(
+                timestamp=dt + datetime.timedelta(seconds=4)
+            ),
         )
 
         assert tr.total_run_time == datetime.timedelta(seconds=3)
@@ -518,7 +522,7 @@ class TestTotalRunTimeEstimate:
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=tr.id,
-            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+            state=schemas.states.Running(timestamp=dt + datetime.timedelta(seconds=1)),
         )
 
         assert tr.total_run_time == datetime.timedelta(0)
@@ -557,12 +561,14 @@ class TestTotalRunTimeEstimate:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+            state=schemas.states.Running(timestamp=dt + datetime.timedelta(seconds=1)),
         )
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
+            state=schemas.states.Completed(
+                timestamp=dt + datetime.timedelta(seconds=4)
+            ),
         )
 
         await session.commit()
@@ -632,7 +638,7 @@ class TestExpectedStartTimeDelta:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Pending(timestamp=dt.add(seconds=1)),
+            state=schemas.states.Pending(timestamp=dt + datetime.timedelta(seconds=1)),
         )
 
         # pending has no impact on lateness
@@ -662,7 +668,7 @@ class TestExpectedStartTimeDelta:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Running(timestamp=dt.add(seconds=5)),
+            state=schemas.states.Running(timestamp=dt + datetime.timedelta(seconds=5)),
         )
 
         # running created a start time
@@ -686,7 +692,9 @@ class TestExpectedStartTimeDelta:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Completed(timestamp=dt.add(seconds=5)),
+            state=schemas.states.Completed(
+                timestamp=dt + datetime.timedelta(seconds=5)
+            ),
         )
 
         # final states remove lateness even if the run never started
@@ -710,7 +718,7 @@ class TestExpectedStartTimeDelta:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
-            state=schemas.states.Running(timestamp=dt.subtract(minutes=5)),
+            state=schemas.states.Running(timestamp=dt - datetime.timedelta(minutes=5)),
         )
 
         # running early results in zero lateness
