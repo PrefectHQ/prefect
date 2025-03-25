@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from fastapi import status
 from httpx import Response
 from pydantic import TypeAdapter
+from whenever import Instant
 
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
@@ -287,7 +288,10 @@ async def test_history_returns_maximum_items(client, route):
     # only first 500 items returned
     assert len(response.json()) == 500
 
-    intervals = [datetime.fromisoformat(r["interval_start"]) for r in response.json()]
+    intervals = [
+        Instant.parse_rfc3339(r["interval_start"]).py_datetime()
+        for r in response.json()
+    ]
     assert min(intervals) == dt
     assert max(intervals) == dt + timedelta(minutes=499)
 
