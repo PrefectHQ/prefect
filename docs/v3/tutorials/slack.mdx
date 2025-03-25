@@ -1,0 +1,95 @@
+---
+title: Configure slack alerts on failure
+description: Learn how to create slack nofitications in code for failure alerting
+---
+In this tutorial, you'll learn how to set up a slack alert through codethat proactively notifies your team about failures.
+Alerts let team members engage with the troubleshooting process, even if they don't typically log into Prefect Cloud.
+
+## Set up a Slack bot
+First, go to https://api.slack.com/apps, the click: `Create a new app` -> `From a Manifest`. Optionally update the name of the app, for example "Prefect Workflow Failures"
+
+In your app settings, click `Incoming Webhooks`. Turn it on, then click `Add New Webhook to Workspace` at the bottom
+![image](/v3/img/tutorials/slack/0.png)
+
+Turn it on, then click "Add New Webhook to Workspace" at the bottom
+
+![image](/v3/img/tutorials/slack/1.png)
+
+Pick the channel that this webhook will go to, for example `#prefect-run-failures`. 
+Once you do, you should see the Webhook URLs section populate
+
+![image](/v3/img/tutorials/slack/2.png)
+
+Copy that URL, and head over to [prefect](app.prefect.io).
+From the left nav, click `Settings` -> `Blocks`, and then the `+` at the top to add a new block
+
+![image](/v3/img/tutorials/slack/3.png)
+
+
+Search for Slack Webhook (not Slack Credentials). Add a block name, drop in the webhook url you copied
+
+![image](/v3/img/tutorials/slack/4.png)
+
+Optionally set the `Notify Type` to `failure`.
+
+![image](/v3/img/tutorials/slack/5.png)
+
+
+Now, in your prefect project, add a new module.
+
+<Note>
+If your flow is async, this notify function must be async. And if it's sync, the function must be sync.
+</Note>
+
+```python notify.py
+from prefect import Flow
+from prefect.blocks.notifications import SlackWebhook
+from prefect.server.schemas.core import FlowRun
+from prefect.server.schemas.states import State
+from prefect.settings import PREFECT_UI_URL
+
+
+async def notify_slack(flow: Flow, flow_run: FlowRun, state: State):
+    # Fill in the name of the prefect slack-webhook block you just made.
+    slack_webhook_block = await SlackWebhook.aload("prefect-slack-block-name")
+    # We need to type: ignore because of some prefect async issues
+    # For more details: https://github.com/PrefectHQ/prefect/issues/15008
+    await slack_webhook_block.notify(  # type: ignore
+        (
+            f"Your job {flow_run.name} entered {state.name} "
+            f"with message:\n\n"
+            f"See <{PREFECT_UI_URL.value()}/flow-runs/"
+            f"flow-run/{flow_run.id}|the flow run in the UI>\n\n"
+            f"Tags: {flow_run.tags}\n\n"
+            f"Scheduled start: {flow_run.expected_start_time}"
+        )
+    )
+```
+If you have a sync flow (ie your main flow entrypoint is defined with `def` instead of `async def`, it's the same imports, but the function will look like so:
+```python notify.py
+def notify_slack(flow: Flow, flow_run: FlowRun, state: State):
+    slack_webhook_block = SlackWebhook.load("prefect-flow-failures")
+    slack_webhook_block.notify(
+        (
+            f"Your job {flow_run.name} entered {state.name} "
+            f"with message:\n\n"
+            f"See <{PREFECT_UI_URL.value()}/flow-runs/"
+            f"flow-run/{flow_run.id}|the flow run in the UI>\n\n"
+            f"Tags: {flow_run.tags}\n\n"
+            f"Scheduled start: {flow_run.expected_start_time}"
+        )
+    )
+```
+
+Whichever way you define your notify, you will add it to your flow with the same syntax:
+```python flow.py
+@flow(on_failure=[notify_slack], on_crashed=[notify_slack], on_cancellation=[notify_slack])
+async def main():
+    ...
+```
+You can have it run on `failure`, `crash`, `cancellation`, `running`, or `completion`. For similar reasons as listed above,
+you might see a pylance/mypy error on that line if your function is async, which you can safely `type: ignore`.
+
+That's it! Now you'll get slack notifications on flow failures and crashes.
+
+![image](/v3/img/tutorials/slack/6.png)
