@@ -66,6 +66,7 @@ RUN uv pip uninstall setuptools
 RUN python -c "import prefect; print(prefect.__version__)"
 
 # Setup entrypoint
-COPY ./client/run-flow /run-flow
+COPY ./client/prefect-cli-stub /usr/local/bin/prefect
 COPY ./scripts/entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh", "/run-flow"]
+
+ENTRYPOINT ["/entrypoint.sh"]
