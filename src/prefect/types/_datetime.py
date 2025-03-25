@@ -68,8 +68,15 @@ def from_format(
     return DateTime.instance(pendulum.from_format(value, fmt, tz, locale))
 
 
-def from_timestamp(ts: float, tz: str | pendulum.tz.Timezone = UTC) -> DateTime:
-    return DateTime.instance(pendulum.from_timestamp(ts, tz))
+def from_timestamp(
+    ts: float, tz: str | pendulum.tz.Timezone = UTC
+) -> datetime.datetime:
+    if sys.version_info >= (3, 13):
+        if isinstance(tz, Timezone):
+            tz = tz.name
+        return datetime.datetime.fromtimestamp(ts, ZoneInfo(tz))
+
+    return pendulum.from_timestamp(ts, tz)
 
 
 def human_friendly_diff(

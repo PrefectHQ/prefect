@@ -6,6 +6,7 @@ import sys
 import time
 import uuid
 from contextlib import nullcontext
+from datetime import datetime
 from functools import partial
 from io import StringIO
 from pathlib import Path
@@ -532,8 +533,8 @@ class TestAPILogHandler:
         record = handler.emit.call_args[0][0]
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert (
-            log_dict["timestamp"] == from_timestamp(record.created).to_iso8601_string()
+        assert datetime.fromisoformat(log_dict["timestamp"]) == from_timestamp(
+            record.created
         )
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
@@ -562,7 +563,7 @@ class TestAPILogHandler:
 
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert log_dict["timestamp"] == from_timestamp(now).to_iso8601_string()
+        assert datetime.fromisoformat(log_dict["timestamp"]) == from_timestamp(now)
 
     def test_does_not_send_logs_that_opt_out(
         self,
