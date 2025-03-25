@@ -727,22 +727,12 @@ class TestPrefectDbtRunnerInvoke:
         debug_result.result = None
         mock_dbt_runner.invoke.return_value = debug_result
 
-        result = runner.invoke(
-            [
-                "debug",
-                "--project-dir",
-                settings.project_dir,
-            ]
-        )
+        result = runner.invoke(["debug"])
 
         assert result.success
         assert result.result is None
         mock_dbt_runner.invoke.assert_called_once_with(
-            [
-                "debug",
-                "--project-dir",
-                settings.project_dir,
-            ],
+            ["debug"],
             project_dir=settings.project_dir,
             profiles_dir=ANY,
             log_level=ANY,
