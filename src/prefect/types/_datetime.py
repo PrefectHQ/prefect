@@ -4,7 +4,9 @@ import datetime
 import sys
 from contextlib import contextmanager
 from typing import Any
+from zoneinfo import ZoneInfo
 
+import humanize
 import pendulum
 import pendulum.tz
 from pendulum.date import Date as PendulumDate
@@ -70,11 +72,19 @@ def from_timestamp(ts: float, tz: str | pendulum.tz.Timezone = UTC) -> DateTime:
     return DateTime.instance(pendulum.from_timestamp(ts, tz))
 
 
-def human_friendly_diff(dt: DateTime | datetime.datetime) -> str:
-    if isinstance(dt, DateTime):
-        return dt.diff_for_humans()
-    else:
-        return DateTime.instance(dt).diff_for_humans()
+def human_friendly_diff(
+    dt: datetime.datetime, other: datetime.datetime | None = None
+) -> str:
+    if sys.version_info >= (3, 13):
+        if dt.tzinfo is None:
+            local_tz = datetime.datetime.now().astimezone().tzinfo
+            dt = dt.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
+        elif isinstance(dt.tzinfo, Timezone):
+            dt = dt.replace(tzinfo=ZoneInfo(dt.tzinfo.name))
+
+        return humanize.naturaltime(dt, when=other)
+
+    return DateTime.instance(dt).diff_for_humans(other=DateTime.instance(other))
 
 
 def now(tz: str | Timezone = UTC) -> DateTime:
