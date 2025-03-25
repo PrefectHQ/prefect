@@ -91,6 +91,7 @@ def notify_slack(flow: Flow, flow_run: FlowRun, state: State):
 Whichever way you define your notify, you will add it to your flow with the same syntax:
 ```python flow.py
 from prefect import flow
+from notify import notify_slack
 
 
 @flow(on_failure=[notify_slack], on_crashed=[notify_slack], on_cancellation=[notify_slack])
