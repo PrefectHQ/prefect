@@ -363,6 +363,9 @@ class PrefectDbtRunner:
 
         async with aresolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
+            invoke_kwargs["project_dir"] = (
+                invoke_kwargs["project_dir"].resolve().as_posix()
+            )
 
             needs_manifest = any(arg in REQUIRES_MANIFEST for arg in args)
             if self.manifest is None and "parse" not in args and needs_manifest:
@@ -432,6 +435,9 @@ class PrefectDbtRunner:
 
         with resolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
+            invoke_kwargs["project_dir"] = (
+                invoke_kwargs["project_dir"].resolve().as_posix()
+            )
 
             needs_manifest = any(arg in REQUIRES_MANIFEST for arg in args)
             if self.manifest is None and "parse" not in args and needs_manifest:

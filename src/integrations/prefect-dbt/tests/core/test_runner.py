@@ -189,7 +189,7 @@ class TestPrefectDbtRunnerInvoke:
         assert parse_call.args[0] == ["parse"]
 
         run_call = mock_dbt_runner.invoke.call_args_list[1]
-        assert run_call.args[0] == ["run"]
+        assert run_call.args[0][0] == "run"
 
     @pytest.mark.asyncio
     async def test_ainvoke_with_parsing(self, mock_dbt_runner, settings):
@@ -202,7 +202,7 @@ class TestPrefectDbtRunnerInvoke:
         assert parse_call.args[0] == ["parse"]
 
         run_call = mock_dbt_runner.invoke.call_args_list[1]
-        assert run_call.args[0] == ["run"]
+        assert run_call.args[0][0] == "run"
 
     # Single failure tests
     def test_invoke_raises_on_failure(self, mock_dbt_runner, settings):
@@ -231,9 +231,9 @@ class TestPrefectDbtRunnerInvoke:
 
         # Set up the side effects to return parse_result for parse command and run_result for run command
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
-            elif args == ["run"]:
+            elif args[0] == "run":
                 return run_result
             return Mock()
 
@@ -242,7 +242,15 @@ class TestPrefectDbtRunnerInvoke:
         with pytest.raises(
             ValueError, match="Failures detected during invocation of dbt command 'run'"
         ):
-            runner.invoke(["run"])
+            runner.invoke(
+                [
+                    "run",
+                    "--project-dir",
+                    settings.project_dir,
+                    "--profiles-dir",
+                    settings.profiles_dir,
+                ]
+            )
 
     @pytest.mark.asyncio
     async def test_ainvoke_raises_on_failure(self, mock_dbt_runner, settings):
@@ -269,9 +277,9 @@ class TestPrefectDbtRunnerInvoke:
         run_result.result.results = [node_result]
 
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
-            elif args == ["run"]:
+            elif args[0] == "run":
                 return run_result
             return Mock()
 
@@ -280,7 +288,15 @@ class TestPrefectDbtRunnerInvoke:
         with pytest.raises(
             ValueError, match="Failures detected during invocation of dbt command 'run'"
         ):
-            await runner.ainvoke(["run"])
+            await runner.ainvoke(
+                [
+                    "run",
+                    "--project-dir",
+                    settings.project_dir,
+                    "--profiles-dir",
+                    settings.profiles_dir,
+                ]
+            )
 
     # Multiple failures tests
     def test_invoke_multiple_failures(self, mock_dbt_runner, settings):
@@ -314,16 +330,24 @@ class TestPrefectDbtRunnerInvoke:
         run_result.result.results = [failed_model, failed_test]
 
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
-            elif args == ["run"]:
+            elif args[0] == "run":
                 return run_result
             return Mock()
 
         mock_dbt_runner.invoke.side_effect = side_effect
 
         with pytest.raises(ValueError) as exc_info:
-            runner.invoke(["run"])
+            runner.invoke(
+                [
+                    "run",
+                    "--project-dir",
+                    settings.project_dir,
+                    "--profiles-dir",
+                    settings.profiles_dir,
+                ]
+            )
 
         error_message = str(exc_info.value)
         assert 'Model failed_model errored with message: "Model error"' in error_message
@@ -361,16 +385,24 @@ class TestPrefectDbtRunnerInvoke:
         run_result.result.results = [failed_model, failed_test]
 
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
-            elif args == ["run"]:
+            elif args[0] == "run":
                 return run_result
             return Mock()
 
         mock_dbt_runner.invoke.side_effect = side_effect
 
         with pytest.raises(ValueError) as exc_info:
-            await runner.ainvoke(["run"])
+            await runner.ainvoke(
+                [
+                    "run",
+                    "--project-dir",
+                    settings.project_dir,
+                    "--profiles-dir",
+                    settings.profiles_dir,
+                ]
+            )
 
         error_message = str(exc_info.value)
         assert 'Model failed_model errored with message: "Model error"' in error_message
@@ -401,16 +433,24 @@ class TestPrefectDbtRunnerInvoke:
         run_result.result.results = [node_result]
 
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
-            elif args == ["run"]:
+            elif args[0] == "run":
                 return run_result
             return Mock()
 
         mock_dbt_runner.invoke.side_effect = side_effect
 
         # Should not raise an exception
-        result = runner.invoke(["run"])
+        result = runner.invoke(
+            [
+                "run",
+                "--project-dir",
+                settings.project_dir,
+                "--profiles-dir",
+                settings.profiles_dir,
+            ]
+        )
         assert result.success is False
 
     @pytest.mark.asyncio
@@ -438,16 +478,24 @@ class TestPrefectDbtRunnerInvoke:
         run_result.result.results = [node_result]
 
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
-            elif args == ["run"]:
+            elif args[0] == "run":
                 return run_result
             return Mock()
 
         mock_dbt_runner.invoke.side_effect = side_effect
 
         # Should not raise an exception
-        result = await runner.ainvoke(["run"])
+        result = await runner.ainvoke(
+            [
+                "run",
+                "--project-dir",
+                settings.project_dir,
+                "--profiles-dir",
+                settings.profiles_dir,
+            ]
+        )
         assert result.success is False
 
     @pytest.mark.parametrize(
@@ -501,7 +549,7 @@ class TestPrefectDbtRunnerInvoke:
             command_result.result = Mock(spec=expected_type)
 
         def side_effect(args, **kwargs):
-            if args == ["parse"]:
+            if args[0] == "parse":
                 return parse_result
             return command_result
 
@@ -524,10 +572,10 @@ class TestPrefectDbtRunnerInvoke:
         if requires_manifest:
             assert mock_dbt_runner.invoke.call_count == 2
             assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
-            assert mock_dbt_runner.invoke.call_args_list[1].args[0] == command
+            assert mock_dbt_runner.invoke.call_args_list[1].args[0][0] == command[0]
         else:
             mock_dbt_runner.invoke.assert_called_once()
-            assert mock_dbt_runner.invoke.call_args.args[0] == command
+            assert mock_dbt_runner.invoke.call_args.args[0][0] == command[0]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -601,10 +649,10 @@ class TestPrefectDbtRunnerInvoke:
         if requires_manifest:
             assert mock_dbt_runner.invoke.call_count == 2
             assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
-            assert mock_dbt_runner.invoke.call_args_list[1].args[0] == command
+            assert mock_dbt_runner.invoke.call_args_list[1].args[0][0] == command[0]
         else:
             mock_dbt_runner.invoke.assert_called_once()
-            assert mock_dbt_runner.invoke.call_args.args[0] == command
+            assert mock_dbt_runner.invoke.call_args.args[0][0] == command[0]
 
     def test_invoke_with_manifest_requiring_commands(self, mock_dbt_runner, settings):
         """Test that commands requiring manifest trigger parse if manifest not provided."""
@@ -631,7 +679,7 @@ class TestPrefectDbtRunnerInvoke:
         runner.invoke(["run"])
         assert mock_dbt_runner.invoke.call_count == 2
         assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
-        assert mock_dbt_runner.invoke.call_args_list[1].args[0] == ["run"]
+        assert mock_dbt_runner.invoke.call_args_list[1].args[0][0] == "run"
 
         # Reset mock
         mock_dbt_runner.invoke.reset_mock()
@@ -640,7 +688,7 @@ class TestPrefectDbtRunnerInvoke:
         # Test with command that doesn't require manifest
         runner.invoke(["clean"])
         assert mock_dbt_runner.invoke.call_count == 1
-        assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["clean"]
+        assert mock_dbt_runner.invoke.call_args_list[0].args[0][0] == "clean"
 
     def test_invoke_with_preloaded_manifest(self, mock_dbt_runner, settings):
         """Test that commands don't trigger parse when manifest is preloaded."""
@@ -654,11 +702,19 @@ class TestPrefectDbtRunnerInvoke:
         mock_dbt_runner.invoke.return_value = run_result
 
         # Test with command that normally requires manifest
-        runner.invoke(["run"])
+        runner.invoke(
+            [
+                "run",
+                "--project-dir",
+                settings.project_dir,
+                "--profiles-dir",
+                settings.profiles_dir,
+            ]
+        )
 
         # Should not call parse since manifest was preloaded
         mock_dbt_runner.invoke.assert_called_once()
-        assert mock_dbt_runner.invoke.call_args.args[0] == ["run"]
+        assert mock_dbt_runner.invoke.call_args.args[0][0] == "run"
 
     def test_invoke_debug_command(self, mock_dbt_runner, settings):
         """Test the dbt debug command which has unique behavior."""
@@ -671,12 +727,22 @@ class TestPrefectDbtRunnerInvoke:
         debug_result.result = None
         mock_dbt_runner.invoke.return_value = debug_result
 
-        result = runner.invoke(["debug"])
+        result = runner.invoke(
+            [
+                "debug",
+                "--project-dir",
+                settings.project_dir,
+            ]
+        )
 
         assert result.success
         assert result.result is None
         mock_dbt_runner.invoke.assert_called_once_with(
-            ["debug"],
+            [
+                "debug",
+                "--project-dir",
+                settings.project_dir,
+            ],
             project_dir=settings.project_dir,
             profiles_dir=ANY,
             log_level=ANY,
