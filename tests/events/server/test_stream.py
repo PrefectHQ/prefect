@@ -1,8 +1,10 @@
 import asyncio
+import datetime
 from typing import AsyncGenerator, AsyncIterator
 from uuid import uuid4
 
 import pytest
+from src.prefect.types._datetime import now
 
 from prefect.server.events import messaging, stream
 from prefect.server.events.filters import (
@@ -77,8 +79,8 @@ async def distributor_running() -> AsyncGenerator[None, None]:
 def default_liberal_filter() -> EventFilter:
     return EventFilter(
         occurred=EventOccurredFilter(
-            since=DateTime.now("UTC"),
-            until=DateTime.now("UTC").add(years=1),
+            since=now("UTC"),
+            until=now("UTC") + datetime.timedelta(days=365),
         )
     )
 

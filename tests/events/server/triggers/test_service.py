@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import AsyncGenerator
@@ -419,15 +420,15 @@ async def test_event_clock_only_moves_forward(
         id=uuid4(),
     )
 
-    event.occurred = DateTime.now("UTC") - timedelta(seconds=100)
+    event.occurred = now("UTC") - datetime.timedelta(seconds=100)
     await triggers.update_events_clock(event)
     first_tick = await triggers.get_events_clock()
-    assert first_tick == event.occurred.float_timestamp
+    assert first_tick == event.occurred.timestamp()
 
     event.occurred += timedelta(seconds=10)
     await triggers.update_events_clock(event)
     second_tick = await triggers.get_events_clock()
-    assert second_tick == event.occurred.float_timestamp
+    assert second_tick == event.occurred.timestamp()
 
     # now try to move backwards and see that the clock doesn't move backward
     event.occurred -= timedelta(seconds=5)
@@ -450,14 +451,14 @@ async def test_event_clock_avoids_the_future(
     await triggers.update_events_clock(event)
     first_tick = await triggers.get_events_clock()
     assert first_tick
-    assert first_tick == event.occurred.float_timestamp
+    assert first_tick == event.occurred.timestamp()
 
     # now try a future date and see that the clock stays pinned to the present
     event.occurred = DateTime.now("UTC") + timedelta(seconds=100)
     await triggers.update_events_clock(event)
     second_tick = await triggers.get_events_clock()
     assert second_tick
-    assert first_tick < second_tick <= DateTime.now("UTC").float_timestamp
+    assert first_tick < second_tick <= DateTime.now("UTC").timestamp()
 
 
 async def test_offset_is_resilient_to_low_volume(
@@ -466,7 +467,7 @@ async def test_offset_is_resilient_to_low_volume(
     base_time = now("UTC")
 
     mock_now = mock.Mock()
-    monkeypatch.setattr("prefect.types._datetime.DateTime.now", mock_now)
+    monkeypatch.setattr("prefect.types._datetime.now", mock_now)
 
     mock_now.return_value = base_time
 
@@ -477,11 +478,11 @@ async def test_offset_is_resilient_to_low_volume(
         id=uuid4(),
     )
     await triggers.update_events_clock(event)
-    assert await triggers.get_events_clock() == event.occurred.float_timestamp
+    assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0
 
     # now advance time a bit without an event, and confirm that the offset is the same
 
     mock_now.return_value = base_time + timedelta(seconds=10)
-    assert await triggers.get_events_clock() == event.occurred.float_timestamp
+    assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0

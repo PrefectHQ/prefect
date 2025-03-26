@@ -1,8 +1,10 @@
+import datetime
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, AsyncIterable
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now
 from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
     WS_1008_POLICY_VIOLATION,
@@ -75,8 +77,8 @@ def backfill_mock(
 def default_liberal_filter() -> EventFilter:
     return EventFilter(
         occurred=EventOccurredFilter(
-            since=DateTime.now("UTC"),
-            until=DateTime.now("UTC").add(years=1),
+            since=now("UTC"),
+            until=now("UTC") + datetime.timedelta(days=365),
         )
     )
 
