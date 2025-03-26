@@ -372,7 +372,7 @@ class Inputs(CachePolicy):
                 hashed_inputs[key] = transformer(val) if transformer else val
 
         try:
-            key = hash_objects(hashed_inputs, raise_on_failure=True)
+            return hash_objects(hashed_inputs, raise_on_failure=True)
         except HashError as exc:
             msg = (
                 f"{exc}\n\n"
