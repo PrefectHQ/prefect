@@ -119,6 +119,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ (matrix.image == 'prefecthq/prefect-client') && 'client/Dockerfile' || 'Dockerfile' }}
           platforms: linux/amd64,linux/arm64
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
