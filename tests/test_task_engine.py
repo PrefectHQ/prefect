@@ -2589,6 +2589,64 @@ class TestTaskConcurrencyLimits:
                 assert _task_run_id == task_run_id
                 assert occupy_seconds > 0
 
+    async def test_tag_concurrency_is_taken_prior_to_running_state(
+        self, events_pipeline, prefect_client
+    ):
+        task_run_id = None
+
+        @task(tags=["limit-tag"])
+        def bar():
+            pass
+
+        def side_effect(*args, **kwargs):
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
+            raise BaseException("stop")
+
+        with mock.patch(
+            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
+            side_effect=side_effect,
+        ):
+            with pytest.raises(BaseException, match="stop"):
+                bar()
+
+            await events_pipeline.process_events()
+            task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+            assert [state.name for state in task_run_states] == [
+                "Pending",
+                "Crashed",
+            ]
+
+    async def test_tag_concurrency_is_taken_prior_to_running_state_async(
+        self, events_pipeline, prefect_client
+    ):
+        task_run_id = None
+
+        @task(tags=["limit-tag"])
+        async def bar():
+            pass
+
+        def side_effect(*args, **kwargs):
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
+            raise BaseException("stop")
+
+        with mock.patch(
+            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
+            side_effect=side_effect,
+        ):
+            with pytest.raises(BaseException, match="stop"):
+                await bar()
+
+            await events_pipeline.process_events()
+            task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+            assert [state.name for state in task_run_states] == [
+                "Pending",
+                "Crashed",
+            ]
+
     def test_tag_concurrency_sync_with_tags_context(self):
         task_run_id = None
 
