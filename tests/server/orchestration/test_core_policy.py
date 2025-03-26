@@ -169,9 +169,7 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={
-                "scheduled_time": DateTime.now("UTC") + timedelta(minutes=5)
-            },
+            initial_details={"scheduled_time": now("UTC") + timedelta(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -203,9 +201,7 @@ class TestWaitForScheduledTimeRule:
             session,
             run_type,
             *intended_transition,
-            initial_details={
-                "scheduled_time": DateTime.now("UTC") + timedelta(minutes=5)
-            },
+            initial_details={"scheduled_time": now("UTC") + timedelta(minutes=5)},
         )
 
         scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
@@ -225,7 +221,7 @@ class TestCopyScheduledTime:
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.PENDING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = DateTime.now("UTC") - timedelta(minutes=5)
+        scheduled_time = now("UTC") - timedelta(minutes=5)
 
         ctx = await initialize_orchestration(
             session,
@@ -263,9 +259,7 @@ class TestCopyScheduledTime:
             session,
             run_type,
             *intended_transition,
-            initial_details={
-                "scheduled_time": DateTime.now("UTC") + timedelta(minutes=5)
-            },
+            initial_details={"scheduled_time": now("UTC") + timedelta(minutes=5)},
         )
 
         scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
@@ -357,8 +351,8 @@ class TestCachingBackendLogic:
     @pytest.mark.parametrize(
         ["expiration", "expected_status", "expected_name"],
         [
-            (DateTime.now("UTC") - timedelta(days=1), SetStateStatus.ACCEPT, "Running"),
-            (DateTime.now("UTC") + timedelta(days=1), SetStateStatus.REJECT, "Cached"),
+            (now("UTC") - timedelta(days=1), SetStateStatus.ACCEPT, "Running"),
+            (now("UTC") + timedelta(days=1), SetStateStatus.REJECT, "Cached"),
             (None, SetStateStatus.REJECT, "Cached"),
         ],
         ids=["past", "future", "null"],
@@ -421,7 +415,7 @@ class TestCachingBackendLogic:
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.COMPLETED
         intended_transition = (initial_state_type, proposed_state_type)
-        expiration = DateTime.now("UTC") - timedelta(days=1)
+        expiration = now("UTC") - timedelta(days=1)
 
         ctx1 = await initialize_orchestration(
             session,
@@ -998,7 +992,7 @@ class TestTaskRetryingRule:
         run_settings.retry_delay = 10
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = DateTime.now("UTC")
+            orchestration_start = now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -1033,7 +1027,7 @@ class TestTaskRetryingRule:
         run_settings.retry_delay = configured_retry_delays
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = DateTime.now("UTC")
+            orchestration_start = now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -1069,7 +1063,7 @@ class TestTaskRetryingRule:
         run_settings.retry_delay = configured_retry_delays
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = DateTime.now("UTC")
+            orchestration_start = now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -1114,7 +1108,7 @@ class TestTaskRetryingRule:
         run_settings.retry_jitter_factor = 9
 
         async with contextlib.AsyncExitStack() as stack:
-            orchestration_start = DateTime.now("UTC")
+            orchestration_start = now("UTC")
             for rule in retry_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
@@ -2812,7 +2806,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        five_minutes_from_now = DateTime.now("UTC") + timedelta(minutes=5)
+        five_minutes_from_now = now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_from_now, pause_reschedule=True
         )
@@ -2838,7 +2832,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        five_minutes_from_now = DateTime.now("UTC") + timedelta(minutes=5)
+        five_minutes_from_now = now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_from_now
         )
@@ -2902,7 +2896,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         ctx.run.deployment_id = deployment.id
-        five_minutes_ago = DateTime.now("UTC") - timedelta(minutes=5)
+        five_minutes_ago = now("UTC") - timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_ago
         )
@@ -2930,7 +2924,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         ctx.run.deployment_id = deployment.id
-        the_future = DateTime.now("UTC") + timedelta(minutes=5)
+        the_future = now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
@@ -2955,7 +2949,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         ctx.run.deployment_id = deployment.id
-        the_future = DateTime.now("UTC") + timedelta(minutes=5)
+        the_future = now("UTC") + timedelta(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
@@ -3027,7 +3021,7 @@ class TestPreventRunningTasksFromStoppedFlows:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        pause_timeout = DateTime.now("UTC") + timedelta(minutes=5)
+        pause_timeout = now("UTC") + timedelta(minutes=5)
         ctx = await initialize_orchestration(
             session,
             "task",
@@ -3600,9 +3594,7 @@ class TestFlowConcurrencyLimits:
             session, "flow", *pending_transition, deployment_id=deployment.id
         )
 
-        with mock.patch(
-            "prefect.server.orchestration.core_policy.DateTime.now"
-        ) as mock_now:
+        with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
             expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
             mock_now.return_value = expected_now
             expected_scheduled_time = mock_now.return_value + timedelta(
@@ -3659,9 +3651,7 @@ class TestFlowConcurrencyLimits:
                 session, "flow", *pending_transition, deployment_id=deployment.id
             )
 
-            with mock.patch(
-                "prefect.server.orchestration.core_policy.DateTime.now"
-            ) as mock_now:
+            with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
                 expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
                 mock_now.return_value = expected_now
                 expected_scheduled_time = mock_now.return_value + timedelta(
@@ -3792,9 +3782,7 @@ class TestFlowConcurrencyLimits:
             session, "flow", *pending_transition, deployment_id=deployment.id
         )
 
-        with mock.patch(
-            "prefect.server.orchestration.core_policy.DateTime.now"
-        ) as mock_now:
+        with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
             expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
             mock_now.return_value = expected_now
             expected_scheduled_time = mock_now.return_value + timedelta(
@@ -3877,9 +3865,7 @@ class TestFlowConcurrencyLimits:
             session, "flow", *pending_transition, deployment_id=deployment.id
         )
 
-        with mock.patch(
-            "prefect.server.orchestration.core_policy.DateTime.now"
-        ) as mock_now:
+        with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
             expected_now: DateTime = parse_datetime("2024-01-01T00:00:00Z")
             mock_now.return_value = expected_now
             expected_scheduled_time = mock_now.return_value + timedelta(
