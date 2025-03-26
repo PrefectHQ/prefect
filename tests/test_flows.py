@@ -559,6 +559,28 @@ class TestFlowWithOptions:
         )
         assert f.name == name
 
+    def test_with_options_preserves_classmethod_context(self):
+        class BaseProcessor:
+            @classmethod
+            def get_multiplier(cls):
+                return 1
+
+            @classmethod
+            @flow
+            def process(cls, x: int):
+                return x * cls.get_multiplier()
+
+        class ChildProcessor(BaseProcessor):
+            @classmethod
+            def get_multiplier(cls):
+                return 2
+
+        assert BaseProcessor.process(5) == 5
+        assert ChildProcessor.process(5) == 10
+
+        new_flow = ChildProcessor.process.with_options()
+        assert new_flow(5) == 10
+
 
 class TestFlowCall:
     async def test_call_creates_flow_run_and_runs(self):
