@@ -60,7 +60,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
@@ -201,7 +201,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
@@ -367,7 +367,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = DateTime.now("utc")
+                self.state_details.scheduled_time = now("UTC")
         return self
 
     @model_validator(mode="after")
@@ -426,9 +426,9 @@ class State(ObjectBaseModel, Generic[R]):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": DateTime.now("utc"),
-                "updated": DateTime.now("utc"),
-                "timestamp": DateTime.now("utc"),
+                "created": now("UTC"),
+                "updated": now("UTC"),
+                "timestamp": now("UTC"),
             },
             **kwargs,
         )
@@ -1397,7 +1397,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or DateTime.now("UTC").diff(last_polled).in_seconds()
+                or now("UTC").diff(last_polled).in_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

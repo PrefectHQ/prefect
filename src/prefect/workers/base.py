@@ -66,7 +66,7 @@ from prefect.states import (
     exception_to_failed_state,
 )
 from prefect.types import KeyValueLabels
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
 from prefect.utilities.services import critical_service_loop
@@ -486,7 +486,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
-        self._last_polled_time: DateTime = DateTime.now("utc")
+        self._last_polled_time: DateTime = now("UTC")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids: set[UUID] = set()
@@ -742,9 +742,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         threshold_seconds = query_interval_seconds * 30
 
-        seconds_since_last_poll = (
-            DateTime.now("utc") - self._last_polled_time
-        ).in_seconds()
+        seconds_since_last_poll = (now("UTC") - self._last_polled_time).in_seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 
@@ -759,7 +757,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     async def get_and_submit_flow_runs(self) -> list["FlowRun"]:
         runs_response = await self._get_scheduled_flow_runs()
 
-        self._last_polled_time = DateTime.now("utc")
+        self._last_polled_time = now("UTC")
 
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
@@ -908,7 +906,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         Retrieve scheduled flow runs from the work pool's queues.
         """
-        scheduled_before = DateTime.now("utc").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = now("UTC").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )

@@ -48,6 +48,7 @@ from prefect.logging import get_logger
 from prefect.serializers import Serializer
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -519,7 +520,7 @@ class ResultStore(BaseModel):
         if metadata.expiration:
             # if the result has an expiration,
             # check if it is still in the future
-            exists = metadata.expiration > DateTime.now("utc")
+            exists = metadata.expiration > now("UTC")
         else:
             exists = True
         return exists

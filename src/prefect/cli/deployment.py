@@ -44,6 +44,7 @@ from prefect.types._datetime import (
     DateTime,
     format_diff,
     in_local_tz,
+    now,
     parse_datetime,
 )
 from prefect.types._datetime import (
@@ -559,7 +560,7 @@ async def list_schedules(deployment_name: str):
 
     def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
-        return DateTime.now("utc") - schedule.created
+        return now("UTC") - schedule.created
 
     def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
@@ -650,7 +651,7 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
 
     def sort_by_created_key(d: DeploymentResponse):
         assert d.created is not None, "All deployments should have a created time."
-        return DateTime.now("utc") - d.created
+        return now("UTC") - d.created
 
     table = Table(
         title="Deployments",

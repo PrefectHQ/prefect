@@ -18,6 +18,7 @@ import respx
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBasic, HTTPBearer
 from packaging import version
+from src.prefect.types._datetime import now
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -1141,7 +1142,7 @@ async def test_read_flow_by_name(prefect_client):
 async def test_create_flow_run_from_deployment(
     prefect_client: PrefectClient, deployment
 ):
-    start_time = DateTime.now("utc")
+    start_time = now("UTC")
     flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -1154,9 +1155,7 @@ async def test_create_flow_run_from_deployment(
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
     assert flow_run.state.state_details.scheduled_time is not None
-    assert (
-        start_time <= flow_run.state.state_details.scheduled_time <= DateTime.now("utc")
-    )
+    assert start_time <= flow_run.state.state_details.scheduled_time <= now("UTC")
 
 
 async def test_create_flow_run_from_deployment_idempotency(
