@@ -755,11 +755,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                self.begin_run()
-                try:
-                    yield
-                finally:
-                    self.call_hooks()
+                # Acquire a concurrency slot for each tag, but only if a limit
+                # matching the tag already exists.
+                with concurrency(list(self.task_run.tags), self.task_run.id):
+                    self.begin_run()
+                    try:
+                        yield
+                    finally:
+                        self.call_hooks()
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
@@ -820,13 +823,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task_run.tags:
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                with concurrency(list(self.task_run.tags), self.task_run.id):
-                    result = call_with_parameters(self.task.fn, parameters)
-            else:
-                result = call_with_parameters(self.task.fn, parameters)
+            result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
         return result
 
@@ -1288,11 +1285,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                await self.begin_run()
-                try:
-                    yield
-                finally:
-                    await self.call_hooks()
+                # Acquire a concurrency slot for each tag, but only if a limit
+                # matching the tag already exists.
+                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
+                    await self.begin_run()
+                    try:
+                        yield
+                    finally:
+                        await self.call_hooks()
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
@@ -1352,13 +1352,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task_run and self.task_run.tags:
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
-                    result = await call_with_parameters(self.task.fn, parameters)
-            else:
-                result = await call_with_parameters(self.task.fn, parameters)
+            result = await call_with_parameters(self.task.fn, parameters)
         await self.handle_success(result, transaction=transaction)
         return result
 
