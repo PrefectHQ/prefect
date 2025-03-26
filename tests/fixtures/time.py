@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from datetime import timedelta
 from typing import Callable, Optional, Union
