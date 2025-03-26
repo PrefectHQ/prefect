@@ -5,6 +5,7 @@ import uuid
 from functools import partial
 from typing import Any
 from unittest.mock import ANY, AsyncMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -17,7 +18,6 @@ from prefect.types._datetime import (
     DateTime,
     human_friendly_diff,
     in_local_tz,
-    parse_datetime,
     to_datetime_string,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -35,7 +35,7 @@ async def deployment_name(
 @pytest.fixture(scope="module")
 def frozen_now():
     frozen_now = DateTime.now("UTC")
-    with patch("prefect.types._datetime.DateTime.now", return_value=frozen_now):
+    with patch("prefect.types._datetime.now", return_value=frozen_now):
         yield frozen_now
 
 
@@ -91,6 +91,7 @@ def test_both_start_in_and_start_at_raises():
         ("Jan 31st 20231", "Unable to parse scheduled start time 'at Jan 31st 20231'."),
         ("Octob 1st 2020", "Unable to parse scheduled start time 'at Octob 1st 2020'."),
     ],
+    ids=["foobar", "1671483897", "Jan 32nd 2023", "Jan 31st 20231", "Octob 1st 2020"],
 )
 def test_start_at_option_invalid_input(
     deployment_name: str, start_at: str, expected_output: str
@@ -139,23 +140,31 @@ async def test_start_at_option_displays_scheduled_start_time(
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
     [
-        ("5-17-43 5:30pm UTC", parse_datetime("2043-05-17T17:30:00")),
-        ("5-20-2020 5:30pm EDT", parse_datetime("2020-05-20T17:30:00", tz="EST5EDT")),
-        ("01/31/43 5:30 CST", parse_datetime("2043-01-31T05:30:00", tz="CST6CDT")),
-        ("5-20-43 5:30pm PDT", parse_datetime("2043-05-20T17:30:00", tz="PST8PDT")),
-        ("01/31/43 5:30 PST", parse_datetime("2043-01-31T05:30:00", tz="PST8PDT")),
+        (
+            "5-17-43 5:30pm UTC",
+            datetime.datetime(2043, 5, 17, 17, 30, 0),
+        ),
+        (
+            "5-20-2020 5:30pm EDT",
+            datetime.datetime(2020, 5, 20, 17, 30, 0, tzinfo=ZoneInfo("EST5EDT")),
+        ),
+        (
+            "01/31/43 5:30 CST",
+            datetime.datetime(2043, 1, 31, 5, 30, 0, tzinfo=ZoneInfo("CST6CDT")),
+        ),
+        (
+            "5-20-43 5:30pm PDT",
+            datetime.datetime(2043, 5, 20, 17, 30, 0, tzinfo=ZoneInfo("PST8PDT")),
+        ),
+        (
+            "01/31/43 5:30 PST",
+            datetime.datetime(2043, 1, 31, 5, 30, 0, tzinfo=ZoneInfo("PST8PDT")),
+        ),
     ],
 )
 async def test_start_at_option_with_tz_displays_scheduled_start_time(
-    deployment_name: str, start_at: str, expected_start_time: DateTime
+    deployment_name: str, start_at: str, expected_start_time: datetime.datetime
 ):
-    expected_start_time_local = in_local_tz(expected_start_time)
-    expected_display = (
-        to_datetime_string(expected_start_time_local)
-        + " "
-        + (expected_start_time_local.tzname() or "")
-    )
-
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -165,7 +174,11 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
             "--start-at",
             start_at,
         ],
-        expected_output_contains=["Scheduled start time:", expected_display],
+        expected_output_contains=[
+            "Scheduled start time:",
+            to_datetime_string(expected_start_time),
+            human_friendly_diff(expected_start_time),
+        ],
     )
 
 
@@ -174,26 +187,32 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
     [
         (
             "12/20/2022 1am",
-            in_local_tz(DateTime(2022, 12, 20, 1, 0, 0)),
+            datetime.datetime(2022, 12, 20, 1, 0, 0),
         ),
         (
             "1-1-2020",
-            in_local_tz(DateTime(2020, 1, 1, 0, 0, 0)),
+            datetime.datetime(2020, 1, 1, 0, 0, 0),
         ),
         (
             "5 June 2015",
-            in_local_tz(DateTime(2015, 6, 5, 0, 0, 0)),
+            datetime.datetime(2015, 6, 5, 0, 0, 0),
         ),
     ],
 )
 async def test_start_at_option_schedules_flow_run(
     deployment_name: str,
     start_at: str,
-    expected_start_time: DateTime,
+    expected_start_time: datetime.datetime,
     prefect_client: prefect.client.orchestration.PrefectClient,
 ):
-    expected_display = to_datetime_string(expected_start_time)
-
+    expected_display = (
+        to_datetime_string(expected_start_time)
+        + " "
+        + (expected_start_time.tzname() or "")
+        + "("
+        + human_friendly_diff(expected_start_time)
+        + ")"
+    )
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -219,17 +238,64 @@ async def test_start_at_option_schedules_flow_run(
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
     [
-        ("5-17-43 5:30pm UTC", parse_datetime("2043-05-17T17:30:00")),
-        ("5-20-2020 5:30pm EDT", parse_datetime("2020-05-20T17:30:00", tz="EST5EDT")),
-        ("01/31/43 5:30 CST", parse_datetime("2043-01-31T05:30:00", tz="CST6CDT")),
-        ("5-20-43 5:30pm PDT", parse_datetime("2043-05-20T17:30:00", tz="PST8PDT")),
-        ("01/31/43 5:30 PST", parse_datetime("2043-01-31T05:30:00", tz="PST8PDT")),
+        (
+            "5-17-43 5:30pm UTC",
+            datetime.datetime(2043, 5, 17, 17, 30, 0, tzinfo=ZoneInfo("UTC")),
+        ),
+        (
+            "5-20-2020 5:30pm EDT",
+            datetime.datetime(
+                2020,
+                5,
+                20,
+                17,
+                30,
+                0,
+                tzinfo=ZoneInfo("EST5EDT"),
+            ),
+        ),
+        (
+            "01/31/43 5:30 CST",
+            datetime.datetime(
+                2043,
+                1,
+                31,
+                5,
+                30,
+                0,
+                tzinfo=ZoneInfo("CST6CDT"),
+            ),
+        ),
+        (
+            "5-20-43 5:30pm PDT",
+            datetime.datetime(
+                2043,
+                5,
+                20,
+                17,
+                30,
+                0,
+                tzinfo=ZoneInfo("PST8PDT"),
+            ),
+        ),
+        (
+            "01/31/43 5:30 PST",
+            datetime.datetime(
+                2043,
+                1,
+                31,
+                5,
+                30,
+                0,
+                tzinfo=ZoneInfo("PST8PDT"),
+            ),
+        ),
     ],
 )
 async def test_start_at_option_with_tz_schedules_flow_run(
     deployment_name: str,
     start_at: str,
-    expected_start_time: DateTime,
+    expected_start_time: datetime.datetime,
     prefect_client: prefect.client.orchestration.PrefectClient,
 ):
     expected_start_time_local = in_local_tz(expected_start_time)
@@ -238,6 +304,9 @@ async def test_start_at_option_with_tz_schedules_flow_run(
         to_datetime_string(expected_start_time_local)
         + " "
         + (expected_start_time_local.tzname() or "")
+        + "("
+        + human_friendly_diff(expected_start_time_local)
+        + ")"
     )
 
     await run_sync_in_worker_thread(
@@ -291,13 +360,13 @@ def test_start_in_option_invalid_input(
 @pytest.mark.parametrize(
     "start_in, expected_display",
     [
-        ("20 minutes", "in 20 minutes"),
-        ("5 days", "in 5 days"),
-        ("3 seconds", "in a few seconds"),
+        ("20 minutes", "20 minutes from now"),
+        ("5 days", "5 days from now"),
+        ("3 seconds", "a few seconds from now"),
         (None, "now"),
-        ("1 year and 3 months", "in 1 year"),
-        ("2 weeks & 1 day", "in 2 weeks"),
-        ("27 hours + 4 mins", "in 1 day"),
+        ("1 year and 3 months", "1 year, 3 months from now"),
+        ("2 weeks & 1 day", "15 days from now"),
+        ("27 hours + 4 mins", "a day from now"),
     ],
 )
 async def test_start_in_option_displays_scheduled_start_time(
@@ -325,7 +394,7 @@ async def test_start_in_option_displays_scheduled_start_time(
         ("5 days", datetime.timedelta(days=5)),
         ("3 seconds", datetime.timedelta(seconds=3)),
         (None, datetime.timedelta(seconds=0)),
-        ("1 year and 3 months", datetime.timedelta(days=365 + 90)),
+        ("1 year and 1 month", datetime.timedelta(days=365 + 31)),
         ("2 weeks & 1 day", datetime.timedelta(days=15)),
         ("27 hours + 4 mins", datetime.timedelta(days=1, hours=3, minutes=4)),
     ],
@@ -334,12 +403,17 @@ async def test_start_in_option_schedules_flow_run(
     deployment_name: str,
     frozen_now: datetime.datetime,
     prefect_client: prefect.client.orchestration.PrefectClient,
-    start_in: str,
+    start_in: str | None,
     expected_duration: datetime.timedelta,
 ):
     expected_start_time = frozen_now + expected_duration
-    expected_display = to_datetime_string(in_local_tz(expected_start_time))
-    expected_display += " (" + human_friendly_diff(expected_start_time) + ")"
+    local_expected_start_time = in_local_tz(expected_start_time)
+    expected_display = to_datetime_string(local_expected_start_time)
+
+    if start_in is None:
+        expected_display += " (now)"
+    else:
+        expected_display += " (" + human_friendly_diff(local_expected_start_time) + ")"
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -435,8 +509,8 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
     start_at_scheduled_time = start_at_flow_run.state.state_details.scheduled_time
     start_in_scheduled_time = start_in_flow_run.state.state_details.scheduled_time
 
-    assert start_at_scheduled_time == expected_start_time
-    assert start_in_scheduled_time == expected_start_time
+    assert start_at_scheduled_time.replace(tzinfo=None) == expected_start_time
+    assert start_in_scheduled_time.replace(tzinfo=None) == expected_start_time
 
 
 async def test_print_parameter_validation_error(

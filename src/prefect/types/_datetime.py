@@ -70,11 +70,8 @@ def from_timestamp(
 
 
 def human_friendly_diff(
-    dt: datetime.datetime | None, other: datetime.datetime | None = None
+    dt: datetime.datetime, other: datetime.datetime | None = None
 ) -> str:
-    if dt is None:
-        return ""
-
     # Handle naive datetimes consistently across Python versions
     if dt.tzinfo is None:
         local_tz = datetime.datetime.now().astimezone().tzinfo
@@ -235,14 +232,4 @@ def in_local_tz(dt: datetime.datetime | DateTime) -> datetime.datetime:
 
 
 def to_datetime_string(dt: DateTime | datetime.datetime) -> str:
-    if isinstance(dt, datetime.datetime):
-        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-
-    if sys.version_info >= (3, 13):
-        from whenever import ZonedDateTime
-
-        return ZonedDateTime.from_timestamp(
-            dt.timestamp(), tz="UTC"
-        ).format_common_iso()
-
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")

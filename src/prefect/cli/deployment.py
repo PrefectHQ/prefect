@@ -19,6 +19,7 @@ from rich.console import Console
 from rich.pretty import Pretty
 from rich.table import Table
 
+import prefect.types._datetime
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -46,9 +47,6 @@ from prefect.types._datetime import (
     now,
     parse_datetime,
     to_datetime_string,
-)
-from prefect.types._datetime import (
-    now as now_fn,
 )
 from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
@@ -759,7 +757,7 @@ async def run(
     """
     import dateparser
 
-    now = now_fn("UTC")
+    now = prefect.types._datetime.now("UTC")
 
     multi_params: dict[str, Any] = {}
     if multiparams:
@@ -813,7 +811,6 @@ async def run(
                 start_time_parsed = dateparser.parse(  # type: ignore[reportUnknownMemberType]
                     start_time_raw,
                     settings={
-                        "TO_TIMEZONE": "UTC",
                         "RETURN_AS_TIMEZONE_AWARE": False,
                         "PREFER_DATES_FROM": "future",
                         "RELATIVE_BASE": datetime.fromtimestamp(
@@ -879,7 +876,7 @@ async def run(
     run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = in_local_tz(scheduled_start_time)
     scheduled_display = to_datetime_string(datetime_local_tz)
-    tz_name = datetime_local_tz.tzname()
+    tz_name = scheduled_start_time.tzname()
     if tz_name:
         scheduled_display += " " + tz_name
     scheduled_display += human_dt_diff
