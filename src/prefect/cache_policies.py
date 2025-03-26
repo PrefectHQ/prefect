@@ -8,7 +8,6 @@ from typing import (
     Callable,
     Dict,
     Literal,
-    NoReturn,
     Optional,
     Union,
 )
@@ -24,10 +23,10 @@ if TYPE_CHECKING:
     from prefect.locking.protocol import LockManager
     from prefect.transactions import IsolationLevel
 
-STABLE_TRANSFORMS: dict[type, Callable[Any, str]] = {}
+STABLE_TRANSFORMS: dict[type, Callable[Any, Any]] = {}
 
 
-def _register_stable_transforms() -> NoReturn:
+def _register_stable_transforms() -> None:
     """
     Some inputs do not reliably produce deterministic byte strings when serialized via
     `cloudpickle`. This utility registers stabilizing transformations of such types
