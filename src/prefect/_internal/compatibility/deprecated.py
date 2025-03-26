@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
     AliasedModuleDefinition,
@@ -67,7 +67,7 @@ def generate_deprecation_message(
     if start_date is None and end_date is None:
         raise ValueError(
             "A start date is required if an end date is not provided. Suggested start"
-            f" date is {DateTime.now('UTC').strftime(HUMAN_DATEFMT)}"
+            f" date is {now('UTC').strftime(HUMAN_DATEFMT)}"
         )
 
     if end_date is None:

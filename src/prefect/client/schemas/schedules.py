@@ -18,7 +18,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect.types._datetime import Date, DateTime
+from prefect.types._datetime import Date, DateTime, now
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -75,7 +75,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
-        default_factory=lambda: DateTime.now("UTC"),
+        default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -370,7 +370,7 @@ def construct_schedule(
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
         if not anchor_date:
-            anchor_date = DateTime.now()
+            anchor_date = now()
         schedule = IntervalSchedule(
             interval=interval, anchor_date=anchor_date, timezone=timezone
         )

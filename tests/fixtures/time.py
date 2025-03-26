@@ -52,8 +52,12 @@ def advance_time(
         if tz is None:
             return clock
 
-        return clock.in_timezone(tz)
+        if isinstance(tz, prefect.types._datetime.Timezone):
+            return clock.astimezone(ZoneInfo(tz.name))
+        else:
+            return clock.astimezone(ZoneInfo(tz))
 
     monkeypatch.setattr(prefect.types._datetime.DateTime, "now", nowish)
+    monkeypatch.setattr(prefect.types._datetime, "now", nowish)
 
     return advance

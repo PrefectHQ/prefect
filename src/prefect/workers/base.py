@@ -5,6 +5,7 @@ import asyncio
 import threading
 import warnings
 from contextlib import AsyncExitStack
+from datetime import timedelta
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -906,7 +907,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         Retrieve scheduled flow runs from the work pool's queues.
         """
-        scheduled_before = now("UTC").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = now("UTC") + timedelta(seconds=int(self._prefetch_seconds))
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )

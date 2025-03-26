@@ -37,7 +37,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
 
@@ -196,7 +196,7 @@ def mock_anyio_sleep(
     Provides "assert_sleeps_for" context manager which asserts a sleep time occurred
     within the context while using the actual runtime of the context as a tolerance.
     """
-    original_now = DateTime.now
+    original_now = now
     original_sleep = anyio.sleep
     time_shift = 0.0
 

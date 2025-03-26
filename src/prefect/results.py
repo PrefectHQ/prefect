@@ -31,6 +31,7 @@ from pydantic import (
 from typing_extensions import ParamSpec, Self
 
 import prefect
+import prefect.types._datetime
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
@@ -48,7 +49,6 @@ from prefect.logging import get_logger
 from prefect.serializers import Serializer
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime
-from prefect.types._datetime import now
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -520,7 +520,7 @@ class ResultStore(BaseModel):
         if metadata.expiration:
             # if the result has an expiration,
             # check if it is still in the future
-            exists = metadata.expiration > now("UTC")
+            exists = metadata.expiration > prefect.types._datetime.now("UTC")
         else:
             exists = True
         return exists

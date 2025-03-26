@@ -917,7 +917,7 @@ class WaitForScheduledTime(
         # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
         delay = scheduled_time - now("UTC")
-        delay_seconds = math.ceil(delay.total_seconds())
+        delay_seconds = math.floor(delay.total_seconds())
         delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
             await self.delay_transition(
