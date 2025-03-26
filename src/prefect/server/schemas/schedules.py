@@ -14,7 +14,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    TypeAlias,
     Union,
 )
 from zoneinfo import ZoneInfo
@@ -23,6 +22,7 @@ import dateutil
 import dateutil.rrule
 import pytz
 from pydantic import ConfigDict, Field, field_validator, model_validator
+from typing_extensions import TypeAlias
 
 from prefect._internal.schemas.validators import (
     default_timezone,
