@@ -178,7 +178,7 @@ class TestCreateFlowRunState:
         assert flow_run.total_run_time == datetime.timedelta(0)
         assert flow_run.estimated_run_time > datetime.timedelta(0)
 
-        dt2 = now("utc")
+        dt2 = now("UTC")
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,

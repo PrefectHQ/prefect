@@ -955,7 +955,7 @@ class TestAPILogWorker:
             task_run_id=uuid.uuid4(),
             name="test.logger",
             level=10,
-            timestamp=now("utc"),
+            timestamp=now("UTC"),
             message="hello",
         ).model_dump(mode="json")
 

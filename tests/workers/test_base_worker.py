@@ -13,6 +13,7 @@ import pytest
 import respx
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now as now_fn
 from starlette import status
 
 import prefect
@@ -239,16 +240,16 @@ async def test_worker_with_work_pool(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -288,16 +289,16 @@ async def test_worker_with_work_pool_and_work_queue(
     flow_runs = [
         await create_run_with_deployment_1(Pending()),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment_1(Running()),
         await create_run_with_deployment_1(Completed()),
@@ -378,7 +379,7 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
         and flow_run.state.state_details
         and flow_run.state.state_details.scheduled_time
     )
-    assert flow_run.state.state_details.scheduled_time < DateTime.now("utc")
+    assert flow_run.state.state_details.scheduled_time < now_fn("UTC")
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
@@ -409,10 +410,10 @@ async def test_priority_trumps_lateness(
 
     flow_runs = [
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
     ]
     flow_run_ids = [run.id for run in flow_runs]
@@ -437,7 +438,7 @@ async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
     )
 
     run_mock = AsyncMock()
@@ -471,16 +472,16 @@ async def test_worker_with_work_pool_and_limit(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -528,16 +529,16 @@ async def test_worker_calls_run_with_expected_arguments(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -582,13 +583,13 @@ async def test_worker_creates_only_one_client_context(
         )
 
     await create_run_with_deployment(
-        Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
     )
     await create_run_with_deployment(
-        Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+        Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
     )
     await create_run_with_deployment(
-        Scheduled(scheduled_time=DateTime.now("utc") + timedelta(seconds=5))
+        Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -1695,7 +1696,7 @@ class TestInfrastructureIntegration:
     ):
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_infra_wq1.id,
-            state=Scheduled(scheduled_time=DateTime.now("UTC")),
+            state=Scheduled(scheduled_time=now_fn("UTC")),
         )
         await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
 
@@ -1721,7 +1722,7 @@ class TestInfrastructureIntegration:
 
 @pytest.mark.skipif(sys.version_info < (3, 13), reason="Test requires Python 3.13")
 async def test_worker_set_last_polled_time(work_pool: WorkPool):
-    now = DateTime.now("UTC")
+    now = now_fn("UTC")
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         # initially, the worker should have _last_polled_time set to a recent time
@@ -1746,7 +1747,7 @@ async def test_worker_set_last_polled_time(work_pool: WorkPool):
 
 @pytest.mark.skip(reason="I'm not sure what this is supposed to test, will revisit")
 async def test_worker_last_polled_health_check(work_pool: WorkPool):
-    now = DateTime.now("UTC")
+    now = now_fn("UTC")
 
     with travel_to(now, freeze=True):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -1797,7 +1798,7 @@ class TestBaseWorkerStart:
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
-            state=Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1)),
+            state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
         )
 
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
@@ -2037,7 +2038,7 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=DateTime.now("utc") - timedelta(days=1))
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:

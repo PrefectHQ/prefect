@@ -22,7 +22,7 @@ from prefect.client.schemas.objects import (
     WorkQueue,
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now as now_fn
 
 work_app: PrefectTyper = PrefectTyper(name="work-queue", help="Manage work queues.")
 app.add_typer(work_app, aliases=["work-queues"])
@@ -377,7 +377,7 @@ async def ls(
 
             def sort_by_created_key(q: WorkQueue):
                 assert q.created is not None, "created is not None"
-                return DateTime.now("utc") - q.created
+                return now_fn("UTC") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -414,7 +414,7 @@ async def ls(
 
             def sort_by_created_key(q: WorkQueue):
                 assert q.created is not None, "created is not None"
-                return DateTime.now("utc") - q.created
+                return now_fn("UTC") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
                 row = [
@@ -467,7 +467,7 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = DateTime.now("utc").add(hours=hours or 1)
+    window = now_fn("UTC").add(hours=hours or 1)
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name, work_pool_name=pool
@@ -491,7 +491,7 @@ async def preview(
                 )
             except ObjectNotFound:
                 exit_with_error(f"No work queue found: {name!r}")
-    now = DateTime.now("utc")
+    now = now_fn("UTC")
 
     def sort_by_created_key(r: FlowRun):
         assert r.created is not None, "created is not None"
