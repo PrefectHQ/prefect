@@ -1001,7 +1001,7 @@ class TestTaskRetryingRule:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
         assert math.isclose(
-            (scheduled_time - orchestration_start).in_seconds(), 10, rel_tol=0.1
+            (scheduled_time - orchestration_start).seconds, 10, rel_tol=0.1
         )
 
     @pytest.mark.parametrize("retry", [1, 2, 3, 4, 5])
@@ -1036,7 +1036,7 @@ class TestTaskRetryingRule:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
         assert math.isclose(
-            (scheduled_time - orchestration_start).in_seconds(),
+            (scheduled_time - orchestration_start).seconds,
             configured_retry_delays[retry - 1],
             rel_tol=0.1,
         )
@@ -1072,7 +1072,7 @@ class TestTaskRetryingRule:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
         assert math.isclose(
-            (scheduled_time - orchestration_start).in_seconds(),
+            (scheduled_time - orchestration_start).seconds,
             configured_retry_delays[-1],
             rel_tol=0.1,
         )
@@ -1117,7 +1117,7 @@ class TestTaskRetryingRule:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
         assert math.isclose(
-            (scheduled_time - orchestration_start).in_seconds(),
+            (scheduled_time - orchestration_start).seconds,
             100,
             rel_tol=0.1,
         )

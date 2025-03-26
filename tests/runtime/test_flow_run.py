@@ -205,7 +205,7 @@ class TestStartTime:
     async def test_scheduled_start_time_pulls_from_api_when_needed(
         self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
-        TIMESTAMP = now("UTC").add(days=7)
+        TIMESTAMP = now("UTC") + datetime.timedelta(days=7)
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"),
             state=states.Scheduled(scheduled_time=TIMESTAMP),

@@ -743,7 +743,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         threshold_seconds = query_interval_seconds * 30
 
-        seconds_since_last_poll = (now("UTC") - self._last_polled_time).in_seconds()
+        seconds_since_last_poll = (now("UTC") - self._last_polled_time).seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 

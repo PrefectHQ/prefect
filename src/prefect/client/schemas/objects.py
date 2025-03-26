@@ -1397,7 +1397,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or now("UTC").diff(last_polled).in_seconds()
+                or now("UTC").diff(last_polled).seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

@@ -465,7 +465,8 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 await self.reject_transition(
                     state=states.Scheduled(
                         name="AwaitingConcurrencySlot",
-                        scheduled_time=now("UTC").add(
+                        scheduled_time=now("UTC")
+                        + datetime.timedelta(
                             seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
                         ),
                     ),
