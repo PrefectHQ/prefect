@@ -41,7 +41,6 @@ from prefect.exceptions import (
 from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
-    DateTime,
     human_friendly_diff,
     in_local_tz,
     now,

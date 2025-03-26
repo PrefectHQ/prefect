@@ -3,9 +3,8 @@ from __future__ import annotations
 import datetime
 import uuid
 from functools import partial
-from typing import Any, Generator
-from unittest.mock import ANY, AsyncMock
-from zoneinfo import ZoneInfo
+from typing import Any
+from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 
@@ -16,6 +15,7 @@ from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
 from prefect.types._datetime import (
     DateTime,
+    human_friendly_diff,
     in_local_tz,
     parse_datetime,
     to_datetime_string,
@@ -32,18 +32,11 @@ async def deployment_name(
     return f"{flow.name}/{deployment.name}"
 
 
-@pytest.fixture
-def frozen_now(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Generator[datetime.datetime, None, None]:
-    class mydatetime(datetime.datetime):
-        @classmethod
-        def now(cls, tz: ZoneInfo | None = None):
-            return fixed_now
-
-    fixed_now = datetime.datetime.now(ZoneInfo("UTC"))
-    monkeypatch.setattr(datetime, "datetime", mydatetime)
-    yield fixed_now
+@pytest.fixture(scope="module")
+def frozen_now():
+    frozen_now = DateTime.now("UTC")
+    with patch("prefect.types._datetime.DateTime.now", return_value=frozen_now):
+        yield frozen_now
 
 
 def completed_flow_run():
@@ -346,6 +339,7 @@ async def test_start_in_option_schedules_flow_run(
 ):
     expected_start_time = frozen_now + expected_duration
     expected_display = to_datetime_string(in_local_tz(expected_start_time))
+    expected_display += " (" + human_friendly_diff(expected_start_time) + ")"
 
     await run_sync_in_worker_thread(
         invoke_and_assert,

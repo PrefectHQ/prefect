@@ -214,13 +214,19 @@ def travel_to(dt: Any, freeze: bool = True):
             yield
 
 
-def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
+def in_local_tz(dt: datetime.datetime | DateTime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
         from whenever import LocalDateTime, ZonedDateTime
 
         if dt.tzinfo is None:
             ldt = LocalDateTime.from_py_datetime(dt)
         else:
+            if isinstance(dt, DateTime):
+                assert dt.tz is not None
+                dt = datetime.datetime.fromtimestamp(
+                    dt.timestamp(), ZoneInfo(dt.tz.name)
+                )
+
             ldt = ZonedDateTime.from_py_datetime(dt).local()
 
         return ldt.py_datetime()
