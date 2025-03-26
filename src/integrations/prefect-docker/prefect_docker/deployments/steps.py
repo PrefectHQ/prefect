@@ -28,11 +28,11 @@ import os
 import sys
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, List, Optional, ParamSpec, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar
 
 import docker.errors
 from docker.models.images import Image
-from typing_extensions import TypedDict
+from typing_extensions import ParamSpec, TypedDict
 
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE
