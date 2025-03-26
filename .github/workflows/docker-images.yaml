@@ -25,9 +25,6 @@ jobs:
         image:
           - "prefecthq/prefect"
           - "prefecthq/prefect-client"
-        release:
-          - true
-          - false
         python-version:
           - "3.9"
           - "3.10"
@@ -35,16 +32,17 @@ jobs:
           - "3.12"
         flavor:
         - ""
-        include:
-        # Add conda and kubernetes flavors only for prefect images
-        - image: "prefect"
+        - "-conda"
+        - "-kubernetes"
+        exclude:
+        - image: "prefecthq/prefect-client"
           flavor: "-conda"
-        - image: "prefect"
+        - image: "prefecthq/prefect-client"
           flavor: "-kubernetes"
 
     steps:
       - name: Validate Prerelease Tag
-        if: ${{ !matrix.release && github.event_name == 'release' && github.event.release.prerelease == true }}
+        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
         run: |
           TAG_NAME=${{ github.ref }}
           if [[ ! "$TAG_NAME" =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9]+|\.dev[0-9]+)$ ]]; then
@@ -74,7 +72,7 @@ jobs:
         id: metadata-dev
         uses: docker/metadata-action@v5
         # do not generate the development tags on true release events, only pre-releases
-        if: ${{ !matrix.release && github.event_name == 'release' && github.event.release.prerelease == true }}
+        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
         with:
           images: ${{ matrix.image }}-dev
           tags: |
@@ -97,7 +95,7 @@ jobs:
         id: metadata-prod
         uses: docker/metadata-action@v5
         # generate the production tags on release events or when manually triggered for 3-latest
-        if: ${{ matrix.release && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true')) }}
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
         with:
           images: ${{ matrix.image }}
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
