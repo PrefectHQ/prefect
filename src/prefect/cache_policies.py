@@ -36,7 +36,9 @@ def _register_stable_transforms() -> NoReturn:
     try:
         import pandas as pd
 
-        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [df[col] for col in df.sorted()]
+        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [
+            df[col] for col in sorted(df.columns)
+        ]
     except (ImportError, ModuleNotFoundError):
         pass
 
@@ -370,7 +372,7 @@ class Inputs(CachePolicy):
                 hashed_inputs[key] = transformer(val) if transformer else val
 
         try:
-            return hash_objects(hashed_inputs, raise_on_failure=True)
+            key = hash_objects(hashed_inputs, raise_on_failure=True)
         except HashError as exc:
             msg = (
                 f"{exc}\n\n"
