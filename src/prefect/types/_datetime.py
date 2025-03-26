@@ -51,11 +51,9 @@ def get_timezones() -> tuple[str, ...]:
     return tuple(available_timezones())
 
 
-def create_datetime_instance(v: datetime.datetime) -> DateTime:
+def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import ZonedDateTime
-
-        return ZonedDateTime.from_py_datetime(v)
+        return v
 
     return DateTime.instance(v)
 
