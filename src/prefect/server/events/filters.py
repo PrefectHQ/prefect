@@ -9,21 +9,20 @@ import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
 from sqlalchemy.sql import Select
 
+import prefect.types._datetime
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types._datetime import DateTime, now, start_of_day
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
-else:
-    from prefect.types import DateTime
 
 
 class AutomationFilterCreated(PrefectFilterBaseModel):
@@ -110,17 +109,20 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: start_of_day(now("UTC")) - timedelta(days=180),
+        default_factory=lambda: prefect.types._datetime.start_of_day(
+            prefect.types._datetime.now("UTC")
+        )
+        - timedelta(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: now("UTC"),
+        default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="Only include events prior to this time (inclusive)",
     )
 
     def clamp(self, max_duration: timedelta) -> None:
         """Limit how far the query can look back based on the given duration"""
-        earliest = now("UTC") - max_duration
+        earliest = prefect.types._datetime.now("UTC") - max_duration
         self.since = max(earliest, self.since)
 
     def includes(self, event: Event) -> bool:

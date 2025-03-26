@@ -8,6 +8,7 @@ Prefect enforces on a state transition.
 from __future__ import annotations
 
 import datetime
+import math
 from typing import Any, Union, cast
 from uuid import uuid4
 
@@ -784,7 +785,7 @@ class RetryFailedTasks(TaskRunOrchestrationRule):
 
         if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
-                scheduled_time=now("UTC").add(seconds=delay),
+                scheduled_time=now("UTC") + datetime.timedelta(seconds=delay),
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
@@ -916,7 +917,7 @@ class WaitForScheduledTime(
         # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
         delay = scheduled_time - now("UTC")
-        delay_seconds = delay.in_seconds()
+        delay_seconds = math.ceil(delay.total_seconds())
         delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
             await self.delay_transition(

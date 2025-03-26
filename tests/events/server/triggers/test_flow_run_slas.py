@@ -549,7 +549,7 @@ async def test_regression_3521_negative_case(
     for item in sequence_of_events_3521:
         if isinstance(item, ReceivedEvent):
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, DateTime):
+        elif isinstance(item, datetime.datetime):
             await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -568,7 +568,7 @@ async def test_regression_3521_positive_case(
             if item.event == "prefect.flow-run.Completed":
                 continue
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, DateTime):
+        elif isinstance(item, datetime.datetime):
             await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -590,7 +590,7 @@ async def test_regression_3521_side_quest(
             if item.event == "prefect.flow-run.Completed":
                 continue
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, DateTime):
+        elif isinstance(item, datetime.datetime):
             continue  # do not run proactive evaluations for a while
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -599,7 +599,7 @@ async def test_regression_3521_side_quest(
 
     # now run one at the end, which represents a time after the automation should have
     # triggered but didn't
-    assert isinstance(item, DateTime)
+    assert isinstance(item, datetime.datetime)
     await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
     act.assert_awaited_once()
 
@@ -773,7 +773,7 @@ async def test_regression_3244_negative_case(
                     await triggers.reactive_evaluation(event=item)
             else:
                 await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, DateTime):
+        elif isinstance(item, datetime.datetime):
             await triggers.proactive_evaluation(trigger_from_3244, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -792,7 +792,7 @@ async def test_regression_3244_positive_case(
             if item.event == "prefect.flow-run.Completed":
                 continue
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, DateTime):
+        elif isinstance(item, datetime.datetime):
             await triggers.proactive_evaluation(trigger_from_3244, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
