@@ -1258,7 +1258,9 @@ class Runner:
         """
         Retrieve scheduled flow runs for this runner.
         """
-        scheduled_before = now("UTC").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = now("UTC") + datetime.timedelta(
+            seconds=int(self._prefetch_seconds)
+        )
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
