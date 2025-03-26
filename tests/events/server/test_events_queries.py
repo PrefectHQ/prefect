@@ -1,5 +1,6 @@
 """Tests for parity when querying events across our storage backends and streaming"""
 
+import datetime
 from base64 import b64encode
 from datetime import timedelta
 from typing import AsyncGenerator, List
@@ -7,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import start_of_day
 
 from prefect.server.events.filters import (
     EventAnyResourceFilter,
@@ -133,9 +135,11 @@ def all_events(
 
     events: list[ReceivedEvent] = []
     for date in known_dates:
-        midnight = now("UTC").set(date.year, date.month, date.day).start_of("day")
+        midnight = start_of_day(
+            now("UTC").replace(year=date.year, month=date.month, day=date.day)
+        )
         for i in range(22):
-            occurred = midnight.add(seconds=i * 10)
+            occurred = midnight + datetime.timedelta(seconds=i * 10)
             related = list(related_options[i % len(related_options)])
 
             events.append(

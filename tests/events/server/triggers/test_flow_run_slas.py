@@ -463,7 +463,7 @@ async def sequence_of_events_3521(
     baseline: DateTime = start_of_test
 
     pending = Event(
-        occurred=baseline.add(minutes=0),
+        occurred=baseline + datetime.timedelta(minutes=0),
         event="prefect.flow-run.Pending",
         resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
         related=[
@@ -476,7 +476,7 @@ async def sequence_of_events_3521(
     ).receive()
 
     running = Event(
-        occurred=baseline.add(minutes=1),
+        occurred=baseline + datetime.timedelta(minutes=1),
         event="prefect.flow-run.Running",
         resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
         related=[
@@ -490,7 +490,7 @@ async def sequence_of_events_3521(
     ).receive()
 
     completed = Event(
-        occurred=baseline.add(minutes=4),
+        occurred=baseline + datetime.timedelta(minutes=4),
         event="prefect.flow-run.Completed",
         resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
         related=[
@@ -508,7 +508,7 @@ async def sequence_of_events_3521(
         running,
         # throw a random event for the same resource ID in the middle
         Event(
-            occurred=baseline.add(minutes=2),
+            occurred=baseline + datetime.timedelta(minutes=2),
             event="prefect.log.write",
             resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             related=[
@@ -519,16 +519,24 @@ async def sequence_of_events_3521(
             ],
             id=uuid4(),
         ).receive(),
-        baseline.add(minutes=3),
+        baseline + datetime.timedelta(minutes=3),
         completed,
-        baseline.add(minutes=5),
-        baseline.add(minutes=119),  # just shy of the 2 hour mark since Pending
-        baseline.add(minutes=120),  # just at the 2 hour mark since Pending
-        baseline.add(minutes=121),  # just at the 2 hour mark since Running
-        baseline.add(minutes=123),  # just shy of the 2 hour mark since Completed
-        baseline.add(minutes=124),  # just at the 2 hour mark since Completed
-        baseline.add(minutes=125),  # just past the the 2 hour mark for anything
-        baseline.add(minutes=250),  # an additional full cycle later
+        baseline + datetime.timedelta(minutes=5),
+        baseline
+        + datetime.timedelta(minutes=119),  # just shy of the 2 hour mark since Pending
+        baseline
+        + datetime.timedelta(minutes=120),  # just at the 2 hour mark since Pending
+        baseline
+        + datetime.timedelta(minutes=121),  # just at the 2 hour mark since Running
+        baseline
+        + datetime.timedelta(
+            minutes=123
+        ),  # just shy of the 2 hour mark since Completed
+        baseline
+        + datetime.timedelta(minutes=124),  # just at the 2 hour mark since Completed
+        baseline
+        + datetime.timedelta(minutes=125),  # just past the the 2 hour mark for anything
+        baseline + datetime.timedelta(minutes=250),  # an additional full cycle later
     ]
 
 
@@ -598,10 +606,14 @@ async def test_regression_3521_side_quest(
     act.reset_mock()
 
     # but make sure that no further triggers happen later...
-    await triggers.proactive_evaluation(trigger_from_3521, as_of=item.add(minutes=1))
+    await triggers.proactive_evaluation(
+        trigger_from_3521, as_of=item + datetime.timedelta(minutes=1)
+    )
     act.assert_not_awaited()
 
-    await triggers.proactive_evaluation(trigger_from_3521, as_of=item.add(minutes=200))
+    await triggers.proactive_evaluation(
+        trigger_from_3521, as_of=item + datetime.timedelta(minutes=200)
+    )
     act.assert_not_awaited()
 
 
@@ -663,7 +675,7 @@ async def sequence_of_events_3244(
     baseline: DateTime = start_of_test
 
     pending = Event(
-        occurred=baseline.add(minutes=0),
+        occurred=baseline + datetime.timedelta(minutes=0),
         event="prefect.flow-run.Pending",
         resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
         related=[
@@ -676,7 +688,7 @@ async def sequence_of_events_3244(
     ).receive()
 
     running = Event(
-        occurred=baseline.add(minutes=1),
+        occurred=baseline + datetime.timedelta(minutes=1),
         event="prefect.flow-run.Running",
         resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
         related=[
@@ -690,7 +702,7 @@ async def sequence_of_events_3244(
     ).receive()
 
     completed = Event(
-        occurred=baseline.add(minutes=4),
+        occurred=baseline + datetime.timedelta(minutes=4),
         event="prefect.flow-run.Completed",
         resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
         related=[
@@ -708,7 +720,7 @@ async def sequence_of_events_3244(
         completed,  # the completed will arrive before the running
         # throw a random event for the same resource ID in the middle
         Event(
-            occurred=baseline.add(minutes=2),
+            occurred=baseline + datetime.timedelta(minutes=2),
             event="prefect.log.write",
             resource={"prefect.resource.id": "prefect.flow-run.frfrfrfr"},
             related=[
@@ -720,16 +732,27 @@ async def sequence_of_events_3244(
             id=uuid4(),
         ).receive(),
         running,
-        baseline.add(minutes=3),
-        baseline.add(minutes=4),  # this is the slot to redeliver the Completed event
-        baseline.add(minutes=5),
-        baseline.add(minutes=119),  # just shy of the 2 hour mark since Pending
-        baseline.add(minutes=120),  # just at the 2 hour mark since Pending
-        baseline.add(minutes=121),  # just at the 2 hour mark since Running
-        baseline.add(minutes=123),  # just shy of the 2 hour mark since Completed
-        baseline.add(minutes=124),  # just at the 2 hour mark since Completed
-        baseline.add(minutes=125),  # just past the the 2 hour mark for anything
-        baseline.add(minutes=250),  # an additional full cycle later
+        baseline + datetime.timedelta(minutes=3),
+        baseline
+        + datetime.timedelta(
+            minutes=4
+        ),  # this is the slot to redeliver the Completed event
+        baseline + datetime.timedelta(minutes=5),
+        baseline
+        + datetime.timedelta(minutes=119),  # just shy of the 2 hour mark since Pending
+        baseline
+        + datetime.timedelta(minutes=120),  # just at the 2 hour mark since Pending
+        baseline
+        + datetime.timedelta(minutes=121),  # just at the 2 hour mark since Running
+        baseline
+        + datetime.timedelta(
+            minutes=123
+        ),  # just shy of the 2 hour mark since Completed
+        baseline
+        + datetime.timedelta(minutes=124),  # just at the 2 hour mark since Completed
+        baseline
+        + datetime.timedelta(minutes=125),  # just past the the 2 hour mark for anything
+        baseline + datetime.timedelta(minutes=250),  # an additional full cycle later
     ]
 
 
@@ -847,12 +870,12 @@ async def test_regression_3803_negative_case(
     # local offset should be preventing it
     # Before the fix, the trigger would have just fired here prematurely
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=1)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=1)
     )
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=4)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=4)
     )
     act.assert_not_awaited()
 
@@ -869,7 +892,7 @@ async def test_regression_3803_negative_case(
 
     # We shouldn't fire later because the Running event closed it out
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=6)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=6)
     )
     act.assert_not_awaited()
 
@@ -894,12 +917,12 @@ async def test_regression_3803_positive_case_no_events_at_all(
     # local offset should be preventing it
     # Before the fix, the trigger would have just fired here prematurely
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=1)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=1)
     )
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=4)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=4)
     )
     act.assert_not_awaited()
 
@@ -907,7 +930,7 @@ async def test_regression_3803_positive_case_no_events_at_all(
 
     # We should fire later because the Running event never closed it out
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=6)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=6)
     )
     act.assert_awaited_once()
 
@@ -933,12 +956,12 @@ async def test_regression_3803_positive_case_no_relevant_event(
     # Before the fix, the trigger would have just fired here prematurely
     await triggers.proactive_evaluation(
         trigger_from_3803,
-        start_of_test + timedelta(minutes=1),
+        start_of_test + datetime.timedelta(minutes=1),
     )
     act.assert_not_awaited()
 
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=4)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=4)
     )
     act.assert_not_awaited()
 
@@ -955,6 +978,6 @@ async def test_regression_3803_positive_case_no_relevant_event(
 
     # We should fire now because the Running event never closed it out
     await triggers.proactive_evaluation(
-        trigger_from_3803, start_of_test + timedelta(minutes=6)
+        trigger_from_3803, start_of_test + datetime.timedelta(minutes=6)
     )
     act.assert_awaited_once()
