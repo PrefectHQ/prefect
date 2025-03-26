@@ -214,10 +214,29 @@ def travel_to(dt: Any, freeze: bool = True):
             yield
 
 
-def in_local_tz(dt: datetime.datetime) -> DateTime:
+def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import LocalDateTime
+        from whenever import LocalDateTime, ZonedDateTime
 
-        return LocalDateTime.from_py_datetime(dt).assume_system_tz()
+        if dt.tzinfo is None:
+            ldt = LocalDateTime.from_py_datetime(dt)
+        else:
+            ldt = ZonedDateTime.from_py_datetime(dt).local()
+
+        return ldt.py_datetime()
 
     return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
+
+
+def to_datetime_string(dt: DateTime | datetime.datetime) -> str:
+    if isinstance(dt, datetime.datetime):
+        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    if sys.version_info >= (3, 13):
+        from whenever import ZonedDateTime
+
+        return ZonedDateTime.from_timestamp(
+            dt.timestamp(), tz="UTC"
+        ).format_common_iso()
+
+    return dt.strftime("%Y-%m-%d %H:%M:%S %Z")

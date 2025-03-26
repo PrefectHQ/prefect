@@ -42,10 +42,11 @@ from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
     DateTime,
-    format_diff,
+    human_friendly_diff,
     in_local_tz,
     now,
     parse_datetime,
+    to_datetime_string,
 )
 from prefect.types._datetime import (
     now as now_fn,
@@ -828,8 +829,8 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        scheduled_start_time = DateTime.instance(start_time_parsed)
-        human_dt_diff = " (" + format_diff(scheduled_start_time.diff(now)) + ")"
+        scheduled_start_time = start_time_parsed
+        human_dt_diff = " (" + human_friendly_diff(start_time_parsed) + ")"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -878,7 +879,7 @@ async def run(
 
     run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = in_local_tz(scheduled_start_time)
-    scheduled_display = datetime_local_tz.to_datetime_string()
+    scheduled_display = to_datetime_string(datetime_local_tz)
     tz_name = datetime_local_tz.tzname()
     if tz_name:
         scheduled_display += " " + tz_name
