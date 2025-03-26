@@ -659,8 +659,6 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    now_fn("UTC").add(hours=hours or 1)
-
     now = now_fn("UTC")
 
     def sort_by_created_key(r: FlowRun) -> PendulumDuration:

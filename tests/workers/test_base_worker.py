@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import sys
 import uuid
-from datetime import timedelta, timezone
+from datetime import timedelta
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import MagicMock, Mock
@@ -11,6 +10,7 @@ import anyio.abc
 import httpx
 import pytest
 import respx
+from exceptiongroup import ExceptionGroup
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.prefect.types._datetime import now as now_fn
@@ -57,7 +57,7 @@ from prefect.states import (
     State,
 )
 from prefect.testing.utilities import AsyncMock
-from prefect.types._datetime import DateTime, travel_to
+from prefect.types._datetime import travel_to
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -1720,55 +1720,53 @@ class TestInfrastructureIntegration:
             await state.result()
 
 
-@pytest.mark.skipif(sys.version_info < (3, 13), reason="Test requires Python 3.13")
 async def test_worker_set_last_polled_time(work_pool: WorkPool):
     now = now_fn("UTC")
 
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        # initially, the worker should have _last_polled_time set to a recent time
-        initial_poll_time = worker._last_polled_time
-        assert initial_poll_time >= now
+    try:
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            # initially, the worker should have _last_polled_time set to a recent time
+            initial_poll_time = worker._last_polled_time
+            assert initial_poll_time >= now
 
-        # some arbitrary delta forward
-        now2 = now + timedelta(seconds=49)
-        with travel_to(now2, freeze=True):
-            await worker.get_and_submit_flow_runs()
-            # after polling, _last_polled_time should be updated to a more recent time
-            assert worker._last_polled_time > initial_poll_time
-
-        # some arbitrary datetime
-        now3 = DateTime(2021, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-        with travel_to(now3, freeze=True):
-            last_poll_time = worker._last_polled_time
-            await worker.get_and_submit_flow_runs()
-            # after polling, _last_polled_time should be updated to a more recent time
-            assert worker._last_polled_time > last_poll_time
+            # some arbitrary delta forward
+            now2 = now + timedelta(seconds=49)
+            with travel_to(now2):
+                await worker.get_and_submit_flow_runs()
+                # after polling, _last_polled_time should be updated to a more recent time
+                assert worker._last_polled_time > initial_poll_time
+                # check to make sure the time updated as expected
+                assert worker._last_polled_time - timedelta(seconds=49) == now
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
 
 
-@pytest.mark.skip(reason="I'm not sure what this is supposed to test, will revisit")
 async def test_worker_last_polled_health_check(work_pool: WorkPool):
     now = now_fn("UTC")
 
-    with travel_to(now, freeze=True):
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            resp = worker.is_worker_still_polling(query_interval_seconds=10)
-            assert resp is True
-
-            with travel_to(now + timedelta(seconds=299), freeze=True):
+    try:
+        with travel_to(now):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
                 resp = worker.is_worker_still_polling(query_interval_seconds=10)
                 assert resp is True
 
-            with travel_to(now + timedelta(seconds=301), freeze=True):
-                resp = worker.is_worker_still_polling(query_interval_seconds=10)
-                assert resp is False
+                with travel_to(now + timedelta(seconds=299)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                    assert resp is True
 
-            with travel_to(now + timedelta(minutes=30), freeze=True):
-                resp = worker.is_worker_still_polling(query_interval_seconds=60)
-                assert resp is True
+                with travel_to(now + timedelta(seconds=301)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                    assert resp is False
 
-            with travel_to(now + timedelta(minutes=30, seconds=1), freeze=True):
-                resp = worker.is_worker_still_polling(query_interval_seconds=60)
-                assert resp is False
+                with travel_to(now + timedelta(minutes=30)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                    assert resp is True
+
+                with travel_to(now + timedelta(minutes=30, seconds=1)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                    assert resp is False
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
 
 
 class TestBaseWorkerStart:

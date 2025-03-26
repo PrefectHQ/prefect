@@ -4,6 +4,7 @@ import datetime
 import sys
 from contextlib import contextmanager
 from typing import Any
+from unittest import mock
 from zoneinfo import ZoneInfo, available_timezones
 
 import humanize
@@ -197,20 +198,15 @@ def earliest_possible_datetime() -> datetime.datetime:
 
 
 @contextmanager
-def travel_to(dt: Any, freeze: bool = True):
+def travel_to(dt: Any):
     if sys.version_info >= (3, 13):
-        from whenever import ZonedDateTime, patch_current_time
-
-        if isinstance(dt, DateTime):
-            dt = ZonedDateTime.from_timestamp(dt.timestamp(), tz="UTC")
-
-        with patch_current_time(dt, keep_ticking=not freeze):
+        with mock.patch("prefect.types._datetime.now", return_value=dt):
             yield
 
     else:
         from pendulum import travel_to
 
-        with travel_to(dt, freeze=freeze):
+        with travel_to(dt, freeze=True):
             yield
 
 

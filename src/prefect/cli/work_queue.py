@@ -2,6 +2,7 @@
 Command line interface for working with work queues.
 """
 
+import datetime
 import warnings
 from textwrap import dedent
 from typing import Optional, Union
@@ -467,7 +468,7 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = now_fn("UTC").add(hours=hours or 1)
+    window = now_fn("UTC") + datetime.timedelta(hours=hours or 1)
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name, work_pool_name=pool
