@@ -18,6 +18,7 @@ from prefect_docker.deployments.steps import (
 
 import prefect
 import prefect.utilities.dockerutils
+from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE, temporary_settings
 
 FAKE_CONTAINER_ID = "fake-id"
 FAKE_BASE_URL = "my-url"
@@ -535,3 +536,93 @@ class TestCachedSteps:
 
         mock_docker_client.api.build.assert_called_once()
         mock_docker_client.api.push.assert_called_once()
+
+
+def test_build_docker_image_with_default_namespace(mock_docker_client: MagicMock):
+    """Test that build_docker_image respects PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE"""
+    with temporary_settings(
+        {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "my-private-repository.com"},
+    ):
+        result = build_docker_image(
+            image_name="test-image",
+            tag="latest",
+            ignore_cache=True,
+        )
+
+        assert result["image_name"] == "my-private-repository.com/test-image"
+        assert result["tag"] == "latest"
+        assert result["image"] == "my-private-repository.com/test-image:latest"
+
+        # Verify the image was tagged with the full name including namespace
+        mock_docker_client.images.get.return_value.tag.assert_called_once_with(
+            repository="my-private-repository.com/test-image",
+            tag="latest",
+        )
+
+
+def test_build_docker_image_namespace_precedence(mock_docker_client: MagicMock):
+    """Test that explicitly provided namespace takes precedence over default"""
+    with temporary_settings(
+        {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "my-private-repository.com"},
+    ):
+        result = build_docker_image(
+            image_name="other-registry.com/test-image",
+            tag="latest",
+            ignore_cache=True,
+        )
+
+        assert result["image_name"] == "other-registry.com/test-image"
+        assert result["tag"] == "latest"
+        assert result["image"] == "other-registry.com/test-image:latest"
+
+        # Verify the image was tagged with the explicitly provided namespace
+        mock_docker_client.images.get.return_value.tag.assert_called_once_with(
+            repository="other-registry.com/test-image",
+            tag="latest",
+        )
+
+
+def test_push_docker_image_with_default_namespace(mock_docker_client: MagicMock):
+    """Test that push_docker_image respects PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE"""
+    with temporary_settings(
+        {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "my-private-repository.com"},
+    ):
+        result = push_docker_image(
+            image_name="test-image",
+            tag="latest",
+            ignore_cache=True,
+        )
+
+        assert result["image_name"] == "my-private-repository.com/test-image"
+        assert result["tag"] == "latest"
+        assert result["image"] == "my-private-repository.com/test-image:latest"
+
+        mock_docker_client.api.push.assert_called_once_with(
+            repository="my-private-repository.com/test-image",
+            tag="latest",
+            stream=True,
+            decode=True,
+        )
+
+
+def test_push_docker_image_namespace_precedence(mock_docker_client: MagicMock):
+    """Test that explicitly provided namespace takes precedence over default"""
+    with temporary_settings(
+        {PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE: "my-private-repository.com"},
+    ):
+        result = push_docker_image(
+            image_name="other-registry.com/test-image",
+            tag="latest",
+            ignore_cache=True,
+        )
+
+        assert result["image_name"] == "other-registry.com/test-image"
+        assert result["tag"] == "latest"
+        assert result["image"] == "other-registry.com/test-image:latest"
+
+        mock_docker_client.api.push.assert_called_once_with(
+            repository="other-registry.com/test-image",
+            tag="latest",
+            stream=True,
+            decode=True,
+        )

@@ -23,30 +23,36 @@ the build step for a specific deployment.
     ```
 """
 
+from __future__ import annotations
+
 import json
 import os
 import sys
 from functools import wraps
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Callable, List, Optional, TypeVar
 
 import docker.errors
 from docker.models.images import Image
-from typing_extensions import TypedDict
+from typing_extensions import ParamSpec, TypedDict
 
 from prefect.logging.loggers import get_logger
+from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE
 from prefect.types import DateTime
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
     docker_client,
     get_prefect_image_name,
+    split_repository_path,
 )
 from prefect.utilities.slugify import slugify
 
+P = ParamSpec("P")
+T = TypeVar("T")
 logger = get_logger("prefect_docker.deployments.steps")
 
-STEP_OUTPUT_CACHE: Dict = {}
+STEP_OUTPUT_CACHE: dict[tuple[Any, ...], Any] = {}
 
 
 class BuildDockerImageResult(TypedDict):
@@ -85,7 +91,7 @@ class PushDockerImageResult(TypedDict):
     additional_tags: Optional[List[str]]
 
 
-def _make_hashable(obj):
+def _make_hashable(obj: Any) -> Any:
     if isinstance(obj, dict):
         return json.dumps(obj, sort_keys=True)
     elif isinstance(obj, list):
@@ -93,9 +99,9 @@ def _make_hashable(obj):
     return obj
 
 
-def cacheable(func):
+def cacheable(func: Callable[P, T]) -> Callable[P, T]:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if ignore_cache := kwargs.pop("ignore_cache", False):
             logger.debug(f"Ignoring `@cacheable` decorator for {func.__name__}.")
         key = (
@@ -117,10 +123,10 @@ def cacheable(func):
 def build_docker_image(
     image_name: str,
     dockerfile: str = "Dockerfile",
-    tag: Optional[str] = None,
-    additional_tags: Optional[List[str]] = None,
+    tag: str | None = None,
+    additional_tags: list[str] | None = None,
     ignore_cache: bool = False,
-    **build_kwargs,
+    **build_kwargs: Any,
 ) -> BuildDockerImageResult:
     """
     Builds a Docker image for a Prefect deployment.
@@ -181,9 +187,17 @@ def build_docker_image(
                 platform: amd64
         ```
     """  # noqa
+
+    namespace, repository = split_repository_path(image_name)
+    if not namespace:
+        namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
+    # join the namespace and repository to create the full image name
+    # ignore namespace if it is None
+    image_name = "/".join(filter(None, [namespace, repository]))
+
     auto_build = dockerfile == "auto"
     if auto_build:
-        lines = []
+        lines: list[str] = []
         base_image = get_prefect_image_name()
         lines.append(f"FROM {base_image}")
         dir_name = os.path.basename(os.getcwd())
@@ -262,9 +276,9 @@ def build_docker_image(
 @cacheable
 def push_docker_image(
     image_name: str,
-    tag: Optional[str] = None,
-    credentials: Optional[Dict] = None,
-    additional_tags: Optional[List[str]] = None,
+    tag: str | None = None,
+    credentials: dict[str, Any] | None = None,
+    additional_tags: list[str] | None = None,
     ignore_cache: bool = False,
 ) -> PushDockerImageResult:
     """
@@ -319,6 +333,14 @@ def push_docker_image(
                 additional_tags: "{{ build-image.additional_tags }}"
         ```
     """  # noqa
+
+    namespace, repository = split_repository_path(image_name)
+    if not namespace:
+        namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
+    # join the namespace and repository to create the full image name
+    # ignore namespace if it is None
+    image_name = "/".join(filter(None, [namespace, repository]))
+
     with docker_client() as client:
         if credentials is not None:
             client.login(
@@ -331,7 +353,7 @@ def push_docker_image(
             client.api.push(repository=image_name, tag=tag, stream=True, decode=True)
         )
         additional_tags = additional_tags or []
-        for i, tag_ in enumerate(additional_tags):
+        for tag_ in additional_tags:
             event = list(
                 client.api.push(
                     repository=image_name, tag=tag_, stream=True, decode=True
