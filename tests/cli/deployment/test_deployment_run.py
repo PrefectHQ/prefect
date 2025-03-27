@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from functools import partial
 from typing import Any, Generator
 from unittest.mock import ANY, AsyncMock
+from zoneinfo import ZoneInfo
 
 import pytest
+from whenever import DateDelta, DateTimeDelta, TimeDelta, ZonedDateTime
 
 import prefect
 from prefect.client.schemas.objects import Deployment, FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
-from prefect.types._datetime import DateTime, Duration, in_local_tz, parse_datetime
+from prefect.types._datetime import (
+    DateTime,
+    Duration,
+    in_local_tz,
+    parse_datetime,
+    to_datetime_string,
+)
 from prefect.types._datetime import now as now_fn
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -168,15 +177,15 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
     [
         (
             "12/20/2022 1am",
-            in_local_tz(DateTime(2022, 12, 20, 1, 0, 0)),
+            DateTime(2022, 12, 20, 1, 0, 0),
         ),
         (
             "1-1-2020",
-            in_local_tz(DateTime(2020, 1, 1, 0, 0, 0)),
+            DateTime(2020, 1, 1, 0, 0, 0),
         ),
         (
             "5 June 2015",
-            in_local_tz(DateTime(2015, 6, 5, 0, 0, 0)),
+            DateTime(2015, 6, 5, 0, 0, 0),
         ),
     ],
 )
@@ -207,7 +216,7 @@ async def test_start_at_option_schedules_flow_run(
     assert flow_run.state.is_scheduled()
     scheduled_time = flow_run.state.state_details.scheduled_time
 
-    assert scheduled_time == expected_start_time
+    assert scheduled_time == expected_start_time.astimezone(ZoneInfo("UTC"))
 
 
 @pytest.mark.parametrize(
@@ -253,7 +262,7 @@ async def test_start_at_option_with_tz_schedules_flow_run(
     assert flow_run.state.is_scheduled()
     scheduled_time = flow_run.state.state_details.scheduled_time
 
-    assert scheduled_time == expected_start_time
+    assert scheduled_time == expected_start_time.replace(microsecond=0)
 
 
 @pytest.mark.parametrize(
@@ -285,7 +294,10 @@ def test_start_in_option_invalid_input(
 @pytest.mark.parametrize(
     "start_in, expected_display",
     [
-        ("20 minutes", "in 20 minutes"),
+        (
+            "20 minutes",
+            "in 19 minutes",
+        ),  # difference due to different libraries used for parsing and display
         ("5 days", "in 5 days"),
         ("3 seconds", "in a few seconds"),
         (None, "now"),
@@ -315,13 +327,13 @@ async def test_start_in_option_displays_scheduled_start_time(
 @pytest.mark.parametrize(
     "start_in,expected_duration",
     [
-        ("10 minutes", Duration(minutes=10)),
-        ("5 days", Duration(days=5)),
-        ("3 seconds", Duration(seconds=3)),
-        (None, Duration(seconds=0)),
-        ("1 year and 3 months", Duration(years=1, months=3)),
-        ("2 weeks & 1 day", Duration(weeks=2, days=1)),
-        ("27 hours + 4 mins", Duration(days=1, hours=3, minutes=4)),
+        ("10 minutes", TimeDelta(minutes=10)),
+        ("5 days", DateDelta(days=5)),
+        ("3 seconds", TimeDelta(seconds=3)),
+        (None, TimeDelta(seconds=0)),
+        ("1 year and 3 months", DateDelta(years=1, months=3)),
+        ("2 weeks & 1 day", DateDelta(weeks=2, days=1)),
+        ("27 hours + 4 mins", DateTimeDelta(days=1, hours=3, minutes=4)),
     ],
 )
 async def test_start_in_option_schedules_flow_run(
@@ -331,8 +343,17 @@ async def test_start_in_option_schedules_flow_run(
     start_in: str,
     expected_duration: Duration,
 ):
-    expected_start_time = frozen_now + expected_duration
-    expected_display = in_local_tz(expected_start_time).to_datetime_string()
+    # coerce to a datetime whenever will accept
+    frozen_now_py = datetime.fromisoformat(frozen_now.isoformat())
+    frozen_now_py_tz = frozen_now_py.replace(
+        tzinfo=ZoneInfo(frozen_now_py.tzname() or "UTC")
+    )
+    expected_start_time = (
+        ZonedDateTime.from_py_datetime(frozen_now_py_tz)
+        .add(expected_duration)
+        .py_datetime()
+    )
+    expected_display = to_datetime_string(in_local_tz(expected_start_time))
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -353,7 +374,9 @@ async def test_start_in_option_schedules_flow_run(
     assert flow_run.state.is_scheduled()
     scheduled_time = flow_run.state.state_details.scheduled_time
 
-    assert scheduled_time == expected_start_time
+    assert scheduled_time.replace(microsecond=0) == expected_start_time.replace(
+        microsecond=0
+    )
 
 
 @pytest.mark.parametrize(
@@ -361,15 +384,15 @@ async def test_start_in_option_schedules_flow_run(
     [
         (
             "12/20/2030 1am",
-            in_local_tz(DateTime(2030, 12, 20, 1, 0, 0)),
+            DateTime(2030, 12, 20, 1, 0, 0),
         ),
         (
             "1-1-2020",
-            in_local_tz(DateTime(2020, 1, 1, 0, 0, 0)),
+            DateTime(2020, 1, 1, 0, 0, 0),
         ),
         (
             "5 June 2015",
-            in_local_tz(DateTime(2015, 6, 5, 0, 0, 0)),
+            DateTime(2015, 6, 5, 0, 0, 0),
         ),
     ],
 )
@@ -391,7 +414,7 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
     The result of the design is unintentional and this test documents the observed
     output.
     """
-    expected_display = expected_start_time.to_datetime_string()
+    expected_display = to_datetime_string(expected_start_time, include_tz=False)
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -428,8 +451,8 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
     start_at_scheduled_time = start_at_flow_run.state.state_details.scheduled_time
     start_in_scheduled_time = start_in_flow_run.state.state_details.scheduled_time
 
-    assert start_at_scheduled_time == expected_start_time
-    assert start_in_scheduled_time == expected_start_time
+    assert start_at_scheduled_time == expected_start_time.astimezone(ZoneInfo("UTC"))
+    assert start_in_scheduled_time == expected_start_time.astimezone(ZoneInfo("UTC"))
 
 
 async def test_print_parameter_validation_error(

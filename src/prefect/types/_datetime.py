@@ -200,10 +200,29 @@ def travel_to(dt: Any):
             yield
 
 
-def in_local_tz(dt: datetime.datetime) -> DateTime:
+def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import LocalDateTime
+        from whenever import LocalDateTime, ZonedDateTime
 
-        return LocalDateTime.from_py_datetime(dt).assume_system_tz()
+        if dt.tzinfo is None:
+            ldt = LocalDateTime.from_py_datetime(dt)
+        else:
+            if not isinstance(dt.tzinfo, ZoneInfo):
+                if key := getattr(dt.tzinfo, "key", None):
+                    dt = dt.replace(tzinfo=ZoneInfo(key))
+                else:
+                    utc_dt = dt.astimezone(datetime.timezone.utc)
+                    dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
+
+            ldt = ZonedDateTime.from_py_datetime(dt).local()
+
+        return ldt.py_datetime()
 
     return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
+
+
+def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
+    if include_tz:
+        return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+    else:
+        return dt.strftime("%Y-%m-%d %H:%M:%S")

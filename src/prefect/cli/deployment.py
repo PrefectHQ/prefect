@@ -19,6 +19,7 @@ from rich.console import Console
 from rich.pretty import Pretty
 from rich.table import Table
 
+import prefect.types._datetime
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -41,13 +42,10 @@ from prefect.exceptions import (
 from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
+    DateTime,
     human_friendly_diff,
     in_local_tz,
-    now,
     parse_datetime,
-)
-from prefect.types._datetime import (
-    now as now_fn,
 )
 from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
@@ -559,7 +557,7 @@ async def list_schedules(deployment_name: str):
 
     def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
-        return now("UTC") - schedule.created
+        return DateTime.now("utc") - schedule.created
 
     def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
@@ -650,7 +648,7 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
 
     def sort_by_created_key(d: DeploymentResponse):
         assert d.created is not None, "All deployments should have a created time."
-        return now("UTC") - d.created
+        return DateTime.now("utc") - d.created
 
     table = Table(
         title="Deployments",
@@ -758,7 +756,7 @@ async def run(
     """
     import dateparser
 
-    now = now_fn("UTC")
+    now = prefect.types._datetime.now("UTC")
 
     multi_params: dict[str, Any] = {}
     if multiparams:
@@ -827,8 +825,8 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        scheduled_start_time = start_time_parsed
-        human_dt_diff = " (" + human_friendly_diff(scheduled_start_time, now) + ")"
+        scheduled_start_time = DateTime.instance(start_time_parsed)
+        human_dt_diff = " (" + human_friendly_diff(scheduled_start_time) + ")"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
