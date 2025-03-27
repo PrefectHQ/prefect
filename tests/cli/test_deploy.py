@@ -6009,7 +6009,7 @@ class TestDeploymentTrigger:
 
     class TestDeploymentTriggerPassedViaCLI:
         @pytest.mark.usefixtures("project_dir")
-        async def test_json_string_trigger(self, docker_work_pool):
+        async def test_json_string_trigger(self, docker_work_pool: WorkPool):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
@@ -6049,7 +6049,7 @@ class TestDeploymentTrigger:
                 assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
-        async def test_json_file_trigger(self, docker_work_pool):
+        async def test_json_file_trigger(self, docker_work_pool: WorkPool):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
@@ -6090,7 +6090,7 @@ class TestDeploymentTrigger:
                 assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
-        async def test_yaml_file_trigger(self, docker_work_pool):
+        async def test_yaml_file_trigger(self, docker_work_pool: WorkPool):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
@@ -6131,7 +6131,9 @@ class TestDeploymentTrigger:
                 assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
-        async def test_nested_yaml_file_trigger(self, docker_work_pool, tmpdir):
+        async def test_nested_yaml_file_trigger(
+            self, docker_work_pool: WorkPool, tmpdir: Path
+        ):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
@@ -6171,7 +6173,7 @@ class TestDeploymentTrigger:
                 assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
-        async def test_multiple_trigger_flags(self, docker_work_pool):
+        async def test_multiple_trigger_flags(self, docker_work_pool: WorkPool):
             client = AsyncMock()
             client.server_type = ServerType.CLOUD
 
