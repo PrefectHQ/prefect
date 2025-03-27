@@ -93,6 +93,30 @@ class TestInputsPolicy:
             )
             assert new_key == key
 
+    def test_key_applies_stabilizing_transformations(self, monkeypatch):
+        patched = {dict: lambda val: "foobar"}
+        monkeypatch.setattr("prefect.cache_policies.STABLE_TRANSFORMS", patched)
+
+        policy = Inputs()
+
+        # confirm dictionaries hash to the same because of the transform
+        key = policy.compute_key(
+            task_ctx=None, inputs={"y": dict(x="string")}, flow_parameters=None
+        )
+        other_key = policy.compute_key(
+            task_ctx=None, inputs={"y": dict(z="otherstring")}, flow_parameters=None
+        )
+
+        assert key == other_key
+
+        # confirm no changes to other types of inputs
+        key = policy.compute_key(task_ctx=None, inputs={"x": 42}, flow_parameters=None)
+        other_key = policy.compute_key(
+            task_ctx=None, inputs={"x": 43}, flow_parameters=None
+        )
+
+        assert key != other_key
+
     def test_subtraction_results_in_new_policy_for_inputs(self):
         policy = Inputs()
         new_policy = policy - "foo"

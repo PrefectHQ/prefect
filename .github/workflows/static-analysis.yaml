@@ -74,7 +74,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
       
       - name: Install the project
-        run: uv sync --compile-bytecode --no-editable
+        run: uv sync --compile-bytecode --no-editable --group type-checking --no-dev
 
       - name: Run type completeness check
         run: >-
