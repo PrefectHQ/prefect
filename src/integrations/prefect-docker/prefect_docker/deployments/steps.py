@@ -25,10 +25,10 @@ the build step for a specific deployment.
 
 from __future__ import annotations
 
-import datetime
 import json
 import os
 import sys
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, List, Optional, TypeVar
@@ -256,7 +256,7 @@ def build_docker_image(
             raise BuildError("Docker did not return an image ID for built image.")
 
         if not tag:
-            tag = slugify(datetime.datetime.now(ZoneInfo("UTC")).isoformat())
+            tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
 
         image: Image = client.images.get(image_id)
         image.tag(repository=image_name, tag=tag)
