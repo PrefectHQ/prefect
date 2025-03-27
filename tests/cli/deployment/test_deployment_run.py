@@ -134,10 +134,10 @@ async def test_start_at_option_displays_scheduled_start_time(
     "start_at,expected_start_time",
     [
         ("5-17-43 5:30pm UTC", parse_datetime("2043-05-17T17:30:00")),
-        ("5-20-2020 5:30pm EDT", parse_datetime("2020-05-20T17:30:00", tz="EST5EDT")),
-        ("01/31/43 5:30 CST", parse_datetime("2043-01-31T05:30:00", tz="CST6CDT")),
-        ("5-20-43 5:30pm PDT", parse_datetime("2043-05-20T17:30:00", tz="PST8PDT")),
-        ("01/31/43 5:30 PST", parse_datetime("2043-01-31T05:30:00", tz="PST8PDT")),
+        ("5-20-2020 5:30pm EDT", parse_datetime("2020-05-20T17:30:00-04:00")),
+        ("01/31/43 5:30 CST", parse_datetime("2043-01-31T05:30:00-06:00")),
+        ("5-20-43 5:30pm PDT", parse_datetime("2043-05-20T17:30:00-07:00")),
+        ("01/31/43 5:30 PST", parse_datetime("2043-01-31T05:30:00-08:00")),
     ],
 )
 async def test_start_at_option_with_tz_displays_scheduled_start_time(
@@ -214,10 +214,10 @@ async def test_start_at_option_schedules_flow_run(
     "start_at,expected_start_time",
     [
         ("5-17-43 5:30pm UTC", parse_datetime("2043-05-17T17:30:00")),
-        ("5-20-2020 5:30pm EDT", parse_datetime("2020-05-20T17:30:00", tz="EST5EDT")),
-        ("01/31/43 5:30 CST", parse_datetime("2043-01-31T05:30:00", tz="CST6CDT")),
-        ("5-20-43 5:30pm PDT", parse_datetime("2043-05-20T17:30:00", tz="PST8PDT")),
-        ("01/31/43 5:30 PST", parse_datetime("2043-01-31T05:30:00", tz="PST8PDT")),
+        ("5-20-2020 5:30pm EDT", parse_datetime("2020-05-20T17:30:00-04:00")),
+        ("01/31/43 5:30 CST", parse_datetime("2043-01-31T05:30:00-06:00")),
+        ("5-20-43 5:30pm PDT", parse_datetime("2043-05-20T17:30:00-07:00")),
+        ("01/31/43 5:30 PST", parse_datetime("2043-01-31T05:30:00-08:00")),
     ],
 )
 async def test_start_at_option_with_tz_schedules_flow_run(
