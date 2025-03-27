@@ -34,7 +34,11 @@ else:
 
 def parse_datetime(dt: str) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        return parse(dt)
+        parsed_dt = parse(dt)
+        if parsed_dt.tzinfo is None:
+            return parsed_dt.replace(tzinfo=ZoneInfo("UTC"))
+        else:
+            return parsed_dt
     else:
         return pendulum.parse(dt)
 
@@ -214,7 +218,7 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                     utc_dt = dt.astimezone(datetime.timezone.utc)
                     dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-            ldt = ZonedDateTime.from_py_datetime(dt).local()
+            ldt = ZonedDateTime.from_py_datetime(dt).local().assume_system_tz()
 
         return ldt.py_datetime()
 

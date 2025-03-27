@@ -43,9 +43,11 @@ from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
     DateTime,
+    create_datetime_instance,
     human_friendly_diff,
     in_local_tz,
     parse_datetime,
+    to_datetime_string,
 )
 from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
@@ -349,7 +351,7 @@ async def create_schedule(
     if interval is not None:
         if interval_anchor:
             try:
-                parse_datetime(interval_anchor)
+                parsed_interval_anchor = parse_datetime(interval_anchor)
             except ValueError:
                 return exit_with_error("The anchor date must be a valid date string.")
 
@@ -366,7 +368,7 @@ async def create_schedule(
             "interval": timedelta(seconds=interval),
         }
         if interval_anchor:
-            interval_schedule["anchor_date"] = interval_anchor
+            interval_schedule["anchor_date"] = parsed_interval_anchor
         if timezone:
             interval_schedule["timezone"] = timezone
         schedule = IntervalSchedule(**interval_schedule)
@@ -557,7 +559,7 @@ async def list_schedules(deployment_name: str):
 
     def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
-        return DateTime.now("utc") - schedule.created
+        return prefect.types._datetime.now("UTC") - schedule.created
 
     def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
@@ -825,7 +827,7 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        scheduled_start_time = DateTime.instance(start_time_parsed)
+        scheduled_start_time = create_datetime_instance(start_time_parsed)
         human_dt_diff = " (" + human_friendly_diff(scheduled_start_time) + ")"
 
     async with get_client() as client:
@@ -875,10 +877,7 @@ async def run(
 
     run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = in_local_tz(scheduled_start_time)
-    scheduled_display = datetime_local_tz.to_datetime_string()
-    tz_name = datetime_local_tz.tzname()
-    if tz_name:
-        scheduled_display += " " + tz_name
+    scheduled_display = to_datetime_string(datetime_local_tz)
     scheduled_display += human_dt_diff
 
     app.console.print(f"Created flow run {flow_run.name!r}.")

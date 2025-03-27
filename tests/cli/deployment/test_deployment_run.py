@@ -153,11 +153,6 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
     deployment_name: str, start_at: str, expected_start_time: DateTime
 ):
     expected_start_time_local = in_local_tz(expected_start_time)
-    expected_display = (
-        expected_start_time_local.to_datetime_string()
-        + " "
-        + expected_start_time_local.tzname()
-    )
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -168,7 +163,10 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
             "--start-at",
             start_at,
         ],
-        expected_output_contains=["Scheduled start time:", expected_display],
+        expected_output_contains=[
+            "Scheduled start time:",
+            to_datetime_string(expected_start_time_local),
+        ],
     )
 
 
@@ -195,7 +193,7 @@ async def test_start_at_option_schedules_flow_run(
     expected_start_time: DateTime,
     prefect_client: prefect.client.orchestration.PrefectClient,
 ):
-    expected_display = expected_start_time.to_datetime_string()
+    expected_display = to_datetime_string(expected_start_time)
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -238,7 +236,7 @@ async def test_start_at_option_with_tz_schedules_flow_run(
     expected_start_time_local = in_local_tz(expected_start_time)
 
     expected_display = (
-        expected_start_time_local.to_datetime_string()
+        to_datetime_string(expected_start_time_local)
         + " "
         + expected_start_time_local.tzname()
     )
