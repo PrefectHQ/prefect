@@ -752,6 +752,8 @@ async def test_counting_by_time_per_week(
         start_day = DateTime(
             year=date.year, month=date.month, day=date.day, tzinfo=ZoneInfo("UTC")
         )
+        # go to the start of the week
+        start_day = start_day.replace(day=start_day.day - start_day.weekday())
         if start_day not in counts_by_week:
             counts_by_week[start_day] = 0
         counts_by_week[start_day] += 20  # We generate 20 events per known date

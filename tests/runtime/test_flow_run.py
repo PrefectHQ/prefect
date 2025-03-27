@@ -12,7 +12,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import now
 
 
 class TestAttributeAccessPatterns:
@@ -42,9 +42,9 @@ class TestAttributeAccessPatterns:
             ("str_attribute", "foo", "bar", "bar"),
             (
                 "datetime_attribute",
-                DateTime(2022, 1, 1, 0, tzinfo=ZoneInfo("UTC")),
+                datetime.datetime(2022, 1, 1, 0, tzinfo=ZoneInfo("UTC")),
                 "2023-05-13 20:00:00",
-                DateTime(2023, 5, 13, 20, tzinfo=ZoneInfo("UTC")),
+                datetime.datetime(2023, 5, 13, 20, tzinfo=ZoneInfo("UTC")),
             ),
         ],
     )

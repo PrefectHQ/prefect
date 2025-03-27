@@ -72,7 +72,7 @@ type_cast: dict[
     int: int,
     float: float,
     str: str,
-    DateTime: _parse_datetime_UTC,
+    datetime: _parse_datetime_UTC,
     # for optional defined attributes, when real value is NoneType, use str
     type(None): str,
 }
