@@ -91,7 +91,7 @@ def human_friendly_diff(
 
 def now(
     tz: str | Any = "UTC",
-) -> DateTime | datetime.datetime:
+) -> datetime.datetime:
     if sys.version_info >= (3, 13):
         from whenever import ZonedDateTime
 
@@ -100,7 +100,7 @@ def now(
 
         return ZonedDateTime.now(tz).py_datetime()
     else:
-        return DateTime.now(tz)
+        return pendulum.now(tz)
 
 
 def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:

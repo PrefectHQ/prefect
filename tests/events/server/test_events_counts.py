@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import end_of_period
 from whenever import ZonedDateTime
 
 from prefect.server.events.counting import PIVOT_DATETIME, Countable, TimeUnit
@@ -748,10 +749,11 @@ async def test_counting_by_time_per_week(
     # on what day of the week it's run.
     counts_by_week = {}
     for date in known_dates:
-        start_day = DateTime(year=date.year, month=date.month, day=date.day).astimezone(
-            ZoneInfo("UTC")
+        start_day = (
+            DateTime(year=date.year, month=date.month, day=date.day)
+            .in_timezone("UTC")
+            .start_of("week")
         )
-        start_day = start_day.replace(day=start_day.day - start_day.weekday())
         if start_day not in counts_by_week:
             counts_by_week[start_day] = 0
         counts_by_week[start_day] += 20  # We generate 20 events per known date
@@ -764,7 +766,7 @@ async def test_counting_by_time_per_week(
                 label=date.isoformat(),
                 count=count,
                 start_time=date,
-                end_time=date.end_of("week"),
+                end_time=end_of_period(date, "week"),
             )
         )
 

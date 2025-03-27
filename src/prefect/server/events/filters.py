@@ -1,9 +1,10 @@
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
@@ -122,7 +123,9 @@ class EventOccurredFilter(EventDataFilter):
 
     def clamp(self, max_duration: timedelta) -> None:
         """Limit how far the query can look back based on the given duration"""
-        earliest = prefect.types._datetime.now("UTC") - max_duration
+        # Using datetime.now() instead of prefect.types._datetime.now() to avoid
+        # dropping timezone information which happens if pendulum is used
+        earliest = datetime.now(ZoneInfo("UTC")) - max_duration
         self.since = max(earliest, self.since)
 
     def includes(self, event: Event) -> bool:
