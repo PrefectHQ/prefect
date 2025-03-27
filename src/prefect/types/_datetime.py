@@ -8,44 +8,35 @@ from unittest import mock
 from zoneinfo import ZoneInfo, available_timezones
 
 import humanize
-import pendulum
-import pendulum.tz
-from pendulum.date import Date as PendulumDate
-from pendulum.datetime import DateTime as PendulumDateTime
-from pendulum.duration import Duration as PendulumDuration
-from pendulum.time import Time as PendulumTime
-from pendulum.tz.timezone import Timezone
-from pydantic_extra_types.pendulum_dt import (
-    Date as PydanticDate,
-)
-from pydantic_extra_types.pendulum_dt import (
-    DateTime as PydanticDateTime,
-)
-from pydantic_extra_types.pendulum_dt import (
-    Duration as PydanticDuration,
-)
+from dateutil.parser import parse
 from typing_extensions import TypeAlias
 
-DateTime: TypeAlias = PydanticDateTime
-Date: TypeAlias = PydanticDate
-Duration: TypeAlias = PydanticDuration
-UTC: pendulum.tz.Timezone = pendulum.tz.UTC
+if sys.version_info >= (3, 13):
+    DateTime: TypeAlias = datetime.datetime
+    Date: TypeAlias = datetime.date
+    Duration: TypeAlias = datetime.timedelta
+else:
+    import pendulum
+    from pydantic_extra_types.pendulum_dt import (
+        Date as PydanticDate,
+    )
+    from pydantic_extra_types.pendulum_dt import (
+        DateTime as PydanticDateTime,
+    )
+    from pydantic_extra_types.pendulum_dt import (
+        Duration as PydanticDuration,
+    )
+
+    DateTime: TypeAlias = PydanticDateTime
+    Date: TypeAlias = PydanticDate
+    Duration: TypeAlias = PydanticDuration
 
 
-def parse_datetime(
-    value: str,
-    **options: Any,
-) -> PendulumDateTime | PendulumDate | PendulumTime | PendulumDuration:
-    return pendulum.parse(value, **options)
-
-
-def format_diff(
-    diff: PendulumDuration,
-    is_now: bool = True,
-    absolute: bool = False,
-    locale: str | None = None,
-) -> str:
-    return pendulum.format_diff(diff, is_now, absolute, locale)
+def parse_datetime(dt: str) -> datetime.datetime:
+    if sys.version_info >= (3, 13):
+        return parse(dt)
+    else:
+        return pendulum.parse(dt)
 
 
 def get_timezones() -> tuple[str, ...]:
@@ -59,11 +50,10 @@ def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
     return DateTime.instance(v)
 
 
-def from_timestamp(
-    ts: float, tz: str | pendulum.tz.Timezone = UTC
-) -> datetime.datetime:
+def from_timestamp(ts: float, tz: str | Any = "UTC") -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        if isinstance(tz, Timezone):
+        if not isinstance(tz, str):
+            # Handle pendulum edge case
             tz = tz.name
         return datetime.datetime.fromtimestamp(ts, ZoneInfo(tz))
 
@@ -80,7 +70,7 @@ def human_friendly_diff(
     if dt.tzinfo is None:
         local_tz = datetime.datetime.now().astimezone().tzinfo
         dt = dt.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
-    elif isinstance(dt.tzinfo, Timezone):
+    elif hasattr(dt.tzinfo, "name"):
         dt = dt.replace(tzinfo=ZoneInfo(dt.tzinfo.name))
 
     # Handle other parameter if provided
@@ -88,7 +78,7 @@ def human_friendly_diff(
         if other.tzinfo is None:
             local_tz = datetime.datetime.now().astimezone().tzinfo
             other = other.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
-        elif isinstance(other.tzinfo, Timezone):
+        elif hasattr(other.tzinfo, "name"):
             other = other.replace(tzinfo=ZoneInfo(other.tzinfo.name))
 
     if sys.version_info >= (3, 13):
@@ -100,12 +90,12 @@ def human_friendly_diff(
 
 
 def now(
-    tz: str | Timezone = "UTC",
+    tz: str | Any = "UTC",
 ) -> DateTime | datetime.datetime:
     if sys.version_info >= (3, 13):
         from whenever import ZonedDateTime
 
-        if isinstance(tz, Timezone):
+        if isinstance(getattr(tz, "name", None), str):
             tz = tz.name
 
         return ZonedDateTime.now(tz).py_datetime()
@@ -113,7 +103,7 @@ def now(
         return DateTime.now(tz)
 
 
-def end_of_period(dt: datetime.datetime | DateTime, period: str) -> datetime.datetime:
+def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
     """
     Returns the end of the specified unit of time.
 
@@ -132,9 +122,9 @@ def end_of_period(dt: datetime.datetime | DateTime, period: str) -> datetime.dat
     if sys.version_info >= (3, 13):
         from whenever import Weekday, ZonedDateTime
 
-        if isinstance(dt, DateTime):
-            zdt = ZonedDateTime.from_timestamp(
-                dt.timestamp(), tz=dt.tz.name if dt.tz else "UTC"
+        if not isinstance(dt.tzinfo, ZoneInfo):
+            zdt = ZonedDateTime.from_py_datetime(
+                dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC"))
             )
         else:
             zdt = ZonedDateTime.from_py_datetime(dt)
@@ -181,7 +171,7 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
         from whenever import ZonedDateTime
 
-        if isinstance(dt, DateTime):
+        if hasattr(dt, "tz"):
             zdt = ZonedDateTime.from_timestamp(
                 dt.timestamp(), tz=dt.tz.name if dt.tz else "UTC"
             )

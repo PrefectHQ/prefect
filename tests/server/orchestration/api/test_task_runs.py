@@ -14,7 +14,6 @@ from prefect.server.database.orm_models import FlowRun, TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.states import Pending
-from prefect.types import DateTime
 from prefect.types._datetime import now as now_fn
 
 
@@ -402,7 +401,7 @@ class TestPaginateTaskRuns:
     ):
         """Test pagination with custom page size and page number."""
         # Create multiple task runs
-        now = DateTime.now("UTC")
+        now = now_fn("UTC")
         task_runs: list[TaskRun] = []
 
         for i in range(5):
@@ -547,7 +546,7 @@ class TestPaginateTaskRuns:
         self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
     ):
         """Test pagination with sorting."""
-        now = DateTime.now("UTC")
+        now = now_fn("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(

@@ -41,8 +41,7 @@ from prefect.exceptions import (
 from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
-    DateTime,
-    format_diff,
+    human_friendly_diff,
     in_local_tz,
     now,
     parse_datetime,
@@ -828,8 +827,8 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        scheduled_start_time = DateTime.instance(start_time_parsed)
-        human_dt_diff = " (" + format_diff(scheduled_start_time.diff(now)) + ")"
+        scheduled_start_time = start_time_parsed
+        human_dt_diff = " (" + human_friendly_diff(scheduled_start_time, now) + ")"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)

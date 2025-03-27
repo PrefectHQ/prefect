@@ -5,7 +5,7 @@ import pytest
 from prefect.server import models, schemas
 from prefect.server.api.ui.flows import SimpleNextFlowRun
 from prefect.server.database import orm_models
-from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -126,8 +126,8 @@ class TestNextRunsByFlow:
                 flow_version="0.1",
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=DateTime.now("UTC"),
-                    state_details={"scheduled_time": DateTime.now("UTC")},
+                    timestamp=now("UTC"),
+                    state_details={"scheduled_time": now("UTC")},
                 ),
             ),
         )

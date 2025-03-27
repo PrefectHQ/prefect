@@ -5,6 +5,7 @@ from typing import Iterable, List, Union
 from unittest import mock
 from unittest.mock import AsyncMock
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
@@ -22,7 +23,7 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
     temporary_settings,
 )
-from prefect.types._datetime import UTC, DateTime, earliest_possible_datetime, now
+from prefect.types._datetime import DateTime, earliest_possible_datetime, now
 
 
 async def test_reading_graph_for_nonexistant_flow_run(
@@ -41,7 +42,7 @@ def assert_graph_is_connected(graph: Graph, incremental: bool = False) -> None:
     nodes_by_id = {id: node for id, node in graph.nodes}
 
     def assert_ordered_by_start_time(items: Iterable[Union[Edge, Node]]) -> None:
-        last_seen = DateTime(1978, 6, 4, tzinfo=UTC)
+        last_seen = DateTime(1978, 6, 4, tzinfo=ZoneInfo("UTC"))
         for item in items:
             try:
                 node = nodes_by_id[item.id]
@@ -51,7 +52,7 @@ def assert_graph_is_connected(graph: Graph, incremental: bool = False) -> None:
                 raise
 
             assert node.start_time >= last_seen
-            last_seen = DateTime.instance(node.start_time)
+            last_seen = node.start_time
 
     nodes = [node for _, node in graph.nodes]
     assert_ordered_by_start_time(nodes)
@@ -1454,8 +1455,8 @@ async def test_reading_graph_for_flow_run_includes_states(
 @pytest.fixture
 def graph() -> Graph:
     return Graph(
-        start_time=DateTime(1978, 6, 4, tzinfo=UTC),
-        end_time=DateTime(2023, 6, 4, tzinfo=UTC),
+        start_time=DateTime(1978, 6, 4, tzinfo=ZoneInfo("UTC")),
+        end_time=DateTime(2023, 6, 4, tzinfo=ZoneInfo("UTC")),
         root_node_ids=[],
         nodes=[],
         artifacts=[],
@@ -1521,7 +1522,7 @@ async def test_api_incremental(
     model_method_mock.assert_awaited_once_with(
         session=mock.ANY,
         flow_run_id=flow_run_id,
-        since=DateTime(2023, 6, 4, 1, 2, 3, tzinfo=UTC),
+        since=DateTime(2023, 6, 4, 1, 2, 3, tzinfo=ZoneInfo("UTC")),
     )
     assert response.json() == graph.model_dump(mode="json")
 

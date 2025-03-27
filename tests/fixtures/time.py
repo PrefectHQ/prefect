@@ -28,7 +28,6 @@ def frozen_time(
                 )
             )
 
-    monkeypatch.setattr(prefect.types._datetime.DateTime, "now", frozen_time)
     monkeypatch.setattr(prefect.types._datetime, "now", frozen_time)
     return frozen
 
@@ -57,7 +56,6 @@ def advance_time(
         else:
             return clock.astimezone(ZoneInfo(tz))
 
-    monkeypatch.setattr(prefect.types._datetime.DateTime, "now", nowish)
     monkeypatch.setattr(prefect.types._datetime, "now", nowish)
 
     return advance

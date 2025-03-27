@@ -13,6 +13,7 @@ from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
 from prefect.types._datetime import DateTime, Duration, in_local_tz, parse_datetime
+from prefect.types._datetime import now as now_fn
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -27,8 +28,8 @@ async def deployment_name(
 
 @pytest.fixture
 def frozen_now(monkeypatch: pytest.MonkeyPatch) -> Generator[DateTime, None, None]:
-    now = DateTime.now("UTC")
-    monkeypatch.setattr("prefect.types._datetime.DateTime.now", lambda *_: now)  # type: ignore
+    now = now_fn("UTC")
+    monkeypatch.setattr("prefect.types._datetime.now", lambda *_: now)  # type: ignore
     yield now
 
 

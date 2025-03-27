@@ -25,12 +25,13 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
-from prefect.types._datetime import DateTime, Timezone, now, parse_datetime
+from prefect.types._datetime import DateTime, now, parse_datetime
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, TaskRun
@@ -53,10 +54,8 @@ __all__ = [
 ]
 
 
-def _parse_datetime_UTC(dt: str) -> DateTime:
-    dt_instance = parse_datetime(dt, tz=Timezone("UTC"), strict=False)
-    assert isinstance(dt_instance, datetime)
-    return DateTime.instance(dt_instance)
+def _parse_datetime_UTC(dt: str) -> datetime:
+    return parse_datetime(dt).astimezone(ZoneInfo("UTC"))
 
 
 type_cast: dict[

@@ -3260,9 +3260,9 @@ name = "pendulum"
 version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "python-dateutil" },
-    { name = "time-machine", marker = "implementation_name != 'pypy'" },
-    { name = "tzdata" },
+    { name = "python-dateutil", marker = "python_full_version < '3.13'" },
+    { name = "time-machine", marker = "python_full_version < '3.13' and implementation_name != 'pypy'" },
+    { name = "tzdata", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b8/fe/27c7438c6ac8b8f8bef3c6e571855602ee784b85d072efddfff0ceb1cd77/pendulum-3.0.0.tar.gz", hash = "sha256:5d034998dea404ec31fae27af6b22cff1708f830a1ed7353be4d1019bb9f584e", size = 84524 }
 wheels = [
@@ -3478,7 +3478,7 @@ dependencies = [
     { name = "orjson" },
     { name = "packaging" },
     { name = "pathspec" },
-    { name = "pendulum" },
+    { name = "pendulum", marker = "python_full_version < '3.13'" },
     { name = "prometheus-client" },
     { name = "pydantic" },
     { name = "pydantic-core" },
@@ -3669,7 +3669,7 @@ requires-dist = [
     { name = "orjson", specifier = ">=3.7,<4.0" },
     { name = "packaging", specifier = ">=21.3,<24.3" },
     { name = "pathspec", specifier = ">=0.8.0" },
-    { name = "pendulum", specifier = ">=3.0.0,<4" },
+    { name = "pendulum", marker = "python_full_version < '3.13'", specifier = ">=3.0.0,<4" },
     { name = "prefect-aws", marker = "extra == 'aws'", directory = "src/integrations/prefect-aws" },
     { name = "prefect-azure", marker = "extra == 'azure'", directory = "src/integrations/prefect-azure" },
     { name = "prefect-bitbucket", marker = "extra == 'bitbucket'", directory = "src/integrations/prefect-bitbucket" },
@@ -6033,7 +6033,7 @@ name = "time-machine"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "python-dateutil" },
+    { name = "python-dateutil", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fb/dd/5022939b9cadefe3af04f4012186c29b8afbe858b1ec2cfa38baeec94dab/time_machine-2.16.0.tar.gz", hash = "sha256:4a99acc273d2f98add23a89b94d4dd9e14969c01214c8514bfa78e4e9364c7e2", size = 24626 }
 wheels = [
