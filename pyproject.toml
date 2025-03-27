@@ -192,6 +192,12 @@ markdown-docs = [
     "prefect[sqlalchemy]",
 ]
 
+type-checking = [
+    "pandas>=2.2.3",
+    "pandas-stubs>=2.2.2.240807",
+    "pyright>=1.1.394",
+]
+
 
 benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
 
