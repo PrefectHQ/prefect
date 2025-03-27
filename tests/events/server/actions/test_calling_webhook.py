@@ -34,6 +34,7 @@ from prefect.server.models import deployments, flow_runs, flows, work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -169,7 +170,7 @@ def call_webhook(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
     )
@@ -191,7 +192,7 @@ def call_webhook_with_templated_payload(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
     )
@@ -213,7 +214,7 @@ def invalid_block_id(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
     )

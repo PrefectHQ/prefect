@@ -39,6 +39,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now as now_fn
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -882,7 +883,7 @@ async def test_delete_automations_owned_by_resource(
             owned_by_resource=(automation in [old_owned, new_owned]),
         )
 
-    now = DateTime.now("UTC")
+    now = now_fn("UTC")
 
     # Make sure the old owned automation is older than the horizon
     await automations_session.execute(

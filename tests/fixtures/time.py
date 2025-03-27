@@ -19,14 +19,8 @@ def frozen_time(
     def frozen_time(tz: Optional[Union[str, prefect.types._datetime.Timezone]] = None):
         if tz is None:
             return frozen
-        if isinstance(frozen, prefect.types._datetime.DateTime):
-            return frozen.in_timezone(tz)
         else:
-            return frozen.astimezone(
-                tz=ZoneInfo(
-                    tz.name if isinstance(tz, prefect.types._datetime.Timezone) else tz
-                )
-            )
+            return frozen.astimezone(tz=ZoneInfo(getattr(tz, "name", tz)))
 
     monkeypatch.setattr(prefect.types._datetime, "now", frozen_time)
     return frozen

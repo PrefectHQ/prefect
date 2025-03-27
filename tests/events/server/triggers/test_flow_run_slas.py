@@ -808,7 +808,7 @@ async def test_regression_3244_positive_case(
 # ------------------------------------------------------
 #          0 |            -10 | prefect.flow-run.Pending
 #        1-5 |              - | 5 minutes worth of backlogged events
-#          5 |              - | proactive evaluation runs here using DateTime.now("UTC")
+#          5 |              - | proactive evaluation runs here using now("UTC")
 #          6 |             -9 | prefect.flow-run.Running
 #
 # In this case, the Running event was only 1 minute after the pending event, but it

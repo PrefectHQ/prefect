@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -18,7 +19,6 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.schemas.states import Paused, Running, StateType
-from prefect.types._datetime import DateTime
 
 
 @pytest.fixture
@@ -74,10 +74,10 @@ def resume_that_paused_flow_run(
     firing = Firing(
         trigger=resume_paused_flow_run.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=ReceivedEvent(
-            occurred=DateTime.now("UTC"),
+            occurred=now("UTC"),
             event="prefect.flow-run.Paused",
             resource={"prefect.resource.id": f"prefect.flow-run.{paused_flow_run.id}"},
             id=uuid.uuid4(),

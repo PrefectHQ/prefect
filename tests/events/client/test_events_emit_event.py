@@ -3,6 +3,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
+from src.prefect.types._datetime import now
 
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
@@ -97,7 +98,7 @@ def test_sets_follows_tight_timing(asserting_events_worker: EventsWorker):
 def test_does_not_set_follows_not_tight_timing(asserting_events_worker: EventsWorker):
     destroyed_event = emit_event(
         event="planet.destroyed",
-        occurred=DateTime.now("UTC") - timedelta(minutes=10),
+        occurred=now("UTC") - timedelta(minutes=10),
         resource={"prefect.resource.id": "milky-way.sol.earth"},
     )
     assert destroyed_event

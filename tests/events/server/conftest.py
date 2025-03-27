@@ -20,6 +20,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -349,7 +350,7 @@ def email_me_when_that_dang_spider_comes(
     firing = Firing(
         trigger=arachnophobia.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={"hello": "world"},
         triggering_event=daddy_long_legs_walked,
     )

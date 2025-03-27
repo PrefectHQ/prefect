@@ -3,6 +3,7 @@ import math
 from datetime import timedelta
 from typing import AsyncGenerator, Dict, List, Tuple
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -135,7 +136,7 @@ def all_events(known_dates: Tuple[Date, ...]) -> List[ReceivedEvent]:
                 hour=i,
                 minute=i * 2,
                 second=i * 2,
-            ).in_timezone("UTC")
+            ).astimezone(ZoneInfo("UTC"))
 
             related = list(related_options[i % len(related_options)])
 
@@ -747,11 +748,10 @@ async def test_counting_by_time_per_week(
     # on what day of the week it's run.
     counts_by_week = {}
     for date in known_dates:
-        start_day = (
-            DateTime(year=date.year, month=date.month, day=date.day)
-            .in_timezone("UTC")
-            .start_of("week")
+        start_day = DateTime(year=date.year, month=date.month, day=date.day).astimezone(
+            ZoneInfo("UTC")
         )
+        start_day = start_day.replace(day=start_day.day - start_day.weekday())
         if start_day not in counts_by_week:
             counts_by_week[start_day] = 0
         counts_by_week[start_day] += 20  # We generate 20 events per known date

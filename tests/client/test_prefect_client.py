@@ -1477,7 +1477,7 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
             name="prefect.flow_runs",
             level=20,
             message=f"Log from flow_run {id}.",
-            timestamp=DateTime.now(),
+            timestamp=now(),
             flow_run_id=id,
         )
         for id in flow_runs

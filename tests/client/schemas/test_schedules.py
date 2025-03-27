@@ -2,6 +2,7 @@ import datetime
 from itertools import combinations
 
 import pytest
+from src.prefect.types._datetime import now
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
@@ -79,7 +80,7 @@ class TestConstructSchedule:
         assert result.interval == interval
 
     def test_datetime_anchor_date(self):
-        anchor = DateTime.now()
+        anchor = now()
         result = construct_schedule(interval=300, anchor_date=anchor)
         assert result == IntervalSchedule(
             interval=datetime.timedelta(seconds=300), anchor_date=anchor

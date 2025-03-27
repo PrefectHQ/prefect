@@ -35,7 +35,7 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
 
     with pytest.raises(ValidationError) as error:
         Event(  # type: ignore
-            occurred=DateTime.now("UTC"),
+            occurred=now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "hello"},
         )
@@ -49,7 +49,7 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
 
 def test_client_events_may_have_empty_related_resources():
     event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         id=uuid4(),
@@ -59,7 +59,7 @@ def test_client_events_may_have_empty_related_resources():
 
 def test_client_event_resources_have_correct_types():
     event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -74,7 +74,7 @@ def test_client_event_resources_have_correct_types():
 
 def test_client_events_may_have_multiple_related_resources():
     event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -94,7 +94,7 @@ def test_client_events_may_have_multiple_related_resources():
 
 def test_client_events_may_have_a_name_label():
     event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello", "prefect.resource.name": "Hello!"},
         related=[
@@ -126,17 +126,17 @@ def test_client_events_may_have_a_name_label():
 
 def test_server_events_default_received(start_of_test: DateTime):
     event = ReceivedEvent(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         id=uuid4(),
     )
-    assert start_of_test <= event.received <= DateTime.now("UTC")
+    assert start_of_test <= event.received <= now("UTC")
 
 
 def test_server_events_can_be_received_from_client_events(start_of_test: DateTime):
     client_event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -154,14 +154,14 @@ def test_server_events_can_be_received_from_client_events(start_of_test: DateTim
     assert server_event.resource == client_event.resource
     assert server_event.related == client_event.related
     assert server_event.id == client_event.id
-    assert start_of_test <= server_event.received <= DateTime.now("UTC")
+    assert start_of_test <= server_event.received <= now("UTC")
 
 
 def test_server_events_can_be_received_from_client_events_with_times(
     start_of_test: DateTime,
 ):
     client_event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -219,7 +219,7 @@ def test_json_representation():
 
 def test_client_event_involved_resources():
     event = Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -237,7 +237,7 @@ def test_client_event_involved_resources():
 @pytest.fixture
 def example_event() -> Event:
     return Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={
             "prefect.resource.id": "hello",

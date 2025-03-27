@@ -414,7 +414,7 @@ async def test_event_clock_only_moves_forward(
     reset_events_clock: None, start_of_test: DateTime
 ):
     event = ReceivedEvent(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="things.happened",
         resource={"prefect.resource.id": "something"},
         id=uuid4(),
@@ -441,24 +441,24 @@ async def test_event_clock_avoids_the_future(
     reset_events_clock: None, start_of_test: DateTime
 ):
     event = ReceivedEvent(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="things.happened",
         resource={"prefect.resource.id": "something"},
         id=uuid4(),
     )
 
-    event.occurred = DateTime.now("UTC") - timedelta(seconds=100)
+    event.occurred = now("UTC") - timedelta(seconds=100)
     await triggers.update_events_clock(event)
     first_tick = await triggers.get_events_clock()
     assert first_tick
     assert first_tick == event.occurred.timestamp()
 
     # now try a future date and see that the clock stays pinned to the present
-    event.occurred = DateTime.now("UTC") + timedelta(seconds=100)
+    event.occurred = now("UTC") + timedelta(seconds=100)
     await triggers.update_events_clock(event)
     second_tick = await triggers.get_events_clock()
     assert second_tick
-    assert first_tick < second_tick <= DateTime.now("UTC").timestamp()
+    assert first_tick < second_tick <= now("UTC").timestamp()
 
 
 async def test_offset_is_resilient_to_low_volume(

@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -99,7 +100,7 @@ def let_guard_one_get_some_sleep(
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_gets_sick_stop_the_patrol.trigger,
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_sick,
@@ -195,7 +196,7 @@ def put_guard_one_back_on_duty(
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_gets_well_resume_the_patrol.trigger,
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_sick,
@@ -272,7 +273,7 @@ def pause_related_patrols(
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_gets_sick_stop_their_patrol.trigger,
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_sick,
@@ -328,7 +329,7 @@ def resume_the_associated_queue(
 ) -> TriggeredAction:
     firing = Firing(
         trigger=when_the_guard_recovers_resume_their_patrol.trigger,
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         trigger_states={TriggerState.Triggered},
         triggering_labels={},
         triggering_event=guard_one_got_well,

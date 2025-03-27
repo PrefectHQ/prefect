@@ -8,6 +8,7 @@ import pytest
 import respx
 from httpx import Response
 from opentelemetry import trace
+from src.prefect.types._datetime import now
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
@@ -23,7 +24,6 @@ from prefect.tasks import task
 from prefect.telemetry.run_telemetry import (
     LABELS_TRACEPARENT_KEY,
 )
-from prefect.types import DateTime
 from prefect.utilities.slugify import slugify
 from tests.telemetry.instrumentation_tester import InstrumentationTester
 
@@ -269,7 +269,7 @@ class TestRunDeployment:
     ):
         deployment = test_deployment
 
-        scheduled_time = DateTime.now("UTC")
+        scheduled_time = now("UTC")
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             timeout=0,
@@ -283,7 +283,7 @@ class TestRunDeployment:
     ):
         deployment = test_deployment
 
-        scheduled_time = DateTime.now("UTC") + timedelta(minutes=5)
+        scheduled_time = now("UTC") + timedelta(minutes=5)
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             scheduled_time=scheduled_time,

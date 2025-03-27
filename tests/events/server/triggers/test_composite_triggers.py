@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now
 
 from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, triggers
@@ -479,7 +480,7 @@ class TestCompoundTriggerAll:
                         id=uuid4(),
                         trigger=compound_automation_all_with_match.trigger.triggers[0],
                         trigger_states={TriggerState.Triggered},
-                        triggered=DateTime.now("UTC"),
+                        triggered=now("UTC"),
                     )
                 ),
                 db.CompositeTriggerChildFiring(
@@ -487,7 +488,7 @@ class TestCompoundTriggerAll:
                         id=uuid4(),
                         trigger=compound_automation_all_with_match.trigger.triggers[1],
                         trigger_states={TriggerState.Triggered},
-                        triggered=DateTime.now("UTC"),
+                        triggered=now("UTC"),
                     )
                 ),
             ]

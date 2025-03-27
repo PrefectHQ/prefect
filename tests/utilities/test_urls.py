@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import Any, Literal
 
 import pytest
+from src.prefect.types._datetime import now
 
 from prefect.blocks.webhook import Webhook
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
@@ -13,7 +14,6 @@ from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 from prefect.states import StateType
-from prefect.types._datetime import DateTime
 from prefect.utilities.urls import url_for, validate_restricted_url
 from prefect.variables import Variable
 
@@ -129,8 +129,8 @@ async def automation() -> Automation:
 @pytest.fixture
 def received_event():
     return ReceivedEvent(
-        occurred=DateTime.now("UTC"),
-        received=DateTime.now("UTC"),
+        occurred=now("UTC"),
+        received=now("UTC"),
         event="was.tubular",
         resource=Resource.model_validate(
             {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}

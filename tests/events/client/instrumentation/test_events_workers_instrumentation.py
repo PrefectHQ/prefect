@@ -1,4 +1,5 @@
 import pytest
+from src.prefect.types._datetime import now
 
 from prefect import __version__
 from prefect.client.orchestration import PrefectClient
@@ -7,7 +8,6 @@ from prefect.events.worker import EventsWorker
 from prefect.states import Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
-from prefect.types import DateTime
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 
 
@@ -28,7 +28,7 @@ async def test_worker_emits_submitted_event(
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
-        state=Scheduled(scheduled_time=DateTime.now("UTC")),
+        state=Scheduled(scheduled_time=now("UTC")),
         tags=["flow-run-one"],
     )
 
@@ -108,7 +108,7 @@ async def test_worker_emits_executed_event(
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id,
-        state=Scheduled(scheduled_time=DateTime.now("UTC")),
+        state=Scheduled(scheduled_time=now("UTC")),
         tags=["flow-run-one"],
     )
 

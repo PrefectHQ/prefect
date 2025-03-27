@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now
 
 from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, filters
@@ -20,7 +21,6 @@ from prefect.server.events.schemas.automations import (
     Posture,
 )
 from prefect.server.events.schemas.events import ResourceSpecification
-from prefect.types._datetime import DateTime
 
 
 async def test_reading_automations_by_workspace_empty(
@@ -485,7 +485,7 @@ async def test_reading_automations_from_related_resource_filter_created_before(
         )
 
     old_automation = some_workspace_automations[0]
-    horizon = DateTime.now("UTC") - timedelta(days=1)
+    horizon = now("UTC") - timedelta(days=1)
 
     await automations_session.execute(
         sa.update(db.Automation)

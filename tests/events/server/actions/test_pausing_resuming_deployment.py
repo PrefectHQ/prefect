@@ -22,6 +22,7 @@ from prefect.server.schemas.actions import DeploymentScheduleCreate
 from prefect.server.schemas.core import Deployment, Flow
 from prefect.server.schemas.schedules import IntervalSchedule
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -119,7 +120,7 @@ def let_guard_one_get_some_sleep(
     firing = Firing(
         trigger=when_the_guard_gets_sick_stop_the_patrol.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=guard_one_got_sick,
     )
@@ -219,7 +220,7 @@ def put_guard_one_back_on_duty(
     firing = Firing(
         trigger=when_the_guard_gets_well_resume_the_patrol.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=guard_one_got_sick,
     )
@@ -295,7 +296,7 @@ def pause_their_deployment(
     firing = Firing(
         trigger=when_the_guard_gets_sick_stop_their_patrol.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=guard_one_got_sick,
     )
@@ -354,7 +355,7 @@ def resume_their_deployment(
     firing = Firing(
         trigger=when_the_guard_recovers_resume_their_patrol.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=guard_one_got_well,
     )

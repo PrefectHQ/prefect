@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from pydantic import Field, ValidationInfo, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now as now_fn
 
 from prefect.server.api.clients import OrchestrationClient
 from prefect.server.database.orm_models import (
@@ -104,7 +105,7 @@ def woodchonk_triggered(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now_fn("UTC"),
         triggering_labels={"i.am.so": "triggered"},
         triggering_event=woodchonk_nibbled,
     )
@@ -136,7 +137,7 @@ async def take_a_picture(
     session: AsyncSession,
     snap_a_pic,
 ) -> ORMFlowRun:
-    now = DateTime.now("UTC")
+    now = now_fn("UTC")
 
     flow_run = await flow_runs.create_flow_run(
         session=session,
@@ -167,7 +168,7 @@ async def take_a_picture_task(
     snap_a_pic,
     take_a_picture,
 ) -> ORMTaskRun:
-    now = DateTime.now("UTC")
+    now = now_fn("UTC")
 
     task_run = await task_runs.create_task_run(
         session=session,
@@ -240,7 +241,7 @@ def picture_taken(
             "prefect.resource.id": f"prefect.flow-run.{take_a_picture.id}",
             "prefect.state-message": "All states completed.",
             "prefect.state-name": "Completed",
-            "prefect.state-timestamp": DateTime.now("UTC").isoformat(),
+            "prefect.state-timestamp": now_fn("UTC").isoformat(),
             "prefect.state-type": "COMPLETED",
         },
         related=[
@@ -276,7 +277,7 @@ def picture_taken_by_task(
             "prefect.resource.id": f"prefect.task-run.{take_a_picture_task.id}",
             "prefect.state-message": "All states completed.",
             "prefect.state-name": "Completed",
-            "prefect.state-timestamp": DateTime.now("UTC").isoformat(),
+            "prefect.state-timestamp": now_fn("UTC").isoformat(),
             "prefect.state-type": "COMPLETED",
         },
         related=[
@@ -309,7 +310,7 @@ def took_a_picture(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now_fn("UTC"),
         triggering_labels={},
         triggering_event=picture_taken,
     )
@@ -331,7 +332,7 @@ def took_a_picture_by_task(
     firing = Firing(
         trigger=tell_me_about_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now_fn("UTC"),
         triggering_labels={},
         triggering_event=picture_taken_by_task,
     )

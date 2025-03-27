@@ -16,6 +16,7 @@ from typing import (
     Type,
 )
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
@@ -307,9 +308,9 @@ class BaseJobConfiguration(BaseModel):
             "prefect.io/deployment-name": deployment.name,
         }
         if deployment.updated is not None:
-            labels["prefect.io/deployment-updated"] = deployment.updated.in_timezone(
-                "utc"
-            ).to_iso8601_string()
+            labels["prefect.io/deployment-updated"] = deployment.updated.astimezone(
+                ZoneInfo("UTC")
+            ).isoformat()
         return labels
 
     @staticmethod

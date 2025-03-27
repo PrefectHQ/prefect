@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
+from src.prefect.types._datetime import now
 
 from prefect.server.events import (
     Event,
@@ -17,7 +18,6 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
     temporary_settings,
 )
-from prefect.types._datetime import DateTime
 
 
 def test_resource_openapi_schema() -> None:
@@ -406,7 +406,7 @@ def test_limit_on_related_resources():
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES: 10}):
         with pytest.raises(ValidationError):
             Event(
-                occurred=DateTime.now("UTC"),
+                occurred=now("UTC"),
                 event="anything",
                 resource={"prefect.resource.id": "the.thing"},
                 related=[

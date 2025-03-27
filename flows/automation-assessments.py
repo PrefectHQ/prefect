@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -18,8 +19,7 @@ from prefect.events.filters import (
     EventResourceFilter,
 )
 from prefect.logging import get_run_logger
-from prefect.types import DateTime
-from prefect.types._datetime import parse_datetime
+from prefect.types._datetime import now, parse_datetime
 
 
 @asynccontextmanager
@@ -36,8 +36,8 @@ async def create_or_replace_automation(
             name = str(existing["name"])
             if name.startswith(automation["name"]):
                 parsed_datetime = parse_datetime(existing["created"])
-                assert isinstance(parsed_datetime, DateTime)
-                age = DateTime.now("UTC") - parsed_datetime
+                assert isinstance(parsed_datetime, datetime.datetime)
+                age = now("UTC") - parsed_datetime
                 assert isinstance(age, timedelta)
                 if age > timedelta(minutes=10):
                     logger.info(
@@ -71,7 +71,7 @@ async def wait_for_event(
     logger = get_run_logger()
 
     filter = EventFilter(
-        occurred=EventOccurredFilter(since=DateTime.now("UTC")),
+        occurred=EventOccurredFilter(since=now("UTC")),
         event=EventNameFilter(name=[]),
         resource=EventResourceFilter(id=[resource_id]),
     )

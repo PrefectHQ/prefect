@@ -13,13 +13,12 @@ from prefect.server.events.filters import (
     EventOccurredFilter,
 )
 from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
-from prefect.types._datetime import DateTime
 
 
 @pytest.fixture
 def event1() -> Event:
     return Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="was.radical",
         resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"hello": "world"},
@@ -30,7 +29,7 @@ def event1() -> Event:
 @pytest.fixture
 def event2() -> Event:
     return Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="was.super.awesome",
         resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},
@@ -41,7 +40,7 @@ def event2() -> Event:
 @pytest.fixture
 def event3() -> Event:
     return Event(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="you.betcha",
         resource=Resource({"prefect.resource.id": "my.resources"}),
         payload={"goodbye": "moon"},

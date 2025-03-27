@@ -28,7 +28,7 @@ from prefect.types._datetime import DateTime, now
 @pytest.fixture
 def event() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "my.resource.id"},
         related=[
@@ -46,7 +46,7 @@ def event() -> ReceivedEvent:
 def other_events() -> List[ReceivedEvent]:
     return [
         ReceivedEvent(
-            occurred=DateTime.now("UTC"),
+            occurred=now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -172,7 +172,7 @@ class TestReadEvents:
     @pytest.fixture
     async def event_1(self, session: AsyncSession) -> ReceivedEvent:
         event = ReceivedEvent(
-            occurred=DateTime.now("UTC"),
+            occurred=now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[

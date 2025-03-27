@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -20,7 +21,6 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, variables, workers
 from prefect.server.schemas.actions import VariableCreate, WorkPoolCreate
 from prefect.server.schemas.core import CreatedBy, Deployment, Flow
-from prefect.types._datetime import DateTime
 
 
 async def test_action_can_omit_parameters():
@@ -127,7 +127,7 @@ def snap_that_naughty_woodchuck(
     firing = Firing(
         trigger=take_a_picture_of_the_culprit.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=DateTime.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=woodchonk_nibbled,
     )
