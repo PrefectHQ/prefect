@@ -55,7 +55,13 @@ __all__ = [
 
 
 def _parse_datetime_UTC(dt: str) -> datetime:
-    return parse_datetime(dt).astimezone(ZoneInfo("UTC"))
+    parsed_dt = parse_datetime(dt)
+    if parsed_dt.tzinfo is None:
+        # if the datetime is naive, assume it is UTCff
+        return parsed_dt.replace(tzinfo=ZoneInfo("UTC"))
+    else:
+        # if the datetime is timezone-aware, convert to UTC
+        return parsed_dt.astimezone(ZoneInfo("UTC"))
 
 
 type_cast: dict[

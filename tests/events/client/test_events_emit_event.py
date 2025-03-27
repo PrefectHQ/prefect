@@ -1,6 +1,7 @@
-from datetime import timedelta, timezone
+from datetime import timedelta
 from unittest import mock
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import pytest
 from src.prefect.types._datetime import now
@@ -36,7 +37,7 @@ def test_emits_complex_event(asserting_events_worker: EventsWorker):
     emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
-        occurred=DateTime(2023, 3, 1, 12, 39, 28),
+        occurred=DateTime(2023, 3, 1, 12, 39, 28, tzinfo=ZoneInfo("UTC")),
         related=[
             {
                 "prefect.resource.id": "vogon.ship.the-business-end",
@@ -54,7 +55,7 @@ def test_emits_complex_event(asserting_events_worker: EventsWorker):
     event = asserting_events_worker._client.events[0]
     assert event.event == "vogon.poetry.read"
     assert event.resource.id == "vogon.poem.oh-freddled-gruntbuggly"
-    assert event.occurred == DateTime(2023, 3, 1, 12, 39, 28, tzinfo=timezone.utc)
+    assert event.occurred == DateTime(2023, 3, 1, 12, 39, 28, tzinfo=ZoneInfo("UTC"))
     assert len(event.related) == 1
     assert event.related[0].id == "vogon.ship.the-business-end"
     assert event.related[0].role == "locale"

@@ -16,6 +16,7 @@ from textwrap import dedent
 from typing import Any, List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
+from zoneinfo import ZoneInfo
 
 import anyio
 import pydantic
@@ -86,7 +87,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import get_transaction, transaction
-from prefect.types._datetime import DateTime, Timezone
+from prefect.types._datetime import DateTime
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -5625,11 +5626,12 @@ class TestSafeLoadFlowFromEntrypoint:
         import datetime
         from prefect import flow
         from prefect.types import DateTime
+        from zoneinfo import ZoneInfo
 
         @flow
         def f(
             x: datetime.datetime,
-            y: DateTime = DateTime(2025, 1, 1),
+            y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             return x, y, z
@@ -5640,7 +5642,7 @@ class TestSafeLoadFlowFromEntrypoint:
         assert result is not None
         assert result(datetime.datetime(2025, 1, 1)) == (
             datetime.datetime(2025, 1, 1),
-            DateTime(2025, 1, 1, tzinfo=Timezone("UTC")),
+            DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
             datetime.timedelta(seconds=5),
         )
 
