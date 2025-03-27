@@ -1377,6 +1377,9 @@ class Runner:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
+            self._logger.debug(
+                f"Starting _submit_run_and_capture_errors for flow run {flow_run.id}"
+            )
             readiness_result = await self._runs_task_group.start(
                 partial(
                     self._submit_run_and_capture_errors,
@@ -1424,6 +1427,22 @@ class Runner:
                 stream_output=stream_output,
             )
             status_code = process.returncode
+            self._logger.debug(f"Process status_code={status_code} pid={process.pid}")
+
+            if status_code != 0 and not self._rescheduling:
+                await self._propose_crashed_state(
+                    flow_run,
+                    f"Flow run process exited with non-zero status code {status_code}.",
+                )
+
+                api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+                terminal_state = api_flow_run.state
+                if terminal_state and terminal_state.is_crashed():
+                    await self._run_on_crashed_hooks(
+                        flow_run=flow_run, state=terminal_state
+                    )
+
+            return process.pid
         except Exception as exc:
             if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
@@ -1446,19 +1465,6 @@ class Runner:
 
             async with self._flow_run_process_map_lock:
                 self._flow_run_process_map.pop(flow_run.id, None)
-
-        if status_code != 0 and not self._rescheduling:
-            await self._propose_crashed_state(
-                flow_run,
-                f"Flow run process exited with non-zero status code {status_code}.",
-            )
-
-        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
-        terminal_state = api_flow_run.state
-        if terminal_state and terminal_state.is_crashed():
-            await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
-
-        return status_code
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         run_logger = self._get_flow_run_logger(flow_run)
