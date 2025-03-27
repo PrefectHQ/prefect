@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from prefect.locking.protocol import LockManager
     from prefect.transactions import IsolationLevel
 
-STABLE_TRANSFORMS: dict[type, Callable[Any, Any]] = {}
+STABLE_TRANSFORMS: dict[type, Callable[[Any], Any]] = {}
 
 
 def _register_stable_transforms() -> None:
@@ -367,7 +367,7 @@ class Inputs(CachePolicy):
 
         for key, val in inputs.items():
             if key not in exclude:
-                transformer = STABLE_TRANSFORMS.get(type(val))
+                transformer = STABLE_TRANSFORMS.get(type(val))  # type: ignore[reportUnknownMemberType]
                 hashed_inputs[key] = transformer(val) if transformer else val
 
         try:
