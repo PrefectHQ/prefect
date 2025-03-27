@@ -321,12 +321,12 @@ send_email.serve(
   schedules=[
     Cron(
       "0 8 * * *",
-      slug: "jim-email",
+      slug="jim-email",
       parameters={"to": "jim.halpert@dundermifflin.com"}
     ),
     Cron(
       "5 8 * * *",
-      slug: "dwight-email",
+      slug="dwight-email",
       parameters={
         "to": "dwight.schrute@dundermifflin.com",
         "message": "Stop goofing off! You're assistant _to_ the regional manager!"
