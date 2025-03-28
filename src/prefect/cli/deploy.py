@@ -268,6 +268,17 @@ async def deploy(
     version: str = typer.Option(
         None, "--version", help="A version to give the deployment."
     ),
+    version_info: str = typer.Option(
+        None,
+        "--version-info",
+        help="Version information for the deployment, minimally including"
+        " 'type', 'branch', 'version', and 'url'.",
+    ),
+    branch_version: bool = typer.Option(
+        False,
+        "--branch-version",
+        help="Indicate whether the supplied version represents a branch of this deployment.",
+    ),
     tags: List[str] = typer.Option(
         None,
         "-t",
@@ -439,6 +450,8 @@ async def deploy(
         "entrypoint": entrypoint,
         "description": description,
         "version": version,
+        "version_info": version_info,
+        "branch_version": branch_version,
         "tags": tags,
         "concurrency_limit": concurrency_limit_config,
         "work_pool_name": work_pool_name,
@@ -786,7 +799,15 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    apply_coro = deployment.apply()
+    version_info = options.get("version_info")
+
+    if version_info:
+        version_info = json.loads(version_info)
+
+    apply_coro = deployment.apply(
+        version_info=version_info,
+        branch_version=options.get("branch_version", True),
+    )
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 

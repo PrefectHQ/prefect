@@ -52,6 +52,7 @@ ServerRoutes = Literal[
     "/deployments/{id}/schedule",
     "/deployments/{id}/schedules",
     "/deployments/{id}/schedules/{schedule_id}",
+    "/deployments/{id}/versions",
     "/deployments/{id}/work_queue_check",
     "/deployments/count",
     "/deployments/filter",
