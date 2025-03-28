@@ -1566,6 +1566,7 @@
                         "application/json": {
                             "schema": {
                                 "type": "object",
+                                "additionalProperties": true,
                                 "description": "The labels to update",
                                 "title": "Labels"
                             }
@@ -7893,6 +7894,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "object",
+                                    "additionalProperties": true,
                                     "title": "Response Read View Content Collections Views  View  Get"
                                 }
                             }
@@ -9923,6 +9925,7 @@
                     "data": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {},
@@ -10048,6 +10051,7 @@
                     "data": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {},
@@ -10391,6 +10395,7 @@
                     "data": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {},
@@ -10693,6 +10698,7 @@
                     "data": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {},
@@ -11568,6 +11574,7 @@
                         "description": "The block document's name. Not required for anonymous block documents."
                     },
                     "data": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Data",
                         "description": "The block document's data"
@@ -11620,6 +11627,7 @@
                     },
                     "block_document_references": {
                         "additionalProperties": {
+                            "additionalProperties": true,
                             "type": "object"
                         },
                         "type": "object",
@@ -11659,6 +11667,7 @@
                         "description": "The block document's name. Not required for anonymous block documents."
                     },
                     "data": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Data",
                         "description": "The block document's data"
@@ -11883,6 +11892,7 @@
                         "description": "A block schema ID"
                     },
                     "data": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Data",
                         "description": "The block document's data"
@@ -11993,6 +12003,7 @@
             "BlockSchemaCreate": {
                 "properties": {
                     "fields": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Fields",
                         "description": "The block schema's field schema"
@@ -14449,6 +14460,7 @@
                     "run_input": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -15549,6 +15561,7 @@
                     "parameter_openapi_schema": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -15617,6 +15630,7 @@
                         "anyOf": [
                             {
                                 "items": {
+                                    "additionalProperties": true,
                                     "type": "object"
                                 },
                                 "type": "array"
@@ -16095,6 +16109,7 @@
                         "description": "Whether or not to enforce the parameter schema on this run."
                     },
                     "context": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Context"
                     },
@@ -16200,6 +16215,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -16387,11 +16403,13 @@
                         "description": "The concurrency options for the deployment."
                     },
                     "job_variables": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Job Variables",
                         "description": "Overrides to apply to the base infrastructure block at runtime."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for flow runs scheduled by the deployment."
@@ -16465,6 +16483,7 @@
                     "parameter_openapi_schema": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -16491,6 +16510,7 @@
                         "anyOf": [
                             {
                                 "items": {
+                                    "additionalProperties": true,
                                     "type": "object"
                                 },
                                 "type": "array"
@@ -16682,6 +16702,7 @@
                         "description": "The maximum number of scheduled runs for the schedule."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "A dictionary of parameter value overrides."
@@ -16745,6 +16766,7 @@
                         "description": "The maximum number of scheduled runs for the schedule."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "A dictionary of parameter value overrides."
@@ -16815,6 +16837,7 @@
                         "description": "The maximum number of scheduled runs for the schedule."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "A dictionary of parameter value overrides."
@@ -16921,6 +16944,7 @@
                     "parameters": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -16933,6 +16957,7 @@
                     "parameter_openapi_schema": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -16996,6 +17021,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -17009,6 +17035,7 @@
                         "anyOf": [
                             {
                                 "items": {
+                                    "additionalProperties": true,
                                     "type": "object"
                                 },
                                 "type": "array"
@@ -17125,6 +17152,7 @@
                         "description": "A list of additional Resources involved in this event"
                     },
                     "payload": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Payload",
                         "description": "An open-ended set of data describing what happened"
@@ -18186,6 +18214,7 @@
                         ]
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for the flow run."
@@ -18203,6 +18232,7 @@
                         "description": "An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times."
                     },
                     "context": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Context",
                         "description": "Additional context for the flow run.",
@@ -18444,6 +18474,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -18504,10 +18535,12 @@
                         "description": "The version of the flow being run."
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters"
                     },
                     "context": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Context",
                         "description": "The context of the flow run."
@@ -18627,6 +18660,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -20045,6 +20079,7 @@
                         ]
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for the flow run."
@@ -20062,6 +20097,7 @@
                         "description": "An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times."
                     },
                     "context": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Context",
                         "description": "Additional context for the flow run.",
@@ -20311,6 +20347,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -20371,6 +20408,7 @@
                         "title": "Flow Version"
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters"
                     },
@@ -20398,6 +20436,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -21569,6 +21608,7 @@
                         "description": "A list of additional Resources involved in this event"
                     },
                     "payload": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Payload",
                         "description": "An open-ended set of data describing what happened"
@@ -21833,6 +21873,7 @@
                     "parameters": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -21845,6 +21886,7 @@
                     "job_variables": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -23864,6 +23906,7 @@
                         ]
                     },
                     "parameters": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Parameters",
                         "description": "Parameters for the task run."
@@ -23880,6 +23923,7 @@
                         "description": "Inputs provided to the task run."
                     },
                     "context": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Context",
                         "description": "Additional context for the task run.",
@@ -24152,6 +24196,7 @@
                                 "type": "number"
                             },
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -24219,6 +24264,7 @@
                                 "type": "number"
                             },
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -24457,6 +24503,7 @@
                                 "type": "number"
                             },
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -24555,6 +24602,7 @@
                         "description": "The work pool type."
                     },
                     "base_job_template": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Base Job Template",
                         "description": "The work pool's base job template."
@@ -24645,6 +24693,7 @@
                         "default": "prefect-agent"
                     },
                     "base_job_template": {
+                        "additionalProperties": true,
                         "type": "object",
                         "title": "Base Job Template",
                         "description": "The work pool's base job template."
@@ -24812,6 +24861,7 @@
                     "bundle_upload_step": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -24824,6 +24874,7 @@
                     "bundle_execution_step": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
@@ -24866,6 +24917,7 @@
                     "base_job_template": {
                         "anyOf": [
                             {
+                                "additionalProperties": true,
                                 "type": "object"
                             },
                             {
