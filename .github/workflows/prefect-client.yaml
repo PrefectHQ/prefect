@@ -67,7 +67,9 @@ jobs:
         id: prefect_client_version
 
       - name: Run the smoke test flow using the built client
-        run: python client/client_flow.py
+        run: |
+          python client/debug.py
+          python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
