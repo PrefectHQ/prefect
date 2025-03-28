@@ -12,9 +12,10 @@ There are three layers in Amazon ECS:
 Prefect's ECS work pools serve as the **provisioning** layer by instructing the ECS **controller** to run Prefect flows in containers on a **capacity** provider in your ECS cluster.
 
 ## ECS Tasks and Task Definitions
+
 Compute workloads on ECS are represented as **tasks**. Tasks can be run directly, launching container(s) until they are stopped or exit on their own.
 The default ECS task launched by Prefect includes a single container responsible for executing a scheduled flow run.
-ECS workers monitor the state of each ECS task they submit until the task is in a terminal state.
+ECS workers monitor the state of each ECS task they launch until the task is in a terminal state.
 
 <Tip>
 **ECS tasks != Prefect tasks**
@@ -45,8 +46,10 @@ At larger volumes of deployment variety and flow runs, it is **strongly recommen
 An ECS worker can run in any Python environment with `prefect[aws]` installed and access to AWS credentials with the permissions required to manage ECS objects.
 However, it is preferable to host ECS workers on AWS as ECS services because they can securely inherit the permissions they require to launch ECS tasks by being assigned an IAM role.
 
-Running your ECS workers *on* ECS means that they will also be ECS tasks, though unlike the ECS tasks that run flows, they will run perpetually and be maintained by an ECS **service**.
-An ECS service oversees one or more ECS tasks, and guarantees that those tasks are running at all times.
+Running your ECS worker *on* ECS means that it will also be an ECS task.
+Like the ECS tasks that execute flow runs, your worker will need to first be registered as a task definition before it can be launched.
+Unlike the ECS that execute flow runs, however, it will run perpetually and be maintained by an ECS **service**.
+An ECS service oversees one or more ECS tasks and guarantees that those tasks are running at all times.
 If a task's container exits due to an error, or the underlying EC2 instance fails and is replaced, the ECS service will replace the failed task.
 
 ### Do I need to host an ECS worker?
