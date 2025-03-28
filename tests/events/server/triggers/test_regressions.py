@@ -5,7 +5,6 @@ from typing import Callable, List, Union
 from unittest import mock
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +21,7 @@ from prefect.server.events.schemas.events import Event, ReceivedEvent
 from prefect.server.models import work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import WorkQueue
+from prefect.types._datetime import DateTime
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ async def unhealthy_work_queue_automation(
 @pytest.fixture
 def work_queue_health_unhealthy(
     work_queue: WorkQueue,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ) -> List[ReceivedEvent]:
     events = [
         Event(
@@ -97,7 +97,7 @@ def work_queue_health_unhealthy(
 @pytest.fixture
 def work_queue_health_healthy(
     work_queue: WorkQueue,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ) -> List[ReceivedEvent]:
     events = (
         Event(
@@ -127,7 +127,7 @@ async def test_alerts_work_queue_unhealthy(
     work_queue_health_unhealthy: List[ReceivedEvent],
     act: mock.AsyncMock,
     assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     assert isinstance(unhealthy_work_queue_automation.trigger, EventTrigger)
 
@@ -163,7 +163,7 @@ async def test_does_not_alert_work_queue_went_healthy(
     unhealthy_work_queue_automation: Automation,
     work_queue_health_healthy: List[ReceivedEvent],
     act: mock.AsyncMock,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     assert isinstance(unhealthy_work_queue_automation.trigger, EventTrigger)
 
@@ -215,7 +215,7 @@ async def reactive_immediate_expect_and_after(
 
 async def test_same_event_in_expect_and_after_never_reacts_immediately(
     act: mock.AsyncMock,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     reactive_immediate_expect_and_after: Automation,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/4201, where
@@ -293,7 +293,7 @@ async def reactive_extended_expect_and_after(
 
 async def test_same_event_in_expect_and_after_reacts_after_threshold_is_met(
     act: mock.AsyncMock,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     reactive_extended_expect_and_after: Automation,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/4201, where
@@ -400,7 +400,7 @@ async def proactive_extended_expect_and_after(
 
 async def test_same_event_in_expect_and_after_proactively_does_not_fire(
     act: mock.AsyncMock,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     proactive_extended_expect_and_after: Automation,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/4201, where
@@ -473,7 +473,7 @@ async def test_same_event_in_expect_and_after_proactively_does_not_fire(
 
 async def test_same_event_in_expect_and_after_proactively_fires(
     act: mock.AsyncMock,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     proactive_extended_expect_and_after: Automation,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/4201, where
@@ -558,10 +558,10 @@ async def rapid_fire_automation(
 async def test_rapid_fire_events(
     act: mock.AsyncMock,
     assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     rapid_fire_automation: Automation,
     automations_session: AsyncSession,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     """Regression test for https://github.com/PrefectHQ/prefect/issues/11199, where very
     rapidly arriving events wouldn't all trigger an action.
@@ -628,10 +628,10 @@ async def rapid_fire_automation_with_a_threshold(
 
 async def test_rapid_fire_events_with_a_threshold(
     act: mock.AsyncMock,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     rapid_fire_automation_with_a_threshold: Automation,
     automations_session: AsyncSession,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/7230, where very
     rapidly arriving events wouldn't cause a trigger to fire if it had a `threshold` >1
@@ -693,8 +693,8 @@ async def simple_recurring_automation(
 async def test_reactive_automation_can_trigger_on_events_arriving_in_the_future(
     act: mock.AsyncMock,
     simple_recurring_automation: Automation,
-    start_of_test: pendulum.DateTime,
-    frozen_time: pendulum.DateTime,
+    start_of_test: DateTime,
+    frozen_time: DateTime,
 ):
     """Regression test for an issue where a simple reactive recurring automation would
     not trigger when the event arrived slightly in the future."""

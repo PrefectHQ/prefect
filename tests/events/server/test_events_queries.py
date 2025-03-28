@@ -1,12 +1,12 @@
 """Tests for parity when querying events across our storage backends and streaming"""
 
+import datetime
 from base64 import b64encode
 from datetime import timedelta
-from typing import AsyncGenerator, Dict, List, Tuple, cast
+from typing import AsyncGenerator, List
 from uuid import uuid4
 
 import pytest
-from pendulum import Date, now
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events.filters import (
@@ -26,18 +26,19 @@ from prefect.server.events.storage.database import (
     query_next_page,
     write_events,
 )
+from prefect.types._datetime import Date, now, start_of_day
 
 
 @pytest.fixture(scope="module")
-def known_dates() -> Tuple[Date, ...]:
-    dates = [Date.today().subtract(days=days_ago) for days_ago in [5, 4, 3, 2, 1]]
-    return cast(Tuple[Date, ...], tuple(dates))
+def known_dates() -> tuple[Date, ...]:
+    dates = [Date.today() - timedelta(days=days_ago) for days_ago in [5, 4, 3, 2, 1]]
+    return tuple(dates)
 
 
 @pytest.fixture
 def all_events(
-    known_dates: Tuple[Date, ...],
-) -> List[ReceivedEvent]:
+    known_dates: tuple[Date, ...],
+) -> list[ReceivedEvent]:
     event_options = [
         "things.happened",
         "things.happened",
@@ -48,7 +49,7 @@ def all_events(
         "nope.not.this",
     ]
 
-    resource_options: List[Dict[str, str]] = [
+    resource_options: list[dict[str, str]] = [
         {
             "prefect.resource.id": "foo.1",
             "hello": "world",
@@ -66,7 +67,7 @@ def all_events(
             "a-label": "a-good-string",
         },
     ]
-    related_options: List[List[Dict[str, str]]] = [
+    related_options: list[list[dict[str, str]]] = [
         [],
         [
             {
@@ -131,11 +132,13 @@ def all_events(
         ],
     ]
 
-    events: List[ReceivedEvent] = []
+    events: list[ReceivedEvent] = []
     for date in known_dates:
-        midnight = now("UTC").set(date.year, date.month, date.day).start_of("day")
+        midnight = start_of_day(
+            now("UTC").replace(year=date.year, month=date.month, day=date.day)
+        )
         for i in range(22):
-            occurred = midnight.add(seconds=i * 10)
+            occurred = midnight + datetime.timedelta(seconds=i * 10)
             related = list(related_options[i % len(related_options)])
 
             events.append(

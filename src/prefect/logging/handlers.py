@@ -236,7 +236,7 @@ class APILogHandler(logging.Handler):
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),  # pyright: ignore[reportArgumentType] DateTime is split into two types depending on Python version
             message=self.format(record),
         ).model_dump(mode="json")
 
@@ -277,7 +277,7 @@ class WorkerAPILogHandler(APILogHandler):
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),  # pyright: ignore[reportArgumentType] DateTime is split into two types depending on Python version
             message=self.format(record),
         ).model_dump(mode="json")
 

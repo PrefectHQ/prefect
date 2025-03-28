@@ -26,6 +26,7 @@ from pydantic import (
 )
 from typing_extensions import Annotated, Self
 
+import prefect.types._datetime
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -33,8 +34,6 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
-from prefect.types import DateTime
-from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -115,7 +114,7 @@ def _validate_event_name_length(value: str) -> str:
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
-    occurred: DateTime = Field(
+    occurred: prefect.types._datetime.DateTime = Field(
         description="When the event happened from the sender's perspective",
     )
     event: Annotated[str, AfterValidator(_validate_event_name_length)] = Field(
@@ -175,7 +174,9 @@ class Event(PrefectBaseModel):
 
         return value
 
-    def receive(self, received: Optional[DateTime] = None) -> "ReceivedEvent":
+    def receive(
+        self, received: Optional[prefect.types._datetime.DateTime] = None
+    ) -> "ReceivedEvent":
         kwargs = self.model_dump()
         if received is not None:
             kwargs["received"] = received
@@ -202,15 +203,15 @@ class ReceivedEvent(Event):
         extra="ignore", from_attributes=True
     )
 
-    received: DateTime = Field(
-        default_factory=lambda: now("UTC"),
+    received: prefect.types._datetime.DateTime = Field(
+        default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
 
     def as_database_row(self) -> dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
-        row["recorded"] = now("UTC")
+        row["recorded"] = prefect.types._datetime.now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]
         return row
 
@@ -347,7 +348,9 @@ class EventCount(PrefectBaseModel):
     value: str = Field(..., description="The value to use for filtering")
     label: str = Field(..., description="The value to display for this count")
     count: int = Field(..., description="The count of matching events")
-    start_time: DateTime = Field(
+    start_time: prefect.types._datetime.DateTime = Field(
         ..., description="The start time of this group of events"
     )
-    end_time: DateTime = Field(..., description="The end time of this group of events")
+    end_time: prefect.types._datetime.DateTime = Field(
+        ..., description="The end time of this group of events"
+    )

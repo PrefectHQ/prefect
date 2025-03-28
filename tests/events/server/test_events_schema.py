@@ -1,8 +1,8 @@
+import datetime
 import json
 from datetime import timezone
 from uuid import uuid4
 
-import pendulum
 import pytest
 from pydantic import ValidationError
 
@@ -13,6 +13,7 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should():
@@ -20,7 +21,7 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
     _must_ be provided by the client for truthiness.  They can have defaults in
     client implementations, but should _not_ have them here."""
     with pytest.raises(ValidationError) as error:
-        Event(
+        Event(  # type: ignore
             event="hello",
             resource={"prefect.resource.id": "hello"},
             id=uuid4(),
@@ -33,8 +34,8 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
     assert error["type"] == "missing"
 
     with pytest.raises(ValidationError) as error:
-        Event(
-            occurred=pendulum.now("UTC"),
+        Event(  # type: ignore
+            occurred=now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "hello"},
         )
@@ -48,7 +49,7 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
 
 def test_client_events_may_have_empty_related_resources():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         id=uuid4(),
@@ -58,7 +59,7 @@ def test_client_events_may_have_empty_related_resources():
 
 def test_client_event_resources_have_correct_types():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -73,7 +74,7 @@ def test_client_event_resources_have_correct_types():
 
 def test_client_events_may_have_multiple_related_resources():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -93,7 +94,7 @@ def test_client_events_may_have_multiple_related_resources():
 
 def test_client_events_may_have_a_name_label():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello", "prefect.resource.name": "Hello!"},
         related=[
@@ -125,17 +126,17 @@ def test_client_events_may_have_a_name_label():
 
 def test_server_events_default_received(start_of_test: DateTime):
     event = ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         id=uuid4(),
     )
-    assert start_of_test <= event.received <= pendulum.now("UTC")
+    assert start_of_test <= event.received <= now("UTC")
 
 
 def test_server_events_can_be_received_from_client_events(start_of_test: DateTime):
     client_event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -153,14 +154,14 @@ def test_server_events_can_be_received_from_client_events(start_of_test: DateTim
     assert server_event.resource == client_event.resource
     assert server_event.related == client_event.related
     assert server_event.id == client_event.id
-    assert start_of_test <= server_event.received <= pendulum.now("UTC")
+    assert start_of_test <= server_event.received <= now("UTC")
 
 
 def test_server_events_can_be_received_from_client_events_with_times(
     start_of_test: DateTime,
 ):
     client_event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -169,7 +170,7 @@ def test_server_events_can_be_received_from_client_events_with_times(
         id=uuid4(),
     )
 
-    expected_received = pendulum.now("UTC").subtract(minutes=5)
+    expected_received = now("UTC") - datetime.timedelta(minutes=5)
 
     server_event = client_event.receive(received=expected_received)
 
@@ -185,7 +186,7 @@ def test_server_events_can_be_received_from_client_events_with_times(
 
 def test_json_representation():
     event = ReceivedEvent(
-        occurred=pendulum.DateTime(2021, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
+        occurred=DateTime(2021, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -195,7 +196,7 @@ def test_json_representation():
         ],
         payload={"hello": "world"},
         id=uuid4(),
-        received=pendulum.DateTime(2021, 2, 3, 4, 5, 6, 78, tzinfo=timezone.utc),
+        received=DateTime(2021, 2, 3, 4, 5, 6, 78, tzinfo=timezone.utc),
     )
 
     jsonified = json.loads(event.model_dump_json())
@@ -218,7 +219,7 @@ def test_json_representation():
 
 def test_client_event_involved_resources():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -236,7 +237,7 @@ def test_client_event_involved_resources():
 @pytest.fixture
 def example_event() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={
             "prefect.resource.id": "hello",

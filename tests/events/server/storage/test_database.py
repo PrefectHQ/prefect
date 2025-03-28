@@ -1,7 +1,8 @@
+import datetime
+from datetime import timezone
 from typing import List
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,12 +22,13 @@ from prefect.server.events.storage.database import (
     read_events,
     write_events,
 )
+from prefect.types._datetime import DateTime, now
 
 
 @pytest.fixture
 def event() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "my.resource.id"},
         related=[
@@ -35,7 +37,7 @@ def event() -> ReceivedEvent:
             {"prefect.resource.id": "related-3", "prefect.resource.role": "role-2"},
         ],
         payload={"hello": "world"},
-        received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7, timezone.utc),
         id=UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
     )
 
@@ -44,7 +46,7 @@ def event() -> ReceivedEvent:
 def other_events() -> List[ReceivedEvent]:
     return [
         ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -62,7 +64,7 @@ def other_events() -> List[ReceivedEvent]:
                 },
             ],
             payload={"hello": "world"},
-            received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+            received=DateTime(2022, 2, 3, 4, 5, 6, 7, timezone.utc),
             id=uuid4(),
         )
         for _ in range(1000)
@@ -83,7 +85,7 @@ class TestWriteEvents:
                 events_filter=EventFilter(
                     id=EventIDFilter(id=[event.id]),
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=1)
+                        since=now("UTC") - datetime.timedelta(days=1)
                     ),
                 ),
             )
@@ -170,7 +172,7 @@ class TestReadEvents:
     @pytest.fixture
     async def event_1(self, session: AsyncSession) -> ReceivedEvent:
         event = ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -179,7 +181,7 @@ class TestReadEvents:
                 {"prefect.resource.id": "related-3", "prefect.resource.role": "role-2"},
             ],
             payload={"hello": "world"},
-            received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+            received=DateTime(2022, 2, 3, 4, 5, 6, 7, timezone.utc),
             id=UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
         )
         async with session as session:
@@ -190,7 +192,7 @@ class TestReadEvents:
     @pytest.fixture
     async def event_2(self, session: AsyncSession) -> ReceivedEvent:
         event = ReceivedEvent(
-            occurred=pendulum.now("UTC").subtract(days=2),
+            occurred=now("UTC") - datetime.timedelta(days=2),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -199,7 +201,7 @@ class TestReadEvents:
                 {"prefect.resource.id": "related-3", "prefect.resource.role": "role-2"},
             ],
             payload={"hello": "world"},
-            received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+            received=DateTime(2022, 2, 3, 4, 5, 6, 7, timezone.utc),
             id=uuid4(),
         )
         async with session as session:
@@ -207,13 +209,15 @@ class TestReadEvents:
             await session.commit()
         return event
 
-    async def test_read_events(self, session: AsyncSession, event_1, event_2):
+    async def test_read_events(
+        self, session: AsyncSession, event_1: ReceivedEvent, event_2: ReceivedEvent
+    ):
         async with session as session:
             events = await read_events(
                 session=session,
                 events_filter=EventFilter(
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=1)
+                        since=now("UTC") - datetime.timedelta(days=1)
                     ),
                 ),
             )
@@ -225,8 +229,8 @@ class TestReadEvents:
                 session=session,
                 events_filter=EventFilter(
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=3),
-                        until=pendulum.now("UTC").subtract(days=1),
+                        since=now("UTC") - datetime.timedelta(days=3),
+                        until=now("UTC") - datetime.timedelta(days=1),
                     ),
                 ),
             )
@@ -241,7 +245,7 @@ class TestReadEvents:
                 events_filter=EventFilter(
                     resource=EventResourceFilter(id=["prefect.garbage.foo"]),
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=1)
+                        since=now("UTC") - datetime.timedelta(days=1)
                     ),
                 ),
             )

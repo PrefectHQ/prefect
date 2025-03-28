@@ -2,6 +2,7 @@ import asyncio
 from datetime import timedelta
 from typing import AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
@@ -18,6 +19,7 @@ from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @db_injector
@@ -56,7 +58,7 @@ async def event_persister_handler() -> AsyncGenerator[MessageHandler, None]:
 @pytest.fixture
 def event() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "my.resource.id", "label-1": "value-1"},
         related=[
@@ -80,7 +82,7 @@ def event() -> ReceivedEvent:
             },
         ],
         payload={"hello": "world"},
-        received=DateTime(2022, 2, 3, 4, 5, 6, 7).in_timezone("UTC"),
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
         id=uuid4(),
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -144,7 +146,7 @@ async def test_handling_message_writes_event(
             },
         ],
         payload={"hello": "world"},
-        received=DateTime(2022, 2, 3, 4, 5, 6, 7).in_timezone("UTC"),
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
         id=event.id,
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -299,7 +301,7 @@ async def test_trims_messages_periodically(
     # Create entries with slightly different insert times. Since the event_resources are filtered based on the
     # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
     for _ in range(3):
-        timestamp = DateTime.now("UTC")
+        timestamp = now("UTC")
         await write_events(
             session, [event.model_copy(update={"id": uuid4(), "occurred": timestamp})]
         )
@@ -324,7 +326,7 @@ async def test_trims_messages_periodically(
     assert any(resource.occurred >= cutoff_date for resource in initial_resources)
 
     # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
-    retention_period = DateTime.now("UTC") - cutoff_date
+    retention_period = now("UTC") - cutoff_date
     with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
         async with event_persister.create_handler(
             flush_every=timedelta(seconds=0.001),
@@ -350,7 +352,7 @@ async def test_batch_delete(
     )
 
     number_deleted = await batch_delete(
-        session, db.Event, db.Event.occurred <= DateTime.now("UTC"), batch_size=3
+        session, db.Event, db.Event.occurred <= now("UTC"), batch_size=3
     )
 
     assert number_deleted == 10

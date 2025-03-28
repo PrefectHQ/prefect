@@ -11,6 +11,7 @@ from prefect.client.schemas.schedules import (
     construct_schedule,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 class TestConstructSchedule:
@@ -79,7 +80,7 @@ class TestConstructSchedule:
         assert result.interval == interval
 
     def test_datetime_anchor_date(self):
-        anchor = DateTime.now()
+        anchor = now()
         result = construct_schedule(interval=300, anchor_date=anchor)
         assert result == IntervalSchedule(
             interval=datetime.timedelta(seconds=300), anchor_date=anchor

@@ -32,7 +32,7 @@ from prefect.settings import (
 )
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
-from prefect.types import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -167,7 +167,7 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = DateTime.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        older_than = now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
         delete_batch_size = (
             PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE.value()
         )

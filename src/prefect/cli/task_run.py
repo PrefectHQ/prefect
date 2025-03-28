@@ -20,7 +20,10 @@ from prefect.client.schemas.filters import LogFilter, TaskRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
-from prefect.types._datetime import create_datetime_instance
+from prefect.types._datetime import (
+    human_friendly_diff,
+    to_datetime_string,
+)
 
 task_run_app: PrefectTyper = PrefectTyper(
     name="task-run", help="View and inspect task runs."
@@ -96,7 +99,7 @@ async def ls(
             str(task.name),
             str(task_run.name),
             str(task_run.state.type.value),
-            create_datetime_instance(timestamp).diff_for_humans(),
+            human_friendly_diff(timestamp),
         )
 
     app.console.print(table)
@@ -194,7 +197,7 @@ async def logs(
                 app.console.print(
                     # Print following the task run format (declared in logging.yml)
                     (
-                        f"{create_datetime_instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} |"
+                        f"{to_datetime_string(log.timestamp)}.{log.timestamp.microsecond // 1000:03d} |"
                         f" {logging.getLevelName(log.level):7s} | Task run"
                         f" {task_run.name!r} - {log.message}"
                     ),

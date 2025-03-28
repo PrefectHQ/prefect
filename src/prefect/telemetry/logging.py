@@ -2,7 +2,9 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from opentelemetry.sdk._logs import LoggingHandler
+    from opentelemetry.sdk._logs import (
+        LoggingHandler,  # pyright: ignore[reportPrivateImportUsage]
+    )
 
 _log_handler: Optional["LoggingHandler"] = None
 

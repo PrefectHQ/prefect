@@ -428,8 +428,8 @@ async def update_events_clock(event: ReceivedEvent) -> None:
     async with _events_clock_lock():
         # we want the offset to be negative to represent that we are always
         # processing events behind realtime...
-        now = prefect.types._datetime.now("UTC").float_timestamp
-        event_timestamp = event.occurred.float_timestamp
+        now = prefect.types._datetime.now("UTC").timestamp()
+        event_timestamp = event.occurred.timestamp()
         offset = event_timestamp - now
 
         # ...and we should clamp this value to zero so we don't inadvertently look like
@@ -458,7 +458,7 @@ async def get_events_clock_offset() -> float:
         if _events_clock is None or _events_clock_updated is None:
             return 0.0
 
-        now: float = prefect.types._datetime.now("UTC").float_timestamp
+        now: float = prefect.types._datetime.now("UTC").timestamp()
         offset = (_events_clock - now) + (now - _events_clock_updated)
 
     return offset

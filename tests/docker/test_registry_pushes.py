@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from _pytest.capture import CaptureFixture
 
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.dockerutils import (
     ImageBuilder,
     PushError,
@@ -30,8 +30,8 @@ def contexts() -> Path:
 
 @pytest.fixture(scope="module")
 def frozen_now():
-    frozen_now = DateTime.now("UTC")
-    with mock.patch("prefect.types._datetime.DateTime.now", return_value=frozen_now):
+    frozen_now = now("UTC")
+    with mock.patch("prefect.types._datetime.now", return_value=frozen_now):
         yield frozen_now
 
 

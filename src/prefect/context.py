@@ -20,6 +20,7 @@ from typing_extensions import Self
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
+import prefect.types._datetime
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -315,7 +316,9 @@ class RunContext(ContextModel):
 
         start_client_metrics_server()
 
-    start_time: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
+    start_time: DateTime = Field(
+        default_factory=lambda: prefect.types._datetime.now("UTC")
+    )
     input_keyset: Optional[dict[str, dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 

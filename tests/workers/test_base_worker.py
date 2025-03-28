@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 import anyio.abc
 import httpx
-import pendulum
 import pytest
-from packaging import version
+import respx
+from exceptiongroup import ExceptionGroup
 from pydantic import Field
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 import prefect
@@ -26,6 +28,7 @@ from prefect.client.schemas.objects import (
     StateType,
     WorkerMetadata,
     WorkPool,
+    WorkQueue,
 )
 from prefect.exceptions import (
     CrashedRun,
@@ -40,6 +43,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
+    Setting,
     get_current_settings,
     temporary_settings,
 )
@@ -49,8 +53,11 @@ from prefect.states import (
     Pending,
     Running,
     Scheduled,
+    State,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import now as now_fn
+from prefect.types._datetime import travel_to
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -60,7 +67,7 @@ from prefect.workers.base import (
 )
 
 
-class WorkerTestImpl(BaseWorker):
+class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
     type: str = "test"
     job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
 
@@ -69,7 +76,7 @@ class WorkerTestImpl(BaseWorker):
 
 
 @pytest.fixture(autouse=True)
-async def ensure_default_agent_pool_exists(session):
+async def ensure_default_agent_pool_exists(session: AsyncSession):
     # The default agent work pool is created by a migration, but is cleared on
     # consecutive test runs. This fixture ensures that the default agent work
     # pool exists before each test.
@@ -102,7 +109,8 @@ def no_api_url():
         yield
 
 
-async def test_worker_requires_api_url_when_not_in_test_mode(no_api_url):
+@pytest.mark.usefixtures("no_api_url")
+async def test_worker_requires_api_url_when_not_in_test_mode():
     with pytest.raises(ValueError, match="PREFECT_API_URL"):
         async with WorkerTestImpl(
             name="test",
@@ -152,7 +160,7 @@ async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
         (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
     ],
 )
-async def test_worker_respects_settings(setting, attr):
+async def test_worker_respects_settings(setting: Setting, attr: str):
     assert (
         WorkerTestImpl(name="test", work_pool_name="test-work-pool").get_status()[
             "settings"
@@ -183,7 +191,7 @@ async def test_worker_sends_heartbeat_messages(
         assert second_heartbeat > first_heartbeat
 
 
-async def test_worker_sends_heartbeat_gets_id(respx_mock):
+async def test_worker_sends_heartbeat_gets_id(respx_mock: respx.MockRouter):
     work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
     # Pass through the non-relevant paths
@@ -218,13 +226,13 @@ async def test_worker_sends_heartbeat_only_gets_id_once():
 
 
 async def test_worker_with_work_pool(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient, worker_deployment_wq1: WorkQueue, work_pool: WorkPool
 ):
     @flow
     def test_flow():
         pass
 
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
@@ -232,16 +240,16 @@ async def test_worker_with_work_pool(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -259,21 +267,21 @@ async def test_worker_with_work_pool(
 
 async def test_worker_with_work_pool_and_work_queue(
     prefect_client: PrefectClient,
-    worker_deployment_wq1,
-    worker_deployment_wq_2,
-    work_queue_1,
-    work_pool,
+    worker_deployment_wq1: WorkQueue,
+    worker_deployment_wq_2: WorkQueue,
+    work_queue_1: WorkQueue,
+    work_pool: WorkPool,
 ):
     @flow
     def test_flow():
         pass
 
-    def create_run_with_deployment_1(state):
+    def create_run_with_deployment_1(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
 
-    def create_run_with_deployment_2(state):
+    def create_run_with_deployment_2(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq_2.id, state=state
         )
@@ -281,16 +289,16 @@ async def test_worker_with_work_pool_and_work_queue(
     flow_runs = [
         await create_run_with_deployment_1(Pending()),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment_1(Running()),
         await create_run_with_deployment_1(Completed()),
@@ -308,8 +316,8 @@ async def test_worker_with_work_pool_and_work_queue(
 
 async def test_workers_do_not_submit_flow_runs_awaiting_retry(
     prefect_client: PrefectClient,
-    work_queue_1,
-    work_pool,
+    work_queue_1: WorkQueue,
+    work_pool: WorkPool,
 ):
     """
     Regression test for https://github.com/PrefectHQ/prefect/issues/15458
@@ -359,13 +367,19 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
     # Set the flow run to failed
     response = await prefect_client.set_flow_run_state(flow_run.id, state=Failed())
     # The transition should be rejected and the flow run should be in `AwaitingRetry` state
+    assert response.state is not None, "State should not be None"
     assert response.state.name == "AwaitingRetry"
     assert response.state.type == StateType.SCHEDULED
 
     flow_run = await prefect_client.read_flow_run(flow_run.id)
     # Check to ensure that the flow has a scheduled time earlier than now to rule out
     # that the worker doesn't pick up the flow run due to its scheduled time being in the future
-    assert flow_run.state.state_details.scheduled_time < pendulum.now("utc")
+    assert (
+        flow_run.state
+        and flow_run.state.state_details
+        and flow_run.state.state_details.scheduled_time
+    )
+    assert flow_run.state.state_details.scheduled_time < now_fn("UTC")
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
@@ -375,31 +389,31 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
 
 async def test_priority_trumps_lateness(
     prefect_client: PrefectClient,
-    worker_deployment_wq1,
-    worker_deployment_wq_2,
-    work_queue_1,
-    work_pool,
+    worker_deployment_wq1: WorkQueue,
+    worker_deployment_wq_2: WorkQueue,
+    work_queue_1: WorkQueue,
+    work_pool: WorkPool,
 ):
     @flow
     def test_flow():
         pass
 
-    def create_run_with_deployment_1(state):
+    def create_run_with_deployment_1(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
 
-    def create_run_with_deployment_2(state):
+    def create_run_with_deployment_2(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq_2.id, state=state
         )
 
     flow_runs = [
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
     ]
     flow_run_ids = [run.id for run in flow_runs]
@@ -412,17 +426,19 @@ async def test_priority_trumps_lateness(
 
 
 async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
 ):
     """Regression test for https://github.com/PrefectHQ/prefect/issues/15952"""
 
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
     )
 
     run_mock = AsyncMock()
@@ -440,13 +456,15 @@ async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
 
 
 async def test_worker_with_work_pool_and_limit(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
 ):
     @flow
     def test_flow():
         pass
 
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
@@ -454,16 +472,16 @@ async def test_worker_with_work_pool_and_limit(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -493,7 +511,9 @@ async def test_worker_with_work_pool_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool, monkeypatch
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
 ):
     run_mock = AsyncMock()
 
@@ -501,7 +521,7 @@ async def test_worker_calls_run_with_expected_arguments(
     def test_flow():
         pass
 
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
@@ -509,16 +529,16 @@ async def test_worker_calls_run_with_expected_arguments(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -537,12 +557,15 @@ async def test_worker_calls_run_with_expected_arguments(
 
 
 async def test_worker_creates_only_one_client_context(
-    prefect_client, worker_deployment_wq1, work_pool, monkeypatch, caplog
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     tracking_mock = MagicMock()
     orig_get_client = get_client
 
-    def get_client_spy(*args, **kwargs):
+    def get_client_spy(*args: Any, **kwargs: Any):
         tracking_mock(*args, **kwargs)
         return orig_get_client(*args, **kwargs)
 
@@ -554,19 +577,19 @@ async def test_worker_creates_only_one_client_context(
     def test_flow():
         pass
 
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
 
     await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
     )
     await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
     )
     await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        Scheduled(scheduled_time=now_fn("UTC") + timedelta(seconds=5))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -578,7 +601,8 @@ async def test_worker_creates_only_one_client_context(
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
-    session, client
+    session: AsyncSession,
+    client: PrefectClient,
 ):
     """We don't really care how this happens as long as the worker winds up with a worker pool
     with a correct base_job_template when creating a new work pool"""
@@ -1666,13 +1690,13 @@ class TestInfrastructureIntegration:
     async def test_worker_crashes_flow_if_infrastructure_submission_fails(
         self,
         prefect_client: PrefectClient,
-        worker_deployment_infra_wq1,
-        work_pool,
-        monkeypatch,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_infra_wq1.id,
-            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            state=Scheduled(scheduled_time=now_fn("UTC")),
         )
         await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
 
@@ -1696,116 +1720,57 @@ class TestInfrastructureIntegration:
             await state.result()
 
 
-async def test_worker_set_last_polled_time(
-    work_pool,
-):
-    now = pendulum.now("utc")
+async def test_worker_set_last_polled_time(work_pool: WorkPool):
+    now = now_fn("UTC")
 
-    # https://github.com/PrefectHQ/prefect/issues/11619
-    # Pendulum 3 Test Case
-    if version.parse(pendulum.__version__) >= version.parse("3.0"):
-        # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
-        with pendulum.travel_to(now, freeze=True):
-            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-                # initially, the worker should have _last_polled_time set to now
-                assert worker._last_polled_time == now
-
-                # some arbitrary delta forward
-                now2 = now.add(seconds=49)
-                with pendulum.travel_to(now2, freeze=True):
-                    await worker.get_and_submit_flow_runs()
-                    assert worker._last_polled_time == now2
-
-                # some arbitrary datetime
-                now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
-                with pendulum.travel_to(now3, freeze=True):
-                    await worker.get_and_submit_flow_runs()
-                    assert worker._last_polled_time == now3
-
-    # Pendulum 2 Test Case
-    else:
-        pendulum.set_test_now(now)
+    try:
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            # initially, the worker should have _last_polled_time set to now
-            assert worker._last_polled_time == now
+            # initially, the worker should have _last_polled_time set to a recent time
+            initial_poll_time = worker._last_polled_time
+            assert initial_poll_time >= now
 
             # some arbitrary delta forward
-            now2 = now.add(seconds=49)
-            pendulum.set_test_now(now2)
-            await worker.get_and_submit_flow_runs()
-            assert worker._last_polled_time == now2
-
-            # some arbitrary datetime
-            now3 = pendulum.datetime(2021, 1, 1, 0, 0, 0, tz="utc")
-            pendulum.set_test_now(now3)
-            await worker.get_and_submit_flow_runs()
-            assert worker._last_polled_time == now3
-
-            # cleanup mock
-            pendulum.set_test_now()
+            now2 = now + timedelta(seconds=49)
+            with travel_to(now2):
+                await worker.get_and_submit_flow_runs()
+                # after polling, _last_polled_time should be updated to a more recent time
+                assert worker._last_polled_time > initial_poll_time
+                # check to make sure the time updated as expected
+                assert worker._last_polled_time - timedelta(seconds=49) == now
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
 
 
-async def test_worker_last_polled_health_check(
-    work_pool,
-):
-    now = pendulum.now("utc")
+async def test_worker_last_polled_health_check(work_pool: WorkPool):
+    now = now_fn("UTC")
 
-    # https://github.com/PrefectHQ/prefect/issues/11619
-    # Pendulum 3 Test Case
-    if version.parse(pendulum.__version__) >= version.parse("3.0"):
-        # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
-        pendulum.travel_to(now, freeze=True)
-
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            resp = worker.is_worker_still_polling(query_interval_seconds=10)
-            assert resp is True
-
-            with pendulum.travel(seconds=299):
+    try:
+        with travel_to(now):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
                 resp = worker.is_worker_still_polling(query_interval_seconds=10)
                 assert resp is True
 
-            with pendulum.travel(seconds=301):
-                resp = worker.is_worker_still_polling(query_interval_seconds=10)
-                assert resp is False
+                with travel_to(now + timedelta(seconds=299)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                    assert resp is True
 
-            with pendulum.travel(minutes=30):
-                resp = worker.is_worker_still_polling(query_interval_seconds=60)
-                assert resp is True
+                with travel_to(now + timedelta(seconds=301)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
+                    assert resp is False
 
-            with pendulum.travel(minutes=30, seconds=1):
-                resp = worker.is_worker_still_polling(query_interval_seconds=60)
-                assert resp is False
+                with travel_to(now + timedelta(minutes=30)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                    assert resp is True
 
-    # Pendulum 2 Test Case
-    else:
-        pendulum.set_test_now(now)
-
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            resp = worker.is_worker_still_polling(query_interval_seconds=10)
-            assert resp is True
-
-            pendulum.set_test_now(now.add(seconds=299))
-            resp = worker.is_worker_still_polling(query_interval_seconds=10)
-            assert resp is True
-
-            pendulum.set_test_now(now.add(seconds=301))
-            resp = worker.is_worker_still_polling(query_interval_seconds=10)
-            assert resp is False
-
-            pendulum.set_test_now(now.add(minutes=30))
-            resp = worker.is_worker_still_polling(query_interval_seconds=60)
-            assert resp is True
-
-            pendulum.set_test_now(now.add(minutes=30, seconds=1))
-            resp = worker.is_worker_still_polling(query_interval_seconds=60)
-            assert resp is False
-
-            # cleanup mock
-            pendulum.set_test_now()
+                with travel_to(now + timedelta(minutes=30, seconds=1)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                    assert resp is False
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
 
 
 class TestBaseWorkerStart:
-    async def test_start_syncs_with_the_server(self, work_pool):
+    async def test_start_syncs_with_the_server(self, work_pool: WorkPool):
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
         assert worker._work_pool is None
 
@@ -1815,20 +1780,23 @@ class TestBaseWorkerStart:
         assert worker._work_pool.base_job_template == work_pool.base_job_template
 
     async def test_start_executes_flow_runs(
-        self, prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_wq1: Deployment,
+        work_pool: WorkPool,
     ):
         @flow
         def test_flow():
             pass
 
-        def create_run_with_deployment(state):
+        def create_run_with_deployment(state: State):
             return prefect_client.create_flow_run_from_deployment(
                 worker_deployment_wq1.id, state=state
             )
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
-            state=Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1)),
+            state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
         )
 
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
@@ -2058,15 +2026,17 @@ class TestBaseWorkerHeartbeat:
 
 
 async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
 ):
-    def create_run_with_deployment(state):
+    def create_run_with_deployment(state: State):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -2092,7 +2062,9 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
 
 
 async def test_worker_removes_flow_run_from_submitting_when_not_ready(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
 ):
     """
     Regression test for https://github.com/PrefectHQ/prefect/issues/16027

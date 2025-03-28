@@ -2,7 +2,6 @@ import json
 from uuid import uuid4
 
 import alembic.script
-import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -18,6 +17,7 @@ from prefect.server.database.orm_models import (
 from prefect.server.models.variables import read_variables
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 pytestmark = pytest.mark.service("database")
@@ -116,7 +116,7 @@ async def test_backfill_state_name(db, flow):
                 sa.text(
                     "INSERT INTO flow_run_state (id, flow_run_id, type, name,"
                     f" timestamp) values ('{flow_run_state_2_id}', '{flow_run_id}',"
-                    f" 'RUNNING', 'My Custom Name', '{pendulum.now('UTC')}');"
+                    f" 'RUNNING', 'My Custom Name', '{now('UTC')}');"
                 )
             )
             await session.execute(
@@ -151,7 +151,7 @@ async def test_backfill_state_name(db, flow):
                 sa.text(
                     "INSERT INTO task_run_state (id, task_run_id, type, name,"
                     f" timestamp) values ('{task_run_state_2_id}', '{task_run_id}',"
-                    f" 'RUNNING', 'My Custom Name', '{pendulum.now('UTC')}');"
+                    f" 'RUNNING', 'My Custom Name', '{now('UTC')}');"
                 )
             )
             await session.execute(

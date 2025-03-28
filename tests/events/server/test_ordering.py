@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import Sequence
 from uuid import uuid4
 
-import pendulum
 import pytest
 
 from prefect.server.events.ordering import (
@@ -12,6 +11,7 @@ from prefect.server.events.ordering import (
     MaxDepthExceeded,
 )
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
+from prefect.types._datetime import DateTime
 
 pytestmark = pytest.mark.usefixtures("cleared_automations")
 
@@ -23,7 +23,7 @@ def resource() -> Resource:
 
 @pytest.fixture
 def event_one(
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     resource: Resource,
 ) -> ReceivedEvent:
     return ReceivedEvent(

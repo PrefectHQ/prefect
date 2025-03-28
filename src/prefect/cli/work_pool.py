@@ -4,6 +4,7 @@ Command line interface for working with work queues.
 
 from __future__ import annotations
 
+import datetime
 import json
 import textwrap
 from typing import Annotated
@@ -33,7 +34,7 @@ from prefect.infrastructure.provisioners import (
     get_infrastructure_provisioner_for_work_pool_type,
 )
 from prefect.settings import update_current_profile
-from prefect.types._datetime import DateTime, PendulumDuration
+from prefect.types._datetime import now as now_fn
 from prefect.utilities import urls
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -286,9 +287,9 @@ async def ls(
     async with get_client() as client:
         pools = await client.read_work_pools()
 
-    def sort_by_created_key(q: WorkPool) -> PendulumDuration:
+    def sort_by_created_key(q: WorkPool) -> datetime.timedelta:
         assert q.created is not None
-        return DateTime.now("utc") - q.created
+        return now_fn("UTC") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
         row = [
@@ -658,11 +659,9 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    DateTime.now("utc").add(hours=hours or 1)
+    now = now_fn("UTC")
 
-    now = DateTime.now("utc")
-
-    def sort_by_created_key(r: FlowRun) -> PendulumDuration:
+    def sort_by_created_key(r: FlowRun) -> datetime.timedelta:
         assert r.created is not None
         return now - r.created
 

@@ -1,11 +1,11 @@
 import urllib.parse
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 from starlette import status
 
 from prefect.server import models, schemas
+from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -23,13 +23,13 @@ class TestCreateFlow:
         assert flow.labels == {"env": "dev"}
 
     async def test_create_flow_populates_and_returned_created(self, client):
-        now = pendulum.now(tz="UTC")
+        current_time = now("UTC")
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "my-flow"
-        assert pendulum.parse(response.json()["created"]) >= now
-        assert pendulum.parse(response.json()["updated"]) >= now
+        assert parse_datetime(response.json()["created"]) >= current_time
+        assert parse_datetime(response.json()["updated"]) >= current_time
 
     async def test_create_flow_gracefully_fallsback(self, client):
         """If the flow already exists, we return a 200 code"""
@@ -74,7 +74,7 @@ class TestUpdateFlow:
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
         )
         await session.commit()
-        now = pendulum.now("UTC")
+        current_time = now("UTC")
 
         response = await client.patch(
             f"/flows/{str(flow.id)}",
@@ -85,7 +85,7 @@ class TestUpdateFlow:
         response = await client.get(f"flows/{flow.id}")
         updated_flow = parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["TB12"]
-        assert updated_flow.updated > now
+        assert updated_flow.updated > current_time
 
     async def test_update_flow_does_not_update_if_fields_not_set(self, session, client):
         flow = await models.flows.create_flow(

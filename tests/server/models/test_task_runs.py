@@ -1,6 +1,6 @@
+from datetime import timedelta
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -9,6 +9,7 @@ from prefect.server.models import concurrency_limits, task_runs
 from prefect.server.orchestration.core_policy import CoreTaskPolicy
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.states import Failed, Pending, Running, Scheduled
+from prefect.types._datetime import now
 
 
 class TestCreateTaskRun:
@@ -355,14 +356,14 @@ class TestReadTaskRuns:
     async def test_read_task_runs_filters_by_task_run_start_time(
         self, flow_run, session
     ):
-        now = pendulum.now("UTC")
+        now_dt = now("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 dynamic_key="0",
-                start_time=now.subtract(minutes=1),
+                start_time=now_dt - timedelta(minutes=1),
             ),
         )
         task_run_2 = await models.task_runs.create_task_run(
@@ -371,7 +372,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id,
                 task_key="my-key-2",
                 dynamic_key="0",
-                start_time=now.add(minutes=1),
+                start_time=now_dt + timedelta(minutes=1),
             ),
         )
         task_run_3 = await models.task_runs.create_task_run(
@@ -385,7 +386,7 @@ class TestReadTaskRuns:
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
-                start_time=schemas.filters.TaskRunFilterStartTime(before_=now)
+                start_time=schemas.filters.TaskRunFilterStartTime(before_=now_dt)
             ),
         )
         assert {res.id for res in result} == {task_run_1.id}
@@ -394,7 +395,7 @@ class TestReadTaskRuns:
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
                 start_time=schemas.filters.TaskRunFilterStartTime(
-                    before_=now.add(minutes=10)
+                    before_=now_dt + timedelta(minutes=10)
                 )
             ),
         )
@@ -404,7 +405,7 @@ class TestReadTaskRuns:
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
-                start_time=schemas.filters.TaskRunFilterStartTime(after_=now)
+                start_time=schemas.filters.TaskRunFilterStartTime(after_=now_dt)
             ),
         )
         assert {res.id for res in result} == {task_run_2.id}
@@ -413,7 +414,7 @@ class TestReadTaskRuns:
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
                 start_time=schemas.filters.TaskRunFilterStartTime(
-                    after_=now.subtract(minutes=10)
+                    after_=now_dt - timedelta(minutes=10)
                 )
             ),
         )
@@ -424,7 +425,7 @@ class TestReadTaskRuns:
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
                 start_time=schemas.filters.TaskRunFilterStartTime(
-                    before_=now, after_=now.subtract(minutes=10)
+                    before_=now_dt, after_=now_dt - timedelta(minutes=10)
                 )
             ),
         )
@@ -666,14 +667,14 @@ class TestReadTaskRuns:
         assert {result_1[0].id, result_2[0].id} == {task_run_1.id, task_run_2.id}
 
     async def test_read_task_runs_applies_sort(self, flow_run, session):
-        now = pendulum.now("UTC")
+        now_dt = now("UTC")
         await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 dynamic_key="0",
-                expected_start_time=now.subtract(minutes=5),
+                expected_start_time=now_dt - timedelta(minutes=5),
             ),
         )
         task_run_2 = await models.task_runs.create_task_run(
@@ -682,7 +683,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 dynamic_key="1",
-                expected_start_time=now.add(minutes=5),
+                expected_start_time=now_dt + timedelta(minutes=5),
             ),
         )
 

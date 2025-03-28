@@ -35,6 +35,7 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
+import prefect.types._datetime
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -46,7 +47,6 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
-from prefect.types._datetime import add_years, now
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -665,8 +665,8 @@ class PrefectEventSubscriber:
         from prefect.events.filters import EventOccurredFilter
 
         self._filter.occurred = EventOccurredFilter(
-            since=now("UTC") - timedelta(minutes=1),
-            until=add_years(now("UTC"), 1),
+            since=prefect.types._datetime.now("UTC") - timedelta(minutes=1),
+            until=prefect.types._datetime.now("UTC") + timedelta(days=365),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)

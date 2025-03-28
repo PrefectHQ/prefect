@@ -1,6 +1,6 @@
+import datetime
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.core import TaskRunResult
 from prefect.types import KeyValueLabels
+from prefect.types._datetime import now
 
 
 class TestCreateFlowRun:
@@ -625,12 +626,12 @@ class TestReadFlowRuns:
         assert len(result) == 0
 
     async def test_read_flow_runs_filters_by_start_time(self, flow, session):
-        now = pendulum.now("UTC")
+        now_dt = now()
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                start_time=now.subtract(minutes=1),
+                start_time=now_dt - datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -641,7 +642,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                start_time=now,
+                start_time=now_dt,
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -652,7 +653,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                start_time=now.add(minutes=1),
+                start_time=now_dt + datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -675,7 +676,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 start_time=schemas.filters.FlowRunFilterStartTime(
-                    before_=now.subtract(seconds=1)
+                    before_=now_dt - datetime.timedelta(seconds=1)
                 )
             ),
         )
@@ -685,7 +686,7 @@ class TestReadFlowRuns:
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
-                start_time=schemas.filters.FlowRunFilterStartTime(after_=now)
+                start_time=schemas.filters.FlowRunFilterStartTime(after_=now_dt)
             ),
         )
         assert {res.id for res in result} == {flow_run_2.id, flow_run_3.id}
@@ -695,7 +696,8 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 start_time=schemas.filters.FlowRunFilterStartTime(
-                    before_=now.add(minutes=10), after_=now.add(seconds=1)
+                    before_=now_dt + datetime.timedelta(minutes=10),
+                    after_=now_dt + datetime.timedelta(seconds=1),
                 )
             ),
         )
@@ -724,12 +726,12 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_filters_by_next_scheduled_start_time(
         self, flow, session
     ):
-        now = pendulum.now("UTC")
+        now_dt = now()
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                next_scheduled_start_time=now.subtract(minutes=1),
+                next_scheduled_start_time=now_dt - datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -740,7 +742,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                next_scheduled_start_time=now,
+                next_scheduled_start_time=now_dt,
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -751,7 +753,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                next_scheduled_start_time=now.add(minutes=1),
+                next_scheduled_start_time=now_dt + datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -764,7 +766,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
-                    before_=now.subtract(seconds=1)
+                    before_=now_dt - datetime.timedelta(seconds=1)
                 )
             ),
         )
@@ -775,7 +777,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
-                    after_=now
+                    after_=now_dt
                 )
             ),
         )
@@ -786,19 +788,20 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
-                    before_=now.add(minutes=10), after_=now.add(seconds=1)
+                    before_=now_dt + datetime.timedelta(minutes=10),
+                    after_=now_dt + datetime.timedelta(seconds=1),
                 )
             ),
         )
         assert {res.id for res in result} == {flow_run_3.id}
 
     async def test_read_flow_runs_filters_by_expected_start_time(self, flow, session):
-        now = pendulum.now("UTC")
+        now_dt = now()
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                expected_start_time=now.subtract(minutes=1),
+                expected_start_time=now_dt - datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -809,7 +812,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                expected_start_time=now,
+                expected_start_time=now_dt,
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -820,7 +823,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                expected_start_time=now.add(minutes=1),
+                expected_start_time=now_dt + datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
                     name="My Completed State",
@@ -833,7 +836,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 expected_start_time=schemas.filters.FlowRunFilterExpectedStartTime(
-                    before_=now.subtract(seconds=1)
+                    before_=now_dt - datetime.timedelta(seconds=1)
                 )
             ),
         )
@@ -844,7 +847,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 expected_start_time=schemas.filters.FlowRunFilterExpectedStartTime(
-                    after_=now
+                    after_=now_dt
                 )
             ),
         )
@@ -855,7 +858,8 @@ class TestReadFlowRuns:
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 expected_start_time=schemas.filters.FlowRunFilterExpectedStartTime(
-                    before_=now.add(minutes=10), after_=now.add(seconds=1)
+                    before_=now_dt + datetime.timedelta(minutes=10),
+                    after_=now_dt + datetime.timedelta(seconds=1),
                 )
             ),
         )
@@ -1144,14 +1148,14 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_2.id}
 
     async def test_read_flow_runs_applies_sort(self, flow, session):
-        now = pendulum.now("UTC")
+        now_dt = now()
         await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.State(
                     type="SCHEDULED",
-                    timestamp=now.subtract(minutes=1),
+                    timestamp=now_dt - datetime.timedelta(minutes=1),
                 ),
             ),
         )
@@ -1161,7 +1165,7 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
                 state=schemas.states.State(
                     type="SCHEDULED",
-                    timestamp=now.add(minutes=1),
+                    timestamp=now_dt + datetime.timedelta(minutes=1),
                 ),
             ),
         )

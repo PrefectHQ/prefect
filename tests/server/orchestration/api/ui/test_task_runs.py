@@ -1,6 +1,6 @@
+from datetime import datetime, timedelta, timezone
 from typing import Tuple, cast
 
-import pendulum
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,8 +18,8 @@ class TestReadDashboardTaskRunCounts:
 
     @pytest.fixture
     def time_window(self) -> Tuple[DateTime, DateTime]:
-        now = cast(DateTime, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
-        return (now, now.subtract(hours=8))
+        now = cast(DateTime, datetime(2023, 6, 1, 18, tzinfo=timezone.utc))
+        return (now, now - timedelta(hours=8))
 
     @pytest.fixture
     def task_run_filter(self, time_window) -> filters.TaskRunFilter:
@@ -39,7 +39,7 @@ class TestReadDashboardTaskRunCounts:
     ):
         now, eight_hours_ago = time_window
         runs_to_create = 100
-        time_gap = (now - eight_hours_ago).as_timedelta() / runs_to_create
+        time_gap = (now - eight_hours_ago) / runs_to_create
 
         for i in range(runs_to_create):
             if i % 2 == 0:
@@ -177,7 +177,7 @@ class TestReadTaskRunCountsByState:
         create_flow_runs,
     ):
         task_runs_per_flow_run = 27
-        now = cast(DateTime, pendulum.datetime(2023, 6, 1, 18, tz="UTC"))
+        now = cast(DateTime, datetime(2023, 6, 1, 18, tzinfo=timezone.utc))
 
         for flow_run in create_flow_runs:
             for i in range(task_runs_per_flow_run):

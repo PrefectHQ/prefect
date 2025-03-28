@@ -1,8 +1,10 @@
+import datetime
 from typing import Optional
 from uuid import UUID
 
 from pydantic import Field
 
+import prefect.types._datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
@@ -59,11 +61,14 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: DateTime.now("UTC").start_of("day").subtract(days=180),
+        default_factory=lambda: prefect.types._datetime.start_of_day(
+            prefect.types._datetime.now("UTC")
+        )
+        - datetime.timedelta(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: DateTime.now("UTC"),
+        default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="Only include events prior to this time (inclusive)",
     )
 

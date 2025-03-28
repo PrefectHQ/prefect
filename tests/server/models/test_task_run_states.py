@@ -1,7 +1,6 @@
 import datetime
 from uuid import uuid4
 
-import pendulum
 import pytest
 
 from prefect.server import models, schemas
@@ -19,6 +18,7 @@ from prefect.server.orchestration.rules import (
     BaseOrchestrationRule,
 )
 from prefect.server.schemas.states import Failed, Running, Scheduled, StateType
+from prefect.types._datetime import now
 
 
 class TestCreateTaskRunState:
@@ -46,7 +46,7 @@ class TestCreateTaskRunState:
         assert task_run.start_time is None
         assert task_run.run_count == 0
 
-        dt = pendulum.now("UTC")
+        dt = now("UTC")
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
@@ -57,7 +57,7 @@ class TestCreateTaskRunState:
         assert task_run.run_count == 1
         assert task_run.total_run_time == datetime.timedelta(0)
 
-        dt2 = pendulum.now("UTC")
+        dt2 = now("UTC")
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
@@ -148,7 +148,7 @@ class TestCreateTaskRunState:
         trs = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
+            state=Scheduled(scheduled_time=now("UTC") + datetime.timedelta(days=30)),
             task_policy=await provide_task_policy(),
         )
 
@@ -176,7 +176,9 @@ class TestCreateTaskRunState:
             trs = await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
+                state=Scheduled(
+                    scheduled_time=now("UTC") + datetime.timedelta(days=30)
+                ),
                 task_policy=await provide_task_policy(),
             )
 
@@ -213,7 +215,9 @@ class TestCreateTaskRunState:
                 trs = await models.task_runs.set_task_run_state(
                     session=session,
                     task_run_id=task_run.id,
-                    state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
+                    state=Scheduled(
+                        scheduled_time=now("UTC") + datetime.timedelta(days=30)
+                    ),
                     task_policy=await provide_task_policy(),
                     orchestration_parameters=await provide_task_orchestration_parameters(),
                 )

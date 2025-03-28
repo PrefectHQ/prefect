@@ -5,7 +5,6 @@ import sqlite3
 from typing import Any, Optional, Union
 from unittest import mock
 
-import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
@@ -25,12 +24,14 @@ from prefect.server.utilities.database import (
     bindparams_from_clause,
 )
 
-DBBase = declarative_base(type_annotation_map={pendulum.DateTime: Timestamp})
+DBBase = declarative_base(type_annotation_map={datetime.datetime: Timestamp})
 
 
 class PydanticModel(pydantic.BaseModel):
     x: int
-    y: datetime.datetime = pydantic.Field(default_factory=lambda: pendulum.now("UTC"))
+    y: datetime.datetime = pydantic.Field(
+        default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
 
 
 class Color(enum.Enum):
@@ -55,8 +56,8 @@ class SQLTimestampModel(DBBase):
     __tablename__ = "_test_timestamp_model"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ts_1: Mapped[Optional[pendulum.DateTime]]
-    ts_2: Mapped[Optional[pendulum.DateTime]]
+    ts_1: Mapped[Optional[datetime.datetime]]
+    ts_2: Mapped[Optional[datetime.datetime]]
     i_1: Mapped[Optional[datetime.timedelta]]
     i_2: Mapped[Optional[datetime.timedelta]]
 
@@ -108,7 +109,7 @@ class TestPydantic:
         results = query.all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
-        assert results[0].data.y < pendulum.now("UTC")
+        assert results[0].data.y < datetime.datetime.now(datetime.timezone.utc)
 
     async def test_write_dict_to_Pydantic(self, session: AsyncSession):
         p_model = PydanticModel(x=100)
@@ -201,7 +202,9 @@ class TestTimestamp:
 
     async def test_timestamp_converted_to_utc(self, session: AsyncSession):
         model = SQLTimestampModel(
-            ts_1=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
+            ts_1=datetime.datetime(
+                2000, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))
+            )
         )
         session.add(model)
         await session.flush()
@@ -213,7 +216,7 @@ class TestTimestamp:
         results = query.all()
         assert results[0].ts_1 == model.ts_1
         assert results[0].ts_1 is not None
-        assert results[0].ts_1.tzinfo == pendulum.timezone("UTC")
+        assert results[0].ts_1.utcoffset() == datetime.timedelta(0)
 
 
 class TestJSON:
@@ -483,8 +486,8 @@ class TestDateFunctions:
     @pytest.fixture(autouse=True)
     async def create_data(self, session: AsyncSession):
         model = SQLTimestampModel(
-            ts_1=pendulum.datetime(2021, 1, 1),
-            ts_2=pendulum.datetime(2021, 1, 4, 0, 5),
+            ts_1=datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+            ts_2=datetime.datetime(2021, 1, 4, 0, 5, tzinfo=datetime.timezone.utc),
             i_1=datetime.timedelta(days=3, minutes=5),
             i_2=datetime.timedelta(hours=1, minutes=-17),
         )
@@ -494,8 +497,14 @@ class TestDateFunctions:
     @pytest.mark.parametrize(
         "ts_1, i_1",
         [
-            (pendulum.datetime(2021, 1, 1), datetime.timedelta(days=3, minutes=5)),
-            (pendulum.datetime(2021, 1, 1), SQLTimestampModel.i_1),
+            (
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.timedelta(days=3, minutes=5),
+            ),
+            (
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                SQLTimestampModel.i_1,
+            ),
             (SQLTimestampModel.ts_1, datetime.timedelta(days=3, minutes=5)),
             (SQLTimestampModel.ts_1, SQLTimestampModel.i_1),
         ],
@@ -503,28 +512,39 @@ class TestDateFunctions:
     async def test_date_add(
         self,
         session: AsyncSession,
-        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_1: Union[datetime.datetime, sa.Column[datetime.datetime]],
         i_1: Union[datetime.timedelta, sa.Column[datetime.timedelta]],
     ):
         result = await session.scalar(
             sa.select(sa.func.date_add(ts_1, i_1)).select_from(SQLTimestampModel)
         )
-        assert result == pendulum.datetime(2021, 1, 4, 0, 5)
+        assert result == datetime.datetime(
+            2021, 1, 4, 0, 5, tzinfo=datetime.timezone.utc
+        )
 
     @pytest.mark.parametrize(
         "ts_1, ts_2",
         [
-            (pendulum.datetime(2021, 1, 1), pendulum.datetime(2021, 1, 4, 0, 5)),
-            (pendulum.datetime(2021, 1, 1), SQLTimestampModel.ts_2),
-            (SQLTimestampModel.ts_1, pendulum.datetime(2021, 1, 4, 0, 5)),
+            (
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 4, 0, 5, tzinfo=datetime.timezone.utc),
+            ),
+            (
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                SQLTimestampModel.ts_2,
+            ),
+            (
+                SQLTimestampModel.ts_1,
+                datetime.datetime(2021, 1, 4, 0, 5, tzinfo=datetime.timezone.utc),
+            ),
             (SQLTimestampModel.ts_1, SQLTimestampModel.ts_2),
         ],
     )
     async def test_date_diff(
         self,
         session: AsyncSession,
-        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
-        ts_2: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_1: Union[datetime.datetime, sa.Column[datetime.datetime]],
+        ts_2: Union[datetime.datetime, sa.Column[datetime.datetime]],
     ):
         result = await session.scalar(
             sa.select(sa.func.date_diff(ts_2, ts_1)).select_from(SQLTimestampModel)
@@ -557,24 +577,33 @@ class TestDateFunctions:
     @pytest.mark.parametrize(
         "ts_1, ts_2",
         [
-            (pendulum.datetime(2021, 1, 1), pendulum.datetime(2021, 1, 4, 0, 5)),
-            (pendulum.datetime(2021, 1, 1), SQLTimestampModel.ts_2),
-            (SQLTimestampModel.ts_1, pendulum.datetime(2021, 1, 4, 0, 5)),
+            (
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                datetime.datetime(2021, 1, 4, 0, 5, tzinfo=datetime.timezone.utc),
+            ),
+            (
+                datetime.datetime(2021, 1, 1, tzinfo=datetime.timezone.utc),
+                SQLTimestampModel.ts_2,
+            ),
+            (
+                SQLTimestampModel.ts_1,
+                datetime.datetime(2021, 1, 4, 0, 5, tzinfo=datetime.timezone.utc),
+            ),
             (SQLTimestampModel.ts_1, SQLTimestampModel.ts_2),
         ],
     )
     async def test_date_diff_seconds(
         self,
         session: AsyncSession,
-        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
-        ts_2: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_1: Union[datetime.datetime, sa.Column[datetime.datetime]],
+        ts_2: Union[datetime.datetime, sa.Column[datetime.datetime]],
     ):
         result = await session.scalar(
             sa.select(sa.func.date_diff_seconds(ts_2, ts_1)).select_from(
                 SQLTimestampModel
             )
         )
-        assert pytest.approx(result) == 259500.0
+        assert pytest.approx(result) == 259500.0  # 3 days and 5 minutes in seconds
 
     async def test_date_diff_seconds_from_now_literal(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(

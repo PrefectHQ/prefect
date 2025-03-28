@@ -1,8 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, List, Optional
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from httpx import AsyncClient
@@ -83,7 +82,7 @@ async def create_online_worker_with_old_heartbeat(
     heartbeat_interval_seconds: Optional[int] = 60,
 ):
     worker_name = "online-worker-with-old-heartbeat"
-    last_heartbeat_time = pendulum.now("UTC") - timedelta(
+    last_heartbeat_time = datetime.now(timezone.utc) - timedelta(
         seconds=PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE.value()
         * (
             heartbeat_interval_seconds
@@ -179,7 +178,7 @@ async def create_deployment_with_old_last_polled_time(
 
     deployment_name = f"deployment-with-old-last-polled-time-{suffix}"
 
-    last_polled = pendulum.now("UTC") - timedelta(60)
+    last_polled = datetime.now(timezone.utc) - timedelta(60)
     values = dict(
         name=deployment_name,
         flow_id=str(flow_1.id),
@@ -218,7 +217,7 @@ async def create_deployment_with_new_last_polled_time(
 
     deployment_name = "deployment-with-new-last-polled-time"
 
-    last_polled = pendulum.now("UTC")
+    last_polled = datetime.now(timezone.utc)
 
     deployment_values = dict(
         name=deployment_name,
@@ -366,7 +365,7 @@ class TestForeman:
         # worker_heartbeat function to avoid the work pool being marked as READY
         worker_name = "online-worker-with-old-heartbeat"
         heartbeat_interval_seconds = 60
-        last_heartbeat_time = pendulum.now("UTC")
+        last_heartbeat_time = datetime.now(timezone.utc)
 
         values = dict(
             work_pool_id=not_ready_work_pool.id,
@@ -568,14 +567,16 @@ class TestForeman:
         assert deployment.status == DeploymentStatus.READY
         assert deployment.last_polled is not None
         assert deployment.last_polled < (
-            pendulum.now("UTC")
+            datetime.now(timezone.utc)
             - timedelta(seconds=Foreman()._deployment_last_polled_timeout_seconds)
         )
 
         await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=deployment.work_queue_id,
-            work_queue=schemas.actions.WorkQueueUpdate(last_polled=pendulum.now("UTC")),
+            work_queue=schemas.actions.WorkQueueUpdate(
+                last_polled=datetime.now(timezone.utc)
+            ),
         )
 
         await session.commit()
@@ -649,7 +650,7 @@ class TestForemanWorkQueueService:
                 session,
                 wp,
                 status=schemas.statuses.WorkQueueStatus.READY,
-                last_polled=pendulum.now("UTC")
+                last_polled=datetime.now(timezone.utc)
                 - timedelta(
                     seconds=foreman._work_queue_last_polled_timeout_seconds + 5
                 ),
@@ -675,7 +676,7 @@ class TestForemanWorkQueueService:
                 session,
                 wp,
                 status=schemas.statuses.WorkQueueStatus.READY,
-                last_polled=pendulum.now("UTC"),
+                last_polled=datetime.now(timezone.utc),
             )
             queues.append(queue)
         return queues
@@ -689,7 +690,7 @@ class TestForemanWorkQueueService:
             .where(
                 db.WorkQueue.name == name,
             )
-            .values(last_polled=pendulum.now("UTC"))
+            .values(last_polled=datetime.now(timezone.utc))
         )
         await session.execute(stmt)
 
@@ -710,7 +711,7 @@ class TestForemanWorkQueueService:
             session,
             wp,
             status=schemas.statuses.WorkQueueStatus.READY,
-            last_polled=pendulum.now("UTC")
+            last_polled=datetime.now(timezone.utc)
             - timedelta(seconds=foreman._work_queue_last_polled_timeout_seconds + 5),
         )
         assert wq.status == schemas.statuses.WorkQueueStatus.READY
@@ -802,7 +803,7 @@ class TestForemanWorkQueueService:
         """
         Foreman should be able to update the status of multiple work queues.
         """
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
 
         wq_1 = await self.create_work_queue(
             session,

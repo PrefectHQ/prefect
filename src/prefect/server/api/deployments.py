@@ -568,8 +568,10 @@ async def delete_deployment(
 @router.post("/{id}/schedule")
 async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    start_time: DateTime = Body(None, description="The earliest date to schedule"),
-    end_time: DateTime = Body(None, description="The latest date to schedule"),
+    start_time: datetime.datetime = Body(
+        None, description="The earliest date to schedule"
+    ),
+    end_time: datetime.datetime = Body(None, description="The latest date to schedule"),
     # Workaround for the fact that FastAPI does not let us configure ser_json_timedelta
     # to represent timedeltas as floats in JSON.
     min_time: float = Body(

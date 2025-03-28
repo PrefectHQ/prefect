@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import datetime
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
-from prefect.types import DateTime
+import prefect.types._datetime
 
 from .clients import (
     AssertingEventsClient,
@@ -21,7 +22,7 @@ TIGHT_TIMING = timedelta(minutes=5)
 def emit_event(
     event: str,
     resource: dict[str, str],
-    occurred: DateTime | None = None,
+    occurred: datetime.datetime | None = None,
     related: list[dict[str, str]] | list[RelatedResource] | None = None,
     payload: dict[str, Any] | None = None,
     id: UUID | None = None,
@@ -69,7 +70,7 @@ def emit_event(
     }
 
     if occurred is None:
-        occurred = DateTime.now("UTC")
+        occurred = prefect.types._datetime.now("UTC")
     event_kwargs["occurred"] = occurred
 
     if related is not None:

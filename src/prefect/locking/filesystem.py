@@ -1,3 +1,4 @@
+import datetime
 import time
 from datetime import timedelta
 from logging import Logger
@@ -9,7 +10,7 @@ import pydantic_core
 from typing_extensions import TypedDict
 
 from prefect.logging.loggers import get_logger
-from prefect.types._datetime import DateTime, now, parse_datetime
+from prefect.types._datetime import now, parse_datetime
 
 from .protocol import LockManager
 
@@ -27,7 +28,7 @@ class _LockInfo(TypedDict):
     """
 
     holder: str
-    expiration: Optional[DateTime]
+    expiration: Optional[datetime.datetime]
     path: Path
 
 

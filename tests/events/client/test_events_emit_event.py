@@ -1,8 +1,9 @@
-from datetime import timedelta, timezone
+from datetime import timedelta
 from unittest import mock
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
-import pendulum
+import pytest
 
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
@@ -12,9 +13,11 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
-def test_emits_simple_event(asserting_events_worker: EventsWorker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_emits_simple_event(asserting_events_worker: EventsWorker):
     emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
@@ -29,13 +32,12 @@ def test_emits_simple_event(asserting_events_worker: EventsWorker, reset_worker_
     assert event.resource.id == "vogon.poem.oh-freddled-gruntbuggly"
 
 
-def test_emits_complex_event(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_emits_complex_event(asserting_events_worker: EventsWorker):
     emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
-        occurred=DateTime(2023, 3, 1, 12, 39, 28),
+        occurred=DateTime(2023, 3, 1, 12, 39, 28, tzinfo=ZoneInfo("UTC")),
         related=[
             {
                 "prefect.resource.id": "vogon.ship.the-business-end",
@@ -53,7 +55,7 @@ def test_emits_complex_event(
     event = asserting_events_worker._client.events[0]
     assert event.event == "vogon.poetry.read"
     assert event.resource.id == "vogon.poem.oh-freddled-gruntbuggly"
-    assert event.occurred == DateTime(2023, 3, 1, 12, 39, 28, tzinfo=timezone.utc)
+    assert event.occurred == DateTime(2023, 3, 1, 12, 39, 28, tzinfo=ZoneInfo("UTC"))
     assert len(event.related) == 1
     assert event.related[0].id == "vogon.ship.the-business-end"
     assert event.related[0].role == "locale"
@@ -61,7 +63,8 @@ def test_emits_complex_event(
     assert event.id == UUID(int=1)
 
 
-def test_returns_event(asserting_events_worker: EventsWorker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_returns_event(asserting_events_worker: EventsWorker):
     emitted_event = emit_event(
         event="vogon.poetry.read",
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
@@ -73,9 +76,8 @@ def test_returns_event(asserting_events_worker: EventsWorker, reset_worker_event
     assert emitted_event == asserting_events_worker._client.events[0]
 
 
-def test_sets_follows_tight_timing(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_sets_follows_tight_timing(asserting_events_worker: EventsWorker):
     destroyed_event = emit_event(
         event="planet.destroyed",
         resource={"prefect.resource.id": "milky-way.sol.earth"},
@@ -93,12 +95,11 @@ def test_sets_follows_tight_timing(
     assert read_event.follows == destroyed_event.id
 
 
-def test_does_not_set_follows_not_tight_timing(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_does_not_set_follows_not_tight_timing(asserting_events_worker: EventsWorker):
     destroyed_event = emit_event(
         event="planet.destroyed",
-        occurred=pendulum.now("UTC") - timedelta(minutes=10),
+        occurred=now("UTC") - timedelta(minutes=10),
         resource={"prefect.resource.id": "milky-way.sol.earth"},
     )
     assert destroyed_event

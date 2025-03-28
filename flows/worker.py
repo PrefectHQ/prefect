@@ -7,7 +7,7 @@ from typing import List
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter, EventOccurredFilter
-from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 async def watch_worker_events(events: List[Event]):
@@ -15,7 +15,7 @@ async def watch_worker_events(events: List[Event]):
     async with get_events_subscriber(
         filter=EventFilter(
             event=EventNameFilter(prefix=["prefect.worker."]),
-            occurred=EventOccurredFilter(since=DateTime.now()),
+            occurred=EventOccurredFilter(since=now()),
         )
     ) as events_subscriber:
         async for event in events_subscriber:

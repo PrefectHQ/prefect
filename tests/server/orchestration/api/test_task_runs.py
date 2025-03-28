@@ -1,7 +1,7 @@
+import datetime
 import uuid
 from uuid import uuid4
 
-import pendulum
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ from prefect.server.database.orm_models import FlowRun, TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.states import Pending
-from prefect.types import DateTime
+from prefect.types._datetime import now as now_fn
 
 
 class TestCreateTaskRun:
@@ -287,14 +287,14 @@ class TestReadTaskRuns:
         assert response.json() == []
 
     async def test_read_task_runs_applies_sort(self, flow_run, session, client):
-        now = pendulum.now("UTC")
+        now = now_fn("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 name="Task Run 1",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.subtract(minutes=5),
+                expected_start_time=now - datetime.timedelta(minutes=5),
                 dynamic_key="0",
             ),
         )
@@ -304,7 +304,7 @@ class TestReadTaskRuns:
                 name="Task Run 2",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.add(minutes=5),
+                expected_start_time=now + datetime.timedelta(minutes=5),
                 dynamic_key="1",
             ),
         )
@@ -401,7 +401,7 @@ class TestPaginateTaskRuns:
     ):
         """Test pagination with custom page size and page number."""
         # Create multiple task runs
-        now = DateTime.now("UTC")
+        now = now_fn("UTC")
         task_runs: list[TaskRun] = []
 
         for i in range(5):
@@ -411,7 +411,7 @@ class TestPaginateTaskRuns:
                     name=f"Task Run {i}",
                     flow_run_id=flow_run.id,
                     task_key="my-key",
-                    expected_start_time=now.add(minutes=i),
+                    expected_start_time=now + datetime.timedelta(minutes=i),
                     dynamic_key=str(i),
                 ),
             )
@@ -546,14 +546,14 @@ class TestPaginateTaskRuns:
         self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
     ):
         """Test pagination with sorting."""
-        now = DateTime.now("UTC")
+        now = now_fn("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
                 name="Task Run 1",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.subtract(minutes=5),
+                expected_start_time=now - datetime.timedelta(minutes=5),
                 dynamic_key="0",
             ),
         )
@@ -563,7 +563,7 @@ class TestPaginateTaskRuns:
                 name="Task Run 2",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
-                expected_start_time=now.add(minutes=5),
+                expected_start_time=now + datetime.timedelta(minutes=5),
                 dynamic_key="1",
             ),
         )
@@ -848,7 +848,7 @@ class TestSetTaskRunState:
             task_run=schemas.core.TaskRun(
                 flow_run_id=None,  # autonomous task runs have no flow run
                 task_key="my-task-key",
-                expected_start_time=pendulum.now("UTC"),
+                expected_start_time=now_fn("UTC"),
                 dynamic_key="0",
             ),
         )
@@ -905,8 +905,8 @@ class TestTaskRunHistory:
         response = await client.post(
             "/task_runs/history",
             json=dict(
-                history_start=str(pendulum.now("UTC")),
-                history_end=str(pendulum.now("UTC").add(days=1)),
+                history_start=str(now_fn("UTC")),
+                history_end=str(now_fn("UTC") + datetime.timedelta(days=1)),
                 history_interval_seconds=0.9,
             ),
         )

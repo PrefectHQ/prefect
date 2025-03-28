@@ -10,7 +10,7 @@ from prefect_aws.secrets_manager import (
 )
 
 from prefect import flow
-from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -269,7 +269,7 @@ async def test_delete_secret_task(
 
         if not force_delete_without_recovery:
             assert deletion_date.date() == (
-                DateTime.now("UTC").date() + timedelta(days=recovery_window_in_days)
+                now("UTC").date() + timedelta(days=recovery_window_in_days)
             )
         else:
-            assert deletion_date.date() == DateTime.now("UTC").date()
+            assert deletion_date.date() == now("UTC").date()

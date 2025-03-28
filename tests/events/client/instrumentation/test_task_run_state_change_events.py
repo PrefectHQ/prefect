@@ -1,4 +1,7 @@
-import pendulum
+from pathlib import Path
+from typing import Any
+
+import pytest
 
 from prefect import flow, task
 from prefect.client.orchestration import PrefectClient
@@ -8,13 +11,14 @@ from prefect.events.schemas.events import Resource
 from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.task_worker import TaskWorker
+from prefect.types._datetime import parse_datetime
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 async def test_task_state_change_happy_path(
     asserting_events_worker: EventsWorker,
-    reset_worker_events: None,
     prefect_client: PrefectClient,
-    events_pipeline,
+    events_pipeline: Any,
 ):
     @task
     def happy_little_tree():
@@ -60,7 +64,7 @@ async def test_task_state_change_happy_path(
         }
     )
     assert (
-        pendulum.parse(pending.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(pending.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
     assert pending.payload["task_run"].pop("task_key").startswith("happy_little_tree")
@@ -107,12 +111,12 @@ async def test_task_state_change_happy_path(
         }
     )
     assert (
-        pendulum.parse(running.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(running.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
     assert running.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert (
-        pendulum.parse(running.payload["task_run"].pop("start_time"))
+        parse_datetime(running.payload["task_run"].pop("start_time"))
         == task_run.start_time
     )
     assert running.payload == {
@@ -163,16 +167,16 @@ async def test_task_state_change_happy_path(
         }
     )
     assert (
-        pendulum.parse(completed.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(completed.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
     assert completed.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert (
-        pendulum.parse(completed.payload["task_run"].pop("start_time"))
+        parse_datetime(completed.payload["task_run"].pop("start_time"))
         == task_run.start_time
     )
     assert (
-        pendulum.parse(completed.payload["task_run"].pop("end_time"))
+        parse_datetime(completed.payload["task_run"].pop("end_time"))
         == task_run.end_time
     )
     assert completed.payload["task_run"].pop("total_run_time") > 0.0
@@ -209,11 +213,11 @@ async def test_task_state_change_happy_path(
     }
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 async def test_task_state_change_task_failure(
     asserting_events_worker: EventsWorker,
-    reset_worker_events,
-    prefect_client,
-    events_pipeline,
+    prefect_client: PrefectClient,
+    events_pipeline: Any,
 ):
     @task
     def happy_little_tree():
@@ -258,7 +262,7 @@ async def test_task_state_change_task_failure(
         }
     )
     assert (
-        pendulum.parse(pending.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(pending.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
     assert pending.payload["task_run"].pop("task_key").startswith("happy_little_tree")
@@ -305,11 +309,11 @@ async def test_task_state_change_task_failure(
         }
     )
     assert (
-        pendulum.parse(running.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(running.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
     assert (
-        pendulum.parse(running.payload["task_run"].pop("start_time"))
+        parse_datetime(running.payload["task_run"].pop("start_time"))
         == task_run.start_time
     )
     assert running.payload["task_run"].pop("task_key").startswith("happy_little_tree")
@@ -364,16 +368,16 @@ async def test_task_state_change_task_failure(
         }
     )
     assert (
-        pendulum.parse(failed.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(failed.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
     assert failed.payload["task_run"].pop("task_key").startswith("happy_little_tree")
     assert (
-        pendulum.parse(failed.payload["task_run"].pop("start_time"))
+        parse_datetime(failed.payload["task_run"].pop("start_time"))
         == task_run.start_time
     )
     assert (
-        pendulum.parse(failed.payload["task_run"].pop("end_time")) == task_run.end_time
+        parse_datetime(failed.payload["task_run"].pop("end_time")) == task_run.end_time
     )
     assert failed.payload["task_run"].pop("total_run_time") > 0
     assert failed.payload == {
@@ -412,14 +416,14 @@ async def test_task_state_change_task_failure(
     }
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 async def test_background_task_state_changes(
     asserting_events_worker: EventsWorker,
-    reset_worker_events,
-    prefect_client,
-    tmp_path,
-    events_pipeline,
+    prefect_client: PrefectClient,
+    tmp_path: Path,
+    events_pipeline: Any,
 ):
-    storage = LocalFileSystem(basepath=tmp_path)
+    storage = LocalFileSystem(basepath=str(tmp_path))
     await storage.save("test")
 
     @task(result_storage=storage)
@@ -465,8 +469,8 @@ async def test_background_task_state_changes(
 
 
 async def test_apply_async_emits_scheduled_event(
-    asserting_events_worker,
-    prefect_client,
+    asserting_events_worker: Any,
+    prefect_client: PrefectClient,
 ):
     @task
     def happy_little_tree():
@@ -503,17 +507,17 @@ async def test_apply_async_emits_scheduled_event(
     )
 
     assert (
-        pendulum.parse(
+        parse_datetime(
             scheduled.payload["validated_state"]["state_details"].pop("scheduled_time")
         )
         == task_run.expected_start_time
     )
     assert (
-        pendulum.parse(scheduled.payload["task_run"].pop("next_scheduled_start_time"))
+        parse_datetime(scheduled.payload["task_run"].pop("next_scheduled_start_time"))
         == task_run.next_scheduled_start_time
     )
     assert (
-        pendulum.parse(scheduled.payload["task_run"].pop("expected_start_time"))
+        parse_datetime(scheduled.payload["task_run"].pop("expected_start_time"))
         == task_run.expected_start_time
     )
 

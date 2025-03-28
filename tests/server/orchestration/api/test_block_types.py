@@ -1,8 +1,8 @@
+from datetime import datetime, timezone
 from textwrap import dedent
 from typing import List
 from uuid import uuid4
 
-import pendulum
 import pytest
 from starlette import status
 
@@ -525,7 +525,7 @@ class TestSystemBlockTypes:
 
         # load the datetime block
         api_block = await prefect.blocks.system.DateTime.load("my-test-date-time")
-        assert api_block.value == pendulum.datetime(2022, 1, 1, tz="UTC")
+        assert api_block.value == datetime(2022, 1, 1, tzinfo=timezone.utc)
 
     async def test_system_block_types_are_protected(self, client, session):
         # install system blocks
