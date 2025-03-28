@@ -603,6 +603,7 @@
                 "pages": [
                   "integrations/prefect-aws/index",
                   "integrations/prefect-aws/ecs_guide",
+                  "integrations/prefect-aws/ecs_guide_new",
                   "integrations/prefect-aws/sdk"
                 ]
               },

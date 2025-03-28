@@ -1,0 +1,74 @@
+---
+title: ECS Infrastructure Guide
+---
+
+Amazon Elastic Container Service (Amazon ECS) is a highly scalable and fast container management service that makes it easy to run, stop, and manage containers on a cluster.
+
+There are three layers in Amazon ECS:
+- **Capacity** - The infrastructure where your containers run
+- **Controller** - Deploy and manage your applications that run on the containers
+- **Provisioning** - The tools that you can use to interface with the scheduler to deploy and manage your applications and containers
+
+Prefect's ECS work pools serve as the **provisioning** layer by instructing the ECS **controller** to run Prefect flows in containers on a **capacity** provider in your ECS cluster.
+
+## ECS Tasks and Task Definitions
+Compute workloads on ECS are represented as **tasks**. Tasks can be run directly, launching container(s) until they are stopped or exit on their own.
+The default ECS task launched by Prefect includes a single container responsible for executing a scheduled flow run.
+ECS workers monitor the state of each ECS task they submit until the task is in a terminal state.
+
+<Tip>
+**ECS tasks != Prefect tasks**
+
+An ECS task is **not** the same thing as a [Prefect task](/v3/develop/write-tasks).
+
+ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition.
+</Tip>  
+
+ECS tasks are executed based upon configuration specified in a [task definition](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definitions.html).
+Task definitions _must_ be registered to your AWS account before an ECS task can be launched.
+For each flow run, ECS workers will read the configuration in your ECS work pool and job variables to determine whether to use an existing task definition in your AWS account, or to register a new one.
+
+If a task definition ARN is not supplied, new task definition registration occurs on the first run of a new deployment.
+Registration also occurs when the fields constituting a task definition on the work pool or job variables differ in value from the previous run of a deployment.
+
+ECS [strictly rate limits](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/request-throttling.html#throttling-quotas) the number of ECS task definitions that can be registered per second.
+To mitigate this, the AWS API exposes a number of fields on the [RunTask](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_RunTask.html) endpoint responsible for launching your task that can override matching fields in your task definition, such as CPU, memory, and storage options.
+At larger volumes of deployment variety and flow runs, it is **strongly recommended** to supply your work pool configuration or job variables with existing task definition ARNs and rely upon work pool settings that override task definition contents at runtime to avoid rate limit errors.
+
+
+
+## Do I need to host an ECS worker?
+
+<Tabs>
+  <Tab title="ECS Push Work Pool">
+  **No.** When using push work pools, Prefect Cloud will host workers for you.
+  </Tab>
+  <Tab title="ECS Hybrid Work Pool">
+  **Yes.** Each hybrid ECS work pool requires at least one ECS worker to be running and connected to that work pool.
+  </Tab>
+</Tabs>
+
+## Prerequisites
+
+1. Create an [AWS account](https://signin.aws.amazon.com/signup?request_type=register) if you do not already have one. Your AWS user will require permissions to create ECS services and IAM roles. These permissions are available to account owners by default.
+2. Install the AWS CLI installed on your local machine by running the following commands in your terminal.
+    <Tabs>
+    <Tab title="Mac OS">
+
+    ```bash
+    curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+    sudo installer -pkg AWSCLIV2.pkg -target /
+    ```
+    </Tab>
+    <Tab title="Windows">
+    ```bash
+    msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+    ```
+    </Tab>
+    </Tabs>
+
+    For additional installation options, view the [AWS documentation](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+
+## Quickstart
+
+To create an ECS cluster with the Fargate capacity provider and a worker
