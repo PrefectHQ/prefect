@@ -36,6 +36,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
     if sys.version_info >= (3, 13):
         parsed_dt = parse(dt)
         if parsed_dt.tzinfo is None:
+            # Assume UTC if no timezone is provided
             return parsed_dt.replace(tzinfo=ZoneInfo("UTC"))
         else:
             return parsed_dt
@@ -49,7 +50,11 @@ def get_timezones() -> tuple[str, ...]:
 
 def create_datetime_instance(v: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        return v
+        if v.tzinfo is None:
+            # Assume UTC if no timezone is provided
+            return v.replace(tzinfo=ZoneInfo("UTC"))
+        else:
+            return v
 
     return DateTime.instance(v)
 
@@ -209,7 +214,7 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
         from whenever import LocalDateTime, ZonedDateTime
 
         if dt.tzinfo is None:
-            ldt = LocalDateTime.from_py_datetime(dt)
+            wdt = LocalDateTime.from_py_datetime(dt)
         else:
             if not isinstance(dt.tzinfo, ZoneInfo):
                 if key := getattr(dt.tzinfo, "key", None):
@@ -218,9 +223,9 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                     utc_dt = dt.astimezone(datetime.timezone.utc)
                     dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-            ldt = ZonedDateTime.from_py_datetime(dt).local().assume_system_tz()
+            wdt = ZonedDateTime.from_py_datetime(dt).to_system_tz()
 
-        return ldt.py_datetime()
+        return wdt.py_datetime()
 
     return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
 

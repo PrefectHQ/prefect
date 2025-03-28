@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import datetime
 from functools import partial
@@ -235,12 +236,6 @@ async def test_start_at_option_with_tz_schedules_flow_run(
 ):
     expected_start_time_local = in_local_tz(expected_start_time)
 
-    expected_display = (
-        to_datetime_string(expected_start_time_local)
-        + " "
-        + expected_start_time_local.tzname()
-    )
-
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -250,7 +245,7 @@ async def test_start_at_option_with_tz_schedules_flow_run(
             "--start-at",
             start_at,
         ],
-        expected_output_contains=f"Scheduled start time: {expected_display}",
+        expected_output_contains=f"Scheduled start time: {to_datetime_string(expected_start_time_local)}",
     )
 
     flow_runs = await prefect_client.read_flow_runs()
@@ -294,14 +289,26 @@ def test_start_in_option_invalid_input(
     [
         (
             "20 minutes",
-            "in 19 minutes",
+            "in 19 minutes" if sys.version_info < (3, 13) else "19 minutes from now",
         ),  # difference due to different libraries used for parsing and display
-        ("5 days", "in 5 days"),
-        ("3 seconds", "in a few seconds"),
+        ("5 days", "in 5 days" if sys.version_info < (3, 13) else "4 days from now"),
+        (
+            "3 seconds",
+            "in a few seconds" if sys.version_info < (3, 13) else "2 seconds from now",
+        ),
         (None, "now"),
-        ("1 year and 3 months", "in 1 year"),
-        ("2 weeks & 1 day", "in 2 weeks"),
-        ("27 hours + 4 mins", "in 1 day"),
+        (
+            "1 year and 3 months",
+            "in 1 year" if sys.version_info < (3, 13) else "1 year, 2 months from now",
+        ),
+        (
+            "2 weeks & 1 day",
+            "in 2 weeks" if sys.version_info < (3, 13) else "14 days from now",
+        ),
+        (
+            "27 hours + 4 mins",
+            "in 1 day" if sys.version_info < (3, 13) else "a day from now",
+        ),
     ],
 )
 async def test_start_in_option_displays_scheduled_start_time(
