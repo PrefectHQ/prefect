@@ -441,14 +441,13 @@ class TestIntervalScheduleDaylightSavingsTime:
         s = IntervalSchedule(interval=timedelta(hours=1), timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
         # skip 2am
-        if sys.version_info >= (3, 13):
-            assert [d.hour for d in dates] == [
-                23,
-                0,
-                1,
-                3,
-                4,
-            ]
+        assert [d.hour for d in dates] == [
+            23,
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly clock in utc time
         assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 5, 6, 7, 8]
 
