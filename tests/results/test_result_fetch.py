@@ -67,7 +67,7 @@ async def test_async_result_returns_coroutine_with_opt_in():
         return 1
 
     state = await foo(return_state=True)
-    coro = state.result(fetch=True)
+    coro = await state.aresult()
     assert await coro == 1
 
 

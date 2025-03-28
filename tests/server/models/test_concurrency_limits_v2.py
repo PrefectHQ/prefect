@@ -340,28 +340,6 @@ async def test_delete_concurrency_limit_by_name(
     )
 
 
-async def test_bulk_read_concurrency_limits_with_deprecated_flag(session: AsyncSession):
-    names = ["Chase", "Marshall", "Skye", "Rubble", "Zuma", "Rocky", "Everest"]
-
-    pre_existing = names[:3]
-
-    for name in pre_existing:
-        await create_concurrency_limit(
-            session=session, concurrency_limit=ConcurrencyLimitV2(name=name, limit=1)
-        )
-
-    limits = await bulk_read_concurrency_limits(session=session, names=names)
-
-    assert set(names) == {limit.name for limit in limits}
-
-    for limit in limits:
-        if limit.name in pre_existing:
-            assert limit.active
-        else:
-            assert not limit.active
-            assert limit.limit == 1
-
-
 async def test_bulk_read_concurrency_limits_default(session: AsyncSession):
     names = ["Chase", "Marshall", "Skye", "Rubble", "Zuma", "Rocky", "Everest"]
 

@@ -221,9 +221,9 @@ async def resolve_inputs(
         finished_states = [state for state in states if state.is_final()]
 
         state_results = [
-            state.result(raise_on_failure=False, fetch=True)
-            for state in finished_states
+            state.aresult(raise_on_failure=False) for state in finished_states
         ]
+        state_results = await asyncio.gather(*state_results)
 
         for state, result in zip(finished_states, state_results):
             result_by_state[state] = result
@@ -749,7 +749,7 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
             " 'COMPLETED' state."
         )
 
-    result = state.result(raise_on_failure=False, fetch=True)
+    result = state.result(raise_on_failure=False, _sync=True)
     if asyncio.iscoroutine(result):
         result = run_coro_as_sync(result)
 
