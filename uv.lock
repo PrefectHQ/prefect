@@ -3640,7 +3640,7 @@ requires-dist = [
     { name = "uv", specifier = ">=0.6.0" },
     { name = "uvicorn", specifier = ">=0.14.0,!=0.29.0" },
     { name = "websockets", specifier = ">=13.0,<16.0" },
-    { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<1.0.0" },
+    { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<0.8.0" },
 ]
 
 [package.metadata.requires-dev]
