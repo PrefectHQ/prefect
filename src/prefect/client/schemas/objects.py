@@ -32,6 +32,7 @@ from pydantic import (
 )
 from typing_extensions import Literal, Self, TypeVar
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -60,6 +61,7 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.types._datetime import DateTime
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
@@ -211,27 +213,65 @@ class State(ObjectBaseModel, Generic[R]):
     ] = Field(default=None)
 
     @overload
-    async def result(
+    async def aresult(
         self: "State[R]",
         raise_on_failure: Literal[True] = ...,
         retry_result_failure: bool = ...,
     ) -> R: ...
 
     @overload
-    async def result(
+    async def aresult(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
     @overload
-    async def result(
+    async def aresult(
         self: "State[R]",
         raise_on_failure: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
-    async def result(
+    async def aresult(
+        self,
+        raise_on_failure: bool = True,
+        retry_result_failure: bool = True,
+    ) -> Union[R, Exception]:
+        """
+        Retrieve the result attached to this state.
+        """
+        from prefect.states import get_state_result
+
+        return await get_state_result(
+            self,
+            raise_on_failure=raise_on_failure,
+            retry_result_failure=retry_result_failure,
+        )
+
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: Literal[True] = ...,
+        retry_result_failure: bool = ...,
+    ) -> R: ...
+
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: Literal[False] = False,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]: ...
+
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]: ...
+
+    @async_dispatch(aresult)
+    def result(
         self,
         raise_on_failure: bool = True,
         retry_result_failure: bool = True,
@@ -305,10 +345,12 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.states import get_state_result
 
-        return await get_state_result(
-            self,
-            raise_on_failure=raise_on_failure,
-            retry_result_failure=retry_result_failure,
+        return run_coro_as_sync(
+            get_state_result(
+                self,
+                raise_on_failure=raise_on_failure,
+                retry_result_failure=retry_result_failure,
+            )
         )
 
     @model_validator(mode="after")
