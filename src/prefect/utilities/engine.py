@@ -50,7 +50,6 @@ from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
 
@@ -749,9 +748,7 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
             " 'COMPLETED' state."
         )
 
-    result = state.result(raise_on_failure=False, _sync=True)
-    if asyncio.iscoroutine(result):
-        result = run_coro_as_sync(result)
+    result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(
