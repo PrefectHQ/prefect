@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 import pydantic
 import pytest
 
@@ -548,6 +549,43 @@ class TestVisitCollection:
         assert result.x[1] is val.x[1]
         assert result.y["a"] is not val.y["a"]
         assert result.y["d"] is val.y["d"]
+
+    def test_visit_collection_respects_lazy_evaluation(self):
+        """Test that visit_collection does not trigger lazy evaluation in Pydantic models
+
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/17631
+        """
+
+        class Lazy(pydantic.BaseModel):
+            key: str
+            _evaluated: bool = pydantic.PrivateAttr(default=False)
+
+            def data(self):
+                self._evaluated = True
+                return np.random.randn(2, 2)
+
+        class Data(pydantic.BaseModel):
+            data: Lazy
+
+            def __getattribute__(self, item: str) -> Any:
+                if item == "data":
+                    # Get the raw Lazy object
+                    lazy = super().__getattribute__("data")
+                    # But return its evaluated data
+                    return lazy.data()
+                return super().__getattribute__(item)
+
+        lazy = Lazy(key="test")
+        container = Data(data=lazy)
+
+        # Before visitation, data should not be evaluated
+        assert not lazy._evaluated  # type: ignore
+
+        # Visit the container - this should not trigger evaluation
+        visit_collection(container, lambda x: x, return_data=True)
+
+        # After visitation, data should still not be evaluated
+        assert not lazy._evaluated  # type: ignore
 
 
 class TestRemoveKeys:

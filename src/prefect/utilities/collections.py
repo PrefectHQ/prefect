@@ -5,7 +5,6 @@ Utilities for extensions of and operations on Python collections.
 import io
 import itertools
 import types
-import warnings
 from collections import OrderedDict
 from collections.abc import (
     Callable,
@@ -509,20 +508,15 @@ def visit_collection(
 
     elif isinstance(expr, pydantic.BaseModel):
         # when extra=allow, fields not in model_fields may be in model_fields_set
-        model_fields = expr.model_fields_set.union(expr.model_fields.keys())
-
-        # We may encounter a deprecated field here, but this isn't the caller's fault
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=DeprecationWarning)
-
-            updated_data = {
-                field: visit_nested(getattr(expr, field)) for field in model_fields
-            }
+        original_data = dict(expr)
+        updated_data = {
+            field: visit_nested(value) for field, value in original_data.items()
+        }
 
         if return_data:
             modified = any(
-                getattr(expr, field) is not updated_data[field]
-                for field in model_fields
+                original_data[field] is not updated_data[field]
+                for field in updated_data
             )
             if modified:
                 # Use construct to avoid validation and handle immutability
