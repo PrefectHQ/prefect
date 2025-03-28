@@ -74,7 +74,7 @@ async def flow_run(deployment: Deployment, prefect_client: PrefectClient):
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
-                scheduled_time=now("utc") - timedelta(minutes=5)
+                scheduled_time=now("UTC") - timedelta(minutes=5)
             ),
         ),
     )
@@ -124,7 +124,7 @@ async def flow_run_with_overrides(
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
-                scheduled_time=now("utc") - timedelta(minutes=5)
+                scheduled_time=now("UTC") - timedelta(minutes=5)
             ),
         ),
     )

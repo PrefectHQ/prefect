@@ -413,7 +413,7 @@ class StateCreate(ActionBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = now("utc")
+                self.state_details.scheduled_time = now("UTC")
 
         return self
 

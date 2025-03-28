@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from typing_extensions import ParamSpec, Self, TypeVar
 from websockets.exceptions import InvalidStatus
 
+import prefect.types._datetime
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NO_CACHE
@@ -34,7 +35,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
-from prefect.types._datetime import DateTime
+from prefect.types import DateTime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event
@@ -256,7 +257,9 @@ class TaskWorker:
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
-        self.in_flight_task_runs[task_run.task_key][task_run.id] = DateTime.now()
+        self.in_flight_task_runs[task_run.task_key][task_run.id] = (
+            prefect.types._datetime.now("UTC")
+        )
         try:
             await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
@@ -379,7 +382,7 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self._started_at = DateTime.now()
+        self._started_at = prefect.types._datetime.now("UTC")
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:

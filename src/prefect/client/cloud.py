@@ -7,7 +7,6 @@ import pydantic
 from starlette import status
 from typing_extensions import Self
 
-import prefect.context
 import prefect.settings
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas.objects import (

@@ -12,7 +12,7 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import VariableCreate, VariableUpdate
 from prefect.exceptions import ObjectNotFound
-from prefect.types._datetime import create_datetime_instance
+from prefect.types._datetime import human_friendly_diff
 
 variable_app: PrefectTyper = PrefectTyper(name="variable", help="Manage variables.")
 app.add_typer(variable_app)
@@ -52,8 +52,8 @@ async def list_variables(
             table.add_row(
                 variable.name,
                 json.dumps(variable.value),
-                create_datetime_instance(variable.created).diff_for_humans(),
-                create_datetime_instance(variable.updated).diff_for_humans(),
+                human_friendly_diff(variable.created),
+                human_friendly_diff(variable.updated),
             )
 
         app.console.print(table)

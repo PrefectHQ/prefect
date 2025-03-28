@@ -64,6 +64,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.types._datetime import parse_datetime
 from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.callables import (
@@ -960,7 +961,7 @@ def _schedule_config_to_deployment_schedule(
     elif interval := schedule_config.get("interval"):
         interval_kwargs = {
             "interval": timedelta(seconds=interval),
-            "anchor_date": anchor_date,
+            "anchor_date": parse_datetime(anchor_date) if anchor_date else None,
             "timezone": timezone,
         }
         schedule = IntervalSchedule(

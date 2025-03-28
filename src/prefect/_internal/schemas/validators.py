@@ -8,6 +8,7 @@ This will be subject to consolidation and refactoring over the next few months.
 
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import urllib.parse
@@ -17,6 +18,7 @@ from copy import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, overload
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import jsonschema
 
@@ -282,8 +284,13 @@ def default_timezone(
 
     # anchor schedules
     elif "anchor_date" in values:
-        anchor_date: DateTime = values["anchor_date"]
-        tz = "UTC" if anchor_date.tz is None else anchor_date.tz.name
+        anchor_date: datetime.datetime = values["anchor_date"]
+        if isinstance(anchor_date.tzinfo, ZoneInfo):
+            tz = anchor_date.tzinfo.key
+        elif hasattr(anchor_date.tzinfo, "name"):
+            tz = anchor_date.tzinfo.name
+        else:
+            tz = "UTC"
         # sometimes anchor dates have "timezones" that are UTC offsets
         # like "-04:00". This happens when parsing ISO8601 strings.
         # In this case we, the correct inferred localization is "UTC".

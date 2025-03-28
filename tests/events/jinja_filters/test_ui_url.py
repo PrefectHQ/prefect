@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import jinja2
 import pytest
-from pendulum import DateTime
 
 from prefect.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.events.jinja_filters import ui_url
@@ -17,6 +16,7 @@ from prefect.server.schemas.core import (
     WorkQueue,
 )
 from prefect.settings import PREFECT_UI_URL, temporary_settings
+from prefect.types._datetime import DateTime
 
 template_environment = jinja2.Environment()
 template_environment.filters["ui_url"] = ui_url

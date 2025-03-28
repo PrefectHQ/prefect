@@ -82,7 +82,7 @@ def test_correct_output_ephemeral_sqlite(monkeypatch: pytest.MonkeyPatch):
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
                 Git commit:          {version_info["full-revisionid"][:8]}
-                Built:               {built.to_day_datetime_string()}
+                Built:               {built.strftime("%a, %b %d, %Y %-I:%M %p")}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
                 Server type:         ephemeral
@@ -119,7 +119,7 @@ def test_correct_output_ephemeral_postgres(monkeypatch: pytest.MonkeyPatch):
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
                 Git commit:          {version_info["full-revisionid"][:8]}
-                Built:               {built.to_day_datetime_string()}
+                Built:               {built.strftime("%a, %b %d, %Y %-I:%M %p")}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
                 Server type:         ephemeral
@@ -144,7 +144,7 @@ def test_correct_output_non_ephemeral_server_type():
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
 Git commit:          {version_info["full-revisionid"][:8]}
-Built:               {built.to_day_datetime_string()}
+Built:               {built.strftime("%a, %b %d, %Y %-I:%M %p")}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         server

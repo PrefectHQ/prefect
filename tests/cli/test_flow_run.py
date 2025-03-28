@@ -33,7 +33,7 @@ from prefect.states import (
     StateType,
 )
 from prefect.testing.cli import invoke_and_assert
-from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -408,7 +408,7 @@ def flow_run_factory(
                 name="prefect.flow_runs",
                 level=20,
                 message=f"Log {i} from flow_run {flow_run.id}.",
-                timestamp=DateTime.now(),
+                timestamp=now(),
                 flow_run_id=flow_run.id,
             )
             for i in range(num_logs)

@@ -1,7 +1,6 @@
 from typing import AsyncGenerator, Generator
 from unittest import mock
 
-import pendulum
 import pytest
 
 from prefect.server.events import actions
@@ -10,6 +9,7 @@ from prefect.server.events.schemas.automations import TriggeredAction
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ async def test_successes_emit_events(
         "invocation": str(email_me_when_that_dang_spider_comes.id),
     }
 
-    assert start_of_test <= executed_event.occurred <= pendulum.now("UTC")
+    assert start_of_test <= executed_event.occurred <= now("UTC")
     assert executed_event.follows == triggered_event.id
     assert executed_event.event == "prefect.automation.action.executed"
     assert executed_event.resource.id == f"prefect.automation.{automation_id}"
@@ -163,7 +163,7 @@ async def test_failures_emit_events(
         "invocation": str(email_me_when_that_dang_spider_comes.id),
     }
 
-    assert start_of_test <= executed_event.occurred <= pendulum.now("UTC")
+    assert start_of_test <= executed_event.occurred <= now("UTC")
     assert executed_event.follows == triggered_event.id
     assert executed_event.event == "prefect.automation.action.failed"
     assert executed_event.resource.id == f"prefect.automation.{automation_id}"

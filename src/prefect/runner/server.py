@@ -23,7 +23,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now as now_fn
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
@@ -56,7 +56,7 @@ def perform_health_check(
         )
 
     def _health_check():
-        now = DateTime.now("utc")
+        now = now_fn("UTC")
         poll_delay = (now - runner.last_polled).total_seconds()
 
         if TYPE_CHECKING:

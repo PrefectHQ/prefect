@@ -1,11 +1,10 @@
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 from typing import AsyncGenerator
 from uuid import UUID
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,7 +53,7 @@ def message(event: ReceivedEvent) -> MemoryMessage:
 @pytest.fixture
 def hello_event() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=pendulum.datetime(2022, 1, 2, 3, 4, 5, 6, "UTC"),
+        occurred=datetime(2022, 1, 2, 3, 4, 5, 6, tzinfo=timezone.utc),
         event="hello",
         resource={
             "prefect.resource.id": "my.resource.id",
@@ -67,7 +66,7 @@ def hello_event() -> ReceivedEvent:
         payload={"hello": "world"},
         account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         workspace=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-        received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+        received=datetime(2022, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         id=UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -75,17 +74,16 @@ def hello_event() -> ReceivedEvent:
 
 @pytest.fixture
 def client_orchestrated_task_run_event() -> ReceivedEvent:
+    base_time = datetime(2022, 1, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
     return ReceivedEvent(
-        occurred=pendulum.datetime(2022, 1, 2, 3, 4, 5, 6, "UTC"),
+        occurred=base_time,
         event="prefect.task-run.Running",
         resource={
             "prefect.resource.id": "prefect.task-run.b75b283c-7cd5-439a-b23e-d0c59e78b042",
             "prefect.resource.name": "my_task",
             "prefect.state-message": "",
             "prefect.state-name": "Running",
-            "prefect.state-timestamp": pendulum.datetime(
-                2022, 1, 2, 3, 4, 5, 6, "UTC"
-            ).isoformat(),
+            "prefect.state-timestamp": base_time.isoformat(),
             "prefect.state-type": "RUNNING",
             "prefect.orchestration": "client",
         },
@@ -108,15 +106,9 @@ def client_orchestrated_task_run_event() -> ReceivedEvent:
                 "task_inputs": {"x": [], "y": []},
                 "run_count": 1,
                 "flow_run_run_count": 0,
-                "expected_start_time": pendulum.datetime(
-                    2022, 1, 2, 3, 4, 5, 5, "UTC"
-                ).isoformat(),
-                "start_time": pendulum.datetime(
-                    2022, 1, 2, 3, 4, 5, 5, "UTC"
-                ).isoformat(),
-                "end_time": pendulum.datetime(
-                    2022, 1, 2, 3, 4, 5, 6, "UTC"
-                ).isoformat(),
+                "expected_start_time": (base_time - timedelta(seconds=1)).isoformat(),
+                "start_time": (base_time - timedelta(seconds=1)).isoformat(),
+                "end_time": base_time.isoformat(),
                 "total_run_time": 0.002024,
                 "estimated_run_time": 0,
                 "estimated_start_time_delta": 0,
@@ -124,7 +116,7 @@ def client_orchestrated_task_run_event() -> ReceivedEvent:
         },
         account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         workspace=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-        received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+        received=datetime(2022, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         id=UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -132,17 +124,16 @@ def client_orchestrated_task_run_event() -> ReceivedEvent:
 
 @pytest.fixture
 def server_orchestrated_task_run_event() -> ReceivedEvent:
+    base_time = datetime(2022, 1, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
     return ReceivedEvent(
-        occurred=pendulum.datetime(2022, 1, 2, 3, 4, 5, 6, "UTC"),
+        occurred=base_time,
         event="prefect.task-run.Running",
         resource={
             "prefect.resource.id": "prefect.task-run.b75b283c-7cd5-439a-b23e-d0c59e78b042",
             "prefect.resource.name": "my_task",
             "prefect.state-message": "",
             "prefect.state-name": "Running",
-            "prefect.state-timestamp": pendulum.datetime(
-                2022, 1, 2, 3, 4, 5, 6, "UTC"
-            ).isoformat(),
+            "prefect.state-timestamp": base_time.isoformat(),
             "prefect.state-type": "RUNNING",
             "prefect.orchestration": "server",
         },
@@ -154,7 +145,7 @@ def server_orchestrated_task_run_event() -> ReceivedEvent:
         },
         account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         workspace=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-        received=pendulum.datetime(2022, 2, 3, 4, 5, 6, 7, "UTC"),
+        received=datetime(2022, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         id=UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -211,7 +202,7 @@ async def flow_run(session: AsyncSession, flow):
 
 @pytest.fixture
 def pending_event(flow_run) -> ReceivedEvent:
-    occurred = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    occurred = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     return ReceivedEvent(
         occurred=occurred,
         event="prefect.task-run.Pending",
@@ -273,7 +264,7 @@ def pending_event(flow_run) -> ReceivedEvent:
 
 @pytest.fixture
 def running_event(flow_run) -> ReceivedEvent:
-    occurred = pendulum.datetime(2024, 1, 1, 0, 1, 0, 0, "UTC")
+    occurred = datetime(2024, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc)
     return ReceivedEvent(
         occurred=occurred,
         event="prefect.task-run.Running",
@@ -348,7 +339,7 @@ def running_event(flow_run) -> ReceivedEvent:
 
 @pytest.fixture
 def completed_event(flow_run) -> ReceivedEvent:
-    occurred = pendulum.datetime(2024, 1, 1, 0, 2, 0, 0, "UTC")
+    occurred = datetime(2024, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc)
     return ReceivedEvent(
         occurred=occurred,
         event="prefect.task-run.Completed",
@@ -407,7 +398,7 @@ async def test_recording_single_event(
     pending_event: ReceivedEvent,
     task_run_recorder_handler: MessageHandler,
 ):
-    pending_transition_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_transition_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert pending_event.occurred == pending_transition_time
 
     await task_run_recorder_handler(message(pending_event))
@@ -476,10 +467,10 @@ async def test_updates_task_run_on_subsequent_state_changes(
     running_event: ReceivedEvent,
     task_run_recorder_handler: MessageHandler,
 ):
-    pending_transition_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_transition_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert pending_event.occurred == pending_transition_time
 
-    running_transition_time = pendulum.datetime(2024, 1, 1, 0, 1, 0, 0, "UTC")
+    running_transition_time = datetime(2024, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc)
     assert running_event.occurred == running_transition_time
 
     await task_run_recorder_handler(message(pending_event))
@@ -550,13 +541,13 @@ async def test_updates_only_fields_that_are_set(
     completed_event: ReceivedEvent,
     task_run_recorder_handler: MessageHandler,
 ):
-    pending_transition_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_transition_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert pending_event.occurred == pending_transition_time
 
-    running_transition_time = pendulum.datetime(2024, 1, 1, 0, 1, 0, 0, "UTC")
+    running_transition_time = datetime(2024, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc)
     assert running_event.occurred == running_transition_time
 
-    completed_transition_time = pendulum.datetime(2024, 1, 1, 0, 2, 0, 0, "UTC")
+    completed_transition_time = datetime(2024, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc)
     assert completed_event.occurred == completed_transition_time
 
     await task_run_recorder_handler(message(pending_event))
@@ -631,10 +622,10 @@ async def test_updates_task_run_on_out_of_order_state_change(
     completed_event: ReceivedEvent,
     task_run_recorder_handler: MessageHandler,
 ):
-    pending_transition_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_transition_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert pending_event.occurred == pending_transition_time
 
-    running_transition_time = pendulum.datetime(2024, 1, 1, 0, 1, 0, 0, "UTC")
+    running_transition_time = datetime(2024, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc)
     assert running_event.occurred == running_transition_time
 
     # force the completed event to an older time so that it won't update the task run
@@ -720,13 +711,13 @@ async def test_task_run_recorder_handles_all_out_of_order_permutations(
     running_event: ReceivedEvent,
     completed_event: ReceivedEvent,
     task_run_recorder_handler: MessageHandler,
-    event_order: tuple,
+    event_order: tuple[str, ...],
 ):
     # Set up event times
-    base_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     pending_event.occurred = base_time
-    running_event.occurred = base_time.add(minutes=1)
-    completed_event.occurred = base_time.add(minutes=2)
+    running_event.occurred = base_time + timedelta(minutes=1)
+    completed_event.occurred = base_time + timedelta(minutes=2)
 
     event_map = {
         "PENDING": pending_event,
@@ -765,7 +756,7 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
     Test to ensure situations like the one described in https://github.com/PrefectHQ/prefect/issues/15607
     don't overwhelm the task run recorder.
     """
-    pending_transition_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    pending_transition_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert pending_event.occurred == pending_transition_time
 
     service = task_run_recorder.TaskRunRecorder()

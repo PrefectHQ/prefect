@@ -49,7 +49,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Running
-from prefect.types._datetime import DateTime, parse_datetime
+from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CLUSTER = "fake-cluster"
@@ -170,7 +170,7 @@ async def mock_pods_stream_that_returns_running_pod(
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
             yield {"object": mock_pod, "type": "MODIFIED"}
         if kwargs["func"] == mock_core_client.return_value.list_namespaced_job:
-            mock_job.status.completion_time = DateTime.now("utc").timestamp()
+            mock_job.status.completion_time = now("UTC").timestamp()
             yield {"object": mock_job, "type": "MODIFIED"}
 
     return mock_stream
@@ -2493,7 +2493,7 @@ class TestKubernetesWorker:
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 yield {"object": mock_job, "type": "MODIFIED"}
 
         mock_watch.return_value.stream = mock_stream
@@ -2519,7 +2519,7 @@ class TestKubernetesWorker:
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_pod:
                 yield {"object": mock_pod, "type": "MODIFIED"}
             if kwargs["func"] == mock_core_client_lean.return_value.list_namespaced_job:
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 yield {"object": mock_job, "type": "MODIFIED"}
 
         mock_watch.return_value.stream = mock_stream
@@ -2543,7 +2543,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2604,7 +2604,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2649,7 +2649,7 @@ class TestKubernetesWorker:
             mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -2705,7 +2705,7 @@ class TestKubernetesWorker:
             ]
 
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 stream = [
                     {"object": mock_job, "type": "MODIFIED"},
                     {"object": mock_pod, "type": "MODIFIED"},
@@ -3009,7 +3009,7 @@ class TestKubernetesWorker:
             mock_pod,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = DateTime.now("utc").timestamp()
+                mock_job.status.completion_time = now("UTC").timestamp()
                 items = [
                     {"object": mock_pod, "type": "MODIFIED"},
                     {"object": mock_job, "type": "MODIFIED"},
@@ -3069,9 +3069,7 @@ class TestKubernetesWorker:
             mock_container_status = MagicMock(
                 spec=kubernetes_asyncio.client.V1ContainerStatus
             )
-            mock_container_status.state.running = MagicMock(
-                start_time=DateTime.now("utc")
-            )
+            mock_container_status.state.running = MagicMock(start_time=now("UTC"))
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
                 job_pod
@@ -3125,7 +3123,7 @@ class TestKubernetesWorker:
                         await anyio.sleep(310)
 
                     # Send another event after the delay
-                    job.status.completion_time = DateTime.now("utc").timestamp()
+                    job.status.completion_time = now("UTC").timestamp()
                     yield {"object": job, "type": "MODIFIED"}
 
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)

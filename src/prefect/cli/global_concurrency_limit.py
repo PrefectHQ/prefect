@@ -20,7 +20,7 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.types._datetime import create_datetime_instance
+from prefect.types._datetime import human_friendly_diff
 
 global_concurrency_limit_app: PrefectTyper = PrefectTyper(
     name="global-concurrency-limit",
@@ -69,8 +69,8 @@ async def list_global_concurrency_limits():
             str(gcl_limit.limit),
             str(gcl_limit.active_slots),
             str(gcl_limit.slot_decay_per_second),
-            create_datetime_instance(gcl_limit.created).isoformat(),
-            create_datetime_instance(gcl_limit.updated).diff_for_humans(),
+            gcl_limit.created.isoformat(),
+            human_friendly_diff(gcl_limit.updated),
         )
 
     app.console.print(table)

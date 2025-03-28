@@ -58,13 +58,18 @@ jobs:
             --name proxy \
             ubuntu/squid
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
       - name: Install Dependencies
-        run: |
-          python -m pip install -U uv
-          uv pip install --upgrade --system .
+        run: uv sync
 
       - name: Run Proxy Tests
         env:
           HTTP_PROXY: http://localhost:3128
           HTTPS_PROXY: http://localhost:3128
-        run: python scripts/proxy-test/client.py
+        run: uv run python scripts/proxy-test/client.py

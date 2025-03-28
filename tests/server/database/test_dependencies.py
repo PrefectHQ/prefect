@@ -1,7 +1,6 @@
 import asyncio
 from uuid import UUID
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +20,7 @@ from prefect.server.database.query_components import (
     BaseQueryComponents,
 )
 from prefect.server.schemas.graph import Graph
+from prefect.types._datetime import DateTime
 
 
 @pytest.mark.parametrize(
@@ -115,7 +115,7 @@ async def test_injecting_really_dumb_query_components():
             self,
             session: AsyncSession,
             flow_run_id: UUID,
-            since: pendulum.DateTime,
+            since: DateTime,
             max_nodes: int,
         ) -> Graph:
             raise NotImplementedError()

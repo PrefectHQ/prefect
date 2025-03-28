@@ -82,7 +82,6 @@ from prefect.client.orchestration._blocks_types.client import (
 import prefect
 import prefect.exceptions
 from prefect.logging.loggers import get_run_logger
-import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun

@@ -30,7 +30,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
-from prefect.types._datetime import DateTime, create_datetime_instance, now
+from prefect.types._datetime import DateTime, now
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
@@ -630,10 +630,10 @@ async def schedule_runs(
         min_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
         assert min_time is not None
 
-    actual_start_time = create_datetime_instance(start_time)
+    actual_start_time = start_time
     if TYPE_CHECKING:
         assert end_time is not None
-    actual_end_time = create_datetime_instance(end_time)
+    actual_end_time = end_time
 
     runs = await _generate_scheduled_flow_runs(
         db,

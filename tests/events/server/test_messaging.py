@@ -2,7 +2,6 @@ from typing import Generator, Type
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 
 from prefect.server.events import messaging
@@ -10,6 +9,7 @@ from prefect.server.events.messaging import create_event_publisher
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.utilities.messaging import CapturingPublisher
 from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES, temporary_settings
+from prefect.types._datetime import now
 
 from .conftest import assert_message_represents_event
 
@@ -17,7 +17,7 @@ from .conftest import assert_message_represents_event
 @pytest.fixture
 def event1() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="was.tubular",
         resource=Resource.model_validate({"prefect.resource.id": "my.kickflip"}),
         payload={"goodbye": "yellow brick road"},
@@ -28,7 +28,7 @@ def event1() -> ReceivedEvent:
 @pytest.fixture
 def event2() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="was.super.gnarly",
         resource=Resource.model_validate({"prefect.resource.id": "my.ollie"}),
         payload={"where": "the dogs of society howl"},
@@ -39,7 +39,7 @@ def event2() -> ReceivedEvent:
 @pytest.fixture
 def event3() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=now("UTC"),
         event="was.extra.spicy",
         resource=Resource.model_validate({"prefect.resource.id": "my.heelflip"}),
         payload={"you": "can't plant me in your penthouse"},

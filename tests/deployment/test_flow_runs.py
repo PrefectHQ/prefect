@@ -1,15 +1,16 @@
 import re
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 import respx
 from httpx import Response
 from opentelemetry import trace
 
 from prefect import flow
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.context import FlowRunContext
 from prefect.deployments import run_deployment
@@ -22,6 +23,7 @@ from prefect.tasks import task
 from prefect.telemetry.run_telemetry import (
     LABELS_TRACEPARENT_KEY,
 )
+from prefect.types._datetime import now
 from prefect.utilities.slugify import slugify
 from tests.telemetry.instrumentation_tester import InstrumentationTester
 
@@ -31,7 +33,7 @@ if TYPE_CHECKING:
 
 class TestRunDeployment:
     @pytest.fixture
-    async def test_deployment(self, prefect_client):
+    async def test_deployment(self, prefect_client: PrefectClient):
         flow_id = await prefect_client.create_flow_from_name("foo")
 
         deployment_id = await prefect_client.create_deployment(
@@ -42,7 +44,7 @@ class TestRunDeployment:
         return deployment
 
     async def test_run_deployment_with_ephemeral_api(
-        self, prefect_client, test_deployment
+        self, prefect_client: PrefectClient, test_deployment: DeploymentResponse
     ):
         deployment = test_deployment
         flow_run = await run_deployment(
@@ -56,8 +58,8 @@ class TestRunDeployment:
 
     async def test_run_deployment_with_deployment_id_str(
         self,
-        test_deployment,
-        prefect_client,
+        test_deployment: DeploymentResponse,
+        prefect_client: PrefectClient,
     ):
         deployment = test_deployment
 
@@ -72,8 +74,8 @@ class TestRunDeployment:
 
     async def test_run_deployment_with_deployment_id_uuid(
         self,
-        test_deployment,
-        prefect_client,
+        test_deployment: DeploymentResponse,
+        prefect_client: PrefectClient,
     ):
         deployment = test_deployment
 
@@ -267,7 +269,7 @@ class TestRunDeployment:
     ):
         deployment = test_deployment
 
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = now("UTC")
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             timeout=0,
@@ -281,7 +283,7 @@ class TestRunDeployment:
     ):
         deployment = test_deployment
 
-        scheduled_time = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        scheduled_time = now("UTC") + timedelta(minutes=5)
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             scheduled_time=scheduled_time,

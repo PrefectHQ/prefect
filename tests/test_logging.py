@@ -6,6 +6,7 @@ import sys
 import time
 import uuid
 from contextlib import nullcontext
+from datetime import datetime
 from functools import partial
 from io import StringIO
 from pathlib import Path
@@ -79,6 +80,18 @@ from prefect.workers.base import BaseJobConfiguration, BaseWorker
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.server.events.pipeline import EventsPipeline
+
+
+def _normalize_timestamp(timestamp: str) -> str:
+    if timestamp.endswith("Z"):
+        if "." in timestamp:
+            base, frac = timestamp[:-1].split(".")
+            # Normalize fractional seconds to 6 digits
+            frac = (frac + "000000")[:6]
+            timestamp = f"{base}.{frac}+00:00"
+        else:
+            timestamp = timestamp[:-1] + "+00:00"
+    return timestamp
 
 
 @pytest.fixture
@@ -531,10 +544,12 @@ class TestAPILogHandler:
 
         record = handler.emit.call_args[0][0]
         log_dict = mock_log_worker.instance().send.call_args[0][0]
+        timestamp = log_dict["timestamp"]
 
-        assert (
-            log_dict["timestamp"] == from_timestamp(record.created).to_iso8601_string()
-        )
+        if sys.version_info < (3, 11):
+            timestamp = _normalize_timestamp(timestamp)
+
+        assert datetime.fromisoformat(timestamp) == from_timestamp(record.created)
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
         self,
@@ -562,7 +577,12 @@ class TestAPILogHandler:
 
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert log_dict["timestamp"] == from_timestamp(now).to_iso8601_string()
+        timestamp = log_dict["timestamp"]
+
+        if sys.version_info < (3, 11):
+            timestamp = _normalize_timestamp(timestamp)
+
+        assert datetime.fromisoformat(timestamp) == from_timestamp(now)
 
     def test_does_not_send_logs_that_opt_out(
         self,
@@ -935,7 +955,7 @@ class TestAPILogWorker:
             task_run_id=uuid.uuid4(),
             name="test.logger",
             level=10,
-            timestamp=now("utc"),
+            timestamp=now("UTC"),
             message="hello",
         ).model_dump(mode="json")
 

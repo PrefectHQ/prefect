@@ -7,7 +7,7 @@ from prefect.server import models, schemas
 from prefect.server.schemas import states
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.services.cancellation_cleanup import CancellationCleanup
-from prefect.types._datetime import DateTime, Duration
+from prefect.types._datetime import Duration, now
 
 NON_TERMINAL_STATE_CONSTRUCTORS: dict[states.StateType, Any] = {
     states.StateType.SCHEDULED: states.Scheduled,
@@ -24,8 +24,8 @@ TERMINAL_STATE_CONSTRUCTORS: dict[states.StateType, Any] = {
     states.StateType.CANCELLED: states.Cancelled,
 }
 
-THE_PAST = DateTime.now("UTC") - Duration(hours=5)
-THE_ANCIENT_PAST = DateTime.now("UTC") - Duration(days=100)
+THE_PAST = now("UTC") - Duration(hours=5)
+THE_ANCIENT_PAST = now("UTC") - Duration(days=100)
 
 
 @pytest.fixture

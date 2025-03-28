@@ -1,11 +1,11 @@
 from uuid import uuid4
 
-import pendulum
 import pytest
 from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import SavedSearchCreate
+from prefect.types._datetime import now, parse_datetime
 
 
 class TestCreateSavedSearch:
@@ -75,7 +75,7 @@ class TestCreateSavedSearch:
         self,
         client,
     ):
-        now = pendulum.now(tz="UTC")
+        right_now = now(tz="UTC")
 
         data = SavedSearchCreate(
             name="My SavedSearch",
@@ -83,8 +83,8 @@ class TestCreateSavedSearch:
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My SavedSearch"
-        assert pendulum.parse(response.json()["created"]) >= now
-        assert pendulum.parse(response.json()["updated"]) >= now
+        assert parse_datetime(response.json()["created"]) >= right_now
+        assert parse_datetime(response.json()["updated"]) >= right_now
 
 
 class TestReadSavedSearch:

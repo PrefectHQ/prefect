@@ -340,7 +340,7 @@ class RecentDeploymentsScheduler(Scheduler):
                     # second to run). Scheduling is idempotent so picking up schedules
                     # multiple times is not a concern.
                     db.Deployment.updated
-                    >= now("UTC").subtract(seconds=self.loop_seconds + 1),
+                    >= now("UTC") - datetime.timedelta(seconds=self.loop_seconds + 1),
                     (
                         # Only include deployments that have at least one
                         # active schedule.

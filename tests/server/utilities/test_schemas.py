@@ -1,10 +1,10 @@
+import datetime
 import importlib
 import os
 from contextlib import contextmanager
 from typing import Any, Generator, Optional, Union
 from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
 
@@ -14,6 +14,7 @@ from prefect.server.utilities.schemas import (
     PrefectBaseModel,
     PrefectDescriptorBase,
 )
+from prefect.types._datetime import now
 
 
 @contextmanager
@@ -137,9 +138,10 @@ class TestEqualityExcludedFields:
         class X(ORMBaseModel):
             x: int
 
-        x1 = X(id=uuid4(), created=pendulum.now("UTC"), x=1)
-        x2 = X(id=uuid4(), created=pendulum.now("UTC").add(hours=1), x=1)
-        x3 = X(id=uuid4(), created=pendulum.now("UTC").subtract(hours=1), x=2)
+        now_dt = now()
+        x1 = X(id=uuid4(), created=now_dt, x=1)
+        x2 = X(id=uuid4(), created=now_dt + datetime.timedelta(hours=1), x=1)
+        x3 = X(id=uuid4(), created=now_dt - datetime.timedelta(hours=1), x=2)
         assert x1 == x2
         assert x1.created != x2.created
         assert x1 != x3

@@ -11,13 +11,13 @@ from prefect._result_records import ResultRecordMetadata
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.client.orchestration import get_client
 from prefect.client.cloud import get_cloud_client
-import prefect.variables
-import prefect.runtime
+import prefect.variables  # pyright: ignore[reportUnusedImport] # TODO: Does this need to be imported here?
+import prefect.runtime  # pyright: ignore[reportUnusedImport] # TODO: Does this need to be imported here?
 
 # Import modules that register types
-import prefect.serializers
-import prefect.blocks.notifications
-import prefect.blocks.system
+import prefect.serializers  # pyright: ignore[reportUnusedImport]
+import prefect.blocks.notifications  # pyright: ignore[reportUnusedImport]
+import prefect.blocks.system  # pyright: ignore[reportUnusedImport]
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context

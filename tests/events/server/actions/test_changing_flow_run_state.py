@@ -1,7 +1,6 @@
 from datetime import timedelta
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +18,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.schemas.states import Running, StateType
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ def fail_that_long_exposure(
     firing = Firing(
         trigger=fail_exposures_that_last_over_a_minute.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={
             "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}"
         },
@@ -146,7 +146,7 @@ def pend_that_long_exposure(
     firing = Firing(
         trigger=pend_exposures_that_last_over_a_minute.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={
             "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}"
         },
@@ -226,10 +226,10 @@ def crash_that_weird_exposure(
     firing = Firing(
         trigger=crash_exposures_that_go_into_a_weirdo_state.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=now("UTC"),
         triggering_labels={},
         triggering_event=ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=now("UTC"),
             event="prefect.flow-run.Weirdo",
             resource={
                 "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}"

@@ -1,3 +1,4 @@
+import datetime
 from datetime import timedelta
 from uuid import uuid4
 
@@ -135,7 +136,7 @@ async def test_insert_compound_trigger_child_firing(
     firing = Firing(
         trigger=saw_a_red_dragon,
         trigger_states={TriggerState.Triggered},
-        triggered=frozen_time.add(seconds=1),
+        triggered=frozen_time + datetime.timedelta(seconds=1),
         triggering_labels={},
         triggering_event=baby_red_dragon_passed_by,
     )

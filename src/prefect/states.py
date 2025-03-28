@@ -26,7 +26,7 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.types._datetime import DateTime, Duration, now
+from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
@@ -734,9 +734,9 @@ def Paused(
         pass
     else:
         state_details.pause_timeout = (
-            DateTime.instance(pause_expiration_time)
+            pause_expiration_time
             if pause_expiration_time
-            else now() + Duration(seconds=timeout_seconds or 0)
+            else now() + datetime.timedelta(seconds=timeout_seconds or 0)
         )
 
     state_details.pause_reschedule = reschedule

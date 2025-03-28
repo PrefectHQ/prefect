@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Annotated, Any, Generic, TypeVar, Union
 
 from pydantic import (
@@ -26,8 +27,8 @@ T = TypeVar("T", bound=_SecretValueType)
 
 
 @deprecated_class(
-    start_date="Jun 2024",
-    end_date="Jun 2025",
+    start_date=datetime(2024, 6, 1),
+    end_date=datetime(2025, 6, 1),
     help="Use Variables to store json data instead.",
 )
 class JSON(Block):
@@ -55,8 +56,8 @@ class JSON(Block):
 
 
 @deprecated_class(
-    start_date="Jun 2024",
-    end_date="Jun 2025",
+    start_date=datetime(2024, 6, 1),
+    end_date=datetime(2025, 6, 1),
     help="Use Variables to store string data instead.",
 )
 class String(Block):
@@ -84,8 +85,8 @@ class String(Block):
 
 
 @deprecated_class(
-    start_date="Jun 2024",
-    end_date="Jun 2025",
+    start_date=datetime(2024, 6, 1),
+    end_date=datetime(2025, 6, 1),
     help="Use Variables to store datetime data instead.",
 )
 class DateTime(Block):

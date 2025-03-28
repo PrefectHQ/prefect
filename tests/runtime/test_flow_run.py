@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -11,7 +12,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
-from prefect.types._datetime import DateTime, Timezone, now
+from prefect.types._datetime import now
 
 
 class TestAttributeAccessPatterns:
@@ -41,9 +42,9 @@ class TestAttributeAccessPatterns:
             ("str_attribute", "foo", "bar", "bar"),
             (
                 "datetime_attribute",
-                DateTime(2022, 1, 1, 0, tzinfo=Timezone("UTC")),
+                datetime.datetime(2022, 1, 1, 0, tzinfo=ZoneInfo("UTC")),
                 "2023-05-13 20:00:00",
-                DateTime(2023, 5, 13, 20, tzinfo=Timezone("UTC")),
+                datetime.datetime(2023, 5, 13, 20, tzinfo=ZoneInfo("UTC")),
             ),
         ],
     )
@@ -205,7 +206,7 @@ class TestStartTime:
     async def test_scheduled_start_time_pulls_from_api_when_needed(
         self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
     ):
-        TIMESTAMP = now("utc").add(days=7)
+        TIMESTAMP = now("UTC") + datetime.timedelta(days=7)
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"),
             state=states.Scheduled(scheduled_time=TIMESTAMP),

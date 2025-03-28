@@ -2,7 +2,6 @@ import json
 from typing import Dict, Type
 from uuid import uuid4
 
-import pendulum
 import pytest
 from pydantic import ValidationError
 
@@ -13,6 +12,7 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
     temporary_settings,
 )
+from prefect.types._datetime import now
 
 
 def test_resource_openapi_schema() -> None:
@@ -401,7 +401,7 @@ def test_limit_on_related_resources():
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES: 10}):
         with pytest.raises(ValidationError):
             Event(
-                occurred=pendulum.now("UTC"),
+                occurred=now("UTC"),
                 event="anything",
                 resource={"prefect.resource.id": "the.thing"},
                 related=[

@@ -3,7 +3,6 @@ from typing import List
 from uuid import uuid4
 
 import anyio
-import pendulum
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +12,7 @@ from prefect.server.database import orm_models
 from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
+from prefect.types._datetime import now, start_of_day
 
 
 class TestCreateDeployment:
@@ -722,7 +722,7 @@ class TestScheduledRuns:
         assert {r.id for r in db_scheduled_runs} == set(scheduled_runs)
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1)
+            start_of_day(now("UTC")) + datetime.timedelta(days=i + 1)
             for i in range(PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value())
         }
 
@@ -903,7 +903,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
-            end_time=pendulum.now("UTC").add(days=17),
+            end_time=now("UTC") + datetime.timedelta(days=17),
             # set min runs very high to ensure we keep generating runs until we hit the end time
             # note that end time has precedence over min runs
             min_runs=100,
@@ -916,7 +916,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
-            end_time=pendulum.now("UTC").add(days=17),
+            end_time=now("UTC") + datetime.timedelta(days=17),
         )
         # because min_runs is 3, we should only get 3 runs because it satisfies the constraints
         assert len(scheduled_runs) == 3
@@ -933,8 +933,8 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
-            start_time=pendulum.now("UTC").add(days=100),
-            end_time=pendulum.now("UTC").add(days=110),
+            start_time=now("UTC") + datetime.timedelta(days=100),
+            end_time=now("UTC") + datetime.timedelta(days=110),
             # set min runs very high to ensure we keep generating runs until we hit the end time
             # note that end time has precedence over min runs
             min_runs=100,
@@ -942,7 +942,8 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 10
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 110)
+            start_of_day(now("UTC")) + datetime.timedelta(days=i + 1)
+            for i in range(100, 110)
         }
         actual_times = set()
         for run_id in scheduled_runs:
@@ -958,14 +959,15 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
-            start_time=pendulum.now("UTC").add(days=100),
-            end_time=pendulum.now("UTC").add(days=150),
+            start_time=now("UTC") + datetime.timedelta(days=100),
+            end_time=now("UTC") + datetime.timedelta(days=150),
             max_runs=3,
         )
         assert len(scheduled_runs) == 3
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 103)
+            start_of_day(now("UTC")) + datetime.timedelta(days=i + 1)
+            for i in range(100, 103)
         }
         actual_times = set()
         for run_id in scheduled_runs:
@@ -980,8 +982,8 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
-            start_time=pendulum.now("UTC").subtract(days=1000),
-            end_time=pendulum.now("UTC").subtract(days=990),
+            start_time=now("UTC") - datetime.timedelta(days=1000),
+            end_time=now("UTC") - datetime.timedelta(days=990),
             # set min runs very high to ensure we keep generating runs until we hit the end time
             # note that end time has precedence over min runs
             min_runs=100,
@@ -989,7 +991,7 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 10
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").subtract(days=i)
+            start_of_day(now("UTC")) - datetime.timedelta(days=i)
             for i in range(990, 1000)
         }
 

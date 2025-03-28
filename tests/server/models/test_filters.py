@@ -2,7 +2,6 @@ import asyncio
 from datetime import timedelta
 from uuid import uuid4
 
-import pendulum
 import pytest
 from pydantic_core import from_json, to_json
 from sqlalchemy.exc import InterfaceError
@@ -11,6 +10,7 @@ import prefect.server
 from prefect.client.orchestration import get_client
 from prefect.server import models
 from prefect.server.schemas import actions, core, filters, schedules, states
+from prefect.types._datetime import now
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -223,7 +223,7 @@ async def data(flow_function, db):
                 flow_id=f_3.id,
                 tags=["db", "red"],
                 state=prefect.server.schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC")
+                    scheduled_time=now("UTC")
                 ),
             )
         )

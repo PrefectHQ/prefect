@@ -31,7 +31,7 @@ from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner import Runner
 from prefect.states import State
-from prefect.types._datetime import create_datetime_instance
+from prefect.types._datetime import human_friendly_diff
 
 flow_run_app: PrefectTyper = PrefectTyper(
     name="flow-run", help="Interact with flow runs."
@@ -177,7 +177,7 @@ async def ls(
             str(flow.name),
             str(flow_run.name),
             str(flow_run.state.type.value),
-            create_datetime_instance(timestamp).diff_for_humans(),
+            human_friendly_diff(timestamp),
         )
 
     app.console.print(table)

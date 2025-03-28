@@ -2,7 +2,6 @@ import datetime
 from uuid import uuid4
 
 import anyio
-import pendulum
 import pytest
 
 from prefect.server import models, schemas
@@ -21,6 +20,7 @@ from prefect.server.orchestration.rules import (
     OrchestrationContext,
 )
 from prefect.server.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.types._datetime import now
 
 
 class TestSetFlowRunState:
@@ -165,7 +165,7 @@ class TestCreateFlowRunState:
         assert flow_run.run_count == 0
         assert flow_run.total_run_time == datetime.timedelta(0)
 
-        dt = pendulum.now("UTC")
+        dt = now("UTC")
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
@@ -178,7 +178,7 @@ class TestCreateFlowRunState:
         assert flow_run.total_run_time == datetime.timedelta(0)
         assert flow_run.estimated_run_time > datetime.timedelta(0)
 
-        dt2 = pendulum.now("utc")
+        dt2 = now("UTC")
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
@@ -200,7 +200,7 @@ class TestCreateFlowRunState:
         frs = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
+            state=Scheduled(scheduled_time=now("UTC") + datetime.timedelta(days=30)),
             flow_policy=await provide_flow_policy(),
         )
 
@@ -228,7 +228,9 @@ class TestCreateFlowRunState:
             frs = await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
+                state=Scheduled(
+                    scheduled_time=now("UTC") + datetime.timedelta(days=30)
+                ),
                 flow_policy=await provide_flow_policy(),
             )
 
@@ -265,7 +267,9 @@ class TestCreateFlowRunState:
                 frs = await models.flow_runs.set_flow_run_state(
                     session=session,
                     flow_run_id=flow_run.id,
-                    state=Scheduled(scheduled_time=pendulum.now("UTC").add(months=1)),
+                    state=Scheduled(
+                        scheduled_time=now("UTC") + datetime.timedelta(days=30)
+                    ),
                     flow_policy=await provide_flow_policy(),
                     orchestration_parameters=await provide_flow_orchestration_parameters(),
                 )

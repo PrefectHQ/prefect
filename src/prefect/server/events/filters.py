@@ -1,29 +1,29 @@
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
 from sqlalchemy.sql import Select
 
+import prefect.types._datetime
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types._datetime import DateTime, now, start_of_period
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
-else:
-    from prefect.types import DateTime
 
 
 class AutomationFilterCreated(PrefectFilterBaseModel):
@@ -110,18 +110,22 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: start_of_period(now("UTC"), "day")
+        default_factory=lambda: prefect.types._datetime.start_of_day(
+            prefect.types._datetime.now("UTC")
+        )
         - timedelta(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: now("UTC"),
+        default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="Only include events prior to this time (inclusive)",
     )
 
     def clamp(self, max_duration: timedelta) -> None:
         """Limit how far the query can look back based on the given duration"""
-        earliest = now("UTC") - max_duration
+        # Using datetime.now() instead of prefect.types._datetime.now() to avoid
+        # dropping timezone information which happens if pendulum is used
+        earliest = datetime.now(ZoneInfo("UTC")) - max_duration
         self.since = max(earliest, self.since)
 
     def includes(self, event: Event) -> bool:
@@ -138,18 +142,19 @@ class EventOccurredFilter(EventDataFilter):
 
 
 class EventNameFilter(EventDataFilter):
-    prefix: Optional[List[str]] = Field(
-        None, description="Only include events matching one of these prefixes"
+    prefix: Optional[list[str]] = Field(
+        default=None, description="Only include events matching one of these prefixes"
     )
-    exclude_prefix: Optional[List[str]] = Field(
-        None, description="Exclude events matching one of these prefixes"
+    exclude_prefix: Optional[list[str]] = Field(
+        default=None, description="Exclude events matching one of these prefixes"
     )
 
-    name: Optional[List[str]] = Field(
-        None, description="Only include events matching one of these names exactly"
+    name: Optional[list[str]] = Field(
+        default=None,
+        description="Only include events matching one of these names exactly",
     )
-    exclude_name: Optional[List[str]] = Field(
-        None, description="Exclude events matching one of these names exactly"
+    exclude_name: Optional[list[str]] = Field(
+        default=None, description="Exclude events matching one of these names exactly"
     )
 
     def includes(self, event: Event) -> bool:
@@ -224,19 +229,19 @@ class LabelOperations:
 
 class EventResourceFilter(EventDataFilter):
     id: Optional[List[str]] = Field(
-        None, description="Only include events for resources with these IDs"
+        default=None, description="Only include events for resources with these IDs"
     )
     id_prefix: Optional[List[str]] = Field(
-        None,
+        default=None,
         description=(
             "Only include events for resources with IDs starting with these prefixes."
         ),
     )
     labels: Optional[ResourceSpecification] = Field(
-        None, description="Only include events for resources with these labels"
+        default=None, description="Only include events for resources with these labels"
     )
     distinct: bool = Field(
-        False,
+        default=False,
         description="Only include events for distinct resources",
     )
 
@@ -429,17 +434,18 @@ class EventRelatedFilter(EventDataFilter):
 
 
 class EventAnyResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
-        None, description="Only include events for resources with these IDs"
+    id: Optional[list[str]] = Field(
+        default=None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
-        None,
+    id_prefix: Optional[list[str]] = Field(
+        default=None,
         description=(
             "Only include events for resources with IDs starting with these prefixes"
         ),
     )
     labels: Optional[ResourceSpecification] = Field(
-        None, description="Only include events for related resources with these labels"
+        default=None,
+        description="Only include events for related resources with these labels",
     )
 
     def includes(self, event: Event) -> bool:
@@ -567,17 +573,19 @@ class EventFilter(EventDataFilter):
         description="Filter criteria for when the events occurred",
     )
     event: Optional[EventNameFilter] = Field(
-        None,
+        default=None,
         description="Filter criteria for the event name",
     )
     any_resource: Optional[EventAnyResourceFilter] = Field(
-        None, description="Filter criteria for any resource involved in the event"
+        default=None,
+        description="Filter criteria for any resource involved in the event",
     )
     resource: Optional[EventResourceFilter] = Field(
-        None, description="Filter criteria for the resource of the event"
+        default=None, description="Filter criteria for the resource of the event"
     )
     related: Optional[EventRelatedFilter] = Field(
-        None, description="Filter criteria for the related resources of the event"
+        default=None,
+        description="Filter criteria for the related resources of the event",
     )
     id: EventIDFilter = Field(
         default_factory=lambda: EventIDFilter(),
@@ -585,7 +593,7 @@ class EventFilter(EventDataFilter):
     )
 
     order: EventOrder = Field(
-        EventOrder.DESC,
+        default=EventOrder.DESC,
         description="The order to return filtered events",
     )
 

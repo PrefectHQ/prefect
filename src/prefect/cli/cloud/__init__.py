@@ -11,6 +11,7 @@ import urllib.parse
 import warnings
 import webbrowser
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Iterable,
@@ -35,7 +36,6 @@ from rich.table import Table
 from typing_extensions import Literal
 
 import prefect.context
-import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
@@ -618,7 +618,7 @@ async def logout():
 @cloud_app.command(
     deprecated=True,
     deprecated_name="prefect cloud open",
-    deprecated_start_date="Oct 2024",
+    deprecated_start_date=datetime(2024, 10, 1),
     deprecated_help="Use `prefect dashboard open` to open the Prefect UI.",
 )
 async def open():

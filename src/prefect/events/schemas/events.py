@@ -24,12 +24,12 @@ from pydantic import (
 )
 from typing_extensions import Annotated, Self
 
+import prefect.types._datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
 )
-from prefect.types import DateTime
 
 from .labelling import Labelled
 
@@ -115,8 +115,8 @@ class Event(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
-    occurred: DateTime = Field(
-        default_factory=lambda: DateTime.now("UTC"),
+    occurred: prefect.types._datetime.DateTime = Field(
+        default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
     event: str = Field(description="The name of the event that happened")
@@ -184,7 +184,7 @@ class ReceivedEvent(Event):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
-    received: DateTime = Field(
+    received: prefect.types._datetime.DateTime = Field(
         ...,
         description="When the event was received by Prefect Cloud",
     )

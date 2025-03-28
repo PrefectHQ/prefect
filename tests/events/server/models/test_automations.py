@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import List, Sequence
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     Posture,
 )
 from prefect.server.events.schemas.events import ResourceSpecification
+from prefect.types._datetime import now
 
 
 async def test_reading_automations_by_workspace_empty(
@@ -485,7 +485,7 @@ async def test_reading_automations_from_related_resource_filter_created_before(
         )
 
     old_automation = some_workspace_automations[0]
-    horizon = pendulum.now("UTC") - timedelta(days=1)
+    horizon = now("UTC") - timedelta(days=1)
 
     await automations_session.execute(
         sa.update(db.Automation)

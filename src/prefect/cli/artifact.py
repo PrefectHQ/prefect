@@ -14,6 +14,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
+from prefect.types._datetime import human_friendly_diff
 
 artifact_app: PrefectTyper = PrefectTyper(
     name="artifact", help="Inspect and delete artifacts."
@@ -57,7 +58,9 @@ async def list_artifacts(
             )
 
             for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
-                updated = artifact.updated.diff_for_humans() if artifact.updated else ""
+                updated = (
+                    human_friendly_diff(artifact.updated) if artifact.updated else ""
+                )
                 table.add_row(
                     str(artifact.id),
                     artifact.key,
@@ -72,7 +75,9 @@ async def list_artifacts(
             )
 
             for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
-                updated = artifact.updated.diff_for_humans() if artifact.updated else ""
+                updated = (
+                    human_friendly_diff(artifact.updated) if artifact.updated else ""
+                )
                 table.add_row(
                     str(artifact.latest_id),
                     artifact.key,

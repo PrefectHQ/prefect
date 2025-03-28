@@ -1,12 +1,13 @@
+import datetime
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from prefect.server import models, schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -262,6 +263,7 @@ class TestGetRunsInWorkQueue:
     async def scheduled_flow_runs(self, session, deployment, work_queue, work_queue_2):
         for i in range(3):
             for wq in [work_queue, work_queue_2]:
+                current_time = now("UTC") + datetime.timedelta(minutes=i)
                 await models.flow_runs.create_flow_run(
                     session=session,
                     flow_run=schemas.core.FlowRun(
@@ -270,10 +272,8 @@ class TestGetRunsInWorkQueue:
                         work_queue_name=wq.name,
                         state=schemas.states.State(
                             type="SCHEDULED",
-                            timestamp=pendulum.now("UTC").add(minutes=i),
-                            state_details=dict(
-                                scheduled_time=pendulum.now("UTC").add(minutes=i)
-                            ),
+                            timestamp=current_time,
+                            state_details=dict(scheduled_time=current_time),
                         ),
                     ),
                 )
@@ -291,7 +291,7 @@ class TestGetRunsInWorkQueue:
                         work_queue_name=wq.name,
                         state=schemas.states.State(
                             type=state_type,
-                            timestamp=pendulum.now("UTC").subtract(seconds=10),
+                            timestamp=now("UTC") - datetime.timedelta(seconds=10),
                         ),
                     ),
                 )
@@ -335,7 +335,7 @@ class TestGetRunsInWorkQueue:
         _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=now("UTC"),
         )
         assert len(runs_wq1) == 1
 

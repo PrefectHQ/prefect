@@ -1,12 +1,13 @@
+from datetime import timedelta
 from uuid import uuid4
 
-import pendulum
 import pytest
 from pydantic import ConfigDict, ValidationError
 
 from prefect.server import schemas
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
+from prefect.types._datetime import now
 
 
 @pytest.mark.parametrize(
@@ -289,14 +290,12 @@ class TestWorkQueueHealthPolicy:
         )
 
         assert (
-            policy.evaluate_health_status(
-                late_runs_count=0, last_polled=pendulum.now("UTC")
-            )
+            policy.evaluate_health_status(late_runs_count=0, last_polled=now("UTC"))
             is True
         )
         assert (
             policy.evaluate_health_status(
-                late_runs_count=2, last_polled=pendulum.now("UTC").subtract(seconds=60)
+                late_runs_count=2, last_polled=now("UTC") - timedelta(seconds=60)
             )
             is False
         )

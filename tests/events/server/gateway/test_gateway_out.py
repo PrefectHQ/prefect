@@ -1,7 +1,7 @@
+import datetime
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, AsyncIterable, List, Tuple
+from typing import Any, AsyncGenerator, AsyncIterable
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (
@@ -18,6 +18,7 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
+from prefect.types._datetime import DateTime, now
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ def backfill_mock(
         session: None = None,
         filter: EventFilter,
         page_size: int = 0,
-    ) -> Tuple[List[ReceivedEvent], Any, Any]:
+    ) -> tuple[list[ReceivedEvent], Any, Any]:
         assert isinstance(session, AsyncSession)
 
         assert isinstance(filter, EventFilter)
@@ -75,8 +76,8 @@ def backfill_mock(
 def default_liberal_filter() -> EventFilter:
     return EventFilter(
         occurred=EventOccurredFilter(
-            since=pendulum.now("UTC"),
-            until=pendulum.now("UTC").add(years=1),
+            since=now("UTC"),
+            until=now("UTC") + datetime.timedelta(days=365),
         )
     )
 
@@ -114,8 +115,8 @@ def test_streaming_requires_authentication(
 
 
 async def test_streaming_requires_a_filter(
-    monkeypatch,
-    frozen_time: pendulum.DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,
@@ -151,8 +152,8 @@ async def test_streaming_requires_a_filter(
 
 
 async def test_streaming_requires_a_valid_filter(
-    monkeypatch,
-    frozen_time: pendulum.DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,
@@ -185,8 +186,8 @@ async def test_streaming_requires_a_valid_filter(
 
 
 async def test_user_may_decline_a_backfill(
-    monkeypatch,
-    frozen_time: pendulum.DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,
@@ -225,8 +226,8 @@ async def test_user_may_decline_a_backfill(
 
 
 async def test_user_may_explicitly_request_a_backfill(
-    monkeypatch,
-    frozen_time: pendulum.DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,

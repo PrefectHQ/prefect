@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from types import ModuleType, TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from httpx._exceptions import HTTPStatusError
+from httpx import HTTPStatusError
 from pydantic import ValidationError
 from typing_extensions import Self
 

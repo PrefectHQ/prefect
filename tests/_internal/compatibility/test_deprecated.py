@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import pydantic
@@ -16,7 +17,7 @@ from prefect._internal.compatibility.deprecated import (
 def test_generate_deprecation_message():
     assert (
         generate_deprecation_message(
-            "test name", start_date="Jan 2022", help="test help"
+            "test name", start_date=datetime(2022, 1, 1), help="test help"
         )
         == "test name has been deprecated. It will not be available in new releases after Jul 2022."
         " test help"
@@ -26,7 +27,10 @@ def test_generate_deprecation_message():
 def test_generate_deprecation_message_when():
     assert (
         generate_deprecation_message(
-            "test name", start_date="Jan 2022", help="test help", when="testing"
+            "test name",
+            start_date=datetime(2022, 1, 1),
+            help="test help",
+            when="testing",
         )
         == "test name has been deprecated when testing. It will not be available in new releases after"
         " Jul 2022. test help"
@@ -34,20 +38,20 @@ def test_generate_deprecation_message_when():
 
 
 def test_generate_deprecation_message_invalid_start_date():
-    with pytest.raises(ValueError, match="String does not match format MMM YYYY"):
-        generate_deprecation_message("test name", start_date="2022")
+    with pytest.raises(ValueError, match="Must provide start_date as a datetime"):
+        generate_deprecation_message("test name", start_date="Jan 2022")
 
 
 def test_generate_deprecation_message_end_date():
     assert (
-        generate_deprecation_message("test name", end_date="Dec 2023")
+        generate_deprecation_message("test name", end_date=datetime(2023, 12, 1))
         == "test name has been deprecated. It will not be available in new releases after Dec 2023."
     )
 
 
 def test_generate_deprecation_message_invalid_end_date():
-    with pytest.raises(ValueError, match="String does not match format MMM YYYY"):
-        generate_deprecation_message("test name", end_date="Foobar")
+    with pytest.raises(ValueError, match="Must provide end_date as a datetime"):
+        generate_deprecation_message("test name", end_date="Dec 2023")
 
 
 def test_generate_deprecation_message_no_start_or_end_date():
@@ -58,7 +62,7 @@ def test_generate_deprecation_message_no_start_or_end_date():
 
 
 def test_deprecated_callable():
-    @deprecated_callable(start_date="Jan 2022", help="test help")
+    @deprecated_callable(start_date=datetime(2022, 1, 1), help="test help")
     def foo():
         pass
 
@@ -73,7 +77,7 @@ def test_deprecated_callable():
 
 
 def test_deprecated_parameter():
-    @deprecated_parameter(name="y", start_date="Jan 2022", help="test help")
+    @deprecated_parameter(name="y", start_date=datetime(2022, 1, 1), help="test help")
     def foo(
         x=None,
         y=None,
@@ -100,7 +104,10 @@ def test_deprecated_parameter():
 
 def test_deprecated_parameter_when():
     @deprecated_parameter(
-        name="x", when=lambda x: x > 5, start_date="Jan 2022", help="test help"
+        name="x",
+        when=lambda x: x > 5,
+        start_date=datetime(2022, 1, 1),
+        help="test help",
     )
     def foo(x: int = 0):
         pass
@@ -128,7 +135,7 @@ def test_deprecated_parameter_when():
 
 
 def test_deprecated_field():
-    @deprecated_field(name="y", start_date="Jan 2022", help="test help")
+    @deprecated_field(name="y", start_date=datetime(2022, 1, 1), help="test help")
     class Foo(pydantic.BaseModel):
         x: Optional[int] = None
         y: Optional[int] = None
@@ -151,7 +158,10 @@ def test_deprecated_field():
 
 def test_deprecated_field_when():
     @deprecated_field(
-        name="x", when=lambda x: x > 5, start_date="Jan 2022", help="test help"
+        name="x",
+        when=lambda x: x > 5,
+        start_date=datetime(2022, 1, 1),
+        help="test help",
     )
     class Foo(pydantic.BaseModel):
         x: Optional[int] = None
@@ -169,11 +179,13 @@ def test_deprecated_field_when():
     ):
         Foo(x=10)
 
-    assert Foo.model_fields["x"].json_schema_extra["deprecated"] is True
+    extra = Foo.model_fields["x"].json_schema_extra
+    assert isinstance(extra, dict)
+    assert extra["deprecated"] is True
 
 
 def test_deprecated_class():
-    @deprecated_class(start_date="Jan 2022", help="test help")
+    @deprecated_class(start_date=datetime(2022, 1, 1), help="test help")
     class MyClass:
         def __init__(self):
             pass

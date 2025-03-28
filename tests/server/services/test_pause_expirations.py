@@ -1,11 +1,12 @@
-import pendulum
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from prefect.server import models, schemas
 from prefect.server.services.pause_expirations import FailExpiredPauses
 
-THE_PAST = pendulum.now("UTC") - pendulum.Duration(hours=5)
-THE_FUTURE = pendulum.now("UTC") + pendulum.Duration(days=5)
+THE_PAST = datetime.now(timezone.utc) - timedelta(hours=5)
+THE_FUTURE = datetime.now(timezone.utc) + timedelta(days=5)
 
 
 @pytest.fixture
