@@ -1,6 +1,10 @@
+# /// script
+# dependencies = ["fastjsonschema"]
+# ///
+
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import fastjsonschema
 
@@ -8,7 +12,7 @@ EXCLUDE_TYPES = {"demo-flow"}
 
 CollectionViewVariety = Literal["flow", "worker", "block"]
 
-flow_schema = {
+flow_schema: dict[str, Any] = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
@@ -37,7 +41,7 @@ flow_schema = {
     ],
 }
 
-worker_schema = {
+worker_schema: dict[str, Any] = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
@@ -58,7 +62,7 @@ worker_schema = {
     ],
 }
 
-block_schema = {
+block_schema: dict[str, Any] = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
@@ -111,7 +115,9 @@ block_schema = {
 }
 
 
-def validate_view_content(view_dict: dict, variety: CollectionViewVariety) -> None:
+def validate_view_content(
+    view_dict: dict[str, Any], variety: CollectionViewVariety
+) -> None:
     """Raises an error if the view content is not valid."""
 
     if variety == "flow":
@@ -123,14 +129,14 @@ def validate_view_content(view_dict: dict, variety: CollectionViewVariety) -> No
     else:
         raise ValueError(f"Invalid variety: {variety}")
 
-    validate = fastjsonschema.compile(schema)
+    validate = fastjsonschema.compile(schema)  # type: ignore
 
     for collection_name, collection_metadata in view_dict.items():
         if variety == "block":
             collection_metadata = collection_metadata["block_types"]
         try:
             # raise validation errors if any metadata doesn't match the schema
-            list(map(validate, collection_metadata.values()))
+            list(map(validate, collection_metadata.values()))  # type: ignore
         except IndexError:  # to catch something like {"prefect-X": {}}
             raise ValueError("There's a key with empty value in this view!")
         print(f"  Validated {collection_name} summary in {variety} view!")
@@ -146,6 +152,7 @@ if __name__ == "__main__":
 
     for variety, file in included_paths:
         path = Path(file)
+
         if any(exclude in path.name for exclude in EXCLUDE_TYPES):
             continue
 
