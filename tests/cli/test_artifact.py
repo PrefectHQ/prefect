@@ -109,7 +109,7 @@ def test_listing_artifacts_after_creating_artifacts(
             str(artifact.id),
             str(artifact.key),
             str(artifact.type),
-            "a few seconds ago",
+            "a few seconds ago" if sys.version_info < (3, 12) else "now",
         ],
     )
 
@@ -127,7 +127,7 @@ def test_listing_artifacts_after_creating_artifacts_with_null_fields(
         expected_output_contains=[
             str(artifact.id),
             str(artifact.key),
-            "a few seconds ago",
+            "a few seconds ago" if sys.version_info < (3, 12) else "now",
         ],
     )
 

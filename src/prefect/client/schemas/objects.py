@@ -201,7 +201,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: now("UTC"))
+    timestamp: datetime.datetime = Field(default_factory=lambda: now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
@@ -367,7 +367,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = now("UTC")
+                self.state_details.scheduled_time = now("UTC")  # pyright: ignore[reportAttributeAccessIssue] DateTime is split into two types depending on Python version
         return self
 
     @model_validator(mode="after")
@@ -1375,7 +1375,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: DateTime | None = None
+        self, late_runs_count: int, last_polled: datetime.datetime | None = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1397,7 +1397,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or now("UTC").diff(last_polled).seconds()
+                or (now("UTC") - last_polled).total_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

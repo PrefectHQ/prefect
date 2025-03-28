@@ -643,10 +643,10 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     def make_timestamp_intervals(
         self,
-        start_time: DateTime,
-        end_time: DateTime,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[DateTime, DateTime]]:
+    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]:
         dt = sa.func.generate_series(
             start_time, end_time, interval, type_=Timestamp()
         ).column_valued("dt")

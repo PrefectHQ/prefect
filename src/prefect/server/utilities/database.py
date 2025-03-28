@@ -130,7 +130,7 @@ def generate_uuid_sqlite(
     """
 
 
-class Timestamp(TypeDecorator[DateTime]):
+class Timestamp(TypeDecorator[datetime.datetime]):
     """TypeDecorator that ensures that timestamps have a timezone.
 
     For SQLite, all timestamps are converted to UTC (since they are stored
@@ -154,9 +154,9 @@ class Timestamp(TypeDecorator[DateTime]):
 
     def process_bind_param(
         self,
-        value: Optional[DateTime],
+        value: Optional[datetime.datetime],
         dialect: sa.Dialect,
-    ) -> Optional[DateTime]:
+    ) -> Optional[datetime.datetime]:
         if value is None:
             return None
         else:

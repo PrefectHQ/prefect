@@ -4,6 +4,7 @@ Schedule schemas
 
 import datetime
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional, Union
+from zoneinfo import ZoneInfo
 
 import dateutil
 import dateutil.rrule
@@ -74,7 +75,7 @@ class IntervalSchedule(PrefectBaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
-    anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
+    anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(  # pyright: ignore[reportAssignmentType] DateTime is split into two types depending on Python version
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
@@ -209,7 +210,7 @@ class RRuleSchedule(PrefectBaseModel):
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         rrules = _rrule(rrule)
         dtstarts = [dts for rr in rrules if (dts := _rrule_dt(rr)) is not None]
-        unique_dstarts = set(d.astimezone("UTC") for d in dtstarts)
+        unique_dstarts = set(d.astimezone(ZoneInfo("UTC")) for d in dtstarts)
         unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
         if len(unique_timezones) > 1:

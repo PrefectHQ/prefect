@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import sys
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, available_timezones
 
@@ -17,6 +17,7 @@ if sys.version_info >= (3, 13):
     Duration: TypeAlias = datetime.timedelta
 else:
     import pendulum
+    import pendulum.tz
     from pydantic_extra_types.pendulum_dt import (
         Date as PydanticDate,
     )
@@ -41,7 +42,7 @@ def parse_datetime(dt: str) -> datetime.datetime:
         else:
             return parsed_dt
     else:
-        return pendulum.parse(dt)
+        return cast(datetime.datetime, pendulum.parse(dt))
 
 
 def get_timezones() -> tuple[str, ...]:
@@ -80,7 +81,7 @@ def human_friendly_diff(
         local_tz = datetime.datetime.now().astimezone().tzinfo
         dt = dt.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
     elif hasattr(dt.tzinfo, "name"):
-        dt = dt.replace(tzinfo=ZoneInfo(dt.tzinfo.name))
+        dt = dt.replace(tzinfo=ZoneInfo(getattr(dt.tzinfo, "name")))
 
     # Handle other parameter if provided
     if other is not None:
@@ -88,7 +89,7 @@ def human_friendly_diff(
             local_tz = datetime.datetime.now().astimezone().tzinfo
             other = other.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
         elif hasattr(other.tzinfo, "name"):
-            other = other.replace(tzinfo=ZoneInfo(other.tzinfo.name))
+            other = other.replace(tzinfo=ZoneInfo(getattr(other.tzinfo, "name")))
 
     if sys.version_info >= (3, 13):
         return humanize.naturaltime(dt, when=other)

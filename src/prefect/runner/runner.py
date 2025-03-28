@@ -113,7 +113,7 @@ from prefect.states import (
     Pending,
     exception_to_failed_state,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -992,7 +992,7 @@ class Runner:
         if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled: DateTime = now("UTC")
+        self.last_polled: datetime.datetime = now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
