@@ -8,7 +8,6 @@ import pytest
 import sqlalchemy as sa
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import ORMEventResource
@@ -20,6 +19,7 @@ from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @db_injector

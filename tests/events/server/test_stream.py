@@ -4,7 +4,6 @@ from typing import AsyncGenerator, AsyncIterator
 from uuid import uuid4
 
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect.server.events import messaging, stream
 from prefect.server.events.filters import (
@@ -13,6 +12,7 @@ from prefect.server.events.filters import (
     EventOccurredFilter,
 )
 from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
+from prefect.types._datetime import now
 
 
 @pytest.fixture

@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import start_of_day
 
 from prefect.server.events.filters import (
     EventAnyResourceFilter,
@@ -27,7 +26,7 @@ from prefect.server.events.storage.database import (
     query_next_page,
     write_events,
 )
-from prefect.types._datetime import Date, now
+from prefect.types._datetime import Date, now, start_of_day
 
 
 @pytest.fixture(scope="module")

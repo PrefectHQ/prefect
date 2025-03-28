@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.models import automations
@@ -25,6 +24,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
 

@@ -5,7 +5,6 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, filters
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     Posture,
 )
 from prefect.server.events.schemas.events import ResourceSpecification
+from prefect.types._datetime import now
 
 
 async def test_reading_automations_by_workspace_empty(

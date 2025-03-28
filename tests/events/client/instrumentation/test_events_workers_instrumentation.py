@@ -1,5 +1,4 @@
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect import __version__
 from prefect.client.orchestration import PrefectClient
@@ -8,6 +7,7 @@ from prefect.events.worker import EventsWorker
 from prefect.states import Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import now
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 
 

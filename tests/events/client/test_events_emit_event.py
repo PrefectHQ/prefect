@@ -4,7 +4,6 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
@@ -14,6 +13,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.mark.usefixtures("reset_worker_events")

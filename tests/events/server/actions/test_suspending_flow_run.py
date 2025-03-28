@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -19,6 +18,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.schemas.states import Running, StateType
+from prefect.types._datetime import now
 
 
 @pytest.fixture

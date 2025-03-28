@@ -3,10 +3,10 @@ from datetime import timezone
 from uuid import UUID, uuid4
 
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect.events import Event, RelatedResource, Resource
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 def test_client_events_generate_an_id_by_default():

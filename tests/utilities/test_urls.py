@@ -4,7 +4,6 @@ from datetime import timedelta
 from typing import Any, Literal
 
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect.blocks.webhook import Webhook
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
@@ -14,6 +13,7 @@ from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 from prefect.states import StateType
+from prefect.types._datetime import now
 from prefect.utilities.urls import url_for, validate_restricted_url
 from prefect.variables import Variable
 

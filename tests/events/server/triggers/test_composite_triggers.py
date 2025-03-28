@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, triggers
@@ -22,6 +21,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.fixture

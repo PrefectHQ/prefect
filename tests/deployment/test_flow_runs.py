@@ -8,7 +8,6 @@ import pytest
 import respx
 from httpx import Response
 from opentelemetry import trace
-from src.prefect.types._datetime import now
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
@@ -24,6 +23,7 @@ from prefect.tasks import task
 from prefect.telemetry.run_telemetry import (
     LABELS_TRACEPARENT_KEY,
 )
+from prefect.types._datetime import now
 from prefect.utilities.slugify import slugify
 from tests.telemetry.instrumentation_tester import InstrumentationTester
 

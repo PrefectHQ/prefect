@@ -13,7 +13,6 @@ import respx
 from exceptiongroup import ExceptionGroup
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now as now_fn
 from starlette import status
 
 import prefect
@@ -57,6 +56,7 @@ from prefect.states import (
     State,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import travel_to
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (

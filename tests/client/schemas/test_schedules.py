@@ -2,7 +2,6 @@ import datetime
 from itertools import combinations
 
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
@@ -12,6 +11,7 @@ from prefect.client.schemas.schedules import (
     construct_schedule,
 )
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 class TestConstructSchedule:

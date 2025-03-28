@@ -18,7 +18,6 @@ import respx
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBasic, HTTPBearer
 from packaging import version
-from src.prefect.types._datetime import now
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -95,7 +94,7 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
 
 

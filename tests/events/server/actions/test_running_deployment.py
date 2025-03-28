@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, variables, workers
 from prefect.server.schemas.actions import VariableCreate, WorkPoolCreate
 from prefect.server.schemas.core import CreatedBy, Deployment, Flow
+from prefect.types._datetime import now
 
 
 async def test_action_can_omit_parameters():

@@ -4,7 +4,6 @@ from typing import Any, AsyncGenerator, AsyncIterable
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
     WS_1008_POLICY_VIOLATION,
@@ -19,7 +18,7 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 
 
 @pytest.fixture

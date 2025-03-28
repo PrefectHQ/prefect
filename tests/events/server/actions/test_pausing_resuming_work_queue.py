@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -22,6 +21,7 @@ from prefect.server.models import work_queues
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.server.schemas.core import WorkQueue
 from prefect.types import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
 

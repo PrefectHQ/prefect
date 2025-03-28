@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
-from src.prefect.types._datetime import now
 
 from prefect.events import Event, RelatedResource, Resource, ResourceSpecification
 from prefect.events.schemas.labelling import LabelDiver
@@ -13,6 +12,7 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
     temporary_settings,
 )
+from prefect.types._datetime import now
 
 
 def test_resource_openapi_schema() -> None:

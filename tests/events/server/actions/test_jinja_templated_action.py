@@ -7,7 +7,6 @@ from uuid import uuid4
 import pytest
 from pydantic import Field, ValidationInfo, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.prefect.types._datetime import now as now_fn
 
 from prefect.server.api.clients import OrchestrationClient
 from prefect.server.database.orm_models import (
@@ -48,6 +47,7 @@ from prefect.server.schemas.responses import FlowRunResponse
 from prefect.server.schemas.states import State, StateType
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.types import DateTime
+from prefect.types._datetime import now as now_fn
 
 
 @pytest.fixture(autouse=True)

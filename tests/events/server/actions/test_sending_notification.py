@@ -5,7 +5,6 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
-from src.prefect.types._datetime import now
 
 from prefect.blocks.abstract import NotificationBlock
 from prefect.blocks.core import Block
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
+from prefect.types._datetime import now
 
 
 @pytest.fixture

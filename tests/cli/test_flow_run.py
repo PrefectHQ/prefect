@@ -9,7 +9,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import pytest
-from src.prefect.types._datetime import now
 
 import prefect.exceptions
 from prefect import flow
@@ -34,6 +33,7 @@ from prefect.states import (
     StateType,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
