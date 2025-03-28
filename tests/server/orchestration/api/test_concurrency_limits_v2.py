@@ -455,35 +455,6 @@ async def test_increment_concurrency_limit_rate_limit_mode(
     assert refreshed_limit.active_slots == 1
 
 
-async def test_increment_concurrency_limit_rate_limit_mode_implicitly_created_limit(
-    client: AsyncClient,
-    session: AsyncSession,
-    ignore_prefect_deprecation_warnings,
-):
-    # DEPRECATED BEHAVIOR
-    response = await client.post(
-        "/v2/concurrency_limits/increment",
-        json={
-            "names": ["implicitly_created_limit"],
-            "slots": 1,
-            "mode": "rate_limit",
-            "create_if_missing": True,
-        },
-    )
-
-    # The limit should have been created as inactive this will bypass the
-    # validation of `slot_decay_per_second` being non-zero as the limit is
-    # effectively ignored resulting in a 200 response.
-    assert response.status_code == 200
-
-    refreshed_limit = await read_concurrency_limit(
-        session=session, name="implicitly_created_limit"
-    )
-    assert refreshed_limit
-    assert not bool(refreshed_limit.active)
-    assert refreshed_limit.active_slots == 0  # Inactive limits are not incremented
-
-
 async def test_increment_concurrency_limit_rate_limit_mode_doesnt_create_by_default(
     client: AsyncClient,
     session: AsyncSession,

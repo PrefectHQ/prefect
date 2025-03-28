@@ -244,7 +244,6 @@ class ConcurrencyLimitClient(BaseClient):
         names: list[str],
         slots: int,
         mode: str,
-        create_if_missing: bool | None = None,
     ) -> "Response":
         return self.request(
             "POST",
@@ -253,7 +252,6 @@ class ConcurrencyLimitClient(BaseClient):
                 "names": names,
                 "slots": slots,
                 "mode": mode,
-                "create_if_missing": create_if_missing if create_if_missing else False,
             },
         )
 
@@ -614,7 +612,6 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         names: list[str],
         slots: int,
         mode: str,
-        create_if_missing: bool | None = None,
     ) -> "Response":
         return await self.request(
             "POST",
@@ -623,7 +620,6 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 "names": names,
                 "slots": slots,
                 "mode": mode,
-                "create_if_missing": create_if_missing if create_if_missing else False,
             },
         )
 

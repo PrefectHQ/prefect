@@ -15,7 +15,7 @@ from prefect.utilities.timeout import timeout_async
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
-_Item: TypeAlias = tuple[int, str, Optional[float], Optional[bool], Optional[int]]
+_Item: TypeAlias = tuple[int, str, Optional[float], Optional[int]]
 
 
 class ConcurrencySlotAcquisitionService(
@@ -37,7 +37,6 @@ class ConcurrencySlotAcquisitionService(
         slots: int,
         mode: str,
         timeout_seconds: Optional[float] = None,
-        create_if_missing: Optional[bool] = None,
         max_retries: Optional[int] = None,
     ) -> httpx.Response:
         with timeout_async(seconds=timeout_seconds):
@@ -47,7 +46,6 @@ class ConcurrencySlotAcquisitionService(
                         names=self.concurrency_limit_names,
                         slots=slots,
                         mode=mode,
-                        create_if_missing=create_if_missing,
                     )
                 except httpx.HTTPStatusError as exc:
                     if not exc.response.status_code == status.HTTP_423_LOCKED:

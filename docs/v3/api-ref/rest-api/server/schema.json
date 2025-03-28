@@ -12592,7 +12592,7 @@
                     "create_if_missing": {
                         "type": "boolean",
                         "title": "Create If Missing",
-                        "default": true
+                        "deprecated": true
                     }
                 },
                 "type": "object",
@@ -12635,7 +12635,8 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Create If Missing"
+                        "title": "Create If Missing",
+                        "deprecated": true
                     }
                 },
                 "type": "object",
