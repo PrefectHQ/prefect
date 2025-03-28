@@ -140,14 +140,7 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
             else:
                 return future_result
 
-        _result = self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if asyncio.iscoroutine(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
+        return self._final_state.result(raise_on_failure=raise_on_failure, _sync=True)
 
     def __del__(self):
         if self._final_state or self._wrapped_future.done():

@@ -23,9 +23,6 @@ from yaml.error import YAMLError
 
 import prefect
 from prefect._experimental.sla.objects import SlaTypes
-from prefect._internal.compatibility.deprecated import (
-    generate_deprecation_message,
-)
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -304,12 +301,6 @@ async def deploy(
             "It will be created if it doesn't already exist. Defaults to `None`."
         ),
     ),
-    variables: List[str] = typer.Option(
-        None,
-        "-v",
-        "--variable",
-        help=("DEPRECATED: Please use --jv/--job-variable for similar functionality "),
-    ),
     job_variables: List[str] = typer.Option(
         None,
         "-jv",
@@ -403,24 +394,8 @@ async def deploy(
 
     Should be run from a project root directory.
     """
-    if variables is not None:
-        app.console.print(
-            generate_deprecation_message(
-                name="The `--variable` flag",
-                start_date="Mar 2024",
-                help=(
-                    "Please use the `--job-variable foo=bar` argument instead: `prefect"
-                    " deploy --job-variable`."
-                ),
-            ),
-            style="yellow",
-        )
-
-    if variables is None:
-        variables = list()
     if job_variables is None:
         job_variables = list()
-    job_variables.extend(variables)
 
     concurrency_limit_config = (
         None
