@@ -355,11 +355,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         # the State was Prefect-created.
         # TODO: Remove the need to get the result from a State except in cases where the return value
         # is a State object.
-        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if asyncio.iscoroutine(_result):
-            _result = run_coro_as_sync(_result)
+        _result = self.state.result(raise_on_failure=raise_on_failure, _sync=True)  # type: ignore
         return _result
 
     def handle_success(self, result: R) -> R:
@@ -924,12 +920,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         # the State was Prefect-created.
         # TODO: Remove the need to get the result from a State except in cases where the return value
         # is a State object.
-        _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if asyncio.iscoroutine(_result):
-            _result = await _result
-        return _result
+        return await self.state.aresult(raise_on_failure=raise_on_failure)  # type: ignore
 
     async def handle_success(self, result: R) -> R:
         result_store = getattr(FlowRunContext.get(), "result_store", None)

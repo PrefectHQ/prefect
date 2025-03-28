@@ -43,7 +43,6 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 ["test"],
                 1,
                 timeout_seconds=None,
-                create_if_missing=None,
                 max_retries=None,
                 strict=False,
             )
@@ -237,7 +236,6 @@ async def test_rate_limit_orchestrates_api(
                 1,
                 mode="rate_limit",
                 timeout_seconds=None,
-                create_if_missing=None,
                 strict=False,
             )
 
@@ -386,49 +384,6 @@ async def test_rate_limit_without_limit_names(names):
 
             acquire_spy.assert_not_called()
             release_spy.assert_not_called()
-
-    assert executed
-
-
-async def test_concurrency_creates_new_limits_if_requested(
-    concurrency_limit: ConcurrencyLimitV2, ignore_prefect_deprecation_warnings
-):
-    executed = False
-
-    async def resource_heavy():
-        nonlocal executed
-        async with concurrency("test", occupy=1, create_if_missing=True):
-            executed = True
-
-    assert not executed
-
-    with mock.patch(
-        "prefect.concurrency.asyncio.aacquire_concurrency_slots",
-        wraps=aacquire_concurrency_slots,
-    ) as acquire_spy:
-        with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots",
-            wraps=arelease_concurrency_slots,
-        ) as release_spy:
-            await resource_heavy()
-
-            acquire_spy.assert_called_once_with(
-                ["test"],
-                1,
-                timeout_seconds=None,
-                create_if_missing=True,
-                max_retries=None,
-                strict=False,
-            )
-
-            # On release we calculate how many seconds the slots were occupied
-            # for, so here we really just want to make sure that the value
-            # passed as `occupy_seconds` is > 0.
-
-            names, occupy, occupy_seconds = release_spy.call_args[0]
-            assert names == ["test"]
-            assert occupy == 1
-            assert occupy_seconds > 0
 
     assert executed
 

@@ -3975,9 +3975,9 @@ export interface components {
             occupancy_seconds?: number | null;
             /**
              * Create If Missing
-             * @default true
+             * @deprecated
              */
-            create_if_missing: boolean;
+            create_if_missing?: boolean;
         };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
@@ -3991,7 +3991,10 @@ export interface components {
              * @enum {string}
              */
             mode: "concurrency" | "rate_limit";
-            /** Create If Missing */
+            /**
+             * Create If Missing
+             * @deprecated
+             */
             create_if_missing?: boolean | null;
         };
         /** Body_clear_database_admin_database_clear_post */

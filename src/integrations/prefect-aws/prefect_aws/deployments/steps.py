@@ -10,7 +10,6 @@ from typing import Any, Optional
 
 from typing_extensions import TypedDict
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
 from prefect_aws.s3 import get_s3_client
 
@@ -24,11 +23,6 @@ class PushToS3Output(TypedDict):
     folder: str
 
 
-@deprecated_callable(start_date="Jun 2023", help="Use `PushToS3Output` instead.")
-class PushProjectToS3Output(PushToS3Output):
-    """Deprecated. Use `PushToS3Output` instead."""
-
-
 class PullFromS3Output(TypedDict):
     """
     The output of the `pull_from_s3` step.
@@ -37,17 +31,6 @@ class PullFromS3Output(TypedDict):
     bucket: str
     folder: str
     directory: str
-
-
-@deprecated_callable(start_date="Jun 2023", help="Use `PullFromS3Output` instead.")
-class PullProjectFromS3Output(PullFromS3Output):
-    """Deprecated. Use `PullFromS3Output` instead.."""
-
-
-@deprecated_callable(start_date="Jun 2023", help="Use `push_to_s3` instead.")
-def push_project_to_s3(*args: Any, **kwargs: Any):
-    """Deprecated. Use `push_to_s3` instead."""
-    push_to_s3(*args, **kwargs)
 
 
 def push_to_s3(
@@ -122,12 +105,6 @@ def push_to_s3(
         "bucket": bucket,
         "folder": folder,
     }
-
-
-@deprecated_callable(start_date="Jun 2023", help="Use `pull_from_s3` instead.")
-def pull_project_from_s3(*args: Any, **kwargs: Any):
-    """Deprecated. Use `pull_from_s3` instead."""
-    pull_from_s3(*args, **kwargs)
 
 
 def pull_from_s3(
