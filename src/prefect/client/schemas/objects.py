@@ -32,7 +32,6 @@ from pydantic import (
 )
 from typing_extensions import Literal, Self, TypeVar
 
-from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -212,40 +211,29 @@ class State(ObjectBaseModel, Generic[R]):
     ] = Field(default=None)
 
     @overload
-    def result(
+    async def result(
         self: "State[R]",
         raise_on_failure: Literal[True] = ...,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> R: ...
 
     @overload
-    def result(
+    async def result(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
     @overload
-    def result(
+    async def result(
         self: "State[R]",
         raise_on_failure: bool = ...,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
-    @deprecated.deprecated_parameter(
-        "fetch",
-        when=lambda fetch: fetch is not True,
-        start_date="Oct 2024",
-        end_date="Jan 2025",
-        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
-    )
-    def result(
+    async def result(
         self,
         raise_on_failure: bool = True,
-        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -317,10 +305,9 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.states import get_state_result
 
-        return get_state_result(
+        return await get_state_result(
             self,
             raise_on_failure=raise_on_failure,
-            fetch=fetch,
             retry_result_failure=retry_result_failure,
         )
 

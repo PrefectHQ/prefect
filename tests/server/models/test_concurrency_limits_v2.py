@@ -12,7 +12,7 @@ from prefect.server.models.concurrency_limits_v2 import (
     MINIMUM_OCCUPANCY_SECONDS_PER_SLOT,
     bulk_decrement_active_slots,
     bulk_increment_active_slots,
-    bulk_read_or_create_concurrency_limits,
+    bulk_read_concurrency_limits,
     bulk_update_denied_slots,
     create_concurrency_limit,
     delete_concurrency_limit,
@@ -340,9 +340,7 @@ async def test_delete_concurrency_limit_by_name(
     )
 
 
-async def test_bulk_read_or_create_concurrency_limits_with_deprecated_flag(
-    session: AsyncSession, ignore_prefect_deprecation_warnings
-):
+async def test_bulk_read_concurrency_limits_with_deprecated_flag(session: AsyncSession):
     names = ["Chase", "Marshall", "Skye", "Rubble", "Zuma", "Rocky", "Everest"]
 
     pre_existing = names[:3]
@@ -352,9 +350,7 @@ async def test_bulk_read_or_create_concurrency_limits_with_deprecated_flag(
             session=session, concurrency_limit=ConcurrencyLimitV2(name=name, limit=1)
         )
 
-    limits = await bulk_read_or_create_concurrency_limits(
-        session=session, names=names, create_if_missing=True
-    )
+    limits = await bulk_read_concurrency_limits(session=session, names=names)
 
     assert set(names) == {limit.name for limit in limits}
 
@@ -366,7 +362,7 @@ async def test_bulk_read_or_create_concurrency_limits_with_deprecated_flag(
             assert limit.limit == 1
 
 
-async def test_bulk_read_or_create_concurrency_limits_default(session: AsyncSession):
+async def test_bulk_read_concurrency_limits_default(session: AsyncSession):
     names = ["Chase", "Marshall", "Skye", "Rubble", "Zuma", "Rocky", "Everest"]
 
     pre_existing = names[:3]
@@ -376,7 +372,7 @@ async def test_bulk_read_or_create_concurrency_limits_default(session: AsyncSess
             session=session, concurrency_limit=ConcurrencyLimitV2(name=name, limit=1)
         )
 
-    limits = await bulk_read_or_create_concurrency_limits(session=session, names=names)
+    limits = await bulk_read_concurrency_limits(session=session, names=names)
 
     assert set(pre_existing) == {limit.name for limit in limits}
     assert all(limit.active for limit in limits)
