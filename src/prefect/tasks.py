@@ -765,6 +765,11 @@ class Task(Generic[P, R]):
     def on_rollback(
         self, fn: Callable[["Transaction"], None]
     ) -> Callable[["Transaction"], None]:
+        if asyncio.iscoroutinefunction(fn):
+            raise ValueError(
+                "Asynchronous rollback hooks are not yet supported. Rollback hooks must be synchronous functions."
+            )
+
         self.on_rollback_hooks.append(fn)
         return fn
 
