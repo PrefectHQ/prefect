@@ -28,9 +28,11 @@ from __future__ import annotations
 import json
 import os
 import sys
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, List, Optional, TypeVar
+from zoneinfo import ZoneInfo
 
 import docker.errors
 from docker.models.images import Image
@@ -38,7 +40,6 @@ from typing_extensions import ParamSpec, TypedDict
 
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE
-from prefect.types import DateTime
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
@@ -255,7 +256,7 @@ def build_docker_image(
             raise BuildError("Docker did not return an image ID for built image.")
 
         if not tag:
-            tag = slugify(DateTime.now("utc").isoformat())
+            tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
 
         image: Image = client.images.get(image_id)
         image.tag(repository=image_name, tag=tag)

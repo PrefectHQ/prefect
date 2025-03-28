@@ -6,10 +6,17 @@ from urllib.parse import urljoin
 from uuid import UUID
 
 from opentelemetry import metrics, trace
-from opentelemetry._logs import set_logger_provider
+from opentelemetry._logs import (
+    set_logger_provider,  # pyright: ignore[reportPrivateImportUsage]
+)
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
+from opentelemetry.sdk._logs import (
+    LoggerProvider,  # pyright: ignore[reportPrivateImportUsage]
+    LoggingHandler,  # pyright: ignore[reportPrivateImportUsage]
+)
+from opentelemetry.sdk._logs.export import (
+    SimpleLogRecordProcessor,  # pyright: ignore[reportPrivateImportUsage]
+)
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
@@ -20,7 +27,9 @@ from .processors import InFlightSpanProcessor
 from .services import QueueingLogExporter, QueueingSpanExporter
 
 if TYPE_CHECKING:
-    from opentelemetry.sdk._logs import LoggerProvider
+    from opentelemetry.sdk._logs import (
+        LoggerProvider,  # pyright: ignore[reportPrivateImportUsage]
+    )
 
 UUID_REGEX = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 

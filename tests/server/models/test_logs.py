@@ -1,7 +1,6 @@
 from datetime import timedelta
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -10,8 +9,9 @@ from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import Log
 from prefect.server.schemas.filters import LogFilter, LogFilterTaskRunId
 from prefect.server.schemas.sorting import LogSort
+from prefect.types._datetime import now
 
-NOW = pendulum.now("UTC")
+NOW = now("UTC")
 
 
 @pytest.fixture

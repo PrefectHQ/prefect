@@ -15,6 +15,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
+from prefect.types._datetime import human_friendly_diff
 
 concurrency_limit_app: PrefectTyper = PrefectTyper(
     name="concurrency-limit",
@@ -83,8 +84,8 @@ async def inspect(tag: str):
     cl_table.add_row(
         str(result.tag),
         str(result.concurrency_limit),
-        Pretty(result.created.diff_for_humans() if result.created else ""),
-        Pretty(result.updated.diff_for_humans() if result.updated else ""),
+        Pretty(human_friendly_diff(result.created) if result.created else ""),
+        Pretty(human_friendly_diff(result.updated) if result.updated else ""),
     )
 
     group = Group(

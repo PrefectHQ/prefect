@@ -1,7 +1,6 @@
 from typing import Any
 
 import uvicorn
-import uvicorn.server
 from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 

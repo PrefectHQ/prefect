@@ -22,9 +22,7 @@ from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
-import prefect.context
 import prefect.exceptions
-import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult

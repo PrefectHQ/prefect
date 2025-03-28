@@ -5,7 +5,6 @@ from unittest import mock
 from uuid import uuid4
 
 import httpx
-import pendulum
 import pytest
 from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -44,6 +43,7 @@ from prefect.server.schemas.states import (
     StateType,
 )
 from prefect.states import Cancelled, to_state_create
+from prefect.types._datetime import DateTime, now
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +60,7 @@ async def test_instrumenting_a_flow_run_state_change(
     session: AsyncSession,
     flow: ORMFlow,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     transition = (StateType.PENDING, StateType.RUNNING)
@@ -81,7 +81,7 @@ async def test_instrumenting_a_flow_run_state_change(
 
     assert context.proposed_state
     assert event.event == "prefect.flow-run.Running"
-    assert start_of_test <= event.occurred <= pendulum.now("UTC")
+    assert start_of_test <= event.occurred <= now("UTC")
 
     assert event.resource == Resource.model_validate(
         {
@@ -125,7 +125,7 @@ async def test_capturing_flow_run_provenance_as_related_resource(
     session: AsyncSession,
     flow: ORMFlow,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
     created_by: CreatedBy,
     resource_prefix: str,
@@ -169,7 +169,7 @@ async def test_flow_run_state_change_events_capture_order_on_short_gaps(
     session: AsyncSession,
     flow: ORMFlow,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     # send the pending state through orchestration so it is written to the DB
@@ -227,7 +227,7 @@ async def test_flow_run_state_change_events_do_not_capture_order_on_long_gaps(
     session: AsyncSession,
     flow: ORMFlow,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     # send the pending state through orchestration so it is written to the DB
@@ -281,7 +281,7 @@ async def test_flow_run_state_change_events_do_not_capture_order_on_initial_tran
     session: AsyncSession,
     flow: ORMFlow,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     pending_state: State = State(type=StateType.PENDING)
@@ -310,7 +310,7 @@ async def test_instrumenting_a_flow_run_with_no_flow(
     session: AsyncSession,
     flow: ORMFlow,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     """Regression test for errors observed on 2023-02-01, where a flow run was found
@@ -341,7 +341,7 @@ async def test_instrumenting_a_flow_run_with_no_flow(
 
     assert context.proposed_state
     assert event.event == "prefect.flow-run.Running"
-    assert start_of_test <= event.occurred <= pendulum.now("UTC")
+    assert start_of_test <= event.occurred <= now("UTC")
 
     assert event.resource == Resource.model_validate(
         {
@@ -441,7 +441,7 @@ async def test_instrumenting_a_flow_with_tags(
     flow: ORMFlow,
     deployment: ORMDeployment,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     flow_run.tags = ["flow-run-one"]
@@ -541,7 +541,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
     work_queue,
     work_pool,
     flow_run,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
     flow_run.work_queue_id = work_queue.id
@@ -763,7 +763,7 @@ async def test_cancelling_to_cancelled_transitions(
     session: AsyncSession,
     client: AsyncClient,
     flow_run: ORMFlowRun,
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
 ):
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2826, where
     we observed that flow runs firing Cancelling events never end up firing Cancelled
@@ -796,7 +796,7 @@ async def test_cancelling_to_cancelled_transitions(
     (event,) = AssertingEventsClient.last.events
 
     assert event.event == "prefect.flow-run.Cancelled"
-    assert start_of_test <= event.occurred <= pendulum.now("UTC")
+    assert start_of_test <= event.occurred <= now("UTC")
 
     assert event.resource == Resource.model_validate(
         {

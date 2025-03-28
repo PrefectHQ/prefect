@@ -62,14 +62,14 @@ async def read_dashboard_task_run_counts(
     )
 
     bucket_count = 20
-    start_time = task_runs.start_time.after_.start_of("minute")
+    start_time = task_runs.start_time.after_.replace(microsecond=0, second=0)
     end_time = (
         end_of_period(task_runs.start_time.before_, "minute")
         if task_runs.start_time.before_
         else end_of_period(now("UTC"), "minute")
     )
     window = end_time - start_time
-    delta = window.as_timedelta() / bucket_count
+    delta = window / bucket_count
 
     async with db.session_context(begin_transaction=False) as session:
         # Gather the raw counts. The counts are divided into buckets of time
@@ -85,7 +85,7 @@ async def read_dashboard_task_run_counts(
             start_time.minute,
             start_time.second,
             start_time.microsecond,
-            start_time.timezone,
+            start_time.tzinfo,
         )
         bucket_expression = sa.func.floor(
             sa.func.date_diff_seconds(db.TaskRun.start_time, start_datetime)
