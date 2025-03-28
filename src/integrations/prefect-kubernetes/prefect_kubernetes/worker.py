@@ -420,55 +420,35 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
         api_version = self.job_manifest.get("apiVersion", "")
 
-        # If this is a native Kubernetes Job
-        if api_version == "batch/v1":
-            super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
-            self._configure_eviction_handling()
-            self._update_prefect_api_url_if_local_server()
-
-            # Restore any special env vars with valueFrom before populating the manifest
-            if special_env_vars:
-                # Convert dict env back to list format
-                env_list = [{"name": k, "value": v} for k, v in self.env.items()]
-                # Add special env vars back in
-                env_list.extend(special_env_vars)
-                self.env = env_list
-
-            self._populate_env_in_manifest()
-            self._slugify_labels()
-            self._populate_image_if_not_present()
-            self._populate_command_if_not_present()
-            self._populate_generate_name_if_not_present()
-
-        # If this is a Volcano Job
-        elif api_version == "batch.volcano.sh/v1alpha1":
-            # Can still call parent class for basic merging
-            super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
-            self._configure_eviction_handling()
-            self._update_prefect_api_url_if_local_server()
-
-            # Restore any special env vars with valueFrom before populating the manifest
-            if special_env_vars:
-                # Convert dict env back to list format
-                env_list = [{"name": k, "value": v} for k, v in self.env.items()]
-                # Add special env vars back in
-                env_list.extend(special_env_vars)
-                self.env = env_list
-
-            # The following methods are for adapting to Volcano, using the new helper functions
-            self._populate_env_in_manifest()
-            self._slugify_labels()
-            self._populate_image_if_not_present()
-            self._populate_command_if_not_present()
-            self._populate_generate_name_if_not_present()
-            # Note: This will not execute "template.spec" related K8s logic,
-            # instead, _get_main_container_spec() will get the "tasks[0].template.spec" path
-
-        else:
+        # Check if the API version is supported
+        if api_version not in ["batch/v1", "batch.volcano.sh/v1alpha1"]:
             # Other apiVersions are not supported
             raise ValueError(
                 f"Unsupported apiVersion: {api_version}. Only batch/v1 or batch.volcano.sh/v1alpha1."
             )
+            
+        # Common preparation steps for both job types
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        self._configure_eviction_handling()
+        self._update_prefect_api_url_if_local_server()
+
+        # Restore any special env vars with valueFrom before populating the manifest
+        if special_env_vars:
+            # Convert dict env back to list format
+            env_list = [{"name": k, "value": v} for k, v in self.env.items()]
+            # Add special env vars back in
+            env_list.extend(special_env_vars)
+            self.env = env_list
+
+        # Common manifest population steps
+        self._populate_env_in_manifest()
+        self._slugify_labels()
+        self._populate_image_if_not_present()
+        self._populate_command_if_not_present()
+        self._populate_generate_name_if_not_present()
+        
+        # Note: For Volcano jobs, _get_main_container_spec() will get the 
+        # "tasks[0].template.spec" path instead of "template.spec"
 
     def _configure_eviction_handling(self):
         """
@@ -1342,6 +1322,44 @@ class KubernetesWorker(
                 if completed:
                     break
 
+    async def _monitor_volcano_job_state(
+        self,
+        logger: logging.Logger,
+        job_name: str,
+        namespace: str,
+        client: "ApiClient",
+    ) -> None:
+        """
+        Monitor the state of a Volcano job until completion.
+        
+        Args:
+            logger: Logger to use for logging
+            job_name: Name of the Volcano job
+            namespace: Namespace where the job is running
+            client: Kubernetes API client
+        """
+        custom_api = CustomObjectsApi(client)
+        while True:
+            try:
+                job_status = await custom_api.get_namespaced_custom_object_status(
+                    group="batch.volcano.sh",
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="jobs",
+                    name=job_name,
+                )
+                volcano_state = job_status.get("status", {}).get("state", "Unknown")
+                logger.info(f"Volcano job {job_name!r} state: {volcano_state}")
+
+                if volcano_state in ["Completed", "Failed", "Aborted"]:
+                    logger.info(f"Volcano job {job_name!r} finished with state: {volcano_state}")
+                    return
+
+                await asyncio.sleep(5)  # Poll every 5 seconds
+            except Exception as e:
+                logger.warning(f"Error monitoring Volcano job {job_name!r}: {e}")
+                await asyncio.sleep(5)
+
     async def _watch_job(
         self,
         logger: logging.Logger,
@@ -1357,22 +1375,24 @@ class KubernetesWorker(
 
         api_version = configuration.job_manifest.get("apiVersion", "batch/v1")
         
-        # --- Handle Kubernetes Job (batch/v1) ---
+        # Get job and pod information
+        job = await self._get_job(
+            job_name=job_name, 
+            namespace=configuration.namespace, 
+            client=client,
+            job_manifest=configuration.job_manifest
+        )
+        if not job:
+            return -1
+
+        pod = await self._get_job_pod(logger, job_name, configuration, client)
+        if not pod:
+            return -1
+        
+        # Handle different job types
         if api_version == "batch/v1":
-            job = await self._get_job(
-                job_name=job_name, 
-                namespace=configuration.namespace, 
-                client=client,
-                job_manifest=configuration.job_manifest
-            )
-            if not job:
-                return -1
-
-            pod = await self._get_job_pod(logger, job_name, configuration, client)
-            if not pod:
-                return -1
-
-            # Create a list of tasks to run concurrently
+            # Standard Kubernetes Job monitoring
+            tasks = []
             async with self._get_batch_client(client) as batch_client:
                 tasks = [
                     self._monitor_job_events(
@@ -1382,6 +1402,7 @@ class KubernetesWorker(
                         configuration,
                     )
                 ]
+                
                 try:
                     with timeout_async(seconds=configuration.job_watch_timeout_seconds):
                         if configuration.stream_output:
@@ -1410,6 +1431,7 @@ class KubernetesWorker(
                     )
                     return -1
 
+                # Check container status
                 core_client = CoreV1Api(client)
                 # Get all pods for the job
                 pods = await core_client.list_namespaced_pod(
@@ -1425,58 +1447,77 @@ class KubernetesWorker(
                     and getattr(most_recent_pod.status, "container_statuses", None)
                     and most_recent_pod.status.container_statuses[0]
                 )
-        
-        # --- Handle Volcano Job (batch.volcano.sh/v1alpha1) ---
-        elif api_version == "batch.volcano.sh/v1alpha1":
-            job = await self._get_job(
-                job_name=job_name, 
-                namespace=configuration.namespace, 
-                client=client,
-                job_manifest=configuration.job_manifest
-            )
-            if not job:
-                return -1
+                
+                # Handle various container status conditions
+                if not first_container_status:
+                    assert self._client is not None
+                    up_to_date_flow_run = await self._client.read_flow_run(
+                        flow_run.id,
+                    )
+                    if up_to_date_flow_run.state and up_to_date_flow_run.state.is_scheduled():
+                        return 0
+                    logger.error(f"Job {job_name!r}: Unable to determine container status.")
+                    return -1
 
-            pod = await self._get_job_pod(logger, job_name, configuration, client)
-            if not pod:
-                return -1
+                # In some cases, the pod will still be running at this point.
+                # We can assume that the job is still running and return 0 to prevent marking the flow run as crashed
+                elif first_container_status.state and (
+                    first_container_status.state.running is not None
+                    or first_container_status.state.waiting is not None
+                ):
+                    logger.warning(
+                        f"The worker's watch for job {job_name!r} has exited early. Check the logs for more information."
+                        " The job is still running, but the worker will not wait for it to complete."
+                    )
+                    # Return 0 to prevent marking the flow run as crashed
+                    return 0
+
+                # In some cases, such as spot instance evictions, the pod will be forcibly
+                # terminated and not report a status correctly.
+                elif (
+                    first_container_status.state is None
+                    or first_container_status.state.terminated is None
+                    or first_container_status.state.terminated.exit_code is None
+                ):
+                    logger.error(
+                        f"Could not determine exit code for {job_name!r}."
+                        "Exit code will be reported as -1."
+                        f"First container status info did not report an exit code."
+                        f"First container info: {first_container_status}."
+                    )
+                    return -1
+
+                return first_container_status.state.terminated.exit_code
             
-            # Poll Volcano Job status
-            async def _monitor_volcano_job_state():
-                custom_api = CustomObjectsApi(client)
-                while True:
-                    try:
-                        job_status = await custom_api.get_namespaced_custom_object_status(
-                            group="batch.volcano.sh",
-                            version="v1alpha1",
-                            namespace=configuration.namespace,
-                            plural="jobs",
-                            name=job_name,
-                        )
-                        volcano_state = job_status.get("status", {}).get("state", "Unknown")
-                        logger.info(f"Volcano job {job_name!r} state: {volcano_state}")
-
-                        if volcano_state in ["Completed", "Failed", "Aborted"]:
-                            logger.info(f"Volcano job {job_name!r} finished with state: {volcano_state}")
-                            return
-
-                        await asyncio.sleep(5)  # Poll every 5 seconds
-                    except Exception as e:
-                        logger.warning(f"Error monitoring Volcano job {job_name!r}: {e}")
-                        await asyncio.sleep(5)
-
-            tasks = [_monitor_volcano_job_state()]
+        elif api_version == "batch.volcano.sh/v1alpha1":
+            # Volcano Job monitoring
+            tasks = [
+                self._monitor_volcano_job_state(
+                    logger, 
+                    job_name, 
+                    configuration.namespace, 
+                    client
+                )
+            ]
+            
             if configuration.stream_output:
                 tasks.append(
-                    self._stream_job_logs(logger, pod.metadata.name, job_name, configuration, client)
+                    self._stream_job_logs(
+                        logger, 
+                        pod.metadata.name, 
+                        job_name, 
+                        configuration, 
+                        client
+                    )
                 )
 
             try:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                for result in results:
-                    if isinstance(result, Exception):
-                        logger.error("Error while monitoring Volcano job", exc_info=result)
-                        return -1
+                with timeout_async(seconds=configuration.job_watch_timeout_seconds):
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    for result in results:
+                        if isinstance(result, Exception):
+                            logger.error("Error while monitoring Volcano job", exc_info=result)
+                            return -1
             except TimeoutError:
                 logger.error(f"Volcano job {job_name!r} timed out.")
                 return -1
@@ -1487,48 +1528,12 @@ class KubernetesWorker(
             logger.error(f"Unsupported apiVersion: {api_version}")
             return -1
 
-        if not first_container_status:
-            assert self._client is not None
-            up_to_date_flow_run = await self._client.read_flow_run(
-                flow_run.id,
-            )
-            if up_to_date_flow_run.state and up_to_date_flow_run.state.is_scheduled():
-                return 0
-            logger.error(f"Job {job_name!r}: Unable to determine container status.")
-            return -1
-
-        # In some cases, the pod will still be running at this point.
-        # We can assume that the job is still running and return 0 to prevent marking the flow run as crashed
-        elif first_container_status.state and (
-            first_container_status.state.running is not None
-            or first_container_status.state.waiting is not None
-        ):
-            logger.warning(
-                f"The worker's watch for job {job_name!r} has exited early. Check the logs for more information."
-                " The job is still running, but the worker will not wait for it to complete."
-            )
-            # Return 0 to prevent marking the flow run as crashed
-            return 0
-
-        # In some cases, such as spot instance evictions, the pod will be forcibly
-        # terminated and not report a status correctly.
-        elif (
-            first_container_status.state is None
-            or first_container_status.state.terminated is None
-            or first_container_status.state.terminated.exit_code is None
-        ):
-            logger.error(
-                f"Could not determine exit code for {job_name!r}."
-                "Exit code will be reported as -1."
-                f"First container status info did not report an exit code."
-                f"First container info: {first_container_status}."
-            )
-            return -1
-
-        return first_container_status.state.terminated.exit_code
-
     async def _get_job(
-        self, job_name: str, namespace: str, client: "ApiClient", job_manifest: Optional[Dict[str, Any]] = None
+        self,
+        job_name: str,
+        namespace: str,
+        client: "ApiClient",
+        job_manifest: Optional[Dict[str, Any]] = None
     ) -> Union[Dict[str, Any], "V1Job"]:
         """
         Get a Kubernetes or Volcano job by name.
@@ -1548,7 +1553,7 @@ class KubernetesWorker(
                 if e.status == 404:
                     self.logger.warning(f"Volcano Job {job_name} was removed.")
                 raise
-        else:
+        elif not job_manifest or job_manifest.get("apiVersion") == "batch/v1":
             # For standard Kubernetes Job
             batch_client = BatchV1Api(client)
             try:
@@ -1559,6 +1564,12 @@ class KubernetesWorker(
                 if e.status == 404:
                     self.logger.warning(f"Job {job_name} was removed.")
                 raise
+        else:
+            # Unsupported job type
+            api_version = job_manifest.get("apiVersion")
+            raise ValueError(
+                f"Unsupported apiVersion: {api_version}. Only batch/v1 or batch.volcano.sh/v1alpha1 are supported."
+            )
 
     async def _get_job_pod(
         self,
@@ -1768,7 +1779,7 @@ class KubernetesWorker(
             except ApiException as e:
                 if e.status != 404:  # Ignore if already deleted
                     raise
-        else:
+        elif not job_manifest or job_manifest.get("apiVersion") == "batch/v1":
             # Delete standard Kubernetes Job
             batch_client = BatchV1Api(client)
             try:
@@ -1782,6 +1793,12 @@ class KubernetesWorker(
             except ApiException as e:
                 if e.status != 404:  # Ignore if already deleted
                     raise
+        else:
+            # Unsupported job type
+            api_version = job_manifest.get("apiVersion")
+            raise ValueError(
+                f"Unsupported apiVersion: {api_version}. Only batch/v1 or batch.volcano.sh/v1alpha1 are supported."
+            )
 
     async def _get_logs(
         self,
