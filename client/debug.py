@@ -4,9 +4,9 @@ except ImportError as e:
     print(f"Error: {e}")
 
     # Show what's available in the prefect module
-    import prefect
+    import prefect.main
 
-    print("Available in prefect module:", dir(prefect))
+    print("Available in prefect module:", dir(prefect.main))
 
     # Try to import separately to see which one fails
     try:
