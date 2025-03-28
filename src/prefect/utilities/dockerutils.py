@@ -57,7 +57,11 @@ def get_prefect_image_name(
     is_prod_build = parsed_version.local is None
     try:
         # Try to get the short SHA from git because it can add additional characters to avoid ambiguity
-        short_sha = subprocess.check_output(["git", "rev-parse", "--short=7", "HEAD"])
+        short_sha = (
+            subprocess.check_output(["git", "rev-parse", "--short=7", "HEAD"])
+            .decode("utf-8")
+            .strip()
+        )
     except Exception:
         # If git is not available, fallback to the first 7 characters of the full revision ID
         short_sha = prefect.__version_info__["full-revisionid"][:7]
