@@ -136,6 +136,7 @@ from kubernetes_asyncio.client import (
     ApiClient,
     BatchV1Api,
     CoreV1Api,
+    CustomObjectsApi,
     V1Job,
     V1Pod,
 )
@@ -316,27 +317,51 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         if "namespace" not in job_manifest["metadata"]:
             job_manifest["metadata"]["namespace"] = self.namespace
 
+        api_version = job_manifest.get("apiVersion", "batch/v1")
+        
         # Check if job includes all required components
-        patch = JsonPatch.from_diff(job_manifest, _get_base_job_manifest())
-        missing_paths = sorted([op["path"] for op in patch if op["op"] == "add"])
-        if missing_paths:
-            raise ValueError(
-                "Job is missing required attributes at the following paths: "
-                f"{', '.join(missing_paths)}"
-            )
+        if api_version == "batch/v1":
+            patch = JsonPatch.from_diff(job_manifest, _get_base_job_manifest())
+            missing_paths = sorted([op["path"] for op in patch if op["op"] == "add"])
+            if missing_paths:
+                raise ValueError(
+                    "Job is missing required attributes at the following paths: "
+                    f"{', '.join(missing_paths)}"
+                )
 
-        # Check if job has compatible values
-        incompatible = sorted(
-            [
-                f"{op['path']} must have value {op['value']!r}"
-                for op in patch
-                if op["op"] == "replace"
-            ]
-        )
-        if incompatible:
+            # Check if job has compatible values
+            incompatible = sorted(
+                [
+                    f"{op['path']} must have value {op['value']!r}"
+                    for op in patch
+                    if op["op"] == "replace"
+                ]
+            )
+            if incompatible:
+                raise ValueError(
+                    "Job has incompatible values for the following attributes: "
+                    f"{', '.join(incompatible)}"
+                )
+        
+        # basic volcano validate to support volcano jobs
+        # Now we just loose the validation conditions to finsh the flow
+        # You can use volcano job manifest instead of default manifest
+        elif api_version == "batch.volcano.sh/v1alpha1":
+            if "spec" not in job_manifest:
+                raise ValueError("Volcano job manifest must include a 'spec' field.")
+
+            spec = job_manifest["spec"]
+
+            # Mandatory Volcano fields
+            required_fields = ["maxRetry", "minAvailable", "queue", "schedulerName", "tasks"]
+            for field in required_fields:
+                if field not in spec:
+                    raise ValueError(f"Volcano job is missing required field 'spec.{field}'.")
+        
+        else: 
             raise ValueError(
-                "Job has incompatible values for the following attributes: "
-                f"{', '.join(incompatible)}"
+                f"Unsupported apiVersion: '{api_version}'. "
+                "Only 'batch/v1' or 'batch.volcano.sh/v1alpha1' are supported now."
             )
 
         return self
@@ -393,24 +418,57 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                     original_env[item["name"]] = item.get("value")
             self.env = original_env
 
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        api_version = self.job_manifest.get("apiVersion", "")
 
-        self._configure_eviction_handling()
-        self._update_prefect_api_url_if_local_server()
+        # If this is a native Kubernetes Job
+        if api_version == "batch/v1":
+            super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+            self._configure_eviction_handling()
+            self._update_prefect_api_url_if_local_server()
 
-        # Restore any special env vars with valueFrom before populating the manifest
-        if special_env_vars:
-            # Convert dict env back to list format
-            env_list = [{"name": k, "value": v} for k, v in self.env.items()]
-            # Add special env vars back in
-            env_list.extend(special_env_vars)
-            self.env = env_list
+            # Restore any special env vars with valueFrom before populating the manifest
+            if special_env_vars:
+                # Convert dict env back to list format
+                env_list = [{"name": k, "value": v} for k, v in self.env.items()]
+                # Add special env vars back in
+                env_list.extend(special_env_vars)
+                self.env = env_list
 
-        self._populate_env_in_manifest()
-        self._slugify_labels()
-        self._populate_image_if_not_present()
-        self._populate_command_if_not_present()
-        self._populate_generate_name_if_not_present()
+            self._populate_env_in_manifest()
+            self._slugify_labels()
+            self._populate_image_if_not_present()
+            self._populate_command_if_not_present()
+            self._populate_generate_name_if_not_present()
+
+        # If this is a Volcano Job
+        elif api_version == "batch.volcano.sh/v1alpha1":
+            # Can still call parent class for basic merging
+            super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+            self._configure_eviction_handling()
+            self._update_prefect_api_url_if_local_server()
+
+            # Restore any special env vars with valueFrom before populating the manifest
+            if special_env_vars:
+                # Convert dict env back to list format
+                env_list = [{"name": k, "value": v} for k, v in self.env.items()]
+                # Add special env vars back in
+                env_list.extend(special_env_vars)
+                self.env = env_list
+
+            # The following methods are for adapting to Volcano, using the new helper functions
+            self._populate_env_in_manifest()
+            self._slugify_labels()
+            self._populate_image_if_not_present()
+            self._populate_command_if_not_present()
+            self._populate_generate_name_if_not_present()
+            # Note: This will not execute "template.spec" related K8s logic,
+            # instead, _get_main_container_spec() will get the "tasks[0].template.spec" path
+
+        else:
+            # Other apiVersions are not supported
+            raise ValueError(
+                f"Unsupported apiVersion: {api_version}. Only batch/v1 or batch.volcano.sh/v1alpha1."
+            )
 
     def _configure_eviction_handling(self):
         """
@@ -473,15 +531,14 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             # If env is already a list (k8s format), use it directly
             transformed_env = self.env
 
-        template_env = self.job_manifest["spec"]["template"]["spec"]["containers"][
-            0
-        ].get("env")
+        container_spec = self._get_main_container_spec()
+        template_env = container_spec.get("env")
 
         # If user has removed `{{ env }}` placeholder and hard coded a value for `env`,
         # we need to prepend our environment variables to the list to ensure Prefect
         # setting propagation.
         if isinstance(template_env, list):
-            self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = [
+            container_spec["env"] = [
                 *transformed_env,
                 *template_env,
             ]
@@ -489,9 +546,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # a list of dicts. Might be able to improve this in the future with a better
         # default `env` value and better typing.
         else:
-            self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = (
-                transformed_env
-            )
+            container_spec["env"] = transformed_env
 
     def _update_prefect_api_url_if_local_server(self):
         """If the API URL has been set by the base environment rather than the by the
@@ -527,13 +582,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         """Ensures that the image is present in the job manifest. Populates the image
         with the default Prefect image if it is not present."""
         try:
-            if (
-                "image"
-                not in self.job_manifest["spec"]["template"]["spec"]["containers"][0]
-            ):
-                self.job_manifest["spec"]["template"]["spec"]["containers"][0][
-                    "image"
-                ] = get_prefect_image_name()
+            container_spec = self._get_main_container_spec()
+            if "image" not in container_spec:
+                container_spec["image"] = get_prefect_image_name()
         except KeyError:
             raise ValueError(
                 "Unable to verify image due to invalid job manifest template."
@@ -545,17 +596,14 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         with the `prefect -m prefect.engine` if a command is not present.
         """
         try:
-            command = self.job_manifest["spec"]["template"]["spec"]["containers"][
-                0
-            ].get("args")
+            container_spec = self._get_main_container_spec()
+            # Prefect by default stores the command in the 'args' field
+            command = container_spec.get("args")  # or container_spec.get("command"), up to you
+
             if command is None:
-                self.job_manifest["spec"]["template"]["spec"]["containers"][0][
-                    "args"
-                ] = shlex.split(self._base_flow_run_command())
+                container_spec["args"] = shlex.split(self._base_flow_run_command())
             elif isinstance(command, str):
-                self.job_manifest["spec"]["template"]["spec"]["containers"][0][
-                    "args"
-                ] = shlex.split(command)
+                container_spec["args"] = shlex.split(command)
             elif not isinstance(command, list):
                 raise ValueError(
                     "Invalid job manifest template: 'command' must be a string or list."
@@ -588,6 +636,27 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             if not generate_name:
                 generate_name = "prefect-job"
             self.job_manifest["metadata"]["generateName"] = f"{generate_name}-"
+
+    def _get_main_container_spec(self) -> dict:
+        """
+        Returns a reference to the *first container spec* within the job manifest,
+        regardless of batch/v1 or batch.volcano.sh/v1alpha1.
+
+        We'll mutate this returned object in place to update env, image, command, etc.
+        """
+        api_version = self.job_manifest.get("apiVersion", "")
+
+        if api_version == "batch/v1":
+            # Original Kubernetes Job path
+            return self.job_manifest["spec"]["template"]["spec"]["containers"][0]
+
+        elif api_version == "batch.volcano.sh/v1alpha1":
+            # Volcano Job path
+            # Default to first tasks[0], containers[0]
+            return self.job_manifest["spec"]["tasks"][0]["template"]["spec"]["containers"][0]
+
+        else:
+            raise ValueError(f"Unsupported apiVersion: {api_version}")
 
 
 class KubernetesWorkerVariables(BaseVariables):
@@ -715,10 +784,16 @@ class KubernetesWorker(
             if task_status is not None:
                 task_status.started(pid)
 
+            # Get job name based on job type (dict for Volcano, object for K8s native)
+            if isinstance(job, dict):
+                job_name = job["metadata"]["name"]
+            else:
+                job_name = job.metadata.name
+
             # Monitor the job until completion
             events_replicator = KubernetesEventsReplicator(
                 client=client,
-                job_name=job.metadata.name,
+                job_name=job_name,
                 namespace=configuration.namespace,
                 worker_resource=self._event_resource(),
                 related_resources=self._event_related_resources(
@@ -729,7 +804,7 @@ class KubernetesWorker(
             async with events_replicator:
                 status_code = await self._watch_job(
                     logger=logger,
-                    job_name=job.metadata.name,
+                    job_name=job_name,
                     configuration=configuration,
                     client=client,
                     flow_run=flow_run,
@@ -994,9 +1069,9 @@ class KubernetesWorker(
     )
     async def _create_job(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
-    ) -> "V1Job":
+    ) -> Dict[str, Any]:
         """
-        Creates a Kubernetes job from a job manifest.
+        Creates a Kubernetes or Volcano job from a job manifest, based on apiVersion.
         """
         settings = KubernetesSettings()
         if settings.worker.api_key_secret_name:
@@ -1011,12 +1086,30 @@ class KubernetesWorker(
                 configuration=configuration, client=client
             )
 
+        api_version = configuration.job_manifest.get("apiVersion", "batch/v1")
+
         try:
-            batch_client = BatchV1Api(client)
-            job = await batch_client.create_namespaced_job(
-                configuration.namespace,
-                configuration.job_manifest,
-            )
+            if api_version == "batch/v1":
+                # Standard Kubernetes Job
+                batch_client = BatchV1Api(client)
+                job = await batch_client.create_namespaced_job(
+                    configuration.namespace,
+                    configuration.job_manifest,
+                )
+            elif api_version == "batch.volcano.sh/v1alpha1":
+                # Volcano Job using CustomObjectsApi
+                custom_api = CustomObjectsApi(client)
+                job = await custom_api.create_namespaced_custom_object(
+                    group="batch.volcano.sh",
+                    version="v1alpha1",
+                    namespace=configuration.namespace,
+                    plural="jobs",
+                    body=configuration.job_manifest,
+                )
+            else:
+                raise InfrastructureError(
+                    f"Unsupported apiVersion: {api_version}. Only 'batch/v1' or 'batch.volcano.sh/v1alpha1' are supported."
+                )
         except kubernetes_asyncio.client.exceptions.ApiException as exc:
             # Parse the reason and message from the response if feasible
             message = ""
@@ -1074,14 +1167,25 @@ class KubernetesWorker(
         finally:
             await client.close()
 
-    async def _get_infrastructure_pid(self, job: "V1Job", client: "ApiClient") -> str:
+    async def _get_infrastructure_pid(
+        self, job: Union[Dict[str, Any], "V1Job"], client: "ApiClient"
+    ) -> str:
         """
-        Generates a Kubernetes infrastructure PID.
-
-        The PID is in the format: "<cluster uid>:<namespace>:<job name>".
+        Get a unique identifier for the Kubernetes or Volcano job.
         """
         cluster_uid = await self._get_cluster_uid(client)
-        pid = f"{cluster_uid}:{job.metadata.namespace}:{job.metadata.name}"
+        
+        # Handle different types of job objects (structured object vs dictionary)
+        if isinstance(job, dict):
+            # For Volcano Job (returned as dict)
+            namespace = job["metadata"]["namespace"]
+            name = job["metadata"]["name"]
+        else:
+            # For standard Kubernetes Job (returned as V1Job)
+            namespace = job.metadata.namespace
+            name = job.metadata.name
+        
+        pid = f"{cluster_uid}:{namespace}:{name}"
         return pid
 
     def _parse_infrastructure_pid(
@@ -1247,74 +1351,141 @@ class KubernetesWorker(
         flow_run: "FlowRun",
     ) -> int:
         """
-        Watch a job.
-
-        Return the final status code of the first container.
+        Watch a Kubernetes or Volcano job until completion.
         """
-
         logger.debug(f"Job {job_name!r}: Monitoring job...")
 
-        job = await self._get_job(logger, job_name, configuration, client)
-        if not job:
-            return -1
-
-        pod = await self._get_job_pod(logger, job_name, configuration, client)
-        if not pod:
-            return -1
-
-        # Create a list of tasks to run concurrently
-        async with self._get_batch_client(client) as batch_client:
-            tasks = [
-                self._monitor_job_events(
-                    batch_client,
-                    job_name,
-                    logger,
-                    configuration,
-                )
-            ]
-            try:
-                with timeout_async(seconds=configuration.job_watch_timeout_seconds):
-                    if configuration.stream_output:
-                        tasks.append(
-                            self._stream_job_logs(
-                                logger,
-                                pod.metadata.name,
-                                job_name,
-                                configuration,
-                                client,
-                            )
-                        )
-
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    if any(isinstance(result, Exception) for result in results):
-                        for result in results:
-                            if isinstance(result, Exception):
-                                logger.error(
-                                    f"Error during task execution: {result}",
-                                    exc_info=True,
-                                )
-            except TimeoutError:
-                logger.error(
-                    f"Job {job_name!r}: Job did not complete within "
-                    f"timeout of {configuration.job_watch_timeout_seconds}s."
-                )
+        api_version = configuration.job_manifest.get("apiVersion", "batch/v1")
+        
+        # --- Handle Kubernetes Job (batch/v1) ---
+        if api_version == "batch/v1":
+            job = await self._get_job(
+                job_name=job_name, 
+                namespace=configuration.namespace, 
+                client=client,
+                job_manifest=configuration.job_manifest
+            )
+            if not job:
                 return -1
 
-            core_client = CoreV1Api(client)
-            # Get all pods for the job
-            pods = await core_client.list_namespaced_pod(
-                namespace=configuration.namespace, label_selector=f"job-name={job_name}"
+            pod = await self._get_job_pod(logger, job_name, configuration, client)
+            if not pod:
+                return -1
+
+            # Create a list of tasks to run concurrently
+            async with self._get_batch_client(client) as batch_client:
+                tasks = [
+                    self._monitor_job_events(
+                        batch_client,
+                        job_name,
+                        logger,
+                        configuration,
+                    )
+                ]
+                try:
+                    with timeout_async(seconds=configuration.job_watch_timeout_seconds):
+                        if configuration.stream_output:
+                            tasks.append(
+                                self._stream_job_logs(
+                                    logger,
+                                    pod.metadata.name,
+                                    job_name,
+                                    configuration,
+                                    client,
+                                )
+                            )
+
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        if any(isinstance(result, Exception) for result in results):
+                            for result in results:
+                                if isinstance(result, Exception):
+                                    logger.error(
+                                        f"Error during task execution: {result}",
+                                        exc_info=True,
+                                    )
+                except TimeoutError:
+                    logger.error(
+                        f"Job {job_name!r}: Job did not complete within "
+                        f"timeout of {configuration.job_watch_timeout_seconds}s."
+                    )
+                    return -1
+
+                core_client = CoreV1Api(client)
+                # Get all pods for the job
+                pods = await core_client.list_namespaced_pod(
+                    namespace=configuration.namespace, label_selector=f"job-name={job_name}"
+                )
+                # Get the status for only the most recently used pod
+                pods.items.sort(
+                    key=lambda pod: pod.metadata.creation_timestamp, reverse=True
+                )
+                most_recent_pod = pods.items[0] if pods.items else None
+                first_container_status = (
+                    getattr(most_recent_pod, "status", None)
+                    and getattr(most_recent_pod.status, "container_statuses", None)
+                    and most_recent_pod.status.container_statuses[0]
+                )
+        
+        # --- Handle Volcano Job (batch.volcano.sh/v1alpha1) ---
+        elif api_version == "batch.volcano.sh/v1alpha1":
+            job = await self._get_job(
+                job_name=job_name, 
+                namespace=configuration.namespace, 
+                client=client,
+                job_manifest=configuration.job_manifest
             )
-            # Get the status for only the most recently used pod
-            pods.items.sort(
-                key=lambda pod: pod.metadata.creation_timestamp, reverse=True
-            )
-            most_recent_pod = pods.items[0] if pods.items else None
-            first_container_status = (
-                getattr(most_recent_pod, "status", None)
-                and getattr(most_recent_pod.status, "container_statuses", None)
-                and most_recent_pod.status.container_statuses[0]
-            )
+            if not job:
+                return -1
+
+            pod = await self._get_job_pod(logger, job_name, configuration, client)
+            if not pod:
+                return -1
+            
+            # Poll Volcano Job status
+            async def _monitor_volcano_job_state():
+                custom_api = CustomObjectsApi(client)
+                while True:
+                    try:
+                        job_status = await custom_api.get_namespaced_custom_object_status(
+                            group="batch.volcano.sh",
+                            version="v1alpha1",
+                            namespace=configuration.namespace,
+                            plural="jobs",
+                            name=job_name,
+                        )
+                        volcano_state = job_status.get("status", {}).get("state", "Unknown")
+                        logger.info(f"Volcano job {job_name!r} state: {volcano_state}")
+
+                        if volcano_state in ["Completed", "Failed", "Aborted"]:
+                            logger.info(f"Volcano job {job_name!r} finished with state: {volcano_state}")
+                            return
+
+                        await asyncio.sleep(5)  # Poll every 5 seconds
+                    except Exception as e:
+                        logger.warning(f"Error monitoring Volcano job {job_name!r}: {e}")
+                        await asyncio.sleep(5)
+
+            tasks = [_monitor_volcano_job_state()]
+            if configuration.stream_output:
+                tasks.append(
+                    self._stream_job_logs(logger, pod.metadata.name, job_name, configuration, client)
+                )
+
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, Exception):
+                        logger.error("Error while monitoring Volcano job", exc_info=result)
+                        return -1
+            except TimeoutError:
+                logger.error(f"Volcano job {job_name!r} timed out.")
+                return -1
+
+            return await self._get_container_exit_code(logger, job_name, configuration, client)
+        
+        else:
+            logger.error(f"Unsupported apiVersion: {api_version}")
+            return -1
 
         if not first_container_status:
             assert self._client is not None
@@ -1357,23 +1528,37 @@ class KubernetesWorker(
         return first_container_status.state.terminated.exit_code
 
     async def _get_job(
-        self,
-        logger: logging.Logger,
-        job_id: str,
-        configuration: KubernetesWorkerJobConfiguration,
-        client: "ApiClient",
-    ) -> "V1Job | None":
-        """Get a Kubernetes job by id."""
-
-        try:
+        self, job_name: str, namespace: str, client: "ApiClient", job_manifest: Optional[Dict[str, Any]] = None
+    ) -> Union[Dict[str, Any], "V1Job"]:
+        """
+        Get a Kubernetes or Volcano job by name.
+        """
+        if job_manifest and job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
+            # For Volcano Job, use CustomObjectsApi
+            custom_api = CustomObjectsApi(client)
+            try:
+                return await custom_api.get_namespaced_custom_object(
+                    group="batch.volcano.sh",
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="jobs",
+                    name=job_name
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    self.logger.warning(f"Volcano Job {job_name} was removed.")
+                raise
+        else:
+            # For standard Kubernetes Job
             batch_client = BatchV1Api(client)
-            job = await batch_client.read_namespaced_job(
-                name=job_id, namespace=configuration.namespace
-            )
-        except kubernetes_asyncio.client.exceptions.ApiException:
-            logger.error(f"Job {job_id!r} was removed.", exc_info=True)
-            return None
-        return job
+            try:
+                return await batch_client.read_namespaced_job(
+                    name=job_name, namespace=namespace
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    self.logger.warning(f"Job {job_name} was removed.")
+                raise
 
     async def _get_job_pod(
         self,
@@ -1382,18 +1567,32 @@ class KubernetesWorker(
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> "V1Pod | None":
-        """Get the first running pod for a job."""
+        """Get the first running pod for a job (Kubernetes or Volcano)."""
 
         watch = kubernetes_asyncio.watch.Watch()
         logger.info(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
         last_pod_name: str | None = None
         core_client = CoreV1Api(client)
+        
+        # Get the API version of the job
+        api_version = configuration.job_manifest.get("apiVersion", "")
+
         async with watch:
+            if api_version == "batch/v1":
+                # Original Kubernetes Job query method (find Pod by "job-name" label)
+                label_selector = f"job-name={job_name}"
+            elif api_version == "batch.volcano.sh/v1alpha1":
+                # Volcano Job method: directly query Pods associated with job by ownerReference
+                label_selector = None
+            else:
+                logger.error(f"Unsupported job type: {api_version}")
+                return None
+
             async for event in watch.stream(
                 func=core_client.list_namespaced_pod,
                 namespace=configuration.namespace,
-                label_selector=f"job-name={job_name}",
+                label_selector=label_selector,
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
             ):
                 pod: V1Pod = event["object"]
@@ -1475,3 +1674,142 @@ class KubernetesWorker(
                 and event.involved_object.name == pod_name
             ):
                 log_event(event)
+
+    async def _get_container_exit_code(
+        self,
+        logger: logging.Logger,
+        job_name: str,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> int:
+        """Get the container exit code (for Volcano Jobs)"""
+        core_client = CoreV1Api(client)
+        
+        # Try to find associated Pods
+        pods = await core_client.list_namespaced_pod(
+            namespace=configuration.namespace
+        )
+        
+        # Find pods related to the job (via owner references or labels)
+        matched_pods = []
+        for pod in pods.items:
+            if pod.metadata.owner_references:
+                for ref in pod.metadata.owner_references:
+                    if ref.name == job_name:
+                        matched_pods.append(pod)
+        
+        if not matched_pods:
+            logger.error(f"Could not find pods for Volcano job {job_name}")
+            return -1
+        
+        # Sort by creation timestamp and select the most recent pod
+        matched_pods.sort(key=lambda p: p.metadata.creation_timestamp, reverse=True)
+        recent_pod = matched_pods[0]
+        
+        # Get container status
+        if not recent_pod.status.container_statuses:
+            logger.error(f"No container status found for pod {recent_pod.metadata.name}")
+            return -1
+        
+        container_status = recent_pod.status.container_statuses[0]
+        if not container_status.state or not container_status.state.terminated:
+            logger.warning(f"Container is not terminated for pod {recent_pod.metadata.name}")
+            return 0  # Assume success (to be handled)
+        
+        return container_status.state.terminated.exit_code
+
+    async def _find_pod_by_owner_reference(
+        self,
+        logger: logging.Logger,
+        job_name: str,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> "V1Pod | None":
+        """Find Pods for the specified Volcano Job (using owner reference)"""
+        core_client = CoreV1Api(client)
+        
+        # List all pods in the namespace
+        pods = await core_client.list_namespaced_pod(
+            namespace=configuration.namespace
+        )
+        
+        # Find pods related to the job
+        for pod in pods.items:
+            if pod.metadata.owner_references:
+                for ref in pod.metadata.owner_references:
+                    if ref.name == job_name:
+                        logger.info(f"Found pod {pod.metadata.name} with owner {job_name}")
+                        return pod
+        
+        logger.warning(f"No pod found with owner reference to {job_name}")
+        return None
+
+    async def _delete_job(
+        self,
+        job_name: str,
+        namespace: str,
+        client: "ApiClient",
+        job_manifest: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Delete a Kubernetes or Volcano job.
+        """
+        if job_manifest and job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
+            # Delete Volcano Job with CustomObjectsApi
+            custom_api = CustomObjectsApi(client)
+            try:
+                await custom_api.delete_namespaced_custom_object(
+                    group="batch.volcano.sh",
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="jobs",
+                    name=job_name,
+                )
+            except ApiException as e:
+                if e.status != 404:  # Ignore if already deleted
+                    raise
+        else:
+            # Delete standard Kubernetes Job
+            batch_client = BatchV1Api(client)
+            try:
+                await batch_client.delete_namespaced_job(
+                    name=job_name,
+                    namespace=namespace,
+                    body=kubernetes_asyncio.client.V1DeleteOptions(
+                        propagation_policy="Foreground"
+                    ),
+                )
+            except ApiException as e:
+                if e.status != 404:  # Ignore if already deleted
+                    raise
+
+    async def _get_logs(
+        self,
+        job_name: str,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ):
+        """
+        Get the logs from a Kubernetes or Volcano job.
+        """
+        core_client = CoreV1Api(client)
+        
+        # Use different pod finding strategies based on job type
+        if configuration.job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
+            # For Volcano Job, find pod by owner reference
+            pod = await self._find_pod_by_owner_reference(
+                self.logger, job_name, configuration, client
+            )
+        else:
+            # For standard Kubernetes Job, use label selector
+            pod_list = await core_client.list_namespaced_pod(
+                namespace=configuration.namespace,
+                label_selector=f"job-name={job_name}",
+            )
+            pod = pod_list.items[0] if pod_list.items else None
+        
+        if not pod:
+            self.logger.warning(f"No pod found for job {job_name}")
+            return None
+        
+        # Rest of the log retrieval logic...
