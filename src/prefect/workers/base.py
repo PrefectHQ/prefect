@@ -1250,12 +1250,13 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     ) -> None:
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
-        state_updates.setdefault("type", StateType.CANCELLED)
 
         if flow_run.state:
+            state_updates.setdefault("type", StateType.CANCELLED)
             state = flow_run.state.model_copy(update=state_updates)
         else:
             # Unexpectedly when flow run does not have a state, create a new one
+            # does not need to explicitly set the type
             state = Cancelled(**state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
