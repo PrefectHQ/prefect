@@ -110,6 +110,7 @@ def create_default_prefect_yaml(
             f,
             sort_keys=False,
         )
+
     return True
 
 
@@ -293,6 +294,10 @@ def _save_deployment_to_prefect_file(
 
     current_directory_name = os.path.basename(os.getcwd())
     if not prefect_file.exists():
+        if triggers:
+            deployment["triggers"] = triggers
+        if sla:
+            deployment["sla"] = sla
         create_default_prefect_yaml(
             ".",
             current_directory_name,

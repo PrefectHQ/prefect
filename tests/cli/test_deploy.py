@@ -21,7 +21,6 @@ from typer import Exit
 import prefect
 from prefect.blocks.system import JSON, Secret
 from prefect.cli.deploy import (
-    _check_for_matching_deployment_name_and_entrypoint_in_prefect_file,
     _create_deployment_triggers,
     _initialize_deployment_triggers,
 )
@@ -5680,92 +5679,6 @@ class TestDeployWithoutEntrypoint:
             name="An important name/default"
         )
         assert deployment.entrypoint == "flows/hello.py:my_flow"
-
-
-class TestCheckForMatchingDeployment:
-    @pytest.fixture(autouse=True)
-    def in_temporary_directory(self, tmp_path: Path):
-        with tmpchdir(tmp_path):
-            yield
-
-    async def test_matching_deployment_in_prefect_file_returns_true(self):
-        deployment = {
-            "name": "existing_deployment",
-            "entrypoint": "flows/existing_flow.py:my_flow",
-            "schedule": None,
-            "work_pool": {"name": "existing_pool"},
-            "parameter_openapi_schema": None,
-        }
-        _save_deployment_to_prefect_file(deployment)
-
-        prefect_file = Path("prefect.yaml")
-
-        with prefect_file.open(mode="r") as f:
-            config = yaml.safe_load(f)
-
-        matching_deployment_exists = any(
-            d["name"] == deployment["name"]
-            and d["entrypoint"] == deployment["entrypoint"]
-            for d in config["deployments"]
-        )
-
-        assert matching_deployment_exists, "No matching deployment found in the file."
-
-        new_deployment = {
-            "name": "existing_deployment",
-            "entrypoint": "flows/existing_flow.py:my_flow",
-        }
-        matching_deployment_exists = (
-            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                new_deployment
-            )
-        )
-        assert matching_deployment_exists is True
-
-    async def test_no_matching_deployment_in_prefect_file_returns_false(self):
-        deployment = {
-            "name": "existing_deployment",
-            "entrypoint": "flows/existing_flow.py:my_flow",
-            "schedule": None,
-            "work_pool": {"name": "existing_pool"},
-            "parameter_openapi_schema": None,
-        }
-        _save_deployment_to_prefect_file(deployment)
-
-        prefect_file = Path("prefect.yaml")
-
-        with prefect_file.open(mode="r") as f:
-            config = yaml.safe_load(f)
-
-        matching_deployment_exists = any(
-            d["name"] == deployment["name"]
-            and d["entrypoint"] == deployment["entrypoint"]
-            for d in config["deployments"]
-        )
-
-        assert matching_deployment_exists
-
-        deployment_with_same_entrypoint_but_different_name = {
-            "name": "new_deployment",
-            "entrypoint": "flows/existing_flow.py:my_flow",
-        }
-        matching_deployment_exists_1 = (
-            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                deployment_with_same_entrypoint_but_different_name
-            )
-        )
-        assert not matching_deployment_exists_1
-
-        deployment_with_same_name_but_different_entrypoint = {
-            "name": "new_deployment",
-            "entrypoint": "flows/new_flow.py:my_flow",
-        }
-        matching_deployment_exists_2 = (
-            _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                deployment_with_same_name_but_different_entrypoint
-            )
-        )
-        assert not matching_deployment_exists_2
 
 
 class TestDeploymentTrigger:
