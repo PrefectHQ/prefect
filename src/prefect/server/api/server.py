@@ -253,11 +253,11 @@ def copy_directory(directory: str, path: str) -> None:
             # ensure copied files are writeable
             for root, dirs, files in os.walk(destination):
                 for f in files:
-                    os.chmod(os.path.join(root, f), 0o600)
+                    os.chmod(os.path.join(root, f), 0o700)
         else:
             shutil.copy2(source, destination)
             # Ensure copied file is writeable
-            os.chmod(destination, 0o600)
+            os.chmod(destination, 0o700)
 
 
 async def custom_internal_exception_handler(
