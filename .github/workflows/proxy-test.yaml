@@ -66,7 +66,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install Dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run Proxy Tests
         env:
