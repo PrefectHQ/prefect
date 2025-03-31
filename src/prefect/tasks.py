@@ -382,10 +382,11 @@ class Task(Generic[P, R]):
 
         if isinstance(fn, classmethod):
             fn = cast(Callable[P, R], fn.__func__)
+            self._isclassmethod = True
 
         if isinstance(fn, staticmethod):
             fn = cast(Callable[P, R], fn.__func__)
-            setattr(fn, "__prefect_static__", True)
+            self._isstaticmethod = True
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -547,11 +548,11 @@ class Task(Generic[P, R]):
 
     @property
     def isclassmethod(self) -> bool:
-        return hasattr(self.fn, "__prefect_cls__")
+        return getattr(self, "_isclassmethod", False)
 
     @property
     def isstaticmethod(self) -> bool:
-        return getattr(self.fn, "__prefect_static__", False)
+        return getattr(self, "_isstaticmethod", False)
 
     def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
         """
@@ -559,22 +560,20 @@ class Task(Generic[P, R]):
         When an instance method is loaded, this method is called with the "self" instance as
         an argument. We return a copy of the task with that instance bound to the task's function.
         """
-
-        if self.isstaticmethod:
-            return self
-
         # wrapped function is a classmethod
-        if not instance:
+        if self.isclassmethod:
             bound_task = copy(self)
             setattr(bound_task.fn, "__prefect_cls__", owner)
             return bound_task
 
         # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
         # of the task's function. This will allow it to be automatically added to the task's parameters
-        else:
+        if instance:
             bound_task = copy(self)
             bound_task.fn.__prefect_self__ = instance  # type: ignore[attr-defined]
             return bound_task
+
+        return self
 
     def with_options(
         self,

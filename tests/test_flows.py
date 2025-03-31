@@ -904,6 +904,23 @@ class TestFlowCall:
         assert isinstance(Foo(x=10).instance_method, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_instance_methods_called_with_instance(self, T):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17649
+        """
+
+        class Foo(T):
+            @flow
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        # call like a class method with provided instance
+        assert Foo.instance_method(f) == 1
+        # call as instance method to ensure there was no class binding in above call
+        assert f.instance_method() == 1
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_flow_supports_class_methods(self, T):
         class Foo(T):
             def __init__(self, x):
