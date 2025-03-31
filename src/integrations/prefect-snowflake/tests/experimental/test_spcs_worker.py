@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from prefect_snowflake import SnowflakeCredentials
-from prefect_snowflake.workers.spcs import (
+from prefect_snowflake.experimental.workers.spcs import (
     SPCSServiceTemplateVariables,
     SPCSWorker,
     SPCSWorkerConfiguration,
