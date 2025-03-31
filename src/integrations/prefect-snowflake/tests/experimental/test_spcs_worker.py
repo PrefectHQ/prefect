@@ -150,7 +150,7 @@ async def test_image_populated_in_template_when_not_provided(
         base_job_template=SPCSWorker.get_default_base_job_template(),
         values=SPCSServiceTemplateVariables(
             snowflake_credentials=snowflake_credentials,
-            compute_pool = "common.compute.test_pool"
+            compute_pool="common.compute.test_pool",
         ).model_dump(exclude_unset=True),
     )
     config.prepare_for_flow_run(worker_flow_run)
