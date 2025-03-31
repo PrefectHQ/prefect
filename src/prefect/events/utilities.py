@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import datetime
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import prefect.types._datetime
+from prefect.logging.loggers import get_logger
 
 from .clients import (
     AssertingEventsClient,
@@ -16,7 +17,12 @@ from .clients import (
 from .schemas.events import Event, RelatedResource
 from .worker import EventsWorker, should_emit_events
 
+if TYPE_CHECKING:
+    import logging
+
 TIGHT_TIMING = timedelta(minutes=5)
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 def emit_event(
@@ -52,41 +58,45 @@ def emit_event(
     if not should_emit_events():
         return None
 
-    operational_clients = [
-        AssertingPassthroughEventsClient,
-        AssertingEventsClient,
-        PrefectCloudEventsClient,
-        PrefectEventsClient,
-    ]
-    worker_instance = EventsWorker.instance()
+    try:
+        operational_clients = [
+            AssertingPassthroughEventsClient,
+            AssertingEventsClient,
+            PrefectCloudEventsClient,
+            PrefectEventsClient,
+        ]
+        worker_instance = EventsWorker.instance()
 
-    if worker_instance.client_type not in operational_clients:
+        if worker_instance.client_type not in operational_clients:
+            return None
+
+        event_kwargs: dict[str, Any] = {
+            "event": event,
+            "resource": resource,
+            **kwargs,
+        }
+
+        if occurred is None:
+            occurred = prefect.types._datetime.now("UTC")
+        event_kwargs["occurred"] = occurred
+
+        if related is not None:
+            event_kwargs["related"] = related
+
+        if payload is not None:
+            event_kwargs["payload"] = payload
+
+        if id is not None:
+            event_kwargs["id"] = id
+
+        if follows is not None:
+            if -TIGHT_TIMING < (occurred - follows.occurred) < TIGHT_TIMING:
+                event_kwargs["follows"] = follows.id
+
+        event_obj = Event(**event_kwargs)
+        worker_instance.send(event_obj)
+
+        return event_obj
+    except Exception:
+        logger.exception(f"Error emitting event: {event}")
         return None
-
-    event_kwargs: dict[str, Any] = {
-        "event": event,
-        "resource": resource,
-        **kwargs,
-    }
-
-    if occurred is None:
-        occurred = prefect.types._datetime.now("UTC")
-    event_kwargs["occurred"] = occurred
-
-    if related is not None:
-        event_kwargs["related"] = related
-
-    if payload is not None:
-        event_kwargs["payload"] = payload
-
-    if id is not None:
-        event_kwargs["id"] = id
-
-    if follows is not None:
-        if -TIGHT_TIMING < (occurred - follows.occurred) < TIGHT_TIMING:
-            event_kwargs["follows"] = follows.id
-
-    event_obj = Event(**event_kwargs)
-    worker_instance.send(event_obj)
-
-    return event_obj
