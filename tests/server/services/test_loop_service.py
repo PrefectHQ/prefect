@@ -1,7 +1,7 @@
 import asyncio
 import signal
+from datetime import datetime, timedelta, timezone
 
-import pendulum
 import pytest
 
 from prefect.server.services.base import LoopService
@@ -122,13 +122,13 @@ async def test_early_stop():
     assert service._is_running is True
     assert service._should_stop is False
 
-    dt = pendulum.now("UTC")
+    dt = datetime.now(timezone.utc)
     await service.stop()
-    dt2 = pendulum.now("UTC")
+    dt2 = datetime.now(timezone.utc)
 
     assert service._should_stop is True
     assert service._is_running is False
-    assert dt2 - dt < pendulum.duration(seconds=LOOP_INTERVAL)
+    assert dt2 - dt < timedelta(seconds=LOOP_INTERVAL)
 
 
 async def test_stop_block_escapes_deadlock(caplog):

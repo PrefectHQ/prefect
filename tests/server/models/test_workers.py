@@ -1,12 +1,13 @@
+import datetime
 from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.types._datetime import now
 
 
 class TestCreateWorkPool:
@@ -751,17 +752,14 @@ class TestGetScheduledRuns:
                 ),
             )
 
-            # create 5 scheduled runs from two hours ago to three hours in the future
-            # we insert them in reverse order to ensure that sorting is taking
-            # place (and not just returning the database order)
+            # create scheduled runs
             for i in range(3, -2, -1):
+                current_time = now("UTC") + datetime.timedelta(hours=i)
                 await models.flow_runs.create_flow_run(
                     session=session,
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
-                        state=schemas.states.Scheduled(
-                            scheduled_time=pendulum.now("UTC").add(hours=i)
-                        ),
+                        state=schemas.states.Scheduled(scheduled_time=current_time),
                         work_queue_id=wq.id,
                     ),
                 )
@@ -812,13 +810,13 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_before(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_before=pendulum.now("UTC")
+            session=session, scheduled_before=now("UTC")
         )
         assert len(runs) == 18
 
     async def test_get_all_runs_scheduled_after(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_after=pendulum.now("UTC")
+            session=session, scheduled_after=now("UTC")
         )
         assert len(runs) == 27
 

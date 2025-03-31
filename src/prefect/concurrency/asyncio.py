@@ -24,7 +24,6 @@ async def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     max_retries: Optional[int] = None,
-    create_if_missing: Optional[bool] = None,
     strict: bool = False,
 ) -> AsyncGenerator[None, None]:
     """A context manager that acquires and releases concurrency slots from the
@@ -66,7 +65,6 @@ async def concurrency(
         names,
         occupy,
         timeout_seconds=timeout_seconds,
-        create_if_missing=create_if_missing,
         max_retries=max_retries,
         strict=strict,
     )
@@ -97,7 +95,6 @@ async def rate_limit(
     names: Union[str, list[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = None,
     strict: bool = False,
 ) -> None:
     """Block execution until an `occupy` number of slots of the concurrency
@@ -126,7 +123,6 @@ async def rate_limit(
         occupy,
         mode="rate_limit",
         timeout_seconds=timeout_seconds,
-        create_if_missing=create_if_missing,
         strict=strict,
     )
     emit_concurrency_acquisition_events(limits, occupy)

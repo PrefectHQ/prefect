@@ -14,7 +14,7 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect.types._datetime import DateTime, now
+import prefect.types._datetime
 
 from .schemas.events import RelatedResource
 
@@ -23,7 +23,9 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 ResourceCacheEntry = Dict[str, Union[str, "ObjectBaseModel", None]]
-RelatedResourceCache = Dict[str, Tuple[ResourceCacheEntry, DateTime]]
+RelatedResourceCache = Dict[
+    str, Tuple[ResourceCacheEntry, prefect.types._datetime.DateTime]
+]
 
 MAX_CACHE_SIZE = 100
 RESOURCE_CACHE: RelatedResourceCache = {}
@@ -205,7 +207,7 @@ async def _get_and_cache_related_object(
             "object": obj_,
         }
 
-    cache[cache_key] = (entry, now("UTC"))
+    cache[cache_key] = (entry, prefect.types._datetime.now("UTC"))
 
     # In the case of a worker or agent this cache could be long-lived. To keep
     # from running out of memory only keep `MAX_CACHE_SIZE` entries in the

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import asyncio
 import concurrent.futures
 import threading
 import uuid
@@ -221,12 +220,8 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
                 return future_result
 
         _result = self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
+            raise_on_failure=raise_on_failure, _sync=True
         )
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if asyncio.iscoroutine(_result):
-            _result = run_coro_as_sync(_result)
         return _result
 
     def __del__(self) -> None:
@@ -316,9 +311,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 )
 
-        return await self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
+        return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
     def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
         if self._final_state:
@@ -433,9 +426,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 )
 
-        return await self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
+        return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
     def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
         if self._final_state:

@@ -1,7 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -1111,7 +1110,8 @@ class TestUpdateWorkQueue:
     ):
         # first, pause the work pool queue with a expired last_polled
         pause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            last_polled=pendulum.now("UTC") - timedelta(minutes=2), is_paused=True
+            last_polled=datetime.now(timezone.utc) - timedelta(minutes=2),
+            is_paused=True,
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(
@@ -1183,7 +1183,7 @@ class TestUpdateWorkQueue:
     ):
         # first, pause the work pool queue with a recent last_polled
         pause_data = schemas.actions.WorkQueueUpdate(  # type: ignore
-            last_polled=pendulum.now("UTC"), is_paused=True
+            last_polled=datetime.now(timezone.utc), is_paused=True
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(
@@ -1266,12 +1266,12 @@ class TestWorkPoolStatus:
         self, client, work_pool, session, db
     ):
         """Work pools with only offline workers should have a status of NOT_READY."""
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
 
         insert_stmt = db.queries.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
-            last_heartbeat_time=now.subtract(minutes=5),
+            last_heartbeat_time=now - timedelta(minutes=5),
         )
 
         await session.execute(insert_stmt)
@@ -1326,7 +1326,7 @@ class TestWorkerProcess:
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 0
 
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         response = await client.post(
             f"/work_pools/{work_pool.name}/workers/heartbeat",
             json=dict(name="test-worker"),
@@ -1339,7 +1339,12 @@ class TestWorkerProcess:
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 1
         assert workers_response.json()[0]["name"] == "test-worker"
-        assert pendulum.parse(workers_response.json()[0]["last_heartbeat_time"]) > dt
+        assert (
+            datetime.fromisoformat(
+                workers_response.json()[0]["last_heartbeat_time"].replace("Z", "+00:00")
+            )
+            > dt
+        )
         assert workers_response.json()[0]["status"] == "ONLINE"
 
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
@@ -1456,12 +1461,12 @@ class TestWorkerProcess:
     async def test_worker_with_old_heartbeat_has_offline_status(
         self, client, work_pool, session, db
     ):
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
 
         insert_stmt = db.queries.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
-            last_heartbeat_time=now.subtract(minutes=5),
+            last_heartbeat_time=now - timedelta(minutes=5),
         )
 
         await session.execute(insert_stmt)
@@ -1483,12 +1488,12 @@ class TestWorkerProcess:
         This test sets an abnormally small heartbeat interval and then checks that the
         worker is still considered offline than it would by default.
         """
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
 
         insert_stmt = db.queries.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
-            last_heartbeat_time=now.subtract(seconds=10),
+            last_heartbeat_time=now - timedelta(seconds=10),
             heartbeat_interval_seconds=1,
         )
 
@@ -1547,7 +1552,7 @@ class TestDeleteWorker:
             insert_stmt = (db.queries.insert(db.Worker)).values(
                 name=f"worker{i}",
                 work_pool_id=work_pool_id,
-                last_heartbeat_time=pendulum.now(),
+                last_heartbeat_time=datetime.now(timezone.utc),
             )
             await session.execute(insert_stmt)
             await session.commit()
@@ -1571,7 +1576,7 @@ class TestDeleteWorker:
         insert_stmt = (db.queries.insert(db.Worker)).values(
             name=worker_name,
             work_pool_id=wp.id,
-            last_heartbeat_time=pendulum.now(),
+            last_heartbeat_time=datetime.now(timezone.utc),
         )
         await session.execute(insert_stmt)
         await session.commit()
@@ -1682,7 +1687,8 @@ class TestGetScheduledRuns:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=prefect.server.schemas.states.Scheduled(
-                            scheduled_time=pendulum.now("UTC").add(hours=i)
+                            scheduled_time=datetime.now(timezone.utc)
+                            + timedelta(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -1789,7 +1795,7 @@ class TestGetScheduledRuns:
     async def test_get_all_runs_scheduled_before(self, client, work_pools, work_queues):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(scheduled_before=str(pendulum.now("UTC"))),
+            json=dict(scheduled_before=datetime.now(timezone.utc).isoformat()),
         )
 
         data = parse_obj_as(
@@ -1800,7 +1806,7 @@ class TestGetScheduledRuns:
     async def test_get_all_runs_scheduled_after(self, client, work_pools):
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(scheduled_after=str(pendulum.now("UTC"))),
+            json=dict(scheduled_after=datetime.now(timezone.utc).isoformat()),
         )
 
         data = parse_obj_as(
@@ -1812,8 +1818,8 @@ class TestGetScheduledRuns:
         response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
-                scheduled_before=str(pendulum.now("UTC").subtract(hours=1)),
-                scheduled_after=str(pendulum.now("UTC")),
+                scheduled_before=str(datetime.now(timezone.utc) - timedelta(hours=1)),
+                scheduled_after=str(datetime.now(timezone.utc)),
             ),
         )
 
@@ -1825,7 +1831,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_single_work_queue(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(work_queue_names=[work_queues["wq_aa"].name]),
@@ -1855,7 +1861,7 @@ class TestGetScheduledRuns:
     async def test_updates_last_polled_on_a_multiple_work_queues(
         self, client, work_queues, work_pools
     ):
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
         poll_response = await client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
@@ -1890,7 +1896,7 @@ class TestGetScheduledRuns:
         work_queues["wq_ac"].status = WorkQueueStatus.READY
         await session.commit()
 
-        now = pendulum.now("UTC")
+        now = datetime.now(timezone.utc)
         poll_response = await client.post(
             f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
         )

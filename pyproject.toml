@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<3.14"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -35,7 +36,6 @@ dependencies = [
     "graphviz>=0.20.1",
     "jinja2>=3.0.0,<4.0.0",
     "jinja2-humanize-extension>=0.4.0",
-    "humanize>=4.9.0,<5.0.0",
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
@@ -54,6 +54,7 @@ dependencies = [
     "griffe>=0.49.0,<2.0.0",
     "httpcore>=1.0.5,<2.0.0",
     "httpx[http2]>=0.23,!=0.23.2",
+    "humanize>=4.9.0,<5.0.0",
     "importlib_metadata>=4.4;python_version<'3.10'",
     "jsonpatch>=1.32,<2.0",
     "jsonschema>=4.0.0,<5.0.0",
@@ -61,7 +62,7 @@ dependencies = [
     "orjson>=3.7,<4.0",
     "packaging>=21.3,<24.3",
     "pathspec>=0.8.0",
-    "pendulum>=3.0.0,<4",
+    "pendulum>=3.0.0,<4; python_version<'3.13'",
     "prometheus-client>=0.20.0",
     "pydantic>=2.9,<3.0.0,!=2.10.0",
     "pydantic_core>=2.12.0,<3.0.0",
@@ -80,6 +81,7 @@ dependencies = [
     "ujson>=5.8.0,<6.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=13.0,<16.0",
+    "whenever>=0.7.3,<0.8.0; python_version>='3.13'",
     "uv>=0.6.0",
 ]
 [project.urls]
@@ -98,7 +100,7 @@ otel = [
 ]
 
 # Infrastructure extras
-aws = ["prefect-aws>=0.5.0"]
+aws = ["prefect-aws>=0.5.8"]
 azure = ["prefect-azure>=0.4.0"]
 gcp = ["prefect-gcp>=0.6.0"]
 docker = ["prefect-docker>=0.6.0"]
@@ -165,6 +167,7 @@ dev = [
     "mkdocs-material>=9.6.4",
     "mkdocstrings[python]>=0.28.0",
     "mkdocs-gen-files>=0.5.0",
+    "whenever>=0.7.3,<1.0.0",
     # Need to stay in sync with otel extra
     "opentelemetry-distro>=0.48b0,<1.0.0",
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
@@ -190,6 +193,12 @@ markdown-docs = [
     "prefect[slack]",
     "prefect[snowflake]",
     "prefect[sqlalchemy]",
+]
+
+type-checking = [
+    "pandas>=2.2.3",
+    "pandas-stubs>=2.2.2.240807",
+    "pyright>=1.1.394",
 ]
 
 

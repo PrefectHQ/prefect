@@ -7,6 +7,8 @@ Prefect enforces on a state transition.
 
 from __future__ import annotations
 
+import datetime
+import math
 from typing import Any, Union, cast
 from uuid import uuid4
 
@@ -45,7 +47,7 @@ from prefect.settings import (
     PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now
 from prefect.utilities.math import clamped_poisson_interval
 
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
@@ -463,7 +465,8 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 await self.reject_transition(
                     state=states.Scheduled(
                         name="AwaitingConcurrencySlot",
-                        scheduled_time=DateTime.now("UTC").add(
+                        scheduled_time=now("UTC")
+                        + datetime.timedelta(
                             seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
                         ),
                     ),
@@ -645,7 +648,7 @@ class CacheRetrieval(TaskRunOrchestrationRule):
                         db.TaskRunStateCache.cache_key == cache_key,
                         sa.or_(
                             db.TaskRunStateCache.cache_expiration.is_(None),
-                            db.TaskRunStateCache.cache_expiration > DateTime.now("utc"),
+                            db.TaskRunStateCache.cache_expiration > now("UTC"),
                         ),
                     ),
                 )
@@ -689,7 +692,7 @@ class RetryFailedFlows(FlowRunOrchestrationRule):
         if run_settings.retries is None or run_count > run_settings.retries:
             return  # Retry count exceeded, allow transition to failed
 
-        scheduled_start_time = DateTime.now("UTC").add(
+        scheduled_start_time = now("UTC") + datetime.timedelta(
             seconds=run_settings.retry_delay or 0
         )
 
@@ -783,7 +786,7 @@ class RetryFailedTasks(TaskRunOrchestrationRule):
 
         if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
-                scheduled_time=DateTime.now("UTC").add(seconds=delay),
+                scheduled_time=now("UTC") + datetime.timedelta(seconds=delay),
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
@@ -914,8 +917,8 @@ class WaitForScheduledTime(
 
         # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
-        delay = scheduled_time - DateTime.now("UTC")
-        delay_seconds = delay.in_seconds()
+        delay = scheduled_time - now("UTC")
+        delay_seconds = math.floor(delay.total_seconds())
         delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
             await self.delay_transition(
@@ -1069,7 +1072,7 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
                 )
                 return
         pause_timeout = initial_state.state_details.pause_timeout
-        if pause_timeout and pause_timeout < DateTime.now("UTC"):
+        if pause_timeout and pause_timeout < now("UTC"):
             pause_timeout_failure = states.Failed(
                 message=(f"The flow was {display_state_name} and never resumed."),
             )

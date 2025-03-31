@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging.handlers
+import logging
 import sys
 import traceback
 from types import TracebackType

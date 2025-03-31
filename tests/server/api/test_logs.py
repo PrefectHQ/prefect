@@ -10,7 +10,6 @@ from datetime import timedelta
 from unittest import mock
 from uuid import uuid1
 
-import pendulum
 import pytest
 from sqlalchemy.orm.exc import FlushError
 
@@ -18,8 +17,9 @@ from prefect.server import models
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import Log
 from prefect.server.schemas.filters import LogFilter
+from prefect.types._datetime import now
 
-NOW = pendulum.now("UTC")
+NOW = now("UTC")
 CREATE_LOGS_URL = "/logs/"
 READ_LOGS_URL = "/logs/filter"
 
