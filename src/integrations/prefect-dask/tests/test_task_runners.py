@@ -344,6 +344,7 @@ class TestDaskTaskRunner:
                 adapt_kwargs={"minimum": 1, "maximum": 1},
             )
             with task_runner:
+                task_runner.client  # trigger client creation
                 assert task_runner._cluster._adapt_called
 
     def test_warns_if_future_garbage_collection_before_resolving(self, caplog):
