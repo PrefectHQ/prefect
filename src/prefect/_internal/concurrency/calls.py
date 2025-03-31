@@ -374,6 +374,11 @@ class Call(Generic[T]):
 
         except CancelledError:
             # Report cancellation
+            # in rare cases, enforce_sync_deadline raises CancelledError
+            # prior to yielding
+            if cancel_scope is None:
+                self.future.cancel()
+                return None
             if TYPE_CHECKING:
                 assert cancel_scope is not None
             if cancel_scope.timedout():
