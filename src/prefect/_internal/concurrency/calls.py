@@ -379,8 +379,6 @@ class Call(Generic[T]):
             if cancel_scope is None:
                 self.future.cancel()
                 return None
-            if TYPE_CHECKING:
-                assert cancel_scope is not None
             if cancel_scope.timedout():
                 setattr(self.future, "_timed_out", True)
                 self.future.cancel()
