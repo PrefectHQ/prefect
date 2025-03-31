@@ -1729,30 +1729,72 @@ class KubernetesWorker(
         
         return container_status.state.terminated.exit_code
 
-    async def _find_pod_by_owner_reference(
+    async def _find_pod_for_volcano_job(
         self,
         logger: logging.Logger,
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> "V1Pod | None":
-        """Find Pods for the specified Volcano Job (using owner reference)"""
+        """
+        Find Pods for the specified Volcano Job, prioritizing label selectors.
+        
+        Args:
+            logger: Logger for recording events
+            job_name: Name of the Volcano job
+            configuration: Worker job configuration
+            client: Kubernetes API client
+            
+        Returns:
+            The first Pod found belonging to the job, or None if not found
+        """
         core_client = CoreV1Api(client)
+        max_retries = 5
+        retry_delay = 3  # seconds
         
-        # List all pods in the namespace
-        pods = await core_client.list_namespaced_pod(
-            namespace=configuration.namespace
-        )
+        # Label selectors to try, in priority order
+        label_selectors = [
+            f"job-name={job_name}",           # Label from your template
+            f"volcano.sh/job-name={job_name}", # Potential Volcano label
+            f"vcjob={job_name}"               # Other possible label format
+        ]
         
-        # Find pods related to the job
-        for pod in pods.items:
-            if pod.metadata.owner_references:
-                for ref in pod.metadata.owner_references:
-                    if ref.name == job_name:
-                        logger.info(f"Found pod {pod.metadata.name} with owner {job_name}")
-                        return pod
+        for attempt in range(max_retries):
+            if attempt > 0:
+                logger.info(f"Retry {attempt}/{max_retries} finding pod for job {job_name!r}")
+                await asyncio.sleep(retry_delay)
+            
+            # 1. First try label selectors (more efficient)
+            for selector in label_selectors:
+                try:
+                    logger.debug(f"Searching for pod with selector: {selector}")
+                    pod_list = await core_client.list_namespaced_pod(
+                        namespace=configuration.namespace,
+                        label_selector=selector
+                    )
+                    if pod_list.items:
+                        logger.info(f"Found pod {pod_list.items[0].metadata.name} using selector {selector}")
+                        return pod_list.items[0]
+                except ApiException as e:
+                    logger.debug(f"Error searching pods with selector {selector}: {e.status}")
+            
+            # 2. Fall back to owner references if labels fail
+            try:
+                logger.debug(f"Searching for pod by owner references")
+                pods = await core_client.list_namespaced_pod(
+                    namespace=configuration.namespace
+                )
+                
+                for pod in pods.items:
+                    if pod.metadata.owner_references:
+                        for ref in pod.metadata.owner_references:
+                            if ref.name == job_name:
+                                logger.info(f"Found pod {pod.metadata.name} with owner reference to {job_name}")
+                                return pod
+            except ApiException as e:
+                logger.warning(f"Error searching pods by owner references: {e.status}")
         
-        logger.warning(f"No pod found with owner reference to {job_name}")
+        logger.warning(f"No pod found for Volcano job {job_name} after {max_retries} attempts")
         return None
 
     async def _delete_job(
@@ -1814,7 +1856,7 @@ class KubernetesWorker(
         # Use different pod finding strategies based on job type
         if configuration.job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
             # For Volcano Job, find pod by owner reference
-            pod = await self._find_pod_by_owner_reference(
+            pod = await self._find_pod_for_volcano_job(
                 self.logger, job_name, configuration, client
             )
         else:
