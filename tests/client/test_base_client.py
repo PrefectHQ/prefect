@@ -534,6 +534,33 @@ class TestPrefectHttpxAsyncClient:
         expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
         assert expected in str(exc.exconly())
 
+    async def test_prefect_httpx_client_retries_indefinitely_during_maintenance(
+        self, monkeypatch, mock_anyio_sleep
+    ):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxAsyncClient()
+        retry_response = Response(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Prefect-Maintenance": "true"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        # Return more than max retries worth of maintenance responses
+        retry_count = PREFECT_CLIENT_MAX_RETRIES.value() * 2
+        base_client_send.side_effect = [retry_response] * retry_count
+
+        with pytest.raises(Exception):
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route",
+                    data={"evenmorefake": "data"},
+                )
+
+        # Should have tried more times than the normal retry limit
+        assert base_client_send.call_count == retry_count + 1
+
 
 @asynccontextmanager
 async def mocked_client(
