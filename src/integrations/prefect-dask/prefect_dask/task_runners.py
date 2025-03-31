@@ -304,11 +304,11 @@ class DaskTaskRunner(TaskRunner):
         """
         if isinstance(other, DaskTaskRunner):
             return (
-                bool(self.address == other.address)
-                and bool(self.cluster_class == other.cluster_class)
-                and bool(self.cluster_kwargs == other.cluster_kwargs)
-                and bool(self.adapt_kwargs == other.adapt_kwargs)
-                and bool(self.client_kwargs == other.client_kwargs)
+                self.address == other.address
+                and self.cluster_class == other.cluster_class
+                and self.cluster_kwargs == other.cluster_kwargs
+                and self.adapt_kwargs == other.adapt_kwargs
+                and self.client_kwargs == other.client_kwargs
             )
         else:
             return False
