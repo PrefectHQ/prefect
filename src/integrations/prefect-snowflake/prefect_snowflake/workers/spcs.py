@@ -422,33 +422,16 @@ class SPCSWorker(BaseWorker):
             f"Starting job service {job_service_name} in compute pool {compute_pool}..."
         )
 
-        # The Snowflake Python SDK currently doesn't support executing multiple
-        # async statements simultaneously. We need to run SQL commands using
-        # snowflake-connector for now.
-        # Note: This temporary workaround doesn't support setting QUERY_WAREHOUSE or COMMENT.
-        cur = session.cursor()
+        job_service = JobService(
+            name=job_service_name,
+            compute_pool=compute_pool,
+            spec=ServiceSpec(job_manifest_yaml),
+            external_access_integrations=configuration.external_access_integrations if configuration.external_access_integrations else None,  # Don't set if list is empty.
+            query_warehouse=configuration.query_warehouse,
+            comment=configuration.service_comment,
+        )
 
-        sql_cmd = f"""
-        EXECUTE JOB SERVICE
-        IN COMPUTE POOL {compute_pool}
-        NAME = {database}.{schema}.{job_service_name}
-        EXTERNAL_ACCESS_INTEGRATIONS = ({", ".join(configuration.external_access_integrations)})
-        FROM SPECIFICATION $${job_manifest_yaml}$$;
-        """
-
-        cur.execute_async(sql_cmd)
-
-        # Note: Uncomment this when the above workaround is no longer needed.
-        # job_service = JobService(
-        #     name=job_service_name,
-        #     compute_pool=compute_pool,
-        #     spec=ServiceSpec(job_manifest_yaml),
-        #     external_access_integrations=configuration.external_access_integrations,
-        #     query_warehouse=configuration.query_warehouse,
-        #     comment=configuration.service_comment,
-        # )
-
-        # root.databases[database].schemas[schema].services.execute_job(job_service, async_req=True)
+        root.databases[database].schemas[schema].services.execute_job_async(job_service)
 
         return job_service_name
 
