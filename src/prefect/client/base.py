@@ -222,6 +222,10 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         if the request either raises an exception listed in `retry_exceptions` or
         receives a response with a status code listed in `retry_codes`.
 
+        Retries are not counted against the limit if the response headers contains
+        a reserved value, indicating that the server is undergoing maintenance. These
+        requests will retry indefinitely until the header is no longer returned.
+
         Retries will be delayed based on either the retry header (preferred) or
         exponential backoff if a retry header is not provided.
         """
@@ -239,18 +243,21 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
             await self._add_csrf_headers(request=request)
 
         while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
-            try_count += 1
             retry_seconds = None
             exc_info = None
 
             try:
                 response = await send(request, *send_args, **send_kwargs)
             except retry_exceptions:  # type: ignore
+                try_count += 1
                 if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
             else:
+                if response.headers.get("Prefect-Maintenance") != "true":
+                    try_count += 1
+
                 # We got a response; check if it's a CSRF error, otherwise
                 # return immediately if it is not retryable
                 if (
@@ -441,6 +448,10 @@ class PrefectHttpxSyncClient(httpx.Client):
         if the request either raises an exception listed in `retry_exceptions` or
         receives a response with a status code listed in `retry_codes`.
 
+        Retries are not counted against the limit if the response headers contains
+        a reserved value, indicating that the server is undergoing maintenance. These
+        requests will retry indefinitely until the header is no longer returned.
+
         Retries will be delayed based on either the retry header (preferred) or
         exponential backoff if a retry header is not provided.
         """
@@ -458,18 +469,21 @@ class PrefectHttpxSyncClient(httpx.Client):
             self._add_csrf_headers(request=request)
 
         while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
-            try_count += 1
             retry_seconds = None
             exc_info = None
 
             try:
                 response = send(request, *send_args, **send_kwargs)
             except retry_exceptions:  # type: ignore
+                try_count += 1
                 if try_count > PREFECT_CLIENT_MAX_RETRIES.value():
                     raise
                 # Otherwise, we will ignore this error but capture the info for logging
                 exc_info = sys.exc_info()
             else:
+                if response.headers.get("Prefect-Maintenance") != "true":
+                    try_count += 1
+
                 # We got a response; check if it's a CSRF error, otherwise
                 # return immediately if it is not retryable
                 if (
