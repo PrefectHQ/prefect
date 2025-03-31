@@ -1594,8 +1594,8 @@ class KubernetesWorker(
                 # Original Kubernetes Job query method (find Pod by "job-name" label)
                 label_selector = f"job-name={job_name}"
             elif api_version == "batch.volcano.sh/v1alpha1":
-                # Volcano Job method: directly query Pods associated with job by ownerReference
-                label_selector = None
+                # Volcano Job method: use volcano.sh/job-name label selector
+                label_selector = f"volcano.sh/job-name={job_name}"
             else:
                 logger.error(f"Unsupported job type: {api_version}")
                 return None
@@ -1737,7 +1737,7 @@ class KubernetesWorker(
         client: "ApiClient",
     ) -> "V1Pod | None":
         """
-        Find Pods for the specified Volcano Job, prioritizing label selectors.
+        Find Pods for the specified Volcano Job using only the volcano.sh/job-name label.
         
         Args:
             logger: Logger for recording events
@@ -1752,47 +1752,25 @@ class KubernetesWorker(
         max_retries = 5
         retry_delay = 3  # seconds
         
-        # Label selectors to try, in priority order
-        label_selectors = [
-            f"job-name={job_name}",           # Label from your template
-            f"volcano.sh/job-name={job_name}", # Potential Volcano label
-            f"vcjob={job_name}"               # Other possible label format
-        ]
+        # Use the volcano.sh/job-name label selector
+        label_selector = f"volcano.sh/job-name={job_name}"
         
         for attempt in range(max_retries):
             if attempt > 0:
                 logger.info(f"Retry {attempt}/{max_retries} finding pod for job {job_name!r}")
                 await asyncio.sleep(retry_delay)
             
-            # 1. First try label selectors (more efficient)
-            for selector in label_selectors:
-                try:
-                    logger.debug(f"Searching for pod with selector: {selector}")
-                    pod_list = await core_client.list_namespaced_pod(
-                        namespace=configuration.namespace,
-                        label_selector=selector
-                    )
-                    if pod_list.items:
-                        logger.info(f"Found pod {pod_list.items[0].metadata.name} using selector {selector}")
-                        return pod_list.items[0]
-                except ApiException as e:
-                    logger.debug(f"Error searching pods with selector {selector}: {e.status}")
-            
-            # 2. Fall back to owner references if labels fail
             try:
-                logger.debug(f"Searching for pod by owner references")
-                pods = await core_client.list_namespaced_pod(
-                    namespace=configuration.namespace
+                logger.debug(f"Searching for pod with selector: {label_selector}")
+                pod_list = await core_client.list_namespaced_pod(
+                    namespace=configuration.namespace,
+                    label_selector=label_selector
                 )
-                
-                for pod in pods.items:
-                    if pod.metadata.owner_references:
-                        for ref in pod.metadata.owner_references:
-                            if ref.name == job_name:
-                                logger.info(f"Found pod {pod.metadata.name} with owner reference to {job_name}")
-                                return pod
+                if pod_list.items:
+                    logger.info(f"Found pod {pod_list.items[0].metadata.name} using volcano.sh/job-name label")
+                    return pod_list.items[0]
             except ApiException as e:
-                logger.warning(f"Error searching pods by owner references: {e.status}")
+                logger.debug(f"Error searching pods with volcano.sh/job-name label: {e.status}")
         
         logger.warning(f"No pod found for Volcano job {job_name} after {max_retries} attempts")
         return None
