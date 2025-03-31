@@ -30,6 +30,7 @@ async def create_job_configuration(
         "command": "test",
         "env": {},
         "snowflake_credentials": snowflake_credentials,
+        "compute_pool": "common.compute.test_pool",
         "name": None,
         "service_watch_poll_interval": 1,
         "stream_output": False,
