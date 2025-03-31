@@ -482,3 +482,30 @@ def enable_lineage_events() -> Generator[None, None, None]:
     """A fixture that ensures lineage events are enabled."""
     with temporary_settings(updates={PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED: True}):
         yield
+
+
+import pytest
+import asyncio
+from prefect.server.database.orm_models import WorkPool
+from prefect.server.database.dependencies import get_db_session
+from prefect.events.utilities import emit_event
+from unittest.mock import patch
+
+@pytest.mark.asyncio
+async def test_work_pool_event():
+    """
+    Test if an event is emitted when a WorkPool is created.
+    """
+    async with get_db_session() as session:
+        pool = WorkPool(name="TestPool")
+        session.add(pool)
+        await session.commit()
+
+        # Mock emit_event to check if it's called
+        with patch("prefect.events.utilities.emit_event") as mock_emit:
+            await session.refresh(pool)
+            mock_emit.assert_called_with(
+                event="WorkPool.Created",
+                resource={"prefect.resource.id": str(pool.id), "name": pool.name},
+                related=[],
+            )
