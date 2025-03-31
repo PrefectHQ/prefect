@@ -559,6 +559,28 @@ class TestFlowWithOptions:
         )
         assert f.name == name
 
+    def test_with_options_preserves_classmethod_context(self):
+        class BaseProcessor:
+            @classmethod
+            def get_multiplier(cls):
+                return 1
+
+            @classmethod
+            @flow
+            def process(cls, x: int):
+                return x * cls.get_multiplier()
+
+        class ChildProcessor(BaseProcessor):
+            @classmethod
+            def get_multiplier(cls):
+                return 2
+
+        assert BaseProcessor.process(5) == 5
+        assert ChildProcessor.process(5) == 10
+
+        new_flow = ChildProcessor.process.with_options()
+        assert new_flow(5) == 10
+
 
 class TestFlowCall:
     async def test_call_creates_flow_run_and_runs(self):
@@ -1081,6 +1103,24 @@ class TestFlowCall:
 
         with pytest.raises(ValueError, match="Test"):
             await my_flow()
+
+    def test_instance_method_preserves_context(self):
+        class StatefulProcessor:
+            def __init__(self, multiplier: int):
+                self.multiplier = multiplier
+
+            @flow
+            def process(self, x: int) -> int:
+                return x * self.multiplier
+
+        processor_a = StatefulProcessor(2)
+        processor_b = StatefulProcessor(3)
+
+        flow_a = processor_a.process
+        assert flow_a(5) == 10
+        flow_b = processor_b.process
+        assert flow_b(5) == 15
+        assert flow_a(5) == 10
 
 
 class TestSubflowCalls:

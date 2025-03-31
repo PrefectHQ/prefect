@@ -19,6 +19,7 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
+from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -427,10 +428,25 @@ class Flow(Generic[P, R]):
             return bound_flow
 
         # if the flow is being accessed on an instance, bind the instance to the __prefect_self__ attribute
-        # of the flow's function. This will allow it to be automatically added to the flow's parameters
+        # of a copied flow's function. This ensures each bound flow has a unique function copy.
         else:
             bound_flow = copy(self)
-            setattr(bound_flow.fn, "__prefect_self__", instance)
+            new_fn = FunctionType(
+                code=bound_flow.fn.__code__,
+                globals=bound_flow.fn.__globals__,
+                name=bound_flow.fn.__name__,
+                argdefs=bound_flow.fn.__defaults__,
+                closure=bound_flow.fn.__closure__,
+            )
+            new_fn.__annotations__ = copy(bound_flow.fn.__annotations__)
+            new_fn.__dict__ = copy(bound_flow.fn.__dict__)
+            new_fn.__kwdefaults__ = (
+                copy(bound_flow.fn.__kwdefaults__)
+                if bound_flow.fn.__kwdefaults__
+                else None
+            )
+            setattr(new_fn, "__prefect_self__", instance)
+            bound_flow.fn = new_fn
             return bound_flow
 
     def with_options(
