@@ -193,6 +193,6 @@ async def test_consistent_service_job_naming(
 
     assert name_without_id.replace("_", " ").lower() in flow_name.lower()
 
-    assert (
-        len(service_job_name) <= max_length
-    ), f"Length: {len(service_job_name)}, Max: {max_length}"
+    assert len(service_job_name) <= max_length, (
+        f"Length: {len(service_job_name)}, Max: {max_length}"
+    )
