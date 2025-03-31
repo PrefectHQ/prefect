@@ -847,6 +847,74 @@ class TestTriggerWaitRetryDbtCloudJobRun:
             with pytest.raises(DbtCloudJobRunTriggerFailed, match="Not found"):
                 await run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job, targeted_retries=0)
 
+    async def test_zero_targeted_retries_success(self, dbt_cloud_job):
+        """
+        Regression test for issue #17634:
+        When targeted_retries=0, the function should still wait for job completion
+        and return results on success rather than immediately failing.
+        """
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
+
+            # This should succeed even with targeted_retries=0
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, targeted_retries=0
+            )
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json"],
+            }
+
+    async def test_zero_targeted_retries_failure(self, dbt_cloud_job):
+        """
+        Regression test for issue #17634:
+        When targeted_retries=0 and the job fails, the function should wait for job completion
+        before raising the error, rather than failing immediately.
+        """
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "status": 20}}
+                )  # Failed status
+            )
+
+            # Should raise an error after waiting for completion, with targeted_retries=0 in the message
+            with pytest.raises(
+                DbtCloudJobRunFailed, match="dbt Cloud job 10000 failed after 0 retries"
+            ):
+                await run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job, targeted_retries=0)
+
 
 def test_get_job(dbt_cloud_job):
     with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
