@@ -43,7 +43,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
           
       - name: Install the project
-        run:  uv sync --group benchmark --compile-bytecode
+        run:  uv sync --group benchmark --compile-bytecode --locked
 
       - name: Start server
         run: |
