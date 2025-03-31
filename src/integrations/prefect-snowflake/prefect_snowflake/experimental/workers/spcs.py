@@ -12,12 +12,13 @@ import anyio
 import dateutil
 import snowflake.connector
 import yaml
+from prefect_snowflake import SnowflakeCredentials
 from pydantic import Field
 from slugify import slugify
 from snowflake.connector import SnowflakeConnection
 from snowflake.core import Root
 from snowflake.core.exceptions import NotFoundError
-from snowflake.core.service import ServiceResource
+from snowflake.core.service import JobService, ServiceResource, ServiceSpec
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -28,7 +29,6 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect_snowflake import SnowflakeCredentials
 
 if TYPE_CHECKING:
     from prefect.server.schemas.core import Flow
@@ -426,7 +426,9 @@ class SPCSWorker(BaseWorker):
             name=job_service_name,
             compute_pool=compute_pool,
             spec=ServiceSpec(job_manifest_yaml),
-            external_access_integrations=configuration.external_access_integrations if configuration.external_access_integrations else None,  # Don't set if list is empty.
+            external_access_integrations=configuration.external_access_integrations
+            if configuration.external_access_integrations
+            else None,  # Don't set if list is empty.
             query_warehouse=configuration.query_warehouse,
             comment=configuration.service_comment,
         )
