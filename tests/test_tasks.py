@@ -402,7 +402,7 @@ class TestTaskCall:
         x: int
 
     class BaseFoo:
-        def __init__(self, x):
+        def __init__(self, x: int):
             self.x = x
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
@@ -418,6 +418,23 @@ class TestTaskCall:
         assert f.instance_method() == 1
 
         assert isinstance(Foo(x=10).instance_method, Task)
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_instance_methods_called_with_instance(self, T):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17649
+        """
+
+        class Foo(T):
+            @task
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        # call like a class method with provided instance
+        assert Foo.instance_method(f) == 1
+        # call as instance method to ensure there was no class binding in above call
+        assert f.instance_method() == 1
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_task_supports_class_methods(self, T):
