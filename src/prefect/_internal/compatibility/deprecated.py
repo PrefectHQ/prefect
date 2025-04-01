@@ -32,6 +32,7 @@ R = TypeVar("R", infer_variance=True)
 M = TypeVar("M", bound=BaseModel)
 T = TypeVar("T")
 
+_AcceptableDate = datetime.datetime | str
 
 DEPRECATED_WARNING = (
     "{name} has been deprecated{when}. It will not be available in new releases after {end_date}."
@@ -51,18 +52,30 @@ class PrefectDeprecationWarning(DeprecationWarning):
     """
 
 
+def _coerce_datetime(
+    dt: Optional[_AcceptableDate],
+) -> Optional[datetime.datetime]:
+    import dateparser
+
+    if dt is None:
+        return None
+    elif isinstance(dt, str):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            return dateparser.parse(dt)
+    else:
+        return dt
+
+
 def generate_deprecation_message(
     name: str,
-    start_date: Optional[datetime.datetime] = None,
-    end_date: Optional[datetime.datetime] = None,
+    start_date: Optional[_AcceptableDate] = None,
+    end_date: Optional[_AcceptableDate] = None,
     help: str = "",
     when: str = "",
 ) -> str:
-    if start_date is not None and not isinstance(start_date, datetime.datetime):
-        raise ValueError("Must provide start_date as a datetime")
-
-    if end_date is not None and not isinstance(end_date, datetime.datetime):
-        raise ValueError("Must provide end_date as a datetime")
+    start_date = _coerce_datetime(start_date)
+    end_date = _coerce_datetime(end_date)
 
     if start_date is None and end_date is None:
         raise ValueError(
@@ -87,8 +100,8 @@ def generate_deprecation_message(
 
 def deprecated_callable(
     *,
-    start_date: Optional[datetime.datetime] = None,
-    end_date: Optional[datetime.datetime] = None,
+    start_date: Optional[_AcceptableDate] = None,
+    end_date: Optional[_AcceptableDate] = None,
     stacklevel: int = 2,
     help: str = "",
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -112,8 +125,8 @@ def deprecated_callable(
 
 def deprecated_class(
     *,
-    start_date: Optional[datetime.datetime] = None,
-    end_date: Optional[datetime.datetime] = None,
+    start_date: Optional[_AcceptableDate] = None,
+    end_date: Optional[_AcceptableDate] = None,
     stacklevel: int = 2,
     help: str = "",
 ) -> Callable[[type[T]], type[T]]:
@@ -141,8 +154,8 @@ def deprecated_class(
 def deprecated_parameter(
     name: str,
     *,
-    start_date: Optional[datetime.datetime] = None,
-    end_date: Optional[datetime.datetime] = None,
+    start_date: Optional[_AcceptableDate] = None,
+    end_date: Optional[_AcceptableDate] = None,
     stacklevel: int = 2,
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
@@ -197,8 +210,8 @@ JsonDict: TypeAlias = dict[str, JsonValue]
 def deprecated_field(
     name: str,
     *,
-    start_date: Optional[datetime.datetime] = None,
-    end_date: Optional[datetime.datetime] = None,
+    start_date: Optional[_AcceptableDate] = None,
+    end_date: Optional[_AcceptableDate] = None,
     when_message: str = "",
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
@@ -279,9 +292,7 @@ def inject_renamed_module_alias_finder():
     sys.meta_path.insert(0, AliasedModuleFinder(DEPRECATED_MODULE_ALIASES))
 
 
-def register_renamed_module(
-    old_name: str, new_name: str, start_date: datetime.datetime
-):
+def register_renamed_module(old_name: str, new_name: str, start_date: _AcceptableDate):
     """
     Register a renamed module.
 
