@@ -371,7 +371,7 @@ class Block(BaseModel, ABC):
                         visit_fn=partial(handle_secret_render, context=ctx),
                         return_data=True,
                     )
-                    for field_name in self.model_fields
+                    for field_name in type(self).model_fields
                 }
             )
         if extra_fields := {
