@@ -273,14 +273,15 @@ class Settings(PrefectBaseSettings):
         # set the default value on the new settings object. When restoring
         # defaults, all settings sources will be ignored.
         restore_defaults_obj: dict[str, Any] = {}
+        model_cls = type(self)
         for r in restore_defaults or []:
             path = r.accessor.split(".")
             model = self
             for key in path[:-1]:
-                model = model.model_fields[key].annotation
+                model = model_cls.model_fields[key].annotation
                 assert model is not None, f"Invalid setting path: {r.accessor}"
 
-            model_field = model.model_fields[path[-1]]
+            model_field = model_cls.model_fields[path[-1]]
             assert model is not None, f"Invalid setting path: {r.accessor}"
             if hasattr(model_field, "default"):
                 default = model_field.default
