@@ -4,15 +4,24 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { formatDate } from "@/utils/date";
 import humanizeDuration from "humanize-duration";
-import { DetailItem } from "./detail-item";
 
 type TaskRun = components["schemas"]["TaskRun"];
 
-export type TaskRunDetailsProps = {
-	taskRun: TaskRun;
+function formatTaskDate(dateString: string | null | undefined): string {
+	if (!dateString) return "N/A";
+	return formatDate(dateString, "dateTimeNumericShort");
+}
+
+function formatTaskDuration(seconds: number | null | undefined): string {
+	if (seconds === null || seconds === undefined) return "N/A";
+	return humanizeDuration(seconds, { maxDecimalPoints: 2, units: ["s"] });
+}
+
+export type TaskRunsDetailsProps = {
+	taskRun: TaskRun | null | undefined;
 };
 
-export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
+export const TaskRuns = ({ taskRun }: TaskRunsDetailsProps) => {
 	if (!taskRun) {
 		return (
 			<div className="flex flex-col gap-2 bg-gray-100 p-4 rounded-md">
@@ -21,118 +30,141 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 		);
 	}
 
-	// Inline helper functions
-	function formatTaskDate(dateString: string | null | undefined): string {
-		if (!dateString) return "N/A";
-		return formatDate(dateString, "dateTimeNumericShort");
-	}
-
-	function formatTaskDuration(seconds: number | null | undefined): string {
-		if (seconds === null || seconds === undefined) return "N/A";
-		return humanizeDuration(seconds, { maxDecimalPoints: 2, units: ["s"] });
-	}
-
 	return (
 		<Card className="flex flex-col gap-4 p-4 text-sm">
-			<DetailItem
-				label="Flow Run"
-				value={
+			<dl className="flex flex-col gap-1 mb-2">
+				<dt className="text-xs text-gray-500">Flow Run</dt>
+				<dd className="text-sm">
 					<span className="text-blue-500 hover:underline cursor-pointer flex items-center">
 						<Icon id="ExternalLink" className="mr-1 size-4" />
 						{taskRun.name ? taskRun.name.split("-")[0] : "Flow Run"}
 					</span>
-				}
-			/>
+				</dd>
+			</dl>
 
-			<DetailItem
-				label="Start Time"
-				value={formatTaskDate(taskRun.start_time)}
-				monospace
-			/>
+			{taskRun.start_time && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Start Time</dt>
+					<dd className="font-mono text-sm">
+						{formatTaskDate(taskRun.start_time)}
+					</dd>
+				</dl>
+			)}
 
-			<DetailItem
-				label="Duration"
-				value={
-					<span className="flex items-center">
-						<Icon id="Clock" className="mr-1 size-4" />
-						{formatTaskDuration(taskRun.estimated_run_time)}
-					</span>
-				}
-			/>
+			{taskRun.estimated_run_time !== null &&
+				taskRun.estimated_run_time !== undefined && (
+					<dl className="flex flex-col gap-1 mb-2">
+						<dt className="text-xs text-gray-500">Duration</dt>
+						<dd className="text-sm">
+							<span className="flex items-center">
+								<Icon id="Clock" className="mr-1 size-4" />
+								{formatTaskDuration(taskRun.estimated_run_time)}
+							</span>
+						</dd>
+					</dl>
+				)}
 
-			<DetailItem label="Run Count" value={taskRun.run_count?.toString()} />
+			{taskRun.run_count !== null && taskRun.run_count !== undefined && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Run Count</dt>
+					<dd className="text-sm">{taskRun.run_count.toString()}</dd>
+				</dl>
+			)}
 
-			<DetailItem
-				label="Estimated Run Time"
-				value={
-					taskRun.estimated_run_time
-						? formatTaskDuration(taskRun.estimated_run_time)
-						: "1s"
-				}
-			/>
+			{taskRun.estimated_run_time !== null &&
+				taskRun.estimated_run_time !== undefined && (
+					<dl className="flex flex-col gap-1 mb-2">
+						<dt className="text-xs text-gray-500">Estimated Run Time</dt>
+						<dd className="text-sm">
+							{formatTaskDuration(taskRun.estimated_run_time)}
+						</dd>
+					</dl>
+				)}
 
-			<DetailItem
-				label="Created"
-				value={formatTaskDate(taskRun.created)}
-				monospace
-			/>
+			{taskRun.created && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Created</dt>
+					<dd className="font-mono text-sm">
+						{formatTaskDate(taskRun.created)}
+					</dd>
+				</dl>
+			)}
 
-			<DetailItem
-				label="Last Updated"
-				value={formatTaskDate(taskRun.updated)}
-				monospace
-			/>
+			{taskRun.updated && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Last Updated</dt>
+					<dd className="font-mono text-sm">
+						{formatTaskDate(taskRun.updated)}
+					</dd>
+				</dl>
+			)}
 
-			<DetailItem
-				label="Cache Key"
-				value={taskRun.cache_key || "None"}
-				monospace={!!taskRun.cache_key}
-			/>
+			{taskRun.cache_key && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Cache Key</dt>
+					<dd className="font-mono text-sm">{taskRun.cache_key}</dd>
+				</dl>
+			)}
 
-			<DetailItem
-				label="Cache Expiration"
-				value={
-					taskRun.cache_expiration
-						? formatTaskDate(taskRun.cache_expiration)
-						: "None"
-				}
-				monospace={!!taskRun.cache_expiration}
-			/>
+			{taskRun.cache_expiration && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Cache Expiration</dt>
+					<dd className="font-mono text-sm">
+						{formatTaskDate(taskRun.cache_expiration)}
+					</dd>
+				</dl>
+			)}
 
-			<DetailItem label="Dynamic Key" value={taskRun.dynamic_key} monospace />
+			{taskRun.dynamic_key && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Dynamic Key</dt>
+					<dd className="font-mono text-sm">{taskRun.dynamic_key}</dd>
+				</dl>
+			)}
 
-			<DetailItem label="Task Run ID" value={taskRun.id} monospace />
+			<dl className="flex flex-col gap-1 mb-2">
+				<dt className="text-xs text-gray-500">Task Run ID</dt>
+				<dd className="font-mono text-sm">{taskRun.id}</dd>
+			</dl>
 
 			<div className="border-t border-gray-200 mt-2 pt-4">
 				<h3 className="text-md font-semibold mb-2">Task configuration</h3>
 
-				<DetailItem label="Version" value={taskRun.task_version || "None"} />
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Version</dt>
+					<dd className="text-sm">{taskRun.task_version || "None"}</dd>
+				</dl>
 
-				<DetailItem
-					label="Retries"
-					value={taskRun.empirical_policy?.retries?.toString() || "0"}
-				/>
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Retries</dt>
+					<dd className="text-sm">
+						{taskRun.empirical_policy?.retries?.toString() || "0"}
+					</dd>
+				</dl>
 
-				<DetailItem
-					label="Retry Delay"
-					value={
-						typeof taskRun.empirical_policy?.retry_delay === "number"
-							? formatTaskDuration(taskRun.empirical_policy.retry_delay)
-							: "0s"
-					}
-				/>
+				{typeof taskRun.empirical_policy?.retry_delay === "number" && (
+					<dl className="flex flex-col gap-1 mb-2">
+						<dt className="text-xs text-gray-500">Retry Delay</dt>
+						<dd className="text-sm">
+							{formatTaskDuration(taskRun.empirical_policy.retry_delay)}
+						</dd>
+					</dl>
+				)}
 
-				<DetailItem
-					label="Retry Jitter Factor"
-					value={
-						taskRun.empirical_policy?.retry_jitter_factor?.toString() || "None"
-					}
-				/>
+				{taskRun.empirical_policy?.retry_jitter_factor !== null &&
+					taskRun.empirical_policy?.retry_jitter_factor !== undefined && (
+						<dl className="flex flex-col gap-1 mb-2">
+							<dt className="text-xs text-gray-500">Retry Jitter Factor</dt>
+							<dd className="text-sm">
+								{taskRun.empirical_policy.retry_jitter_factor.toString()}
+							</dd>
+						</dl>
+					)}
 
-				<DetailItem
-					label="Tags"
-					value={
-						taskRun.tags && taskRun.tags.length > 0 ? (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-xs text-gray-500">Tags</dt>
+					<dd className="text-sm">
+						{taskRun.tags && taskRun.tags.length > 0 ? (
 							<div className="flex flex-wrap gap-2">
 								{taskRun.tags.map((tag, index) => (
 									<Badge key={`tag-${index}-${tag}`}>{tag}</Badge>
@@ -140,9 +172,9 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 							</div>
 						) : (
 							"None"
-						)
-					}
-				/>
+						)}
+					</dd>
+				</dl>
 			</div>
 
 			{taskRun.task_inputs && Object.keys(taskRun.task_inputs).length > 0 && (

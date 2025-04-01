@@ -1,17 +1,17 @@
 import { createFakeTaskRun } from "@/mocks";
 import { randUuid } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
-import { TaskRunDetails } from ".";
+import { TaskRuns } from ".";
 
 export default {
-	title: "Task Runs/TaskRunDetails",
-	component: TaskRunDetails,
+	title: "Task Runs/TaskRuns",
+	component: TaskRuns,
 	parameters: {
 		layout: "centered",
 	},
-} satisfies Meta<typeof TaskRunDetails>;
+} satisfies Meta<typeof TaskRuns>;
 
-type Story = StoryObj<typeof TaskRunDetails>;
+type Story = StoryObj<typeof TaskRuns>;
 
 export const Default: Story = {
 	args: {
