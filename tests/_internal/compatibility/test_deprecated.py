@@ -37,6 +37,9 @@ def test_generate_deprecation_message_when():
     )
 
 
+@pytest.mark.xfail(
+    reason="we are temporarily allowing this, so it will not raise the expected exception"
+)
 def test_generate_deprecation_message_invalid_start_date():
     with pytest.raises(ValueError, match="Must provide start_date as a datetime"):
         generate_deprecation_message("test name", start_date="Jan 2022")
@@ -49,6 +52,9 @@ def test_generate_deprecation_message_end_date():
     )
 
 
+@pytest.mark.xfail(
+    reason="we are temporarily allowing this, so it will not raise the expected exception"
+)
 def test_generate_deprecation_message_invalid_end_date():
     with pytest.raises(ValueError, match="Must provide end_date as a datetime"):
         generate_deprecation_message("test name", end_date="Dec 2023")
@@ -199,3 +205,21 @@ def test_deprecated_class():
     ):
         obj = MyClass()
         assert isinstance(obj, MyClass)
+
+
+def test_generate_deprecation_message_with_str_start_date():
+    assert (
+        generate_deprecation_message(
+            "test name", start_date="Jan 2022", help="test help"
+        )
+        == "test name has been deprecated. It will not be available in new releases after Jul 2022."
+        " test help"
+    )
+
+
+def test_generate_deprecation_message_with_str_end_date():
+    assert (
+        generate_deprecation_message("test name", end_date="Dec 2023", help="test help")
+        == "test name has been deprecated. It will not be available in new releases after Dec 2023."
+        " test help"
+    )

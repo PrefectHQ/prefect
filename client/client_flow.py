@@ -1,3 +1,4 @@
+import prefect.main  # noqa: F401
 from prefect import flow, task
 from prefect.concurrency import asyncio, services, sync  # noqa: F401
 
