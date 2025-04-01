@@ -34,6 +34,8 @@ R = TypeVar("R", infer_variance=True)
 M = TypeVar("M", bound=BaseModel)
 T = TypeVar("T")
 
+# Note: A datetime is strongly preferred over a string, but a string is acceptable for
+# backwards compatibility until support is dropped from dateparser in Python 3.15.
 _AcceptableDate: TypeAlias = Optional[Union[datetime.datetime, str]]
 
 DEPRECATED_WARNING = (
