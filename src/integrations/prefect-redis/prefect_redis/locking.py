@@ -79,7 +79,7 @@ class RedisLockManager(LockManager):
             username=self.username,
             password=self.password,
         )
-        self._locks = {}
+        self._locks: dict[str, Lock | AsyncLock] = {}
 
     @staticmethod
     def _lock_name_for_key(key: str) -> str:
@@ -128,12 +128,41 @@ class RedisLockManager(LockManager):
         return lock_acquired
 
     def release_lock(self, key: str, holder: str) -> None:
+        """
+        Releases the lock on the corresponding transaction record.
+
+        Args:
+            key: Unique identifier for the transaction record.
+            holder: Unique identifier for the holder of the lock. Must match the
+                holder provided when acquiring the lock.
+
+        Raises:
+            ValueError: If the lock is held by a different holder.
+
+        Note:
+            This implementation handles the case where a lock might have been released
+            during a task retry (issue #17676). If the lock doesn't exist in Redis at all,
+            this method will succeed even if the holder ID doesn't match the original
+            holder. This allows transactions that retry tasks to properly clean up locks.
+        """
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
-        if lock is None or not self.is_lock_holder(key, holder):
-            raise ValueError(f"No lock held by {holder} for transaction with key {key}")
-        lock.release()
-        del self._locks[lock_name]
+
+        # If we have a lock object and we're the holder, release it
+        if lock is not None and self.is_lock_holder(key, holder):
+            lock.release()
+            del self._locks[lock_name]
+            return
+
+        # If the lock doesn't exist in Redis at all, it's already been released
+        # Just clean up and return without error
+        if not self.is_locked(key):
+            if lock_name in self._locks:
+                del self._locks[lock_name]
+            return
+
+        # We have a real conflict - lock exists in Redis but with a different holder
+        raise ValueError(f"No lock held by {holder} for transaction with key {key}")
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         lock_name = self._lock_name_for_key(key)
