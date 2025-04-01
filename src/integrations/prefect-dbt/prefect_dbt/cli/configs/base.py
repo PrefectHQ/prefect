@@ -100,7 +100,7 @@ class DbtConfigs(Block, abc.ABC):
         Returns:
             A configs JSON.
         """
-        return self._populate_configs_json({}, self.model_fields, model=self)
+        return self._populate_configs_json({}, type(self).model_fields, model=self)
 
 
 class BaseTargetConfigs(DbtConfigs, abc.ABC):
