@@ -15,6 +15,7 @@ describe("DateTimePicker", () => {
 			<DateTimePicker
 				value={MOCK_TIME_ISO}
 				onValueChange={mockOnValueChange}
+				defaultMonth={new Date(2025, 2)}
 			/>,
 		);
 
@@ -23,15 +24,14 @@ describe("DateTimePicker", () => {
 			screen.getByRole("button", { name: /03\/05\/2025 12:00 am/i }),
 		);
 
-		// Click on Thursday April 13th - the calendar displays April by default
 		await user.click(
-			screen.getByRole("button", { name: /sunday, april 13th, 2025/i }),
+			screen.getByRole("button", { name: /thursday, march 13th, 2025/i }),
 		);
 		await user.keyboard("{Escape}");
 
 		// Assert
 		expect(
-			screen.getByRole("button", { name: /04\/13\/2025 12:00 AM/i }),
+			screen.getByRole("button", { name: /03\/13\/2025 12:00 am/i }),
 		).toBeVisible();
 	});
 });
