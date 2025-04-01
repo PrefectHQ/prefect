@@ -52,11 +52,15 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 			<div>
 				<LogLevelBadge level={log.level} />
 			</div>
-			<div>{log.message}</div>
-			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-gray-500">
+			<div className="select-auto whitespace-pre-wrap break-words">
+				{log.message}
+			</div>
+			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-gray-500 truncate">
 				<span>{format(log.timestamp, "pp")}</span>
 				{taskRunName && <span>{taskRunName}</span>}
-				<span className="font-bold">{log.name}</span>
+				<span className="font-bold break-all whitespace-normal">
+					{log.name}
+				</span>
 			</div>
 		</div>
 	);
