@@ -28,18 +28,11 @@ repos:
             src/prefect/events/.*|
             src/prefect/input/.*
           )$
-  - repo: local
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.6.11
     hooks:
-      # https://docs.astral.sh/uv/concepts/projects/sync/#checking-if-the-lockfile-is-up-to-date
-      - id: check-uv-lock
-        name: Check uv.lock
-        language: system
-        entry: uv lock --check
-        pass_filenames: false
-        files: |
-          (?x)^(
-            uv.lock
-          )$
+      - id: uv-lock
 
   - repo: local
     hooks:
