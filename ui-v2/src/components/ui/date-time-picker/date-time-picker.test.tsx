@@ -29,7 +29,7 @@ describe("DateTimePicker", () => {
 		);
 		await user.keyboard("{Escape}");
 
-		// Assert with the correct format that matches the component's actual output
+		// Assert
 		expect(
 			screen.getByRole("button", { name: /04\/13\/2025 12:00 AM/i }),
 		).toBeVisible();
