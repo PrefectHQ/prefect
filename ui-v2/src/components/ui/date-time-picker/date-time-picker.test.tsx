@@ -1,5 +1,3 @@
-"2025-03-05T23:50:36.787Z";
-
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

@@ -1,4 +1,4 @@
-import { createFakeLog } from "@/mocks";
+import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import type { Meta, StoryObj } from "@storybook/react";
 import { RunLogs } from ".";
 
@@ -19,6 +19,16 @@ type Story = StoryObj<typeof RunLogs>;
 export const logs: Story = {
 	name: "RunLogs",
 	args: {
-		logs: Array.from({ length: 3 }, () => createFakeLog()),
+		logs: Array.from({ length: 7 }, () => createFakeLog()).sort((a, b) =>
+			a.timestamp.localeCompare(b.timestamp),
+		),
+		taskRun: createFakeTaskRun(),
+	},
+};
+
+export const noLogs: Story = {
+	args: {
+		logs: [],
+		taskRun: createFakeTaskRun(),
 	},
 };
