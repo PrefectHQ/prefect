@@ -152,11 +152,13 @@ from typing_extensions import Literal, Self
 
 import prefect
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import (
     InfrastructureError,
 )
 from prefect.futures import PrefectFlowRunFuture
 from prefect.states import Pending
+from prefect.tasks import Task
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -813,12 +815,54 @@ class KubernetesWorker(
         )
 
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+
+        flow_run_ctx = FlowRunContext.get()
+        task_run_ctx = TaskRunContext.get()
+
+        if flow_run_ctx or task_run_ctx:
+            from prefect.utilities._engine import dynamic_key_for_task_run
+            from prefect.utilities.engine import collect_task_run_inputs
+
+            # This was called from a flow. Link the flow run as a subflow.
+            task_inputs = {
+                k: await collect_task_run_inputs(v) for k, v in parameters.items()
+            }
+
+            # Generate a task in the parent flow run to represent the result of the subflow
+            dummy_task = Task(
+                name=flow.name,
+                fn=lambda: None,
+                version=flow.version,
+            )
+
+            flow_run_id = (
+                flow_run_ctx.flow_run.id
+                if flow_run_ctx
+                else task_run_ctx.task_run.flow_run_id
+            )
+            dynamic_key = (
+                dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+                if flow_run_ctx
+                else task_run_ctx.task_run.dynamic_key
+            )
+            parent_task_run = await self._client.create_task_run(
+                task=dummy_task,
+                flow_run_id=flow_run_id,
+                dynamic_key=dynamic_key,
+                task_inputs=task_inputs,
+                state=Pending(),
+            )
+            parent_task_run_id = parent_task_run.id
+        else:
+            parent_task_run_id = None
+
         flow_run = await self._client.create_flow_run(
             flow,
             parameters=parameters,
             state=Pending(),
             job_variables=job_variables,
             work_pool_name=self._work_pool.name,
+            parent_task_run_id=parent_task_run_id,
         )
         if task_status is not None:
             # Emit the flow run object to .submit to allow it to return a future as soon as possible
