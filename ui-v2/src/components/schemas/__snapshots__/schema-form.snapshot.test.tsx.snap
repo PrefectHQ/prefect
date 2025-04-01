@@ -20,7 +20,7 @@ exports[`property.type > boolean > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r2g:"
+              for="«r2g»"
             >
               bool (Optional)
             </label>
@@ -35,7 +35,7 @@ exports[`property.type > boolean > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2h:"
+              id="radix-«r2h»"
               type="button"
             >
               <span
@@ -80,7 +80,7 @@ exports[`property.type > boolean > base 1`] = `
             class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             data-slot="switch"
             data-state="unchecked"
-            id=":r2g:"
+            id="«r2g»"
             role="switch"
             type="button"
             value="on"
@@ -118,7 +118,7 @@ exports[`property.type > boolean > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r2p:"
+              for="«r2p»"
             >
               bool (Optional)
             </label>
@@ -133,7 +133,7 @@ exports[`property.type > boolean > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2q:"
+              id="radix-«r2q»"
               type="button"
             >
               <span
@@ -174,14 +174,14 @@ exports[`property.type > boolean > enum 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r2s:"
+            aria-controls="radix-«r2s»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r2p:"
+            id="«r2p»"
             role="combobox"
             type="button"
           >
@@ -233,7 +233,7 @@ exports[`property.type > boolean > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r2m:"
+              for="«r2m»"
             >
               bool (Optional)
             </label>
@@ -248,7 +248,7 @@ exports[`property.type > boolean > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2n:"
+              id="radix-«r2n»"
               type="button"
             >
               <span
@@ -293,7 +293,7 @@ exports[`property.type > boolean > with default 1`] = `
             class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             data-slot="switch"
             data-state="checked"
-            id=":r2m:"
+            id="«r2m»"
             role="switch"
             type="button"
             value="on"
@@ -331,7 +331,7 @@ exports[`property.type > boolean > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r2j:"
+              for="«r2j»"
             >
               bool (Optional)
             </label>
@@ -346,7 +346,7 @@ exports[`property.type > boolean > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2k:"
+              id="radix-«r2k»"
               type="button"
             >
               <span
@@ -391,7 +391,7 @@ exports[`property.type > boolean > with value 1`] = `
             class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             data-slot="switch"
             data-state="checked"
-            id=":r2j:"
+            id="«r2j»"
             role="switch"
             type="button"
             value="on"
@@ -429,7 +429,7 @@ exports[`property.type > integer > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r23:"
+              for="«r23»"
             >
               float (Optional)
             </label>
@@ -444,7 +444,7 @@ exports[`property.type > integer > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r24:"
+              id="radix-«r24»"
               type="button"
             >
               <span
@@ -486,7 +486,7 @@ exports[`property.type > integer > base 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id=":r23:"
+            id="«r23»"
             type="number"
             value=""
           />
@@ -517,7 +517,7 @@ exports[`property.type > integer > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r2c:"
+              for="«r2c»"
             >
               float (Optional)
             </label>
@@ -532,7 +532,7 @@ exports[`property.type > integer > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2d:"
+              id="radix-«r2d»"
               type="button"
             >
               <span
@@ -573,14 +573,14 @@ exports[`property.type > integer > enum 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r2f:"
+            aria-controls="radix-«r2f»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r2c:"
+            id="«r2c»"
             role="combobox"
             type="button"
           >
@@ -632,7 +632,7 @@ exports[`property.type > integer > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r29:"
+              for="«r29»"
             >
               float (Optional)
             </label>
@@ -647,7 +647,7 @@ exports[`property.type > integer > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2a:"
+              id="radix-«r2a»"
               type="button"
             >
               <span
@@ -689,7 +689,7 @@ exports[`property.type > integer > with default 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id=":r29:"
+            id="«r29»"
             type="number"
             value="123"
           />
@@ -720,7 +720,7 @@ exports[`property.type > integer > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r26:"
+              for="«r26»"
             >
               float (Optional)
             </label>
@@ -735,7 +735,7 @@ exports[`property.type > integer > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r27:"
+              id="radix-«r27»"
               type="button"
             >
               <span
@@ -777,7 +777,7 @@ exports[`property.type > integer > with value 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id=":r26:"
+            id="«r26»"
             type="number"
             value="123"
           />
@@ -808,7 +808,7 @@ exports[`property.type > null > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r2t:"
+              for="«r2t»"
             >
               None (Optional)
             </label>
@@ -823,7 +823,7 @@ exports[`property.type > null > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r2u:"
+              id="radix-«r2u»"
               type="button"
             >
               <span
@@ -895,7 +895,7 @@ exports[`property.type > number > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1m:"
+              for="«r1m»"
             >
               float (Optional)
             </label>
@@ -910,7 +910,7 @@ exports[`property.type > number > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1n:"
+              id="radix-«r1n»"
               type="button"
             >
               <span
@@ -952,7 +952,7 @@ exports[`property.type > number > base 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id=":r1m:"
+            id="«r1m»"
             type="number"
             value=""
           />
@@ -983,7 +983,7 @@ exports[`property.type > number > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1v:"
+              for="«r1v»"
             >
               float (Optional)
             </label>
@@ -998,7 +998,7 @@ exports[`property.type > number > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r20:"
+              id="radix-«r20»"
               type="button"
             >
               <span
@@ -1039,14 +1039,14 @@ exports[`property.type > number > enum 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r22:"
+            aria-controls="radix-«r22»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r1v:"
+            id="«r1v»"
             role="combobox"
             type="button"
           >
@@ -1098,7 +1098,7 @@ exports[`property.type > number > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1s:"
+              for="«r1s»"
             >
               float (Optional)
             </label>
@@ -1113,7 +1113,7 @@ exports[`property.type > number > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1t:"
+              id="radix-«r1t»"
               type="button"
             >
               <span
@@ -1155,7 +1155,7 @@ exports[`property.type > number > with default 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id=":r1s:"
+            id="«r1s»"
             type="number"
             value="123.45"
           />
@@ -1186,7 +1186,7 @@ exports[`property.type > number > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1p:"
+              for="«r1p»"
             >
               float (Optional)
             </label>
@@ -1201,7 +1201,7 @@ exports[`property.type > number > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1q:"
+              id="radix-«r1q»"
               type="button"
             >
               <span
@@ -1243,7 +1243,7 @@ exports[`property.type > number > with value 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id=":r1p:"
+            id="«r1p»"
             type="number"
             value="123.45"
           />
@@ -1274,7 +1274,7 @@ exports[`property.type > string >  1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r0:"
+              for="«r0»"
             >
               str (Optional)
             </label>
@@ -1289,7 +1289,7 @@ exports[`property.type > string >  1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1:"
+              id="radix-«r1»"
               type="button"
             >
               <span
@@ -1332,7 +1332,7 @@ exports[`property.type > string >  1`] = `
           <textarea
             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
             data-slot="textarea"
-            id=":r0:"
+            id="«r0»"
             rows="1"
           />
         </fieldset>
@@ -1362,7 +1362,7 @@ exports[`property.type > string > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1a:"
+              for="«r1a»"
             >
               str (Optional)
             </label>
@@ -1377,7 +1377,7 @@ exports[`property.type > string > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1b:"
+              id="radix-«r1b»"
               type="button"
             >
               <span
@@ -1418,14 +1418,14 @@ exports[`property.type > string > enum 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r1d:"
+            aria-controls="radix-«r1d»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r1a:"
+            id="«r1a»"
             role="combobox"
             type="button"
           >
@@ -1477,7 +1477,7 @@ exports[`property.type > string > enum with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1i:"
+              for="«r1i»"
             >
               str (Optional)
             </label>
@@ -1492,7 +1492,7 @@ exports[`property.type > string > enum with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1j:"
+              id="radix-«r1j»"
               type="button"
             >
               <span
@@ -1533,14 +1533,14 @@ exports[`property.type > string > enum with default 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r1l:"
+            aria-controls="radix-«r1l»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r1i:"
+            id="«r1i»"
             role="combobox"
             type="button"
           >
@@ -1592,7 +1592,7 @@ exports[`property.type > string > enum with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r1e:"
+              for="«r1e»"
             >
               str (Optional)
             </label>
@@ -1607,7 +1607,7 @@ exports[`property.type > string > enum with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r1f:"
+              id="radix-«r1f»"
               type="button"
             >
               <span
@@ -1648,14 +1648,14 @@ exports[`property.type > string > enum with value 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r1h:"
+            aria-controls="radix-«r1h»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r1e:"
+            id="«r1e»"
             role="combobox"
             type="button"
           >
@@ -1707,7 +1707,7 @@ exports[`property.type > string > format:date 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r9:"
+              for="«r9»"
             >
               date (Optional)
             </label>
@@ -1722,7 +1722,7 @@ exports[`property.type > string > format:date 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:ra:"
+              id="radix-«ra»"
               type="button"
             >
               <span
@@ -1763,13 +1763,13 @@ exports[`property.type > string > format:date 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:rc:"
+            aria-controls="radix-«rc»"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r9:"
+            id="«r9»"
             type="button"
           >
             <svg
@@ -1832,7 +1832,7 @@ exports[`property.type > string > format:date with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":rh:"
+              for="«rh»"
             >
               date (Optional)
             </label>
@@ -1847,7 +1847,7 @@ exports[`property.type > string > format:date with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:ri:"
+              id="radix-«ri»"
               type="button"
             >
               <span
@@ -1888,13 +1888,13 @@ exports[`property.type > string > format:date with default 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:rk:"
+            aria-controls="radix-«rk»"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":rh:"
+            id="«rh»"
             type="button"
           >
             <svg
@@ -1955,7 +1955,7 @@ exports[`property.type > string > format:date with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":rd:"
+              for="«rd»"
             >
               date (Optional)
             </label>
@@ -1970,7 +1970,7 @@ exports[`property.type > string > format:date with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:re:"
+              id="radix-«re»"
               type="button"
             >
               <span
@@ -2011,13 +2011,13 @@ exports[`property.type > string > format:date with value 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:rg:"
+            aria-controls="radix-«rg»"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":rd:"
+            id="«rd»"
             type="button"
           >
             <svg
@@ -2078,7 +2078,7 @@ exports[`property.type > string > format:date-time 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":rl:"
+              for="«rl»"
             >
               date-time (Optional)
             </label>
@@ -2093,7 +2093,7 @@ exports[`property.type > string > format:date-time 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:rm:"
+              id="radix-«rm»"
               type="button"
             >
               <span
@@ -2134,13 +2134,13 @@ exports[`property.type > string > format:date-time 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:ro:"
+            aria-controls="radix-«ro»"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":rl:"
+            id="«rl»"
             type="button"
           >
             <svg
@@ -2189,7 +2189,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":rt:"
+              for="«rt»"
             >
               date-time (Optional)
             </label>
@@ -2204,7 +2204,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:ru:"
+              id="radix-«ru»"
               type="button"
             >
               <span
@@ -2245,13 +2245,13 @@ exports[`property.type > string > format:date-time with default 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r10:"
+            aria-controls="radix-«r10»"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":rt:"
+            id="«rt»"
             type="button"
           >
             <svg
@@ -2298,7 +2298,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":rp:"
+              for="«rp»"
             >
               date-time (Optional)
             </label>
@@ -2313,7 +2313,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:rq:"
+              id="radix-«rq»"
               type="button"
             >
               <span
@@ -2354,13 +2354,13 @@ exports[`property.type > string > format:date-time with value 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:rs:"
+            aria-controls="radix-«rs»"
             aria-expanded="false"
             aria-haspopup="dialog"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":rp:"
+            id="«rp»"
             type="button"
           >
             <svg
@@ -2407,7 +2407,7 @@ exports[`property.type > string > format:json-string 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r11:"
+              for="«r11»"
             >
               json-string (Optional)
             </label>
@@ -2422,7 +2422,7 @@ exports[`property.type > string > format:json-string 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r12:"
+              id="radix-«r12»"
               type="button"
             >
               <span
@@ -2464,7 +2464,7 @@ exports[`property.type > string > format:json-string 1`] = `
         <fieldset>
           <div
             class="rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring relative"
-            id=":r11:"
+            id="«r11»"
           >
             <div
               class="cm-editor ͼ1 ͼ2 ͼ4 ͼ17 ͼ15"
@@ -2575,7 +2575,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r17:"
+              for="«r17»"
             >
               json-string (Optional)
             </label>
@@ -2590,7 +2590,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r18:"
+              id="radix-«r18»"
               type="button"
             >
               <span
@@ -2632,7 +2632,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
         <fieldset>
           <div
             class="rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring relative"
-            id=":r17:"
+            id="«r17»"
           >
             <div
               class="cm-editor ͼ1 ͼ2 ͼ4 ͼ1d ͼ15"
@@ -2749,7 +2749,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r14:"
+              for="«r14»"
             >
               json-string (Optional)
             </label>
@@ -2764,7 +2764,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r15:"
+              id="radix-«r15»"
               type="button"
             >
               <span
@@ -2806,7 +2806,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
         <fieldset>
           <div
             class="rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring relative"
-            id=":r14:"
+            id="«r14»"
           >
             <div
               class="cm-editor ͼ1 ͼ2 ͼ4 ͼ1a ͼ15"
@@ -2923,7 +2923,7 @@ exports[`property.type > string > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r6:"
+              for="«r6»"
             >
               str (Optional)
             </label>
@@ -2938,7 +2938,7 @@ exports[`property.type > string > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r7:"
+              id="radix-«r7»"
               type="button"
             >
               <span
@@ -2981,7 +2981,7 @@ exports[`property.type > string > with default 1`] = `
           <textarea
             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
             data-slot="textarea"
-            id=":r6:"
+            id="«r6»"
             rows="1"
           >
             foo
@@ -3013,7 +3013,7 @@ exports[`property.type > string > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r3:"
+              for="«r3»"
             >
               str (Optional)
             </label>
@@ -3028,7 +3028,7 @@ exports[`property.type > string > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r4:"
+              id="radix-«r4»"
               type="button"
             >
               <span
@@ -3071,7 +3071,7 @@ exports[`property.type > string > with value 1`] = `
           <textarea
             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
             data-slot="textarea"
-            id=":r3:"
+            id="«r3»"
             rows="1"
           >
             foo
@@ -3103,7 +3103,7 @@ exports[`property.type > unknown > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r30:"
+              for="«r30»"
             >
               Field (Optional)
             </label>
@@ -3118,7 +3118,7 @@ exports[`property.type > unknown > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r31:"
+              id="radix-«r31»"
               type="button"
             >
               <span
@@ -3160,7 +3160,7 @@ exports[`property.type > unknown > base 1`] = `
         <fieldset>
           <div
             class="rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring relative"
-            id=":r30:"
+            id="«r30»"
           >
             <div
               class="cm-editor ͼ1 ͼ2 ͼ4 ͼ1g ͼ15"
@@ -3271,7 +3271,7 @@ exports[`property.type > unknown > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r37:"
+              for="«r37»"
             >
               Field (Optional)
             </label>
@@ -3286,7 +3286,7 @@ exports[`property.type > unknown > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r38:"
+              id="radix-«r38»"
               type="button"
             >
               <span
@@ -3328,7 +3328,7 @@ exports[`property.type > unknown > with default 1`] = `
         <fieldset>
           <div
             class="rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring relative"
-            id=":r37:"
+            id="«r37»"
           >
             <div
               class="cm-editor ͼ1 ͼ2 ͼ4 ͼ1j ͼ15"
@@ -3439,7 +3439,7 @@ exports[`property.type > unknown > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for=":r33:"
+              for="«r33»"
             >
               Field (Optional)
             </label>
@@ -3454,7 +3454,7 @@ exports[`property.type > unknown > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-:r34:"
+              id="radix-«r34»"
               type="button"
             >
               <span
@@ -3495,14 +3495,14 @@ exports[`property.type > unknown > with value 1`] = `
         </div>
         <fieldset>
           <button
-            aria-controls="radix-:r36:"
+            aria-controls="radix-«r36»"
             aria-expanded="false"
             aria-haspopup="dialog"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id=":r33:"
+            id="«r33»"
             role="combobox"
             type="button"
           >
