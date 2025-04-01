@@ -4,10 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { formatDate } from "@/utils/date";
 import humanizeDuration from "humanize-duration";
+import React from "react";
+import { DetailItem } from "./detail-item";
 
 type TaskRun = components["schemas"]["TaskRun"];
 
-type TaskRunDetailsProps = {
+export type TaskRunDetailsProps = {
 	taskRun: TaskRun;
 };
 
@@ -20,9 +22,19 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 		);
 	}
 
+	// Inline helper functions
+	function formatTaskDate(dateString: string | null | undefined): string {
+		if (!dateString) return "N/A";
+		return formatDate(dateString, "dateTimeNumericShort");
+	}
+
+	function formatTaskDuration(seconds: number | null | undefined): string {
+		if (seconds === null || seconds === undefined) return "N/A";
+		return humanizeDuration(seconds, { maxDecimalPoints: 2, units: ["s"] });
+	}
+
 	return (
 		<Card className="flex flex-col gap-4 p-4 text-sm">
-			{/* Flow Run link would go here */}
 			<DetailItem
 				label="Flow Run"
 				value={
@@ -123,8 +135,8 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 					value={
 						taskRun.tags && taskRun.tags.length > 0 ? (
 							<div className="flex flex-wrap gap-2">
-								{taskRun.tags.map((tag) => (
-									<Badge key={tag}>{tag}</Badge>
+								{taskRun.tags.map((tag, index) => (
+									<Badge key={`tag-${index}-${tag}`}>{tag}</Badge>
 								))}
 							</div>
 						) : (
@@ -145,32 +157,3 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 		</Card>
 	);
 };
-
-type DetailItemProps = {
-	label: string;
-	value: React.ReactNode;
-	monospace?: boolean;
-};
-
-const DetailItem = ({ label, value, monospace = false }: DetailItemProps) => {
-	if (value === null || value === undefined) return null;
-
-	return (
-		<div className="flex flex-col gap-1 mb-2">
-			<span className="text-xs text-gray-500">{label}</span>
-			<span className={monospace ? "font-mono text-sm" : "text-sm"}>
-				{value}
-			</span>
-		</div>
-	);
-};
-
-function formatTaskDate(dateString: string | null | undefined): string {
-	if (!dateString) return "N/A";
-	return formatDate(dateString, "dateTimeNumericShort");
-}
-
-function formatTaskDuration(seconds: number | null | undefined): string {
-	if (seconds === null || seconds === undefined) return "N/A";
-	return humanizeDuration(seconds, { maxDecimalPoints: 2, units: ["s"] });
-}

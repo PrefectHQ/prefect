@@ -1,7 +1,7 @@
 import { createFakeTaskRun } from "@/mocks";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TaskRunDetails } from ".";
+import { TaskRunDetails } from "./task-run-details";
 
 describe("TaskRunDetails", () => {
 	it("should display flow run link with task name prefix", () => {
