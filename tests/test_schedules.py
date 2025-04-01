@@ -28,7 +28,7 @@ class TestSchedule:
         assert schedule.rrule is None
         assert schedule.timezone is None
         assert isinstance(schedule.anchor_date, datetime.datetime)
-        assert schedule.day_or is False
+        assert schedule.day_or is True
         assert schedule.active is True
         assert schedule.parameters == {}
 
@@ -38,7 +38,7 @@ class TestCronSchedule:
         schedule = Cron("0 0 * * *")
         assert schedule.cron == "0 0 * * *"
         assert schedule.timezone is None
-        assert schedule.day_or is False
+        assert schedule.day_or is True
         assert schedule.active is True
         assert schedule.parameters == {}
 
@@ -47,13 +47,13 @@ class TestCronSchedule:
         schedule = Cron(
             "0 0 * * *",
             timezone="America/New_York",
-            day_or=True,
+            day_or=False,
             active=False,
             parameters=params,
         )
         assert schedule.cron == "0 0 * * *"
         assert schedule.timezone == "America/New_York"
-        assert schedule.day_or is True
+        assert schedule.day_or is False
         assert schedule.active is False
         assert schedule.parameters == params
 
