@@ -130,7 +130,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         ValueError: If an invalid unit is specified.
     """
     if sys.version_info >= (3, 13):
-        from whenever import TimeDelta, Weekday, ZonedDateTime
+        from whenever import Weekday, ZonedDateTime, days
 
         if not isinstance(dt.tzinfo, ZoneInfo):
             zdt = ZonedDateTime.from_py_datetime(
@@ -150,7 +150,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
             days_till_end_of_week: int = (
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
-            zdt = zdt + TimeDelta(days=days_till_end_of_week)
+            zdt = zdt + days(days_till_end_of_week)
             zdt = zdt.replace(
                 hour=23,
                 minute=59,
