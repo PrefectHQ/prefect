@@ -414,7 +414,7 @@ class State(ObjectBaseModel, Generic[R]):
         database again. The 'timestamp' is reset using the default factory.
         """
         update = {
-            "timestamp": self.model_fields["timestamp"].get_default(),
+            "timestamp": type(self).model_fields["timestamp"].get_default(),
             **(update or {}),
         }
         return super().model_copy(update=update, deep=deep)
