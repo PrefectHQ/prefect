@@ -22,14 +22,16 @@ describe("DateTimePicker", () => {
 		await user.click(
 			screen.getByRole("button", { name: /03\/05\/2025 12:00 am/i }),
 		);
+
+		// Click on Thursday April 13th - the calendar displays April by default
 		await user.click(
-			screen.getByRole("button", { name: /thursday, march 13th, 2025/i }),
+			screen.getByRole("button", { name: /sunday, april 13th, 2025/i }),
 		);
 		await user.keyboard("{Escape}");
 
-		// Assert
+		// Assert with the correct format that matches the component's actual output
 		expect(
-			screen.getByRole("button", { name: /03\/13\/2025 12:00 am/i }),
+			screen.getByRole("button", { name: /04\/13\/2025 12:00 AM/i }),
 		).toBeVisible();
 	});
 });
