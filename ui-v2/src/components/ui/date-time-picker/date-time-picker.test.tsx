@@ -15,6 +15,7 @@ describe("DateTimePicker", () => {
 			<DateTimePicker
 				value={MOCK_TIME_ISO}
 				onValueChange={mockOnValueChange}
+				defaultMonth={new Date(2025, 2)}
 			/>,
 		);
 
@@ -22,6 +23,7 @@ describe("DateTimePicker", () => {
 		await user.click(
 			screen.getByRole("button", { name: /03\/05\/2025 12:00 am/i }),
 		);
+
 		await user.click(
 			screen.getByRole("button", { name: /thursday, march 13th, 2025/i }),
 		);
