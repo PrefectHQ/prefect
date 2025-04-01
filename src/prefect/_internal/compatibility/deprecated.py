@@ -10,6 +10,8 @@ will be calculated 6 months later. Start and end dates are always in the format 
 e.g. Jan 2023.
 """
 
+from __future__ import annotations
+
 import datetime
 import functools
 import sys
@@ -32,7 +34,7 @@ R = TypeVar("R", infer_variance=True)
 M = TypeVar("M", bound=BaseModel)
 T = TypeVar("T")
 
-_AcceptableDate = datetime.datetime | str
+_AcceptableDate: TypeAlias = Optional[Union[datetime.datetime, str]]
 
 DEPRECATED_WARNING = (
     "{name} has been deprecated{when}. It will not be available in new releases after {end_date}."
