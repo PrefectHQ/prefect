@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { formatDate } from "@/utils/date";
 import humanizeDuration from "humanize-duration";
-import React from "react";
 import { DetailItem } from "./detail-item";
 
 type TaskRun = components["schemas"]["TaskRun"];
