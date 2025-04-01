@@ -18,6 +18,7 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
+import dateparser
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
@@ -59,16 +60,11 @@ class PrefectDeprecationWarning(DeprecationWarning):
 def _coerce_datetime(
     dt: Optional[_AcceptableDate],
 ) -> Optional[datetime.datetime]:
-    import dateparser
-
-    if dt is None:
-        return None
-    elif isinstance(dt, str):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-            return dateparser.parse(dt)
-    else:
+    if dt is None or isinstance(dt, datetime.datetime):
         return dt
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        return dateparser.parse(dt)
 
 
 def generate_deprecation_message(
