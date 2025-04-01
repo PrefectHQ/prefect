@@ -17,9 +17,10 @@ function Calendar({
 	className,
 	classNames,
 	showOutsideDays = true,
+	defaultMonth,
 	...props
 }: CalendarProps) {
-	const [month, setMonth] = useState(new Date());
+	const [month, setMonth] = useState(defaultMonth ?? new Date());
 
 	return (
 		<DayPicker
