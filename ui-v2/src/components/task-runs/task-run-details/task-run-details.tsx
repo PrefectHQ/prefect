@@ -1,7 +1,7 @@
 import type { components } from "@/api/prefect";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
+import { TagBadge } from "@/components/ui/tag-badge";
 import { formatDate } from "@/utils/date";
 import humanizeDuration from "humanize-duration";
 
@@ -17,11 +17,11 @@ function formatTaskDuration(seconds: number | null | undefined): string {
 	return humanizeDuration(seconds, { maxDecimalPoints: 2, units: ["s"] });
 }
 
-export type TaskRunsDetailsProps = {
+export type TaskRunDetailsProps = {
 	taskRun: TaskRun | null | undefined;
 };
 
-export const TaskRuns = ({ taskRun }: TaskRunsDetailsProps) => {
+export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 	if (!taskRun) {
 		return (
 			<div className="flex flex-col gap-2 bg-gray-100 p-4 rounded-md">
@@ -165,9 +165,9 @@ export const TaskRuns = ({ taskRun }: TaskRunsDetailsProps) => {
 					<dt className="text-xs text-gray-500">Tags</dt>
 					<dd className="text-sm">
 						{taskRun.tags && taskRun.tags.length > 0 ? (
-							<div className="flex flex-wrap gap-2">
-								{taskRun.tags.map((tag, index) => (
-									<Badge key={`tag-${index}-${tag}`}>{tag}</Badge>
+							<div className="flex flex-wrap gap-1">
+								{taskRun.tags.map((tag) => (
+									<TagBadge key={tag} tag={tag} />
 								))}
 							</div>
 						) : (
