@@ -65,7 +65,6 @@ describe("RunFlowButton", () => {
 		const MOCK_DEPLOYMENT = createFakeDeployment({
 			id: "0",
 			parameters: {
-				// @ts-expect-error Need to update schema type
 				paramKey: "paramValue",
 			},
 		});

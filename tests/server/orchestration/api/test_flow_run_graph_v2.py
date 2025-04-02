@@ -1484,7 +1484,7 @@ async def test_missing_flow_run_returns_404(
     assert response.status_code == 404, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY, flow_run_id=flow_run_id, since=DateTime.min
+        session=mock.ANY, flow_run_id=flow_run_id, since=datetime.datetime.min
     )
 
 
@@ -1499,7 +1499,7 @@ async def test_api_full(
     assert response.status_code == 200, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY, flow_run_id=flow_run_id, since=DateTime.min
+        session=mock.ANY, flow_run_id=flow_run_id, since=datetime.datetime.min
     )
     assert response.json() == graph.model_dump(mode="json")
 
