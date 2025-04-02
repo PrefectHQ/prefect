@@ -129,17 +129,17 @@ If your use case is geared towards communicating with Prefect Cloud or a remote 
 Join a thriving community of over 25,000 practitioners who solve data challenges with Prefect. Prefect's community is built on collaboration, technical innovation, and continuous improvement.
 
 ### Community Resources
-🌐 **Explore the Documentation** - Comprehensive guides and API references  
-💬 **Join the Slack Community** - Connect with thousands of practitioners  
-🧠 **Discourse Forum** - Knowledge base built by the community  
-🤝 **Contribute to Prefect** - Help shape the future of the project  
-🔌 **Support or create a new Prefect integration** - Extend Prefect's capabilities
+🌐 **[Explore the Documentation](https://docs.prefect.io)** - Comprehensive guides and API references  
+💬 **[Join the Slack Community](https://prefect.io/slack)** - Connect with thousands of practitioners  
+🧠 **[Discourse Forum](https://discourse.prefect.io)** - Knowledge base built by the community  
+🤝 **[Contribute to Prefect](https://github.com/PrefectHQ/prefect)** - Help shape the future of the project  
+🔌 **[Support or create a new Prefect integration](https://docs.prefect.io/contribute/contribute-integrations)** - Extend Prefect's capabilities
 
 ### Stay Informed
-📥 **Subscribe to our Newsletter** - Get the latest Prefect news and updates  
-📣 **Twitter/X** - Latest updates and announcements  
-📺 **YouTube** - Video tutorials and webinars  
-📱 **LinkedIn** - Professional networking and company news  
+📥 **[Subscribe to our Newsletter](https://prefect.io/newsletter)** - Get the latest Prefect news and updates  
+📣 **[Twitter/X](https://x.com/PrefectIO)** - Latest updates and announcements  
+📺 **[YouTube](https://www.youtube.com/@PrefectIO)** - Video tutorials and webinars  
+📱 **[LinkedIn](https://www.linkedin.com/company/prefect)** - Professional networking and company news  
 
 Your contributions, questions, and ideas make Prefect better every day. Whether you're reporting bugs, suggesting features, or improving documentation, your input is invaluable to the Prefect community.
 
