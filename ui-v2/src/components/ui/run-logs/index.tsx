@@ -30,14 +30,14 @@ export const RunLogs = ({ logs, taskRun }: RunLogsProps) => {
 		);
 	}
 	return (
-		<div className="flex flex-col gap-4 bg-gray-100 p-2 rounded-md font-mono">
+		<ol className="flex flex-col gap-4 bg-gray-100 p-2 rounded-md font-mono">
 			{logs.map((log, index) => (
 				<Fragment key={log.id}>
 					{showDivider(index) && <LogDivider date={new Date(log.timestamp)} />}
 					<RunLogRow key={log.id} log={log} taskRunName={taskRun?.name} />
 				</Fragment>
 			))}
-		</div>
+		</ol>
 	);
 };
 
@@ -48,7 +48,7 @@ type RunLogRowProps = {
 
 const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 	return (
-		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm">
+		<li className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm">
 			<div>
 				<LogLevelBadge level={log.level} />
 			</div>
@@ -62,7 +62,7 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 					{log.name}
 				</span>
 			</div>
-		</div>
+		</li>
 	);
 };
 
