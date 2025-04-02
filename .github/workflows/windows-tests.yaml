@@ -1,7 +1,7 @@
 name: Windows Tests
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   # pull_request:
   #   branches:
   #   paths:

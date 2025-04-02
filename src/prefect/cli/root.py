@@ -107,16 +107,17 @@ async def version(
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
-    date = prefect.__version_info__["date"]
-    if date is None:
-        date = "unknown"
+    if build_date_str := prefect.__version_info__.get("date", None):
+        build_date = parse_datetime(build_date_str).strftime("%a, %b %d, %Y %I:%M %p")
+    else:
+        build_date = "unknown"
 
     version_info: dict[str, Any] = {
         "Version": prefect.__version__,
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
-        "Built": parse_datetime(date).strftime("%a, %b %d, %Y %I:%M %p"),
+        "Built": build_date,
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
