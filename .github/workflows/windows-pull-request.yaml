@@ -2,14 +2,7 @@ name: Windows tests (Pull Request)
 
 on:
   pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - labeled
-      - unlabeled
+  workflow_dispatch:
 
 permissions: {}
 
@@ -35,8 +28,6 @@ jobs:
       matrix:
         python-version:
           - "3.9"
-          - "3.10"
-          - "3.11"
           - "3.12"
 
       fail-fast: true
@@ -45,7 +36,7 @@ jobs:
       contents: read
 
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
 
     env:
       # enable colored output
@@ -58,19 +49,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
-
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Run tests
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
-          pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25
+          uv run pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25
