@@ -10,7 +10,7 @@ import { toast } from "sonner";
 export const usePauseWorkPool = () => {
 	const queryClient = useQueryClient();
 
-	return useMutation({
+	const { mutate: pauseWorkPool, ...rest } = useMutation({
 		mutationFn: async (name: string) => {
 			await getQueryService().PATCH("/work_pools/{name}", {
 				params: { path: { name } },
@@ -32,6 +32,8 @@ export const usePauseWorkPool = () => {
 			);
 		},
 	});
+
+	return { pauseWorkPool, ...rest };
 };
 
 /**
@@ -41,7 +43,7 @@ export const usePauseWorkPool = () => {
 export const useResumeWorkPool = () => {
 	const queryClient = useQueryClient();
 
-	return useMutation({
+	const { mutate: resumeWorkPool, ...rest } = useMutation({
 		mutationFn: async (name: string) => {
 			await getQueryService().PATCH("/work_pools/{name}", {
 				params: { path: { name } },
@@ -63,6 +65,8 @@ export const useResumeWorkPool = () => {
 			);
 		},
 	});
+
+	return { resumeWorkPool, ...rest };
 };
 
 /**
@@ -72,7 +76,7 @@ export const useResumeWorkPool = () => {
 export const useDeleteWorkPool = () => {
 	const queryClient = useQueryClient();
 
-	return useMutation({
+	const { mutate: deleteWorkPool, ...rest } = useMutation({
 		mutationFn: async (name: string) => {
 			await getQueryService().DELETE("/work_pools/{name}", {
 				params: { path: { name } },
@@ -88,4 +92,6 @@ export const useDeleteWorkPool = () => {
 			);
 		},
 	});
+
+	return { deleteWorkPool, ...rest };
 };

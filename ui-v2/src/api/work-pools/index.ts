@@ -5,7 +5,4 @@ export {
 	buildFilterWorkPoolsQuery,
 	buildCountWorkPoolsQuery,
 	buildWorkPoolDetailsQuery,
-	pauseWorkPool,
-	resumeWorkPool,
-	deleteWorkPool,
 } from "./work-pools";
