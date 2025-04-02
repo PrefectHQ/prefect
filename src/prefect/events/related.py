@@ -44,21 +44,17 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
 
 
 def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
+    if as_related_resource := getattr(object, "as_related_resource", None):
+        return as_related_resource(role=role)
+
     resource_id = f"prefect.{kind}.{object.id}"
-
-    labels = {
-        "prefect.resource.id": resource_id,
-        "prefect.resource.role": role,
-        "prefect.resource.name": object.name,
-    }
-
-    if role == "deployment":
-        from prefect.client.schemas.responses import DeploymentResponse
-
-        if isinstance(object, DeploymentResponse):
-            return object.as_related_resource("deployment")
-
-    return RelatedResource(labels)
+    return RelatedResource(
+        {
+            "prefect.resource.id": resource_id,
+            "prefect.resource.role": role,
+            "prefect.resource.name": object.name,
+        }
+    )
 
 
 async def related_resources_from_run_context(

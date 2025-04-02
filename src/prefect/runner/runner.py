@@ -1158,7 +1158,7 @@ class Runner:
 
         flow, deployment = await self._get_flow_and_deployment(flow_run)
         if deployment:
-            related.append(deployment.as_related_resource("deployment"))
+            related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
         if flow:
             related.append(
@@ -1203,7 +1203,7 @@ class Runner:
         related: list[RelatedResource] = []
         tags: list[str] = []
         if deployment:
-            related.append(deployment.as_related_resource("deployment"))
+            related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
         if flow:
             related.append(

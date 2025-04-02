@@ -429,7 +429,7 @@ class DeploymentResponse(ObjectBaseModel):
         description="Current status of the deployment.",
     )
 
-    def as_related_resource(self, role: str) -> "RelatedResource":
+    def as_related_resource(self, role: str = "deployment") -> "RelatedResource":
         from prefect.events.schemas.events import RelatedResource
 
         labels = {
