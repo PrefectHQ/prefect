@@ -747,18 +747,18 @@ async def test_counting_by_time_per_week(
     # Since we compute weeks based on the week starting on Monday it's possible
     # for this test to either encounter a single week or two weeks depending
     # on what day of the week it's run.
-    counts_by_week = {}
+    counts_by_week: dict[datetime.datetime, int] = {}
     for date in known_dates:
-        start_day = DateTime(
+        start_day = datetime.datetime(
             year=date.year, month=date.month, day=date.day, tzinfo=ZoneInfo("UTC")
         )
         # go to the start of the week
-        start_day = start_day.replace(day=start_day.day - start_day.weekday())
+        start_day = start_day - datetime.timedelta(days=start_day.weekday())
         if start_day not in counts_by_week:
             counts_by_week[start_day] = 0
         counts_by_week[start_day] += 20  # We generate 20 events per known date
 
-    expected = []
+    expected: list[EventCount] = []
     for i, (date, count) in enumerate(counts_by_week.items()):
         expected.append(
             EventCount(
