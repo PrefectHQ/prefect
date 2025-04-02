@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import (
         ConcurrencyOptions,
         DeploymentSchedule,
+        VersionInfo,
     )
     from prefect.client.schemas.responses import (
         DeploymentResponse,
@@ -48,6 +49,7 @@ class DeploymentClient(BaseClient):
         flow_id: "UUID",
         name: str,
         version: str | None = None,
+        version_info: "VersionInfo" | None = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,
@@ -99,6 +101,7 @@ class DeploymentClient(BaseClient):
             flow_id=flow_id,
             name=name,
             version=version,
+            version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
@@ -593,6 +596,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         flow_id: "UUID",
         name: str,
         version: str | None = None,
+        version_info: "VersionInfo" | None = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,
@@ -644,6 +648,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             flow_id=flow_id,
             name=name,
             version=version,
+            version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
