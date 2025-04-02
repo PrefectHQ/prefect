@@ -109,6 +109,7 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
             # duo mfa / sso
             "authenticator": "authenticator",
             # key pair
+            "private_key": "private_key",
             "private_key_path": "private_key_path",
             "private_key_passphrase": "private_key_passphrase",
             # optional
@@ -127,5 +128,10 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
                 continue
             # rename key to something dbt profile expects
             dbt_key = rename_keys.get(key) or key
+            value = all_configs_json[key]
+            if key == "private_key":
+                #  SnowflakeCredentials stores private_key as SecretBytes
+                value = value.decode()
+            configs_json[dbt_key] = value
             configs_json[dbt_key] = all_configs_json[key]
         return configs_json
