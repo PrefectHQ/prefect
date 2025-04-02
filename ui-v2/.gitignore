@@ -29,3 +29,6 @@ oss_schema.json
 *.tsbuildinfo
 *storybook.log
 *.orig
+
+# Log code
+!src/api/logs/
