@@ -1,7 +1,7 @@
 import { WorkPool } from "@/api/work-pools";
+import { useDeleteWorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useDeleteWorkPool } from "@/hooks/work-pools";
 import { toast } from "sonner";
 import { WorkPoolContextMenu } from "./components/work-pool-context-menu";
 import { WorkPoolName } from "./components/work-pool-name";

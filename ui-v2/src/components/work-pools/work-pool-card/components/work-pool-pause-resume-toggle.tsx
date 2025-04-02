@@ -1,7 +1,6 @@
 import { WorkPool } from "@/api/work-pools";
+import { usePauseWorkPool, useResumeWorkPool } from "@/api/work-pools";
 import { Switch } from "@/components/ui/switch";
-import { useResumeWorkPool } from "@/hooks/work-pools";
-import { usePauseWorkPool } from "@/hooks/work-pools";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 export type WorkPoolPauseResumeToggleParams = {
