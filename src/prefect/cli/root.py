@@ -7,7 +7,7 @@ import platform
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
-from typing import Any, Dict
+from typing import Any
 
 import typer
 
@@ -111,7 +111,7 @@ async def version(
     if date is None:
         date = "unknown"
 
-    version_info = {
+    version_info: dict[str, Any] = {
         "Version": prefect.__version__,
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
@@ -145,21 +145,26 @@ async def version(
     display(version_info)
 
 
-def get_prefect_integrations() -> Dict[str, str]:
+def get_prefect_integrations() -> dict[str, str]:
     """Get information about installed Prefect integrations."""
     from importlib.metadata import distributions
 
-    integrations = {}
+    integrations: dict[str, str] = {}
     for dist in distributions():
         if dist.metadata["Name"].startswith("prefect-"):
             author_email = dist.metadata.get("Author-email", "").strip()
             if author_email.endswith("@prefect.io>"):
+                if (  # TODO: remove clause after updating `prefect-client` packaging config
+                    dist.metadata["Name"] == "prefect-client"
+                    and dist.version == "0.0.0"
+                ):
+                    continue
                 integrations[dist.metadata["Name"]] = dist.version
 
     return integrations
 
 
-def display(object: Dict[str, Any], nesting: int = 0) -> None:
+def display(object: dict[str, Any], nesting: int = 0) -> None:
     """Recursive display of a dictionary with nesting."""
     for key, value in object.items():
         key += ":"
