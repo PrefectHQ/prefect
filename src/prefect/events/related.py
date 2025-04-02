@@ -33,7 +33,7 @@ RESOURCE_CACHE: RelatedResourceCache = {}
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
     return [
-        RelatedResource.model_validate(
+        RelatedResource(
             {
                 "prefect.resource.id": f"prefect.tag.{tag}",
                 "prefect.resource.role": "tag",
@@ -44,9 +44,11 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
 
 
 def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
-    resource_id = f"prefect.{kind}.{object.id}"
+    if as_related_resource := getattr(object, "as_related_resource", None):
+        return as_related_resource(role=role)
 
-    return RelatedResource.model_validate(
+    resource_id = f"prefect.{kind}.{object.id}"
+    return RelatedResource(
         {
             "prefect.resource.id": resource_id,
             "prefect.resource.role": role,

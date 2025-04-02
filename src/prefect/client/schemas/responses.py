@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, ClassVar, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, TypeVar, Union
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -11,6 +11,9 @@ from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect.types import DateTime, KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
+
+if TYPE_CHECKING:
+    from prefect.events.schemas.events import RelatedResource
 
 T = TypeVar("T")
 
@@ -308,6 +311,12 @@ class DeploymentResponse(ObjectBaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
+    version_id: Optional[UUID] = Field(
+        default=None, description="The ID of the current version of the deployment."
+    )
+    version_info: Optional[objects.VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
+    )
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
     )
@@ -419,6 +428,22 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="Current status of the deployment.",
     )
+
+    def as_related_resource(self, role: str = "deployment") -> "RelatedResource":
+        from prefect.events.schemas.events import RelatedResource
+
+        labels = {
+            "prefect.resource.id": f"prefect.deployment.{self.id}",
+            "prefect.resource.role": role,
+            "prefect.resource.name": self.name,
+        }
+
+        if self.version_id and self.version_info:
+            labels["prefect.deployment.version-id"] = str(self.version_id)
+            labels["prefect.deployment.version-type"] = self.version_info.type
+            labels["prefect.deployment.version"] = self.version_info.version
+
+        return RelatedResource(labels)
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
