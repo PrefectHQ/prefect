@@ -9,9 +9,9 @@ except ImportError:
 from pydantic import VERSION as PYDANTIC_VERSION
 
 if PYDANTIC_VERSION.startswith("2."):
-    from pydantic.v1 import Field
+    from pydantic.v1 import Field, SecretBytes
 else:
-    from pydantic import Field
+    from pydantic import Field, SecretBytes
 
 from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
@@ -129,7 +129,7 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
             # rename key to something dbt profile expects
             dbt_key = rename_keys.get(key) or key
             value = all_configs_json[key]
-            if key == "private_key":
+            if key == "private_key" and isinstance(value, SecretBytes):
                 #  SnowflakeCredentials stores private_key as SecretBytes
                 value = value.decode()
             configs_json[dbt_key] = value
