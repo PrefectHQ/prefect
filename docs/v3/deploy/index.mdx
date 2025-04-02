@@ -16,7 +16,7 @@ Key features of deployments include:
 
 One of the core use cases for creating a deployment is to run flows on a schedule. However, deployments do not create or schedule flow runs. 
 If a deployment specifies a schedule, a Prefect server (or Prefect Cloud) creates and schedules flow runs. 
-A lightweight polling process called a [worker](/v3/deploy/infrastructure-concepts/workers/) polls the server for scheduled runs and submits those flow runs as jobs to your infrastructure.
+A lightweight polling process called a [worker](/v3/deploy/infrastructure-concepts/workers/) polls the server for scheduled runs and submits those flow runs to your infrastructure.
 
 Workers submit additional information to infrastructure with default values specified by a required job configuration, called a [work pool](/v3/deploy/infrastructure-concepts/work-pools/). 
 Work pools have a 1:1 relationship with workers, and are the primary concept used to describe a deployment's relationship to infrastructure. Deployments can override the work pool's default values as needed. By default, each work pool has a single [work queue](/v3/deploy/infrastructure-concepts/work-pools#work-queues) that controls priority and concurrency of run execution. Create one or more work queues if you need more precise control.
