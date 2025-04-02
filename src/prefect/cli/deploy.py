@@ -77,6 +77,7 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+from prefect.version_info_types import get_inferred_version_info
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -266,6 +267,27 @@ async def deploy(
     version: str = typer.Option(
         None, "--version", help="A version to give the deployment."
     ),
+    version_info: str = typer.Option(
+        None,
+        "--version-info",
+        help="Version information for the deployment, minimally including"
+        " 'type', 'branch', 'version', and 'url'.",
+    ),
+    version_branch: str = typer.Option(
+        None,
+        "--version-branch",
+        help="The name of the branch to use for this deployment version.",
+    ),
+    version_type: str = typer.Option(
+        None,
+        "--version-type",
+        help="The type of version to use for this deployment.",
+    ),
+    promote_to_live: bool = typer.Option(
+        False,
+        "--promote-to-live",
+        help="Set this version of the deployment as the live version.",
+    ),
     tags: List[str] = typer.Option(
         None,
         "-t",
@@ -415,6 +437,10 @@ async def deploy(
         "entrypoint": entrypoint,
         "description": description,
         "version": version,
+        "version_info": version_info,
+        "version_branch": version_branch,
+        "version_type": version_type,
+        "promote_to_live": promote_to_live,
         "tags": tags,
         "concurrency_limit": concurrency_limit_config,
         "work_pool_name": work_pool_name,
@@ -762,7 +788,44 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    apply_coro = deployment.apply()
+    version_type = options.get("version_type")
+    promote_to_live = options.get("promote_to_live")
+
+    if version_type:
+        app.console.print(f"Inferring version info for {version_type}...")
+        version_info = await get_inferred_version_info(version_type)
+
+    else:
+        version_info = options.get(
+            "version_info", deploy_config.get("version_info", {})
+        )
+
+    if isinstance(version_info, str):
+        version_info = json.loads(version_info)
+    else:
+        version_info = version_info.model_dump()
+
+    if version_info and version_type:
+        if version_info.get("type") != version_type:
+            app.console.print(
+                f"Multiple version types provided: using '{version_type}'"
+            )
+
+        version_info["type"] = version_type
+
+    version_branch = options.get("version_branch")
+    if version_info and version_branch:
+        if version_info.get("branch") != version_branch:
+            app.console.print(
+                f"Multiple version branches provided: using '{version_branch}'"
+            )
+
+        version_info["branch"] = version_branch
+
+    app.console.print(f"Version info: {version_info}")
+    apply_coro = deployment.apply(
+        version_info=version_info, promote_to_live=promote_to_live
+    )
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 
