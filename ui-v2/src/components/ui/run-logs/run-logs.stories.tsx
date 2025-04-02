@@ -22,7 +22,7 @@ export const logs: Story = {
 			a.timestamp.localeCompare(b.timestamp),
 		),
 		taskRun: createFakeTaskRun(),
-		bottomReached: fn(),
+		onBottomReached: fn(),
 	},
 };
 
@@ -30,6 +30,6 @@ export const noLogs: Story = {
 	args: {
 		logs: [],
 		taskRun: createFakeTaskRun(),
-		bottomReached: fn(),
+		onBottomReached: fn(),
 	},
 };
