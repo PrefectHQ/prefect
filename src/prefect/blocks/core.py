@@ -12,7 +12,6 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Coroutine,
     FrozenSet,
@@ -1513,8 +1512,6 @@ class Block(BaseModel, ABC):
         strict: bool | None = None,
         from_attributes: bool | None = None,
         context: dict[str, Any] | None = None,
-        by_alias: bool | None = None,
-        by_name: bool | None = None,
     ) -> Self:
         if isinstance(obj, dict):
             obj = cast(dict[str, Any], obj)
@@ -1531,8 +1528,6 @@ class Block(BaseModel, ABC):
             strict=strict,
             from_attributes=from_attributes,
             context=context,
-            by_alias=by_alias,
-            by_name=by_name,
         )
 
     def model_dump(
@@ -1542,14 +1537,13 @@ class Block(BaseModel, ABC):
         include: "IncEx | None" = None,
         exclude: "IncEx | None" = None,
         context: dict[str, Any] | None = None,
-        by_alias: bool | None = None,
+        by_alias: bool = False,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
         round_trip: bool = False,
         warnings: bool | Literal["none", "warn", "error"] = True,
         serialize_as_any: bool = False,
-        fallback: Callable[[Any], Any] | None = None,
     ) -> dict[str, Any]:
         d = super().model_dump(
             mode=mode,
@@ -1563,7 +1557,6 @@ class Block(BaseModel, ABC):
             round_trip=round_trip,
             warnings=warnings,
             serialize_as_any=serialize_as_any,
-            fallback=fallback,
         )
 
         extra_serializer_fields = {
