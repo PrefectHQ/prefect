@@ -181,12 +181,12 @@ async def update_flow_run(
 
 @router.post("/count")
 async def count_flow_runs(
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -279,12 +279,12 @@ async def flow_run_history(
         json_schema_extra={"format": "time-delta"},
         alias="history_interval_seconds",
     ),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
@@ -293,6 +293,7 @@ async def flow_run_history(
     if isinstance(history_interval, float):
         history_interval = datetime.timedelta(seconds=history_interval)
 
+    assert isinstance(history_interval, datetime.timedelta)
     if history_interval < datetime.timedelta(seconds=1):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -351,8 +352,8 @@ async def read_flow_run_graph_v1(
 @router.get("/{id:uuid}/graph-v2", tags=["Flow Run Graph"])
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    since: DateTime = Query(
-        default=jsonable_encoder(DateTime.min),
+    since: datetime.datetime = Query(
+        default=jsonable_encoder(datetime.datetime.min),
         description="Only include runs that start or end after this time.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
