@@ -16,7 +16,7 @@ describe("RunLogs", () => {
 		];
 		const mockBottomReached = vi.fn();
 		const screen = render(
-			<RunLogs logs={logs} bottomReached={mockBottomReached} />,
+			<RunLogs logs={logs} onBottomReached={mockBottomReached} />,
 		);
 
 		expect(screen.getByText("CRITICAL")).toBeVisible();
@@ -29,20 +29,20 @@ describe("RunLogs", () => {
 		fireEvent.scroll(screen.getByRole("log"), { target: { scrollTop: 500 } });
 		expect(screen.getByText("CUSTOM")).toBeVisible();
 
-		// Check that bottomReached is called
+		// Check that onBottomReached is called
 		expect(mockBottomReached).toHaveBeenCalled();
 	});
 
 	it("should display a log message", () => {
 		const log = createFakeLog({ message: "Hello, world!" });
-		const screen = render(<RunLogs logs={[log]} bottomReached={vi.fn()} />);
+		const screen = render(<RunLogs logs={[log]} onBottomReached={vi.fn()} />);
 
 		expect(screen.getByText("Hello, world!")).toBeVisible();
 	});
 
 	it("should display a log day and time", () => {
 		const log = createFakeLog({ timestamp: "2021-01-01T00:00:00.000Z" });
-		const screen = render(<RunLogs logs={[log]} bottomReached={vi.fn()} />);
+		const screen = render(<RunLogs logs={[log]} onBottomReached={vi.fn()} />);
 
 		expect(screen.getByText("Jan 1, 2021")).toBeVisible();
 		expect(screen.getByText("12:00:00 AM")).toBeVisible();
@@ -56,7 +56,7 @@ describe("RunLogs", () => {
 			name: "test_task",
 		});
 		const screen = render(
-			<RunLogs logs={[log]} taskRun={taskRun} bottomReached={vi.fn()} />,
+			<RunLogs logs={[log]} taskRun={taskRun} onBottomReached={vi.fn()} />,
 		);
 
 		expect(screen.getByText("test_task")).toBeVisible();
@@ -67,7 +67,7 @@ describe("RunLogs", () => {
 		const log1 = createFakeLog({ timestamp: "2021-01-01T00:00:00.000Z" });
 		const log2 = createFakeLog({ timestamp: "2021-01-02T00:00:00.000Z" });
 		const screen = render(
-			<RunLogs logs={[log1, log2]} bottomReached={vi.fn()} />,
+			<RunLogs logs={[log1, log2]} onBottomReached={vi.fn()} />,
 		);
 
 		expect(screen.getByText("Jan 1, 2021")).toBeVisible();

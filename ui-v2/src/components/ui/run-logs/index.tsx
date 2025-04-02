@@ -9,7 +9,7 @@ import { useEffect, useRef } from "react";
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
 	taskRun?: components["schemas"]["TaskRun"];
-	bottomReached: () => void;
+	onBottomReached: () => void;
 };
 
 /**
@@ -17,10 +17,10 @@ type RunLogsProps = {
  *
  * @param logs - Array of log entries to display
  * @param taskRun - Optional task run information to display with logs
- * @param bottomReached - Callback function triggered when the user scrolls to the bottom of the logs
+ * @param onBottomReached - Callback function triggered when the user scrolls to the bottom of the logs
  *
  */
-export const RunLogs = ({ logs, taskRun, bottomReached }: RunLogsProps) => {
+export const RunLogs = ({ logs, taskRun, onBottomReached }: RunLogsProps) => {
 	const parentRef = useRef<HTMLDivElement>(null);
 	const virtualizer = useVirtualizer({
 		count: logs.length,
@@ -43,9 +43,9 @@ export const RunLogs = ({ logs, taskRun, bottomReached }: RunLogsProps) => {
 		}
 
 		if (lastItem.index >= logs.length - 1) {
-			bottomReached();
+			onBottomReached();
 		}
-	}, [logs.length, virtualItems, bottomReached]);
+	}, [logs.length, virtualItems, onBottomReached]);
 
 	const showDivider = (index: number): boolean => {
 		if (index === 0) {
