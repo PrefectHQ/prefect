@@ -131,9 +131,8 @@ Join a thriving community of over 25,000 practitioners who solve data challenges
 ### Community Resources
 🌐 **[Explore the Documentation](https://docs.prefect.io)** - Comprehensive guides and API references  
 💬 **[Join the Slack Community](https://prefect.io/slack)** - Connect with thousands of practitioners  
-🧠 **[Discourse Forum](https://discourse.prefect.io)** - Knowledge base built by the community  
 🤝 **[Contribute to Prefect](https://docs.prefect.io/contribute/)** - Help shape the future of the project  
-🔌 **[Support or create a new Prefect integration](https://docs.prefect.io/contribute/contribute-integrations)** - Extend Prefect's capabilities
+ 🔌 **[Support or create a new Prefect integration](https://docs.prefect.io/contribute/contribute-integrations)** - Extend Prefect's capabilities
 
 ### Stay Informed
 📥 **[Subscribe to our Newsletter](https://prefect.io/newsletter)** - Get the latest Prefect news and updates  
