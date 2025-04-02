@@ -32,8 +32,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-// Flow states with display names
-const FLOW_STATES = {
+const FLOW_RUN_STATES = {
 	COMPLETED: "Completed",
 	RUNNING: "Running",
 	SCHEDULED: "Scheduled",
@@ -47,10 +46,12 @@ const FLOW_STATES = {
 	components["schemas"]["StateType"],
 	Capitalize<Lowercase<components["schemas"]["StateType"]>>
 >;
-type FlowStates = keyof typeof FLOW_STATES;
+type FlowRunStates = keyof typeof FLOW_RUN_STATES;
 
 const formSchema = z.object({
-	state: z.enum(Object.keys(FLOW_STATES) as [FlowStates, ...FlowStates[]]),
+	state: z.enum(
+		Object.keys(FLOW_RUN_STATES) as [FlowRunStates, ...FlowRunStates[]],
+	),
 	message: z.string().optional().default(""),
 	force: z.boolean().default(false),
 });
@@ -72,11 +73,11 @@ export const FlowRunStateDialog = ({
 	const { setFlowRunState } = useSetFlowRunState();
 
 	// Find first state that is not the current state for default value
-	const getDefaultState = (): FlowStates => {
+	const getDefaultState = (): FlowRunStates => {
 		if (!flowRun.state?.type) return "PENDING";
 
 		const currentState = flowRun.state.type;
-		const allStates = Object.keys(FLOW_STATES) as FlowStates[];
+		const allStates = Object.keys(FLOW_RUN_STATES) as FlowRunStates[];
 
 		const alternativeState = allStates.find((state) => state !== currentState);
 		return alternativeState || "PENDING";
@@ -91,22 +92,18 @@ export const FlowRunStateDialog = ({
 		},
 	});
 
-	// Get the current state from the form
 	const selectedState = form.watch("state");
 	const isCurrentState = selectedState === flowRun.state?.type;
 
-	// Check if form can be submitted (state has changed)
 	const isSubmitDisabled = isSubmitting || isCurrentState;
 
 	const onSubmit = (values: FlowRunStateFormValues) => {
-		// Don't submit if the state hasn't changed
 		if (isCurrentState) {
 			return;
 		}
 
 		setIsSubmitting(true);
 
-		// Make the API call to change the state
 		setFlowRunState(
 			{
 				id: flowRun.id,
@@ -121,7 +118,7 @@ export const FlowRunStateDialog = ({
 							Flow run state changed to{" "}
 							<StateBadge
 								type={values.state}
-								name={FLOW_STATES[values.state]}
+								name={FLOW_RUN_STATES[values.state]}
 							/>
 						</div>,
 					);
@@ -179,14 +176,14 @@ export const FlowRunStateDialog = ({
 													{field.value && (
 														<StateBadge
 															type={field.value}
-															name={FLOW_STATES[field.value]}
+															name={FLOW_RUN_STATES[field.value]}
 														/>
 													)}
 												</SelectValue>
 											</SelectTrigger>
 											<SelectContent className="w-full min-w-[300px]">
 												<SelectGroup>
-													{Object.keys(FLOW_STATES).map((key) => (
+													{Object.keys(FLOW_RUN_STATES).map((key) => (
 														<SelectItem
 															key={key}
 															value={key}
@@ -195,7 +192,7 @@ export const FlowRunStateDialog = ({
 														>
 															<StateBadge
 																type={key as components["schemas"]["StateType"]}
-																name={FLOW_STATES[key as FlowStates]}
+																name={FLOW_RUN_STATES[key as FlowRunStates]}
 															/>
 														</SelectItem>
 													))}

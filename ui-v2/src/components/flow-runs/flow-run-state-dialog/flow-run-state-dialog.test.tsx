@@ -7,13 +7,26 @@ import { expect, test, vi } from "vitest";
 
 import { FlowRunStateDialog } from "./flow-run-state-dialog";
 
+type SetFlowRunStateParams = {
+	id: string;
+	state: string;
+	message?: string;
+	name?: string;
+	force?: boolean;
+};
+
+type MutationCallbacks = {
+	onSuccess?: () => void;
+	onError?: (error: Error) => void;
+};
+
 vi.mock("@/api/flow-runs", async () => {
 	const actual = await vi.importActual("@/api/flow-runs");
 	return {
 		...actual,
 		useSetFlowRunState: () => ({
 			setFlowRunState: vi.fn(
-				(_params, callbacks: { onSuccess?: () => void }) => {
+				(_params: SetFlowRunStateParams, callbacks: MutationCallbacks) => {
 					callbacks?.onSuccess?.();
 				},
 			),
