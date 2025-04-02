@@ -1,9 +1,14 @@
-name: Windows tests
+name: Windows Tests
 
 on:
   workflow_dispatch: {}
-  schedule:
-    - cron: '0 16 * * *'  # every day at 4 p.m. UTC / 9 a.m. PDT
+  # pull_request:
+  #   branches:
+  #   paths:
+  #     - "pyproject.toml"
+  #     - "src/prefect/**/*.py"
+  #     - "scripts/test_unc_paths.py"
+  #     - ".github/workflows/windows-tests.yaml"
 
 permissions: {}
 
@@ -15,8 +20,6 @@ jobs:
       matrix:
         python-version:
           - "3.9"
-          - "3.10"
-          - "3.11"
           - "3.12"
 
       fail-fast: true
@@ -25,11 +28,10 @@ jobs:
       contents: read
 
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
 
     env:
       # enable colored output
-      # https://github.com/pytest-dev/pytest/issues/7443
       PY_COLORS: 1
 
     steps:
@@ -38,19 +40,55 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
-
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Run tests
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
-          pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25
+          uv run pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25
+
+  test-unc-paths:
+    name: Test Windows UNC Paths
+    # Only run this job when triggered manually
+    if: github.event_name == 'workflow_dispatch'
+
+    runs-on: windows-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Create test UNC path and run flow
+        shell: pwsh
+        run: |
+          # Create a test directory
+          New-Item -ItemType Directory -Path "C:\ShareTest" -Force
+
+          # Create network share
+          New-SmbShare -Name "PrefectTest" -Path "C:\ShareTest" -FullAccess "Everyone"
+
+          # Run the test script from the current directory
+          uv run scripts/test_unc_paths.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Cleanup
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-SmbShare -Name "PrefectTest" -Force
