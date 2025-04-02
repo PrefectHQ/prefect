@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { useResumeWorkPool } from "@/hooks/work-pools";
 import { usePauseWorkPool } from "@/hooks/work-pools";
 import { useMemo, useState } from "react";
-
+import { toast } from "sonner";
 export type WorkPoolPauseResumeToggleParams = {
 	workPool: WorkPool;
 };
@@ -23,11 +23,23 @@ export const WorkPoolPauseResumeToggle = ({
 	const handleTogglePause = () => {
 		if (isPaused) {
 			resumeWorkPool(workPool.name, {
-				onSuccess: () => setIsPaused(false),
+				onSuccess: () => {
+					setIsPaused(false);
+					toast.success(`${workPool.name} resumed`);
+				},
+				onError: () => {
+					toast.error(`Failed to resume ${workPool.name}`);
+				},
 			});
 		} else {
 			pauseWorkPool(workPool.name, {
-				onSuccess: () => setIsPaused(true),
+				onSuccess: () => {
+					setIsPaused(true);
+					toast.success(`${workPool.name} paused`);
+				},
+				onError: () => {
+					toast.error(`Failed to pause ${workPool.name}`);
+				},
 			});
 		}
 	};

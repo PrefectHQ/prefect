@@ -2,6 +2,7 @@ import { WorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useDeleteWorkPool } from "@/hooks/work-pools";
+import { toast } from "sonner";
 import { WorkPoolContextMenu } from "./components/work-pool-context-menu";
 import { WorkPoolName } from "./components/work-pool-name";
 import { WorkPoolPauseResumeToggle } from "./components/work-pool-pause-resume-toggle";
@@ -14,6 +15,18 @@ type WorkPoolCardProps = {
 export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 	const { deleteWorkPool } = useDeleteWorkPool();
 
+	const handleDelete = () => {
+		deleteWorkPool(workPool.name, {
+			onSuccess: () => {
+				toast.success(`${workPool.name} deleted`);
+			},
+			onError: (error) => {
+				toast.error(
+					`Failed to delete work pool: ${error instanceof Error ? error.message : "Unknown error"}`,
+				);
+			},
+		});
+	};
 	return (
 		<Card className="gap-2">
 			<CardHeader className="flex flex-row items-center justify-between">
@@ -23,10 +36,7 @@ export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 				</CardTitle>
 				<div className="flex items-center gap-2">
 					<WorkPoolPauseResumeToggle workPool={workPool} />
-					<WorkPoolContextMenu
-						workPool={workPool}
-						onDelete={() => deleteWorkPool(workPool.name)}
-					/>
+					<WorkPoolContextMenu workPool={workPool} onDelete={handleDelete} />
 				</div>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-1">
