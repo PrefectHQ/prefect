@@ -33,7 +33,7 @@ RESOURCE_CACHE: RelatedResourceCache = {}
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
     return [
-        RelatedResource.model_validate(
+        RelatedResource(
             {
                 "prefect.resource.id": f"prefect.tag.{tag}",
                 "prefect.resource.role": "tag",
@@ -46,13 +46,19 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
 def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
     resource_id = f"prefect.{kind}.{object.id}"
 
-    return RelatedResource.model_validate(
-        {
-            "prefect.resource.id": resource_id,
-            "prefect.resource.role": role,
-            "prefect.resource.name": object.name,
-        }
-    )
+    labels = {
+        "prefect.resource.id": resource_id,
+        "prefect.resource.role": role,
+        "prefect.resource.name": object.name,
+    }
+
+    if role == "deployment":
+        from prefect.client.schemas.responses import DeploymentResponse
+
+        if isinstance(object, DeploymentResponse):
+            return object.as_related_resource("deployment")
+
+    return RelatedResource(labels)
 
 
 async def related_resources_from_run_context(

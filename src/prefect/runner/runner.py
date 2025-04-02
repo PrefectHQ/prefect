@@ -1158,15 +1158,7 @@ class Runner:
 
         flow, deployment = await self._get_flow_and_deployment(flow_run)
         if deployment:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                        "prefect.resource.role": "deployment",
-                        "prefect.resource.name": deployment.name,
-                    }
-                )
-            )
+            related.append(deployment.as_related_resource("deployment"))
             tags.extend(deployment.tags)
         if flow:
             related.append(
@@ -1211,15 +1203,7 @@ class Runner:
         related: list[RelatedResource] = []
         tags: list[str] = []
         if deployment:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                        "prefect.resource.role": "deployment",
-                        "prefect.resource.name": deployment.name,
-                    }
-                )
-            )
+            related.append(deployment.as_related_resource("deployment"))
             tags.extend(deployment.tags)
         if flow:
             related.append(
