@@ -38,6 +38,22 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 		}),
 	);
 
+	let message = "This run did not produce any logs.";
+	if (logs.length === 0) {
+		if (levelFilter > 0) {
+			message = "No logs match your filter criteria";
+		} else if (
+			taskRun.state_type === "SCHEDULED" &&
+			taskRun.state_name === "Scheduled"
+		) {
+			message = "Run has not yet started. Check back soon for logs.";
+		} else if (taskRun.state_type === "RUNNING") {
+			message = "Waiting for logs...";
+		} else {
+			message = "This run did not produce any logs.";
+		}
+	}
+
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex flex-row gap-2 justify-end">
@@ -47,7 +63,13 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 				/>
 				<LogSortOrder sortOrder={sortOrder} setSortOrder={setSortOrder} />
 			</div>
-			<RunLogs taskRun={taskRun} logs={logs} />
+			{logs.length === 0 ? (
+				<div className="flex flex-col gap-2 text-center bg-gray-100 p-2 rounded-md">
+					<span className="text-gray-500">{message}</span>
+				</div>
+			) : (
+				<RunLogs taskRun={taskRun} logs={logs} />
+			)}
 		</div>
 	);
 };

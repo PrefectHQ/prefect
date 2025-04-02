@@ -6,44 +6,44 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { TaskRunLogs } from ".";
 
-const MOCK_TASK_RUN = createFakeTaskRun();
-
+const MOCK_TASK_RUN_WITH_LOGS = createFakeTaskRun();
+const MOCK_TASK_RUN_WITHOUT_LOGS = createFakeTaskRun();
 // Create a range of logs with different levels
 const ALL_MOCK_LOGS = [
 	createFakeLog({
 		level: 50,
 		message: "Critical error in task",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 	createFakeLog({
 		level: 40,
 		message: "Error processing data",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 	createFakeLog({
 		level: 30,
 		message: "Warning: slow performance",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 	createFakeLog({
 		level: 20,
 		message: "Info: task started",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 	createFakeLog({
 		level: 20,
 		message: "Info: processing data",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 	createFakeLog({
 		level: 10,
 		message: "Debug: connection established",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 	createFakeLog({
 		level: 10,
 		message: "Debug: cache hit",
-		task_run_id: MOCK_TASK_RUN.id,
+		task_run_id: MOCK_TASK_RUN_WITH_LOGS.id,
 	}),
 ].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
@@ -88,7 +88,7 @@ type Story = StoryObj<typeof TaskRunLogs>;
 
 export const Default: Story = {
 	args: {
-		taskRun: MOCK_TASK_RUN,
+		taskRun: MOCK_TASK_RUN_WITH_LOGS,
 	},
 };
 
@@ -103,6 +103,6 @@ export const NoLogs: Story = {
 		},
 	},
 	args: {
-		taskRun: MOCK_TASK_RUN,
+		taskRun: MOCK_TASK_RUN_WITHOUT_LOGS,
 	},
 };

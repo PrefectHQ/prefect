@@ -92,7 +92,7 @@ describe("TaskRunLogs", () => {
 		});
 	});
 
-	it("handles empty logs response", async () => {
+	it("handles empty logs response for scheduled task runs", async () => {
 		// Setup mock API response with no logs
 		server.use(
 			http.post(buildApiUrl("/logs/filter"), () => {
@@ -100,15 +100,99 @@ describe("TaskRunLogs", () => {
 			}),
 		);
 
-		// Render component
-		const taskRun = createFakeTaskRun();
+		const taskRun = createFakeTaskRun({
+			state_type: "SCHEDULED",
+			state_name: "Scheduled",
+		});
 		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
 			wrapper: createWrapper(),
 		});
 
 		// Verify empty state is shown
 		await waitFor(() => {
-			expect(screen.getByText("No logs found")).toBeInTheDocument();
+			expect(
+				screen.getByText("Run has not yet started. Check back soon for logs."),
+			).toBeInTheDocument();
+		});
+	});
+
+	it("handles empty logs response for running task runs", async () => {
+		server.use(
+			http.post(buildApiUrl("/logs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun({
+			state_type: "RUNNING",
+			state_name: "Running",
+		});
+
+		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Verify empty state is shown
+		await waitFor(() => {
+			expect(screen.getByText("Waiting for logs...")).toBeInTheDocument();
+		});
+	});
+
+	it("handles empty logs response for completed task runs", async () => {
+		server.use(
+			http.post(buildApiUrl("/logs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun({
+			state_type: "COMPLETED",
+			state_name: "Completed",
+		});
+		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Verify empty state is shown
+		await waitFor(() => {
+			expect(
+				screen.getByText("This run did not produce any logs."),
+			).toBeInTheDocument();
+		});
+	});
+
+	it("handles empty logs response when filtering by level", async () => {
+		const user = userEvent.setup();
+
+		// Setup mock API response with no logs
+		server.use(
+			http.post(buildApiUrl("/logs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun();
+		render(<TaskRunLogs taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("combobox", { name: /log level filter/i }),
+			).toBeInTheDocument();
+		});
+
+		// Change filter to "Error and above"
+		await user.click(
+			screen.getByRole("combobox", { name: /log level filter/i }),
+		);
+		await user.click(screen.getByText("Error and above"));
+
+		// Verify empty state is shown
+		await waitFor(() => {
+			expect(
+				screen.getByText("No logs match your filter criteria"),
+			).toBeInTheDocument();
 		});
 	});
 
