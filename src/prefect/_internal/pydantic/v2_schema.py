@@ -8,6 +8,7 @@ from pydantic import ConfigDict, PydanticUndefinedAnnotation, create_model
 from pydantic.type_adapter import TypeAdapter
 
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
+from prefect.utilities.collections import remove_nested_keys
 
 
 def is_v2_model(v: t.Any) -> bool:
@@ -106,4 +107,8 @@ def create_v2_schema(
     # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
+
+    # Remove additional properties from schema
+    schema = remove_nested_keys(["additionalProperties"], schema)
+
     return schema
