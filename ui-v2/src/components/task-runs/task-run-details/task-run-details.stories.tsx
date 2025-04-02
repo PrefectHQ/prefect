@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { TaskRunDetails } from "./task-run-details";
 
 export default {
-	title: "Task Runs/TaskRunDetails",
+	title: "Components/TaskRuns/TaskRunDetails",
 	component: TaskRunDetails,
 	parameters: {
 		layout: "centered",

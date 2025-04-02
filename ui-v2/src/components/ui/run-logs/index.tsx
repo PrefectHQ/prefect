@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { cva } from "class-variance-authority";
 import { isSameDay } from "date-fns";
 import { format } from "date-fns-tz";
-import { Fragment } from "react";
 
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
@@ -30,14 +29,14 @@ export const RunLogs = ({ logs, taskRun }: RunLogsProps) => {
 		);
 	}
 	return (
-		<div className="flex flex-col gap-4 bg-gray-100 p-2 rounded-md font-mono">
+		<ol className="flex flex-col gap-4 bg-gray-100 p-2 rounded-md font-mono">
 			{logs.map((log, index) => (
-				<Fragment key={log.id}>
+				<li key={log.id}>
 					{showDivider(index) && <LogDivider date={new Date(log.timestamp)} />}
 					<RunLogRow key={log.id} log={log} taskRunName={taskRun?.name} />
-				</Fragment>
+				</li>
 			))}
-		</div>
+		</ol>
 	);
 };
 
