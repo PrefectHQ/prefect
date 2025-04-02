@@ -1,17 +1,16 @@
 import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
+
 import { RunLogs } from ".";
 
 export default {
 	title: "UI/RunLogs",
 	component: (args) => (
-		<div>
+		<div className="w-screen h-screen">
 			<RunLogs {...args} />
 		</div>
 	),
-	parameters: {
-		layout: "centered",
-	},
 } satisfies Meta<typeof RunLogs>;
 
 type Story = StoryObj<typeof RunLogs>;
@@ -19,10 +18,11 @@ type Story = StoryObj<typeof RunLogs>;
 export const logs: Story = {
 	name: "RunLogs",
 	args: {
-		logs: Array.from({ length: 7 }, () => createFakeLog()).sort((a, b) =>
+		logs: Array.from({ length: 100 }, () => createFakeLog()).sort((a, b) =>
 			a.timestamp.localeCompare(b.timestamp),
 		),
 		taskRun: createFakeTaskRun(),
+		bottomReached: fn(),
 	},
 };
 
@@ -30,5 +30,6 @@ export const noLogs: Story = {
 	args: {
 		logs: [],
 		taskRun: createFakeTaskRun(),
+		bottomReached: fn(),
 	},
 };
