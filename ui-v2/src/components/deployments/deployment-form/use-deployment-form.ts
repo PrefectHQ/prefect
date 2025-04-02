@@ -1,5 +1,5 @@
 import {
-	Deployment,
+	type Deployment,
 	useCreateDeployment,
 	useUpdateDeployment,
 } from "@/api/deployments";
@@ -197,9 +197,7 @@ export const useDeploymentForm = (
 						description,
 						enforce_parameter_schema,
 						id: deployment.id,
-						// @ts-expect-error Expecting TS error from poor openAPI typings
 						job_variables: jobVariablesPayload,
-						// @ts-expect-error Expecting TS error from poor openAPI typings
 						parameters: parametersFormValues,
 						paused: deployment.paused,
 						tags,

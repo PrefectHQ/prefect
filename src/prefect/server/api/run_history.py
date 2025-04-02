@@ -36,7 +36,7 @@ async def run_history(
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-) -> List[schemas.responses.HistoryResponse]:
+) -> list[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
     """

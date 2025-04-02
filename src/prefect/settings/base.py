@@ -134,7 +134,7 @@ class PrefectBaseSettings(BaseSettings):
     def ser_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> Any:
-        jsonable_self = handler(self)
+        jsonable_self: dict[str, Any] = handler(self)
         # iterate over fields to ensure child models that have been updated are also included
         for key in type(self).model_fields.keys():
             if info.exclude and key in info.exclude:

@@ -636,7 +636,8 @@ class Flow(Generic[P, R]):
         cast_parameters = {
             k: v
             for k, v in dict(iter(model)).items()
-            if k in model.model_fields_set or model.model_fields[k].default_factory
+            if k in model.model_fields_set
+            or type(model).model_fields[k].default_factory
         }
         return cast_parameters
 

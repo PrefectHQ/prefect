@@ -255,7 +255,7 @@ def deprecated_field(
 
             cls_init(__pydantic_self__, **data)
 
-            field = __pydantic_self__.model_fields.get(name)
+            field = __pydantic_self__.__class__.model_fields.get(name)
             if field is not None:
                 json_schema_extra = field.json_schema_extra or {}
 
