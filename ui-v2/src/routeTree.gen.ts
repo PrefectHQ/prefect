@@ -572,7 +572,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
-  '/blocks/catalog': typeof BlocksCatalogRoute
+  '/blocks/catalog': typeof BlocksCatalogRouteWithChildren
   '/work-pools/create': typeof WorkPoolsCreateRoute
   '/artifacts': typeof ArtifactsIndexRoute
   '/automations': typeof AutomationsIndexRoute
@@ -608,7 +608,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
-  '/blocks/catalog': typeof BlocksCatalogRoute
+  '/blocks/catalog': typeof BlocksCatalogRouteWithChildren
   '/work-pools/create': typeof WorkPoolsCreateRoute
   '/artifacts': typeof ArtifactsIndexRoute
   '/automations': typeof AutomationsIndexRoute
@@ -646,7 +646,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
-  '/blocks/catalog': typeof BlocksCatalogRoute
+  '/blocks/catalog': typeof BlocksCatalogRouteWithChildren
   '/work-pools/create': typeof WorkPoolsCreateRoute
   '/artifacts/': typeof ArtifactsIndexRoute
   '/automations/': typeof AutomationsIndexRoute

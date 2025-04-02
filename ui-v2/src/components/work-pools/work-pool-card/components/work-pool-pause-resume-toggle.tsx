@@ -13,20 +13,20 @@ export const WorkPoolPauseResumeToggle = ({
 }: WorkPoolPauseResumeToggleParams) => {
 	const [isPaused, setIsPaused] = useState(workPool.status === "PAUSED");
 
-	const pauseWorkPoolMutation = usePauseWorkPool();
-	const resumeWorkPoolMutation = useResumeWorkPool();
+	const { pauseWorkPool, isPending: isPausing } = usePauseWorkPool();
+	const { resumeWorkPool, isPending: isResuming } = useResumeWorkPool();
 
 	const disabled = useMemo(() => {
-		return pauseWorkPoolMutation.isPending || resumeWorkPoolMutation.isPending;
-	}, [pauseWorkPoolMutation.isPending, resumeWorkPoolMutation.isPending]);
+		return isPausing || isResuming;
+	}, [isPausing, isResuming]);
 
 	const handleTogglePause = () => {
 		if (isPaused) {
-			resumeWorkPoolMutation.mutate(workPool.name, {
+			resumeWorkPool(workPool.name, {
 				onSuccess: () => setIsPaused(false),
 			});
 		} else {
-			pauseWorkPoolMutation.mutate(workPool.name, {
+			pauseWorkPool(workPool.name, {
 				onSuccess: () => setIsPaused(true),
 			});
 		}

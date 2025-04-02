@@ -12,7 +12,7 @@ type WorkPoolCardProps = {
 };
 
 export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
-	const { mutate: deleteWorkPool } = useDeleteWorkPool();
+	const { deleteWorkPool } = useDeleteWorkPool();
 
 	return (
 		<Card className="gap-2">
