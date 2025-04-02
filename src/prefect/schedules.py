@@ -47,7 +47,7 @@ class Schedule:
     anchor_date: datetime.datetime = dataclasses.field(
         default_factory=partial(datetime.datetime.now, tz=datetime.timezone.utc)
     )
-    day_or: bool = False
+    day_or: bool = True
     active: bool = True
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
@@ -73,7 +73,7 @@ def Cron(
     cron: str,
     /,
     timezone: str | None = None,
-    day_or: bool = False,
+    day_or: bool = True,
     active: bool = True,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
