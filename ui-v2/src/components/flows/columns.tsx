@@ -21,7 +21,6 @@ export const columns: ColumnDef<Flow>[] = [
 				checked={table.getIsAllPageRowsSelected()}
 				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
 				aria-label="Select all"
-				className="m-2"
 			/>
 		),
 		cell: ({ row }) => (
@@ -29,7 +28,6 @@ export const columns: ColumnDef<Flow>[] = [
 				checked={row.getIsSelected()}
 				onCheckedChange={(value) => row.toggleSelected(!!value)}
 				aria-label="Select row"
-				className="m-2"
 			/>
 		),
 		enableSorting: false,
