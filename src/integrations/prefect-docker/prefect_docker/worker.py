@@ -14,19 +14,22 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastructure-concepts).
 """
 
+from __future__ import annotations
+
 import enum
 import os
 import re
 import sys
 import urllib.parse
 import warnings
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple
 
 import anyio.abc
 import docker
 import docker.errors
 import packaging.version
 from docker import DockerClient
+from docker.constants import DEFAULT_TIMEOUT_SECONDS as DEFAULT_DOCKER_TIMEOUT_SECONDS
 from docker.models.containers import Container
 from pydantic import Field
 from slugify import slugify
@@ -34,10 +37,7 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
-from prefect.client.schemas import FlowRun
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.server.schemas.core import Flow
-from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import (
@@ -48,6 +48,14 @@ from prefect.utilities.dockerutils import (
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.types import VolumeStr
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import (
+        Flow,
+        FlowRun,
+        WorkPool,
+    )
+    from prefect.client.schemas.responses import DeploymentResponse
 
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
@@ -237,14 +245,16 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["Flow"] = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "Flow | None" = None,
+        work_pool: "WorkPool | None" = None,
+        worker_name: "str | None" = None,
     ):
         """
-        Prepares the agent for a flow run by setting the image, labels, and name
+        Prepares the flow run by setting the image, labels, and name
         attributes.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow)
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         self.image = self.image or get_prefect_image_name()
         self.labels = self._convert_labels_to_docker_format(
@@ -437,8 +447,12 @@ class DockerWorker(BaseWorker):
                     message="distutils Version classes are deprecated.*",
                     category=DeprecationWarning,
                 )
-
-                docker_client = docker.from_env()
+                timeout = int(
+                    os.environ.get(
+                        "DOCKER_CLIENT_TIMEOUT", DEFAULT_DOCKER_TIMEOUT_SECONDS
+                    )
+                )
+                docker_client = docker.from_env(timeout=timeout)
 
         except docker.errors.DockerException as exc:
             raise RuntimeError("Could not connect to Docker.") from exc

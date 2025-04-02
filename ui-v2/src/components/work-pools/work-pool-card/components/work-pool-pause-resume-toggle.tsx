@@ -2,7 +2,7 @@ import { WorkPool } from "@/api/work-pools";
 import { Switch } from "@/components/ui/switch";
 import { useResumeWorkPool } from "@/hooks/work-pools";
 import { usePauseWorkPool } from "@/hooks/work-pools";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export type WorkPoolPauseResumeToggleParams = {
 	workPool: WorkPool;
@@ -16,8 +16,9 @@ export const WorkPoolPauseResumeToggle = ({
 	const pauseWorkPoolMutation = usePauseWorkPool();
 	const resumeWorkPoolMutation = useResumeWorkPool();
 
-	const isUpdating =
-		pauseWorkPoolMutation.isPending || resumeWorkPoolMutation.isPending;
+	const disabled = useMemo(() => {
+		return pauseWorkPoolMutation.isPending || resumeWorkPoolMutation.isPending;
+	}, [pauseWorkPoolMutation.isPending, resumeWorkPoolMutation.isPending]);
 
 	const handleTogglePause = () => {
 		if (isPaused) {
@@ -39,7 +40,7 @@ export const WorkPoolPauseResumeToggle = ({
 			<Switch
 				checked={!isPaused}
 				onCheckedChange={handleTogglePause}
-				disabled={isUpdating}
+				disabled={disabled}
 				aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
 			/>
 		</span>

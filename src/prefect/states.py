@@ -5,7 +5,6 @@ import datetime
 import sys
 import traceback
 import uuid
-import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
@@ -15,7 +14,6 @@ import httpx
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
-from prefect._internal.compatibility import deprecated
 from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
@@ -28,9 +26,9 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.types._datetime import DateTime, Duration, now
+from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
-from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
@@ -73,17 +71,9 @@ def to_state_create(state: State) -> "StateCreate":
     )
 
 
-@deprecated.deprecated_parameter(
-    "fetch",
-    when=lambda fetch: fetch is not True,
-    start_date="Oct 2024",
-    end_date="Jan 2025",
-    help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
-)
-def get_state_result(
+async def get_state_result(
     state: "State[R]",
     raise_on_failure: bool = True,
-    fetch: bool = True,
     retry_result_failure: bool = True,
 ) -> "R":
     """
@@ -92,25 +82,11 @@ def get_state_result(
     See `State.result()`
     """
 
-    if not fetch and in_async_main_thread():
-        warnings.warn(
-            (
-                "State.result() was called from an async context but not awaited. "
-                "This method will be updated to return a coroutine by default in "
-                "the future. Pass `fetch=True` and `await` the call to get rid of "
-                "this warning."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return state.data
-    else:
-        return _get_state_result(
-            state,
-            raise_on_failure=raise_on_failure,
-            retry_result_failure=retry_result_failure,
-        )
+    return await _get_state_result(
+        state,
+        raise_on_failure=raise_on_failure,
+        retry_result_failure=retry_result_failure,
+    )
 
 
 RESULT_READ_MAXIMUM_ATTEMPTS = 10
@@ -155,7 +131,6 @@ async def _get_state_result_data_with_retries(
             await asyncio.sleep(RESULT_READ_RETRY_DELAY)
 
 
-@sync_compatible
 async def _get_state_result(
     state: "State[R]", raise_on_failure: bool, retry_result_failure: bool = True
 ) -> "R":
@@ -759,9 +734,9 @@ def Paused(
         pass
     else:
         state_details.pause_timeout = (
-            DateTime.instance(pause_expiration_time)
+            pause_expiration_time
             if pause_expiration_time
-            else now() + Duration(seconds=timeout_seconds or 0)
+            else now() + datetime.timedelta(seconds=timeout_seconds or 0)
         )
 
     state_details.pause_reschedule = reschedule

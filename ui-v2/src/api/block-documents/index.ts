@@ -1,4 +1,7 @@
 export {
 	type BlockDocument,
-	buildFilterBlockDocumentsQuery,
+	buildListFilterBlockDocumentsQuery,
+	buildCountAllBlockDocumentsQuery,
+	buildCountFilterBlockDocumentsQuery,
+	useDeleteBlockDocument,
 } from "./block-documents";

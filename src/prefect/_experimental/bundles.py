@@ -173,19 +173,25 @@ def execute_bundle_in_subprocess(
     return process
 
 
-def convert_step_to_command(step: dict[str, Any], key: str) -> list[str]:
+def convert_step_to_command(
+    step: dict[str, Any], key: str, quiet: bool = False
+) -> list[str]:
     """
     Converts a bundle upload or execution step to a command.
 
     Args:
         step: The step to convert.
         key: The key to use for the remote file when downloading or uploading.
+        quiet: Whether to suppress `uv` output from the command.
 
     Returns:
         A list of strings representing the command to run the step.
     """
     # Start with uv run
     command = ["uv", "run"]
+
+    if quiet:
+        command.append("--quiet")
 
     step_keys = list(step.keys())
 

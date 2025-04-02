@@ -1,3 +1,4 @@
+import datetime
 import inspect
 import multiprocessing
 import os
@@ -47,7 +48,6 @@ from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.states import Running
 from prefect.task_runners import ThreadPoolTaskRunner
-from prefect.types import DateTime
 from prefect.utilities.callables import cloudpickle_wrapped_call
 
 
@@ -122,7 +122,7 @@ async def test_flow_run_context(prefect_client):
         assert ctx.client is prefect_client
         assert ctx.task_runner is test_task_runner
         assert ctx.result_store == result_store
-        assert isinstance(ctx.start_time, DateTime)
+        assert isinstance(ctx.start_time, datetime.datetime)
         assert ctx.parameters == {"x": "y"}
 
 
@@ -145,7 +145,7 @@ async def test_task_run_context(prefect_client, flow_run):
         assert ctx.task is foo
         assert ctx.task_run == task_run
         assert ctx.result_store == result_store
-        assert isinstance(ctx.start_time, DateTime)
+        assert isinstance(ctx.start_time, datetime.datetime)
         assert ctx.parameters == {"foo": "bar"}
 
 
@@ -577,7 +577,7 @@ class TestHydratedContext:
             assert (
                 hydrated_flow_run_context.result_store is not None
             )  # this won't be the same object as the original result store
-            assert isinstance(hydrated_flow_run_context.start_time, DateTime)
+            assert isinstance(hydrated_flow_run_context.start_time, datetime.datetime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
 
     async def test_task_runner_started_when_hydrating_context(
@@ -690,7 +690,7 @@ class TestHydratedContext:
             assert hydrated_task_ctx.task is bar
             assert hydrated_task_ctx.task_run == task_run
             assert hydrated_task_ctx.result_store is not None
-            assert isinstance(hydrated_task_ctx.start_time, DateTime)
+            assert isinstance(hydrated_task_ctx.start_time, datetime.datetime)
             assert hydrated_task_ctx.parameters == {"foo": "bar"}
 
     async def test_with_task_run_context_with_custom_result_store(

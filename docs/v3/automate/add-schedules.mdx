@@ -237,8 +237,6 @@ schedule:
 The `anchor_date` does not indicate a "start time" for the schedule, but a fixed point to
 compute intervals.
 If the anchor date is in the future, then schedule dates are computed by subtracting the `interval` from it.
-In this example, you import the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation.
-Pendulum isn't required, but it's a useful tool for specifying dates.
 
 <Note>
 **Daylight saving time considerations**
@@ -323,12 +321,12 @@ send_email.serve(
   schedules=[
     Cron(
       "0 8 * * *",
-      slug: "jim-email",
+      slug="jim-email",
       parameters={"to": "jim.halpert@dundermifflin.com"}
     ),
     Cron(
       "5 8 * * *",
-      slug: "dwight-email",
+      slug="dwight-email",
       parameters={
         "to": "dwight.schrute@dundermifflin.com",
         "message": "Stop goofing off! You're assistant _to_ the regional manager!"

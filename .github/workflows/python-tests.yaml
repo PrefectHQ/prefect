@@ -75,6 +75,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
         exclude:
           - database: "sqlite"
             test-type:
@@ -114,7 +115,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
-        run: uv sync
+        run: uv sync --locked
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -207,7 +208,7 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
-        
+
       - name: Get image tag
         id: get_image_tag
         run: |
@@ -247,7 +248,7 @@ jobs:
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
-        run: uv sync
+        run: uv sync --locked
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -319,23 +320,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-        fetch-depth: 0
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
 
-    - name: Set up uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: true
-        python-version: "3.12"
-        cache-dependency-glob: "pyproject.toml"
+      - name: Install packages
+        run: uv sync --locked
 
-    - name: Install packages
-      run: uv sync
-
-    - name: Run tests
-      run: |
-        uv run pytest tests/typesafety \
-        --disable-docker-image-builds
+      - name: Run tests
+        run: |
+          uv run pytest tests/typesafety \
+          --disable-docker-image-builds

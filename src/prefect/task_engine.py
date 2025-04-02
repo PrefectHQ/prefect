@@ -8,6 +8,7 @@ import time
 from asyncio import CancelledError
 from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext
 from dataclasses import dataclass, field
+from datetime import timedelta
 from functools import partial
 from textwrap import dedent
 from typing import (
@@ -24,6 +25,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from uuid import UUID
 
@@ -31,6 +33,7 @@ import anyio
 from opentelemetry import trace
 from typing_extensions import ParamSpec, Self
 
+import prefect.types._datetime
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -79,7 +82,6 @@ from prefect.states import (
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
-from prefect.types._datetime import DateTime, Duration
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -437,7 +439,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += Duration(microseconds=1)
+            new_state.timestamp += timedelta(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
@@ -486,7 +488,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
         if self.task.cache_expiration is not None:
-            expiration = DateTime.now("utc") + self.task.cache_expiration
+            expiration = prefect.types._datetime.now("UTC") + self.task.cache_expiration
         else:
             expiration = None
 
@@ -535,7 +537,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     else self.task.retry_delay_seconds
                 )
                 new_state = AwaitingRetry(
-                    scheduled_time=DateTime.now("utc").add(seconds=delay)
+                    scheduled_time=prefect.types._datetime.now("UTC")
+                    + timedelta(seconds=delay)
                 )
             else:
                 delay = None
@@ -728,7 +731,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def wait_until_ready(self) -> None:
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            sleep_time = (scheduled_time - DateTime.now("utc")).total_seconds()
+            sleep_time = (
+                scheduled_time - prefect.types._datetime.now("UTC")
+            ).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
             new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             self.set_state(
@@ -754,11 +759,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                self.begin_run()
-                try:
-                    yield
-                finally:
-                    self.call_hooks()
+                # Acquire a concurrency slot for each tag, but only if a limit
+                # matching the tag already exists.
+                with concurrency(list(self.task_run.tags), self.task_run.id):
+                    self.begin_run()
+                    try:
+                        yield
+                    finally:
+                        self.call_hooks()
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
@@ -819,13 +827,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task_run.tags:
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                with concurrency(list(self.task_run.tags), self.task_run.id):
-                    result = call_with_parameters(self.task.fn, parameters)
-            else:
-                result = call_with_parameters(self.task.fn, parameters)
+            result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
         return result
 
@@ -970,7 +972,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += Duration(microseconds=1)
+            new_state.timestamp += timedelta(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
@@ -1020,7 +1022,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def handle_success(self, result: R, transaction: Transaction) -> R:
         if self.task.cache_expiration is not None:
-            expiration = DateTime.now("utc") + self.task.cache_expiration
+            expiration = prefect.types._datetime.now("UTC") + self.task.cache_expiration
         else:
             expiration = None
 
@@ -1068,7 +1070,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     else self.task.retry_delay_seconds
                 )
                 new_state = AwaitingRetry(
-                    scheduled_time=DateTime.now("utc").add(seconds=delay)
+                    scheduled_time=prefect.types._datetime.now("UTC")
+                    + timedelta(seconds=delay)
                 )
             else:
                 delay = None
@@ -1259,7 +1262,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def wait_until_ready(self) -> None:
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            sleep_time = (scheduled_time - DateTime.now("utc")).total_seconds()
+            sleep_time = (
+                scheduled_time - prefect.types._datetime.now("UTC")
+            ).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
             new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             await self.set_state(
@@ -1287,11 +1292,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                await self.begin_run()
-                try:
-                    yield
-                finally:
-                    await self.call_hooks()
+                # Acquire a concurrency slot for each tag, but only if a limit
+                # matching the tag already exists.
+                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
+                    await self.begin_run()
+                    try:
+                        yield
+                    finally:
+                        await self.call_hooks()
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
@@ -1351,13 +1359,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task_run and self.task_run.tags:
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
-                    result = await call_with_parameters(self.task.fn, parameters)
-            else:
-                result = await call_with_parameters(self.task.fn, parameters)
+            result = await call_with_parameters(self.task.fn, parameters)
         await self.handle_success(result, transaction=transaction)
         return result
 
@@ -1525,6 +1527,32 @@ async def run_generator_task_async(
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
         await engine.result()
+
+
+@overload
+def run_task(
+    task: "Task[P, R]",
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
+    return_type: Literal["state"] = "state",
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
+) -> State[R]: ...
+
+
+@overload
+def run_task(
+    task: "Task[P, R]",
+    task_run_id: Optional[UUID] = None,
+    task_run: Optional[TaskRun] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
+    return_type: Literal["result"] = "result",
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
+) -> R: ...
 
 
 def run_task(

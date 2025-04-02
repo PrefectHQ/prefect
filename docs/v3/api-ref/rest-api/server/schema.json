@@ -1965,6 +1965,58 @@
                 }
             }
         },
+        "/api/task_runs/paginate": {
+            "post": {
+                "tags": [
+                    "Task Runs"
+                ],
+                "summary": "Paginate Task Runs",
+                "description": "Pagination query for task runs.",
+                "operationId": "paginate_task_runs_task_runs_paginate_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_paginate_task_runs_task_runs_paginate_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TaskRunPaginationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/task_runs/{id}/set_state": {
             "post": {
                 "tags": [
@@ -12540,7 +12592,7 @@
                     "create_if_missing": {
                         "type": "boolean",
                         "title": "Create If Missing",
-                        "default": true
+                        "deprecated": true
                     }
                 },
                 "type": "object",
@@ -12583,7 +12635,8 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Create If Missing"
+                        "title": "Create If Missing",
+                        "deprecated": true
                     }
                 },
                 "type": "object",
@@ -13393,6 +13446,67 @@
                 },
                 "type": "object",
                 "title": "Body_paginate_flows_flows_paginate_post"
+            },
+            "Body_paginate_task_runs_task_runs_paginate_post": {
+                "properties": {
+                    "sort": {
+                        "$ref": "#/components/schemas/TaskRunSort",
+                        "default": "ID_DESC"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "flows": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "task_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "deployments": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_paginate_task_runs_task_runs_paginate_post"
             },
             "Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post": {
                 "properties": {
@@ -18486,6 +18600,42 @@
                         "title": "Idempotency Key",
                         "description": "An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned."
                     },
+                    "work_pool_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Pool Name",
+                        "description": "The name of the work pool to run the flow run in."
+                    },
+                    "work_queue_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Work Queue Name",
+                        "description": "The name of the work queue to place the flow run in."
+                    },
+                    "job_variables": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Job Variables",
+                        "description": "The job variables to use when setting up flow run infrastructure."
+                    },
                     "deployment_id": {
                         "anyOf": [
                             {
@@ -23518,6 +23668,42 @@
                 "title": "TaskRunFilterTags",
                 "description": "Filter by `TaskRun.tags`."
             },
+            "TaskRunPaginationResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/TaskRunResponse"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "title": "Count"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "results",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
+                ],
+                "title": "TaskRunPaginationResponse"
+            },
             "TaskRunPolicy": {
                 "properties": {
                     "max_retries": {
@@ -23580,6 +23766,156 @@
                 "type": "object",
                 "title": "TaskRunPolicy",
                 "description": "Defines of how a task run should retry."
+            },
+            "TaskRunResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "The name of the task run. Defaults to a random slug if not specified.",
+                        "examples": [
+                            "my-task-run"
+                        ]
+                    },
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id",
+                        "description": "The id of the flow run this task run belongs to."
+                    },
+                    "task_key": {
+                        "type": "string",
+                        "title": "Task Key",
+                        "description": "The key of the task this run represents."
+                    },
+                    "state_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Id",
+                        "description": "The id of the task run's current state."
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current state of the task run."
+                    },
+                    "task_version": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Task Version",
+                        "description": "The version of the task executed in this task run.",
+                        "examples": [
+                            "1.0"
+                        ]
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "Parameters for the task run."
+                    },
+                    "task_inputs": {
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/TaskRunResult"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Task Inputs",
+                        "description": "Inputs provided to the task run."
+                    },
+                    "context": {
+                        "type": "object",
+                        "title": "Context",
+                        "description": "Additional context for the task run.",
+                        "examples": [
+                            {
+                                "my_var": "my_val"
+                            }
+                        ]
+                    },
+                    "empirical_policy": {
+                        "$ref": "#/components/schemas/TaskRunPolicy",
+                        "description": "The task run's empirical retry policy."
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags for the task run.",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_key",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "TaskRunResponse"
             },
             "TaskRunResult": {
                 "properties": {
@@ -24265,6 +24601,10 @@
                         ],
                         "title": "Default Queue Id",
                         "description": "The id of the pool's default queue."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "type": "object",
@@ -24327,6 +24667,10 @@
                         ],
                         "title": "Concurrency Limit",
                         "description": "A concurrency limit for the work pool."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "additionalProperties": false,
@@ -24463,6 +24807,38 @@
                 "title": "WorkPoolStatus",
                 "description": "Enumeration of work pool statuses."
             },
+            "WorkPoolStorageConfiguration": {
+                "properties": {
+                    "bundle_upload_step": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bundle Upload Step",
+                        "description": "The step to use for uploading bundles to storage."
+                    },
+                    "bundle_execution_step": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bundle Execution Step",
+                        "description": "The step to use for executing bundles."
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "WorkPoolStorageConfiguration",
+                "description": "A representation of a work pool's storage configuration"
+            },
             "WorkPoolUpdate": {
                 "properties": {
                     "description": {
@@ -24509,6 +24885,17 @@
                             }
                         ],
                         "title": "Concurrency Limit"
+                    },
+                    "storage_configuration": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolStorageConfiguration"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The storage configuration for the work pool."
                     }
                 },
                 "additionalProperties": false,

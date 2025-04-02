@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from fastapi import Body, Depends
@@ -15,7 +16,7 @@ from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
-from prefect.types._datetime import create_datetime_instance
+from prefect.types._datetime import create_datetime_instance, parse_datetime
 
 if TYPE_CHECKING:
     import logging
@@ -162,7 +163,11 @@ async def next_runs_by_flow(
                 name=result.name,
                 state_name=result.state_name,
                 state_type=result.state_type,
-                next_scheduled_start_time=result.next_scheduled_start_time,
+                next_scheduled_start_time=parse_datetime(
+                    result.next_scheduled_start_time
+                ).replace(tzinfo=ZoneInfo("UTC"))
+                if isinstance(result.next_scheduled_start_time, str)
+                else result.next_scheduled_start_time,
             )
             for result in results.all()
         }

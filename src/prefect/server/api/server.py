@@ -253,11 +253,11 @@ def copy_directory(directory: str, path: str) -> None:
             # ensure copied files are writeable
             for root, dirs, files in os.walk(destination):
                 for f in files:
-                    os.chmod(os.path.join(root, f), 0o600)
+                    os.chmod(os.path.join(root, f), 0o700)
         else:
             shutil.copy2(source, destination)
             # Ensure copied file is writeable
-            os.chmod(destination, 0o600)
+            os.chmod(destination, 0o700)
 
 
 async def custom_internal_exception_handler(
@@ -294,12 +294,16 @@ async def prefect_object_not_found_exception_handler(
     )
 
 
+API_APP_CACHE: dict[tuple[str, str | None], FastAPI] = {}
+
+
 def create_api_app(
     dependencies: list[Any] | None = None,
     health_check_path: str = "/health",
     version_check_path: str = "/version",
     fast_api_app_kwargs: dict[str, Any] | None = None,
     final: bool = False,
+    ignore_cache: bool = False,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Prefect REST API
@@ -310,10 +314,20 @@ def create_api_app(
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
         final: whether this will be the last instance of the Prefect server to be
             created in this process, so that additional optimizations may be applied
+        ignore_cache: if set, a new app will be created even if the settings and fast_api_app_kwargs match
+            an existing app in the cache
 
     Returns:
         a FastAPI app that serves the Prefect REST API
     """
+    cache_key = (
+        prefect.settings.get_current_settings().hash_key(),
+        hash_objects(fast_api_app_kwargs) if fast_api_app_kwargs else None,
+    )
+
+    if cache_key in API_APP_CACHE and not ignore_cache:
+        return API_APP_CACHE[cache_key]
+
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
     api_app.add_middleware(GZipMiddleware)
@@ -388,6 +402,8 @@ def create_api_app(
                     content={"exception_message": "Unauthorized"},
                 )
             return await call_next(request)
+
+    API_APP_CACHE[cache_key] = api_app
 
     return api_app
 
@@ -655,6 +671,7 @@ def create_app(
             }
         },
         final=final,
+        ignore_cache=ignore_cache,
     )
     ui_app = create_ui_app(ephemeral)
 

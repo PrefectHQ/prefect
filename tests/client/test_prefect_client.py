@@ -3,7 +3,7 @@ import os
 import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Generator, List
+from typing import Any, Generator, List
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 from uuid import UUID, uuid4
@@ -12,7 +12,6 @@ import anyio
 import certifi
 import httpcore
 import httpx
-import pendulum
 import pydantic
 import pytest
 import respx
@@ -58,6 +57,7 @@ from prefect.client.schemas.filters import (
     TaskRunFilterFlowRunId,
 )
 from prefect.client.schemas.objects import (
+    BlockDocument,
     Flow,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
@@ -66,6 +66,7 @@ from prefect.client.schemas.objects import (
     TaskRun,
     Variable,
     WorkerMetadata,
+    WorkPoolStorageConfiguration,
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
@@ -93,7 +94,7 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-from prefect.types import DateTime
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -111,8 +112,9 @@ class TestGetClient:
             assert isinstance(new_client, PrefectClient)
             assert new_client is not client
 
+    @pytest.mark.usefixtures("enable_ephemeral_server")
     def test_get_client_starts_subprocess_server_when_enabled(
-        self, enable_ephemeral_server, monkeypatch
+        self, monkeypatch: pytest.MonkeyPatch
     ):
         subprocess_server_mock = MagicMock()
 
@@ -124,9 +126,8 @@ class TestGetClient:
         assert subprocess_server_mock.call_count == 1
         assert subprocess_server_mock.return_value.start.call_count == 1
 
-    def test_get_client_rasises_error_when_no_api_url_and_no_ephemeral_mode(
-        self, disable_hosted_api_server
-    ):
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_get_client_rasises_error_when_no_api_url_and_no_ephemeral_mode(self):
         with pytest.raises(ValueError, match="API URL"):
             get_client()
 
@@ -1140,7 +1141,7 @@ async def test_read_flow_by_name(prefect_client):
 async def test_create_flow_run_from_deployment(
     prefect_client: PrefectClient, deployment
 ):
-    start_time = pendulum.now("utc")
+    start_time = now("UTC")
     flow_run = await prefect_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -1152,12 +1153,13 @@ async def test_create_flow_run_from_deployment(
     assert flow_run.flow_version is None
     # State is scheduled for now
     assert flow_run.state.type == StateType.SCHEDULED
-    assert (
-        start_time <= flow_run.state.state_details.scheduled_time <= pendulum.now("utc")
-    )
+    assert flow_run.state.state_details.scheduled_time is not None
+    assert start_time <= flow_run.state.state_details.scheduled_time <= now("UTC")
 
 
-async def test_create_flow_run_from_deployment_idempotency(prefect_client, deployment):
+async def test_create_flow_run_from_deployment_idempotency(
+    prefect_client: PrefectClient, deployment: DeploymentResponse
+):
     flow_run_1 = await prefect_client.create_flow_run_from_deployment(
         deployment.id, idempotency_key="foo"
     )
@@ -1173,7 +1175,9 @@ async def test_create_flow_run_from_deployment_idempotency(prefect_client, deplo
     assert flow_run_3.id != flow_run_1.id
 
 
-async def test_create_flow_run_from_deployment_with_options(prefect_client, deployment):
+async def test_create_flow_run_from_deployment_with_options(
+    prefect_client: PrefectClient, deployment: DeploymentResponse
+):
     job_variables = {"foo": "bar"}
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment.id,
@@ -1191,7 +1195,7 @@ async def test_create_flow_run_from_deployment_with_options(prefect_client, depl
     assert flow_run.job_variables == job_variables
 
 
-async def test_update_flow_run(prefect_client):
+async def test_update_flow_run(prefect_client: PrefectClient):
     @flow
     def foo():
         pass
@@ -1232,7 +1236,7 @@ async def test_update_flow_run(prefect_client):
     assert updated_flow_run.infrastructure_pid == "infrastructure-123:1029"
 
 
-async def test_update_flow_run_overrides_tags(prefect_client):
+async def test_update_flow_run_overrides_tags(prefect_client: PrefectClient):
     @flow(name="test_update_flow_run_tags__flow")
     def hello(name):
         return f"Hello {name}"
@@ -1250,13 +1254,13 @@ async def test_update_flow_run_overrides_tags(prefect_client):
     assert updated_flow_run.tags == ["hello", "world"]
 
 
-async def test_create_then_read_task_run(prefect_client):
+async def test_create_then_read_task_run(prefect_client: PrefectClient):
     @flow
     def foo():
         pass
 
     @task(tags=["a", "b"], retries=3)
-    def bar(prefect_client):
+    def bar(prefect_client: PrefectClient):
         pass
 
     flow_run = await prefect_client.create_flow_run(foo)
@@ -1272,7 +1276,7 @@ async def test_create_then_read_task_run(prefect_client):
     assert lookup == task_run
 
 
-async def test_delete_task_run(prefect_client):
+async def test_delete_task_run(prefect_client: PrefectClient):
     @task
     def bar():
         pass
@@ -1286,13 +1290,13 @@ async def test_delete_task_run(prefect_client):
         await prefect_client.read_task_run(task_run.id)
 
 
-async def test_create_then_read_task_run_with_state(prefect_client):
+async def test_create_then_read_task_run_with_state(prefect_client: PrefectClient):
     @flow
     def foo():
         pass
 
     @task(tags=["a", "b"], retries=3)
-    def bar(prefect_client):
+    def bar(prefect_client: PrefectClient):
         pass
 
     flow_run = await prefect_client.create_flow_run(foo)
@@ -1302,13 +1306,13 @@ async def test_create_then_read_task_run_with_state(prefect_client):
     assert task_run.state.is_running()
 
 
-async def test_set_then_read_task_run_state(prefect_client):
+async def test_set_then_read_task_run_state(prefect_client: PrefectClient):
     @flow
     def foo():
         pass
 
     @task
-    def bar(prefect_client):
+    def bar(prefect_client: PrefectClient):
         pass
 
     flow_run = await prefect_client.create_flow_run(foo)
@@ -1330,7 +1334,7 @@ async def test_set_then_read_task_run_state(prefect_client):
     assert run.state.message == "Test!"
 
 
-async def test_create_then_read_autonomous_task_runs(prefect_client):
+async def test_create_then_read_autonomous_task_runs(prefect_client: PrefectClient):
     @task
     def foo():
         pass
@@ -1364,7 +1368,7 @@ async def test_create_then_read_autonomous_task_runs(prefect_client):
 
 
 async def test_create_then_read_flow_run_notification_policy(
-    prefect_client, block_document
+    prefect_client: PrefectClient, block_document: BlockDocument
 ):
     message_template = "Test message template!"
     state_names = ["COMPLETED"]
@@ -1472,7 +1476,7 @@ async def test_read_filtered_logs(session, prefect_client, deployment):
             name="prefect.flow_runs",
             level=20,
             message=f"Log from flow_run {id}.",
-            timestamp=DateTime.now(),
+            timestamp=now(),
             flow_run_id=id,
         )
         for id in flow_runs
@@ -1539,7 +1543,9 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     assert verify_ctx.check_hostname is True
 
 
-async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
+async def test_prefect_api_ssl_cert_file_setting_explicitly_set(
+    monkeypatch: pytest.MonkeyPatch,
+):
     cert_path = "my_cert.pem"
 
     # Mock the SSL context creation
@@ -1570,7 +1576,9 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
     assert verify_ctx == mock_context
 
 
-async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
+async def test_prefect_api_ssl_cert_file_default_setting(
+    monkeypatch: pytest.MonkeyPatch,
+):
     os.environ["SSL_CERT_FILE"] = "my_cert.pem"
 
     # Mock the SSL context creation
@@ -1599,7 +1607,9 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
     assert verify_ctx == mock_context
 
 
-async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
+async def test_prefect_api_ssl_cert_file_default_setting_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+):
     os.environ["SSL_CERT_FILE"] = ""
 
     # Mock the SSL context creation
@@ -1634,15 +1644,15 @@ class TestClientAPIVersionRequests:
         return SERVER_API_VERSION.split(".")
 
     @pytest.fixture
-    def major_version(self, versions):
+    def major_version(self, versions: list[str]) -> int:
         return int(versions[0])
 
     @pytest.fixture
-    def minor_version(self, versions):
+    def minor_version(self, versions: list[str]) -> int:
         return int(versions[1])
 
     @pytest.fixture
-    def patch_version(self, versions):
+    def patch_version(self, versions: list[str]) -> int:
         return int(versions[2])
 
     async def test_default_requests_succeeds(self):
@@ -1704,7 +1714,7 @@ class TestClientAPIVersionRequests:
         )
     )
     async def test_patch_version(
-        self, app, major_version, minor_version, patch_version
+        self, app: FastAPI, major_version: int, minor_version: int, patch_version: int
     ):
         # higher client patch version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
@@ -1721,7 +1731,7 @@ class TestClientAPIVersionRequests:
             ):
                 await client.hello()
 
-    async def test_invalid_header(self, app):
+    async def test_invalid_header(self, app: FastAPI):
         # Invalid header is rejected
         api_version = "not a real version header"
         async with PrefectClient(app, api_version=api_version) as client:
@@ -1749,14 +1759,14 @@ class TestClientAPIKey:
 
         return app
 
-    async def test_client_passes_api_key_as_auth_header(self, test_app):
+    async def test_client_passes_api_key_as_auth_header(self, test_app: FastAPI):
         api_key = "validAPIkey"
         async with PrefectClient(test_app, api_key=api_key) as client:
             res = await client._client.get("/check_for_auth_header")
         assert res.status_code == status.HTTP_200_OK
         assert res.json() == api_key
 
-    async def test_client_no_auth_header_without_api_key(self, test_app):
+    async def test_client_no_auth_header_without_api_key(self, test_app: FastAPI):
         async with PrefectClient(test_app) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
@@ -1805,11 +1815,11 @@ class TestClientAuthString:
 
 class TestClientWorkQueues:
     @pytest.fixture
-    async def deployment(self, prefect_client):
+    async def deployment(self, prefect_client: PrefectClient):
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
         schedule = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+            interval=timedelta(days=1), anchor_date=DateTime(2020, 1, 1)
         )
 
         deployment_id = await prefect_client.create_deployment(
@@ -1821,7 +1831,7 @@ class TestClientWorkQueues:
         )
         return deployment_id
 
-    async def test_create_then_read_work_queue(self, prefect_client):
+    async def test_create_then_read_work_queue(self, prefect_client: PrefectClient):
         queue = await prefect_client.create_work_queue(name="foo")
         assert isinstance(queue.id, UUID)
 
@@ -1838,14 +1848,16 @@ class TestClientWorkQueues:
         assert hasattr(lookup, "status")
         assert lookup.status == "NOT_READY"
 
-    async def test_create_then_read_work_queue_by_name(self, prefect_client):
+    async def test_create_then_read_work_queue_by_name(
+        self, prefect_client: PrefectClient
+    ):
         queue = await prefect_client.create_work_queue(name="foo")
         assert isinstance(queue.id, UUID)
 
         lookup = await prefect_client.read_work_queue_by_name("foo")
         assert lookup.name == "foo"
 
-    async def test_create_queue_with_settings(self, prefect_client):
+    async def test_create_queue_with_settings(self, prefect_client: PrefectClient):
         queue = await prefect_client.create_work_queue(
             name="foo",
             concurrency_limit=1,
@@ -2026,7 +2038,7 @@ class TestWorkPools:
         }
 
     async def test_create_work_pool_overwriting_existing_work_pool(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(
@@ -2085,6 +2097,74 @@ class TestWorkPools:
         await prefect_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.read_work_pool(work_pool.id)
+
+    @pytest.fixture
+    def sample_bundle_upload_step(self) -> dict[str, Any]:
+        return {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+
+    @pytest.fixture
+    def sample_bundle_execution_step(self) -> dict[str, Any]:
+        return {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+
+    async def test_create_work_pool_with_storage_configuration(
+        self,
+        prefect_client: PrefectClient,
+        sample_bundle_upload_step: dict[str, Any],
+        sample_bundle_execution_step: dict[str, Any],
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate.model_validate(
+                {
+                    "name": "test-pool-1",
+                    "storage_configuration": {
+                        "bundle_upload_step": sample_bundle_upload_step,
+                        "bundle_execution_step": sample_bundle_execution_step,
+                    },
+                }
+            ),
+        )
+        assert work_pool.storage_configuration == WorkPoolStorageConfiguration(
+            bundle_upload_step=sample_bundle_upload_step,
+            bundle_execution_step=sample_bundle_execution_step,
+        )
+
+    async def test_update_work_pool_with_storage_configuration(
+        self,
+        prefect_client: PrefectClient,
+        sample_bundle_upload_step: dict[str, Any],
+        sample_bundle_execution_step: dict[str, Any],
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-1")
+        )
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate.model_validate(
+                {
+                    "storage_configuration": {
+                        "bundle_upload_step": sample_bundle_upload_step,
+                        "bundle_execution_step": {"step": "not a real step"},
+                    },
+                }
+            ),
+        )
+        result = await prefect_client.read_work_pool(work_pool.name)
+        assert result.storage_configuration == WorkPoolStorageConfiguration(
+            bundle_upload_step=sample_bundle_upload_step,
+            bundle_execution_step={"step": "not a real step"},
+        )
 
 
 class TestArtifacts:
@@ -2561,7 +2641,7 @@ class TestPrefectClientDeploymentSchedules:
         foo = flow(lambda: None, name="foo")
         flow_id = await prefect_client.create_flow(foo)
         schedule = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+            interval=timedelta(days=1), anchor_date=DateTime(2020, 1, 1)
         )
 
         deployment_id = await prefect_client.create_deployment(
@@ -2609,7 +2689,7 @@ class TestPrefectClientDeploymentSchedules:
         result = await prefect_client.read_deployment_schedules(deployment.id)
         assert len(result) == 1
         assert result[0].schedule == IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+            interval=timedelta(days=1), anchor_date=DateTime(2020, 1, 1)
         )
         assert result[0].active is True
 
@@ -2632,7 +2712,7 @@ class TestPrefectClientDeploymentSchedules:
     ):
         result = await prefect_client.read_deployment_schedules(deployment.id)
         assert result[0].schedule == IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+            interval=timedelta(days=1), anchor_date=DateTime(2020, 1, 1)
         )
 
         await prefect_client.update_deployment_schedule(
@@ -2653,7 +2733,7 @@ class TestPrefectClientDeploymentSchedules:
         """
         result = await prefect_client.read_deployment_schedules(deployment.id)
         assert result[0].schedule == IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+            interval=timedelta(days=1), anchor_date=DateTime(2020, 1, 1)
         )
         assert result[0].active is True
 

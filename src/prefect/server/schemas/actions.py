@@ -413,7 +413,7 @@ class StateCreate(ActionBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = now("utc")
+                self.state_details.scheduled_time = now("UTC")
 
         return self
 
@@ -559,6 +559,18 @@ class FlowRunCreate(ActionBaseModel):
             "An optional idempotency key. If a flow run with the same idempotency key"
             " has already been created, the existing flow run will be returned."
         ),
+    )
+    work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the work pool to run the flow run in.",
+    )
+    work_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the work queue to place the flow run in.",
+    )
+    job_variables: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The job variables to use when setting up flow run infrastructure.",
     )
 
     # DEPRECATED
@@ -851,7 +863,9 @@ class WorkPoolCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work pool."""
 
     name: NonEmptyishName = Field(..., description="The name of the work pool.")
-    description: Optional[str] = Field(None, description="The work pool description.")
+    description: Optional[str] = Field(
+        default=None, description="The work pool description."
+    )
     type: str = Field(description="The work pool type.", default="prefect-agent")
     base_job_template: Dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
@@ -862,6 +876,11 @@ class WorkPoolCreate(ActionBaseModel):
     )
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
+    )
+
+    storage_configuration: schemas.core.WorkPoolStorageConfiguration = Field(
+        default_factory=schemas.core.WorkPoolStorageConfiguration,
+        description="The storage configuration for the work pool.",
     )
 
     _validate_base_job_template = field_validator("base_job_template")(
@@ -876,7 +895,10 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = Field(default=None)
     base_job_template: Optional[Dict[str, Any]] = Field(default=None)
     concurrency_limit: Optional[NonNegativeInteger] = Field(default=None)
-
+    storage_configuration: Optional[schemas.core.WorkPoolStorageConfiguration] = Field(
+        default=None,
+        description="The storage configuration for the work pool.",
+    )
     _validate_base_job_template = field_validator("base_job_template")(
         validate_base_job_template
     )

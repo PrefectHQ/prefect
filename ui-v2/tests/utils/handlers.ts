@@ -25,8 +25,22 @@ const automationsHandlers = [
 	}),
 ];
 
-const blocksHandlers = [
-	http.post(buildApiUrl("/blocks/filter"), () => {
+const blockDocumentsHandlers = [
+	http.post(buildApiUrl("/block_documents/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/block_documents/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
+	http.delete(buildApiUrl("/block_documents/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+];
+
+const blockTypesHandlers = [
+	http.post(buildApiUrl("/block_types/filter"), () => {
 		return HttpResponse.json([]);
 	}),
 ];
@@ -162,7 +176,8 @@ const workeQueuesHandlers = [
 
 export const handlers = [
 	...automationsHandlers,
-	...blocksHandlers,
+	...blockDocumentsHandlers,
+	...blockTypesHandlers,
 	...deploymentsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,

@@ -1,15 +1,13 @@
 import asyncio
-from datetime import datetime as pydatetime
-from datetime import timedelta
-from unittest import mock
+import sys
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import dateutil
-import pendulum
 import pytest
 from dateutil import rrule
-from packaging import version
-from pendulum import datetime
 from pydantic import ValidationError
+from whenever import Instant, ZonedDateTime
 
 from prefect._internal.schemas.validators import MAX_RRULE_LENGTH
 from prefect.server.schemas.schedules import (
@@ -18,9 +16,9 @@ from prefect.server.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import now, parse_datetime, start_of_day
 
-dt = pendulum.datetime(2020, 1, 1)
+dt = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
 RRDaily = "FREQ=DAILY"
 
 
@@ -37,17 +35,20 @@ class TestCreateIntervalSchedule:
         ):
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
-    def test_default_anchor(self):
-        mock_now = DateTime(
-            year=2022,
-            month=1,
-            day=1,
-            hour=1,
-            minute=1,
-        )
-        with mock.patch("prefect.types._datetime.DateTime.now", return_value=mock_now):
-            clock = IntervalSchedule(interval=timedelta(days=1))
-        assert clock.anchor_date == mock_now
+    def test_default_anchor(self, monkeypatch: pytest.MonkeyPatch):
+        def mock_now(*args, **kwargs):
+            return datetime(
+                year=2022,
+                month=1,
+                day=1,
+                hour=1,
+                minute=1,
+                tzinfo=ZoneInfo("UTC"),
+            )
+
+        monkeypatch.setattr("prefect.server.schemas.schedules.now", mock_now)
+        clock = IntervalSchedule(interval=timedelta(days=1))
+        assert clock.anchor_date == mock_now()
         assert clock.timezone == "UTC"
 
     def test_default_timezone_from_anchor_date(self):
@@ -62,10 +63,10 @@ class TestCreateIntervalSchedule:
         clock = IntervalSchedule(
             interval=timedelta(days=1),
             timezone="America/Los_Angeles",
-            anchor_date=pendulum.now("America/New_York"),
+            anchor_date=now("America/New_York"),
         )
         assert clock.timezone == "America/Los_Angeles"
-        assert clock.anchor_date.tz.name == "America/New_York"
+        assert clock.anchor_date.tzinfo.key == "America/New_York"
 
     def test_anchor(self):
         dt = now()
@@ -80,12 +81,12 @@ class TestCreateIntervalSchedule:
         # when pendulum parses a datetime, it keeps the UTC offset as the "timezone"
         # and we need to make sure this doesn't get picked up as the schedule's timezone
         # since the schedule should infer that it has the same behavior as "UTC"
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = parse_datetime(str(now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
         assert clock.timezone == "UTC"
 
     def test_parse_utc_offset_timezone(self):
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = parse_datetime(str(now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
         clock_dict = clock.model_dump(mode="json")
 
@@ -97,11 +98,14 @@ class TestCreateIntervalSchedule:
         ].endswith("-05:00")
 
         parsed = IntervalSchedule.model_validate(clock_dict)
-        assert parsed.anchor_date.tz.name in ("-04:00", "-05:00")
+        if sys.version_info >= (3, 13):
+            assert str(parsed.anchor_date.tzinfo) in ("-04:00", "-05:00")
+        else:
+            assert parsed.anchor_date.tzinfo.name in ("-04:00", "-05:00")
         assert parsed.timezone == "UTC"
 
     def test_parse_utc_offset_timezone_with_specified_tz(self):
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = parse_datetime(str(now("America/New_York")))
         clock = IntervalSchedule(
             interval=timedelta(days=1),
             anchor_date=offset_dt,
@@ -116,28 +120,40 @@ class TestCreateIntervalSchedule:
 class TestIntervalSchedule:
     @pytest.mark.parametrize(
         "start_date",
-        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+        [
+            datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2021, 2, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2025, 3, 3, tzinfo=ZoneInfo("UTC")),
+        ],
     )
     async def test_get_dates_from_start_date(self, start_date):
         clock = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
+            interval=timedelta(days=1),
+            anchor_date=datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")),
         )
         dates = await clock.get_dates(n=5, start=start_date)
-        assert dates == [start_date.add(days=i) for i in range(5)]
+        assert dates == [start_date + timedelta(days=i) for i in range(5)]
 
     @pytest.mark.parametrize(
         "end_date",
-        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+        [
+            datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2021, 2, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2025, 3, 3, tzinfo=ZoneInfo("UTC")),
+        ],
     )
     async def test_get_dates_until_end_date(self, end_date):
         clock = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=datetime(2021, 1, 1)
+            interval=timedelta(days=1),
+            anchor_date=datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")),
         )
 
-        dates = await clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
+        dates = await clock.get_dates(
+            start=datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")), end=end_date
+        )
         assert len(dates) == min(
             MAX_ITERATIONS,
-            (end_date - datetime(2018, 1, 1)).days + 1,
+            (end_date - datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC"))).days + 1,
         )
 
     async def test_default_n_is_one_without_end_date(self):
@@ -146,11 +162,15 @@ class TestIntervalSchedule:
         )
 
         dates = await clock.get_dates(start=datetime(2018, 1, 1, 6))
-        assert dates == [datetime(2018, 1, 2)]
+        assert dates == [datetime(2018, 1, 2, tzinfo=ZoneInfo("UTC"))]
 
     @pytest.mark.parametrize(
         "start_date",
-        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+        [
+            datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2021, 2, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2025, 3, 3, tzinfo=ZoneInfo("UTC")),
+        ],
     )
     async def test_get_dates_from_start_date_with_timezone(self, start_date):
         clock = IntervalSchedule(
@@ -160,7 +180,7 @@ class TestIntervalSchedule:
         )
         dates = await clock.get_dates(n=5, start=start_date)
 
-        assert dates == [start_date.add(days=i).in_tz(clock.timezone) for i in range(5)]
+        assert dates == [start_date + timedelta(days=i) for i in range(5)]
 
     @pytest.mark.parametrize("n", [1, 2, 5])
     async def test_get_n_dates(self, n):
@@ -169,63 +189,76 @@ class TestIntervalSchedule:
 
     async def test_get_dates_from_anchor(self):
         clock = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=datetime(2020, 2, 2, 23, 35)
+            interval=timedelta(days=1),
+            anchor_date=datetime(2020, 2, 2, 23, 35, tzinfo=ZoneInfo("UTC")),
         )
-        dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
-        assert dates == [datetime(2021, 7, 1, 23, 35).add(days=i) for i in range(5)]
+        dates = await clock.get_dates(
+            n=5, start=datetime(2021, 7, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        assert dates == [
+            datetime(2021, 7, 1, 23, 35, tzinfo=ZoneInfo("UTC")) + timedelta(days=i)
+            for i in range(5)
+        ]
 
     async def test_get_dates_from_future_anchor(self):
         clock = IntervalSchedule(
-            interval=timedelta(hours=17), anchor_date=datetime(2030, 2, 2, 5, 24)
+            interval=timedelta(hours=17),
+            anchor_date=datetime(2030, 2, 2, 5, 24, tzinfo=ZoneInfo("UTC")),
         )
-        dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
+        dates = await clock.get_dates(
+            n=5, start=datetime(2021, 7, 1, tzinfo=ZoneInfo("UTC"))
+        )
         assert dates == [
-            datetime(2021, 7, 1, 7, 24).add(hours=i * 17) for i in range(5)
+            datetime(2021, 7, 1, 7, 24, tzinfo=ZoneInfo("UTC"))
+            + timedelta(hours=i * 17)
+            for i in range(5)
         ]
 
     async def test_get_dates_from_offset_naive_anchor(self):
         # Regression test for https://github.com/PrefectHQ/orion/issues/2466
         clock = IntervalSchedule(
             interval=timedelta(days=1),
-            anchor_date=datetime(2022, 1, 1, tz=None),
+            anchor_date=datetime(2022, 1, 1),
         )
-        dates = await clock.get_dates(start=datetime(2022, 1, 1), n=3)
+        dates = await clock.get_dates(
+            start=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")), n=3
+        )
         assert dates == [
-            datetime(2022, 1, 1),
-            datetime(2022, 1, 2),
-            datetime(2022, 1, 3),
+            datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 1, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         ]
 
     async def test_get_dates_from_offset_naive_start(self):
         # Regression test for https://github.com/PrefectHQ/orion/issues/2466
         clock = IntervalSchedule(
             interval=timedelta(days=1),
-            anchor_date=datetime(2022, 1, 1),
+            anchor_date=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
         )
         dates = await clock.get_dates(
-            start=pydatetime(2022, 1, 1),
-            end=datetime(2022, 1, 3),
+            start=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
+            end=datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         )
         assert dates == [
-            datetime(2022, 1, 1),
-            datetime(2022, 1, 2),
-            datetime(2022, 1, 3),
+            datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 1, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         ]
 
     async def test_get_dates_from_offset_naive_end(self):
         # Regression test for https://github.com/PrefectHQ/orion/issues/2466
         clock = IntervalSchedule(
             interval=timedelta(days=1),
-            anchor_date=datetime(2022, 1, 1),
+            anchor_date=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
         )
         dates = await clock.get_dates(
-            start=datetime(2022, 1, 1),
-            end=pydatetime(2022, 1, 3),
+            start=datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
+            end=datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         )
         assert dates == [
-            datetime(2022, 1, 1),
-            datetime(2022, 1, 2),
-            datetime(2022, 1, 3),
+            datetime(2022, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 1, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         ]
 
 
@@ -277,56 +310,89 @@ class TestCronSchedule:
 
     async def test_every_day(self):
         clock = CronSchedule(cron=self.every_day)
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
-        assert dates == [datetime(2021, 1, 1).add(days=i) for i in range(5)]
-        assert all(d.tz.name == "UTC" for d in dates)
+        dates = await clock.get_dates(
+            n=5, start=datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        assert dates == [
+            datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(days=i)
+            for i in range(5)
+        ]
+        assert all(d.tzname() == "UTC" for d in dates)
 
     async def test_every_hour(self):
         clock = CronSchedule(cron=self.every_hour)
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
-        assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
-        assert all(d.tz.name == "UTC" for d in dates)
+        dates = await clock.get_dates(
+            n=5, start=datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        assert dates == [
+            datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(hours=i)
+            for i in range(5)
+        ]
+        assert all(d.tzname() == "UTC" for d in dates)
 
     async def test_every_day_with_timezone(self):
         clock = CronSchedule(cron=self.every_hour, timezone="America/New_York")
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
-        assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
-        assert all(d.tz.name == "America/New_York" for d in dates)
+        dates = await clock.get_dates(
+            n=5, start=datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        assert dates == [
+            datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(hours=i)
+            for i in range(5)
+        ]
+        assert all(d.tzinfo.key == "America/New_York" for d in dates)
 
     async def test_every_day_with_timezone_start(self):
         clock = CronSchedule(cron=self.every_hour)
         dates = await clock.get_dates(
-            n=5, start=datetime(2021, 1, 1).in_tz("America/New_York")
+            n=5,
+            start=ZonedDateTime(2021, 1, 1, tz="UTC")
+            .to_tz("America/New_York")
+            .py_datetime(),
         )
-        assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
-        assert all(d.tz.name == "UTC" for d in dates)
+        assert dates == [
+            datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(hours=i)
+            for i in range(5)
+        ]
+        assert all(d.tzname() == "UTC" for d in dates)
 
     async def test_n(self):
         clock = CronSchedule(cron=self.every_day)
-        dates = await clock.get_dates(n=10, start=datetime(2021, 1, 1))
-        assert dates == [datetime(2021, 1, 1).add(days=i) for i in range(10)]
+        dates = await clock.get_dates(
+            n=10, start=datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        assert dates == [
+            datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(days=i)
+            for i in range(10)
+        ]
 
     async def test_start_date(self):
-        start_date = datetime(2025, 5, 5)
+        start_date = datetime(2025, 5, 5, tzinfo=ZoneInfo("UTC"))
         clock = CronSchedule(cron=self.every_day)
         dates = await clock.get_dates(n=10, start=start_date)
-        assert dates == [start_date.add(days=i) for i in range(10)]
+        assert dates == [start_date + timedelta(days=i) for i in range(10)]
 
     @pytest.mark.parametrize(
         "end_date",
-        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2022, 3, 3)],
+        [
+            datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2021, 2, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2022, 3, 3, tzinfo=ZoneInfo("UTC")),
+        ],
     )
     async def test_get_dates_until_end_date(self, end_date):
         clock = CronSchedule(cron=self.every_day)
-        dates = await clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
+        dates = await clock.get_dates(
+            start=datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")), end=end_date
+        )
         assert len(dates) == min(
-            MAX_ITERATIONS, (end_date - datetime(2018, 1, 1)).days + 1
+            MAX_ITERATIONS,
+            (end_date - datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC"))).days + 1,
         )
 
     async def test_default_n_is_one_without_end_date(self):
         clock = CronSchedule(cron=self.every_day)
         dates = await clock.get_dates(start=datetime(2018, 1, 1, 6))
-        assert dates == [datetime(2018, 1, 2)]
+        assert dates == [datetime(2018, 1, 2, tzinfo=ZoneInfo("UTC"))]
 
 
 class TestIntervalScheduleDaylightSavingsTime:
@@ -335,11 +401,11 @@ class TestIntervalScheduleDaylightSavingsTime:
         Tests the situation where a long duration has passed since the start date that crosses a DST boundary;
         for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
         """
-        anchor_date = pendulum.from_timestamp(1582002945.964696).astimezone(
-            pendulum.timezone("US/Pacific")
+        anchor_date = (
+            Instant.from_timestamp(1582002945.964696).to_tz("US/Pacific").py_datetime()
         )
-        current_date = pendulum.from_timestamp(1593643144.233938).astimezone(
-            pendulum.timezone("UTC")
+        current_date = (
+            Instant.from_timestamp(1593643144.233938).to_tz("UTC").py_datetime()
         )
         s = IntervalSchedule(
             interval=timedelta(minutes=1, seconds=15), anchor_date=anchor_date
@@ -353,37 +419,79 @@ class TestIntervalScheduleDaylightSavingsTime:
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
-        dt = datetime(2018, 3, 10, 23, tz="America/New_York")
+        dt = datetime(2018, 3, 10, 23, tzinfo=ZoneInfo("America/New_York"))
         s = IntervalSchedule(interval=timedelta(hours=1))
         dates = await s.get_dates(n=5, start=dt)
         # skip 2am
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly clock in utc time
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 5, 6, 7, 8]
 
     async def test_interval_schedule_hourly_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
-        dt = datetime(2018, 3, 10, 23, tz="America/New_York")
+        dt = datetime(2018, 3, 10, 23, tzinfo=ZoneInfo("America/New_York"))
         s = IntervalSchedule(interval=timedelta(hours=1), timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
         # skip 2am
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        assert [d.hour for d in dates] == [
+            23,
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly clock in utc time
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 5, 6, 7, 8]
 
     async def test_interval_schedule_hourly_daylight_savings_time_backward(self):
         """
         11/4/2018, at 2am, America/New_York switched clocks back an hour.
         """
-        dt = datetime(2018, 11, 3, 23, tz="America/New_York")
+        dt = datetime(2018, 11, 3, 23, tzinfo=ZoneInfo("America/New_York"))
         s = IntervalSchedule(interval=timedelta(hours=1), timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
-        # skips an hour UTC - note interval clocks skip the "6"
-        assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
+        if sys.version_info >= (3, 13):
+            # Hour is repeated because the interval is 1 hour
+            assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+                23,
+                0,
+                1,
+                1,
+                2,
+            ]
+            # Runs on every UTC hour
+            assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+                3,
+                4,
+                5,
+                6,
+                7,
+            ]
+        else:
+            assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+                23,
+                0,
+                1,
+                2,
+                3,
+            ]
+            # skips an hour UTC - note interval clocks skip the "6"
+            assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+                3,
+                4,
+                5,
+                7,
+                8,
+            ]
 
     async def test_interval_schedule_daily_start_daylight_savings_time_forward(self):
         """
@@ -391,13 +499,25 @@ class TestIntervalScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am America/New_York stays 9am through the switch.
         """
-        dt = datetime(2018, 3, 8, 9, tz="America/New_York")
+        dt = datetime(2018, 3, 8, 9, tzinfo=ZoneInfo("America/New_York"))
         s = IntervalSchedule(interval=timedelta(days=1), anchor_date=dt)
         dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [d.in_tz("UTC").hour for d in dates] == [14, 14, 14, 13, 13]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            14,
+            14,
+            14,
+            13,
+            13,
+        ]
 
     async def test_interval_schedule_daily_start_daylight_savings_time_backward(self):
         """
@@ -405,12 +525,25 @@ class TestIntervalScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am America/New_York stays 9am through the switch.
         """
-        dt = datetime(2018, 11, 1, 9, tz="America/New_York")
+        dt = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("America/New_York"))
         s = IntervalSchedule(interval=timedelta(days=1), anchor_date=dt)
         dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
-        assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
+
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            13,
+            13,
+            13,
+            14,
+            14,
+        ]
 
 
 class TestCronScheduleDaylightSavingsTime:
@@ -418,50 +551,42 @@ class TestCronScheduleDaylightSavingsTime:
     Tests that DST boundaries are respected
     """
 
-    async def test_cron_schedule_hourly_daylight_savings_time_forward_ignored_with_UTC(
-        self,
-    ):
-        """
-        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
-        """
-        dt = datetime(2018, 3, 10, 23, tz="America/New_York")
-        s = CronSchedule(cron="0 * * * *", timezone="America/New_York")
-        dates = await s.get_dates(n=5, start=dt)
-
-        # skip 2am
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
-        # constant hourly clock in utc time
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
-
     async def test_cron_schedule_hourly_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
-        dt = datetime(2018, 3, 10, 23, tz="America/New_York")
+        dt = datetime(2018, 3, 10, 23, tzinfo=ZoneInfo("America/New_York"))
         s = CronSchedule(cron="0 * * * *", timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
         # skip 2am
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly clock in utc time
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 5, 6, 7, 8]
 
     async def test_cron_schedule_hourly_daylight_savings_time_backward(self):
         """
         11/4/2018, at 2am, America/New_York switched clocks back an hour.
         """
-        dt = datetime(2018, 11, 3, 23, tz="America/New_York")
+        dt = datetime(2018, 11, 3, 23, tzinfo=ZoneInfo("America/New_York"))
         s = CronSchedule(cron="0 * * * *", timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            2,
+            3,
+        ]
 
-        # pendulum fixed a UTC-offset issue in 3.0
-        # https://github.com/PrefectHQ/prefect/issues/11619
-        if version.parse(pendulum.__version__) >= version.parse("3.0"):
-            assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
-        else:
-            assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 6, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [3, 4, 5, 7, 8]
 
     async def test_cron_schedule_daily_start_daylight_savings_time_forward(self):
         """
@@ -469,14 +594,26 @@ class TestCronScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am America/New_York stays 9am through the switch.
         """
-        dt = datetime(2018, 3, 8, 9, tz="America/New_York")
+        dt = datetime(2018, 3, 8, 9, tzinfo=ZoneInfo("America/New_York"))
         s = CronSchedule(cron="0 9 * * *", timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [d.in_tz("UTC").hour for d in dates] == [14, 14, 14, 13, 13]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            14,
+            14,
+            14,
+            13,
+            13,
+        ]
 
     async def test_cron_schedule_daily_start_daylight_savings_time_backward(self):
         """
@@ -484,13 +621,25 @@ class TestCronScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am America/New_York stays 9am through the switch.
         """
-        dt = datetime(2018, 11, 1, 9, tz="America/New_York")
+        dt = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("America/New_York"))
         s = CronSchedule(cron="0 9 * * *", timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
-        assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            13,
+            13,
+            13,
+            14,
+            14,
+        ]
 
     async def test_cron_schedule_handles_scheduling_near_dst_boundary(self):
         """
@@ -501,12 +650,18 @@ class TestCronScheduleDaylightSavingsTime:
         ahead to 2023-03-12T03:00:00-04:00. The timestamp below is in the 2-hour
         window where it is 2023-03-12, but the DST shift has not yet occurred.
         """
-        dt = pendulum.datetime(2023, 3, 12, 5, 10, 2, tz="UTC")
+        dt = datetime(2023, 3, 12, 5, 10, 2, tzinfo=ZoneInfo("UTC"))
         s = CronSchedule(cron="10 0 * * *", timezone="America/Montreal")
         dates = await s.get_dates(n=5, start=dt)
 
-        assert [d.in_tz("America/New_York").hour for d in dates] == [0, 0, 0, 0, 0]
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 4, 4, 4, 4]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            0,
+            0,
+            0,
+            0,
+            0,
+        ]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 4, 4, 4, 4]
 
 
 class TestRRuleScheduleDaylightSavingsTime:
@@ -516,37 +671,55 @@ class TestRRuleScheduleDaylightSavingsTime:
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
-        dt = datetime(2018, 3, 11, 4, tz="UTC")
+        dt = datetime(2018, 3, 11, 4, tzinfo=ZoneInfo("UTC"))
         s = RRuleSchedule.from_rrule(rrule.rrule(rrule.HOURLY, dtstart=dt))
         dates = await s.get_dates(n=5, start=dt)
-        assert dates[0].tzinfo.name == "UTC"
+        assert dates[0].tzname() == "UTC"
         # skip 2am
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly clock in utc time
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 5, 6, 7, 8]
 
     async def test_rrule_schedule_hourly_daylight_savings_time_forward(self):
         """
         On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
         """
-        dt = datetime(2018, 3, 10, 23, tz="America/New_York")
+        dt = datetime(2018, 3, 10, 23, tzinfo=ZoneInfo("America/New_York"))
         s = RRuleSchedule.from_rrule(rrule.rrule(rrule.HOURLY, dtstart=dt))
         dates = await s.get_dates(n=5, start=dt)
         # skip 2am
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            3,
+            4,
+        ]
         # constant hourly clock in utc time
-        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [4, 5, 6, 7, 8]
 
     async def test_rrule_schedule_hourly_daylight_savings_time_backward(self):
         """
         11/4/2018, at 2am, America/New_York switched clocks back an hour.
         """
-        dt = datetime(2018, 11, 3, 23, tz="America/New_York")
+        dt = datetime(2018, 11, 3, 23, tzinfo=ZoneInfo("America/New_York"))
         s = RRuleSchedule.from_rrule(rrule.rrule(rrule.HOURLY, dtstart=dt))
         dates = await s.get_dates(n=5, start=dt)
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            23,
+            0,
+            1,
+            2,
+            3,
+        ]
         # skips an hour UTC - note rrule clocks skip the "6"
-        assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [3, 4, 5, 7, 8]
 
     async def test_rrule_schedule_daily_start_daylight_savings_time_forward(self):
         """
@@ -554,14 +727,26 @@ class TestRRuleScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am America/New_York stays 9am through the switch.
         """
-        dt = datetime(2018, 3, 8, 9, tz="America/New_York")
+        dt = datetime(2018, 3, 8, 9, tzinfo=ZoneInfo("America/New_York"))
         s = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=dt))
 
         dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
         # utc time shifts
-        assert [d.in_tz("UTC").hour for d in dates] == [14, 14, 14, 13, 13]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            14,
+            14,
+            14,
+            13,
+            13,
+        ]
 
     async def test_rrule_schedule_daily_start_daylight_savings_time_backward(self):
         """
@@ -569,12 +754,24 @@ class TestRRuleScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am America/New_York stays 9am through the switch.
         """
-        dt = datetime(2018, 11, 1, 9, tz="America/New_York")
+        dt = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("America/New_York"))
         s = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=dt))
         dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
-        assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            9,
+            9,
+            9,
+            9,
+            9,
+        ]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [
+            13,
+            13,
+            13,
+            14,
+            14,
+        ]
 
     async def test_rrule_schedule_daily_start_daylight_savings_time_backward_utc(self):
         """
@@ -582,12 +779,18 @@ class TestRRuleScheduleDaylightSavingsTime:
 
         Confirm that a clock for 9am UTC stays 9am through the switch.
         """
-        dt = datetime(2018, 11, 1, 9, tz="UTC")
+        dt = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("UTC"))
         s = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=dt))
         dates = await s.get_dates(n=5, start=dt)
         # constant 9am start
-        assert [d.in_tz("America/New_York").hour for d in dates] == [5, 5, 5, 4, 4]
-        assert [d.in_tz("UTC").hour for d in dates] == [9, 9, 9, 9, 9]
+        assert [d.astimezone(ZoneInfo("America/New_York")).hour for d in dates] == [
+            5,
+            5,
+            5,
+            4,
+            4,
+        ]
+        assert [d.astimezone(ZoneInfo("UTC")).hour for d in dates] == [9, 9, 9, 9, 9]
 
 
 class TestCreateRRuleSchedule:
@@ -608,7 +811,7 @@ class TestCreateRRuleSchedule:
         s = RRuleSchedule.from_rrule(
             rrule.rrule(
                 rrule.DAILY,
-                dtstart=pendulum.datetime(2020, 1, 1, tz="America/New_York"),
+                dtstart=datetime(2020, 1, 1, tzinfo=ZoneInfo("America/New_York")),
             )
         )
         assert s.timezone == "America/New_York"
@@ -629,9 +832,9 @@ class TestCreateRRuleSchedule:
         assert s.timezone == "America/New_York"
 
         dates = await s.get_dates(5)
-        assert dates[0].tz.name == "America/New_York"
+        assert dates[0].tzinfo.key == "America/New_York"
         assert dates == [
-            pendulum.now("America/New_York").start_of("day").add(days=i + 1)
+            start_of_day(now("America/New_York")) + timedelta(days=i + 1)
             for i in range(5)
         ]
 
@@ -639,30 +842,43 @@ class TestCreateRRuleSchedule:
 class TestRRuleSchedule:
     @pytest.mark.parametrize(
         "start_date",
-        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+        [
+            datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2021, 2, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2025, 3, 3, tzinfo=ZoneInfo("UTC")),
+        ],
     )
     async def test_daily_with_start_date(self, start_date):
         s = RRuleSchedule.from_rrule(rrule.rrule(freq=rrule.DAILY, dtstart=start_date))
         dates = await s.get_dates(5, start=start_date)
-        assert dates == [start_date.add(days=i) for i in range(5)]
+        assert dates == [start_date + timedelta(days=i) for i in range(5)]
 
     @pytest.mark.parametrize(
         "start_date",
-        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+        [
+            datetime(2018, 1, 1, tzinfo=ZoneInfo("UTC")),
+            datetime(2021, 2, 2, tzinfo=ZoneInfo("UTC")),
+            datetime(2025, 3, 3, tzinfo=ZoneInfo("UTC")),
+        ],
     )
     async def test_daily_with_end_date(self, start_date):
         s = RRuleSchedule.from_rrule(rrule.rrule(freq=rrule.DAILY, dtstart=start_date))
         dates = await s.get_dates(
-            5, start=start_date, end=start_date.add(days=2, hours=-1)
+            5, start=start_date, end=start_date + timedelta(days=2, hours=-1)
         )
-        assert dates == [start_date.add(days=i) for i in range(2)]
+        assert dates == [start_date + timedelta(days=i) for i in range(2)]
 
     async def test_rrule_returns_nothing_before_dtstart(self):
         s = RRuleSchedule.from_rrule(
-            rrule.rrule(freq=rrule.DAILY, dtstart=pendulum.datetime(2030, 1, 1))
+            rrule.rrule(
+                freq=rrule.DAILY, dtstart=datetime(2030, 1, 1, tzinfo=ZoneInfo("UTC"))
+            )
         )
-        dates = await s.get_dates(5, start=pendulum.now("UTC"))
-        assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
+        dates = await s.get_dates(5, start=datetime(2030, 1, 1, tzinfo=ZoneInfo("UTC")))
+        assert dates == [
+            datetime(2030, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(days=i)
+            for i in range(5)
+        ]
 
     async def test_rrule_validates_rrule_str(self):
         # generic validation error
@@ -678,9 +894,12 @@ class TestRRuleSchedule:
             RRuleSchedule(rrule="FREQ=DAILYBAD")
 
     async def test_rrule_max_rrule_len(self):
-        start = datetime(2000, 1, 1)
+        start = datetime(2000, 1, 1, tzinfo=ZoneInfo("UTC"))
         s = "RDATE:" + ",".join(
-            [start.add(days=i).format("YMMDD") + "T000000Z" for i in range(365 * 3)]
+            [
+                (start + timedelta(days=i)).strftime("%Y%m%d") + "T000000Z"
+                for i in range(365 * 3)
+            ]
         )
         assert len(s) > MAX_RRULE_LENGTH
         with pytest.raises(ValidationError):
@@ -694,8 +913,12 @@ class TestRRuleSchedule:
                 "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
             )
         )
-        dates_from_1900 = await s.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
-        dates_from_2000 = await s.get_dates(5, start=datetime(2000, 1, 1, tz="UTC"))
+        dates_from_1900 = await s.get_dates(
+            5, start=datetime(1900, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        dates_from_2000 = await s.get_dates(
+            5, start=datetime(2000, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
         assert len(dates_from_1900) == 3
         assert len(dates_from_2000) == 0
 
@@ -755,9 +978,9 @@ class TestRRuleSchedule:
         assert all(rd.tzinfo == expected_tzinfo for rd in converted_rruleset._exdate)
 
     async def test_serialization_preserves_rrules_rdates_exrules_exdates(self):
-        dt_nyc = datetime(2018, 1, 11, 4, tz="America/New_York")
-        last_leap_year = datetime(2020, 2, 29, tz="America/New_York")
-        next_leap_year = datetime(2024, 2, 29, tz="America/New_York")
+        dt_nyc = datetime(2018, 1, 11, 4, tzinfo=ZoneInfo("America/New_York"))
+        last_leap_year = datetime(2020, 2, 29, tzinfo=ZoneInfo("America/New_York"))
+        next_leap_year = datetime(2024, 2, 29, tzinfo=ZoneInfo("America/New_York"))
         rrset = rrule.rruleset(cache=True)
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_nyc))
         rrset.exrule(rrule.rrule(rrule.DAILY, count=10, dtstart=dt_nyc))
@@ -792,13 +1015,17 @@ class TestRRuleSchedule:
             )
         )
         s2 = RRuleSchedule.from_rrule(s1.to_rrule())
-        s1_dates = await s1.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
-        s2_dates = await s2.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
+        s1_dates = await s1.get_dates(
+            5, start=datetime(1900, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
+        s2_dates = await s2.get_dates(
+            5, start=datetime(1900, 1, 1, tzinfo=ZoneInfo("UTC"))
+        )
         assert s1_dates == s2_dates
 
     async def test_rrule_schedule_rejects_rrulesets_with_many_dtstart_timezones(self):
-        dt_nyc = datetime(2018, 1, 11, 4, tz="America/New_York")
-        dt_chicago = datetime(2018, 1, 11, 3, tz="America/Chicago")
+        dt_nyc = datetime(2018, 1, 11, 4, tzinfo=ZoneInfo("America/New_York"))
+        dt_chicago = datetime(2018, 1, 11, 3, tzinfo=ZoneInfo("America/Chicago"))
         rrset = rrule.rruleset(cache=True)
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_nyc))
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_chicago))
@@ -807,8 +1034,8 @@ class TestRRuleSchedule:
             RRuleSchedule.from_rrule(rrset)
 
     async def test_rrule_schedule_rejects_rrulesets_with_many_dtstarts(self):
-        dt_1 = datetime(2018, 1, 11, 4, tz="America/New_York")
-        dt_2 = datetime(2018, 2, 11, 4, tz="America/New_York")
+        dt_1 = datetime(2018, 1, 11, 4, tzinfo=ZoneInfo("America/New_York"))
+        dt_2 = datetime(2018, 2, 11, 4, tzinfo=ZoneInfo("America/New_York"))
         rrset = rrule.rruleset(cache=True)
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_1))
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_2))
@@ -820,7 +1047,7 @@ class TestRRuleSchedule:
         reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
     )
     async def test_rrule_schedule_handles_rrule_roundtrips(self):
-        dt = datetime(2018, 3, 11, 4, tz="Europe/Berlin")
+        dt = datetime(2018, 3, 11, 4, tzinfo=ZoneInfo("Europe/Berlin"))
         base_rule = rrule.rrule(rrule.HOURLY, dtstart=dt)
         s1 = RRuleSchedule.from_rrule(base_rule)
         s2 = RRuleSchedule.from_rrule(s1.to_rrule())
@@ -828,10 +1055,10 @@ class TestRRuleSchedule:
         assert s2.timezone == "CET"
         base_dates = list(base_rule.xafter(datetime(1900, 1, 1), count=5))
         s1_dates = await s1.get_dates(
-            5, start=pendulum.DateTime(year=1900, month=1, day=1)
+            5, start=datetime(1900, 1, 1, tzinfo=ZoneInfo("Europe/Berlin"))
         )
         s2_dates = await s2.get_dates(
-            5, start=pendulum.DateTime(year=1900, month=1, day=1)
+            5, start=datetime(1900, 1, 1, tzinfo=ZoneInfo("Europe/Berlin"))
         )
         assert base_dates == s1_dates == s2_dates
 
@@ -841,7 +1068,7 @@ class TestRRuleSchedule:
             rrule.rrule(
                 freq=rrule.DAILY,
                 count=5,
-                dtstart=pendulum.now("UTC").add(hours=1),
+                dtstart=datetime.now(ZoneInfo("UTC")) + timedelta(hours=1),
             )
         )
         assert isinstance(s1.rrule, str)
@@ -874,9 +1101,9 @@ class TestRRuleSchedule:
                 ),
                 "DTSTART:20200101T000000\nRRULE:FREQ=YEARLY;INTERVAL=3;BYMONTH=10;BYMONTHDAY=2,3,4,5,6,7,8;BYDAY=TU",
                 [
-                    pendulum.datetime(2020, 10, 6, 0, 0),
-                    pendulum.datetime(2023, 10, 3, 0, 0),
-                    pendulum.datetime(2026, 10, 6, 0, 0),
+                    datetime(2020, 10, 6, 0, 0, tzinfo=ZoneInfo("UTC")),
+                    datetime(2023, 10, 3, 0, 0, tzinfo=ZoneInfo("UTC")),
+                    datetime(2026, 10, 6, 0, 0, tzinfo=ZoneInfo("UTC")),
                 ],
             ),
             # every minute
@@ -884,9 +1111,9 @@ class TestRRuleSchedule:
                 rrule.rrule(rrule.MINUTELY, dt),
                 "DTSTART:20200101T000000\nRRULE:FREQ=MINUTELY",
                 [
-                    dt.add(minutes=0),
-                    dt.add(minutes=1),
-                    dt.add(minutes=2),
+                    dt + timedelta(minutes=0),
+                    dt + timedelta(minutes=1),
+                    dt + timedelta(minutes=2),
                 ],
             ),
             # last weekday of every other month
@@ -900,9 +1127,9 @@ class TestRRuleSchedule:
                 ),
                 "DTSTART:20200101T000000\nRRULE:FREQ=MONTHLY;INTERVAL=2;BYSETPOS=-1;BYDAY=MO,TU,WE,TH,FR",
                 [
-                    pendulum.datetime(2020, 1, 31),
-                    pendulum.datetime(2020, 3, 31),
-                    pendulum.datetime(2020, 5, 29),
+                    datetime(2020, 1, 31, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 3, 31, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 5, 29, tzinfo=ZoneInfo("UTC")),
                 ],
             ),
             # Every weekday (BYDAY) for the next 8 weekdays (COUNT).
@@ -915,9 +1142,9 @@ class TestRRuleSchedule:
                 ),
                 "DTSTART:20200101T000000\nRRULE:FREQ=DAILY;COUNT=8;BYDAY=MO,TU,WE,TH,FR",
                 [
-                    pendulum.datetime(2020, 1, 1),
-                    pendulum.datetime(2020, 1, 2),
-                    pendulum.datetime(2020, 1, 3),
+                    datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 1, 2, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 1, 3, tzinfo=ZoneInfo("UTC")),
                 ],
             ),
             # Every three weeks on Sunday until 9/23/2021
@@ -927,13 +1154,13 @@ class TestRRuleSchedule:
                     dt,
                     byweekday=rrule.SU,
                     interval=3,
-                    until=pendulum.datetime(2021, 9, 23, tz="UTC"),
+                    until=datetime(2021, 9, 23, tzinfo=ZoneInfo("UTC")),
                 ),
                 "DTSTART:20200101T000000\nRRULE:FREQ=WEEKLY;INTERVAL=3;UNTIL=20210923T000000;BYDAY=SU",
                 [
-                    pendulum.datetime(2020, 1, 5),
-                    pendulum.datetime(2020, 1, 26),
-                    pendulum.datetime(2020, 2, 16),
+                    datetime(2020, 1, 5, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 1, 26, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 2, 16, tzinfo=ZoneInfo("UTC")),
                 ],
             ),
             # every week at 9:13:54
@@ -941,9 +1168,9 @@ class TestRRuleSchedule:
                 rrule.rrule(rrule.WEEKLY, dt, byhour=9, byminute=13, bysecond=54),
                 "DTSTART:20200101T000000\nRRULE:FREQ=WEEKLY;BYHOUR=9;BYMINUTE=13;BYSECOND=54",
                 [
-                    pendulum.datetime(2020, 1, 1, 9, 13, 54),
-                    pendulum.datetime(2020, 1, 8, 9, 13, 54),
-                    pendulum.datetime(2020, 1, 15, 9, 13, 54),
+                    datetime(2020, 1, 1, 9, 13, 54, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 1, 8, 9, 13, 54, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 1, 15, 9, 13, 54, tzinfo=ZoneInfo("UTC")),
                 ],
             ),
             # every year on the 7th and 16th week, on the first weekday
@@ -951,9 +1178,9 @@ class TestRRuleSchedule:
                 rrule.rrule(rrule.YEARLY, dt, byweekno=(7, 16), byweekday=rrule.WE),
                 "DTSTART:20200101T000000\nRRULE:FREQ=YEARLY;BYWEEKNO=7,16;BYDAY=WE",
                 [
-                    pendulum.datetime(2020, 2, 12),
-                    pendulum.datetime(2020, 4, 15),
-                    pendulum.datetime(2021, 2, 17),
+                    datetime(2020, 2, 12, tzinfo=ZoneInfo("UTC")),
+                    datetime(2020, 4, 15, tzinfo=ZoneInfo("UTC")),
+                    datetime(2021, 2, 17, tzinfo=ZoneInfo("UTC")),
                 ],
             ),
         ],
@@ -980,14 +1207,14 @@ class TestRRuleSchedule:
         )
         dates = await s.get_dates(n=100, start=dt)
         assert dates == [
-            dt.add(days=0),
-            dt.add(days=1),
-            dt.add(days=2),
-            dt.add(days=5),
-            dt.add(days=6),
-            dt.add(days=7),
-            dt.add(days=8),
-            dt.add(days=9),
+            dt + timedelta(days=0),
+            dt + timedelta(days=1),
+            dt + timedelta(days=2),
+            dt + timedelta(days=5),
+            dt + timedelta(days=6),
+            dt + timedelta(days=7),
+            dt + timedelta(days=8),
+            dt + timedelta(days=9),
         ]
 
 
@@ -1006,10 +1233,10 @@ async def test_unanchored_rrule_schedules_are_idempotent(
 
     This test confirms the behavior when a user does _not_ provide a DTSTART.
     """
-    start = pendulum.datetime(2023, 6, 8)
-    end = start.add(days=21)
+    start = datetime(2023, 6, 8, tzinfo=ZoneInfo("UTC"))
+    end = start + timedelta(days=21)
 
-    assert start.day_of_week == pendulum.THURSDAY
+    assert start.weekday() == 3
 
     first_set = await weekly_on_friday.get_dates(
         n=3,
@@ -1030,12 +1257,12 @@ async def test_unanchored_rrule_schedules_are_idempotent(
     assert first_set == second_set
 
     assert [dt.date() for dt in first_set] == [
-        pendulum.date(2023, 6, 9),
-        pendulum.date(2023, 6, 16),
-        pendulum.date(2023, 6, 23),
+        date(2023, 6, 9),
+        date(2023, 6, 16),
+        date(2023, 6, 23),
     ]
-    for date in first_set:
-        assert date.day_of_week == pendulum.FRIDAY
+    for date_obj in first_set:
+        assert date_obj.weekday() == 4
 
 
 @pytest.fixture
@@ -1057,10 +1284,10 @@ async def test_rrule_schedules_can_have_embedded_anchors(
     This case confirms that if a user provides an alternative DTSTART it will be
     respected.
     """
-    start = pendulum.datetime(2023, 6, 8)
-    end = start.add(days=21)
+    start = datetime(2023, 6, 8, tzinfo=ZoneInfo("UTC"))
+    end = start + timedelta(days=21)
 
-    assert start.day_of_week == pendulum.THURSDAY
+    assert start.weekday() == 3
 
     first_set = await weekly_at_1pm_fridays.get_dates(
         n=3,
@@ -1081,9 +1308,9 @@ async def test_rrule_schedules_can_have_embedded_anchors(
     assert first_set == second_set
 
     assert first_set == [
-        pendulum.datetime(2023, 6, 9, 13),
-        pendulum.datetime(2023, 6, 16, 13),
-        pendulum.datetime(2023, 6, 23, 13),
+        datetime(2023, 6, 9, 13, tzinfo=ZoneInfo("UTC")),
+        datetime(2023, 6, 16, 13, tzinfo=ZoneInfo("UTC")),
+        datetime(2023, 6, 23, 13, tzinfo=ZoneInfo("UTC")),
     ]
-    for date in first_set:
-        assert date.day_of_week == pendulum.FRIDAY
+    for date_obj in first_set:
+        assert date_obj.weekday() == 4

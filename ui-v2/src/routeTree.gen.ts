@@ -34,6 +34,7 @@ import { Route as RunsFlowRunIdImport } from './routes/runs/flow-run.$id'
 import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/deployment.$id'
 import { Route as ConcurrencyLimitsConcurrencyLimitIdImport } from './routes/concurrency-limits/concurrency-limit.$id'
+import { Route as BlocksCatalogSlugImport } from './routes/blocks/catalog.$slug'
 import { Route as BlocksBlockIdImport } from './routes/blocks/block.$id'
 import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
 import { Route as ArtifactsKeyKeyImport } from './routes/artifacts/key.$key'
@@ -186,6 +187,12 @@ const ConcurrencyLimitsConcurrencyLimitIdRoute =
     path: '/concurrency-limits/concurrency-limit/$id',
     getParentRoute: () => rootRoute,
   } as any)
+
+const BlocksCatalogSlugRoute = BlocksCatalogSlugImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => BlocksCatalogRoute,
+} as any)
 
 const BlocksBlockIdRoute = BlocksBlockIdImport.update({
   id: '/block/$id',
@@ -405,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlocksBlockIdImport
       parentRoute: typeof BlocksImport
     }
+    '/blocks/catalog/$slug': {
+      id: '/blocks/catalog/$slug'
+      path: '/$slug'
+      fullPath: '/blocks/catalog/$slug'
+      preLoaderRoute: typeof BlocksCatalogSlugImport
+      parentRoute: typeof BlocksCatalogImport
+    }
     '/concurrency-limits/concurrency-limit/$id': {
       id: '/concurrency-limits/concurrency-limit/$id'
       path: '/concurrency-limits/concurrency-limit/$id'
@@ -494,14 +508,26 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
+interface BlocksCatalogRouteChildren {
+  BlocksCatalogSlugRoute: typeof BlocksCatalogSlugRoute
+}
+
+const BlocksCatalogRouteChildren: BlocksCatalogRouteChildren = {
+  BlocksCatalogSlugRoute: BlocksCatalogSlugRoute,
+}
+
+const BlocksCatalogRouteWithChildren = BlocksCatalogRoute._addFileChildren(
+  BlocksCatalogRouteChildren,
+)
+
 interface BlocksRouteChildren {
-  BlocksCatalogRoute: typeof BlocksCatalogRoute
+  BlocksCatalogRoute: typeof BlocksCatalogRouteWithChildren
   BlocksIndexRoute: typeof BlocksIndexRoute
   BlocksBlockIdRoute: typeof BlocksBlockIdRoute
 }
 
 const BlocksRouteChildren: BlocksRouteChildren = {
-  BlocksCatalogRoute: BlocksCatalogRoute,
+  BlocksCatalogRoute: BlocksCatalogRouteWithChildren,
   BlocksIndexRoute: BlocksIndexRoute,
   BlocksBlockIdRoute: BlocksBlockIdRoute,
 }
@@ -560,6 +586,7 @@ export interface FileRoutesByFullPath {
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
+  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -595,6 +622,7 @@ export interface FileRoutesByTo {
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
+  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -632,6 +660,7 @@ export interface FileRoutesById {
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
+  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -670,6 +699,7 @@ export interface FileRouteTypes {
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
     | '/blocks/block/$id'
+    | '/blocks/catalog/$slug'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
     | '/flows/flow/$id'
@@ -704,6 +734,7 @@ export interface FileRouteTypes {
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
     | '/blocks/block/$id'
+    | '/blocks/catalog/$slug'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
     | '/flows/flow/$id'
@@ -739,6 +770,7 @@ export interface FileRouteTypes {
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
     | '/blocks/block/$id'
+    | '/blocks/catalog/$slug'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
     | '/flows/flow/$id'
@@ -887,7 +919,10 @@ export const routeTree = rootRoute
     },
     "/blocks/catalog": {
       "filePath": "blocks/catalog.tsx",
-      "parent": "/blocks"
+      "parent": "/blocks",
+      "children": [
+        "/blocks/catalog/$slug"
+      ]
     },
     "/work-pools/create": {
       "filePath": "work-pools/create.tsx"
@@ -932,6 +967,10 @@ export const routeTree = rootRoute
     "/blocks/block/$id": {
       "filePath": "blocks/block.$id.tsx",
       "parent": "/blocks"
+    },
+    "/blocks/catalog/$slug": {
+      "filePath": "blocks/catalog.$slug.tsx",
+      "parent": "/blocks/catalog"
     },
     "/concurrency-limits/concurrency-limit/$id": {
       "filePath": "concurrency-limits/concurrency-limit.$id.tsx"

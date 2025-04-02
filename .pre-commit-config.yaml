@@ -28,6 +28,12 @@ repos:
             src/prefect/events/.*|
             src/prefect/input/.*
           )$
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.6.11
+    hooks:
+      - id: uv-lock
+
   - repo: local
     hooks:
       - id: generate-mintlify-openapi-docs

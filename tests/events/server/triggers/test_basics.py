@@ -842,7 +842,7 @@ async def test_lost_followers_are_processed_during_proactive_evaluation(
     act.assert_not_awaited()
 
     # Only after a later proactive evaluation are these processed; use a mock for
-    # pendulum.now because the age calculation for the TTLCache of recently seen events
+    # DateTime.now because the age calculation for the TTLCache of recently seen events
     # is based on the current wall-clock time
     with mock.patch(
         "prefect.server.events.triggers.prefect.types._datetime.now"

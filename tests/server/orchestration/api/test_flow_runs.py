@@ -1,9 +1,9 @@
+import datetime
 from typing import List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
 import orjson
-import pendulum
 import pytest
 import sqlalchemy as sa
 from httpx import AsyncClient
@@ -13,6 +13,7 @@ from starlette import status
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
@@ -26,6 +27,7 @@ from prefect.states import (
     Scheduled,
     to_state_create,
 )
+from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -83,7 +85,7 @@ class TestCreateFlowRun:
             json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
                 state=to_state_create(
-                    Completed(timestamp=pendulum.now("UTC").add(months=1))
+                    Completed(timestamp=now("UTC") + datetime.timedelta(days=30))
                 ),
             ).model_dump(mode="json"),
         )
@@ -93,7 +95,7 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         # the timestamp was overwritten
-        assert flow_run.state.timestamp < pendulum.now("UTC")
+        assert flow_run.state.timestamp < now("UTC")
 
     async def test_create_flow_run_without_state_yields_default_pending(
         self, flow, client, session
@@ -227,6 +229,81 @@ class TestCreateFlowRun:
 
         assert response.json()["deployment_id"] == str(deployment.id)
 
+    async def test_create_flow_run_with_work_pool(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+        work_pool: WorkPool,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["work_pool_name"] == work_pool.name
+        assert res["work_queue_name"] == "default"
+
+    async def test_create_flow_run_with_work_pool_and_work_queue(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+        work_pool: WorkPool,
+        work_queue_1: WorkQueue,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name=work_pool.name,
+                work_queue_name=work_queue_1.name,
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["work_pool_name"] == work_pool.name
+        assert res["work_queue_name"] == work_queue_1.name
+
+    async def test_create_flow_run_with_non_existent_work_pool(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                work_pool_name="non-existent-work-pool",
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 404
+        assert (
+            'Work pool "non-existent-work-pool" not found' in response.json()["detail"]
+        )
+
+    async def test_create_flow_run_with_job_variables(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=client_actions.FlowRunCreate(
+                flow_id=flow.id,
+                job_variables={
+                    "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
+                },
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        res = response.json()
+        assert res["job_variables"] == {
+            "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
+        }
+
 
 class TestUpdateFlowRun:
     async def test_update_flow_run_succeeds(self, flow, session, client):
@@ -235,7 +312,7 @@ class TestUpdateFlowRun:
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
         )
         await session.commit()
-        now = pendulum.now("UTC")
+        current_time = now("UTC")
 
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
@@ -252,7 +329,7 @@ class TestUpdateFlowRun:
         )
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
-        assert updated_flow_run.updated > now
+        assert updated_flow_run.updated > current_time
 
     async def test_update_flow_run_with_job_vars_but_no_state(
         self, flow, session, client
@@ -320,7 +397,7 @@ class TestUpdateFlowRun:
                 flow_id=flow.id,
                 flow_version="1.0",
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=now("UTC") + datetime.timedelta(days=1)
                 ),
             ),
         )
@@ -357,7 +434,7 @@ class TestUpdateFlowRun:
                 flow_id=flow.id,
                 flow_version="1.0",
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=now("UTC") + datetime.timedelta(days=1)
                 ),
                 deployment_id=deployment.id,
             ),
@@ -743,7 +820,7 @@ class TestReadFlowRuns:
         assert response.json() == []
 
     async def test_read_flow_runs_applies_sort(self, session, flow, client):
-        now = pendulum.now("UTC")
+        current_time = now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -751,7 +828,7 @@ class TestReadFlowRuns:
                 name="Flow Run 1",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=now.subtract(minutes=1),
+                    timestamp=current_time - datetime.timedelta(minutes=1),
                 ),
             ),
         )
@@ -762,9 +839,9 @@ class TestReadFlowRuns:
                 name="Flow Run 2",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=now.add(minutes=1),
+                    timestamp=current_time + datetime.timedelta(minutes=1),
                 ),
-                start_time=now.subtract(minutes=2),
+                start_time=current_time - datetime.timedelta(minutes=2),
             ),
         )
         await session.commit()
@@ -1704,7 +1781,7 @@ class TestSetFlowRunState:
                     type=StateType.SCHEDULED,
                     name="Scheduled",
                     state_details=dict(
-                        scheduled_time=str(pendulum.now("UTC").add(months=1))
+                        scheduled_time=str(now("UTC") + datetime.timedelta(days=30))
                     ),
                 )
             ),
@@ -1751,11 +1828,12 @@ class TestSetFlowRunState:
     async def test_flow_run_receives_wait_until_scheduled_start_time(
         self, flow_run, client, session
     ):
+        scheduled_time = now("UTC") + datetime.timedelta(days=1)
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
                 state=to_state_create(
-                    Scheduled(scheduled_time=pendulum.now("UTC").add(days=1))
+                    Scheduled(scheduled_time=scheduled_time)
                 ).model_dump(mode="json")
             ),
         )
@@ -1782,7 +1860,7 @@ class TestSetFlowRunState:
             0
             <= (
                 # Fuzzy comparison
-                pendulum.duration(days=1).total_seconds()
+                86400  # 24 hours in seconds
                 - api_response.details.delay_seconds
             )
             <= 10
@@ -1994,8 +2072,8 @@ class TestFlowRunHistory:
         response = await client.post(
             "/flow_runs/history",
             json=dict(
-                history_start=str(pendulum.now("UTC")),
-                history_end=str(pendulum.now("UTC").add(days=1)),
+                history_start=str(now("UTC")),
+                history_end=str(now("UTC") + datetime.timedelta(days=1)),
                 history_interval_seconds=0.9,
             ),
         )
@@ -2014,7 +2092,7 @@ class TestFlowRunLateness:
     async def late_flow_runs(self, session, flow):
         flow_runs = []
         for i in range(5):
-            one_minute_ago = pendulum.now("UTC").subtract(minutes=1)
+            one_minute_ago = now("UTC") - datetime.timedelta(minutes=1)
             flow_run = await models.flow_runs.create_flow_run(
                 session=session,
                 flow_run=schemas.core.FlowRun(
@@ -2025,7 +2103,9 @@ class TestFlowRunLateness:
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=schemas.states.Running(timestamp=one_minute_ago.add(seconds=i)),
+                state=schemas.states.Running(
+                    timestamp=one_minute_ago + datetime.timedelta(seconds=i)
+                ),
             )
             flow_runs.append(flow_run)
 
@@ -2553,7 +2633,7 @@ class TestPaginateFlowRuns:
         assert response.json()["results"] == []
 
     async def test_read_flow_runs_applies_sort(self, session, flow, client):
-        now = pendulum.now("UTC")
+        current_time = now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -2561,7 +2641,7 @@ class TestPaginateFlowRuns:
                 name="Flow Run 1",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=now.subtract(minutes=1),
+                    timestamp=current_time - datetime.timedelta(minutes=1),
                 ),
             ),
         )
@@ -2572,9 +2652,9 @@ class TestPaginateFlowRuns:
                 name="Flow Run 2",
                 state=schemas.states.State(
                     type=StateType.SCHEDULED,
-                    timestamp=now.add(minutes=1),
+                    timestamp=current_time + datetime.timedelta(minutes=1),
                 ),
-                start_time=now.subtract(minutes=2),
+                start_time=current_time - datetime.timedelta(minutes=2),
             ),
         )
         await session.commit()
@@ -2830,7 +2910,7 @@ class TestDownloadFlowRunLogs:
 
     @pytest.fixture
     async def flow_run_1_logs(self, flow_run_1, session):
-        NOW = pendulum.now("UTC")
+        NOW = now("UTC")
 
         logs = [
             LogCreate(
@@ -2851,7 +2931,7 @@ class TestDownloadFlowRunLogs:
 
     @pytest.fixture
     async def flow_run_2_logs(self, flow_run_2, session):
-        NOW = pendulum.now("UTC")
+        NOW = now("UTC")
 
         logs = [
             LogCreate(

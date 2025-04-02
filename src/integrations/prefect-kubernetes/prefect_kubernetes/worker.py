@@ -108,7 +108,9 @@ import enum
 import json
 import logging
 import shlex
+import subprocess
 import tempfile
+import uuid
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -155,7 +157,6 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFlowRunFuture
 from prefect.states import Pending
-from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -176,7 +177,7 @@ from prefect_kubernetes.utilities import (
 )
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import FlowRun
+    from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.flows import Flow
 
@@ -201,7 +202,7 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
             "generateName": "{{ name }}-",
         },
         "spec": {
-            "backoffLimit": 0,
+            "backoffLimit": "{{ backoff_limit }}",
             "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
             "template": {
                 "spec": {
@@ -363,8 +364,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["APIFlow"] = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "APIFlow | None" = None,
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -377,18 +380,77 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             deployment: The deployment associated with the flow run used for
                 preparation.
             flow: The flow associated with the flow run used for preparation.
+            work_pool: The work pool associated with the flow run used for preparation.
+            worker_name: The name of the worker used for preparation.
         """
+        # Save special Kubernetes env vars (like those with valueFrom)
+        special_env_vars = []
+        if isinstance(self.env, list):
+            special_env_vars = [item for item in self.env if "valueFrom" in item]
+            original_env = {}
+            for item in self.env:
+                if "name" in item and "value" in item:
+                    original_env[item["name"]] = item.get("value")
+            self.env = original_env
 
-        super().prepare_for_flow_run(flow_run, deployment, flow)
-        # Update configuration env and job manifest env
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+
+        self._configure_eviction_handling()
         self._update_prefect_api_url_if_local_server()
+
+        # Restore any special env vars with valueFrom before populating the manifest
+        if special_env_vars:
+            # Convert dict env back to list format
+            env_list = [{"name": k, "value": v} for k, v in self.env.items()]
+            # Add special env vars back in
+            env_list.extend(special_env_vars)
+            self.env = env_list
+
         self._populate_env_in_manifest()
-        # Update labels in job manifest
         self._slugify_labels()
-        # Add defaults to job manifest if necessary
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
+
+    def _configure_eviction_handling(self):
+        """
+        Configures eviction handling for the job pod. Needs to run before
+
+        If `backoffLimit` is set to 0, we'll tell the Runner to reschedule
+        its flow run when it receives a SIGTERM.
+
+        If `backoffLimit` is set to a positive number, we'll ensure that the
+        reschedule SIGTERM handling is not set. Having both a `backoffLimit` and
+        reschedule handling set can cause duplicate flow run execution.
+        """
+        # If backoffLimit is set to 0, we'll tell the Runner to reschedule
+        # its flow run when it receives a SIGTERM.
+        if self.job_manifest["spec"].get("backoffLimit") == 0:
+            if isinstance(self.env, dict):
+                self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
+            elif not any(
+                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                for v in self.env
+            ):
+                self.env.append(
+                    {
+                        "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                        "value": "reschedule",
+                    }
+                )
+        # Otherwise, we'll ensure that the reschedule SIGTERM handling is not set.
+        else:
+            if isinstance(self.env, dict):
+                self.env.pop("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", None)
+            elif any(
+                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                for v in self.env
+            ):
+                self.env = [
+                    v
+                    for v in self.env
+                    if v.get("name") != "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+                ]
 
     def _populate_env_in_manifest(self):
         """
@@ -404,7 +466,12 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         An example reason the a user would remove the `{{ env }}` placeholder to
         hardcode Kubernetes secrets in the base job template.
         """
-        transformed_env = [{"name": k, "value": v} for k, v in self.env.items()]
+        # Handle both dictionary and list formats for environment variables
+        if isinstance(self.env, dict):
+            transformed_env = [{"name": k, "value": v} for k, v in self.env.items()]
+        else:
+            # If env is already a list (k8s format), use it directly
+            transformed_env = self.env
 
         template_env = self.job_manifest["spec"]["template"]["spec"]["containers"][
             0
@@ -431,12 +498,22 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         user, update the value to ensure connectivity when using a bridge network by
         updating local connections to use the internal host
         """
-        if self.env.get("PREFECT_API_URL") and self._api_dns_name:
-            self.env["PREFECT_API_URL"] = (
-                self.env["PREFECT_API_URL"]
-                .replace("localhost", self._api_dns_name)
-                .replace("127.0.0.1", self._api_dns_name)
-            )
+        if isinstance(self.env, dict):
+            if (api_url := self.env.get("PREFECT_API_URL")) and self._api_dns_name:
+                self.env["PREFECT_API_URL"] = api_url.replace(
+                    "localhost", self._api_dns_name
+                ).replace("127.0.0.1", self._api_dns_name)
+        else:
+            # Handle list format
+            for env_var in self.env:
+                if (
+                    env_var.get("name") == "PREFECT_API_URL"
+                    and self._api_dns_name
+                    and (value := env_var.get("value"))
+                ):
+                    env_var["value"] = value.replace(
+                        "localhost", self._api_dns_name
+                    ).replace("127.0.0.1", self._api_dns_name)
 
     def _slugify_labels(self):
         """Slugifies the labels in the job manifest."""
@@ -538,6 +615,15 @@ class KubernetesWorkerVariables(BaseVariables):
         default=KubernetesImagePullPolicy.IF_NOT_PRESENT,
         description="The Kubernetes image pull policy to use for job containers.",
     )
+    backoff_limit: int = Field(
+        default=0,
+        ge=0,
+        title="Backoff Limit",
+        description=(
+            "The number of times Kubernetes will retry a job after pod eviction. "
+            "If set to 0, Prefect will reschedule the flow run when the pod is evicted."
+        ),
+    )
     finished_job_ttl: Optional[int] = Field(
         default=None,
         title="Finished Job TTL",
@@ -602,7 +688,7 @@ class KubernetesWorker(
         self,
         flow_run: "FlowRun",
         configuration: KubernetesWorkerJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
+        task_status: anyio.abc.TaskStatus[int] | None = None,
     ) -> KubernetesWorkerResult:
         """
         Executes a flow run within a Kubernetes Job and waits for the flow run
@@ -642,7 +728,11 @@ class KubernetesWorker(
             )
             async with events_replicator:
                 status_code = await self._watch_job(
-                    logger, job.metadata.name, configuration, client
+                    logger=logger,
+                    job_name=job.metadata.name,
+                    configuration=configuration,
+                    client=client,
+                    flow_run=flow_run,
                 )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
@@ -672,6 +762,7 @@ class KubernetesWorker(
         )
         if self._runs_task_group is None:
             raise RuntimeError("Worker not properly initialized")
+
         flow_run = await self._runs_task_group.start(
             partial(
                 self._submit_adhoc_run,
@@ -700,8 +791,34 @@ class KubernetesWorker(
         if TYPE_CHECKING:
             assert self._client is not None
             assert self._work_pool is not None
+
+        if (
+            self._work_pool.storage_configuration.bundle_upload_step is None
+            or self._work_pool.storage_configuration.bundle_execution_step is None
+        ):
+            raise RuntimeError(
+                f"Storage is not configured for work pool {self._work_pool.name!r}. "
+                "Please configure storage for the work pool by running `prefect "
+                "work-pool storage configure`."
+            )
+
+        bundle_key = str(uuid.uuid4())
+        upload_command = convert_step_to_command(
+            self._work_pool.storage_configuration.bundle_upload_step,
+            bundle_key,
+            quiet=True,
+        )
+        execute_command = convert_step_to_command(
+            self._work_pool.storage_configuration.bundle_execution_step, bundle_key
+        )
+
+        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
         flow_run = await self._client.create_flow_run(
-            flow, parameters=parameters, state=Pending()
+            flow,
+            parameters=parameters,
+            state=Pending(),
+            job_variables=job_variables,
+            work_pool_name=self._work_pool.name,
         )
         if task_status is not None:
             # Emit the flow run object to .submit to allow it to return a future as soon as possible
@@ -710,54 +827,38 @@ class KubernetesWorker(
         api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
         logger = self.get_flow_run_logger(flow_run)
 
-        # TODO: Migrate steps to their own attributes on work pool when hardening this design
-        upload_step = json.loads(
-            get_from_dict(
-                self._work_pool.base_job_template,
-                "variables.properties.env.default.PREFECT__BUNDLE_UPLOAD_STEP",
-                "{}",
-            )
-        )
-        execute_step = json.loads(
-            get_from_dict(
-                self._work_pool.base_job_template,
-                "variables.properties.env.default.PREFECT__BUNDLE_EXECUTE_STEP",
-                "{}",
-            )
-        )
-
-        upload_command = convert_step_to_command(upload_step, str(flow_run.id))
-        execute_command = convert_step_to_command(execute_step, str(flow_run.id))
-
-        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
-
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
             values=job_variables,
             client=self._client,
         )
-        configuration.prepare_for_flow_run(flow_run=flow_run, flow=api_flow)
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=api_flow,
+            work_pool=self._work_pool,
+            worker_name=self.name,
+        )
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
-        logger.debug("Uploading execution bundle")
         with tempfile.TemporaryDirectory() as temp_dir:
             await (
                 anyio.Path(temp_dir)
-                .joinpath(str(flow_run.id))
+                .joinpath(bundle_key)
                 .write_bytes(json.dumps(bundle).encode("utf-8"))
             )
 
             try:
+                full_command = upload_command + [bundle_key]
+                logger.debug(
+                    "Uploading execution bundle with command: %s", full_command
+                )
                 await anyio.run_process(
-                    upload_command + [str(flow_run.id)],
+                    full_command,
                     cwd=temp_dir,
                 )
-            except Exception as e:
-                self._logger.error(
-                    "Failed to upload bundle: %s", e.stderr.decode("utf-8")
-                )
-                raise e
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(e.stderr.decode("utf-8")) from e
 
         logger.debug("Successfully uploaded execution bundle")
 
@@ -838,8 +939,8 @@ class KubernetesWorker(
         self,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-        secret_name: Optional[str] = None,
-        secret_key: Optional[str] = None,
+        secret_name: str | None = None,
+        secret_key: str | None = None,
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
         manifest_env = configuration.job_manifest["spec"]["template"]["spec"][
@@ -1143,6 +1244,7 @@ class KubernetesWorker(
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
+        flow_run: "FlowRun",
     ) -> int:
         """
         Watch a job.
@@ -1215,7 +1317,13 @@ class KubernetesWorker(
             )
 
         if not first_container_status:
-            logger.error(f"Job {job_name!r}: No pods found for job.")
+            assert self._client is not None
+            up_to_date_flow_run = await self._client.read_flow_run(
+                flow_run.id,
+            )
+            if up_to_date_flow_run.state and up_to_date_flow_run.state.is_scheduled():
+                return 0
+            logger.error(f"Job {job_name!r}: Unable to determine container status.")
             return -1
 
         # In some cases, the pod will still be running at this point.
@@ -1254,7 +1362,7 @@ class KubernetesWorker(
         job_id: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> Optional["V1Job"]:
+    ) -> "V1Job | None":
         """Get a Kubernetes job by id."""
 
         try:
@@ -1273,13 +1381,13 @@ class KubernetesWorker(
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
-    ) -> Optional["V1Pod"]:
+    ) -> "V1Pod | None":
         """Get the first running pod for a job."""
 
         watch = kubernetes_asyncio.watch.Watch()
         logger.info(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
-        last_pod_name: Optional[str] = None
+        last_pod_name: str | None = None
         core_client = CoreV1Api(client)
         async with watch:
             async for event in watch.stream(
@@ -1312,7 +1420,7 @@ class KubernetesWorker(
         self,
         logger: logging.Logger,
         job_name: str,
-        pod_name: Optional[str],
+        pod_name: str | None,
         configuration: KubernetesWorkerJobConfiguration,
         client: "ApiClient",
     ) -> None:

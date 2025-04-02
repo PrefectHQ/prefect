@@ -112,9 +112,9 @@ async def version(
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
-        "Built": parse_datetime(
-            prefect.__version_info__["date"]
-        ).to_day_datetime_string(),
+        "Built": parse_datetime(prefect.__version_info__["date"]).strftime(
+            "%a, %b %d, %Y %-I:%M %p"
+        ),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }

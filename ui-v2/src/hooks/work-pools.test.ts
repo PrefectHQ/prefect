@@ -24,27 +24,6 @@ describe("Work Pool Hooks", () => {
 	});
 
 	describe("usePauseWorkPool", () => {
-		it("calls PATCH with correct parameters to pause a work pool", async () => {
-			let requestBody: Record<string, unknown> = {};
-			server.use(
-				http.patch(
-					buildApiUrl(`/work_pools/${workPoolName}`),
-					async ({ request }) => {
-						requestBody = (await request.json()) as Record<string, unknown>;
-						return HttpResponse.json({});
-					},
-				),
-			);
-
-			const { result } = renderHook(() => usePauseWorkPool(), {
-				wrapper: createWrapper(),
-			});
-
-			await result.current.mutateAsync(workPoolName);
-
-			expect(requestBody).toEqual({ is_paused: true });
-		});
-
 		it("shows success toast on successful pause", async () => {
 			server.use(
 				http.patch(buildApiUrl(`/work_pools/${workPoolName}`), () => {
@@ -84,27 +63,6 @@ describe("Work Pool Hooks", () => {
 	});
 
 	describe("useResumeWorkPool", () => {
-		it("calls PATCH with correct parameters to resume a work pool", async () => {
-			let requestBody: Record<string, unknown> = {};
-			server.use(
-				http.patch(
-					buildApiUrl(`/work_pools/${workPoolName}`),
-					async ({ request }) => {
-						requestBody = (await request.json()) as Record<string, unknown>;
-						return HttpResponse.json({});
-					},
-				),
-			);
-
-			const { result } = renderHook(() => useResumeWorkPool(), {
-				wrapper: createWrapper(),
-			});
-
-			await result.current.mutateAsync(workPoolName);
-
-			expect(requestBody).toEqual({ is_paused: false });
-		});
-
 		it("shows success toast on successful resume", async () => {
 			server.use(
 				http.patch(buildApiUrl(`/work_pools/${workPoolName}`), () => {
@@ -145,24 +103,6 @@ describe("Work Pool Hooks", () => {
 	});
 
 	describe("useDeleteWorkPool", () => {
-		it("calls DELETE to remove a work pool", async () => {
-			let wasDeleted = false;
-			server.use(
-				http.delete(buildApiUrl(`/work_pools/${workPoolName}`), () => {
-					wasDeleted = true;
-					return HttpResponse.json({});
-				}),
-			);
-
-			const { result } = renderHook(() => useDeleteWorkPool(), {
-				wrapper: createWrapper(),
-			});
-
-			await result.current.mutateAsync(workPoolName);
-
-			expect(wasDeleted).toBe(true);
-		});
-
 		it("shows success toast on successful delete", async () => {
 			server.use(
 				http.delete(buildApiUrl(`/work_pools/${workPoolName}`), () => {

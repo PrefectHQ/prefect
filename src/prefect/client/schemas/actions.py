@@ -23,6 +23,7 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
+    WorkPoolStorageConfiguration,
 )
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -38,6 +39,7 @@ from prefect.types import (
     DateTime,
     KeyValueLabelsField,
     Name,
+    NameOrEmpty,
     NonEmptyishName,
     NonNegativeFloat,
     NonNegativeInteger,
@@ -211,7 +213,7 @@ class DeploymentCreate(ActionBaseModel):
     ) -> Union[str, list[str]]:
         return convert_to_strings(values)
 
-    name: str = Field(..., description="The name of the deployment.")
+    name: NameOrEmpty = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     paused: Optional[bool] = Field(default=None)
     schedules: list[DeploymentScheduleCreate] = Field(
@@ -443,6 +445,9 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = Field(default=None)
 
     labels: KeyValueLabelsField = Field(default_factory=dict)
+    work_pool_name: Optional[str] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
 
 
 class DeploymentFlowRunCreate(ActionBaseModel):
@@ -684,6 +689,10 @@ class WorkPoolCreate(ActionBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkPoolUpdate(ActionBaseModel):
@@ -693,6 +702,10 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = Field(default=None)
     base_job_template: Optional[dict[str, Any]] = Field(default=None)
     concurrency_limit: Optional[int] = Field(default=None)
+    storage_configuration: Optional[WorkPoolStorageConfiguration] = Field(
+        default=None,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkQueueCreate(ActionBaseModel):

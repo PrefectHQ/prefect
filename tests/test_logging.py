@@ -6,6 +6,7 @@ import sys
 import time
 import uuid
 from contextlib import nullcontext
+from datetime import datetime
 from functools import partial
 from io import StringIO
 from pathlib import Path
@@ -81,13 +82,25 @@ if TYPE_CHECKING:
     from prefect.server.events.pipeline import EventsPipeline
 
 
+def _normalize_timestamp(timestamp: str) -> str:
+    if timestamp.endswith("Z"):
+        if "." in timestamp:
+            base, frac = timestamp[:-1].split(".")
+            # Normalize fractional seconds to 6 digits
+            frac = (frac + "000000")[:6]
+            timestamp = f"{base}.{frac}+00:00"
+        else:
+            timestamp = timestamp[:-1] + "+00:00"
+    return timestamp
+
+
 @pytest.fixture
 def dictConfigMock(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
     monkeypatch.setattr("logging.config.dictConfig", mock)
     # Reset the process global since we're testing `setup_logging`
     old = prefect.logging.configuration.PROCESS_LOGGING_CONFIG
-    prefect.logging.configuration.PROCESS_LOGGING_CONFIG = None
+    prefect.logging.configuration.PROCESS_LOGGING_CONFIG = {}
     yield mock
     prefect.logging.configuration.PROCESS_LOGGING_CONFIG = old
 
@@ -531,10 +544,12 @@ class TestAPILogHandler:
 
         record = handler.emit.call_args[0][0]
         log_dict = mock_log_worker.instance().send.call_args[0][0]
+        timestamp = log_dict["timestamp"]
 
-        assert (
-            log_dict["timestamp"] == from_timestamp(record.created).to_iso8601_string()
-        )
+        if sys.version_info < (3, 11):
+            timestamp = _normalize_timestamp(timestamp)
+
+        assert datetime.fromisoformat(timestamp) == from_timestamp(record.created)
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
         self,
@@ -562,7 +577,12 @@ class TestAPILogHandler:
 
         log_dict = mock_log_worker.instance().send.call_args[0][0]
 
-        assert log_dict["timestamp"] == from_timestamp(now).to_iso8601_string()
+        timestamp = log_dict["timestamp"]
+
+        if sys.version_info < (3, 11):
+            timestamp = _normalize_timestamp(timestamp)
+
+        assert datetime.fromisoformat(timestamp) == from_timestamp(now)
 
     def test_does_not_send_logs_that_opt_out(
         self,
@@ -935,7 +955,7 @@ class TestAPILogWorker:
             task_run_id=uuid.uuid4(),
             name="test.logger",
             level=10,
-            timestamp=now("utc"),
+            timestamp=now("UTC"),
             message="hello",
         ).model_dump(mode="json")
 
@@ -1728,26 +1748,66 @@ def test_disable_logger(caplog: pytest.LogCaptureFixture):
     assert caplog.record_tuples == []
 
 
-def test_disable_run_logger(caplog: pytest.LogCaptureFixture):
+def test_disable_run_logger_with_task(caplog: pytest.LogCaptureFixture):
     @task
     def task_with_run_logger():
         logger = get_run_logger()
         logger.critical("won't show")
-        return 42
 
-    flow_run_logger = get_logger("prefect.flow_run")
-    task_run_logger = get_logger("prefect.task_run")
-    task_run_logger.disabled = True
+    flow_run_logger = get_logger("prefect.flow_runs")
+    task_run_logger = get_logger("prefect.task_runs")
 
+    # Can call the task as normal and the underlying function without issue inside the context manager
     with disable_run_logger():
-        num = task_with_run_logger.fn()
-        assert num == 42
+        task_with_run_logger()
+        task_with_run_logger.fn()
         assert flow_run_logger.disabled
         assert task_run_logger.disabled
 
+    # Loggers should return to normal state and the disabled logs should not be in the caplog
     assert not flow_run_logger.disabled
-    assert task_run_logger.disabled  # was already disabled beforehand
-    assert caplog.record_tuples == [("null", logging.CRITICAL, "won't show")]
+    assert not task_run_logger.disabled
+    assert "won't show" not in caplog.text
+
+    caplog.clear()
+
+    # Should operate normally outside of the context manager
+    task_with_run_logger()
+    assert "won't show" in caplog.text
+
+    with pytest.raises(MissingContextError):
+        task_with_run_logger.fn()
+
+
+def test_disable_run_logger_with_flow(caplog: pytest.LogCaptureFixture):
+    @flow
+    def test_flow():
+        logger = get_run_logger()
+        logger.critical("won't show")
+
+    flow_run_logger = get_logger("prefect.flow_runs")
+    task_run_logger = get_logger("prefect.task_runs")
+
+    # Can call the flow as normal and the underlying function without issue inside the context manager
+    with disable_run_logger():
+        test_flow()
+        test_flow.fn()
+        assert flow_run_logger.disabled
+        assert task_run_logger.disabled
+
+    # Loggers should return to normal state and the disabled logs should not be in the caplog
+    assert not flow_run_logger.disabled
+    assert not task_run_logger.disabled
+    assert "won't show" not in caplog.text
+
+    caplog.clear()
+
+    # Should operate normally outside of the context manager
+    test_flow()
+    assert "won't show" in caplog.text
+
+    with pytest.raises(MissingContextError):
+        test_flow.fn()
 
 
 def test_patch_print_writes_to_stdout_without_run_context(

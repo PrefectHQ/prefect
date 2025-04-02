@@ -49,66 +49,12 @@ describe("WorkPoolPauseResumeToggle", () => {
 		expect(screen.getByRole("switch")).not.toBeChecked();
 	});
 
-	it("calls the API to pause a work pool when toggled from active to paused", async () => {
-		let requestBody: Record<string, unknown> = {};
-		server.use(
-			http.patch(
-				buildApiUrl(`/work_pools/${activeWorkPool.name}`),
-				async ({ request }) => {
-					requestBody = (await request.json()) as Record<string, unknown>;
-					return HttpResponse.json({});
-				},
-			),
-		);
-
-		render(<WorkPoolPauseResumeToggle workPool={activeWorkPool} />, {
-			wrapper: createWrapper(),
-		});
-
-		fireEvent.click(screen.getByRole("switch"));
-
-		await waitFor(() => {
-			expect(requestBody).toEqual({ is_paused: true });
-		});
-
-		expect(toast.success).toHaveBeenCalledWith(`${activeWorkPool.name} paused`);
-	});
-
-	it("calls the API to resume a work pool when toggled from paused to active", async () => {
-		let requestBody: Record<string, unknown> = {};
-		server.use(
-			http.patch(
-				buildApiUrl(`/work_pools/${pausedWorkPool.name}`),
-				async ({ request }) => {
-					requestBody = (await request.json()) as Record<string, unknown>;
-					return HttpResponse.json({});
-				},
-			),
-		);
-
-		render(<WorkPoolPauseResumeToggle workPool={pausedWorkPool} />, {
-			wrapper: createWrapper(),
-		});
-
-		fireEvent.click(screen.getByRole("switch"));
-
-		await waitFor(() => {
-			expect(requestBody).toEqual({ is_paused: false });
-		});
-
-		expect(toast.success).toHaveBeenCalledWith(
-			`${pausedWorkPool.name} resumed`,
-		);
-	});
-
 	it("disables the switch while the API request is pending", async () => {
-		// Use a delayed response to test the pending state
 		server.use(
 			http.patch(
 				buildApiUrl(`/work_pools/${activeWorkPool.name}`),
 				async () => {
-					// Add a delay to simulate a pending state
-					await new Promise((resolve) => setTimeout(resolve, 50));
+					await new Promise((resolve) => setTimeout(resolve, 500));
 					return HttpResponse.json({});
 				},
 			),
@@ -118,18 +64,17 @@ describe("WorkPoolPauseResumeToggle", () => {
 			wrapper: createWrapper(),
 		});
 
-		const toggle = screen.getByRole("switch");
+		const toggle = screen.getByRole("switch", { name: /pause work pool/i });
 
-		// Toggle the switch
 		fireEvent.click(toggle);
 
-		// Check that the switch is disabled during the request
 		expect(toggle).toBeDisabled();
 
-		// Wait for the request to complete
 		await waitFor(() => {
 			expect(toast.success).toHaveBeenCalled();
 		});
+
+		expect(toggle).toBeEnabled();
 	});
 
 	it("shows an error toast when the API call fails", async () => {

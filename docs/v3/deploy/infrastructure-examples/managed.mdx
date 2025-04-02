@@ -88,20 +88,6 @@ Include these `source` addresses in your firewall rules to explicitly allow flow
 - `35.237.184.46`
 - `35.185.96.175`
 
-## Limitations
-
-### Concurrency and work pools
-
-Free tier accounts are limited to:
-
-- Maximum of 1 concurrent flow run per workspace across all `prefect:managed` pools
-- Maximum of 1 managed execution work pool per workspace
-
-Pro tier and above accounts are limited to:
-
-- Maximum of 10 concurrent flow runs per workspace across all `prefect:managed` pools.
-- Maximum of 5 managed execution work pools per workspace.
-
 ### Images
 
 Managed execution requires that you run the official Prefect Docker image: `prefecthq/prefect:3-latest`.
@@ -118,12 +104,6 @@ Remote block-based storage is also supported, so S3, GCS, and Azure Blob are add
 
 Memory is limited to 2 GB of RAM, which includes all operations such as dependency installation.
 Maximum job run time is 24 hours.
-
-## Usage limits
-
-Free tier accounts are limited to 10 compute hours per workspace per month.
-Pro tier and above accounts are limited to 250 hours per workspace per month.
-You can view your compute hours quota usage on the **Work Pools** page in the UI.
 
 ## Next steps
 

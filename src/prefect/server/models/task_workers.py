@@ -1,3 +1,4 @@
+import datetime
 import time
 from collections import defaultdict
 from typing import Dict, List, Set
@@ -6,6 +7,7 @@ from pydantic import BaseModel
 from typing_extensions import TypeAlias
 
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 TaskKey: TypeAlias = str
 WorkerId: TypeAlias = str
@@ -66,7 +68,7 @@ class InMemoryTaskWorkerTracker:
         return TaskWorkerResponse(
             identifier=worker_id,
             task_keys=list(self.workers.get(worker_id, set())),
-            timestamp=DateTime.utcnow().subtract(seconds=timestamp),
+            timestamp=now("UTC") - datetime.timedelta(seconds=timestamp),
         )
 
     def reset(self) -> None:

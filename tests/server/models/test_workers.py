@@ -1,15 +1,17 @@
+import datetime
 from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.types._datetime import now
 
 
 class TestCreateWorkPool:
-    async def test_create_work_pool(self, session):
+    async def test_create_work_pool(self, session: AsyncSession):
         result = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="My Test Pool"),
@@ -18,8 +20,11 @@ class TestCreateWorkPool:
         assert result.name == "My Test Pool"
         assert result.is_paused is False
         assert result.concurrency_limit is None
+        assert (
+            result.storage_configuration == schemas.core.WorkPoolStorageConfiguration()
+        )
 
-    async def test_create_work_pool_with_options(self, session):
+    async def test_create_work_pool_with_options(self, session: AsyncSession):
         result = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(
@@ -31,7 +36,9 @@ class TestCreateWorkPool:
         assert result.is_paused is True
         assert result.concurrency_limit == 5
 
-    async def test_create_duplicate_work_pool(self, session, work_pool):
+    async def test_create_duplicate_work_pool(
+        self, session: AsyncSession, work_pool: schemas.core.WorkPool
+    ):
         with pytest.raises(sa.exc.IntegrityError):
             await models.workers.create_work_pool(
                 session=session,
@@ -39,14 +46,14 @@ class TestCreateWorkPool:
             )
 
     @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
-    async def test_create_invalid_name(self, session, name):
+    async def test_create_invalid_name(self, session: AsyncSession, name: str):
         with pytest.raises(
             pydantic.ValidationError, match="String should match pattern"
         ):
-            schemas.core.WorkPool(name=name)
+            schemas.core.WorkPool(type="process", name=name)
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
-    async def test_create_typed_worker(self, session, type):
+    async def test_create_typed_worker(self, session: AsyncSession, type: str):
         result = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(
@@ -58,7 +65,7 @@ class TestCreateWorkPool:
 
 
 class TestDefaultQueues:
-    async def test_creating_a_pool_creates_default_queue(self, session):
+    async def test_creating_a_pool_creates_default_queue(self, session: AsyncSession):
         result = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="My Test Pool"),
@@ -156,7 +163,9 @@ class TestUpdateWorkPool:
         assert result.is_paused is True
         assert result.concurrency_limit == 5
 
-    async def test_update_work_pool_invalid_concurrency(self, session, work_pool):
+    async def test_update_work_pool_invalid_concurrency(
+        self, session: AsyncSession, work_pool: schemas.core.WorkPool
+    ):
         with pytest.raises(pydantic.ValidationError):
             await models.workers.update_work_pool(
                 session=session,
@@ -165,7 +174,9 @@ class TestUpdateWorkPool:
                 emit_status_change=None,
             )
 
-    async def test_update_work_pool_zero_concurrency(self, session, work_pool):
+    async def test_update_work_pool_zero_concurrency(
+        self, session: AsyncSession, work_pool: schemas.core.WorkPool
+    ):
         assert await models.workers.update_work_pool(
             session=session,
             work_pool_id=work_pool.id,
@@ -179,7 +190,9 @@ class TestUpdateWorkPool:
 
 
 class TestReadWorkPool:
-    async def test_read_work_pool(self, session, work_pool):
+    async def test_read_work_pool(
+        self, session: AsyncSession, work_pool: schemas.core.WorkPool
+    ):
         result = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool.id
         )
@@ -189,7 +202,9 @@ class TestReadWorkPool:
 
 
 class TestCountWorkPools:
-    async def test_count_work_pool(self, session, work_pool):
+    async def test_count_work_pool(
+        self, session: AsyncSession, work_pool: schemas.core.WorkPool
+    ):
         result = await models.workers.count_work_pools(
             session=session,
         )
@@ -737,17 +752,14 @@ class TestGetScheduledRuns:
                 ),
             )
 
-            # create 5 scheduled runs from two hours ago to three hours in the future
-            # we insert them in reverse order to ensure that sorting is taking
-            # place (and not just returning the database order)
+            # create scheduled runs
             for i in range(3, -2, -1):
+                current_time = now("UTC") + datetime.timedelta(hours=i)
                 await models.flow_runs.create_flow_run(
                     session=session,
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
-                        state=schemas.states.Scheduled(
-                            scheduled_time=pendulum.now("UTC").add(hours=i)
-                        ),
+                        state=schemas.states.Scheduled(scheduled_time=current_time),
                         work_queue_id=wq.id,
                     ),
                 )
@@ -798,13 +810,13 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_before(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_before=pendulum.now("UTC")
+            session=session, scheduled_before=now("UTC")
         )
         assert len(runs) == 18
 
     async def test_get_all_runs_scheduled_after(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_after=pendulum.now("UTC")
+            session=session, scheduled_after=now("UTC")
         )
         assert len(runs) == 27
 

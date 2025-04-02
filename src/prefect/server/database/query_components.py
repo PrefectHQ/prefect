@@ -126,10 +126,10 @@ class BaseQueryComponents(ABC):
     @abstractmethod
     def make_timestamp_intervals(
         self,
-        start_time: DateTime,
-        end_time: DateTime,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[DateTime, DateTime]]: ...
+    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]: ...
 
     @abstractmethod
     def set_state_id_on_inserted_flow_runs_statement(
@@ -600,7 +600,7 @@ class BaseQueryComponents(ABC):
                     # We're only using the data field for progress artifacts for now
                     data=artifact.data if artifact.type == "progress" else None,
                     is_latest=artifact.key is None
-                    or latest_in_collection_id is not None,
+                    or latest_in_collection_id is not None,  # pyright: ignore[reportUnnecessaryComparison]
                 )
             )
 
@@ -643,10 +643,10 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     def make_timestamp_intervals(
         self,
-        start_time: DateTime,
-        end_time: DateTime,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[DateTime, DateTime]]:
+    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]:
         dt = sa.func.generate_series(
             start_time, end_time, interval, type_=Timestamp()
         ).column_valued("dt")
@@ -960,10 +960,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def make_timestamp_intervals(
         self,
-        start_time: DateTime,
-        end_time: DateTime,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[DateTime, DateTime]]:
+    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]:
         start = sa.bindparam("start_time", start_time, Timestamp)
         # subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
         stop = sa.bindparam("end_time", end_time - interval, Timestamp)

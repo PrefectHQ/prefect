@@ -143,9 +143,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
             else:
                 return object_ref_result
 
-        _result = self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
+        _result = self._final_state.result(raise_on_failure=raise_on_failure)
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):
@@ -206,7 +204,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         ```
         Connecting to an existing ray instance:
         ```python
-        RayTaskRunner(address="ray://192.0.2.255:8786")
+        RayTaskRunner(address="ray://<head_node_host>:10001")
         ```
     """
 

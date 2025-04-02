@@ -1,6 +1,7 @@
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 import warnings
 from collections.abc import Generator, Iterable, Iterator
@@ -15,7 +16,7 @@ from packaging.version import Version
 from typing_extensions import Self
 
 import prefect
-from prefect.types._datetime import now
+import prefect.types._datetime
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
 
@@ -54,10 +55,18 @@ def get_prefect_image_name(
     """
     parsed_version = Version(prefect_version or prefect.__version__)
     is_prod_build = parsed_version.local is None
+    try:
+        # Try to get the short SHA from git because it can add additional characters to avoid ambiguity
+        short_sha = (
+            subprocess.check_output(["git", "rev-parse", "--short=7", "HEAD"])
+            .decode("utf-8")
+            .strip()
+        )
+    except Exception:
+        # If git is not available, fallback to the first 7 characters of the full revision ID
+        short_sha = prefect.__version_info__["full-revisionid"][:7]
     prefect_version = (
-        parsed_version.base_version
-        if is_prod_build
-        else "sha-" + prefect.__version_info__["full-revisionid"][:7]
+        parsed_version.base_version if is_prod_build else f"sha-{short_sha}"
     )
 
     python_version = python_version or python_version_minor()
@@ -428,7 +437,7 @@ def push_image(
     """
 
     if not tag:
-        tag = slugify(now("UTC").isoformat())
+        tag = slugify(prefect.types._datetime.now("UTC").isoformat())
 
     _, registry, _, _, _ = urlsplit(registry_url)
     repository = f"{registry}/{name}"

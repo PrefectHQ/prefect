@@ -22,9 +22,7 @@ from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
-import prefect.context
 import prefect.exceptions
-import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
@@ -50,7 +48,6 @@ from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
-from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
 
@@ -63,7 +60,7 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunInput]:
+async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunResult]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -76,7 +73,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunInput] = set()
+    inputs: set[TaskRunResult] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
@@ -221,9 +218,9 @@ async def resolve_inputs(
         finished_states = [state for state in states if state.is_final()]
 
         state_results = [
-            state.result(raise_on_failure=False, fetch=True)
-            for state in finished_states
+            state.aresult(raise_on_failure=False) for state in finished_states
         ]
+        state_results = await asyncio.gather(*state_results)
 
         for state, result in zip(finished_states, state_results):
             result_by_state[state] = result
@@ -749,9 +746,7 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
             " 'COMPLETED' state."
         )
 
-    result = state.result(raise_on_failure=False, fetch=True)
-    if asyncio.iscoroutine(result):
-        result = run_coro_as_sync(result)
+    result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(

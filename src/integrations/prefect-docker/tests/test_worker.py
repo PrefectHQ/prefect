@@ -1,4 +1,5 @@
 import copy
+import os
 import uuid
 from unittest.mock import MagicMock, call, patch
 
@@ -37,7 +38,7 @@ FAKE_BASE_URL = "my-url"
 
 @pytest.fixture(autouse=True)
 def bypass_api_check(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("PREFECT_DOCKER_TEST_MODE", True)
+    monkeypatch.setenv("PREFECT_DOCKER_TEST_MODE", "True")
 
 
 @pytest.fixture
@@ -1146,7 +1147,9 @@ async def test_emits_events(
 
     worker_resource = worker._event_resource()
     worker_resource["prefect.resource.role"] = "worker"
-    worker_related_resource = RelatedResource(worker_resource)
+    related_resources = worker._event_related_resources() + [
+        RelatedResource(worker_resource)
+    ]
 
     mock_emit.assert_has_calls(
         [
@@ -1156,7 +1159,7 @@ async def test_emits_events(
                     "prefect.resource.id": "prefect.docker.container.fake-id",
                     "prefect.resource.name": "fake-name",
                 },
-                related=[worker_related_resource],
+                related=related_resources,
                 follows=None,
             ),
             call(
@@ -1165,7 +1168,7 @@ async def test_emits_events(
                     "prefect.resource.id": "prefect.docker.container.fake-id",
                     "prefect.resource.name": "fake-name",
                 },
-                related=[worker_related_resource],
+                related=related_resources,
                 follows=1,
             ),
             call(
@@ -1174,7 +1177,7 @@ async def test_emits_events(
                     "prefect.resource.id": "prefect.docker.container.fake-id",
                     "prefect.resource.name": "fake-name",
                 },
-                related=[worker_related_resource],
+                related=related_resources,
                 follows=2,
             ),
         ]
@@ -1205,5 +1208,31 @@ async def test_emits_event_container_creation_failure(
         mock_emit.assert_called_once_with(
             event="prefect.docker.container.creation-failed",
             resource=worker_resource,
-            related=[],
+            related=worker._event_related_resources(),
         )
+
+
+@patch("docker.from_env")
+async def test_docker_client_default_timeout_configuration(
+    mocked_from_env: MagicMock,
+) -> None:
+    """Validate we can pass a timeout via environment variables to the underlying docker client."""
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        _ = worker._get_client()
+
+        default_timeout_duration = 60
+        mocked_from_env.assert_called_once_with(timeout=default_timeout_duration)
+
+
+@patch.dict(os.environ, {"DOCKER_CLIENT_TIMEOUT": "30"})
+@patch("docker.from_env")
+async def test_docker_client_overwrite_timeout_configuration(
+    mocked_from_env: MagicMock,
+) -> None:
+    """Validate we can pass a timeout via environment variables to the underlying docker client."""
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        _ = worker._get_client()
+
+        mocked_from_env.assert_called_once_with(timeout=30)

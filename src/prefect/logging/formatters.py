@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging.handlers
+import logging
 import sys
 import traceback
 from types import TracebackType
@@ -78,7 +78,7 @@ class PrefectFormatter(logging.Formatter):
         self,
         format: str | None = None,
         datefmt: str | None = None,
-        style: str = "%",
+        style: Literal["%", "{", "$"] = "%",
         validate: bool = True,
         *,
         defaults: dict[str, Any] | None = None,
@@ -93,8 +93,8 @@ class PrefectFormatter(logging.Formatter):
         # See https://github.com/python/cpython/blob/c8c6113398ee9a7867fe9b08bc539cceb61e2aaa/Lib/logging/__init__.py#L546
         # for implementation details
 
-        init_kwargs = {}
-        style_kwargs = {}
+        init_kwargs: dict[str, Any] = {}
+        style_kwargs: dict[str, Any] = {}
 
         # defaults added in 3.10
         if sys.version_info >= (3, 10):

@@ -676,15 +676,7 @@ class RunnerDeployment(BaseModel):
                     try:
                         module = importlib.import_module(mod_name)
                         flow_file = getattr(module, "__file__", None)
-                    except ModuleNotFoundError as exc:
-                        # 16458 adds an identifier to the module name, so checking
-                        # for "__prefect_loader__" (2 underscores) will not match
-                        if "__prefect_loader_" in str(exc):
-                            raise ValueError(
-                                "Cannot create a RunnerDeployment from a flow that has been"
-                                " loaded from an entrypoint. To deploy a flow via"
-                                " entrypoint, use RunnerDeployment.from_entrypoint instead."
-                            )
+                    except ModuleNotFoundError:
                         raise ValueError(no_file_location_error)
                     if not flow_file:
                         raise ValueError(no_file_location_error)
