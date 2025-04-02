@@ -35,7 +35,7 @@ export const createEventsEventsPostBodyItem = zod
 			.optional()
 			.describe("A list of additional Resources involved in this event"),
 		payload: zod
-			.object({})
+			.record(zod.string(), zod.any())
 			.optional()
 			.describe("An open-ended set of data describing what happened"),
 		id: zod
@@ -256,7 +256,7 @@ export const readEventsEventsFilterPostResponse = zod
 								"A list of additional Resources involved in this event",
 							),
 						payload: zod
-							.object({})
+							.record(zod.string(), zod.any())
 							.optional()
 							.describe("An open-ended set of data describing what happened"),
 						id: zod
@@ -336,7 +336,7 @@ export const readAccountEventsPageEventsFilterNextGetResponse = zod
 								"A list of additional Resources involved in this event",
 							),
 						payload: zod
-							.object({})
+							.record(zod.string(), zod.any())
 							.optional()
 							.describe("An open-ended set of data describing what happened"),
 						id: zod

@@ -18,6 +18,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    cast,
     get_origin,
 )
 from uuid import UUID, uuid4
@@ -169,14 +170,13 @@ def _collect_secret_fields(
         return
 
     if type_ in (SecretStr, SecretBytes) or (
-        isinstance(type_, type)
+        isinstance(type_, type)  # type: ignore[unnecessaryIsInstance]
         and getattr(type_, "__module__", None) == "pydantic.types"
         and getattr(type_, "__name__", None) == "Secret"
     ):
         secrets.append(name)
     elif type_ == SecretDict:
-        # Append .* to field name to signify that all values under this
-        # field are secret and should be obfuscated.
+        # Append .* to field name to signify that all values under a given key are secret and should be obfuscated.
         secrets.append(f"{name}.*")
     elif Block.is_block_class(type_):
         secrets.extend(
@@ -1501,14 +1501,7 @@ class Block(BaseModel, ABC):
         if "$defs" in schema:
             schema["definitions"] = schema.pop("$defs")
 
-        # we aren't expecting these additional fields in the schema
-        if "additionalProperties" in schema:
-            schema.pop("additionalProperties")
-
-        for _, definition in schema.get("definitions", {}).items():
-            if "additionalProperties" in definition:
-                definition.pop("additionalProperties")
-
+        schema = remove_nested_keys(["additionalProperties"], schema)
         return schema
 
     @classmethod
@@ -1521,6 +1514,7 @@ class Block(BaseModel, ABC):
         context: dict[str, Any] | None = None,
     ) -> Self:
         if isinstance(obj, dict):
+            obj = cast(dict[str, Any], obj)
             extra_serializer_fields = {
                 "_block_document_id",
                 "_block_document_name",
@@ -1530,7 +1524,10 @@ class Block(BaseModel, ABC):
                 obj.pop(field, None)
 
         return super().model_validate(
-            obj, strict=strict, from_attributes=from_attributes, context=context
+            obj,
+            strict=strict,
+            from_attributes=from_attributes,
+            context=context,
         )
 
     def model_dump(
