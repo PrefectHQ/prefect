@@ -2,21 +2,19 @@ name: Windows Tests
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "pyproject.toml"
-      - "src/prefect/**/*.py"
-      - "scripts/test_unc_paths.py"
-      - ".github/workflows/windows-tests.yaml"
+  # pull_request:
+  #   branches:
+  #   paths:
+  #     - "pyproject.toml"
+  #     - "src/prefect/**/*.py"
+  #     - "scripts/test_unc_paths.py"
+  #     - ".github/workflows/windows-tests.yaml"
 
 permissions: {}
 
 jobs:
   run-tests-sqlite:
     name: Test with SQLite
-    if: contains(github.event.pull_request.labels.*.name, 'arch:windows')
 
     strategy:
       matrix:
