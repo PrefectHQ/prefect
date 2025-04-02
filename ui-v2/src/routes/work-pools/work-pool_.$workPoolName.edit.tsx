@@ -1,4 +1,5 @@
 import { buildGetWorkPoolQuery } from "@/api/work-pools/work-pools";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
@@ -7,18 +8,18 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 	loader: async ({ context, params }) => {
 		const { workPoolName } = params;
-
-		const workPool = await context.queryClient.ensureQueryData(
+		return context.queryClient.ensureQueryData(
 			buildGetWorkPoolQuery(workPoolName),
 		);
-
-		return { workPool };
 	},
 	wrapInSuspense: true,
 });
 
 function RouteComponent() {
-	const { workPool } = Route.useLoaderData();
+	const { workPoolName } = Route.useParams();
+	const { data: workPool } = useSuspenseQuery(
+		buildGetWorkPoolQuery(workPoolName),
+	);
 
 	return <div>Editing work pool: {workPool.name}</div>;
 }
