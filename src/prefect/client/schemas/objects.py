@@ -1102,12 +1102,23 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
+class VersionInfo(PrefectBaseModel, extra="allow"):
+    type: str = Field(default=..., description="The type of version info.")
+    version: str = Field(default=..., description="The version of the deployment.")
+
+
 class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: Name = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
+    )
+    version_id: Optional[UUID] = Field(
+        default=None, description="The ID of the current version of the deployment."
+    )
+    version_info: Optional[VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
     )
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
