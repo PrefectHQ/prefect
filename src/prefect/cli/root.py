@@ -7,7 +7,7 @@ import platform
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
-from typing import Any, Dict
+from typing import Any
 
 import typer
 
@@ -107,14 +107,17 @@ async def version(
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
-    version_info = {
+    if build_date_str := prefect.__version_info__.get("date", None):
+        build_date = parse_datetime(build_date_str).strftime("%a, %b %d, %Y %I:%M %p")
+    else:
+        build_date = "unknown"
+
+    version_info: dict[str, Any] = {
         "Version": prefect.__version__,
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
-        "Built": parse_datetime(prefect.__version_info__["date"]).strftime(
-            "%a, %b %d, %Y %-I:%M %p"
-        ),
+        "Built": build_date,
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
@@ -143,21 +146,26 @@ async def version(
     display(version_info)
 
 
-def get_prefect_integrations() -> Dict[str, str]:
+def get_prefect_integrations() -> dict[str, str]:
     """Get information about installed Prefect integrations."""
     from importlib.metadata import distributions
 
-    integrations = {}
+    integrations: dict[str, str] = {}
     for dist in distributions():
         if dist.metadata["Name"].startswith("prefect-"):
             author_email = dist.metadata.get("Author-email", "").strip()
             if author_email.endswith("@prefect.io>"):
+                if (  # TODO: remove clause after updating `prefect-client` packaging config
+                    dist.metadata["Name"] == "prefect-client"
+                    and dist.version == "0.0.0"
+                ):
+                    continue
                 integrations[dist.metadata["Name"]] = dist.version
 
     return integrations
 
 
-def display(object: Dict[str, Any], nesting: int = 0) -> None:
+def display(object: dict[str, Any], nesting: int = 0) -> None:
     """Recursive display of a dictionary with nesting."""
     for key, value in object.items():
         key += ":"

@@ -18,6 +18,8 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.types._datetime import parse_datetime
 
+DESIRED_DATE_FORMAT = "%a, %b %d, %Y %I:%M %p"
+
 
 @pytest.mark.usefixtures("disable_hosted_api_server")
 def test_version_ephemeral_server_type():
@@ -82,7 +84,7 @@ def test_correct_output_ephemeral_sqlite(monkeypatch: pytest.MonkeyPatch):
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
                 Git commit:          {version_info["full-revisionid"][:8]}
-                Built:               {built.strftime("%a, %b %d, %Y %-I:%M %p")}
+                Built:               {built.strftime(DESIRED_DATE_FORMAT)}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
                 Server type:         ephemeral
@@ -119,7 +121,7 @@ def test_correct_output_ephemeral_postgres(monkeypatch: pytest.MonkeyPatch):
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
                 Git commit:          {version_info["full-revisionid"][:8]}
-                Built:               {built.strftime("%a, %b %d, %Y %-I:%M %p")}
+                Built:               {built.strftime(DESIRED_DATE_FORMAT)}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
                 Server type:         ephemeral
@@ -144,7 +146,7 @@ def test_correct_output_non_ephemeral_server_type():
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
 Git commit:          {version_info["full-revisionid"][:8]}
-Built:               {built.strftime("%a, %b %d, %Y %-I:%M %p")}
+Built:               {built.strftime(DESIRED_DATE_FORMAT)}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
 Server type:         server
