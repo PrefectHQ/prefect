@@ -61,11 +61,11 @@ function RouteComponent() {
 	};
 
 	return (
-		// TODO: Should we just standardize a layout for all pages?
 		<div className="flex flex-col gap-4">
 			<WorkPoolsPageHeader />
-			{workPoolCount === 0 && <WorkPoolsEmptyState />}
-			{workPoolCount > 0 && (
+			{workPoolCount < 1 ? (
+				<WorkPoolsEmptyState />
+			) : (
 				<>
 					<div className="flex items-end justify-between">
 						<div className="text-sm text-muted-foreground">
