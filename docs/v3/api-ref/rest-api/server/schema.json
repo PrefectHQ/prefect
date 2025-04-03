@@ -1625,7 +1625,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/TaskRun"
+                                    "$ref": "#/components/schemas/prefect__server__schemas__core__TaskRun"
                                 }
                             }
                         }
@@ -1736,7 +1736,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/TaskRun"
+                                    "$ref": "#/components/schemas/prefect__server__schemas__core__TaskRun"
                                 }
                             }
                         }
@@ -1946,7 +1946,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/TaskRun"
+                                        "$ref": "#/components/schemas/prefect__server__schemas__core__TaskRun"
                                     },
                                     "title": "Response Read Task Runs Task Runs Filter Post"
                                 }
@@ -9529,6 +9529,62 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/CountByState"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/ui/task_runs/{id}": {
+            "get": {
+                "tags": [
+                    "Task Runs",
+                    "UI"
+                ],
+                "summary": "Read Task Run",
+                "description": "Get a task run by id.",
+                "operationId": "read_task_run_ui_task_runs__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The task run id",
+                            "title": "Id"
+                        },
+                        "description": "The task run id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/prefect__server__schemas__ui__TaskRun"
                                 }
                             }
                         }
@@ -22864,317 +22920,6 @@
                 "title": "SuspendFlowRun",
                 "description": "Suspends a flow run associated with the trigger"
             },
-            "TaskRun": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id"
-                    },
-                    "created": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Created"
-                    },
-                    "updated": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Updated"
-                    },
-                    "name": {
-                        "type": "string",
-                        "title": "Name",
-                        "examples": [
-                            "my-task-run"
-                        ]
-                    },
-                    "flow_run_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Flow Run Id",
-                        "description": "The flow run id of the task run."
-                    },
-                    "task_key": {
-                        "type": "string",
-                        "title": "Task Key",
-                        "description": "A unique identifier for the task being run."
-                    },
-                    "dynamic_key": {
-                        "type": "string",
-                        "title": "Dynamic Key",
-                        "description": "A dynamic key used to differentiate between multiple runs of the same task within the same flow run."
-                    },
-                    "cache_key": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Cache Key",
-                        "description": "An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run."
-                    },
-                    "cache_expiration": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Cache Expiration",
-                        "description": "Specifies when the cached state should expire."
-                    },
-                    "task_version": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Task Version",
-                        "description": "The version of the task being run."
-                    },
-                    "empirical_policy": {
-                        "$ref": "#/components/schemas/TaskRunPolicy"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Tags",
-                        "description": "A list of tags for the task run.",
-                        "examples": [
-                            [
-                                "tag-1",
-                                "tag-2"
-                            ]
-                        ]
-                    },
-                    "labels": {
-                        "anyOf": [
-                            {
-                                "additionalProperties": {
-                                    "anyOf": [
-                                        {
-                                            "type": "boolean"
-                                        },
-                                        {
-                                            "type": "integer"
-                                        },
-                                        {
-                                            "type": "number"
-                                        },
-                                        {
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "type": "object"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Labels",
-                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-                        "examples": [
-                            {
-                                "key": "value1",
-                                "key2": 42
-                            }
-                        ]
-                    },
-                    "state_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "State Id",
-                        "description": "The id of the current task run state."
-                    },
-                    "task_inputs": {
-                        "additionalProperties": {
-                            "items": {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/TaskRunResult"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Parameter"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Constant"
-                                    }
-                                ]
-                            },
-                            "type": "array"
-                        },
-                        "type": "object",
-                        "title": "Task Inputs",
-                        "description": "Tracks the source of inputs to a task run. Used for internal bookkeeping."
-                    },
-                    "state_type": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/StateType"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The type of the current task run state."
-                    },
-                    "state_name": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "State Name",
-                        "description": "The name of the current task run state."
-                    },
-                    "run_count": {
-                        "type": "integer",
-                        "title": "Run Count",
-                        "description": "The number of times the task run has been executed.",
-                        "default": 0
-                    },
-                    "flow_run_run_count": {
-                        "type": "integer",
-                        "title": "Flow Run Run Count",
-                        "description": "If the parent flow has retried, this indicates the flow retry this run is associated with.",
-                        "default": 0
-                    },
-                    "expected_start_time": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Expected Start Time",
-                        "description": "The task run's expected start time."
-                    },
-                    "next_scheduled_start_time": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Next Scheduled Start Time",
-                        "description": "The next time the task run is scheduled to start."
-                    },
-                    "start_time": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Start Time",
-                        "description": "The actual start time."
-                    },
-                    "end_time": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "End Time",
-                        "description": "The actual end time."
-                    },
-                    "total_run_time": {
-                        "type": "number",
-                        "title": "Total Run Time",
-                        "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
-                        "default": 0.0
-                    },
-                    "estimated_run_time": {
-                        "type": "number",
-                        "title": "Estimated Run Time",
-                        "description": "A real-time estimate of total run time.",
-                        "default": 0.0
-                    },
-                    "estimated_start_time_delta": {
-                        "type": "number",
-                        "title": "Estimated Start Time Delta",
-                        "description": "The difference between actual and expected start time.",
-                        "default": 0.0
-                    },
-                    "state": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/State"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The current task run state."
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "task_key",
-                    "dynamic_key",
-                    "id",
-                    "created",
-                    "updated"
-                ],
-                "title": "TaskRun",
-                "description": "An ORM representation of task run data."
-            },
             "TaskRunCount": {
                 "additionalProperties": {
                     "type": "integer"
@@ -25873,6 +25618,639 @@
                 ],
                 "title": "WorkerStatus",
                 "description": "Enumeration of worker statuses."
+            },
+            "prefect__server__schemas__core__TaskRun": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "examples": [
+                            "my-task-run"
+                        ]
+                    },
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id",
+                        "description": "The flow run id of the task run."
+                    },
+                    "task_key": {
+                        "type": "string",
+                        "title": "Task Key",
+                        "description": "A unique identifier for the task being run."
+                    },
+                    "dynamic_key": {
+                        "type": "string",
+                        "title": "Dynamic Key",
+                        "description": "A dynamic key used to differentiate between multiple runs of the same task within the same flow run."
+                    },
+                    "cache_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cache Key",
+                        "description": "An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run."
+                    },
+                    "cache_expiration": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cache Expiration",
+                        "description": "Specifies when the cached state should expire."
+                    },
+                    "task_version": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Task Version",
+                        "description": "The version of the task being run."
+                    },
+                    "empirical_policy": {
+                        "$ref": "#/components/schemas/TaskRunPolicy"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags for the task run.",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
+                    },
+                    "state_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Id",
+                        "description": "The id of the current task run state."
+                    },
+                    "task_inputs": {
+                        "additionalProperties": {
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Parameter"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Constant"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Task Inputs",
+                        "description": "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+                    },
+                    "state_type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The type of the current task run state."
+                    },
+                    "state_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Name",
+                        "description": "The name of the current task run state."
+                    },
+                    "run_count": {
+                        "type": "integer",
+                        "title": "Run Count",
+                        "description": "The number of times the task run has been executed.",
+                        "default": 0
+                    },
+                    "flow_run_run_count": {
+                        "type": "integer",
+                        "title": "Flow Run Run Count",
+                        "description": "If the parent flow has retried, this indicates the flow retry this run is associated with.",
+                        "default": 0
+                    },
+                    "expected_start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Expected Start Time",
+                        "description": "The task run's expected start time."
+                    },
+                    "next_scheduled_start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Next Scheduled Start Time",
+                        "description": "The next time the task run is scheduled to start."
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time",
+                        "description": "The actual start time."
+                    },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "End Time",
+                        "description": "The actual end time."
+                    },
+                    "total_run_time": {
+                        "type": "number",
+                        "title": "Total Run Time",
+                        "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
+                        "default": 0.0
+                    },
+                    "estimated_run_time": {
+                        "type": "number",
+                        "title": "Estimated Run Time",
+                        "description": "A real-time estimate of total run time.",
+                        "default": 0.0
+                    },
+                    "estimated_start_time_delta": {
+                        "type": "number",
+                        "title": "Estimated Start Time Delta",
+                        "description": "The difference between actual and expected start time.",
+                        "default": 0.0
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current task run state."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_key",
+                    "dynamic_key",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "TaskRun",
+                "description": "An ORM representation of task run data."
+            },
+            "prefect__server__schemas__ui__TaskRun": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "examples": [
+                            "my-task-run"
+                        ]
+                    },
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id",
+                        "description": "The flow run id of the task run."
+                    },
+                    "task_key": {
+                        "type": "string",
+                        "title": "Task Key",
+                        "description": "A unique identifier for the task being run."
+                    },
+                    "dynamic_key": {
+                        "type": "string",
+                        "title": "Dynamic Key",
+                        "description": "A dynamic key used to differentiate between multiple runs of the same task within the same flow run."
+                    },
+                    "cache_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cache Key",
+                        "description": "An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run."
+                    },
+                    "cache_expiration": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cache Expiration",
+                        "description": "Specifies when the cached state should expire."
+                    },
+                    "task_version": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Task Version",
+                        "description": "The version of the task being run."
+                    },
+                    "empirical_policy": {
+                        "$ref": "#/components/schemas/TaskRunPolicy"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags for the task run.",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
+                    },
+                    "state_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Id",
+                        "description": "The id of the current task run state."
+                    },
+                    "task_inputs": {
+                        "additionalProperties": {
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Parameter"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Constant"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Task Inputs",
+                        "description": "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+                    },
+                    "state_type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The type of the current task run state."
+                    },
+                    "state_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Name",
+                        "description": "The name of the current task run state."
+                    },
+                    "run_count": {
+                        "type": "integer",
+                        "title": "Run Count",
+                        "description": "The number of times the task run has been executed.",
+                        "default": 0
+                    },
+                    "flow_run_run_count": {
+                        "type": "integer",
+                        "title": "Flow Run Run Count",
+                        "description": "If the parent flow has retried, this indicates the flow retry this run is associated with.",
+                        "default": 0
+                    },
+                    "expected_start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Expected Start Time",
+                        "description": "The task run's expected start time."
+                    },
+                    "next_scheduled_start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Next Scheduled Start Time",
+                        "description": "The next time the task run is scheduled to start."
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time",
+                        "description": "The actual start time."
+                    },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "End Time",
+                        "description": "The actual end time."
+                    },
+                    "total_run_time": {
+                        "type": "number",
+                        "title": "Total Run Time",
+                        "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
+                        "default": 0.0
+                    },
+                    "estimated_run_time": {
+                        "type": "number",
+                        "title": "Estimated Run Time",
+                        "description": "A real-time estimate of total run time.",
+                        "default": 0.0
+                    },
+                    "estimated_start_time_delta": {
+                        "type": "number",
+                        "title": "Estimated Start Time Delta",
+                        "description": "The difference between actual and expected start time.",
+                        "default": 0.0
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current task run state."
+                    },
+                    "flow_run_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_key",
+                    "dynamic_key",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "TaskRun",
+                "description": "A task run with additional details for display in the UI."
             }
         }
     }
