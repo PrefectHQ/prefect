@@ -79,6 +79,13 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     openapi_schema = create_app().openapi()
     openapi_schema["info"]["version"] = version
 
+    # Omit UI routes from the OpenAPI to avoid including them in the docs.
+    # UI routes are not intended to be used by users.
+    for path in list(openapi_schema["paths"].keys()):
+        if path.startswith("/api/ui/"):
+            print("Dropping UI route:", path)
+            del openapi_schema["paths"][path]
+
     schema_path = server_docs_path / "schema.json"
     with open(schema_path, "w") as f:
         json.dump(openapi_schema, f, indent=4, ensure_ascii=False)
