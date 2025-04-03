@@ -192,3 +192,65 @@ class TestRedisLockManager:
         assert lock_manager.username == "username"
         assert lock_manager.password == "password"
         assert lock_manager.ssl
+
+    def test_release_lock_with_nonexistent_lock(self, lock_manager):
+        # Test the fix for issue #17676
+        key = str(uuid4())
+
+        # Simulate a scenario where a lock is acquired and released during rollback
+        assert lock_manager.acquire_lock(key=key, holder="holder1")
+        assert lock_manager.is_locked(key)
+        lock_manager.release_lock(key=key, holder="holder1")
+        assert not lock_manager.is_locked(key)
+
+        # Now try to release a lock that doesn't exist anymore
+        # This should not raise an error
+        lock_manager.release_lock(key=key, holder="holder1")
+
+        # Now simulate a retry case: acquire with new holder, then try to release with old
+        assert lock_manager.acquire_lock(key=key, holder="holder2")
+        assert lock_manager.is_locked(key)
+
+        # Verify that trying to release with wrong holder correctly fails
+        with pytest.raises(
+            ValueError, match=f"No lock held by holder1 for transaction with key {key}"
+        ):
+            lock_manager.release_lock(key=key, holder="holder1")
+
+        # But if the lock doesn't exist in Redis, it should succeed
+        # (first release it properly)
+        lock_manager.release_lock(key=key, holder="holder2")
+        assert not lock_manager.is_locked(key)
+        # Then try to release with wrong holder - should not raise
+        lock_manager.release_lock(key=key, holder="holder1")
+
+    async def test_transaction_retry_lock_behavior(self, lock_manager):
+        """Test that simulates the exact behavior during transaction retries (issue #17676)"""
+        key = str(uuid4())
+        store = ResultStore(lock_manager=lock_manager)
+
+        # 1. First transaction acquires a lock
+        assert store.acquire_lock(key, holder="transaction1")
+
+        # 2. Transaction rollback happens, which releases the lock
+        store.release_lock(key, holder="transaction1")
+        assert not lock_manager.is_locked(key)
+
+        # 3. Task retries, transaction is recreated with a new holder ID
+        assert store.acquire_lock(key, holder="transaction2")
+
+        # 4. Transaction succeeds and tries to commit
+        # For testing, we manually verify both behaviors:
+
+        # 4a. If trying to release with original holder, it would fail
+        # BUT thanks to our fix, it will NOT fail if the lock is missing
+        with pytest.raises(ValueError):
+            # This should fail because we have a real conflict - different holder
+            store.release_lock(key, holder="transaction1")
+
+        # Release the lock properly
+        store.release_lock(key, holder="transaction2")
+
+        # 4b. Now simulate the "release after rollback" case - SHOULD NOT raise
+        # This is what our fix specifically addresses
+        store.release_lock(key, holder="transaction1")
