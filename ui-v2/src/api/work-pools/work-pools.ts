@@ -106,16 +106,11 @@ export const buildFilterWorkPoolsQuery = (
 export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
-		queryFn: async () => {
+		queryFn: async (): Promise<number> => {
 			const res = await getQueryService().POST("/work_pools/count", {
 				body: filter,
 			});
-
-			if (!("data" in res)) {
-				throw new Error("'data' expected");
-			}
-
-			return res.data;
+			return res.data ?? 0;
 		},
 	});
 
