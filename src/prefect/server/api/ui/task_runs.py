@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
+from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Path, status
 from pydantic import Field, model_serializer
 
 import prefect.server.schemas as schemas
@@ -173,3 +174,22 @@ async def read_task_run_counts_by_state(
             task_run_filter=task_runs,
             deployment_filter=deployments,
         )
+
+
+@router.get("/{id}")
+async def read_task_run_with_flow_run_name(
+    task_run_id: UUID = Path(..., description="The task run id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.ui.UITaskRun:
+    """
+    Get a task run by id.
+    """
+    async with db.session_context() as session:
+        task_run = await models.task_runs.read_task_run_with_flow_run_name(
+            session=session, task_run_id=task_run_id
+        )
+
+    if not task_run:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    return schemas.ui.UITaskRun.model_validate(task_run)

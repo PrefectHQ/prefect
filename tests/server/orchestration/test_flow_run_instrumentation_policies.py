@@ -98,7 +98,7 @@ async def test_instrumenting_a_flow_run_state_change(
             {
                 "prefect.resource.id": f"prefect.flow.{flow.id}",
                 "prefect.resource.role": "flow",
-                "prefect.resource.name": "my-flow",
+                "prefect.resource.name": flow.name,
             }
         )
     ]
@@ -417,7 +417,7 @@ async def test_instrumenting_a_deployed_flow_run_state_change(
             {
                 "prefect.resource.id": f"prefect.flow.{flow.id}",
                 "prefect.resource.role": "flow",
-                "prefect.resource.name": "my-flow",
+                "prefect.resource.name": flow.name,
             }
         ),
         RelatedResource.model_validate(
