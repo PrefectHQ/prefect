@@ -83,7 +83,6 @@ const meta = {
 		],
 		blockDocumentsCount: 2,
 		onPaginationChange: fn(),
-		onDelete: fn(),
 		pagination: {
 			pageIndex: 0,
 			pageSize: 10,
