@@ -1,6 +1,10 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 
 export type WorkPool = components["schemas"]["WorkPool"];
 export type WorkPoolsFilter =
@@ -107,7 +111,7 @@ export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 				body: filter,
 			});
 
-			if (!res.data) {
+			if (!("data" in res)) {
 				throw new Error("'data' expected");
 			}
 
@@ -139,3 +143,91 @@ export const buildWorkPoolDetailsQuery = (name: string) =>
 			return res.data;
 		},
 	});
+
+/**
+ * Builds a query configuration for getting a work pool details
+ *
+ * @param name - Work pool name to get details of
+ * @returns Query configuration object for use with TanStack Query
+ */
+export const buildGetWorkPoolQuery = (name: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(name),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/work_pools/{name}", {
+				params: { path: { name } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+	});
+
+/**
+ * Hook for pausing a work pool
+ * @returns Mutation for pausing a work pool
+ */
+export const usePauseWorkPool = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: pauseWorkPool, ...rest } = useMutation({
+		mutationFn: (name: string) =>
+			getQueryService().PATCH("/work_pools/{name}", {
+				params: { path: { name } },
+				body: {
+					is_paused: true,
+				},
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+	return { pauseWorkPool, ...rest };
+};
+
+/**
+ * Hook for resuming a work pool
+ * @returns Mutation for resuming a work pool
+ */
+export const useResumeWorkPool = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: resumeWorkPool, ...rest } = useMutation({
+		mutationFn: (name: string) =>
+			getQueryService().PATCH("/work_pools/{name}", {
+				params: { path: { name } },
+				body: {
+					is_paused: false,
+				},
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+
+	return { resumeWorkPool, ...rest };
+};
+
+/**
+ * Hook for deleting a work pool
+ * @returns Mutation for deleting a work pool
+ */
+export const useDeleteWorkPool = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteWorkPool, ...rest } = useMutation({
+		mutationFn: (name: string) =>
+			getQueryService().DELETE("/work_pools/{name}", {
+				params: { path: { name } },
+			}),
+		onSettled: () =>
+			queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			}),
+	});
+
+	return { deleteWorkPool, ...rest };
+};
