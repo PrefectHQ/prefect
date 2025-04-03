@@ -4,9 +4,9 @@ import {
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { Deployment } from "../deployments";
-import { Flow } from "../flows";
-import { components } from "../prefect";
+import type { Deployment } from "../deployments";
+import type { Flow } from "../flows";
+import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type FlowRun = components["schemas"]["FlowRun"];
@@ -70,7 +70,7 @@ export const buildFilterFlowRunsQuery = (
 		sort: "ID_DESC",
 		offset: 0,
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.filter(filter),
@@ -101,7 +101,7 @@ export const buildPaginateFlowRunsQuery = (
 		page: 1,
 		sort: "START_TIME_DESC",
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.paginate(filter),
@@ -214,6 +214,96 @@ export const useDeploymentCreateFlowRun = () => {
 	});
 	return {
 		createDeploymentFlowRun,
+		...rest,
+	};
+};
+
+/**
+ * Request body for setting a flow run state
+ */
+type SetFlowRunStateParams = {
+	/**
+	 * The ID of the flow run to update
+	 */
+	id: string;
+	/**
+	 * The new state type to set
+	 */
+	state: components["schemas"]["StateType"];
+	/**
+	 * Optional name for the state
+	 */
+	name?: string | null;
+	/**
+	 * Optional message to associate with the state change
+	 */
+	message?: string | null;
+	/**
+	 * Whether to force the state change, bypassing orchestration rules
+	 */
+	force?: boolean;
+};
+
+/**
+ * Hook for changing a flow run's state
+ *
+ * @returns Mutation object for setting a flow run state with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { setFlowRunState, isLoading } = useSetFlowRunState();
+ *
+ * setFlowRunState({
+ *   id: "flow-run-id",
+ *   state: "COMPLETED",
+ *   name: "Custom state name",
+ *   message: "State changed by user"
+ * }, {
+ *   onSuccess: () => {
+ *     console.log('Flow run state changed successfully');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to change flow run state:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useSetFlowRunState = () => {
+	const queryClient = useQueryClient();
+	const { mutate: setFlowRunState, ...rest } = useMutation({
+		mutationFn: async ({
+			id,
+			state,
+			name,
+			message,
+			force = false,
+		}: SetFlowRunStateParams) => {
+			const res = await getQueryService().POST("/flow_runs/{id}/set_state", {
+				params: { path: { id } },
+				body: {
+					state: {
+						type: state,
+						name: name,
+						message: message,
+					},
+					force,
+				},
+			});
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onSuccess: () => {
+			// After a successful state change, invalidate all flow run queries to refetch
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			});
+		},
+	});
+	return {
+		setFlowRunState,
 		...rest,
 	};
 };
