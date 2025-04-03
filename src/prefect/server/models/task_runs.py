@@ -195,6 +195,39 @@ async def read_task_run(
     return model
 
 
+@db_injector
+async def read_task_run_with_flow_run_name(
+    db: PrefectDBInterface, session: AsyncSession, task_run_id: UUID
+) -> Union[orm_models.TaskRun, None]:
+    """
+    Read a task run by id.
+
+    Args:
+        session: a database session
+        task_run_id: the task run id
+
+    Returns:
+        orm_models.TaskRun: the task run with the flow run name
+    """
+
+    result = await session.execute(
+        select(orm_models.TaskRun, orm_models.FlowRun.name.label("flow_run_name"))
+        .outerjoin(
+            orm_models.FlowRun, orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id
+        )
+        .where(orm_models.TaskRun.id == task_run_id)
+    )
+    row = result.first()
+    if not row:
+        return None
+
+    task_run = row[0]
+    flow_run_name = row[1]
+    if flow_run_name:
+        setattr(task_run, "flow_run_name", flow_run_name)
+    return task_run
+
+
 async def _apply_task_run_filters(
     db: PrefectDBInterface,
     query: Select[T],
