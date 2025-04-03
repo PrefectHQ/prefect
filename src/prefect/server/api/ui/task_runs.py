@@ -185,18 +185,11 @@ async def read_task_run(
     Get a task run by id.
     """
     async with db.session_context() as session:
-        task_run = await models.task_runs.read_task_run(
+        task_run = await models.task_runs.read_task_run_with_flow_run_name(
             session=session, task_run_id=task_run_id
         )
 
-        if not task_run:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
-
-        if task_run.flow_run_id is not None:
-            flow_run = await models.flow_runs.read_flow_run(
-                session=session, flow_run_id=task_run.flow_run_id
-            )
-            if flow_run:
-                setattr(task_run, "flow_run_name", flow_run.name)
+    if not task_run:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     return schemas.ui.TaskRun.model_validate(task_run)
