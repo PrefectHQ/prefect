@@ -154,19 +154,19 @@ async def register_block_types(session):
 
 
 @pytest.fixture
-async def flow(session):
+async def flow(session: AsyncSession):
     model = await models.flows.create_flow(
-        session=session, flow=schemas.actions.FlowCreate(name="my-flow")
+        session=session, flow=schemas.core.Flow(name=f"my-flow-{uuid.uuid4()}")
     )
     await session.commit()
     return model
 
 
 @pytest.fixture
-async def flow_run(session, flow):
+async def flow_run(session: AsyncSession, flow: orm_models.Flow):
     model = await models.flow_runs.create_flow_run(
         session=session,
-        flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+        flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="0.1"),
     )
     await session.commit()
     return model
@@ -322,6 +322,16 @@ async def task_run(session, flow_run):
         task_run=schemas.actions.TaskRunCreate(
             flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
         ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def task_run_without_flow_run(session: AsyncSession):
+    model = await models.task_runs.create_task_run(
+        session=session,
+        task_run=schemas.core.TaskRun(task_key="my-key", dynamic_key="0"),
     )
     await session.commit()
     return model
