@@ -247,9 +247,7 @@
                           "v3/api-ref/rest-api/server/flows/count-flows",
                           "v3/api-ref/rest-api/server/flows/read-flow-by-name",
                           "v3/api-ref/rest-api/server/flows/read-flows",
-                          "v3/api-ref/rest-api/server/flows/paginate-flows",
-                          "v3/api-ref/rest-api/server/flows/count-deployments-by-flow",
-                          "v3/api-ref/rest-api/server/flows/next-runs-by-flow"
+                          "v3/api-ref/rest-api/server/flows/paginate-flows"
                         ]
                       },
                       {
@@ -273,9 +271,7 @@
                           "v3/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
                           "v3/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
                           "v3/api-ref/rest-api/server/flow-runs/download-logs",
-                          "v3/api-ref/rest-api/server/flow-runs/update-flow-run-labels",
-                          "v3/api-ref/rest-api/server/flow-runs/read-flow-run-history",
-                          "v3/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
+                          "v3/api-ref/rest-api/server/flow-runs/update-flow-run-labels"
                         ]
                       },
                       {
@@ -289,10 +285,7 @@
                           "v3/api-ref/rest-api/server/task-runs/task-run-history",
                           "v3/api-ref/rest-api/server/task-runs/read-task-runs",
                           "v3/api-ref/rest-api/server/task-runs/paginate-task-runs",
-                          "v3/api-ref/rest-api/server/task-runs/set-task-run-state",
-                          "v3/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
-                          "v3/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state",
-                          "v3/api-ref/rest-api/server/task-runs/read-task-run-with-flow-run-name"
+                          "v3/api-ref/rest-api/server/task-runs/set-task-run-state"
                         ]
                       },
                       {
@@ -521,12 +514,6 @@
                           "v3/api-ref/rest-api/server/automations/read-automations-related-to-resource",
                           "v3/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
                           "v3/api-ref/rest-api/server/automations/validate-template"
-                        ]
-                      },
-                      {
-                        "group": "UI",
-                        "pages": [
-                          "v3/api-ref/rest-api/server/ui/validate-obj"
                         ]
                       },
                       {
