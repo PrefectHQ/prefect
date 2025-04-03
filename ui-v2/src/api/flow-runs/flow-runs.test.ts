@@ -247,8 +247,11 @@ describe("flow runs api", () => {
 				result.current.setFlowRunState(
 					{
 						id: flowRunId,
-						state: "FAILED",
-						message: "Test message",
+						state: {
+							type: "FAILED",
+							message: "Test message",
+						},
+						force: false,
 					},
 					mutateOptions,
 				);
@@ -285,8 +288,11 @@ describe("flow runs api", () => {
 				result.current.setFlowRunState(
 					{
 						id: flowRunId,
-						state: "FAILED",
-						message: "Test message",
+						state: {
+							type: "FAILED",
+							message: "Test message",
+						},
+						force: false,
 					},
 					mutateOptions,
 				);
