@@ -1,9 +1,8 @@
 import {
-	buildCountFilterBlockDocumentsQuery,
+	buildCountAllBlockDocumentsQuery,
 	buildListFilterBlockDocumentsQuery,
 } from "@/api/block-documents";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -11,29 +10,31 @@ import { Link } from "@tanstack/react-router";
 import { RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
+import { BlocksRowCount } from "./blocks-row-count";
 import { BlocksEmptyState } from "./empty-state";
-import { useDeleteBlockDocumentConfirmationDialog } from "./use-delete-block-document-confirmation-dialog";
 
 export const BlocksPage = () => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
-	const [dialogState, handleConfirmDelete] =
-		useDeleteBlockDocumentConfirmationDialog();
 
 	const { data: blockDocuments } = useSuspenseQuery(
 		buildListFilterBlockDocumentsQuery(),
 	);
 	const { data: allBlockkDocumentsCount } = useSuspenseQuery(
-		buildCountFilterBlockDocumentsQuery(),
+		buildCountAllBlockDocumentsQuery(),
 	);
 
 	return (
-		<>
-			<div className="flex flex-col gap-4">
-				<BlocksPageHeader />
-				{allBlockkDocumentsCount === 0 ? (
-					<BlocksEmptyState />
-				) : (
+		<div className="flex flex-col gap-4">
+			<BlocksPageHeader />
+			{allBlockkDocumentsCount === 0 ? (
+				<BlocksEmptyState />
+			) : (
+				<div className="flex flex-col gap-4">
+					<BlocksRowCount
+						rowSelection={rowSelection}
+						setRowSelection={setRowSelection}
+						count={allBlockkDocumentsCount}
+					/>
 					<BlockDocumentsDataTable
 						blockDocuments={blockDocuments}
 						rowSelection={rowSelection}
@@ -47,12 +48,10 @@ export const BlocksPage = () => {
 						onPaginationChange={() => {
 							/** TODO */
 						}}
-						onDelete={() => handleConfirmDelete(Object.keys(rowSelection))}
 					/>
-				)}
-			</div>
-			<DeleteConfirmationDialog {...dialogState} />
-		</>
+				</div>
+			)}
+		</div>
 	);
 };
 
