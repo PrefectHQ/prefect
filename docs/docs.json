@@ -292,7 +292,7 @@
                           "v3/api-ref/rest-api/server/task-runs/set-task-run-state",
                           "v3/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
                           "v3/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state",
-                          "v3/api-ref/rest-api/server/task-runs/read-task-run-1"
+                          "v3/api-ref/rest-api/server/task-runs/read-task-run-with-flow-run-name"
                         ]
                       },
                       {

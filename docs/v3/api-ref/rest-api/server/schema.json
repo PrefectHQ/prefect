@@ -9552,9 +9552,9 @@
                     "Task Runs",
                     "UI"
                 ],
-                "summary": "Read Task Run",
+                "summary": "Read Task Run With Flow Run Name",
                 "description": "Get a task run by id.",
-                "operationId": "read_task_run_ui_task_runs__id__get",
+                "operationId": "read_task_run_with_flow_run_name_ui_task_runs__id__get",
                 "parameters": [
                     {
                         "name": "id",

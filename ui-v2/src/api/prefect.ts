@@ -2821,10 +2821,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Task Run
+         * Read Task Run With Flow Run Name
          * @description Get a task run by id.
          */
-        get: operations["read_task_run_ui_task_runs__id__get"];
+        get: operations["read_task_run_with_flow_run_name_ui_task_runs__id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -16078,7 +16078,7 @@ export interface operations {
             };
         };
     };
-    read_task_run_ui_task_runs__id__get: {
+    read_task_run_with_flow_run_name_ui_task_runs__id__get: {
         parameters: {
             query?: never;
             header?: {
