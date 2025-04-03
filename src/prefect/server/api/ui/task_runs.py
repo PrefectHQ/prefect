@@ -180,7 +180,7 @@ async def read_task_run_counts_by_state(
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> schemas.ui.TaskRun:
+) -> schemas.ui.UITaskRun:
     """
     Get a task run by id.
     """
@@ -192,4 +192,4 @@ async def read_task_run(
     if not task_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
-    return schemas.ui.TaskRun.model_validate(task_run)
+    return schemas.ui.UITaskRun.model_validate(task_run)
