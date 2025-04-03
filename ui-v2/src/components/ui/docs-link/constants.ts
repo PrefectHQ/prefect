@@ -10,6 +10,8 @@ export const DOCS_LINKS = {
 	"task-concurrency-guide":
 		"https://docs.prefect.io/v3/develop/task-run-limits",
 	"variables-guide": "https://docs.prefect.io/latest/guides/variables/",
+	"work-pools-guide":
+		"https://docs.prefect.io/latest/deploy/infrastructure-concepts/work-pools",
 } as const;
 
 export type DocsID = keyof typeof DOCS_LINKS;

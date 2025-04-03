@@ -8,6 +8,7 @@ import {
 	randProductName,
 	randUuid,
 } from "@ngneat/falso";
+import { createFakeWorkPoolType } from "./create-fake-work-pool-type";
 const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED", null] as const;
 
 export const createFakeWorkPool = (
@@ -24,7 +25,7 @@ export const createFakeWorkPool = (
 		default_queue_id: randUuid(),
 		is_paused: randBoolean(),
 		status: rand(STATUS_TYPE_VALUES),
-		type: "process",
+		type: createFakeWorkPoolType(),
 		...overrides,
 	};
 };
