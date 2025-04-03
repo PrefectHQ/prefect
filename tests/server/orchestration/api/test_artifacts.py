@@ -2,9 +2,11 @@ from uuid import uuid4
 
 import pydantic
 import pytest
+from httpx import AsyncClient
 from starlette import status
 
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Deployment, Flow
 from prefect.server.schemas import actions
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
@@ -81,8 +83,8 @@ async def artifacts(flow_run, task_run, client):
 
 
 @pytest.fixture
-async def flow_artifacts(client, deployment):
-    flow_data = {"name": "my-flow"}
+async def flow_artifacts(client: AsyncClient, flow: Flow, deployment: Deployment):
+    flow_data = {"name": flow.name}
     response = await client.post("/flows/", json=flow_data)
 
     flow = response.json()
