@@ -308,6 +308,8 @@ class FlowRunResponse(ObjectBaseModel):
 
 class DeploymentResponse(ObjectBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
+
+    # Versionining
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
@@ -317,6 +319,18 @@ class DeploymentResponse(ObjectBaseModel):
     version_info: Optional[objects.VersionInfo] = Field(
         default=None, description="A description of this version of the deployment."
     )
+
+    # Branching
+    branch: Optional[str] = Field(
+        default=None, description="The branch of the deployment."
+    )
+    base: Optional[UUID] = Field(
+        default=None, description="The base deployment of the deployment."
+    )
+    root: Optional[UUID] = Field(
+        default=None, description="The root deployment of the deployment."
+    )
+
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
     )
@@ -437,6 +451,15 @@ class DeploymentResponse(ObjectBaseModel):
             "prefect.resource.role": role,
             "prefect.resource.name": self.name,
         }
+
+        if self.branch:
+            labels["prefect.deployment.branch"] = self.branch
+
+        if self.base:
+            labels["prefect.deployment.base"] = f"prefect.deployment.{self.base}"
+
+        if self.root:
+            labels["prefect.deployment.root"] = f"prefect.deployment.{self.root}"
 
         if self.version_id and self.version_info:
             labels["prefect.deployment.version-id"] = str(self.version_id)
