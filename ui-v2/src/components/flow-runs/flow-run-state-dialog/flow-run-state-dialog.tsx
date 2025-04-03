@@ -107,8 +107,10 @@ export const FlowRunStateDialog = ({
 		setFlowRunState(
 			{
 				id: flowRun.id,
-				state: values.state,
-				message: values.message || null,
+				state: {
+					type: values.state,
+					message: values.message || null,
+				},
 				force: values.force,
 			},
 			{
