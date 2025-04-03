@@ -7,7 +7,7 @@ import { z } from "zod";
 
 const searchParams = z.object({
 	tab: z
-		.enum(["Logs", "Artifacts", "TaskInputs"])
+		.enum(["Logs", "Artifacts", "TaskInputs", "Details"])
 		.default("Logs")
 		.catch("Logs"),
 });

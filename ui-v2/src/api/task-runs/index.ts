@@ -2,7 +2,7 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import { queryOptions } from "@tanstack/react-query";
 
-export type TaskRun = components["schemas"]["TaskRun"];
+export type TaskRun = components["schemas"]["UITaskRun"];
 
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
@@ -65,7 +65,7 @@ export const buildListTaskRunsQuery = (
 		sort: "ID_DESC",
 		offset: 0,
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -121,7 +121,7 @@ export const buildGetTaskRunDetailsQuery = (id: string) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/task_runs/{id}", {
+			const res = await getQueryService().GET("/ui/task_runs/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {

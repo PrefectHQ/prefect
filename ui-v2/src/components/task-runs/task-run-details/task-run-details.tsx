@@ -1,19 +1,20 @@
-import type { components } from "@/api/prefect";
+import type { TaskRun } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { formatDate } from "@/utils/date";
 import humanizeDuration from "humanize-duration";
 
-type TaskRun = components["schemas"]["TaskRun"];
-
 function formatTaskDate(dateString: string | null | undefined): string {
 	if (!dateString) return "N/A";
-	return formatDate(dateString, "dateTimeNumericShort");
+	return formatDate(dateString, "dateTimeNumeric");
 }
 
 function formatTaskDuration(seconds: number | null | undefined): string {
 	if (seconds === null || seconds === undefined) return "N/A";
-	return humanizeDuration(seconds, { maxDecimalPoints: 2, units: ["s"] });
+	return humanizeDuration(seconds * 1000, {
+		maxDecimalPoints: 2,
+		units: ["s"],
+	});
 }
 
 export type TaskRunDetailsProps = {
@@ -30,16 +31,18 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 	}
 
 	return (
-		<div className="flex flex-col gap-4 p-2 text-xs">
-			<dl className="flex flex-col gap-1 mb-2">
-				<dt className="text-gray-500">Flow Run</dt>
-				<dd>
-					<span className="text-blue-500 hover:underline cursor-pointer flex items-center">
-						<Icon id="ExternalLink" className="mr-1 size-4" />
-						{taskRun.name ? taskRun.name.split("-")[0] : "Flow Run"}
-					</span>
-				</dd>
-			</dl>
+		<div className="flex flex-col gap-2 p-2 text-xs">
+			{taskRun.flow_run_name && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-gray-500">Flow Run</dt>
+					<dd>
+						<span className="text-blue-500 hover:underline cursor-pointer flex items-center">
+							<Icon id="ExternalLink" className="mr-1 size-4" />
+							{taskRun.flow_run_name}
+						</span>
+					</dd>
+				</dl>
+			)}
 
 			{taskRun.start_time && (
 				<dl className="flex flex-col gap-1 mb-2">
@@ -55,7 +58,7 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 						<dd className="">
 							<span className="flex items-center">
 								<Icon id="Clock" className="mr-1 size-4" />
-								{formatTaskDuration(taskRun.estimated_run_time)}
+								{formatTaskDuration(taskRun.total_run_time)}
 							</span>
 						</dd>
 					</dl>
@@ -121,7 +124,7 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 			</dl>
 
 			<div className="border-t border-gray-200 mt-2 pt-4" />
-			<h3 className="text-md font-semibold mb-2">Task configuration</h3>
+			<h3 className="text-sm font-semibold mb-2">Task configuration</h3>
 
 			<dl className="flex flex-col gap-1 mb-2">
 				<dt className=" text-gray-500">Version</dt>
