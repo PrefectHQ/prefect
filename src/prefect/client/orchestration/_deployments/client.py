@@ -140,6 +140,10 @@ class DeploymentClient(BaseClient):
             exclude.add("enforce_parameter_schema")
 
         json = deployment_create.model_dump(mode="json", exclude=exclude)
+
+        if deployment_create.version_info is None:
+            json.pop("version_info", None)
+
         response = self.request(
             "POST",
             "/deployments/",
@@ -673,7 +677,14 @@ class DeploymentAsyncClient(BaseAsyncClient):
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {
             field
-            for field in ["work_pool_name", "work_queue_name"]
+            for field in [
+                "work_pool_name",
+                "work_queue_name",
+                "version_info",
+                "branch",
+                "base",
+                "root",
+            ]
             if field not in deployment_create.model_fields_set
         }
 
@@ -686,7 +697,11 @@ class DeploymentAsyncClient(BaseAsyncClient):
         if deployment_create.enforce_parameter_schema is None:
             exclude.add("enforce_parameter_schema")
 
+        if deployment_create.version_info is None:
+            exclude.add("version_info")
+
         json = deployment_create.model_dump(mode="json", exclude=exclude)
+
         response = await self.request(
             "POST",
             "/deployments/",

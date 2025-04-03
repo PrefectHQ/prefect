@@ -253,14 +253,27 @@ class DeploymentCreate(ActionBaseModel):
     infrastructure_document_id: Optional[UUID] = Field(default=None)
     description: Optional[str] = Field(default=None)
     path: Optional[str] = Field(default=None)
-    version: Optional[str] = Field(default=None)
-    version_info: Optional[objects.VersionInfo] = Field(
-        default=None, description="Version information for the deployment."
-    )
     entrypoint: Optional[str] = Field(default=None)
     job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
+    )
+
+    # Versionining
+    version: Optional[str] = Field(default=None)
+    version_info: Optional[objects.VersionInfo] = Field(
+        default=None, description="Version information for the deployment."
+    )
+
+    # Branching
+    branch: Optional[str] = Field(
+        default=None, description="The branch of the deployment."
+    )
+    base: Optional[UUID] = Field(
+        default=None, description="The base deployment of the deployment."
+    )
+    root: Optional[UUID] = Field(
+        default=None, description="The root deployment of the deployment."
     )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
