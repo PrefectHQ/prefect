@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { http, HttpResponse } from "msw";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { TaskRunLogs } from ".";
 
 const MOCK_LOGS = [
@@ -21,15 +21,34 @@ const MOCK_LOGS = [
 type LogsFilterBody = components["schemas"]["Body_read_logs_logs_filter_post"];
 
 describe("TaskRunLogs", () => {
-	beforeAll(mockPointerEvents);
-	it("displays logs with default filter (all levels)", async () => {
+	beforeEach(() => {
+		mockPointerEvents();
 		// Setup mock API response
 		server.use(
-			http.post(buildApiUrl("/logs/filter"), () => {
-				return HttpResponse.json(MOCK_LOGS);
+			http.post(buildApiUrl("/logs/filter"), async ({ request }) => {
+				const body = (await request.json()) as LogsFilterBody;
+
+				let filteredLogs = [...MOCK_LOGS];
+
+				// Filter logs by level if specified
+				const minLevel = body.logs?.level?.ge_;
+				if (typeof minLevel === "number") {
+					filteredLogs = filteredLogs.filter((log) => log.level >= minLevel);
+				}
+
+				// Sort logs based on the sort parameter
+				if (body.sort === "TIMESTAMP_DESC") {
+					filteredLogs = filteredLogs.reverse();
+				}
+
+				if (body.offset) {
+					filteredLogs = filteredLogs.slice(body.offset);
+				}
+				return HttpResponse.json(filteredLogs);
 			}),
 		);
-
+	});
+	it("displays logs with default filter (all levels)", async () => {
 		// Render component
 		const taskRun = createFakeTaskRun();
 		render(<TaskRunLogs taskRun={taskRun} />, {
@@ -51,17 +70,6 @@ describe("TaskRunLogs", () => {
 	it("filters logs by level", async () => {
 		const user = userEvent.setup();
 
-		// Setup mock API response for filtered logs
-		server.use(
-			http.post(buildApiUrl("/logs/filter"), async ({ request }) => {
-				const body = (await request.json()) as LogsFilterBody;
-				const minLevel = body.logs?.level?.ge_ ?? 0;
-
-				const filteredLogs = MOCK_LOGS.filter((log) => log.level >= minLevel);
-				return HttpResponse.json(filteredLogs);
-			}),
-		);
-
 		// Render component
 		const taskRun = createFakeTaskRun();
 		render(<TaskRunLogs taskRun={taskRun} />, {
@@ -69,7 +77,9 @@ describe("TaskRunLogs", () => {
 		});
 
 		await waitFor(() => {
-			expect(screen.getByText("Critical error in task")).toBeInTheDocument();
+			expect(
+				screen.getByRole("combobox", { name: /log level filter/i }),
+			).toBeInTheDocument();
 		});
 
 		// Change filter to "Error and above"
@@ -218,7 +228,9 @@ describe("TaskRunLogs", () => {
 		});
 
 		await waitFor(() => {
-			expect(screen.getByText("Critical error in task")).toBeInTheDocument();
+			expect(
+				screen.getByRole("combobox", { name: /log sort order/i }),
+			).toBeInTheDocument();
 		});
 
 		// Change sort order to newest first
