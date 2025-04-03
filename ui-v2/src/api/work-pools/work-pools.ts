@@ -111,7 +111,7 @@ export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 				body: filter,
 			});
 
-			if (!res.data) {
+			if (!("data" in res)) {
 				throw new Error("'data' expected");
 			}
 
