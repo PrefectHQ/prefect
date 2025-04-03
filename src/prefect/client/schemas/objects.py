@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import warnings
 from collections.abc import Callable, Mapping
+from enum import Enum
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -1105,6 +1106,41 @@ class DeploymentSchedule(ObjectBaseModel):
 class VersionInfo(PrefectBaseModel, extra="allow"):
     type: str = Field(default=..., description="The type of version info.")
     version: str = Field(default=..., description="The version of the deployment.")
+
+
+class BranchingScheduleHandling(str, Enum):
+    KEEP = "keep"
+    REMOVE = "remove"
+    INACTIVE = "inactive"
+
+
+class DeploymentBranchingOptions(ObjectBaseModel):
+    naming_pattern: str = Field(
+        default="{name} ({branch})",
+        description="The pattern to use for the new deployment name",
+    )
+    schedule_handling: BranchingScheduleHandling = Field(
+        default=BranchingScheduleHandling.REMOVE,
+        description="Whether to keep, remove, or set inactive the existing schedules when branching",
+    )
+
+    @field_validator("naming_pattern")
+    @classmethod
+    def validate_naming_pattern(cls, v: str) -> str:
+        try:
+            v.format(name="test-deployment", branch="test-branch")
+
+            if "{name" not in v or "{branch" not in v:
+                raise ValueError(
+                    "naming_pattern must include both {name} and {branch} placeholders"
+                )
+
+        except KeyError as e:
+            raise ValueError(f"Missing required placeholder in format string: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Invalid format string: {str(e)}")
+
+        return v
 
 
 class Deployment(ObjectBaseModel):
