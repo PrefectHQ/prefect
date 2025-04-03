@@ -16,7 +16,6 @@ from typing_extensions import TypeVar
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.calls import Call, Portal
-from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
 
@@ -95,7 +94,7 @@ class WorkerThread(Portal):
         """
         try:
             self._run_until_shutdown()
-        except CancelledError:
+        except asyncio.CancelledError:
             logger.exception("%s was cancelled", self.name)
         except BaseException:
             # Log exceptions that crash the thread

@@ -26,7 +26,6 @@ from typing_extensions import ParamSpec, Self, TypeAlias, TypeVar, TypeVarTuple
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.cancellation import (
     AsyncCancelScope,
-    CancelledError,
     cancel_async_at,
     cancel_sync_at,
     get_deadline,
@@ -168,7 +167,7 @@ class Future(concurrent.futures.Future[T]):
             The result of the call that the future represents.
 
         Raises:
-            CancelledError: If the future was cancelled.
+            asyncio.CancelledError: If the future was cancelled.
             TimeoutError: If the future didn't finish executing before the given
                 timeout.
             Exception: If the call raised then that exception will be raised.
@@ -176,18 +175,14 @@ class Future(concurrent.futures.Future[T]):
         try:
             with self._condition:
                 if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
-                    # Raise Prefect cancelled error instead of
-                    # `concurrent.futures._base.CancelledError`
-                    raise CancelledError()
+                    raise asyncio.CancelledError()
                 elif self._state == FINISHED:
                     return self.__get_result()
 
                 self._condition.wait(timeout)
 
                 if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
-                    # Raise Prefect cancelled error instead of
-                    # `concurrent.futures._base.CancelledError`
-                    raise CancelledError()
+                    raise asyncio.CancelledError()
                 elif self._state == FINISHED:
                     return self.__get_result()
                 else:
@@ -334,10 +329,7 @@ class Call(Generic[T]):
 
         For use from asynchronous contexts.
         """
-        try:
-            return await asyncio.wrap_future(self.future)
-        except asyncio.CancelledError as exc:
-            raise CancelledError() from exc
+        return await asyncio.wrap_future(self.future)
 
     def cancelled(self) -> bool:
         """
@@ -372,7 +364,7 @@ class Call(Generic[T]):
             if inspect.isawaitable(result):
                 return result
 
-        except CancelledError:
+        except asyncio.CancelledError:
             # Report cancellation
             # in rare cases, enforce_sync_deadline raises CancelledError
             # prior to yielding
@@ -409,7 +401,7 @@ class Call(Generic[T]):
                         # there's no need to keep a reference to them
                         with contextlib.suppress(AttributeError):
                             del self.args, self.kwargs
-        except CancelledError:
+        except asyncio.CancelledError:
             # Report cancellation
             if TYPE_CHECKING:
                 assert cancel_scope is not None

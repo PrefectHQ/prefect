@@ -11,7 +11,6 @@ import pytest
 from prefect._internal.concurrency.cancellation import (
     AlarmCancelScope,
     AsyncCancelScope,
-    CancelledError,
     WatcherThreadCancelScope,
     cancel_async_after,
     cancel_async_at,
@@ -54,7 +53,7 @@ async def test_alarm_cancel_scope_repr():
         try:
             with scope:
                 scope.cancel()
-        except CancelledError:
+        except asyncio.CancelledError:
             pass
 
         assert "CANCELLED" in repr(scope)
@@ -85,7 +84,7 @@ async def test_cancel_scope_repr(cls):
     try:
         with scope:
             scope.cancel()
-    except CancelledError:
+    except asyncio.CancelledError:
         pass
 
     assert "CANCELLED" in repr(scope)
@@ -100,7 +99,7 @@ async def test_cancel_scope_repr(cls):
 
 async def test_cancel_async_after():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_after(0.1) as scope:
             await asyncio.sleep(1)
             completed = True
@@ -112,7 +111,7 @@ async def test_cancel_async_after():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_in_main_thread():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as scope:
             time.sleep(1)
             completed = True
@@ -125,7 +124,7 @@ def test_cancel_sync_after_in_worker_thread():
     completed = False
 
     def on_worker_thread():
-        with pytest.raises(CancelledError):
+        with pytest.raises(asyncio.CancelledError):
             with cancel_sync_after(0.1) as scope:
                 # this timeout method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
@@ -148,7 +147,7 @@ def test_cancel_sync_after_in_worker_thread():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_manual_in_main_thread():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as scope:
             scope.cancel()
             time.sleep(1)
@@ -162,7 +161,7 @@ def test_cancel_sync_after_manual_in_worker_thread():
     completed = False
 
     def on_worker_thread():
-        with pytest.raises(CancelledError):
+        with pytest.raises(asyncio.CancelledError):
             with cancel_sync_after(0.1) as scope:
                 scope.cancel()
                 for _ in range(10):
@@ -228,7 +227,7 @@ def test_cancel_sync_after_not_cancelled_in_worker_thread():
 
 async def test_cancel_async_at():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_at(get_deadline(timeout=0.1)) as scope:
             await asyncio.sleep(1)
             completed = True
@@ -240,7 +239,7 @@ async def test_cancel_async_at():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_at():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_at(get_deadline(timeout=0.1)) as scope:
             time.sleep(1)
             completed = True
@@ -251,7 +250,7 @@ def test_cancel_sync_at():
 
 async def test_cancel_async_manual_without_timeout():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_at(None) as scope:
             async with anyio.create_task_group() as tg:
                 tg.start_soon(asyncio.sleep, 1)
@@ -265,7 +264,7 @@ async def test_cancel_async_manual_without_timeout():
 
 async def test_cancel_async_after_manual_with_timeout():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_after(0.1) as scope:
             scope.cancel()
             await asyncio.sleep(1)
@@ -277,7 +276,7 @@ async def test_cancel_async_after_manual_with_timeout():
 
 async def test_cancel_async_from_another_thread():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_after(None) as scope:
             async with anyio.create_task_group() as tg:
                 tg.start_soon(asyncio.sleep, 1)
@@ -296,7 +295,7 @@ def test_cancel_sync_manually_in_main_thread():
     main_thread_ready = threading.Event()
     cancel_sent = threading.Event()
 
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         # Set a timeout or we'll use a watcher thread instead of an alarm
         with cancel_sync_after(timeout=10) as scope:
 
@@ -332,7 +331,7 @@ def test_cancel_sync_manually_in_worker_thread():
     scope_future = concurrent.futures.Future()
 
     def on_worker_thread():
-        with pytest.raises(CancelledError):
+        with pytest.raises(asyncio.CancelledError):
             with cancel_sync_at(None) as scope:
                 # send the scope back to the parent so it can cancel it
                 scope_future.set_result(scope)
@@ -364,7 +363,7 @@ def test_cancel_sync_manually_in_worker_thread():
 def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
     completed = False
     with cancel_sync_after(1) as outer_scope:
-        with pytest.raises(CancelledError):
+        with pytest.raises(asyncio.CancelledError):
             with cancel_sync_after(0.1) as inner_scope:
                 # this cancel method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
@@ -381,7 +380,7 @@ def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
 def test_cancel_sync_nested_alarm_and_watcher_outer_cancelled():
     completed = False
 
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as outer_scope:
             with cancel_sync_after(2) as inner_scope:
                 time.sleep(1)
@@ -395,7 +394,7 @@ def test_cancel_sync_nested_alarm_and_watcher_outer_cancelled():
 def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
     completed = False
     with cancel_sync_after(1) as outer_scope:
-        with pytest.raises(CancelledError):
+        with pytest.raises(asyncio.CancelledError):
             with cancel_sync_after(0.1) as inner_scope:
                 # this cancel method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
@@ -416,7 +415,7 @@ def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
 def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
     completed = False
 
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as outer_scope:
             with cancel_sync_after(2) as inner_scope:
                 # this cancel method does not interrupt sleep calls, the timeout is
@@ -439,7 +438,7 @@ def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
 def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
     completed = False
 
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as scope:
             # this cancel method does not interrupt sleep calls, the timeout is
             # raised on the next instruction
@@ -455,7 +454,7 @@ def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_inner_fails():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(2) as outer:
             with cancel_sync_after(0.1) as inner:
                 for _ in range(10):
@@ -470,7 +469,7 @@ def test_cancel_sync_after_nested_in_main_thread_inner_fails():
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_nested_in_main_thread_outer_fails():
     completed = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(1) as outer:
             with cancel_sync_after(5) as inner:
                 time.sleep(2)
@@ -484,7 +483,7 @@ def test_cancel_sync_after_nested_in_main_thread_outer_fails():
 async def test_shield_async():
     completed = False
     completed_shield = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_after(0.1) as scope:
             with shield():
                 await asyncio.sleep(1)
@@ -501,7 +500,7 @@ async def test_shield_async_nested():
     completed = False
     completed_shieldA = False
     completed_shieldB = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_async_after(0.1) as scope:
             with shield():
                 await asyncio.sleep(0.5)
@@ -522,7 +521,7 @@ async def test_shield_async_nested():
 def test_shield_sync_in_main_thread():
     completed = False
     completed_shield = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as scope:
             with shield():
                 time.sleep(1)
@@ -540,7 +539,7 @@ def test_shield_sync_in_main_thread_nested():
     completed = False
     completed_shieldA = False
     completed_shieldB = False
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         with cancel_sync_after(0.1) as scope:
             with shield():
                 time.sleep(0.5)
@@ -564,7 +563,7 @@ def test_shield_sync_in_worker_thread_nested():
     completed_shieldB = False
 
     def on_worker_thread():
-        with pytest.raises(CancelledError):
+        with pytest.raises(asyncio.CancelledError):
             with cancel_sync_after(0.1) as scope:
                 with shield():
                     for _ in range(5):

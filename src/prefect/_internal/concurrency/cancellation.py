@@ -76,13 +76,6 @@ class ThreadShield:
         return getattr(self._lock, "_count") > 0
 
 
-class CancelledError(asyncio.CancelledError):
-    # We want our `CancelledError` to be treated as a `BaseException` and defining it
-    # here simplifies downstream logic that needs to know "which" cancelled error to
-    # handle.
-    pass
-
-
 def _get_thread_shield(thread: threading.Thread) -> ThreadShield:
     with _THREAD_SHIELDS_LOCK:
         if thread not in _THREAD_SHIELDS:
@@ -278,9 +271,9 @@ class AsyncCancelScope(CancelScope):
 
         super().__exit__(exc_type, exc_val, exc_tb)
 
-        if self.cancelled() and exc_type is not CancelledError:
+        if self.cancelled() and exc_type is not asyncio.CancelledError:
             # Ensure cancellation error is propagated on exit
-            raise CancelledError() from exc_val
+            raise asyncio.CancelledError() from exc_val
 
         return False
 
@@ -365,9 +358,9 @@ class AlarmCancelScope(CancelScope):
             shield = _get_thread_shield(threading.main_thread())
             if shield.active():
                 logger.debug("%r thread shield active; delaying exception", self)
-                shield.set_exception(CancelledError())
+                shield.set_exception(asyncio.CancelledError())
             else:
-                raise CancelledError()
+                raise asyncio.CancelledError()
 
     def __exit__(self, *_: Any) -> Optional[bool]:
         retval = super().__exit__(*_)
@@ -443,7 +436,9 @@ class WatcherThreadCancelScope(CancelScope):
             )
             with _get_thread_shield(self._supervised_thread):
                 try:
-                    _send_exception_to_thread(self._supervised_thread, CancelledError)
+                    _send_exception_to_thread(
+                        self._supervised_thread, asyncio.CancelledError
+                    )
                 except ValueError:
                     # If the thread is gone; just move on without error
                     logger.debug("Thread missing!")

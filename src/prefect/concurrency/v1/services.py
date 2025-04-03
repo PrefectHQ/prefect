@@ -53,6 +53,7 @@ class ConcurrencySlotAcquisitionService(
                     retry_after = exc.response.headers.get("Retry-After")
                     if retry_after:
                         retry_after = float(retry_after)
+                        print(f"sleeping for {retry_after}")
                         await asyncio.sleep(retry_after)
                     else:
                         # We received a 423 but no Retry-After header. This
