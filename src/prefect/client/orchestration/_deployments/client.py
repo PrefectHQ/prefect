@@ -67,6 +67,9 @@ class DeploymentClient(BaseClient):
         pull_steps: list[dict[str, Any]] | None = None,
         enforce_parameter_schema: bool | None = None,
         job_variables: dict[str, Any] | None = None,
+        branch: str | None = None,
+        base: UUID | None = None,
+        root: UUID | None = None,
     ) -> "UUID":
         """
         Create a deployment.
@@ -118,6 +121,9 @@ class DeploymentClient(BaseClient):
             concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
+            branch=branch,
+            base=base,
+            root=root,
         )
 
         if work_pool_name is not None:
@@ -126,23 +132,28 @@ class DeploymentClient(BaseClient):
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {
             field
-            for field in ["work_pool_name", "work_queue_name"]
+            for field in [
+                "work_pool_name",
+                "work_queue_name",
+            ]
             if field not in deployment_create.model_fields_set
         }
 
-        if deployment_create.paused is None:
-            exclude.add("paused")
+        exclude_if_none = [
+            "paused",
+            "pull_steps",
+            "enforce_parameter_schema",
+            "version_info",
+            "branch",
+            "base",
+            "root",
+        ]
 
-        if deployment_create.pull_steps is None:
-            exclude.add("pull_steps")
-
-        if deployment_create.enforce_parameter_schema is None:
-            exclude.add("enforce_parameter_schema")
+        for field in exclude_if_none:
+            if getattr(deployment_create, field) is None:
+                exclude.add(field)
 
         json = deployment_create.model_dump(mode="json", exclude=exclude)
-
-        if deployment_create.version_info is None:
-            json.pop("version_info", None)
 
         response = self.request(
             "POST",
@@ -618,6 +629,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
         pull_steps: list[dict[str, Any]] | None = None,
         enforce_parameter_schema: bool | None = None,
         job_variables: dict[str, Any] | None = None,
+        branch: str | None = None,
+        base: UUID | None = None,
+        root: UUID | None = None,
     ) -> "UUID":
         """
         Create a deployment.
@@ -669,6 +683,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
             concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
+            branch=branch,
+            base=base,
+            root=root,
         )
 
         if work_pool_name is not None:
@@ -680,25 +697,23 @@ class DeploymentAsyncClient(BaseAsyncClient):
             for field in [
                 "work_pool_name",
                 "work_queue_name",
-                "version_info",
-                "branch",
-                "base",
-                "root",
             ]
             if field not in deployment_create.model_fields_set
         }
 
-        if deployment_create.paused is None:
-            exclude.add("paused")
+        exclude_if_none = [
+            "paused",
+            "pull_steps",
+            "enforce_parameter_schema",
+            "version_info",
+            "branch",
+            "base",
+            "root",
+        ]
 
-        if deployment_create.pull_steps is None:
-            exclude.add("pull_steps")
-
-        if deployment_create.enforce_parameter_schema is None:
-            exclude.add("enforce_parameter_schema")
-
-        if deployment_create.version_info is None:
-            exclude.add("version_info")
+        for field in exclude_if_none:
+            if getattr(deployment_create, field) is None:
+                exclude.add(field)
 
         json = deployment_create.model_dump(mode="json", exclude=exclude)
 
