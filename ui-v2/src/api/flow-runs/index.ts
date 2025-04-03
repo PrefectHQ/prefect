@@ -26,6 +26,19 @@ export type FlowRunsPaginateFilter =
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
 
 /**
+ * The request body for setting a flow run state
+ */
+type SetFlowRunStateBody =
+	components["schemas"]["Body_set_flow_run_state_flow_runs__id__set_state_post"];
+
+/**
+ * Parameters for setting a flow run state, combining the path param with the request body
+ */
+type SetFlowRunStateParams = {
+	id: string;
+} & SetFlowRunStateBody;
+
+/**
  * Query key factory for flows-related queries
  *
  * @property {function} all - Returns base key for all flow run queries
@@ -46,6 +59,7 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), "filter", filter] as const,
 	paginate: (filter: FlowRunsPaginateFilter) =>
 		[...queryKeyFactory.lists(), "paginate", filter] as const,
+	detail: (id: string) => [...queryKeyFactory.all(), "detail", id] as const,
 };
 
 /**
@@ -219,32 +233,6 @@ export const useDeploymentCreateFlowRun = () => {
 };
 
 /**
- * Request body for setting a flow run state
- */
-type SetFlowRunStateParams = {
-	/**
-	 * The ID of the flow run to update
-	 */
-	id: string;
-	/**
-	 * The new state type to set
-	 */
-	state: components["schemas"]["StateType"];
-	/**
-	 * Optional name for the state
-	 */
-	name?: string | null;
-	/**
-	 * Optional message to associate with the state change
-	 */
-	message?: string | null;
-	/**
-	 * Whether to force the state change, bypassing orchestration rules
-	 */
-	force?: boolean;
-};
-
-/**
  * Hook for changing a flow run's state
  *
  * @returns Mutation object for setting a flow run state with loading/error states and trigger function
@@ -255,39 +243,18 @@ type SetFlowRunStateParams = {
  *
  * setFlowRunState({
  *   id: "flow-run-id",
- *   state: "COMPLETED",
- *   name: "Custom state name",
+ *   state: { type: "COMPLETED" },
  *   message: "State changed by user"
- * }, {
- *   onSuccess: () => {
- *     console.log('Flow run state changed successfully');
- *   },
- *   onError: (error) => {
- *     console.error('Failed to change flow run state:', error);
- *   }
  * });
  * ```
  */
 export const useSetFlowRunState = () => {
 	const queryClient = useQueryClient();
 	const { mutate: setFlowRunState, ...rest } = useMutation({
-		mutationFn: async ({
-			id,
-			state,
-			name,
-			message,
-			force = false,
-		}: SetFlowRunStateParams) => {
+		mutationFn: async ({ id, ...params }: SetFlowRunStateParams) => {
 			const res = await getQueryService().POST("/flow_runs/{id}/set_state", {
 				params: { path: { id } },
-				body: {
-					state: {
-						type: state,
-						name: name,
-						message: message,
-					},
-					force,
-				},
+				body: params,
 			});
 
 			if (!res.data) {
@@ -295,11 +262,48 @@ export const useSetFlowRunState = () => {
 			}
 			return res.data;
 		},
-		onSuccess: () => {
-			// After a successful state change, invalidate all flow run queries to refetch
-			return queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.all(),
-			});
+		onMutate: async ({ id, state }) => {
+			await queryClient.cancelQueries({ queryKey: queryKeyFactory.detail(id) });
+
+			const previousFlowRun = queryClient.getQueryData<FlowRun>(
+				queryKeyFactory.detail(id),
+			);
+
+			if (previousFlowRun?.state) {
+				queryClient.setQueryData<FlowRun>(queryKeyFactory.detail(id), {
+					...previousFlowRun,
+					state: {
+						id: previousFlowRun.state.id,
+						type: state.type,
+						name: state.name ?? previousFlowRun.state.name,
+						message: state.message ?? previousFlowRun.state.message,
+						timestamp: new Date().toISOString(),
+						data: previousFlowRun.state.data,
+						state_details: previousFlowRun.state.state_details,
+					},
+				});
+			}
+
+			return { previousFlowRun };
+		},
+		onError: (err, { id }, context) => {
+			// Roll back optimistic update on error
+			if (context?.previousFlowRun) {
+				queryClient.setQueryData(
+					queryKeyFactory.detail(id),
+					context.previousFlowRun,
+				);
+			}
+
+			throw err instanceof Error
+				? err
+				: new Error("Failed to update flow run state");
+		},
+		onSettled: (_, __, { id }) => {
+			void Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+			]);
 		},
 	});
 	return {
