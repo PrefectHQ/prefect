@@ -605,17 +605,20 @@ class DeploymentClient(BaseClient):
         self,
         deployment_id: UUID,
         branch: str,
-        options: "DeploymentBranchingOptions" | None = None,
+        options: "DeploymentBranchingOptions | None" = None,
         overrides: "DeploymentUpdate | None" = None,
     ) -> UUID:
         from prefect.client.schemas.actions import DeploymentBranch
+        from prefect.client.schemas.objects import DeploymentBranchingOptions
 
         response = self.request(
             "POST",
             "/deployments/{id}/branch",
             path_params={"id": deployment_id},
             json=DeploymentBranch(
-                branch=branch, options=options, overrides=overrides
+                branch=branch,
+                options=options or DeploymentBranchingOptions(),
+                overrides=overrides,
             ).model_dump(mode="json", exclude_unset=True),
         )
         return UUID(response.json().get("id"))
