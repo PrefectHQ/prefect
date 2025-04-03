@@ -1,5 +1,6 @@
 export {
 	type BlockDocument,
+	type BlockDocumentsFilter,
 	buildListFilterBlockDocumentsQuery,
 	buildCountAllBlockDocumentsQuery,
 	buildCountFilterBlockDocumentsQuery,

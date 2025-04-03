@@ -13,6 +13,8 @@ import { useCallback } from "react";
 
 import { BlockDocument } from "@/api/block-documents";
 import { BlockDocumentActionMenu } from "@/components/blocks/block-document-action-menu";
+import { useDeleteBlockDocumentConfirmationDialog } from "@/components/blocks/use-delete-block-document-confirmation-dialog";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { BlockDocumentCell } from "./block-document-cell";
 
 const columnHelper = createColumnHelper<BlockDocument>();
@@ -84,12 +86,14 @@ export type BlockDocumentsDataTableProps = {
 export const BlockDocumentsDataTable = ({
 	blockDocuments,
 	blockDocumentsCount,
-	onDelete,
 	onPaginationChange,
 	pagination,
 	rowSelection,
 	setRowSelection,
 }: BlockDocumentsDataTableProps) => {
+	const [dialogState, handleConfirmDelete] =
+		useDeleteBlockDocumentConfirmationDialog();
+
 	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
 		(updater) => {
 			let newPagination = pagination;
@@ -104,7 +108,7 @@ export const BlockDocumentsDataTable = ({
 	);
 
 	const table = useReactTable({
-		columns: createColumns({ onDelete }),
+		columns: createColumns({ onDelete: handleConfirmDelete }),
 		data: blockDocuments,
 		defaultColumn: { maxSize: 300 },
 		getCoreRowModel: getCoreRowModel(),
@@ -116,5 +120,10 @@ export const BlockDocumentsDataTable = ({
 		state: { pagination, rowSelection },
 	});
 
-	return <DataTable table={table} />;
+	return (
+		<>
+			<DataTable table={table} />
+			<DeleteConfirmationDialog {...dialogState} />
+		</>
+	);
 };
