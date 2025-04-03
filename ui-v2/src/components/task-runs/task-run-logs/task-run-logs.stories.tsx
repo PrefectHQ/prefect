@@ -8,6 +8,7 @@ import { TaskRunLogs } from ".";
 
 const MOCK_TASK_RUN_WITH_LOGS = createFakeTaskRun();
 const MOCK_TASK_RUN_WITHOUT_LOGS = createFakeTaskRun();
+const MOCK_TASK_RUN_WITH_INFINITE_LOGS = createFakeTaskRun();
 // Create a range of logs with different levels
 const ALL_MOCK_LOGS = [
 	createFakeLog({
@@ -104,5 +105,25 @@ export const NoLogs: Story = {
 	},
 	args: {
 		taskRun: MOCK_TASK_RUN_WITHOUT_LOGS,
+	},
+};
+
+export const Infinite: Story = {
+	args: {
+		taskRun: MOCK_TASK_RUN_WITH_INFINITE_LOGS,
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/logs/filter"), async ({ request }) => {
+					const body = (await request.json()) as LogsFilterBody;
+					return HttpResponse.json(
+						Array.from({ length: body.limit as number }, createFakeLog).sort(
+							(a, b) => a.timestamp.localeCompare(b.timestamp),
+						),
+					);
+				}),
+			],
+		},
 	},
 };

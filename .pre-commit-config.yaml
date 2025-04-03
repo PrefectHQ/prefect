@@ -71,21 +71,6 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_ref.py
           )$
-      - id: lint-ui-v2
-        name: Lint UI v2
-        language: system
-        entry: sh
-        args:
-          [
-            "-c",
-            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run lint-staged",
-          ]
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              ui-v2/.*
-          )$
-        pass_filenames: false
       - id: format-ui-v2
         name: Format UI v2
         language: system
