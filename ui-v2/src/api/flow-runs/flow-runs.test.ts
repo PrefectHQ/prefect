@@ -3,7 +3,7 @@ import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	type FlowRun,
 	buildFilterFlowRunsQuery,
@@ -12,6 +12,7 @@ import {
 	useDeleteFlowRun,
 	useDeploymentCreateFlowRun,
 } from ".";
+import { useSetFlowRunState } from "./index";
 
 describe("flow runs api", () => {
 	const mockFetchFlowRunsAPI = (flowRuns: Array<FlowRun>) => {
@@ -217,6 +218,90 @@ describe("flow runs api", () => {
 				(flowRun) => flowRun.id === MOCK_NEW_DATA_ID,
 			);
 			expect(newFlowRun).toMatchObject(NEW_FLOW_RUN_DATA);
+		});
+	});
+
+	describe("useSetFlowRunState", () => {
+		const flowRunId = "test-flow-run-id";
+		const mockResponse = { state: { type: "FAILED" } };
+
+		it("sets a flow run state", async () => {
+			// Setup the mock server response
+			server.use(
+				http.post(buildApiUrl(`/flow_runs/${flowRunId}/set_state`), () => {
+					return HttpResponse.json(mockResponse);
+				}),
+			);
+
+			// Mock callbacks
+			const onSuccess = vi.fn();
+			const mutateOptions = { onSuccess };
+
+			// Set up the hook
+			const { result } = renderHook(() => useSetFlowRunState(), {
+				wrapper: createWrapper(),
+			});
+
+			// Call the mutation
+			act(() => {
+				result.current.setFlowRunState(
+					{
+						id: flowRunId,
+						state: {
+							type: "FAILED",
+							message: "Test message",
+						},
+						force: false,
+					},
+					mutateOptions,
+				);
+			});
+
+			// Wait for the mutation to succeed with longer timeout
+			await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1), {
+				timeout: 3000,
+			});
+		});
+
+		it("handles errors when setting flow run state", async () => {
+			// Setup the mock server error response
+			server.use(
+				http.post(buildApiUrl(`/flow_runs/${flowRunId}/set_state`), () => {
+					return new HttpResponse(
+						JSON.stringify({ detail: "Error setting flow run state" }),
+						{ status: 400 },
+					);
+				}),
+			);
+
+			// Mock callbacks
+			const onError = vi.fn();
+			const mutateOptions = { onError };
+
+			// Set up the hook
+			const { result } = renderHook(() => useSetFlowRunState(), {
+				wrapper: createWrapper(),
+			});
+
+			// Call the mutation
+			act(() => {
+				result.current.setFlowRunState(
+					{
+						id: flowRunId,
+						state: {
+							type: "FAILED",
+							message: "Test message",
+						},
+						force: false,
+					},
+					mutateOptions,
+				);
+			});
+
+			// Wait for the mutation to fail with longer timeout
+			await waitFor(() => expect(onError).toHaveBeenCalledTimes(1), {
+				timeout: 3000,
+			});
 		});
 	});
 });
