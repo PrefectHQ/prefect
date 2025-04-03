@@ -131,6 +131,10 @@ class RedisLockManager(LockManager):
         """
         Releases the lock on the corresponding transaction record.
 
+        Handles the case where a lock might have been released during a task retry
+        If the lock doesn't exist in Redis at all, this method will succeed even if
+        the holder ID doesn't match the original holder.
+
         Args:
             key: Unique identifier for the transaction record.
             holder: Unique identifier for the holder of the lock. Must match the
@@ -138,12 +142,6 @@ class RedisLockManager(LockManager):
 
         Raises:
             ValueError: If the lock is held by a different holder.
-
-        Note:
-            This implementation handles the case where a lock might have been released
-            during a task retry (issue #17676). If the lock doesn't exist in Redis at all,
-            this method will succeed even if the holder ID doesn't match the original
-            holder. This allows transactions that retry tasks to properly clean up locks.
         """
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
@@ -155,7 +153,6 @@ class RedisLockManager(LockManager):
             return
 
         # If the lock doesn't exist in Redis at all, it's already been released
-        # Just clean up and return without error
         if not self.is_locked(key):
             if lock_name in self._locks:
                 del self._locks[lock_name]
