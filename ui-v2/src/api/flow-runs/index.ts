@@ -59,7 +59,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), "filter", filter] as const,
 	paginate: (filter: FlowRunsPaginateFilter) =>
 		[...queryKeyFactory.lists(), "paginate", filter] as const,
-	detail: (id: string) => [...queryKeyFactory.all(), "detail", id] as const,
+	details: () => [...queryKeyFactory.all(), "detail"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 /**
@@ -299,10 +300,10 @@ export const useSetFlowRunState = () => {
 				? err
 				: new Error("Failed to update flow run state");
 		},
-		onSettled: (_, __, { id }) => {
+		onSettled: () => {
 			void Promise.all([
 				queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
-				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.details() }),
 			]);
 		},
 	});
