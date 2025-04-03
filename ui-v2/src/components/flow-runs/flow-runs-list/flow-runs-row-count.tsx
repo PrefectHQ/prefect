@@ -10,13 +10,6 @@ import { useMemo } from "react";
 import { FlowRunCardData } from "../flow-run-card";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
-// type FlowRunsRowCountProps = {
-// 	count: number | undefined;
-// 	results?: Array<FlowRunWithFlow>;
-// 	setSelectedRows?: (rows: Set<string>) => void;
-// 	selectedRows?: Set<string>;
-// };
-
 type CountOnlyProps = {
 	count: number | undefined;
 };

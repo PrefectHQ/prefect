@@ -1,5 +1,6 @@
 import {
 	type BlockDocumentsFilter,
+	buildCountAllBlockDocumentsQuery,
 	buildCountFilterBlockDocumentsQuery,
 	buildListFilterBlockDocumentsQuery,
 } from "@/api/block-documents";
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/blocks/")({
 		return Promise.all([
 			queryClient.ensureQueryData(buildListFilterBlockTypesQuery()),
 			// All count query
-			queryClient.ensureQueryData(buildCountFilterBlockDocumentsQuery()),
+			queryClient.ensureQueryData(buildCountAllBlockDocumentsQuery()),
 			// Filtered block document
 			queryClient.ensureQueryData(buildListFilterBlockDocumentsQuery(filter)),
 			// Filtered count query
