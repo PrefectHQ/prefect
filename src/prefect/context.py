@@ -6,6 +6,7 @@ These contexts should never be directly mutated by the user.
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
 
+import asyncio
 import os
 import sys
 import warnings
@@ -294,7 +295,7 @@ class AsyncClientContext(ContextModel):
     @asynccontextmanager
     async def get_or_create(cls) -> AsyncGenerator[Self, None]:
         ctx = cls.get()
-        if ctx:
+        if ctx and asyncio.get_running_loop() is ctx.client.loop:
             yield ctx
         else:
             async with cls() as ctx:
