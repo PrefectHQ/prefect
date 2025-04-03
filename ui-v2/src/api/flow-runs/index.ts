@@ -300,10 +300,10 @@ export const useSetFlowRunState = () => {
 				? err
 				: new Error("Failed to update flow run state");
 		},
-		onSettled: () => {
+		onSettled: (_data, _error, { id }) => {
 			void Promise.all([
-				queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
-				queryClient.invalidateQueries({ queryKey: queryKeyFactory.details() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
 			]);
 		},
 	});
