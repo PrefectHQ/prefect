@@ -1,12 +1,15 @@
 import { buildFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
 const searchParams = z.object({
-	tab: z.enum(["Logs", "Artifacts", "TaskInputs"]).default("Logs"),
+	tab: z
+		.enum(["Logs", "Artifacts", "TaskInputs"])
+		.default("Logs")
+		.catch("Logs"),
 });
 
 export type TaskRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
@@ -39,5 +42,17 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 function RouteComponent() {
 	const { id } = Route.useParams();
 	const { tab } = Route.useSearch();
-	return <TaskRunDetailsPage id={id} tab={tab} />;
+	const navigate = useNavigate();
+
+	const onTabChange = (tab: TaskRunDetailsTabOptions) => {
+		void navigate({
+			to: ".",
+			search: (prev) => ({
+				...prev,
+				tab,
+			}),
+		});
+	};
+
+	return <TaskRunDetailsPage id={id} tab={tab} onTabChange={onTabChange} />;
 }
