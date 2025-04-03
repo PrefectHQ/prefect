@@ -5799,3 +5799,23 @@ class TestSafeLoadFlowFromEntrypoint:
 
         with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
             safe_load_flow_from_entrypoint(entrypoint)()
+
+
+class TestDeeplyNestedFlows:
+    async def test_async_flow_inside_mapped_async_tasks(self):
+        """this is a regression test for https://github.com/PrefectHQ/prefect/issues/17710"""
+
+        @flow
+        async def identity(item: int):
+            return item
+
+        @task
+        async def async_task(item: int):
+            return await identity(item)
+
+        @flow
+        async def async_flow():
+            return async_task.map([1, 2, 3]).result()
+
+        result = await async_flow()
+        assert result == [1, 2, 3]
