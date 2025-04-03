@@ -1,15 +1,52 @@
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cva } from "class-variance-authority";
 import { isSameDay } from "date-fns";
 import { format } from "date-fns-tz";
+import { useEffect, useRef } from "react";
 
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
 	taskRun?: components["schemas"]["TaskRun"];
+	onBottomReached: () => void;
 };
 
-export const RunLogs = ({ logs, taskRun }: RunLogsProps) => {
+/**
+ * Displays logs from a run in a virtualized list.
+ *
+ * @param logs - Array of log entries to display
+ * @param taskRun - Optional task run information to display with logs
+ * @param onBottomReached - Callback function triggered when the user scrolls to the bottom of the logs
+ *
+ */
+export const RunLogs = ({ logs, taskRun, onBottomReached }: RunLogsProps) => {
+	const parentRef = useRef<HTMLDivElement>(null);
+	const virtualizer = useVirtualizer({
+		count: logs.length,
+		getScrollElement: () => parentRef.current,
+		estimateSize: () => 75,
+	});
+
+	const virtualItems = virtualizer.getVirtualItems();
+
+	/**
+	 * This effect detects when the user has scrolled to the bottom of the logs.
+	 * It works by checking if the last visible virtual item is also the last item in the logs array.
+	 * When this condition is met, it calls the bottomReached callback to potentially load more logs.
+	 */
+	useEffect(() => {
+		const [lastItem] = [...virtualItems].reverse();
+
+		if (!lastItem) {
+			return;
+		}
+
+		if (lastItem.index >= logs.length - 1) {
+			onBottomReached();
+		}
+	}, [logs.length, virtualItems, onBottomReached]);
+
 	const showDivider = (index: number): boolean => {
 		if (index === 0) {
 			return true;
@@ -28,15 +65,44 @@ export const RunLogs = ({ logs, taskRun }: RunLogsProps) => {
 			</div>
 		);
 	}
+
 	return (
-		<ol className="flex flex-col gap-4 bg-gray-100 p-2 rounded-md font-mono">
-			{logs.map((log, index) => (
-				<li key={log.id}>
-					{showDivider(index) && <LogDivider date={new Date(log.timestamp)} />}
-					<RunLogRow key={log.id} log={log} taskRunName={taskRun?.name} />
-				</li>
-			))}
-		</ol>
+		<div
+			ref={parentRef}
+			className="bg-gray-100 rounded-md font-mono w-full h-full overflow-y-auto p-4"
+			role="log"
+		>
+			<ol
+				className="relative w-full"
+				style={{
+					height: `${virtualizer.getTotalSize()}px`,
+				}}
+			>
+				{virtualItems.map((virtualRow) => {
+					const log = logs[virtualRow.index];
+					const shouldShowDivider = showDivider(virtualRow.index);
+
+					return (
+						<li
+							key={log.id}
+							style={{
+								position: "absolute",
+								top: 0,
+								left: 0,
+								width: "100%",
+								height: `${virtualRow.size}px`,
+								transform: `translateY(${virtualRow.start}px)`,
+							}}
+						>
+							{shouldShowDivider && (
+								<LogDivider date={new Date(log.timestamp)} />
+							)}
+							<RunLogRow log={log} taskRunName={taskRun?.name} />
+						</li>
+					);
+				})}
+			</ol>
+		</div>
 	);
 };
 

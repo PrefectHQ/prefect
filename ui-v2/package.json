@@ -49,6 +49,7 @@
 		"@tanstack/react-query-devtools": "^5.71.1",
 		"@tanstack/react-router": "^1.114.29",
 		"@tanstack/react-table": "^8.21.2",
+		"@tanstack/react-virtual": "^3.13.6",
 		"@tanstack/zod-adapter": "^1.114.29",
 		"@uiw/react-codemirror": "^4.23.10",
 		"class-variance-authority": "^0.7.1",
