@@ -1416,14 +1416,11 @@ class Event(Base):
         return "events"
 
     __table_args__: Any = (
-        sa.Index("ix_events__related_resource_ids", "related_resource_ids").ddl_if(
-            dialect="sqlite"
-        ),
         sa.Index(
-            "ix_events__related_resource_ids_md5",
-            sa.text("md5(related_resource_ids::text)"),
-            postgresql_using="btree",
-        ).ddl_if(dialect="postgresql"),
+            "ix_events__related_resource_ids_gin",
+            "related_resource_ids",
+            postgresql_using="gin",
+        ),
         sa.Index("ix_events__occurred", "occurred"),
         sa.Index("ix_events__event__id", "event", "id"),
         sa.Index(
@@ -1435,15 +1432,15 @@ class Event(Base):
         sa.Index("ix_events__occurred_id", "occurred", "id"),
         sa.Index("ix_events__event_occurred_id", "event", "occurred", "id"),
         sa.Index(
-            "ix_events__event_related_occurred", "event", "related", "occurred"
-        ).ddl_if(dialect="sqlite"),
+            "ix_events__related_gin",
+            "related",
+            postgresql_using="gin",
+        ),
         sa.Index(
-            "ix_events__event_related_occurred_md5",
-            sa.text("md5(related::text)"),
+            "ix_events__event_occurred",
             "event",
             "occurred",
-            postgresql_using="btree",
-        ).ddl_if(dialect="postgresql"),
+        ),
     )
 
     occurred: Mapped[DateTime]

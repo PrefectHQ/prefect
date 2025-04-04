@@ -6,7 +6,6 @@ Create Date: 2025-04-04 09:21:58.070532
 
 """
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -20,31 +19,39 @@ def upgrade():
     op.drop_index("ix_events__event_related_occurred", table_name="events")
     op.drop_index("ix_events__related_resource_ids", table_name="events")
     op.create_index(
-        "ix_events__event_related_occurred_md5",
+        "ix_events__related_gin",
         "events",
-        [sa.literal_column("md5(related::text)"), "event", "occurred"],
+        ["related"],
         unique=False,
-        postgresql_using="btree",
+        postgresql_using="gin",
     )
     op.create_index(
-        "ix_events__related_resource_ids_md5",
+        "ix_events__event_occurred",
         "events",
-        [sa.literal_column("md5(related_resource_ids::text)"), "event", "occurred"],
+        ["event", "occurred"],
         unique=False,
-        postgresql_using="btree",
+    )
+    op.create_index(
+        "ix_events__related_resource_ids_gin",
+        "events",
+        ["related_resource_ids"],
+        unique=False,
+        postgresql_using="gin",
     )
 
 
 def downgrade():
     op.drop_index(
-        "ix_events__event_related_occurred_md5",
+        "ix_events__related_gin",
         table_name="events",
-        postgresql_using="btree",
     )
     op.drop_index(
-        "ix_events__related_resource_ids_md5",
+        "ix_events__event_occurred",
         table_name="events",
-        postgresql_using="btree",
+    )
+    op.drop_index(
+        "ix_events__related_resource_ids_gin",
+        table_name="events",
     )
     op.create_index(
         "ix_events__event_related_occurred",
