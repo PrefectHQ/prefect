@@ -3,6 +3,7 @@ import { SearchInput } from "@/components/ui/input";
 import { RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
+import { BlockTypesMultiSelect } from "./block-types-multi-select";
 import { BlocksPageHeader } from "./blocks-page-header";
 import { BlocksRowCount } from "./blocks-row-count";
 import { BlocksEmptyState } from "./empty-state";
@@ -12,6 +13,9 @@ type BlocksPageProps = {
 	blockDocuments: Array<BlockDocument> | undefined;
 	onSearch: (value?: string) => void;
 	search: string;
+	blockTypeSlugsFilter: Array<string>;
+	onToggleBlockTypeSlug: (blockTypeIds: string) => void;
+	onRemoveBlockTypeSlug: (blockTypeIds: string) => void;
 };
 
 export const BlocksPage = ({
@@ -19,6 +23,9 @@ export const BlocksPage = ({
 	blockDocuments = [],
 	onSearch,
 	search,
+	blockTypeSlugsFilter,
+	onToggleBlockTypeSlug,
+	onRemoveBlockTypeSlug,
 }: BlocksPageProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -35,14 +42,20 @@ export const BlocksPage = ({
 							setRowSelection={setRowSelection}
 							count={allCount}
 						/>
-						<div>
-							<SearchInput
-								className="w-56"
-								aria-label="search blocks"
-								placeholder="Search blocks"
-								value={search}
-								onChange={(e) => onSearch(e.target.value)}
+						<div className="flex items-center gap-2">
+							<BlockTypesMultiSelect
+								selectedBlockTypesSlugs={blockTypeSlugsFilter}
+								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
 							/>
+							<div className="min-w-56">
+								<SearchInput
+									aria-label="search blocks"
+									placeholder="Search blocks"
+									value={search}
+									onChange={(e) => onSearch(e.target.value)}
+								/>
+							</div>
 						</div>
 					</div>
 					<BlockDocumentsDataTable
