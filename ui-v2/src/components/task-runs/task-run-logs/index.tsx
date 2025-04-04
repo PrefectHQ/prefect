@@ -9,7 +9,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type TaskRunLogsProps = {
 	taskRun: components["schemas"]["TaskRun"];
@@ -22,8 +22,8 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 	>("TIMESTAMP_ASC");
 
 	const queryOptions = useMemo(
-		() =>
-			buildInfiniteFilterLogsQuery({
+		() => ({
+			...buildInfiniteFilterLogsQuery({
 				limit: 50,
 				sort: sortOrder,
 				logs: {
@@ -32,7 +32,9 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 					task_run_id: { any_: [taskRun.id] },
 				},
 			}),
-		[levelFilter, sortOrder, taskRun.id],
+			refetchInterval: taskRun.state_type === "RUNNING" ? 5000 : false,
+		}),
+		[levelFilter, sortOrder, taskRun.id, taskRun.state_type],
 	);
 
 	const {
@@ -41,6 +43,7 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 		fetchNextPage,
 		isFetchingNextPage,
 	} = useSuspenseInfiniteQuery(queryOptions);
+
 	const noLogs = logs.pages.length === 1 && logs.pages[0].length === 0;
 	let message = "This run did not produce any logs.";
 	if (noLogs) {
@@ -70,17 +73,20 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 					<span className="text-gray-500">{message}</span>
 				</div>
 			) : (
-				<RunLogs
-					taskRun={taskRun}
-					logs={logs.pages.flat()}
-					onBottomReached={() => {
-						if (hasNextPage && !isFetchingNextPage) {
-							fetchNextPage().catch((error) => {
-								console.error(error);
-							});
-						}
-					}}
-				/>
+				<div className="rounded-md">
+					<RunLogs
+						taskRun={taskRun}
+						logs={logs.pages.flat()}
+						onBottomReached={() => {
+							if (hasNextPage && !isFetchingNextPage) {
+								fetchNextPage().catch((error) => {
+									console.error(error);
+								});
+							}
+						}}
+						className="max-h-[85vh]"
+					/>
+				</div>
 			)}
 		</div>
 	);

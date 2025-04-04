@@ -19,7 +19,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 type TaskRunDetailsPageProps = {
 	id: string;
@@ -34,7 +34,19 @@ export const TaskRunDetailsPage = ({
 	tab,
 	onTabChange,
 }: TaskRunDetailsPageProps) => {
-	const { data: taskRun } = useSuspenseQuery(buildGetTaskRunDetailsQuery(id));
+	const [refetchInterval, setRefetchInterval] = useState<number | false>(false);
+	const { data: taskRun } = useSuspenseQuery({
+		...buildGetTaskRunDetailsQuery(id),
+		refetchInterval,
+	});
+
+	useEffect(() => {
+		if (taskRun.state_type === "RUNNING" || taskRun.state_type === "PENDING") {
+			setRefetchInterval(5000);
+		} else {
+			setRefetchInterval(false);
+		}
+	}, [taskRun]);
 
 	return (
 		<div className="flex flex-col gap-4">

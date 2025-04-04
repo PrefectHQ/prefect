@@ -1,4 +1,4 @@
-import { buildFilterLogsQuery } from "@/api/logs";
+import { buildFilterLogsQuery, buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -19,13 +19,15 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 	component: RouteComponent,
 	loader: async ({ params, context: { queryClient } }) => {
 		// ----- Deferred data
-		void queryClient.prefetchQuery(
-			buildFilterLogsQuery({
-				offset: 0,
-				sort: "TIMESTAMP_DESC",
-				limit: 100,
+		void queryClient.prefetchInfiniteQuery(
+			buildInfiniteFilterLogsQuery({
+				limit: 50,
+				sort: "TIMESTAMP_ASC",
 				logs: {
 					operator: "and_",
+					level: {
+						ge_: 0,
+					},
 					task_run_id: {
 						any_: [params.id],
 					},
