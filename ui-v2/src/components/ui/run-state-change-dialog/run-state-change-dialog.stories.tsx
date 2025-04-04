@@ -31,14 +31,14 @@ export const Success: Story = {
 		open: true,
 		onOpenChange: () => {},
 		title: "Change Flow Run State",
-		onSubmitChange: async (values) => {
-			await new Promise((resolve) => setTimeout(resolve, 500));
+		onSubmitChange: (values) => {
 			toast.success(
 				<div className="flex items-center gap-2">
 					Flow run state changed to{" "}
 					<StateBadge type={values.state} name={values.state} />
 				</div>,
 			);
+			return Promise.resolve();
 		},
 	},
 	parameters: {
@@ -66,11 +66,10 @@ export const Failed: Story = {
 		open: true,
 		onOpenChange: () => {},
 		title: "Change Task Run State",
-		onSubmitChange: async () => {
-			await Promise.reject(
-				new Error("Something went wrong changing the state"),
-			);
-			toast.error("Failed to change task run state");
+		onSubmitChange: () => {
+			const error = new Error("Something went wrong changing the state");
+			toast.error(error.message);
+			return Promise.reject(error);
 		},
 	},
 	parameters: {
