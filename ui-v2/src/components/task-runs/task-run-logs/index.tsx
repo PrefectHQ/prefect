@@ -32,7 +32,8 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 					task_run_id: { any_: [taskRun.id] },
 				},
 			}),
-			refetchInterval: taskRun.state_type === "RUNNING" ? 5000 : false,
+			refetchInterval:
+				taskRun.state_type === "RUNNING" ? 5000 : (false as const),
 		}),
 		[levelFilter, sortOrder, taskRun.id, taskRun.state_type],
 	);
