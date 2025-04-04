@@ -52,8 +52,7 @@ def shout(number):
 
 @flow(task_runner=RayTaskRunner)
 def count_to(highest_number):
-    for number in range(highest_number):
-        shout.submit(number)
+    shout.map(range(highest_number)).wait()
 
 if __name__ == "__main__":
     count_to(10)
@@ -154,8 +153,7 @@ def say_hello(name: str) -> None:
     result_storage="s3/my-result-storage",
 )
 def greetings(names: List[str]) -> None:
-    for name in names:
-        say_hello.submit(name)
+    say_hello.map(names).wait()
 
 
 if __name__ == "__main__":
@@ -199,7 +197,7 @@ def process(x):
 def my_flow():
     # equivalent to setting @ray.remote(num_cpus=4, num_gpus=2)
     with remote_options(num_cpus=4, num_gpus=2):
-        process.submit(42)
+        process.submit(42).wait()
 ```
 
 ## Resources
