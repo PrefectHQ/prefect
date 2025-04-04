@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import List
+from typing import Generator, List
 
 import dask.dataframe as dd
 import distributed
@@ -17,7 +17,7 @@ from prefect.states import State
 
 
 @pytest.fixture(scope="module")
-def cluster():
+def cluster() -> Generator[distributed.LocalCluster, None, None]:
     with distributed.LocalCluster(dashboard_address=None) as cluster:
         yield cluster
 
@@ -70,17 +70,19 @@ class TestDaskTaskRunner:
             dask_task_runner_with_thread_pool,
         ]
     )
-    def task_runner(self, request):
+    def task_runner(
+        self, request: pytest.FixtureRequest
+    ) -> Generator[DaskTaskRunner, None, None]:
         yield request.getfixturevalue(
             request.param._pytestfixturefunction.name or request.param.__name__
         )
 
-    async def test_duplicate(self, task_runner):
+    async def test_duplicate(self, task_runner: DaskTaskRunner):
         new = task_runner.duplicate()
         assert new == task_runner
         assert new is not task_runner
 
-    async def test_successful_flow_run(self, task_runner):
+    async def test_successful_flow_run(self, task_runner: DaskTaskRunner):
         @task
         def task_a():
             return "a"
@@ -90,7 +92,7 @@ class TestDaskTaskRunner:
             return "b"
 
         @task
-        def task_c(b):
+        def task_c(b: str):
             return b + "c"
 
         @flow(version="test", task_runner=task_runner)
@@ -105,7 +107,7 @@ class TestDaskTaskRunner:
         assert await b.result() == "b"
         assert await c.result() == "bc"
 
-    async def test_failing_flow_run(self, task_runner):
+    async def test_failing_flow_run(self, task_runner: DaskTaskRunner):
         @task
         def task_a():
             raise RuntimeError("This task fails!")
@@ -115,7 +117,7 @@ class TestDaskTaskRunner:
             raise ValueError("This task fails and passes data downstream!")
 
         @task
-        def task_c(b):
+        def task_c(b: str):
             # This task attempts to use the upstream data and should fail too
             return b + "c"
 
@@ -306,7 +308,7 @@ class TestDaskTaskRunner:
         def my_task():
             return 1
 
-        futures = []
+        futures: list[PrefectDaskFuture[int]] = []
 
         @flow(task_runner=task_runner)
         def my_flow():
@@ -347,7 +349,22 @@ class TestDaskTaskRunner:
                 task_runner.client  # trigger client creation
                 assert task_runner._cluster._adapt_called
 
-    def test_warns_if_future_garbage_collection_before_resolving(self, caplog):
+    def test_string_cluster_class_is_properly_instantiated(self):
+        task_runner = DaskTaskRunner(cluster_class="distributed.LocalCluster")
+
+        @task
+        def test_task():
+            return 42
+
+        @flow(task_runner=task_runner)
+        def test_flow():
+            return test_task.submit()
+
+        assert test_flow().result() == 42
+
+    def test_warns_if_future_garbage_collection_before_resolving(
+        self, caplog: pytest.LogCaptureFixture
+    ):
         task_runner = DaskTaskRunner(cluster_kwargs={"dashboard_address": None})
 
         @task
@@ -363,7 +380,9 @@ class TestDaskTaskRunner:
 
         assert "A future was garbage collected before it resolved" in caplog.text
 
-    def test_does_not_warn_if_future_resolved_when_garbage_collected(self, caplog):
+    def test_does_not_warn_if_future_resolved_when_garbage_collected(
+        self, caplog: pytest.LogCaptureFixture
+    ):
         task_runner = DaskTaskRunner(cluster_kwargs={"dashboard_address": None})
 
         @task
@@ -380,7 +399,7 @@ class TestDaskTaskRunner:
 
         assert "A future was garbage collected before it resolved" not in caplog.text
 
-    async def test_successful_dataframe_flow_run(self, task_runner):
+    async def test_successful_dataframe_flow_run(self, task_runner: DaskTaskRunner):
         @task
         def task_a():
             return dd.DataFrame.from_dict(
@@ -388,7 +407,7 @@ class TestDaskTaskRunner:
             )
 
         @task
-        def task_b(ddf):
+        def task_b(ddf: dd.DataFrame):
             return ddf.sum()
 
         @task
@@ -408,7 +427,9 @@ class TestDaskTaskRunner:
         assert result.equals(pd.Series([3, 6], index=["x", "y"]))
 
     class TestInputArguments:
-        async def test_dataclasses_can_be_passed_to_task_runners(self, task_runner):
+        async def test_dataclasses_can_be_passed_to_task_runners(
+            self, task_runner: DaskTaskRunner
+        ):
             """
             this is a regression test for https://github.com/PrefectHQ/prefect/issues/6905
             """
