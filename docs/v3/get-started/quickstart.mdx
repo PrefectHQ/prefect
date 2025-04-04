@@ -5,10 +5,14 @@ icon: rocket
 mode: wide
 ---
 
-Prefect is a workflow orchestration tool that helps you build, run, and monitor data pipelines. It makes complex workflows reliable by tracking dependencies and handling failures gracefully. In this tutorial, you'll deploy and run your first workflow by specifying what code should run, where it should run, and when it should run.
+Prefect is a workflow orchestration tool that helps you build, deploy, run, and monitor data pipelines. It makes complex workflows reliable by tracking dependencies and handling failures gracefully. 
+
+In this tutorial, you'll deploy your first workflow to Prefect -- by specifying what code should run, where it should run, and when it should run. We'll save this metadata to a Prefect Server, 
+ 
 
 <Steps>
   <Step title="Create and login to your Prefect Cloud account.">
+    Prefect uses a database to store 
     For the ease of getting started, we'll use a hosted Prefect server on Prefect Cloud. To create an account, we need to install `prefect-cloud`. We'll leverage `uv`, a modern Python package manager, to do this. Run the following commands in your terminal, after which you'll be prompted in your browser to create or login to your free Prefect Cloud account.
 
     ```bash
@@ -27,7 +31,7 @@ Prefect is a workflow orchestration tool that helps you build, run, and monitor 
     @task
     def get_customer_ids() -> list[str]:
         # Fetch customer IDs from a database or API
-        return [f"customer{n}" for n in random.choices(range(100), k=50)]
+        return [f"customer{n}" for n in random.choices(range(100), k=10)]
 
     @task
     def process_customer(customer_id: str) -> str:
@@ -71,14 +75,10 @@ Prefect is a workflow orchestration tool that helps you build, run, and monitor 
     00:30:54.520 | INFO    | Task run 'process_customer-eaa' - Finished in state Completed()
     00:30:54.523 | INFO    | Task run 'process_customer-b2b' - Finished in state Completed()
     00:30:54.523 | INFO    | Task run 'process_customer-90a' - Finished in state Completed()
-    ...Ommitted for brevity in this tutorial
-    00:30:54.553 | INFO    | Task run 'process_customer-4af' - Finished in state Completed()
-    00:30:54.555 | INFO    | Task run 'process_customer-e66' - Finished in state Completed()
-    00:30:54.556 | INFO    | Task run 'process_customer-e7e' - Finished in state Completed()
-    00:30:54.556 | INFO    | Task run 'process_customer-5bd' - Finished in state Completed()
-    00:30:54.557 | INFO    | Task run 'process_customer-05d' - Finished in state Completed()
-    00:30:54.558 | INFO    | Task run 'process_customer-b60' - Finished in state Completed()
-    00:30:54.701 | INFO    | Flow run 'airborne-ringtail' - Finished in state Completed('All states completed.')
+    00:30:54.524 | INFO    | Task run 'process_customer-4af' - Finished in state Completed()
+    00:30:54.524 | INFO    | Task run 'process_customer-e66' - Finished in state Completed()
+    00:30:54.526 | INFO    | Task run 'process_customer-e7e' - Finished in state Completed()
+    00:30:54.527 | INFO    | Flow run 'airborne-ringtail' - Finished in state Completed('All states completed.')
     ```
     </Step>
     <Step title="Where should it run?">
@@ -87,14 +87,15 @@ Prefect is a workflow orchestration tool that helps you build, run, and monitor 
     `https://github.com/PrefectHQ/quickstart` and invoke `01_getting_started.py:main`.
     ```python
     uvx prefect-cloud deploy 01_getting_started.py:main \
+    --name my_first_deployment \
     --from https://github.com/PrefectHQ/quickstart
     ```
     If all went well, you've created your first deployed workflow. 
     
-    Since we know what code to run and where to run it, this can now be run remotely. 
+    Since we now know what code to run and where to run it, this can now be invoked remotely. 
     To do that, run the following command and visit the returned link to see the run's status in the Prefect UI:
     ```python 
-    uvx prefect-cloud run main/main
+    uvx prefect-cloud run main/my_first_deployment
     ```
     Congrats! You've just run your first Prefect workflow remotely.
     </Step>
@@ -102,22 +103,11 @@ Prefect is a workflow orchestration tool that helps you build, run, and monitor 
   <Step title="When should it run?">
     Now that you've deployed and run your workflow remotely, you might want to schedule it to run automatically at specific times. Prefect makes this easy with the `prefect-cloud schedule` command.
     
-    Let's schedule our workflow to run every day at 8:00 AM:
+    Let's schedule our workflow to run every day at 8:00 AM with [`cron`](https://en.wikipedia.org/wiki/Cron) syntax.
     
     ```python
-    uvx prefect-cloud schedule main/main "0 8 * * *"
+    uvx prefect-cloud schedule main/my_first_deployment "0 8 * * *"
     ```
-    
-    The schedule is specified using cron syntax:
-    - `0` - At minute 0
-    - `8` - At 8:00 AM
-    - `* * *` - Every day, every month, every day of the week
-    
-    You can use different cron expressions to create various scheduling patterns:
-    
-    - Every hour: `0 * * * *`
-    - Every Monday at noon: `0 12 * * 1`
-    - Every 15 minutes: `*/15 * * * *`
     
     After running the command, your workflow will automatically execute according to the schedule you've set. You can view and manage all your scheduled runs in the Prefect UI.
   </Step>
