@@ -1,5 +1,9 @@
 import type { components } from "@/api/prefect";
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import {
+	infiniteQueryOptions,
+	keepPreviousData,
+	queryOptions,
+} from "@tanstack/react-query";
 import { getQueryService } from "../service";
 
 type LogsFilter = components["schemas"]["Body_read_logs_logs_filter_post"];
@@ -78,4 +82,5 @@ export const buildInfiniteFilterLogsQuery = (
 			}
 			return { offset: pages.reduce((sum, page) => sum + page.length, 0) };
 		},
+		placeholderData: keepPreviousData,
 	});

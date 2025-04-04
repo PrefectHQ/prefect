@@ -1,5 +1,6 @@
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cva } from "class-variance-authority";
 import { isSameDay } from "date-fns";
@@ -10,6 +11,7 @@ type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
 	taskRun?: components["schemas"]["TaskRun"];
 	onBottomReached: () => void;
+	className?: string;
 };
 
 /**
@@ -20,12 +22,18 @@ type RunLogsProps = {
  * @param onBottomReached - Callback function triggered when the user scrolls to the bottom of the logs
  *
  */
-export const RunLogs = ({ logs, taskRun, onBottomReached }: RunLogsProps) => {
+export const RunLogs = ({
+	logs,
+	taskRun,
+	onBottomReached,
+	className,
+}: RunLogsProps) => {
 	const parentRef = useRef<HTMLDivElement>(null);
 	const virtualizer = useVirtualizer({
 		count: logs.length,
 		getScrollElement: () => parentRef.current,
 		estimateSize: () => 75,
+		overscan: 5,
 	});
 
 	const virtualItems = virtualizer.getVirtualItems();
@@ -69,11 +77,14 @@ export const RunLogs = ({ logs, taskRun, onBottomReached }: RunLogsProps) => {
 	return (
 		<div
 			ref={parentRef}
-			className="bg-gray-100 rounded-md font-mono w-full h-full overflow-y-auto p-4"
+			className={cn(
+				"bg-gray-100 rounded-md font-mono p-4 overflow-y-auto",
+				className,
+			)}
 			role="log"
 		>
 			<ol
-				className="relative w-full"
+				className="relative"
 				style={{
 					height: `${virtualizer.getTotalSize()}px`,
 				}}

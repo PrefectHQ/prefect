@@ -1,6 +1,6 @@
 import type { components } from "@/api/prefect";
 import { capitalize } from "@/utils";
-import { rand } from "@ngneat/falso";
+import { rand, randPastDate, randUuid } from "@ngneat/falso";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -16,9 +16,19 @@ const STATE_TYPE_VALUES = [
 	"CANCELLING",
 ] as const satisfies readonly StateType[];
 
-export const createFakeState = () => {
+export const createFakeState = (
+	overrides?: Partial<components["schemas"]["State"]>,
+): components["schemas"]["State"] => {
 	const stateType = rand(STATE_TYPE_VALUES);
 	const stateName = capitalize(stateType);
 
-	return { stateType, stateName };
+	return {
+		id: randUuid(),
+		type: stateType,
+		name: stateName,
+		timestamp: randPastDate().toISOString(),
+		message: "",
+		data: null,
+		...overrides,
+	};
 };
