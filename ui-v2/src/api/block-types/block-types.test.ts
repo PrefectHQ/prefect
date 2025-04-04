@@ -6,7 +6,11 @@ import { describe, expect, it } from "vitest";
 
 import { createFakeBlockType } from "@/mocks";
 
-import { type BlockType, buildListFilterBlockTypesQuery } from "./block-types";
+import {
+	type BlockType,
+	buildGetBlockTypesQuery,
+	buildListFilterBlockTypesQuery,
+} from "./block-types";
 
 describe("block types queries", () => {
 	const seedBlockTypesData = () => [createFakeBlockType()];
@@ -15,6 +19,14 @@ describe("block types queries", () => {
 		server.use(
 			http.post(buildApiUrl("/block_types/filter"), () => {
 				return HttpResponse.json(blockTypes);
+			}),
+		);
+	};
+
+	const mockGetBlockTypeBySlugAPI = (blockType: BlockType) => {
+		server.use(
+			http.get(buildApiUrl("/block_types/slug/:slug"), () => {
+				return HttpResponse.json(blockType);
 			}),
 		);
 	};
@@ -33,5 +45,21 @@ describe("block types queries", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("stores block type info by slug", async () => {
+		// ------------ Mock API requests when cache is empty
+		const mockBlockType = createFakeBlockType();
+		mockGetBlockTypeBySlugAPI(mockBlockType);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildGetBlockTypesQuery(mockBlockType.slug)),
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(mockBlockType);
 	});
 });
