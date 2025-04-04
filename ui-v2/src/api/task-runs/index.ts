@@ -118,6 +118,62 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 };
 
 /**
+ * Builds a query configuration for fetching a task run by id
+ *
+ * @param id - The id of the task run to fetch
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildGetTaskRunQuery("task-run-id"));
+ * ```
+ */
+export const buildGetTaskRunQuery = (id: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error(
+					`Received empty response from server for task run ${id}`,
+				);
+			}
+			return res.data;
+		},
+	});
+};
+
+/**
+ * Builds a query configuration for fetching task run details
+ *
+ * @param id - The id of the task run
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildGetTaskRunDetailsQuery("id-0"));
+ * ```
+ */
+export const buildGetTaskRunDetailsQuery = (id: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error(
+					`Received empty response from server for task run ${id}`,
+				);
+			}
+			return res.data;
+		},
+	});
+};
+
+/**
  * Hook for changing a task run's state
  *
  * @returns Mutation object for setting a task run state with loading/error states and trigger function
