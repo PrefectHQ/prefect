@@ -373,6 +373,25 @@ class DeploymentUpdate(ActionBaseModel):
             jsonschema.validate(self.job_variables, variables_schema)
 
 
+class DeploymentBranch(ActionBaseModel):
+    branch: str = Field(..., description="Name of the branch to create")
+    options: objects.DeploymentBranchingOptions = Field(
+        default_factory=objects.DeploymentBranchingOptions,
+        description="Configuration options for how the deployment should be branched",
+    )
+    overrides: Optional[DeploymentUpdate] = Field(
+        default=None,
+        description="Optional values to override in the branched deployment",
+    )
+
+    @field_validator("branch")
+    @classmethod
+    def validate_branch_length(cls, v: str) -> str:
+        if len(v.strip()) < 1:
+            raise ValueError("Branch name cannot be empty or contain only whitespace")
+        return v
+
+
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
