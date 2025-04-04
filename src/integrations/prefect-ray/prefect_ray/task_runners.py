@@ -52,7 +52,7 @@ Example:
     @flow(task_runner=RayTaskRunner)
     def count_to(highest_number):
         for number in range(highest_number):
-            shout.submit(number)
+            shout.submit(number).wait()
 
     if __name__ == "__main__":
         count_to(10)
