@@ -6,7 +6,6 @@ import time
 import pytest
 
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 
 
@@ -102,7 +101,7 @@ def test_from_sync_wait_for_call_in_new_thread_captures_context_variables(get):
 
 
 async def test_from_async_wait_for_call_in_loop_thread_timeout():
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         await from_async.wait_for_call_in_loop_thread(
             create_call(asyncio.sleep, 1),
             timeout=0.1,
@@ -112,7 +111,7 @@ async def test_from_async_wait_for_call_in_loop_thread_timeout():
 
 
 def test_from_sync_wait_for_call_in_loop_thread_timeout():
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         # In this test, there is a slight race condition where the waiting can reach
         # the timeout before the call does resulting in an error during `wait_for...`
         # or the call can encounter the timeout and return before the waiting times out
@@ -127,7 +126,7 @@ def test_from_sync_wait_for_call_in_loop_thread_timeout():
 
 
 async def test_from_async_wait_for_call_in_new_thread_timeout():
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         await from_async.wait_for_call_in_new_thread(
             create_call(sleep_repeatedly, 1),
             timeout=0.1,
@@ -135,7 +134,7 @@ async def test_from_async_wait_for_call_in_new_thread_timeout():
 
 
 def test_from_sync_wait_for_call_in_new_thread_timeout():
-    with pytest.raises(CancelledError):
+    with pytest.raises(asyncio.CancelledError):
         from_sync.wait_for_call_in_new_thread(
             create_call(sleep_repeatedly, 1),
             timeout=0.1,
