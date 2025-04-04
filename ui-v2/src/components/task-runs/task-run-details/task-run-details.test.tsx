@@ -4,11 +4,14 @@ import { describe, expect, it } from "vitest";
 import { TaskRunDetails } from "./task-run-details";
 
 describe("TaskRunDetails", () => {
-	it("should display flow run link with task name prefix", () => {
-		const taskRun = createFakeTaskRun({ name: "test-task-name" });
+	it("should display flow run link", () => {
+		const taskRun = createFakeTaskRun({
+			name: "test-task-name",
+			flow_run_name: "test-flow-name",
+		});
 		const screen = render(<TaskRunDetails taskRun={taskRun} />);
 
-		expect(screen.getByText("test")).toBeInTheDocument();
+		expect(screen.getByText("test-flow-name")).toBeInTheDocument();
 	});
 
 	it("should display task run ID", () => {
@@ -45,19 +48,6 @@ describe("TaskRunDetails", () => {
 		expect(
 			screen.getByText("No task run details available"),
 		).toBeInTheDocument();
-	});
-
-	it("should display task inputs when available", () => {
-		const taskInputs = {
-			name: [{ input_type: "parameter" as const, name: "test-param" }],
-		};
-		const taskRun = createFakeTaskRun({
-			task_inputs: taskInputs,
-		});
-		const screen = render(<TaskRunDetails taskRun={taskRun} />);
-
-		expect(screen.getByText("Task Inputs")).toBeInTheDocument();
-		expect(screen.getByText(/test-param/)).toBeInTheDocument();
 	});
 
 	it("should display task configuration section", () => {

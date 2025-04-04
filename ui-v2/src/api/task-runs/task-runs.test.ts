@@ -5,9 +5,10 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import {
-	TaskRun,
-	TaskRunsFilter,
+	type TaskRun,
+	type TaskRunsFilter,
 	buildGetFlowRunsTaskRunsCountQuery,
+	buildGetTaskRunDetailsQuery,
 	buildListTaskRunsQuery,
 } from ".";
 
@@ -16,6 +17,14 @@ describe("task runs api", () => {
 		server.use(
 			http.post(buildApiUrl("/task_runs/filter"), () => {
 				return HttpResponse.json(taskRuns);
+			}),
+		);
+	};
+
+	const mockFetchTaskRunDetailsAPI = (taskRun: TaskRun) => {
+		server.use(
+			http.get(buildApiUrl("/ui/task_runs/:id"), () => {
+				return HttpResponse.json(taskRun);
 			}),
 		);
 	};
@@ -99,6 +108,24 @@ describe("task runs api", () => {
 
 			await waitFor(() => {
 				expect(result.current.data).toEqual(mockResponse);
+			});
+		});
+	});
+
+	describe("buildGetTaskRunDetailsQuery", () => {
+		it("fetches task run details", async () => {
+			const taskRun = createFakeTaskRun();
+			mockFetchTaskRunDetailsAPI(taskRun);
+
+			const queryClient = new QueryClient();
+
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildGetTaskRunDetailsQuery(taskRun.id)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => {
+				expect(result.current.data).toEqual(taskRun);
 			});
 		});
 	});

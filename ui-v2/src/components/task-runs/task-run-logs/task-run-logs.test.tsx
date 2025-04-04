@@ -218,18 +218,6 @@ describe("TaskRunLogs", () => {
 	it("changes sort order", async () => {
 		const user = userEvent.setup();
 
-		// Setup mock API response that respects sort order
-		server.use(
-			http.post(buildApiUrl("/logs/filter"), async ({ request }) => {
-				const body = (await request.json()) as LogsFilterBody;
-				const sortedLogs = [...MOCK_LOGS];
-				if (body.sort === "TIMESTAMP_DESC") {
-					sortedLogs.reverse();
-				}
-				return HttpResponse.json(sortedLogs);
-			}),
-		);
-
 		// Render component
 		const taskRun = createFakeTaskRun();
 		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
@@ -245,6 +233,10 @@ describe("TaskRunLogs", () => {
 		// Change sort order to newest first
 		await user.click(screen.getByRole("combobox", { name: /log sort order/i }));
 		await user.click(screen.getByText("Newest to oldest"));
+
+		await waitFor(() => {
+			expect(screen.getByText(MOCK_LOGS[6].message)).toBeInTheDocument();
+		});
 
 		// Verify logs are shown in reverse order
 		await waitFor(() => {
