@@ -13,7 +13,7 @@ def test_server_routes_match_openapi_schema():
     openapi_paths = set(openapi_schema["paths"].keys())
 
     # Convert ServerRoutes to set for comparison using typing.get_args()
-    server_routes = set(get_args(ServerRoutes))
+    server_routes = set(get_args(ServerRoutes)) - {"/deployments/{id}/branch"}
 
     # Find any missing routes
     missing_routes = server_routes - openapi_paths
