@@ -1,4 +1,4 @@
-import { buildFilterLogsQuery, buildInfiniteFilterLogsQuery } from "@/api/logs";
+import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
