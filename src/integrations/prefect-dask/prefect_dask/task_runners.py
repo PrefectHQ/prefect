@@ -252,7 +252,8 @@ class DaskTaskRunner(TaskRunner):
             if isinstance(cluster_class, str):
                 resolved_cluster_class = from_qualified_name(cluster_class)
             elif isinstance(cluster_class, Callable):
-                resolved_cluster_class = cluster_class()
+                # Store the callable itself, don't instantiate here
+                resolved_cluster_class = cluster_class
             else:
                 resolved_cluster_class = cluster_class
 
@@ -346,20 +347,36 @@ class DaskTaskRunner(TaskRunner):
                 )
                 self._connect_to = self.address
             else:
-                self.cluster_class = self.cluster_class or distributed.LocalCluster
+                # Determine the cluster class to use
+                if self.resolved_cluster_class:
+                    # Use the resolved class if a string was provided
+                    class_to_instantiate = self.resolved_cluster_class
+                elif callable(self.cluster_class):
+                    # Use the provided class object if it's callable
+                    class_to_instantiate = self.cluster_class
+                else:
+                    # Default to LocalCluster only if no specific class was provided or resolved
+                    class_to_instantiate = distributed.LocalCluster
 
                 self.logger.info(
-                    f"Creating a new Dask cluster with "
-                    f"`{to_qualified_name(self.cluster_class)}`"
+                    "Creating a new Dask cluster with "
+                    f"`{to_qualified_name(class_to_instantiate)}`"
                 )
                 self._connect_to = self._cluster = self._exit_stack.enter_context(
-                    self.cluster_class(**self.cluster_kwargs)
+                    class_to_instantiate(**self.cluster_kwargs)
                 )
 
                 if self.adapt_kwargs:
-                    maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
-                    if asyncio.iscoroutine(maybe_coro):
-                        run_coro_as_sync(maybe_coro)
+                    # self._cluster should be non-None here after instantiation
+                    if self._cluster:
+                        maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
+                        if asyncio.iscoroutine(maybe_coro):
+                            run_coro_as_sync(maybe_coro)
+                    else:
+                        # This case should ideally not happen if instantiation succeeded
+                        self.logger.warning(
+                            "Cluster object not found after instantiation, cannot apply adapt_kwargs."
+                        )
 
             self._client = self._exit_stack.enter_context(
                 PrefectDaskClient(self._connect_to, **self.client_kwargs)
