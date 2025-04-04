@@ -1,11 +1,22 @@
-import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
+import type { components } from "../prefect";
+import { getQueryService } from "../service";
 
 export type TaskRun = components["schemas"]["UITaskRun"];
 
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
+
+type SetTaskRunStateBody =
+	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
+
+type SetTaskRunStateParams = {
+	id: string;
+} & SetTaskRunStateBody;
 
 /**
  * Query key factory for task-related queries
@@ -107,30 +118,81 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 };
 
 /**
- * Builds a query configuration for fetching task run details
+ * Hook for changing a task run's state
  *
- * @param id - The id of the task run
- * @returns Query configuration object for use with TanStack Query
+ * @returns Mutation object for setting a task run state with loading/error states and trigger function
  *
  * @example
  * ```ts
- * const { data } = useSuspenseQuery(buildGetTaskRunDetailsQuery("id-0"));
+ * const { setTaskRunState, isLoading } = useSetTaskRunState();
+ *
+ * setTaskRunState({
+ *   id: "task-run-id",
+ *   state: { type: "COMPLETED" },
+ *   message: "State changed by user"
+ * });
  * ```
  */
-export const buildGetTaskRunDetailsQuery = (id: string) => {
-	return queryOptions({
-		queryKey: queryKeyFactory.detail(id),
-		queryFn: async () => {
-			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+export const useSetTaskRunState = () => {
+	const queryClient = useQueryClient();
+	const { mutate: setTaskRunState, ...rest } = useMutation({
+		mutationFn: async ({ id, ...params }: SetTaskRunStateParams) => {
+			const res = await getQueryService().POST("/task_runs/{id}/set_state", {
 				params: { path: { id } },
+				body: params,
 			});
+
 			if (!res.data) {
-				throw new Error(
-					`Received empty response from server for task run ${id}`,
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onMutate: async ({ id, state }) => {
+			await queryClient.cancelQueries({ queryKey: queryKeyFactory.detail(id) });
+
+			const previousTaskRun = queryClient.getQueryData<TaskRun>(
+				queryKeyFactory.detail(id),
+			);
+
+			if (previousTaskRun?.state) {
+				queryClient.setQueryData<TaskRun>(queryKeyFactory.detail(id), {
+					...previousTaskRun,
+					state: {
+						id: previousTaskRun.state.id,
+						type: state.type,
+						name: state.name ?? previousTaskRun.state.name,
+						message: state.message ?? previousTaskRun.state.message,
+						timestamp: new Date().toISOString(),
+						data: previousTaskRun.state.data,
+						state_details: previousTaskRun.state.state_details,
+					},
+				});
+			}
+
+			return { previousTaskRun };
+		},
+		onError: (err, { id }, context) => {
+			// Roll back optimistic update on error
+			if (context?.previousTaskRun) {
+				queryClient.setQueryData(
+					queryKeyFactory.detail(id),
+					context.previousTaskRun,
 				);
 			}
 
-			return res.data;
+			throw err instanceof Error
+				? err
+				: new Error("Failed to update task run state");
+		},
+		onSettled: (_data, _error, { id }) => {
+			void Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+			]);
 		},
 	});
+	return {
+		setTaskRunState,
+		...rest,
+	};
 };
