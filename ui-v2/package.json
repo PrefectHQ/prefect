@@ -128,7 +128,7 @@
 		"tailwindcss": "^4.0.8",
 		"typescript": "^5.8.2",
 		"typescript-eslint": "^8.28.0",
-		"vite": "^6.2.4",
+		"vite": "^6.2.5",
 		"vitest": "^3.0.5"
 	},
 	"lint-staged": {

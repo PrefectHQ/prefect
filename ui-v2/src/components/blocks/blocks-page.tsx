@@ -1,45 +1,68 @@
-import {
-	buildCountAllBlockDocumentsQuery,
-	buildListFilterBlockDocumentsQuery,
-} from "@/api/block-documents";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { BlockDocument } from "@/api/block-documents";
+import { SearchInput } from "@/components/ui/input";
 import { RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
+import { BlockTypesMultiSelect } from "./block-types-multi-select";
+import { BlocksPageHeader } from "./blocks-page-header";
 import { BlocksRowCount } from "./blocks-row-count";
 import { BlocksEmptyState } from "./empty-state";
 
-export const BlocksPage = () => {
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+type BlocksPageProps = {
+	allCount: number;
+	blockDocuments: Array<BlockDocument> | undefined;
+	onSearch: (value?: string) => void;
+	search: string;
+	blockTypeSlugsFilter: Array<string>;
+	onToggleBlockTypeSlug: (blockTypeIds: string) => void;
+	onRemoveBlockTypeSlug: (blockTypeIds: string) => void;
+};
 
-	const { data: blockDocuments } = useSuspenseQuery(
-		buildListFilterBlockDocumentsQuery(),
-	);
-	const { data: allBlockkDocumentsCount } = useSuspenseQuery(
-		buildCountAllBlockDocumentsQuery(),
-	);
+export const BlocksPage = ({
+	allCount,
+	blockDocuments = [],
+	onSearch,
+	search,
+	blockTypeSlugsFilter,
+	onToggleBlockTypeSlug,
+	onRemoveBlockTypeSlug,
+}: BlocksPageProps) => {
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
 	return (
 		<div className="flex flex-col gap-4">
 			<BlocksPageHeader />
-			{allBlockkDocumentsCount === 0 ? (
+			{allCount === 0 ? (
 				<BlocksEmptyState />
 			) : (
 				<div className="flex flex-col gap-4">
-					<BlocksRowCount
-						rowSelection={rowSelection}
-						setRowSelection={setRowSelection}
-						count={allBlockkDocumentsCount}
-					/>
+					<div className="flex items-center justify-between">
+						<BlocksRowCount
+							rowSelection={rowSelection}
+							setRowSelection={setRowSelection}
+							count={allCount}
+						/>
+						<div className="flex items-center gap-2">
+							<BlockTypesMultiSelect
+								selectedBlockTypesSlugs={blockTypeSlugsFilter}
+								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
+							/>
+							<div className="min-w-56">
+								<SearchInput
+									aria-label="search blocks"
+									placeholder="Search blocks"
+									value={search}
+									onChange={(e) => onSearch(e.target.value)}
+								/>
+							</div>
+						</div>
+					</div>
 					<BlockDocumentsDataTable
 						blockDocuments={blockDocuments}
 						rowSelection={rowSelection}
 						setRowSelection={setRowSelection}
-						blockDocumentsCount={allBlockkDocumentsCount}
+						blockDocumentsCount={allCount}
 						pageCount={0}
 						pagination={{
 							pageIndex: 0,
@@ -54,21 +77,3 @@ export const BlocksPage = () => {
 		</div>
 	);
 };
-
-function BlocksPageHeader() {
-	return (
-		<div className="flex gap-2 items-center">
-			<Typography className="font-semibold">Blocks</Typography>
-			<Link to="/blocks/catalog">
-				<Button
-					size="icon"
-					className="size-7"
-					variant="outline"
-					aria-label="add block document"
-				>
-					<Icon id="Plus" className="size-4" />
-				</Button>
-			</Link>
-		</div>
-	);
-}
