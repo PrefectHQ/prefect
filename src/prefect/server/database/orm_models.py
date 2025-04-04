@@ -786,6 +786,23 @@ class DeploymentSchedule(Base):
     )
     slug: Mapped[Optional[str]] = mapped_column(sa.String, nullable=True)
 
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "ix_deployment_schedule__deployment_id__slug",
+                cls.deployment_id,
+                cls.slug,
+                unique=True,
+            ),
+            sa.Index(
+                "ix_deployment_schedule__slug",
+                cls.slug,
+                unique=False,
+            ),
+        )
+
 
 class Deployment(Base):
     """SQLAlchemy model of a deployment."""
@@ -1410,7 +1427,16 @@ class Event(Base):
         ),
         sa.Index("ix_events__occurred_id", "occurred", "id"),
         sa.Index("ix_events__event_occurred_id", "event", "occurred", "id"),
-        sa.Index("ix_events__event_related_occurred", "event", "related", "occurred"),
+        sa.Index(
+            "ix_events__event_related_occurred", "event", "related", "occurred"
+        ).ddl_if(dialect="sqlite"),
+        sa.Index(
+            "ix_events__event_related_occurred_md5",
+            sa.text("md5(related::text)"),
+            "event",
+            "occurred",
+            postgresql_using="btree",
+        ).ddl_if(dialect="postgresql"),
     )
 
     occurred: Mapped[DateTime]
