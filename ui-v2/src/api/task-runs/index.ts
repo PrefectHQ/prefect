@@ -1,5 +1,9 @@
-import { queryOptions } from "@tanstack/react-query";
-import { components } from "../prefect";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
+import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type TaskRun = components["schemas"]["TaskRun"];
@@ -7,17 +11,26 @@ export type TaskRun = components["schemas"]["TaskRun"];
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
 
+type SetTaskRunStateBody =
+	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
+
+type SetTaskRunStateParams = {
+	id: string;
+} & SetTaskRunStateBody;
+
 /**
  * Query key factory for task-related queries
  *
  * @property {function} all - Returns base key for all task run queries
  * @property {function} lists - Returns key for all list-type task run queries
  * @property {function} list - Generates key for a specific filtered task run query
+ * @property {function} detail - Generates key for a specific task run detail query
  *
  * ```
  * all			=>   ['task']
  * lists		=>   ['task', 'list']
  * list			=>   ['task', 'list', { ...filter }]
+ * detail		=>   ['task', 'detail', id]
  * counts		=>   ['task', 'count']
  * flowRunsCount	=>   ['task', 'count', 'flow-runs', ["id-0", "id-1"]]
  * ```
@@ -27,6 +40,7 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	detail: (id: string) => [...queryKeyFactory.all(), "detail", id] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
 	flowRunsCount: (flowRunIds: Array<string>) => [
 		...queryKeyFactory.counts(),
@@ -57,7 +71,7 @@ export const buildListTaskRunsQuery = (
 		sort: "ID_DESC",
 		offset: 0,
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -96,4 +110,84 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 			return res.data ?? {};
 		},
 	});
+};
+
+/**
+ * Hook for changing a task run's state
+ *
+ * @returns Mutation object for setting a task run state with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { setTaskRunState, isLoading } = useSetTaskRunState();
+ *
+ * setTaskRunState({
+ *   id: "task-run-id",
+ *   state: { type: "COMPLETED" },
+ *   message: "State changed by user"
+ * });
+ * ```
+ */
+export const useSetTaskRunState = () => {
+	const queryClient = useQueryClient();
+	const { mutate: setTaskRunState, ...rest } = useMutation({
+		mutationFn: async ({ id, ...params }: SetTaskRunStateParams) => {
+			const res = await getQueryService().POST("/task_runs/{id}/set_state", {
+				params: { path: { id } },
+				body: params,
+			});
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onMutate: async ({ id, state }) => {
+			await queryClient.cancelQueries({ queryKey: queryKeyFactory.detail(id) });
+
+			const previousTaskRun = queryClient.getQueryData<TaskRun>(
+				queryKeyFactory.detail(id),
+			);
+
+			if (previousTaskRun?.state) {
+				queryClient.setQueryData<TaskRun>(queryKeyFactory.detail(id), {
+					...previousTaskRun,
+					state: {
+						id: previousTaskRun.state.id,
+						type: state.type,
+						name: state.name ?? previousTaskRun.state.name,
+						message: state.message ?? previousTaskRun.state.message,
+						timestamp: new Date().toISOString(),
+						data: previousTaskRun.state.data,
+						state_details: previousTaskRun.state.state_details,
+					},
+				});
+			}
+
+			return { previousTaskRun };
+		},
+		onError: (err, { id }, context) => {
+			// Roll back optimistic update on error
+			if (context?.previousTaskRun) {
+				queryClient.setQueryData(
+					queryKeyFactory.detail(id),
+					context.previousTaskRun,
+				);
+			}
+
+			throw err instanceof Error
+				? err
+				: new Error("Failed to update task run state");
+		},
+		onSettled: (_data, _error, { id }) => {
+			void Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+			]);
+		},
+	});
+	return {
+		setTaskRunState,
+		...rest,
+	};
 };
