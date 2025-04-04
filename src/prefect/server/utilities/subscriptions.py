@@ -1,5 +1,6 @@
 import asyncio
 from asyncio import IncompleteReadError as IOError
+from logging import Logger
 from typing import Optional
 
 from fastapi import WebSocket
@@ -12,7 +13,7 @@ from prefect.settings import PREFECT_SERVER_API_AUTH_STRING
 
 NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed, WebSocketDisconnect)
 
-logger = get_logger("prefect.server.utilities.subscriptions")
+logger: Logger = get_logger("prefect.server.utilities.subscriptions")
 
 
 async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
@@ -30,7 +31,6 @@ async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
         # The protocol requires receiving an auth message for compatibility
         # with Prefect Cloud, even if server-side auth is not configured.
         message = await websocket.receive_json()
-        logger.debug(f"Received WebSocket message: {message}")
 
         auth_setting = PREFECT_SERVER_API_AUTH_STRING.value()
         logger.debug(
