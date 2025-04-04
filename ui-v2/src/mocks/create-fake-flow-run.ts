@@ -17,7 +17,7 @@ import { createFakeFlow } from "./create-fake-flow";
 import { createFakeState } from "./create-fake-state";
 
 export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
-	const { stateType, stateName } = createFakeState();
+	const state = createFakeState();
 
 	return {
 		id: randUuid(),
@@ -46,8 +46,8 @@ export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
 		tags: randWord({ length: randNumber({ min: 0, max: 6 }) }),
 		labels: { "prefect.flow.id": randUuid() },
 		parent_task_run_id: null,
-		state_type: stateType,
-		state_name: stateName,
+		state_type: state.type,
+		state_name: state.name,
 		run_count: 1,
 		expected_start_time: randPastDate().toISOString(),
 		next_scheduled_start_time: null,
@@ -60,32 +60,7 @@ export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
 		infrastructure_document_id: null,
 		infrastructure_pid: null,
 		created_by: null,
-		state: {
-			id: randUuid(),
-			type: stateType,
-			name: stateName,
-			timestamp: randPastDate().toISOString(),
-			message: "",
-			data: null,
-			state_details: {
-				flow_run_id: randUuid(),
-				task_run_id: randUuid(),
-				child_flow_run_id: null,
-				scheduled_time: null,
-				cache_key: null,
-				cache_expiration: null,
-				deferred: false,
-				untrackable_result: false,
-				pause_timeout: null,
-				pause_reschedule: false,
-				pause_key: null,
-				run_input_keyset: null,
-				refresh_cache: null,
-				retriable: null,
-				transition_id: null,
-				task_parameters_id: null,
-			},
-		},
+		state,
 		job_variables: {},
 		...overrides,
 	};

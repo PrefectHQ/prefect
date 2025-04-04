@@ -1,6 +1,6 @@
 import type { components } from "@/api/prefect";
 import { capitalize } from "@/utils";
-import { rand, randUuid } from "@ngneat/falso";
+import { rand, randPastDate, randUuid } from "@ngneat/falso";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -26,6 +26,9 @@ export const createFakeState = (
 		id: randUuid(),
 		type: stateType,
 		name: stateName,
+		timestamp: randPastDate().toISOString(),
+		message: "",
+		data: null,
 		...overrides,
 	};
 };

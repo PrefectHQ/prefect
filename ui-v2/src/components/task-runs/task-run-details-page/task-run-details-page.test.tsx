@@ -1,4 +1,11 @@
 import { createFakeState, createFakeTaskRun } from "@/mocks";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	RouterProvider,
+	createMemoryHistory,
+	createRouter,
+} from "@tanstack/react-router";
+import { createRootRoute } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
@@ -19,15 +26,29 @@ describe("TaskRunDetailsPage", () => {
 	const mockOnTabChange = vi.fn();
 
 	const renderTaskRunDetailsPage = (props = {}) => {
-		return render(
-			<TaskRunDetailsPage
-				id="test-task-run-id"
-				tab="Logs"
-				onTabChange={mockOnTabChange}
-				{...props}
-			/>,
-			{ wrapper: createWrapper() },
-		);
+		const rootRoute = createRootRoute({
+			component: () => (
+				<TaskRunDetailsPage
+					id="test-task-run-id"
+					tab="Logs"
+					onTabChange={mockOnTabChange}
+					{...props}
+				/>
+			),
+		});
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({
+				initialEntries: ["/"],
+			}),
+			context: {
+				queryClient: new QueryClient(),
+			},
+		});
+
+		return render(<RouterProvider router={router} />, {
+			wrapper: createWrapper(),
+		});
 	};
 
 	beforeEach(() => {
@@ -48,8 +69,9 @@ describe("TaskRunDetailsPage", () => {
 
 		// Check breadcrumb navigation
 		expect(screen.getByText("Runs")).toBeInTheDocument();
-		expect(screen.getByText("test-flow")).toBeInTheDocument();
-		expect(screen.getByText("test-task")).toBeInTheDocument();
+		const nav = screen.getByRole("navigation");
+		expect(nav).toHaveTextContent("test-flow");
+		expect(nav).toHaveTextContent("test-task");
 	});
 
 	it("displays the task run state badge", async () => {
@@ -61,16 +83,22 @@ describe("TaskRunDetailsPage", () => {
 	});
 
 	it("switches between tabs correctly", async () => {
-		renderTaskRunDetailsPage();
+		const screen = renderTaskRunDetailsPage();
+
+		// Wait for the task run data to be loaded
+		await waitFor(() => {
+			expect(screen.getByText("test-task")).toBeInTheDocument();
+		});
+		const user = userEvent.setup();
 
 		// Click on different tabs
-		await userEvent.click(screen.getByRole("tab", { name: "Artifacts" }));
+		await user.click(screen.getByRole("tab", { name: "Artifacts" }));
 		expect(mockOnTabChange).toHaveBeenCalledWith("Artifacts");
 
-		await userEvent.click(screen.getByRole("tab", { name: "Task Inputs" }));
+		await user.click(screen.getByRole("tab", { name: "Task Inputs" }));
 		expect(mockOnTabChange).toHaveBeenCalledWith("TaskInputs");
 
-		await userEvent.click(screen.getByRole("tab", { name: "Details" }));
+		await user.click(screen.getByRole("tab", { name: "Details" }));
 		expect(mockOnTabChange).toHaveBeenCalledWith("Details");
 	});
 });

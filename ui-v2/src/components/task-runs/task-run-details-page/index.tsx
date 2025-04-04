@@ -147,7 +147,7 @@ const TabsLayout = ({
 				<TabsTrigger value="TaskInputs">
 					Task Inputs
 					<Tooltip>
-						<TooltipTrigger>
+						<TooltipTrigger asChild>
 							<Icon id="Info" className="w-4 h-4" />
 						</TooltipTrigger>
 						<TooltipContent>
