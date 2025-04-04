@@ -1,6 +1,7 @@
 import logging
 import ssl
 from typing import Type
+from uuid import UUID
 
 import pytest
 from websockets.exceptions import ConnectionClosedError
@@ -18,7 +19,6 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-    PREFECT_SERVER_API_AUTH_STRING,
     temporary_settings,
 )
 from prefect.testing.fixtures import Puppeteer, Recorder
@@ -38,8 +38,8 @@ def ephemeral_settings():
 
 
 def assert_recorded_events_in_order(recorder: Recorder, events: list[Event]):
-    seen_ids = set()
-    unique_events = []
+    seen_ids: set[UUID] = set()
+    unique_events: list[Event] = []
     for event in recorder.events:
         if event.id not in seen_ids:
             seen_ids.add(event.id)
@@ -48,7 +48,8 @@ def assert_recorded_events_in_order(recorder: Recorder, events: list[Event]):
     assert unique_events == events
 
 
-async def test_constructs_client_when_ephemeral_enabled(ephemeral_settings):
+@pytest.mark.usefixtures("ephemeral_settings")
+async def test_constructs_client_when_ephemeral_enabled():
     assert isinstance(get_events_client(), PrefectEventsClient)
 
 
@@ -65,8 +66,9 @@ def test_errors_when_missing_api_url_and_ephemeral_disabled():
             get_events_client()
 
 
+@pytest.mark.usefixtures("ephemeral_settings")
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
-    monkeypatch: pytest.MonkeyPatch, ephemeral_settings: None
+    monkeypatch: pytest.MonkeyPatch,
 ):
     with temporary_settings(
         updates={
@@ -97,7 +99,8 @@ def server_settings():
         yield
 
 
-async def test_constructs_server_client(server_settings):
+@pytest.mark.usefixtures("server_settings")
+async def test_constructs_server_client():
     assert isinstance(get_events_client(), PrefectEventsClient)
 
 
@@ -113,13 +116,13 @@ def cloud_settings():
         yield
 
 
-async def test_constructs_cloud_client(cloud_settings):
+@pytest.mark.usefixtures("cloud_settings")
+async def test_constructs_cloud_client():
     assert isinstance(get_events_client(), PrefectCloudEventsClient)
 
 
-async def test_events_client_can_emit_when_ephemeral_enabled(
-    example_event_1: Event, monkeypatch: pytest.MonkeyPatch, ephemeral_settings
-):
+@pytest.mark.usefixtures("ephemeral_settings")
+async def test_events_client_can_emit_when_ephemeral_enabled(example_event_1: Event):
     assert not PREFECT_API_URL.value()
     assert not PREFECT_API_KEY.value()
 
@@ -396,47 +399,47 @@ async def test_events_client_warn_if_connect_fails(
     )
 
 
-@pytest.mark.usefixtures("ephemeral_settings")
-async def test_events_subscriber_auth_string():
-    """Tests that the PrefectEventSubscriber correctly handles PREFECT_API_AUTH_STRING
-    when connecting to a server that requires PREFECT_SERVER_API_AUTH_STRING."""
+async def test_events_subscriber_auth_string(puppeteer: Puppeteer, events_api_url: str):
+    """Tests that the PrefectEventSubscriber sends the correct auth token based on
+    PREFECT_API_AUTH_STRING, using the puppeteer fixture to simulate server responses.
 
-    secret = "secret"
+    Sets PREFECT_API_URL via temporary_settings to events_api_url to ensure
+    get_events_subscriber targets the puppeteer test server.
+    """
 
-    # Scenario 1: Client and Server strings match - Should succeed
+    secret = "server-secret"
+
+    puppeteer.token = secret
+
     with temporary_settings(
         {
-            PREFECT_SERVER_API_AUTH_STRING: secret,
-            PREFECT_API_AUTH_STRING: secret,  # Matching string
+            PREFECT_API_URL: events_api_url,
+            PREFECT_CLOUD_API_URL: "http://different-cloud/api",
         }
     ):
-        try:
-            async with get_events_subscriber() as subscriber:
-                # Simple check to ensure connection stays open briefly
-                await subscriber._websocket.ping()
-        except Exception as e:
-            pytest.fail(
-                f"Connection failed unexpectedly when auth strings matched: {e}"
-            )
+        # Scenario 1: Client string matches server secret - Should succeed
+        with temporary_settings({PREFECT_API_AUTH_STRING: secret}):
+            try:
+                # Call without api_url - it uses PREFECT_API_URL from outer context
+                async with get_events_subscriber():
+                    pass
+            except Exception as e:
+                pytest.fail(f"Connection failed unexpectedly: {e}")
 
-    # Scenario 2: Client string does NOT match server string - Should fail (Invalid token)
-    with temporary_settings(
-        {
-            PREFECT_SERVER_API_AUTH_STRING: secret,
-            PREFECT_API_AUTH_STRING: "wrong",
-        }
-    ):
-        with pytest.raises(Exception, match="Invalid token"):
-            async with get_events_subscriber():
-                pass  # Connection should fail during __aenter__
+        # Scenario 2: Client string does NOT match server secret - Should fail
+        with temporary_settings({PREFECT_API_AUTH_STRING: "wrong"}):
+            # Match the client's formatted error message, including the reason sent by puppeteer
+            with pytest.raises(
+                Exception, match=r"Unable to authenticate.*Reason: nope"
+            ):
+                async with get_events_subscriber():
+                    pass
 
-    # Scenario 3: Client string is missing - Should fail (Auth required but no token provided)
-    with temporary_settings(
-        {
-            PREFECT_SERVER_API_AUTH_STRING: secret,
-            PREFECT_API_AUTH_STRING: None,
-        }
-    ):
-        with pytest.raises(Exception, match="Auth required but no token provided"):
-            async with get_events_subscriber():
-                pass  # Connection should fail during __aenter__
+        # Scenario 3: Client string is missing - Should fail (Auth required but no token provided)
+        with temporary_settings({PREFECT_API_AUTH_STRING: None}):
+            # Match the client's formatted error message, including the reason sent by puppeteer
+            with pytest.raises(
+                Exception, match=r"Unable to authenticate.*Reason: nope"
+            ):
+                async with get_events_subscriber():
+                    pass  # Connection should fail during __aenter__
