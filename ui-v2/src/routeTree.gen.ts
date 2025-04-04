@@ -42,7 +42,7 @@ import { Route as WorkPoolsWorkPoolWorkPoolNameEditImport } from './routes/work-
 import { Route as DeploymentsDeploymentIdRunImport } from './routes/deployments/deployment_.$id.run'
 import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
-import { Route as BlocksCatalogSlugCreateImport } from './routes/blocks/catalog_.$slug.create'
+import { Route as BlocksCatalogSlugCreateImport } from './routes/blocks/catalog_.$slug_.create'
 import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameImport } from './routes/work-pools/work-pool.$workPoolName.queue.$workQueueName'
 
@@ -242,9 +242,9 @@ const DeploymentsDeploymentIdDuplicateRoute =
   } as any)
 
 const BlocksCatalogSlugCreateRoute = BlocksCatalogSlugCreateImport.update({
-  id: '/create',
-  path: '/create',
-  getParentRoute: () => BlocksCatalogSlugRoute,
+  id: '/blocks/catalog_/$slug_/create',
+  path: '/blocks/catalog/$slug/create',
+  getParentRoute: () => rootRoute,
 } as any)
 
 const AutomationsAutomationIdEditRoute =
@@ -461,12 +461,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AutomationsAutomationIdEditImport
       parentRoute: typeof AutomationsAutomationIdImport
     }
-    '/blocks/catalog_/$slug/create': {
-      id: '/blocks/catalog_/$slug/create'
-      path: '/create'
+    '/blocks/catalog_/$slug_/create': {
+      id: '/blocks/catalog_/$slug_/create'
+      path: '/blocks/catalog/$slug/create'
       fullPath: '/blocks/catalog/$slug/create'
       preLoaderRoute: typeof BlocksCatalogSlugCreateImport
-      parentRoute: typeof BlocksCatalogSlugImport
+      parentRoute: typeof rootRoute
     }
     '/deployments/deployment_/$id/duplicate': {
       id: '/deployments/deployment_/$id/duplicate'
@@ -522,17 +522,6 @@ const AutomationsAutomationIdRouteWithChildren =
     AutomationsAutomationIdRouteChildren,
   )
 
-interface BlocksCatalogSlugRouteChildren {
-  BlocksCatalogSlugCreateRoute: typeof BlocksCatalogSlugCreateRoute
-}
-
-const BlocksCatalogSlugRouteChildren: BlocksCatalogSlugRouteChildren = {
-  BlocksCatalogSlugCreateRoute: BlocksCatalogSlugCreateRoute,
-}
-
-const BlocksCatalogSlugRouteWithChildren =
-  BlocksCatalogSlugRoute._addFileChildren(BlocksCatalogSlugRouteChildren)
-
 interface WorkPoolsWorkPoolWorkPoolNameRouteChildren {
   WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
@@ -569,7 +558,7 @@ export interface FileRoutesByFullPath {
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
-  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRouteWithChildren
+  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -606,7 +595,7 @@ export interface FileRoutesByTo {
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
-  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRouteWithChildren
+  '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -644,7 +633,7 @@ export interface FileRoutesById {
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/blocks/block/$id': typeof BlocksBlockIdRoute
-  '/blocks/catalog_/$slug': typeof BlocksCatalogSlugRouteWithChildren
+  '/blocks/catalog_/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -652,7 +641,7 @@ export interface FileRoutesById {
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$workPoolName': typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
-  '/blocks/catalog_/$slug/create': typeof BlocksCatalogSlugCreateRoute
+  '/blocks/catalog_/$slug_/create': typeof BlocksCatalogSlugCreateRoute
   '/deployments/deployment_/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment_/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
@@ -763,7 +752,7 @@ export interface FileRouteTypes {
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$workPoolName'
     | '/automations/automation/$id/edit'
-    | '/blocks/catalog_/$slug/create'
+    | '/blocks/catalog_/$slug_/create'
     | '/deployments/deployment_/$id/duplicate'
     | '/deployments/deployment_/$id/edit'
     | '/deployments/deployment_/$id/run'
@@ -793,13 +782,14 @@ export interface RootRouteChildren {
   ArtifactsKeyKeyRoute: typeof ArtifactsKeyKeyRoute
   AutomationsAutomationIdRoute: typeof AutomationsAutomationIdRouteWithChildren
   BlocksBlockIdRoute: typeof BlocksBlockIdRoute
-  BlocksCatalogSlugRoute: typeof BlocksCatalogSlugRouteWithChildren
+  BlocksCatalogSlugRoute: typeof BlocksCatalogSlugRoute
   ConcurrencyLimitsConcurrencyLimitIdRoute: typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   DeploymentsDeploymentIdRoute: typeof DeploymentsDeploymentIdRoute
   FlowsFlowIdRoute: typeof FlowsFlowIdRoute
   RunsFlowRunIdRoute: typeof RunsFlowRunIdRoute
   RunsTaskRunIdRoute: typeof RunsTaskRunIdRoute
   WorkPoolsWorkPoolWorkPoolNameRoute: typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
+  BlocksCatalogSlugCreateRoute: typeof BlocksCatalogSlugCreateRoute
   DeploymentsDeploymentIdDuplicateRoute: typeof DeploymentsDeploymentIdDuplicateRoute
   DeploymentsDeploymentIdEditRoute: typeof DeploymentsDeploymentIdEditRoute
   DeploymentsDeploymentIdRunRoute: typeof DeploymentsDeploymentIdRunRoute
@@ -827,7 +817,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtifactsKeyKeyRoute: ArtifactsKeyKeyRoute,
   AutomationsAutomationIdRoute: AutomationsAutomationIdRouteWithChildren,
   BlocksBlockIdRoute: BlocksBlockIdRoute,
-  BlocksCatalogSlugRoute: BlocksCatalogSlugRouteWithChildren,
+  BlocksCatalogSlugRoute: BlocksCatalogSlugRoute,
   ConcurrencyLimitsConcurrencyLimitIdRoute:
     ConcurrencyLimitsConcurrencyLimitIdRoute,
   DeploymentsDeploymentIdRoute: DeploymentsDeploymentIdRoute,
@@ -836,6 +826,7 @@ const rootRouteChildren: RootRouteChildren = {
   RunsTaskRunIdRoute: RunsTaskRunIdRoute,
   WorkPoolsWorkPoolWorkPoolNameRoute:
     WorkPoolsWorkPoolWorkPoolNameRouteWithChildren,
+  BlocksCatalogSlugCreateRoute: BlocksCatalogSlugCreateRoute,
   DeploymentsDeploymentIdDuplicateRoute: DeploymentsDeploymentIdDuplicateRoute,
   DeploymentsDeploymentIdEditRoute: DeploymentsDeploymentIdEditRoute,
   DeploymentsDeploymentIdRunRoute: DeploymentsDeploymentIdRunRoute,
@@ -880,6 +871,7 @@ export const routeTree = rootRoute
         "/runs/flow-run/$id",
         "/runs/task-run/$id",
         "/work-pools/work-pool/$workPoolName",
+        "/blocks/catalog_/$slug_/create",
         "/deployments/deployment_/$id/duplicate",
         "/deployments/deployment_/$id/edit",
         "/deployments/deployment_/$id/run",
@@ -950,10 +942,7 @@ export const routeTree = rootRoute
       "filePath": "blocks/block.$id.tsx"
     },
     "/blocks/catalog_/$slug": {
-      "filePath": "blocks/catalog_.$slug.tsx",
-      "children": [
-        "/blocks/catalog_/$slug/create"
-      ]
+      "filePath": "blocks/catalog_.$slug.tsx"
     },
     "/concurrency-limits/concurrency-limit/$id": {
       "filePath": "concurrency-limits/concurrency-limit.$id.tsx"
@@ -980,9 +969,8 @@ export const routeTree = rootRoute
       "filePath": "automations/automation.$id.edit.ts",
       "parent": "/automations/automation/$id"
     },
-    "/blocks/catalog_/$slug/create": {
-      "filePath": "blocks/catalog_.$slug.create.tsx",
-      "parent": "/blocks/catalog_/$slug"
+    "/blocks/catalog_/$slug_/create": {
+      "filePath": "blocks/catalog_.$slug_.create.tsx"
     },
     "/deployments/deployment_/$id/duplicate": {
       "filePath": "deployments/deployment_.$id.duplicate.tsx"
