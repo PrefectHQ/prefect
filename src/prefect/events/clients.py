@@ -39,6 +39,7 @@ import prefect.types._datetime
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
     PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
@@ -367,7 +368,7 @@ class PrefectEventsClient(EventsClient):
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
-    def _log_debug(self, message: str, *args, **kwargs) -> None:
+    def _log_debug(self, message: str, *args: Any, **kwargs: Any) -> None:
         message = f"EventsClient(id={id(self)}): " + message
         logger.debug(message, *args, **kwargs)
 
@@ -592,7 +593,8 @@ class PrefectEventSubscriber:
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
         """
-        self._api_key = None
+        self._api_key = PREFECT_API_AUTH_STRING.value()
+
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
 

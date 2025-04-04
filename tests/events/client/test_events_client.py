@@ -12,11 +12,13 @@ from prefect.events.clients import (
     get_events_subscriber,
 )
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+    PREFECT_SERVER_API_AUTH_STRING,
     temporary_settings,
 )
 from prefect.testing.fixtures import Puppeteer, Recorder
@@ -392,3 +394,49 @@ async def test_events_client_warn_if_connect_fails(
     assert any(
         "Unable to connect to 'ws" in record.message for record in caplog.records
     )
+
+
+@pytest.mark.usefixtures("ephemeral_settings")
+async def test_events_subscriber_auth_string():
+    """Tests that the PrefectEventSubscriber correctly handles PREFECT_API_AUTH_STRING
+    when connecting to a server that requires PREFECT_SERVER_API_AUTH_STRING."""
+
+    secret = "secret"
+
+    # Scenario 1: Client and Server strings match - Should succeed
+    with temporary_settings(
+        {
+            PREFECT_SERVER_API_AUTH_STRING: secret,
+            PREFECT_API_AUTH_STRING: secret,  # Matching string
+        }
+    ):
+        try:
+            async with get_events_subscriber() as subscriber:
+                # Simple check to ensure connection stays open briefly
+                await subscriber._websocket.ping()
+        except Exception as e:
+            pytest.fail(
+                f"Connection failed unexpectedly when auth strings matched: {e}"
+            )
+
+    # Scenario 2: Client string does NOT match server string - Should fail (Invalid token)
+    with temporary_settings(
+        {
+            PREFECT_SERVER_API_AUTH_STRING: secret,
+            PREFECT_API_AUTH_STRING: "wrong",
+        }
+    ):
+        with pytest.raises(Exception, match="Invalid token"):
+            async with get_events_subscriber():
+                pass  # Connection should fail during __aenter__
+
+    # Scenario 3: Client string is missing - Should fail (Auth required but no token provided)
+    with temporary_settings(
+        {
+            PREFECT_SERVER_API_AUTH_STRING: secret,
+            PREFECT_API_AUTH_STRING: None,
+        }
+    ):
+        with pytest.raises(Exception, match="Auth required but no token provided"):
+            async with get_events_subscriber():
+                pass  # Connection should fail during __aenter__
