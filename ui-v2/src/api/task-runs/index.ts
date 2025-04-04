@@ -1,8 +1,8 @@
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 import { queryOptions } from "@tanstack/react-query";
-import { components } from "../prefect";
-import { getQueryService } from "../service";
 
-export type TaskRun = components["schemas"]["TaskRun"];
+export type TaskRun = components["schemas"]["UITaskRun"];
 
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
@@ -13,13 +13,19 @@ export type TaskRunsFilter =
  * @property {function} all - Returns base key for all task run queries
  * @property {function} lists - Returns key for all list-type task run queries
  * @property {function} list - Generates key for a specific filtered task run query
+ * @property {function} counts - Returns key for all count-type task run queries
+ * @property {function} flowRunsCount - Generates key for a specific flow run count task run query
+ * @property {function} details - Returns key for all details-type task run queries
+ * @property {function} detail - Generates key for a specific details-type task run query
  *
  * ```
- * all			=>   ['task']
- * lists		=>   ['task', 'list']
- * list			=>   ['task', 'list', { ...filter }]
- * counts		=>   ['task', 'count']
- * flowRunsCount	=>   ['task', 'count', 'flow-runs', ["id-0", "id-1"]]
+ * all			=>   ['taskRuns']
+ * lists		=>   ['taskRuns', 'list']
+ * list			=>   ['taskRuns', 'list', { ...filter }]
+ * counts		=>   ['taskRuns', 'count']
+ * flowRunsCount	=>   ['taskRuns', 'count', 'flow-runs', ["id-0", "id-1"]]
+ * details		=>   ['taskRuns', 'details']
+ * detail		=>   ['taskRuns', 'details', id]
  * ```
  */
 export const queryKeyFactory = {
@@ -33,6 +39,8 @@ export const queryKeyFactory = {
 		"flow-runs",
 		flowRunIds,
 	],
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 /**
@@ -57,7 +65,7 @@ export const buildListTaskRunsQuery = (
 		sort: "ID_DESC",
 		offset: 0,
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -94,6 +102,35 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 				{ body: { flow_run_ids } },
 			);
 			return res.data ?? {};
+		},
+	});
+};
+
+/**
+ * Builds a query configuration for fetching task run details
+ *
+ * @param id - The id of the task run
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildGetTaskRunDetailsQuery("id-0"));
+ * ```
+ */
+export const buildGetTaskRunDetailsQuery = (id: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error(
+					`Received empty response from server for task run ${id}`,
+				);
+			}
+
+			return res.data;
 		},
 	});
 };
