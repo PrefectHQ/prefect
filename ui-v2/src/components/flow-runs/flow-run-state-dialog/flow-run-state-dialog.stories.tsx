@@ -1,3 +1,4 @@
+import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { RunStateChangeDialog } from "@/components/ui/run-state-change-dialog";
 import type { RunStateFormValues } from "@/components/ui/run-state-change-dialog";
@@ -39,7 +40,10 @@ const DialogDemo = () => {
 					toast.success(
 						<div className="flex items-center gap-2">
 							Flow run state changed to{" "}
-							<StateBadge type={values.state} name={values.state} />
+							<StateBadge
+								type={values.state as components["schemas"]["StateType"]}
+								name={values.state}
+							/>
 						</div>,
 					);
 				}}

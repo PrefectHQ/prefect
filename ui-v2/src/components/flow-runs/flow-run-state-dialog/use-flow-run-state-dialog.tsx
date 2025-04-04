@@ -3,22 +3,9 @@ import { useSetFlowRunState } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import type { RunStateFormValues } from "@/components/ui/run-state-change-dialog";
 import { StateBadge } from "@/components/ui/state-badge";
+import { RUN_STATES } from "@/utils/states";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-
-type StateType = components["schemas"]["StateType"];
-
-const RUN_STATES = {
-	COMPLETED: "Completed",
-	RUNNING: "Running",
-	SCHEDULED: "Scheduled",
-	PENDING: "Pending",
-	FAILED: "Failed",
-	CANCELLED: "Cancelled",
-	CANCELLING: "Cancelling",
-	CRASHED: "Crashed",
-	PAUSED: "Paused",
-} as const;
 
 export const useFlowRunStateDialog = () => {
 	const [open, setOpen] = useState(false);
@@ -34,7 +21,7 @@ export const useFlowRunStateDialog = () => {
 			{
 				id: flowRun.id,
 				state: {
-					type: values.state as StateType,
+					type: values.state as components["schemas"]["StateType"],
 					message: values.message || null,
 				},
 				force: true,
@@ -45,7 +32,7 @@ export const useFlowRunStateDialog = () => {
 						<div className="flex items-center gap-2">
 							Flow run state changed to{" "}
 							<StateBadge
-								type={values.state as StateType}
+								type={values.state as components["schemas"]["StateType"]}
 								name={values.state}
 							/>
 						</div>,
