@@ -8,10 +8,13 @@ export type BlockTypesFilter =
 /**
  * ```
  *  🏗️ Block Types queries construction 👷
- *  all			=>   ['"block-types'] // key to match ['"block-types', ...
- *  lists		=>   ['"block-types', 'list'] // key to match ['"block-types, 'list', ...
+ *  all			=>   ['"block-types'] // key to match ['block-types', ...
+ *  lists		=>   ['"block-types', 'list'] // key to match ['block-types, 'list', ...
  *  listFilters	=>   ['"block-types', 'list', 'filter']
  *  listFilter	=>   ['"block-types', 'list', 'filter', { ...filter1 }]
+ *  details		=>   ['"block-types', 'details']
+ *  detailsSlug	=>   ['"block-types', 'details', 'slug']
+ *  detailSlug	=>   ['"block-types', 'details', slug ]
  * ```
  * */
 export const queryKeyFactory = {
@@ -20,6 +23,10 @@ export const queryKeyFactory = {
 	listFilters: () => [...queryKeyFactory.lists(), "filter"] as const,
 	listFilter: (filter: BlockTypesFilter) =>
 		[...queryKeyFactory.listFilters(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "detail"] as const,
+	detailsSlug: () => [...queryKeyFactory.details(), "slug"] as const,
+	detailSlug: (slug: string) =>
+		[...queryKeyFactory.detailsSlug(), slug] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -34,7 +41,21 @@ export const buildListFilterBlockTypesQuery = (
 				body: filter,
 			});
 			if (!res.data) {
-				throw new Error("'data' exoected");
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+	});
+
+export const buildGetBlockTypesQuery = (slug: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detailSlug(slug),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/block_types/slug/{slug}", {
+				params: { path: { slug } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
 			}
 			return res.data;
 		},
