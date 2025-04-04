@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import base64
 import datetime
@@ -1163,6 +1164,10 @@ class PrefectClient(
 
     def client_version(self) -> str:
         return prefect.__version__
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop | None:
+        return self._loop
 
     async def raise_for_api_version_mismatch(self) -> None:
         # Cloud is always compatible as a server

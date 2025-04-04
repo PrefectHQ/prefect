@@ -125,8 +125,20 @@ Read more about Prefect Cloud [here](https://www.prefect.io/cloud-vs-oss?utm_sou
 If your use case is geared towards communicating with Prefect Cloud or a remote Prefect server, check out our
 [prefect-client](https://pypi.org/project/prefect-client/). It is a lighter-weight option for accessing client-side functionality in the Prefect SDK and is ideal for use in ephemeral execution environments.
 
-## Next steps
+## Connect & Contribute
+Join a thriving community of over 25,000 practitioners who solve data challenges with Prefect. Prefect's community is built on collaboration, technical innovation, and continuous improvement.
 
-- Check out the [Docs](https://docs.prefect.io/).
-- Join the [Prefect Slack community](https://prefect.io/slack).
-- Learn how to [contribute to Prefect](https://docs.prefect.io/contribute/).
+### Community Resources
+🌐 **[Explore the Documentation](https://docs.prefect.io)** - Comprehensive guides and API references  
+💬 **[Join the Slack Community](https://prefect.io/slack)** - Connect with thousands of practitioners  
+🤝 **[Contribute to Prefect](https://docs.prefect.io/contribute/)** - Help shape the future of the project  
+ 🔌 **[Support or create a new Prefect integration](https://docs.prefect.io/contribute/contribute-integrations)** - Extend Prefect's capabilities
+
+### Stay Informed
+📥 **[Subscribe to our Newsletter](https://prefect.io/newsletter)** - Get the latest Prefect news and updates  
+📣 **[Twitter/X](https://x.com/PrefectIO)** - Latest updates and announcements  
+📺 **[YouTube](https://www.youtube.com/@PrefectIO)** - Video tutorials and webinars  
+📱 **[LinkedIn](https://www.linkedin.com/company/prefect)** - Professional networking and company news  
+
+Your contributions, questions, and ideas make Prefect better every day. Whether you're reporting bugs, suggesting features, or improving documentation, your input is invaluable to the Prefect community.
+

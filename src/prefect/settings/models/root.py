@@ -276,12 +276,17 @@ class Settings(PrefectBaseSettings):
         for r in restore_defaults or []:
             path = r.accessor.split(".")
             model = self
+            model_cls = model.__class__
+            model_fields = model_cls.model_fields
             for key in path[:-1]:
-                model = model.model_fields[key].annotation
-                assert model is not None, f"Invalid setting path: {r.accessor}"
+                model_field = model_fields[key]
+                model_cls = model_field.annotation
+                if model_cls is None:
+                    raise ValueError(f"Invalid setting path: {r.accessor}")
+                model_fields = model_cls.model_fields
 
-            model_field = model.model_fields[path[-1]]
-            assert model is not None, f"Invalid setting path: {r.accessor}"
+            model_field = model_fields[path[-1]]
+            assert model_field is not None, f"Invalid setting path: {r.accessor}"
             if hasattr(model_field, "default"):
                 default = model_field.default
             elif (

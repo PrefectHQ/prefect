@@ -71,10 +71,7 @@ export const buildCountFilterBlockDocumentsQuery = (
 			const res = await getQueryService().POST("/block_documents/count", {
 				body: filter,
 			});
-			if (!res.data) {
-				throw new Error("'data' exoected");
-			}
-			return res.data;
+			return res.data ?? 0;
 		},
 	});
 export const buildCountAllBlockDocumentsQuery = () =>
@@ -82,10 +79,7 @@ export const buildCountAllBlockDocumentsQuery = () =>
 		queryKey: queryKeyFactory.countAll(),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/block_documents/count");
-			if (!res.data) {
-				throw new Error("'data' exoected");
-			}
-			return res.data;
+			return res.data ?? 0;
 		},
 	});
 

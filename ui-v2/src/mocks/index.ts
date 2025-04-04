@@ -13,6 +13,7 @@ export {
 	createFakeFlowRunWithDeploymentAndFlow,
 } from "./create-fake-flow-run";
 export { createFakeGlobalConcurrencyLimit } from "./create-fake-global-concurrency-limit";
+export { createFakeLog } from "./create-fake-log";
 export { createFakeSchedule } from "./create-fake-schedule";
 export { createFakeServerSettings } from "./create-fake-server-settings";
 export { createFakeState } from "./create-fake-state";
