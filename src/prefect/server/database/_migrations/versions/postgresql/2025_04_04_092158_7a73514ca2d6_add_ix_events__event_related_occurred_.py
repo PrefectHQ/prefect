@@ -18,10 +18,18 @@ depends_on = None
 
 def upgrade():
     op.drop_index("ix_events__event_related_occurred", table_name="events")
+    op.drop_index("ix_events__related_resource_ids", table_name="events")
     op.create_index(
         "ix_events__event_related_occurred_md5",
         "events",
         [sa.literal_column("md5(related::text)"), "event", "occurred"],
+        unique=False,
+        postgresql_using="btree",
+    )
+    op.create_index(
+        "ix_events__related_resource_ids_md5",
+        "events",
+        [sa.literal_column("md5(related_resource_ids::text)"), "event", "occurred"],
         unique=False,
         postgresql_using="btree",
     )
@@ -33,9 +41,20 @@ def downgrade():
         table_name="events",
         postgresql_using="btree",
     )
+    op.drop_index(
+        "ix_events__related_resource_ids_md5",
+        table_name="events",
+        postgresql_using="btree",
+    )
     op.create_index(
         "ix_events__event_related_occurred",
         "events",
         ["event", "related", "occurred"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_events__related_resource_ids",
+        "events",
+        ["related_resource_ids"],
         unique=False,
     )

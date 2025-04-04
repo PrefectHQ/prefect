@@ -1416,7 +1416,14 @@ class Event(Base):
         return "events"
 
     __table_args__: Any = (
-        sa.Index("ix_events__related_resource_ids", "related_resource_ids"),
+        sa.Index("ix_events__related_resource_ids", "related_resource_ids").ddl_if(
+            dialect="sqlite"
+        ),
+        sa.Index(
+            "ix_events__related_resource_ids_md5",
+            sa.text("md5(related_resource_ids::text)"),
+            postgresql_using="btree",
+        ).ddl_if(dialect="postgresql"),
         sa.Index("ix_events__occurred", "occurred"),
         sa.Index("ix_events__event__id", "event", "id"),
         sa.Index(
