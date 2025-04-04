@@ -1,4 +1,4 @@
-import type { components } from "@/api/prefect";
+import type { TaskRun } from "@/api/task-runs";
 import {
 	randAlphaNumeric,
 	randNumber,
@@ -9,9 +9,7 @@ import {
 } from "@ngneat/falso";
 import { createFakeState } from "./create-fake-state";
 
-export const createFakeTaskRun = (
-	overrides?: Partial<components["schemas"]["TaskRun"]>,
-): components["schemas"]["TaskRun"] => {
+export const createFakeTaskRun = (overrides?: Partial<TaskRun>): TaskRun => {
 	const { stateType, stateName } = createFakeState();
 
 	return {
@@ -20,6 +18,7 @@ export const createFakeTaskRun = (
 		updated: randPastDate().toISOString(),
 		name: `${randVerb()}-task-${randAlphaNumeric({ length: 3 }).join()}`,
 		flow_run_id: randUuid(),
+		flow_run_name: `${randVerb()}-flow-${randAlphaNumeric({ length: 3 }).join()}`,
 		task_key: "say_hello-6b199e75",
 		dynamic_key: randUuid(),
 		cache_key: null,

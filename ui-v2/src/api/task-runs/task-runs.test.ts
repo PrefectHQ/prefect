@@ -23,7 +23,7 @@ describe("task runs api", () => {
 
 	const mockFetchTaskRunDetailsAPI = (taskRun: TaskRun) => {
 		server.use(
-			http.get(buildApiUrl("/task_runs/:id"), () => {
+			http.get(buildApiUrl("/ui/task_runs/:id"), () => {
 				return HttpResponse.json(taskRun);
 			}),
 		);

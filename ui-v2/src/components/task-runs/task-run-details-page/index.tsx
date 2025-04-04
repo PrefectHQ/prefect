@@ -1,4 +1,6 @@
 import { type TaskRun, buildGetTaskRunDetailsQuery } from "@/api/task-runs";
+import { TaskRunDetails } from "@/components/task-runs/task-run-details/task-run-details";
+import { TaskRunLogs } from "@/components/task-runs/task-run-logs";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -7,15 +9,17 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Icon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useEffect } from "react";
-import { Icon } from "../ui/icons";
-import { Skeleton } from "../ui/skeleton";
-import { StateBadge } from "../ui/state-badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { TaskRunDetails } from "./task-run-details/task-run-details";
-import { TaskRunLogs } from "./task-run-logs";
 
 type TaskRunDetailsPageProps = {
 	id: string;
