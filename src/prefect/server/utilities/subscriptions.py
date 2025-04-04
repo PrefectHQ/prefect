@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import IncompleteReadError as IOError
 from typing import Optional
 
 from fastapi import WebSocket
@@ -6,7 +7,12 @@ from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
 from starlette.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 
+from prefect.logging import get_logger
+from prefect.settings import PREFECT_SERVER_API_AUTH_STRING
+
 NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed, WebSocketDisconnect)
+
+logger = get_logger("prefect.server.utilities.subscriptions")
 
 
 async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
@@ -21,16 +27,50 @@ async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
         # message is expected to be an auth message, and if any other type of
         # message is received then the connection will be closed.
         #
-        # There is no authentication in Prefect Server, but the protocol requires
-        # that we receive and return the auth message for compatibility with Prefect
-        # Cloud.
+        # The protocol requires receiving an auth message for compatibility
+        # with Prefect Cloud, even if server-side auth is not configured.
         message = await websocket.receive_json()
-        if message["type"] != "auth":
+        logger.debug(f"Received WebSocket message: {message}")
+
+        auth_setting = PREFECT_SERVER_API_AUTH_STRING.value()
+        logger.debug(
+            f"PREFECT_SERVER_API_AUTH_STRING setting: {'*' * len(auth_setting) if auth_setting else 'Not set'}"
+        )
+
+        if message.get("type") != "auth":
+            logger.warning(
+                "WebSocket connection closed: Expected 'auth' message first."
+            )
             return await websocket.close(
                 WS_1008_POLICY_VIOLATION, reason="Expected 'auth' message"
             )
 
+        # Check authentication if PREFECT_SERVER_API_AUTH_STRING is set
+        if auth_setting:
+            received_token = message.get("token")
+            logger.debug(
+                f"Auth required. Received token: {'*' * len(received_token) if received_token else 'None'}"
+            )
+            if not received_token:
+                logger.warning(
+                    "WebSocket connection closed: Auth required but no token received."
+                )
+                return await websocket.close(
+                    WS_1008_POLICY_VIOLATION,
+                    reason="Auth required but no token provided",
+                )
+
+            if received_token != auth_setting:
+                logger.warning("WebSocket connection closed: Invalid token.")
+                return await websocket.close(
+                    WS_1008_POLICY_VIOLATION, reason="Invalid token"
+                )
+            logger.debug("WebSocket token authentication successful.")
+        else:
+            logger.debug("No server auth string set, skipping token check.")
+
         await websocket.send_json({"type": "auth_success"})
+        logger.debug("Sent auth_success to WebSocket.")
         return websocket
 
     except NORMAL_DISCONNECT_EXCEPTIONS:
