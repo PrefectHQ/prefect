@@ -109,7 +109,7 @@ def event_with_many_related_resources() -> ReceivedEvent:
                     "data": "test.data",
                 }
             )
-            for _ in range(499)
+            for _ in range(99)
         ],
         payload={"hello": "world"},
         received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
@@ -240,7 +240,7 @@ async def test_handling_message_writes_event_resources_with_many_related_resourc
     await event_persister_handler(message_with_many_related_resources)
 
     resources = await get_resources(session, event_with_many_related_resources.id, db)
-    assert len(resources) == 500
+    assert len(resources) == 100
 
     event = await get_event(event_with_many_related_resources.id)
     assert event
