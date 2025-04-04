@@ -252,7 +252,8 @@ class DaskTaskRunner(TaskRunner):
             if isinstance(cluster_class, str):
                 resolved_cluster_class = from_qualified_name(cluster_class)
             elif isinstance(cluster_class, Callable):
-                resolved_cluster_class = cluster_class()
+                # Store the callable itself, don't instantiate here
+                resolved_cluster_class = cluster_class
             else:
                 resolved_cluster_class = cluster_class
 
@@ -348,9 +349,13 @@ class DaskTaskRunner(TaskRunner):
             else:
                 # Determine the cluster class to use
                 if self.resolved_cluster_class:
+                    # Use the resolved class if a string was provided
                     class_to_instantiate = self.resolved_cluster_class
+                elif callable(self.cluster_class):
+                    # Use the provided class object if it's callable
+                    class_to_instantiate = self.cluster_class
                 else:
-                    # Default to LocalCluster if no specific class was provided
+                    # Default to LocalCluster only if no specific class was provided or resolved
                     class_to_instantiate = distributed.LocalCluster
 
                 self.logger.info(

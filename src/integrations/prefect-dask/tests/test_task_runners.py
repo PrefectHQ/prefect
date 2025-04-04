@@ -308,7 +308,7 @@ class TestDaskTaskRunner:
         def my_task():
             return 1
 
-        futures = []
+        futures: list[PrefectDaskFuture[int]] = []
 
         @flow(task_runner=task_runner)
         def my_flow():
