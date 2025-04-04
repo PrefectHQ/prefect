@@ -12,9 +12,9 @@ export type BlockTypesFilter =
  *  lists		=>   ['"block-types', 'list'] // key to match ['block-types, 'list', ...
  *  listFilters	=>   ['"block-types', 'list', 'filter']
  *  listFilter	=>   ['"block-types', 'list', 'filter', { ...filter1 }]
- *  details		=>   ['"block-types', 'details']
- *  detailsSlug	=>   ['"block-types', 'details', 'slug']
- *  detailSlug	=>   ['"block-types', 'details', slug ]
+ *  details		=>   ['block-types', 'detail']
+ *  detailsSlug	=>   ['block-types', 'detail', 'slug']
+ *  detailSlug	=>   ['block-types', 'detail', 'slug', $slug ]
  * ```
  * */
 export const queryKeyFactory = {
