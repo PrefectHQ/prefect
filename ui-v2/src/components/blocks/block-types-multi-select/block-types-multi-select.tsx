@@ -20,31 +20,31 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useDeferredValue, useMemo, useState } from "react";
 
 type BlockTypesMultiSelectProps = {
-	selectedBlockTypesIds: Set<string>;
-	onToggleBlockType: (blockTypeIds: string) => void;
-	onRemoveBlockType: (blockTypeIds: string) => void;
+	selectedBlockTypesSlugs: Array<string>;
+	onToggleBlockTypeSlug: (blockTypeSlug: string) => void;
+	onRemoveBlockTypeSlug: (blockTypeSlug: string) => void;
 };
 
 export function BlockTypesMultiSelect({
-	selectedBlockTypesIds,
-	onToggleBlockType,
-	onRemoveBlockType,
+	selectedBlockTypesSlugs,
+	onToggleBlockTypeSlug,
+	onRemoveBlockTypeSlug,
 }: BlockTypesMultiSelectProps) {
 	return (
 		<Suspense>
 			<BlockTypesMultiSelectImplementation
-				selectedBlockTypesIds={selectedBlockTypesIds}
-				onToggleBlockType={onToggleBlockType}
-				onRemoveBlockType={onRemoveBlockType}
+				selectedBlockTypesSlugs={selectedBlockTypesSlugs}
+				onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+				onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
 			/>
 		</Suspense>
 	);
 }
 
 function BlockTypesMultiSelectImplementation({
-	selectedBlockTypesIds,
-	onToggleBlockType,
-	onRemoveBlockType,
+	selectedBlockTypesSlugs,
+	onToggleBlockTypeSlug,
+	onRemoveBlockTypeSlug,
 }: BlockTypesMultiSelectProps) {
 	const [search, setSearch] = useState("");
 
@@ -55,12 +55,12 @@ function BlockTypesMultiSelectImplementation({
 	);
 
 	const selectedBlockTypes = useMemo(() => {
-		return Array.from(selectedBlockTypesIds)
-			.map((blockTypeId) =>
-				blockTypes.find((blockType) => blockType.id === blockTypeId),
+		return selectedBlockTypesSlugs
+			.map((blockTypeSlug) =>
+				blockTypes.find((blockType) => blockType.slug === blockTypeSlug),
 			)
 			.filter(Boolean) as Array<BlockType>;
-	}, [blockTypes, selectedBlockTypesIds]);
+	}, [blockTypes, selectedBlockTypesSlugs]);
 
 	const filteredData = useMemo(() => {
 		return blockTypes.filter((blockType) =>
@@ -70,17 +70,17 @@ function BlockTypesMultiSelectImplementation({
 
 	return (
 		<Combobox>
-			<ComboboxTrigger selected={selectedBlockTypesIds.size > 0}>
+			<ComboboxTrigger selected={selectedBlockTypesSlugs.length > 0}>
 				<div className="flex gap-1">
-					{selectedBlockTypesIds.size > 0
+					{selectedBlockTypesSlugs.length > 0
 						? selectedBlockTypes.map((blockType) => (
 								<TagBadge
 									key={blockType.id}
 									tag={blockType.name}
-									onRemove={() => onRemoveBlockType(blockType.id)}
+									onRemove={() => onRemoveBlockTypeSlug(blockType.slug)}
 								/>
 							))
-						: "Select block types"}
+						: "Select blocks"}
 				</div>
 			</ComboboxTrigger>
 			<ComboboxContent>
@@ -95,12 +95,12 @@ function BlockTypesMultiSelectImplementation({
 						{filteredData.map((blockType) => (
 							<ComboboxCommandItem
 								key={blockType.id}
-								selected={selectedBlockTypesIds.has(blockType.id)}
+								selected={selectedBlockTypesSlugs.includes(blockType.slug)}
 								onSelect={(value) => {
-									onToggleBlockType(value);
+									onToggleBlockTypeSlug(value);
 									setSearch("");
 								}}
-								value={blockType.id}
+								value={blockType.slug}
 							>
 								{blockType.name}
 							</ComboboxCommandItem>

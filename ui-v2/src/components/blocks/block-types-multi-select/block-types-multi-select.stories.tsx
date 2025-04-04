@@ -1,9 +1,9 @@
-import { useSet } from "@/hooks/use-set";
 import { createFakeBlockType } from "@/mocks";
 import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
+import { useState } from "react";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
 
 const MOCK_BLOCK_TYPES = Array.from({ length: 5 }, createFakeBlockType);
@@ -30,13 +30,28 @@ export const Story: StoryObj = {
 };
 
 function BlockTypesMultiSelectStory() {
-	const [selectedBlockTypesIds, { toggle, remove }] = useSet<string>();
+	const [selectedBlockTypeSlugs, onSelectedBlockTypeSlugs] = useState<
+		Array<string>
+	>([]);
+
+	const handleRemoveBlockTypeSlug = (id: string) => {
+		onSelectedBlockTypeSlugs((curr) =>
+			curr.filter((blockId) => blockId !== id),
+		);
+	};
+
+	const handleToggleBlockTypeSlug = (id: string) => {
+		if (selectedBlockTypeSlugs.includes(id)) {
+			return handleRemoveBlockTypeSlug(id);
+		}
+		onSelectedBlockTypeSlugs((curr) => [...curr, id]);
+	};
 
 	return (
 		<BlockTypesMultiSelect
-			selectedBlockTypesIds={selectedBlockTypesIds}
-			onRemoveBlockType={remove}
-			onToggleBlockType={toggle}
+			selectedBlockTypesSlugs={selectedBlockTypeSlugs}
+			onRemoveBlockTypeSlug={handleRemoveBlockTypeSlug}
+			onToggleBlockTypeSlug={handleToggleBlockTypeSlug}
 		/>
 	);
 }
