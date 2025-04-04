@@ -153,8 +153,7 @@ def say_hello(name: str) -> None:
     result_storage="s3/my-result-storage",
 )
 def greetings(names: List[str]) -> None:
-    for name in names:
-        say_hello.submit(name).wait()
+    say_hello.map(names).wait()
 
 
 if __name__ == "__main__":
