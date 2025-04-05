@@ -50,7 +50,7 @@ class ServerEventsSettings(PrefectBaseSettings):
     )
 
     maximum_related_resources: int = Field(
-        default=500,
+        default=100,
         description="The maximum number of related resources an Event may have.",
         validation_alias=AliasChoices(
             AliasPath("maximum_related_resources"),

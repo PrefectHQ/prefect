@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from datetime import timedelta
 from typing import AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
@@ -12,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.filters import EventFilter
-from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.events.schemas.events import (
+    ReceivedEvent,
+    RelatedResource,
+    Resource,
+)
 from prefect.server.events.services import event_persister
 from prefect.server.events.services.event_persister import batch_delete
 from prefect.server.events.storage.database import query_events, write_events
@@ -89,9 +94,44 @@ def event() -> ReceivedEvent:
 
 
 @pytest.fixture
+def event_with_many_related_resources() -> ReceivedEvent:
+    return ReceivedEvent(
+        occurred=now("UTC"),
+        event="hello",
+        resource=Resource(
+            {"prefect.resource.id": "my.resource.id", "label-1": "value-1"}
+        ),
+        related=[
+            RelatedResource(
+                {
+                    "prefect.resource.id": str(uuid.uuid4()),
+                    "prefect.resource.role": "test.related",
+                    "data": "test.data",
+                }
+            )
+            for _ in range(99)
+        ],
+        payload={"hello": "world"},
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
+        id=uuid4(),
+        follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+    )
+
+
+@pytest.fixture
 def message(event: ReceivedEvent) -> Message:
     return CapturedMessage(
         data=event.model_dump_json().encode(),
+        attributes={},
+    )
+
+
+@pytest.fixture
+def message_with_many_related_resources(
+    event_with_many_related_resources: ReceivedEvent,
+) -> Message:
+    return CapturedMessage(
+        data=event_with_many_related_resources.model_dump_json().encode(),
         attributes={},
     )
 
@@ -187,6 +227,24 @@ async def test_handling_message_writes_event_resources(
     assert related_3.resource_id == "related-3"
     assert related_3.resource_role == "role-2"
     assert related_3.resource == {"label-1": "value-5", "label-2": "value-6"}
+
+
+async def test_handling_message_writes_event_resources_with_many_related_resources(
+    frozen_time: DateTime,
+    db: PrefectDBInterface,
+    event_persister_handler: MessageHandler,
+    message_with_many_related_resources: Message,
+    session: AsyncSession,
+    event_with_many_related_resources: ReceivedEvent,
+):
+    await event_persister_handler(message_with_many_related_resources)
+
+    resources = await get_resources(session, event_with_many_related_resources.id, db)
+    assert len(resources) == 100
+
+    event = await get_event(event_with_many_related_resources.id)
+    assert event
+    assert event == event_with_many_related_resources
 
 
 @pytest.fixture
