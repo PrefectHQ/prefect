@@ -1,10 +1,13 @@
 import { BlockDocument } from "@/api/block-documents";
+import { Breadcrumb, BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
+import { Link } from "@tanstack/react-router";
 import { RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
-import { BlocksPageHeader } from "./blocks-page-header";
 import { BlocksRowCount } from "./blocks-row-count";
 import { BlocksEmptyState } from "./empty-state";
 
@@ -31,7 +34,18 @@ export const BlocksPage = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<BlocksPageHeader />
+			<div className="flex items-center gap-2">
+				<Breadcrumb>
+					<BreadcrumbItem className="text-xl font-semibold">
+						Blocks
+					</BreadcrumbItem>
+				</Breadcrumb>
+				<Button size="icon" className="size-7" variant="outline">
+					<Link to="/blocks/catalog">
+						<Icon id="Plus" className="size-4" />
+					</Link>
+				</Button>
+			</div>
 			{allCount === 0 ? (
 				<BlocksEmptyState />
 			) : (
