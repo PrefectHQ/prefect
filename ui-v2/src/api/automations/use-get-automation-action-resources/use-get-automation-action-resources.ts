@@ -152,37 +152,37 @@ export const getResourceSets = (actions: Automation["actions"]) => {
 				if (action.deployment_id) {
 					deploymentIds.add(action.deployment_id);
 				}
-				return;
+				break;
 			case "pause-work-queue":
 			case "resume-work-queue":
 				if (action.work_queue_id) {
 					workQueueIds.add(action.work_queue_id);
 				}
-				return;
+				break;
 			case "pause-automation":
 			case "resume-automation":
 				if (action.automation_id) {
 					automationIds.add(action.automation_id);
 				}
-				return;
+				break;
 			case "pause-work-pool":
 			case "resume-work-pool":
 				if (action.work_pool_id) {
 					workPoolIds.add(action.work_pool_id);
 				}
-				return;
+				break;
 			case "send-notification":
 			case "call-webhook":
-				blockDocumentIds.add(action.block_document_id);
-				return;
+				if (action.block_document_id) {
+					blockDocumentIds.add(action.block_document_id);
+				}
+				break;
 			// TODO: add these back when the corresponding actions are implemented
 			// case "do-nothing":
 			// case "cancel-flow-run":
 			// case "change-flow-run-state":
 			// case "suspend-flow-run":
 			// case "resume-flow-run":
-			default:
-				return;
 		}
 	}
 
