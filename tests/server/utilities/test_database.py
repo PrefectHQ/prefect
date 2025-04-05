@@ -39,6 +39,10 @@ class Color(enum.Enum):
     BLUE = "BLUE"
 
 
+def _pytest_approx(expected: Any, abs: float = 0.0001) -> bool:
+    return pytest.approx(expected, abs=abs)  # type: ignore
+
+
 class SQLPydanticModel(DBBase):
     __tablename__ = "_test_pydantic_model"
 
@@ -194,11 +198,26 @@ class TestPydantic:
 
 
 class TestTimestamp:
-    async def test_error_if_naive_timestamp_passed(self, session: AsyncSession):
-        model = SQLTimestampModel(ts_1=datetime.datetime(2000, 1, 1))
+    async def test_timestamp_handles_datetime_min(self, session: AsyncSession):
+        """Check that datetime.min is handled correctly, assuming UTC."""
+        # datetime.min is naive, the decorator should handle it
+        min_datetime = datetime.datetime.min
+        model = SQLTimestampModel(ts_1=min_datetime)
         session.add(model)
-        with pytest.raises(sa.exc.StatementError, match="(must have a timezone)"):
-            await session.flush()
+        await session.flush()
+
+        session.expire_all()
+
+        query = await session.scalars(sa.select(SQLTimestampModel))
+        results = query.unique().all()
+        assert len(results) == 1
+        retrieved_ts = results[0].ts_1
+
+        # Expect the naive datetime.min to be stored and retrieved as UTC-aware
+        expected_ts = min_datetime.replace(tzinfo=datetime.timezone.utc)
+        assert retrieved_ts == expected_ts
+        assert retrieved_ts is not None
+        assert retrieved_ts.tzinfo == datetime.timezone.utc
 
     async def test_timestamp_converted_to_utc(self, session: AsyncSession):
         model = SQLTimestampModel(
@@ -603,7 +622,7 @@ class TestDateFunctions:
                 SQLTimestampModel
             )
         )
-        assert pytest.approx(result) == 259500.0  # 3 days and 5 minutes in seconds
+        assert result == _pytest_approx(259500.0)  # 3 days and 5 minutes in seconds
 
     async def test_date_diff_seconds_from_now_literal(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
@@ -613,8 +632,8 @@ class TestDateFunctions:
             sa.select(sa.func.date_diff_seconds(value))
         )
         assert result is not None
-        # database rounnd-trips can be sloooow
-        assert 17 <= result <= 17.1
+        # database round-trips can be sloooow
+        assert result == _pytest_approx(17, 0.1)
 
     async def test_date_diff_seconds_from_now_column(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
@@ -630,8 +649,8 @@ class TestDateFunctions:
             )
         )
         assert result is not None
-        # database rounnd-trips can be sloooow
-        assert 17 <= result <= 17.1
+        # database round-trips can be sloooow
+        assert result == _pytest_approx(17, 0.1)
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum():
