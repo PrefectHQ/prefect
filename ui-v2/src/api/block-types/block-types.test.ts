@@ -8,7 +8,7 @@ import { createFakeBlockType } from "@/mocks";
 
 import {
 	type BlockType,
-	buildGetBlockTypesQuery,
+	buildGetBlockTypeQuery,
 	buildListFilterBlockTypesQuery,
 } from "./block-types";
 
@@ -54,7 +54,7 @@ describe("block types queries", () => {
 
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
-			() => useSuspenseQuery(buildGetBlockTypesQuery(mockBlockType.slug)),
+			() => useSuspenseQuery(buildGetBlockTypeQuery(mockBlockType.slug)),
 			{ wrapper: createWrapper() },
 		);
 
