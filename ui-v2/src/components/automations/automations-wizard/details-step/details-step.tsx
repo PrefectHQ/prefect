@@ -1,4 +1,4 @@
-import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
 	FormControl,
 	FormField,

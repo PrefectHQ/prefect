@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
-import { SchemaObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 import { describe, expect, test } from "vitest";
-import { SchemaForm, SchemaFormProps } from "./schema-form";
+import { SchemaForm, type SchemaFormProps } from "./schema-form";
 
 /**
  * 🔍 Snapshot Tests
@@ -417,8 +417,15 @@ describe("property.type", () => {
 				properties: {
 					name: {
 						// sometimes pydantic creates a property with an undefined type
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-						type: undefined as any,
+						type: undefined as unknown as (
+							| "string"
+							| "number"
+							| "boolean"
+							| "object"
+							| "null"
+							| "integer"
+							| "array"
+						)[],
 					},
 				},
 			};
@@ -433,8 +440,15 @@ describe("property.type", () => {
 				properties: {
 					name: {
 						// sometimes pydantic creates a property with an undefined type
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-						type: undefined as any,
+						type: undefined as unknown as (
+							| "string"
+							| "number"
+							| "boolean"
+							| "object"
+							| "null"
+							| "integer"
+							| "array"
+						)[],
 						enum: ["foo", "bar"],
 					},
 				},
@@ -452,8 +466,15 @@ describe("property.type", () => {
 				properties: {
 					name: {
 						// sometimes pydantic creates a property with an undefined type
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-						type: undefined as any,
+						type: undefined as unknown as (
+							| "string"
+							| "number"
+							| "boolean"
+							| "object"
+							| "null"
+							| "integer"
+							| "array"
+						)[],
 						default: "foo",
 					},
 				},

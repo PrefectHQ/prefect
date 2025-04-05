@@ -1,4 +1,4 @@
-import { type AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
@@ -72,8 +72,11 @@ const ActionTypeAdditionalFields = ({
 		case "send-notification":
 			return <div>TODO send notification</div>;
 		case "cancel-flow-run":
+			return <div>TODO cancel flow run</div>;
 		case "suspend-flow-run":
+			return <div>TODO suspend flow run</div>;
 		case "resume-flow-run":
+			return <div>TODO resume flow run</div>;
 		default:
 			return null;
 	}

@@ -1,4 +1,4 @@
-import { WorkPool } from "@/api/work-pools";
+import type { WorkPool } from "@/api/work-pools";
 import { useDeleteWorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";

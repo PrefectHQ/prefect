@@ -1,5 +1,8 @@
-import { ObjectSubtype, SchemaObject } from "openapi-typescript";
-import { PrimitivePropertyType, isPrimitivePropertyType } from "./primitives";
+import type { ObjectSubtype, SchemaObject } from "openapi-typescript";
+import {
+	type PrimitivePropertyType,
+	isPrimitivePropertyType,
+} from "./primitives";
 
 export type WithPosition = {
 	position?: number;

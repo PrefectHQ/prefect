@@ -55,6 +55,7 @@ const ComboboxTrigger = ({
 				aria-label={ariaLabel}
 				aria-expanded={open}
 				variant="outline"
+				// biome-ignore lint/a11y/useSemanticElements:
 				role="combobox"
 				className={cn(
 					"w-full justify-between",

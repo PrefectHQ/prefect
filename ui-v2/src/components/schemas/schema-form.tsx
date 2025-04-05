@@ -1,12 +1,12 @@
 import { useCallback } from "react";
 import {
 	SchemaFormInputObject,
-	SchemaFormInputObjectProps,
+	type SchemaFormInputObjectProps,
 } from "./schema-form-input-object";
 import { SchemaFormProvider } from "./schema-form-provider";
-import { SchemaFormErrors } from "./types/errors";
-import { SchemaFormValues } from "./types/values";
-import { SchemaFormContext } from "./use-schema-form-context";
+import type { SchemaFormErrors } from "./types/errors";
+import type { SchemaFormValues } from "./types/values";
+import type { SchemaFormContext } from "./use-schema-form-context";
 
 export type SchemaFormProps = SchemaFormContext & {
 	errors: SchemaFormErrors;

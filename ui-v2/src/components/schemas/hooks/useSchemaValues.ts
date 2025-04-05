@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SchemaFormValues } from "../types/values";
+import type { SchemaFormValues } from "../types/values";
 
 export function useSchemaFormValues(
 	initialValues: SchemaFormValues = {},

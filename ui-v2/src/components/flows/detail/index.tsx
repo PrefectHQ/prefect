@@ -1,7 +1,7 @@
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
-import { JSX } from "react";
+import type { JSX } from "react";
 import { columns as deploymentColumns } from "./deployment-columns";
 import {
 	getFlowMetadata,
@@ -9,9 +9,9 @@ import {
 } from "./metadata-columns";
 import { columns as flowRunColumns } from "./runs-columns";
 
-import { FlowRun } from "@/api/flow-runs";
-import { Flow } from "@/api/flows";
-import { components } from "@/api/prefect";
+import type { FlowRun } from "@/api/flow-runs";
+import type { Flow } from "@/api/flows";
+import type { components } from "@/api/prefect";
 import FlowRunsBarChart from "@/components/flow-runs/activity-chart/activity-chart";
 import { Button } from "@/components/ui/button";
 import {

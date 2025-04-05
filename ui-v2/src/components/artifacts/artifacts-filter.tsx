@@ -11,7 +11,7 @@ import { useCallback, useMemo } from "react";
 import { Icon } from "../ui/icons";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { Typography } from "../ui/typography";
-import { filterType } from "./types";
+import type { filterType } from "./types";
 
 type ArtifactsFilterProps = {
 	filters: filterType[];
@@ -57,12 +57,12 @@ export const ArtifactsFilterComponent = ({
 	);
 
 	const typeValue = useMemo(
-		() => filters.find((val) => val.id == "type")?.value,
+		() => filters.find((val) => val.id === "type")?.value,
 		[filters],
 	);
 
 	const nameValue = useMemo(
-		() => filters.find((val) => val.id == "name")?.value,
+		() => filters.find((val) => val.id === "name")?.value,
 		[filters],
 	);
 	return (
@@ -115,7 +115,6 @@ export const ArtifactsFilterComponent = ({
 						</ToggleGroup>
 					</div>
 				</div>
-				<div></div>
 			</div>
 		</div>
 	);

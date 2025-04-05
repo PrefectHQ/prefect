@@ -1,14 +1,15 @@
-import { ArraySubtype, SchemaObject } from "openapi-typescript";
+import type { ArraySubtype, SchemaObject } from "openapi-typescript";
+import { useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { SchemaFormInputArrayItem } from "./schema-form-input-array-item";
 import {
-	SchemaFormErrors,
-	SchemaValueIndexError,
+	type SchemaFormErrors,
+	type SchemaValueIndexError,
 	isSchemaValueIndexError,
 } from "./types/errors";
 import { isArray } from "./utilities/guards";
-
 export type SchemaFormInputArrayListProps = {
 	property: SchemaObject & ArraySubtype;
 	values: unknown[] | undefined;
@@ -25,7 +26,23 @@ export function SchemaFormInputArrayList({
 	const isEmpty = values === undefined || values.length === 0;
 	const canAddMore =
 		property.maxItems === undefined ||
-		(values?.length ?? 0) < (property.maxItems ?? Infinity);
+		(values?.length ?? 0) < (property.maxItems ?? Number.POSITIVE_INFINITY);
+
+	const [localKeyedValues, setLocalKeyedValues] = useState<
+		{
+			key: string;
+			value: unknown;
+		}[]
+	>(
+		values?.map((value) => ({
+			key: uuidv4(),
+			value,
+		})) ?? [],
+	);
+
+	useEffect(() => {
+		onValuesChange(localKeyedValues.map(({ value }) => value));
+	}, [localKeyedValues, onValuesChange]);
 
 	function getPropertyForIndex(index: number) {
 		if (isArray(property.prefixItems) && index < property.prefixItems.length) {
@@ -59,29 +76,29 @@ export function SchemaFormInputArrayList({
 		return !isPrefixItem;
 	}
 
-	function handleValueChange(index: number, value: unknown) {
-		const newValues = [...(values ?? [])];
-		newValues[index] = value;
-		onValuesChange(newValues);
+	function handleValueChange(key: string, value: unknown) {
+		setLocalKeyedValues(
+			localKeyedValues.map((item) =>
+				item.key === key ? { ...item, value } : item,
+			),
+		);
 	}
 
 	function addItem() {
-		const newValues = [...(values ?? []), undefined];
-
-		onValuesChange(newValues);
+		setLocalKeyedValues([
+			...localKeyedValues,
+			{ key: uuidv4(), value: undefined },
+		]);
 	}
 
 	function moveItem(from: number, to: number) {
-		const newValues = [...(values ?? [])];
+		const newValues = [...localKeyedValues];
 		newValues.splice(to, 0, newValues.splice(from, 1)[0]);
-		onValuesChange(newValues);
+		setLocalKeyedValues(newValues);
 	}
 
-	function deleteItem(index: number) {
-		const newValues = [...(values ?? [])];
-		newValues.splice(index, 1);
-
-		onValuesChange(newValues);
+	function deleteItem(key: string) {
+		setLocalKeyedValues(localKeyedValues.filter((item) => item.key !== key));
 	}
 
 	return (
@@ -90,14 +107,14 @@ export function SchemaFormInputArrayList({
 				<p className="text-sm text-subdued italic">No items in this list</p>
 			)}
 
-			{values?.map((value, index) => (
+			{localKeyedValues?.map(({ key, value }, index) => (
 				<SchemaFormInputArrayItem
-					key={index}
+					key={key}
 					items={getPropertyForIndex(index)}
 					value={value}
-					onValueChange={(value) => handleValueChange(index, value)}
+					onValueChange={(value) => handleValueChange(key, value)}
 					errors={getErrorsForIndex(index)}
-					onDelete={() => deleteItem(index)}
+					onDelete={() => deleteItem(key)}
 					first={getFirstForIndex(index)}
 					last={getLastForIndex(index)}
 					canMove={getCanMoveForIndex(index)}

@@ -235,13 +235,13 @@ const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
 	const taskRunsWithFlows: Array<components["schemas"]["TaskRun"]> = [];
 	const taskRunsOnly: Array<components["schemas"]["TaskRun"]> = [];
 
-	taskRuns.data.forEach((taskRun) => {
+	for (const taskRun of taskRuns.data) {
 		if (taskRun.flow_run_id) {
 			taskRunsWithFlows.push(taskRun);
 		} else {
 			taskRunsOnly.push(taskRun);
 		}
-	});
+	}
 
 	const activeTaskRunsWithoutFlows = taskRunsOnly.map((taskRun) => ({
 		taskRun,

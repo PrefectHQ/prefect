@@ -9,7 +9,7 @@ import {
 import { waitFor } from "@testing-library/dom";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Popover, PopoverProps } from "./popover";
+import { Popover, type PopoverProps } from "./popover";
 
 // Wraps component in test with a Tanstack router provider
 const PopoverRouter = (props: PopoverProps) => {

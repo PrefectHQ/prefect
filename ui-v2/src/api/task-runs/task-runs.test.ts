@@ -4,9 +4,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
-
-import { queryKeyFactory, useSetTaskRunState } from ".";
 import type { TaskRun } from ".";
+import { queryKeyFactory, useSetTaskRunState } from ".";
 
 describe("task runs api", () => {
 	describe("useSetTaskRunState", () => {

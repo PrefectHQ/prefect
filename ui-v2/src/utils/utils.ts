@@ -31,7 +31,7 @@ export const pluralize = (
 	if (count === 1) {
 		return singular;
 	}
-	return plural || singular + "s";
+	return plural || `${singular}s`;
 };
 
 type TupleType<T extends unknown[]> = {

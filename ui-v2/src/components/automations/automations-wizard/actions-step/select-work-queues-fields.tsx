@@ -13,7 +13,7 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-import { WorkQueue, buildFilterWorkQueuesQuery } from "@/api/work-queues";
+import { type WorkQueue, buildFilterWorkQueuesQuery } from "@/api/work-queues";
 import {
 	FormField,
 	FormItem,
@@ -66,20 +66,19 @@ export const SelectWorkQueuesFields = ({
 			return undefined;
 		}
 		const filteredMap = new Map<string, Array<WorkQueue>>();
-		data
-			.filter((workQueue) =>
-				workQueue.name.toLowerCase().includes(deferredSearch.toLowerCase()),
-			)
-			.forEach((wq) => {
-				const { work_pool_name } = wq;
-				if (!work_pool_name) {
-					throw new Error("'work_pool_name expected");
-				}
-				filteredMap.set(work_pool_name, [
-					...(filteredMap.get(work_pool_name) ?? []),
-					wq,
-				]);
-			});
+		const filteredWorkQueues = data.filter((workQueue) =>
+			workQueue.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+		);
+		for (const wq of filteredWorkQueues) {
+			const { work_pool_name } = wq;
+			if (!work_pool_name) {
+				throw new Error("'work_pool_name expected");
+			}
+			filteredMap.set(work_pool_name, [
+				...(filteredMap.get(work_pool_name) ?? []),
+				wq,
+			]);
+		}
 
 		return filteredMap;
 	}, [data, deferredSearch]);

@@ -32,9 +32,12 @@
 		]
 	},
 	"linter": {
-		"enabled": false,
+		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"correctness": {
+				"noUnusedVariables": "error"
+			}
 		}
 	},
 	"javascript": {

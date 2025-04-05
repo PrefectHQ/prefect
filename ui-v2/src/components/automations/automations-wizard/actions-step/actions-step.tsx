@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 
-import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { ActionStep } from "./action-step";
 

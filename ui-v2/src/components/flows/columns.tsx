@@ -1,6 +1,6 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
 	FlowActionMenu,
 	FlowActivity,

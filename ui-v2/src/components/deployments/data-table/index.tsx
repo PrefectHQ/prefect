@@ -1,4 +1,4 @@
-import { type DeploymentWithFlow } from "@/api/deployments";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
 import { DataTable } from "@/components/ui/data-table";

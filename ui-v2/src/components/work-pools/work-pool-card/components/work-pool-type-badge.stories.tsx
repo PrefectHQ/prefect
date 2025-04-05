@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { WorkPoolTypeBadge } from "./work-pool-type-badge";
 
 const meta: Meta<typeof WorkPoolTypeBadge> = {

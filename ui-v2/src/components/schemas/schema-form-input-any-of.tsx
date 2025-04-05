@@ -1,9 +1,9 @@
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useRef, useState } from "react";
 import { Card } from "../ui/card";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { SchemaFormProperty } from "./schema-form-property";
-import { SchemaFormErrors } from "./types/errors";
+import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
@@ -27,9 +27,9 @@ export function SchemaFormInputAnyOf({
 	const values = useRef(new Map<number, unknown>());
 
 	function onSelectedIndexChange(newSelectedIndexValue: string) {
-		const newSelectedIndex = parseInt(newSelectedIndexValue);
+		const newSelectedIndex = Number.parseInt(newSelectedIndexValue);
 
-		if (isNaN(newSelectedIndex)) {
+		if (Number.isNaN(newSelectedIndex)) {
 			throw new Error(`Invalid index: ${newSelectedIndexValue}`);
 		}
 
@@ -50,11 +50,14 @@ export function SchemaFormInputAnyOf({
 				onValueChange={onSelectedIndexChange}
 				className="justify-start"
 			>
-				{property.anyOf.map((option, index) => (
-					<ToggleGroupItem key={index} value={index.toString()}>
-						{getSchemaObjectLabel(option, schema)}
-					</ToggleGroupItem>
-				))}
+				{property.anyOf.map((option, index) => {
+					const label = getSchemaObjectLabel(option, schema);
+					return (
+						<ToggleGroupItem key={label} value={index.toString()}>
+							{label}
+						</ToggleGroupItem>
+					);
+				})}
 			</ToggleGroup>
 
 			<Card className="p-2">

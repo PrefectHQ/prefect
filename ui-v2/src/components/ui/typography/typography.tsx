@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Ref, createElement } from "react";
+import { type Ref, createElement } from "react";
 
 import { typographyVariants } from "./styles";
 

@@ -1,4 +1,4 @@
-import { SchemaObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 import { SchemaFormInputAllOf } from "./schema-form-input-all-of";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
@@ -10,7 +10,7 @@ import { SchemaFormInputObject } from "./schema-form-input-object";
 import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind-json";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
-import { SchemaFormErrors } from "./types/errors";
+import type { SchemaFormErrors } from "./types/errors";
 import { isPrefectKindValue } from "./types/prefect-kind-value";
 import { asArray, asObject, asType } from "./utilities/asType";
 import {

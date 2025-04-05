@@ -5,7 +5,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { SortFilters } from "./sort-filter.constants";
+import type { SortFilters } from "./sort-filter.constants";
 
 type SortFilterProps = {
 	defaultValue?: SortFilters;

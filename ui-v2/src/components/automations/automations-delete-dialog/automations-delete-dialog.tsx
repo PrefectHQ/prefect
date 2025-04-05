@@ -1,4 +1,4 @@
-import { Automation, useDeleteAutomation } from "@/api/automations";
+import { type Automation, useDeleteAutomation } from "@/api/automations";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,

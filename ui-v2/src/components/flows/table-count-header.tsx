@@ -1,4 +1,4 @@
-import { RowSelectionState } from "@tanstack/react-table";
+import type { RowSelectionState } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { Icon } from "../ui/icons";
 import { Typography } from "../ui/typography";

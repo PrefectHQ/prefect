@@ -1,12 +1,12 @@
-import {
+import type {
 	ArraySubtype,
 	ObjectSubtype,
 	ReferenceObject,
 	SchemaObject,
 } from "openapi-typescript";
-import { PrefectKind } from "../types/prefect-kind";
-import { PrefectKindValueJinja } from "../types/prefect-kind-value";
-import { PrefectKindValueJson } from "../types/prefect-kind-value";
+import type { PrefectKind } from "../types/prefect-kind";
+import type { PrefectKindValueJinja } from "../types/prefect-kind-value";
+import type { PrefectKindValueJson } from "../types/prefect-kind-value";
 import { getPrefectKindFromValue } from "../types/prefect-kind-value";
 import { isAnyOfObject, isArray, isRecord } from "./guards";
 import { mergeSchemaPropertyDefinition } from "./mergeSchemaPropertyDefinition";
@@ -306,17 +306,17 @@ function coerceValueToObjectProperty({
 
 	const response = { ...value };
 
-	Object.entries(property.properties).forEach(([key, property]) => {
+	for (const [key, propertyValue] of Object.entries(property.properties)) {
 		const coercedValue = coerceValueToProperty({
 			value: value[key],
-			property,
+			property: propertyValue,
 			schema,
 		});
 
 		if (coercedValue === undefined) {
 			delete response[key];
 		}
-	});
+	}
 
 	return response;
 }

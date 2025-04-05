@@ -1,4 +1,4 @@
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,

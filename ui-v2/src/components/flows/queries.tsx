@@ -1,7 +1,7 @@
-import { FlowRunsFilter } from "@/api/flow-runs";
-import { components } from "@/api/prefect";
+import type { FlowRunsFilter } from "@/api/flow-runs";
+import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import {
+import type {
 	MutationFunction,
 	QueryFunction,
 	QueryKey,

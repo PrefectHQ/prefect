@@ -1,4 +1,4 @@
-import { Deployment } from "@/api/deployments";
+import type { Deployment } from "@/api/deployments";
 import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "@/components/ui/status-badge";

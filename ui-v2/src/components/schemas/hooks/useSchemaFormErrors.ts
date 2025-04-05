@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SchemaFormErrors } from "../types/errors";
+import type { SchemaFormErrors } from "../types/errors";
 
 export function useSchemaFormErrors(
 	initialErrors: SchemaFormErrors = [],

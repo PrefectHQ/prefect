@@ -7,10 +7,10 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { ReactNode, useMemo, useState } from "react";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
+import { type ReactNode, useMemo, useState } from "react";
 import {
-	PrefectKind,
+	type PrefectKind,
 	getPrefectKindLabel,
 	prefectKinds,
 } from "./types/prefect-kind";

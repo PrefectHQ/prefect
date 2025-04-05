@@ -1,8 +1,8 @@
 import merge from "lodash.merge";
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useMemo } from "react";
 import { SchemaFormInput } from "./schema-form-input";
-import { SchemaFormErrors } from "./types/errors";
+import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { isReferenceObject } from "./utilities/guards";
 import { getSchemaDefinition } from "./utilities/mergeSchemaPropertyDefinition";

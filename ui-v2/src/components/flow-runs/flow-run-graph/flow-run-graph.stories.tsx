@@ -1,8 +1,8 @@
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
-import { ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import DemoData from "./demo-data.json";
 import DemoEvents from "./demo-events.json";
 import { FlowRunGraph } from "./flow-run-graph";
