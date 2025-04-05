@@ -22,7 +22,6 @@ from typing import (
     Union,
     overload,
 )
-from zoneinfo import ZoneInfo
 
 import pydantic
 import sqlalchemy as sa
@@ -159,25 +158,31 @@ class Timestamp(TypeDecorator[datetime.datetime]):
     ) -> Optional[datetime.datetime]:
         if value is None:
             return None
+
+        # If the value is naive, assume UTC.
+        if value.tzinfo is None:
+            try:
+                value = value.replace(tzinfo=datetime.timezone.utc)
+            except ValueError:
+                raise
+
+        if dialect.name == "sqlite":
+            return value.astimezone(datetime.timezone.utc)
         else:
-            if value.tzinfo is None:
-                raise ValueError("Timestamps must have a timezone.")
-            elif dialect.name == "sqlite":
-                return value.astimezone(ZoneInfo("UTC"))
-            else:
-                return value
+            return value
 
     def process_result_value(
         self,
         value: Optional[datetime.datetime],
         dialect: sa.Dialect,
     ) -> Optional[datetime.datetime]:
-        # retrieve timestamps in their native timezone (or UTC)
-        if value is not None:
-            if value.tzinfo is None:
-                return value.replace(tzinfo=ZoneInfo("UTC"))
-            else:
-                return value.astimezone(ZoneInfo("UTC"))
+        if value is None:
+            return None
+
+        if value.tzinfo is None:  # This happens with SQLite
+            return value.replace(tzinfo=datetime.timezone.utc)
+        else:
+            return value.astimezone(datetime.timezone.utc)
 
 
 class UUID(TypeDecorator[uuid.UUID]):
