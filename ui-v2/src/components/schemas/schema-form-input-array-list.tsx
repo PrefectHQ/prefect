@@ -1,5 +1,5 @@
 import type { ArraySubtype, SchemaObject } from "openapi-typescript";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -39,10 +39,6 @@ export function SchemaFormInputArrayList({
 			value,
 		})) ?? [],
 	);
-
-	useEffect(() => {
-		onValuesChange(localKeyedValues.map(({ value }) => value));
-	}, [localKeyedValues, onValuesChange]);
 
 	function getPropertyForIndex(index: number) {
 		if (isArray(property.prefixItems) && index < property.prefixItems.length) {
@@ -85,20 +81,25 @@ export function SchemaFormInputArrayList({
 	}
 
 	function addItem() {
-		setLocalKeyedValues([
+		const newKeyedValues = [
 			...localKeyedValues,
 			{ key: uuidv4(), value: undefined },
-		]);
+		];
+		setLocalKeyedValues(newKeyedValues);
+		onValuesChange(newKeyedValues.map(({ value }) => value));
 	}
 
 	function moveItem(from: number, to: number) {
 		const newValues = [...localKeyedValues];
 		newValues.splice(to, 0, newValues.splice(from, 1)[0]);
 		setLocalKeyedValues(newValues);
+		onValuesChange(newValues.map(({ value }) => value));
 	}
 
 	function deleteItem(key: string) {
-		setLocalKeyedValues(localKeyedValues.filter((item) => item.key !== key));
+		const newValues = localKeyedValues.filter((item) => item.key !== key);
+		setLocalKeyedValues(newValues);
+		onValuesChange(newValues.map(({ value }) => value));
 	}
 
 	return (
