@@ -13,7 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
@@ -1484,7 +1484,7 @@ async def test_missing_flow_run_returns_404(
     assert response.status_code == 404, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY, flow_run_id=flow_run_id, since=datetime.datetime.min
+        session=mock.ANY, flow_run_id=flow_run_id, since=earliest_possible_datetime()
     )
 
 
@@ -1499,9 +1499,20 @@ async def test_api_full(
     assert response.status_code == 200, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY, flow_run_id=flow_run_id, since=datetime.datetime.min
+        session=mock.ANY, flow_run_id=flow_run_id, since=earliest_possible_datetime()
     )
     assert response.json() == graph.model_dump(mode="json")
+
+
+async def test_simple_call(client: AsyncClient, flow_run: orm_models.FlowRun):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/17729. Doesn't
+    use a mock to ensure we go all the way to the database to verify the default
+    since value works.
+    """
+    response = await client.get(f"/flow_runs/{flow_run.id}/graph-v2")
+    assert response.status_code == 200, response.text
+    assert response.json() is not None
 
 
 async def test_api_incremental(
