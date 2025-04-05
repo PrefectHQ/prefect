@@ -45,7 +45,7 @@ export const columns: ColumnDef<Deployment>[] = [
 		header: "Schedules",
 		cell: ({ row }) => (
 			<div className="flex flex-col gap-1">
-				{row.original.schedules?.map((schedule, index) => {
+				{row.original.schedules?.map((schedule) => {
 					if (
 						schedule.schedule &&
 						typeof schedule.schedule === "object" &&
