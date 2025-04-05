@@ -1,4 +1,4 @@
-import { PrefectSchemaObject } from "@/components/schemas/types/schemas";
+import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
 import type { Meta, StoryObj } from "@storybook/react";
 import { TestSchemaForm } from "./utilities";
 

@@ -1,4 +1,4 @@
-import { StateType } from "@prefecthq/graphs";
+import type { StateType } from "@prefecthq/graphs";
 
 export const stateTypeColors: Record<StateType, string> = {
 	COMPLETED: "#219D4B",

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { SchemaFormErrors, isSchemaValueError } from "./types/errors";
+import { type SchemaFormErrors, isSchemaValueError } from "./types/errors";
 
 export type SchemaFormPropertyErrorsProps = {
 	errors: SchemaFormErrors;
@@ -22,8 +22,8 @@ export function SchemaFormPropertyErrors({
 
 	return (
 		<ul className="list-disc text-red-500 text-sm pl-4">
-			{propertyErrors.map((error, index) => (
-				<li key={index}>{error}</li>
+			{propertyErrors.map((error) => (
+				<li key={error}>{error}</li>
 			))}
 		</ul>
 	);

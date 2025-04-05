@@ -1,4 +1,4 @@
-import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	createFakeArtifact,
 	createFakeFlowRun,
@@ -14,7 +14,7 @@ import {
 import { render } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
-import { TimelineRow, TimelineRowProps } from "./timelineRow";
+import { TimelineRow, type TimelineRowProps } from "./timelineRow";
 
 // Wraps component in test with a Tanstack router provider
 const TimelineCardRouter = (props: TimelineRowProps) => {

@@ -1,6 +1,6 @@
 import { isDate } from "date-fns";
-import { ReferenceObject } from "openapi-typescript";
-import { SchemaObject } from "openapi-typescript";
+import type { ReferenceObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 
 export function isString(value: unknown): value is string {
 	return typeof value === "string";

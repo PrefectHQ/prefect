@@ -1,4 +1,4 @@
-import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Card } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
 import { Link } from "@tanstack/react-router";

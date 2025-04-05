@@ -1,6 +1,6 @@
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { SearchInput } from "@/components/ui/input";
-import { RowSelectionState } from "@tanstack/react-table";
+import type { RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";

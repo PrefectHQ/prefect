@@ -130,10 +130,9 @@ export const Story: StoryObj = {
 function ActionDetailsStory() {
 	return (
 		<ul className="flex flex-col gap-4">
-			{ACTIONS.map((action, i) => (
-				<li key={i}>
+			{ACTIONS.map((action) => (
+				<li key={action.type}>
 					<ActionDetails
-						key={i}
 						action={action}
 						automationsMap={MOCK_AUTOMATIONS_MAP}
 						blockDocumentsMap={MOCK_BLOCK_DOCUMENTS_MAP}

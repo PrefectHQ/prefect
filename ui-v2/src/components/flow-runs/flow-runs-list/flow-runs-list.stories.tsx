@@ -14,7 +14,10 @@ import { useMemo, useState } from "react";
 import { FlowRunsFilters } from "./flow-runs-filters";
 import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
 import { FlowRunsList } from "./flow-runs-list";
-import { FlowRunsPagination, PaginationState } from "./flow-runs-pagination";
+import {
+	FlowRunsPagination,
+	type PaginationState,
+} from "./flow-runs-pagination";
 import { FlowRunsRowCount } from "./flow-runs-row-count";
 
 const MOCK_DATA = [

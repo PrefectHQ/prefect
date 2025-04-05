@@ -79,6 +79,7 @@ type LoadingSkeletonProps = {
 const LoadingSkeleton = ({ numSkeletons = 1 }: LoadingSkeletonProps) => (
 	<ul className="flex flex-col gap-1">
 		{Array.from({ length: numSkeletons }).map((_, i) => (
+			// biome-ignore lint/suspicious/noArrayIndexKey: okay for static skeleton list
 			<li key={i}>
 				<Skeleton className="h-4 w-full" />
 			</li>

@@ -75,6 +75,7 @@ type SkeletonLoadingProps = { length?: number };
 const SkeletonLoading = ({ length = 0 }: SkeletonLoadingProps) => (
 	<div className="flex flex-col gap-4">
 		{Array.from({ length }, (_, index) => (
+			// biome-ignore lint/suspicious/noArrayIndexKey: okay for static skeleton list
 			<Card key={index} className="p-4 space-y-4">
 				<Skeleton className="h-4 w-[350px]" />
 				<Skeleton className="h-4 w-[400px]" />

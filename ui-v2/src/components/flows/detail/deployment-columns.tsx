@@ -1,4 +1,4 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,7 +7,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
 
@@ -29,9 +29,9 @@ export const columns: ColumnDef<Deployment>[] = [
 		header: "Tags",
 		cell: ({ row }) => (
 			<div className="flex flex-wrap gap-1">
-				{row.original.tags?.map((tag, index) => (
+				{row.original.tags?.map((tag) => (
 					<span
-						key={index}
+						key={tag}
 						className="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded"
 					>
 						{tag}
@@ -53,37 +53,38 @@ export const columns: ColumnDef<Deployment>[] = [
 					) {
 						const cronExpression = schedule.schedule.cron;
 						return (
-							<span key={index} className="text-xs">
+							<span key={schedule.id} className="text-xs">
 								Cron: {cronExpression}
 							</span>
 						);
-					} else if (
+					}
+					if (
 						schedule.schedule &&
 						typeof schedule.schedule === "object" &&
 						"interval" in schedule.schedule
 					) {
 						return (
-							<span key={index} className="text-xs">
+							<span key={schedule.id} className="text-xs">
 								Interval: {schedule.schedule.interval} seconds
 							</span>
 						);
-					} else if (
+					}
+					if (
 						schedule.schedule &&
 						typeof schedule.schedule === "object" &&
 						"rrule" in schedule.schedule
 					) {
 						return (
-							<span key={index} className="text-xs">
+							<span key={schedule.id} className="text-xs">
 								RRule: {schedule.schedule.rrule}
 							</span>
 						);
-					} else {
-						return (
-							<span key={index} className="text-xs">
-								{JSON.stringify(schedule.schedule)}
-							</span>
-						);
 					}
+					return (
+						<span key={schedule.id} className="text-xs">
+							{JSON.stringify(schedule.schedule)}
+						</span>
+					);
 				})}
 			</div>
 		),
