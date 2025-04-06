@@ -36,7 +36,9 @@
 		"rules": {
 			"recommended": true,
 			"correctness": {
-				"noUnusedVariables": "error"
+				"noUnusedVariables": "error",
+				"noUnusedImports": "error",
+				"noUnusedFunctionParameters": "error"
 			}
 		}
 	},

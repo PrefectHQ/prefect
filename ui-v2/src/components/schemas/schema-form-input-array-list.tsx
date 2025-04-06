@@ -1,5 +1,5 @@
 import type { ArraySubtype, SchemaObject } from "openapi-typescript";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
