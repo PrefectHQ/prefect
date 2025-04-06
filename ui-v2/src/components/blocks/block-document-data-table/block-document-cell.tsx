@@ -1,4 +1,4 @@
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { Typography } from "@/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 

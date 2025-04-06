@@ -239,7 +239,6 @@ export const FlowRunActivityBarChart = ({
 				onMouseLeave={() => {
 					setIsTooltipActive(undefined);
 				}}
-				role="graphics-document"
 			>
 				<ChartTooltip
 					content={<FlowRunTooltip containerRef={containerRef} />}

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 
 import {

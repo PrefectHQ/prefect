@@ -1,4 +1,4 @@
-import { Automation, useDeleteAutomation } from "@/api/automations";
+import { type Automation, useDeleteAutomation } from "@/api/automations";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { getRouteApi } from "@tanstack/react-router";
 import { toast } from "sonner";

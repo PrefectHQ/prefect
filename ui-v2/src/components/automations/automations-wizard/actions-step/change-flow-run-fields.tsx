@@ -1,5 +1,5 @@
-import { components } from "@/api/prefect";
-import { type AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import type { components } from "@/api/prefect";
+import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
 	FormControl,
 	FormField,

@@ -28,7 +28,7 @@ import { useSet } from "./use-set";
  * )
  * ```
  */
-export const useStepper = (numSteps: number, startingStep: number = 0) => {
+export const useStepper = (numSteps: number, startingStep = 0) => {
 	const [currentStep, setCurrentStep] = useState(startingStep);
 	const [visitedStepsSet, { add: addVisitedStep, reset: resetVisitedSteps }] =
 		useSet(new Set<number>([0]));

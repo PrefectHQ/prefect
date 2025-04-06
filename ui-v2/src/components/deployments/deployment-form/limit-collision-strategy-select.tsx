@@ -1,4 +1,4 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import {
 	Select,
 	SelectContent,

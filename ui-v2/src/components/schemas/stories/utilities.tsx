@@ -2,8 +2,8 @@ import { JsonInput } from "@/components/ui/json-input";
 import { Typography } from "@/components/ui/typography";
 import { useState } from "react";
 import { SchemaForm } from "../schema-form";
-import { SchemaFormProps } from "../schema-form";
-import { PrefectSchemaObject } from "../types/schemas";
+import type { SchemaFormProps } from "../schema-form";
+import type { PrefectSchemaObject } from "../types/schemas";
 
 export function TestSchemaForm({
 	schema,

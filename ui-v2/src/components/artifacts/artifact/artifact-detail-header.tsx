@@ -1,4 +1,4 @@
-import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	Breadcrumb,
 	BreadcrumbItem,

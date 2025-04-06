@@ -1,4 +1,4 @@
-import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { CopyBlock, nord } from "react-code-blocks";

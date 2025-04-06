@@ -1,4 +1,4 @@
-import { Deployment } from "@/api/deployments";
+import type { Deployment } from "@/api/deployments";
 
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";

@@ -1,10 +1,13 @@
 import useDebounceCallback from "@/hooks/use-debounce-callback";
-import { ObjectSubtype, SchemaObject } from "openapi-typescript";
+import type { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useCallback, useMemo, useRef } from "react";
 import { Card } from "../ui/card";
 import { SchemaFormProperty } from "./schema-form-property";
-import { SchemaFormErrors, isSchemaValuePropertyError } from "./types/errors";
-import { PrefectObjectSubtype } from "./types/schemas";
+import {
+	type SchemaFormErrors,
+	isSchemaValuePropertyError,
+} from "./types/errors";
+import type { PrefectObjectSubtype } from "./types/schemas";
 import { sortByPropertyPosition } from "./utilities/sortByPropertyPosition";
 
 export type SchemaFormInputObjectProps = {
@@ -28,13 +31,13 @@ export function SchemaFormInputObject({
 		useCallback(() => {
 			const newValues = { ...values };
 
-			patches.current.forEach(({ key, value }) => {
+			for (const { key, value } of patches.current) {
 				newValues[key] = value;
 
 				if (value === undefined) {
 					delete newValues[key];
 				}
-			});
+			}
 
 			patches.current = [];
 

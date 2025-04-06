@@ -1,4 +1,4 @@
-import { NumberSubtype, SchemaObject } from "openapi-typescript";
+import type { NumberSubtype, SchemaObject } from "openapi-typescript";
 import { Input } from "../ui/input";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";

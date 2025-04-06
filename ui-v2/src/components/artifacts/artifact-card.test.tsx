@@ -1,4 +1,4 @@
-import { Artifact } from "@/api/artifacts";
+import type { Artifact } from "@/api/artifacts";
 import { createFakeArtifact } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
@@ -10,7 +10,7 @@ import {
 import { render } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
-import { ArtifactCard, ArtifactsCardProps } from "./artifact-card";
+import { ArtifactCard, type ArtifactsCardProps } from "./artifact-card";
 
 // Wraps component in test with a Tanstack router provider
 const ArtifactsCardRouter = (props: ArtifactsCardProps) => {

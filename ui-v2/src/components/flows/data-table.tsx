@@ -10,13 +10,13 @@ import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "@tanstack/react-router";
 import {
-	RowSelectionState,
+	type RowSelectionState,
 	getCoreRowModel,
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 
-import { Flow, useDeleteFlowById } from "@/api/flows";
+import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { useSet } from "@/hooks/use-set";
 import { useState } from "react";
 import { columns } from "./columns";
@@ -178,9 +178,9 @@ export default function FlowsTable({
 
 		const idsToDelete = selectedRows.map((rowId) => flows[Number(rowId)].id);
 
-		idsToDelete.forEach((id) => {
+		for (const id of idsToDelete) {
 			deleteFlow(id);
-		});
+		}
 
 		table.toggleAllRowsSelected(false);
 	};

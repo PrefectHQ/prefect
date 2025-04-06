@@ -52,12 +52,10 @@ describe("ScheduleActionMenu", () => {
 		const user = userEvent.setup();
 		const mockOnEditScheduleFn = vi.fn();
 		render(
-			<>
-				<ScheduleActionMenu
-					deploymentSchedule={MOCK_DEPLOYMENT_SCHEDULE}
-					onEditSchedule={mockOnEditScheduleFn}
-				/>
-			</>,
+			<ScheduleActionMenu
+				deploymentSchedule={MOCK_DEPLOYMENT_SCHEDULE}
+				onEditSchedule={mockOnEditScheduleFn}
+			/>,
 			{ wrapper: createWrapper() },
 		);
 		// ------------ Act

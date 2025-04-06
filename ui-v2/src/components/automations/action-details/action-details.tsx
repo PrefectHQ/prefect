@@ -13,7 +13,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Icon, IconId } from "@/components/ui/icons";
+import { Icon, type IconId } from "@/components/ui/icons";
 import { JsonInput } from "@/components/ui/json-input";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
@@ -91,7 +91,7 @@ const ActionDetailsType = ({
 			return <NoninferredAction label={label} />;
 		// Inferable actions
 		case "run-deployment":
-			if (action.deployment_id && action.source == "selected") {
+			if (action.deployment_id && action.source === "selected") {
 				const deployment = deploymentsMap.get(action.deployment_id);
 				if (!deployment) {
 					return <Typography>Deployment not found</Typography>;
@@ -108,7 +108,7 @@ const ActionDetailsType = ({
 			return <InferredAction label={label} />;
 		case "pause-deployment":
 		case "resume-deployment":
-			if (action.deployment_id && action.source == "selected") {
+			if (action.deployment_id && action.source === "selected") {
 				const deployment = deploymentsMap.get(action.deployment_id);
 				if (!deployment) {
 					return <Typography>Deployment not found</Typography>;
@@ -120,7 +120,7 @@ const ActionDetailsType = ({
 			return <InferredAction label={label} />;
 		case "pause-work-queue":
 		case "resume-work-queue":
-			if (action.work_queue_id && action.source == "selected") {
+			if (action.work_queue_id && action.source === "selected") {
 				const workQueue = workQueuesMap.get(action.work_queue_id);
 				if (!workQueue) {
 					return <Typography>Work queue not found</Typography>;
@@ -130,7 +130,7 @@ const ActionDetailsType = ({
 			return <InferredAction label={label} />;
 		case "pause-automation":
 		case "resume-automation":
-			if (action.automation_id && action.source == "selected") {
+			if (action.automation_id && action.source === "selected") {
 				const automation = automationsMap.get(action.automation_id);
 				if (!automation) {
 					return <Typography>Automation not found</Typography>;
@@ -142,7 +142,7 @@ const ActionDetailsType = ({
 			return <InferredAction label={label} />;
 		case "pause-work-pool":
 		case "resume-work-pool":
-			if (action.work_pool_id && action.source == "selected") {
+			if (action.work_pool_id && action.source === "selected") {
 				const workPool = workPoolsMap.get(action.work_pool_id);
 				if (!workPool) {
 					return <Typography>Workpool not found</Typography>;
@@ -234,7 +234,7 @@ export const DeploymentActionDetails = ({
 	return (
 		<>
 			<ActionResource>
-				<label>{label}:</label>
+				<label htmlFor={`${label}-${deployment.id}`}>{label}:</label>
 				<Link
 					to="/deployments/deployment/$id"
 					params={{ id: deployment.id }}
@@ -292,7 +292,7 @@ export const AutomationActionDetails = ({
 }: AutomationActionDetailsProps) => {
 	return (
 		<ActionResource>
-			<label>{label}:</label>
+			<label htmlFor={`${label}-${automation.id}`}>{label}:</label>
 			<Link
 				to="/automations/automation/$id"
 				params={{ id: automation.id }}
@@ -322,7 +322,7 @@ export const BlockDocumentActionDetails = ({
 
 	return (
 		<ActionResource>
-			<label>{_label}</label>
+			<label htmlFor={`${label}-${blockDocument.id}`}>{_label}</label>
 			<Link
 				to="/blocks/block/$id"
 				params={{ id: blockDocument.id }}
@@ -344,7 +344,7 @@ export const WorkPoolActionDetails = ({
 }: WorkPoolActionDetailsProps) => {
 	return (
 		<ActionResource>
-			<label>{label}:</label>
+			<label htmlFor={`${label}-${workPool.id}`}>{label}:</label>
 			<Link
 				to="/work-pools/work-pool/$workPoolName"
 				params={{ workPoolName: workPool.name }}
@@ -366,7 +366,7 @@ export const WorkQueueActionDetails = ({
 }: WorkQueueActionDetailsProps) => {
 	return (
 		<ActionResource>
-			<label>{label}:</label>
+			<label htmlFor={`${label}-${workQueue.id}`}>{label}:</label>
 			<Link
 				to="/work-pools/work-pool/$workPoolName/queue/$workQueueName"
 				params={{

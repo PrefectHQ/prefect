@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
-import { PrefectKind } from "./types/prefect-kind";
-import { PrefectSchemaObject } from "./types/schemas";
+import type { PrefectKind } from "./types/prefect-kind";
+import type { PrefectSchemaObject } from "./types/schemas";
 
 export type SchemaFormContext = {
 	schema: PrefectSchemaObject;

@@ -1,4 +1,4 @@
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SchemaFormInput } from "./schema-form-input";
@@ -7,9 +7,9 @@ import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
 import { SchemaFormPropertyLabel } from "./schema-form-property-label";
 import { SchemaFormPropertyMenu } from "./schema-form-property-menu";
 import {
-	SchemaFormErrors,
-	SchemaValueIndexError,
-	SchemaValuePropertyError,
+	type SchemaFormErrors,
+	type SchemaValueIndexError,
+	type SchemaValuePropertyError,
 	isSchemaValueIndexError,
 	isSchemaValuePropertyError,
 } from "./types/errors";
@@ -63,7 +63,7 @@ export function SchemaFormProperty({
 			setInternalValue(value);
 			onValueChange(value);
 		},
-		[setInternalValue, onValueChange],
+		[onValueChange],
 	);
 
 	const handleOmittedChange = useCallback(() => {

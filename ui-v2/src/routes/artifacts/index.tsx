@@ -1,10 +1,10 @@
 import {
-	ArtifactsFilter,
+	type ArtifactsFilter,
 	buildCountArtifactsQuery,
 	buildListArtifactsQuery,
 } from "@/api/artifacts";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
-import { filterType } from "@/components/artifacts/types";
+import type { filterType } from "@/components/artifacts/types";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -94,9 +94,14 @@ const useFilter = () => {
 					search: () =>
 						newFilters
 							.filter((filter) => filter.value)
-							.reduce((prev, curr) => {
-								return { ...prev, [curr.id]: curr.value };
-							}, {}),
+							.reduce(
+								(prev, curr) => {
+									if (!curr.value) return prev;
+									prev[curr.id] = curr.value;
+									return prev;
+								},
+								{} as Record<string, string>,
+							),
 					replace: true,
 				});
 			},

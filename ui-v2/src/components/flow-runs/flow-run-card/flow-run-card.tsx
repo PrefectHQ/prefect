@@ -1,7 +1,7 @@
-import { Deployment } from "@/api/deployments";
-import { FlowRun } from "@/api/flow-runs";
-import { Flow } from "@/api/flows";
-import { components } from "@/api/prefect";
+import type { Deployment } from "@/api/deployments";
+import type { FlowRun } from "@/api/flow-runs";
+import type { Flow } from "@/api/flows";
+import type { components } from "@/api/prefect";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";

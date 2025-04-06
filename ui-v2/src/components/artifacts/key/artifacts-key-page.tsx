@@ -1,4 +1,4 @@
-import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { ArtifactsKeyHeader } from "./artifacts-key-header";
 import { TimelineContainer } from "./timeline/timelineContainer";
 

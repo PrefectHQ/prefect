@@ -1,5 +1,5 @@
 import merge from "lodash.merge";
-import {
+import type {
 	ObjectSubtype,
 	ReferenceObject,
 	SchemaObject,

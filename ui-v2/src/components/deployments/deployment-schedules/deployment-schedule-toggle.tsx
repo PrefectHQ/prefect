@@ -1,4 +1,4 @@
-import { Deployment, useUpdateDeployment } from "@/api/deployments";
+import { type Deployment, useUpdateDeployment } from "@/api/deployments";
 import { Switch } from "@/components/ui/switch";
 import {
 	Tooltip,

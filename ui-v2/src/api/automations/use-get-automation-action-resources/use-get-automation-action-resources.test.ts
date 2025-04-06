@@ -15,7 +15,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { Automation } from "../automations";
+import type { Automation } from "../automations";
 import {
 	getResourceSets,
 	useGetAutomationActionResources,

@@ -11,7 +11,7 @@ import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import {
 	ArtifactDetailPage,
-	ArtifactDetailPageProps,
+	type ArtifactDetailPageProps,
 } from "./artifact-detail-page";
 
 // Wraps component in test with a Tanstack router provider

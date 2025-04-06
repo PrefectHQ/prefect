@@ -1,11 +1,11 @@
 import { fireEvent } from "@testing-library/react";
 import { render, screen } from "@testing-library/react";
-import { SchemaObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 import { act, useState } from "react";
 import { afterEach, beforeEach, describe, test, vi } from "vitest";
 import { expect } from "vitest";
 import { SchemaForm } from "./schema-form";
-import { SchemaFormProps } from "./schema-form";
+import type { SchemaFormProps } from "./schema-form";
 
 function TestSchemaForm({
 	schema = { type: "object", properties: {} },
