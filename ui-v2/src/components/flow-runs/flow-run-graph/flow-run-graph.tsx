@@ -1,9 +1,9 @@
 import {
-	GraphItemSelection,
-	RunGraphConfig,
-	RunGraphNode,
-	RunGraphStateEvent,
-	ViewportDateRange,
+	type GraphItemSelection,
+	type RunGraphConfig,
+	type RunGraphNode,
+	type RunGraphStateEvent,
+	type ViewportDateRange,
 	emitter,
 	selectItem,
 	setConfig,
@@ -12,7 +12,7 @@ import {
 	updateViewportFromDateRange,
 } from "@prefecthq/graphs";
 import {
-	CSSProperties,
+	type CSSProperties,
 	useCallback,
 	useEffect,
 	useMemo,

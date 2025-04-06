@@ -1,4 +1,4 @@
-import { Deployment, useDeleteDeployment } from "@/api/deployments";
+import { type Deployment, useDeleteDeployment } from "@/api/deployments";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { getRouteApi } from "@tanstack/react-router";
 import { toast } from "sonner";

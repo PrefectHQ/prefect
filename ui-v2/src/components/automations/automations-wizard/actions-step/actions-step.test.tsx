@@ -2,7 +2,7 @@ import type { Automation } from "@/api/automations";
 import type { Deployment } from "@/api/deployments";
 import type { Flow } from "@/api/flows";
 import type { WorkPool } from "@/api/work-pools";
-import { WorkQueue } from "@/api/work-queues";
+import type { WorkQueue } from "@/api/work-queues";
 import {
 	AutomationWizardSchema,
 	type AutomationWizardSchema as TAutomationWizardSchema,

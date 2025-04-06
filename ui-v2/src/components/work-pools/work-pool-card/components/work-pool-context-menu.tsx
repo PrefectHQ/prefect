@@ -1,4 +1,4 @@
-import { WorkPool } from "@/api/work-pools";
+import type { WorkPool } from "@/api/work-pools";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenuContent,
@@ -40,7 +40,7 @@ export const WorkPoolContextMenu = ({
 					Copy ID
 				</DropdownMenuItem>
 				<Link
-					to={`/work-pools/work-pool/$workPoolName/edit`}
+					to="/work-pools/work-pool/$workPoolName/edit"
 					params={{ workPoolName: workPool.name }}
 				>
 					<DropdownMenuItem>Edit</DropdownMenuItem>
