@@ -3,7 +3,7 @@ import {
 	type FlowRunsPaginateFilter,
 	buildPaginateFlowRunsQuery,
 } from "@/api/flow-runs";
-import { Flow, buildListFlowsQuery } from "@/api/flows";
+import { type Flow, buildListFlowsQuery } from "@/api/flows";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 

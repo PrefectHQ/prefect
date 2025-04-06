@@ -1,4 +1,4 @@
-import { Deployment } from "@/api/deployments";
+import type { Deployment } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
 import { Typography } from "@/components/ui/typography";

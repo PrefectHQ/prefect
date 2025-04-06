@@ -1,4 +1,4 @@
-import { Artifact } from "@/api/artifacts";
+import type { Artifact } from "@/api/artifacts";
 import { formatDate } from "@/utils/date";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -16,7 +16,7 @@ export const ArtifactCard = ({ artifact }: ArtifactsCardProps) => {
 		return formatDate(date, "dateTime");
 	}, [artifact.updated]);
 	return (
-		<Link to={`/artifacts/key/$key`} params={{ key: artifact.key ?? "" }}>
+		<Link to="/artifacts/key/$key" params={{ key: artifact.key ?? "" }}>
 			<Card className="p-4 m-2 hover:shadow-lg hover:border-blue-700">
 				<Typography
 					variant="bodySmall"

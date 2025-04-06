@@ -1,4 +1,4 @@
-import { Deployment } from "@/api/deployments";
+import type { Deployment } from "@/api/deployments";
 import { SchemaForm } from "@/components/schemas";
 import type { PrefectSchemaObject } from "@/components/schemas";
 import { Button } from "@/components/ui/button";

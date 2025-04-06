@@ -4,7 +4,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
-import { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 type BlocksRowCountProps = {

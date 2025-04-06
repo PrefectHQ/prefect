@@ -1,5 +1,5 @@
-import { JsonInput, JsonInputOnChange } from "../ui/json-input";
-import { PrefectKindValueJson } from "./types/prefect-kind-value";
+import { JsonInput, type JsonInputOnChange } from "../ui/json-input";
+import type { PrefectKindValueJson } from "./types/prefect-kind-value";
 
 type SchemaFormInputPrefectKindJsonProps = {
 	value: PrefectKindValueJson;

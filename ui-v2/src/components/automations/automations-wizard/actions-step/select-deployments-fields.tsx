@@ -14,7 +14,7 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-import { DeploymentWithFlow } from "@/api/deployments";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import {
 	FormField,
 	FormItem,

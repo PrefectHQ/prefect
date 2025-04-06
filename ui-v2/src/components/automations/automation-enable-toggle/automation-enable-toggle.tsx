@@ -1,4 +1,4 @@
-import { Automation, useUpdateAutomation } from "@/api/automations";
+import { type Automation, useUpdateAutomation } from "@/api/automations";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 

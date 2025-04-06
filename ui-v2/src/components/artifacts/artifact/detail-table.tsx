@@ -41,9 +41,9 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 				<Table>
 					<TableHeader className="bg-gray-100">
 						<TableRow>
-							{headers.map((header, index) => {
+							{headers.map((header) => {
 								return (
-									<TableHead key={index} className="py-2 text-black">
+									<TableHead key={header} className="py-2 text-black">
 										{header}
 									</TableHead>
 								);
@@ -51,11 +51,11 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{filteredTable.map((row, index) => {
+						{filteredTable.map((row) => {
 							return (
-								<TableRow key={index}>
-									{headers.map((header, index) => {
-										return <TableCell key={index}>{row[header]}</TableCell>;
+								<TableRow key={row.id}>
+									{headers.map((header) => {
+										return <TableCell key={header}>{row[header]}</TableCell>;
 									})}
 								</TableRow>
 							);

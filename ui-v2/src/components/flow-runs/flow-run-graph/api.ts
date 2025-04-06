@@ -1,6 +1,6 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import {
+import type {
 	EventRelatedResource,
 	RunGraphArtifact,
 	RunGraphData,

@@ -1,6 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { addMonths, format, subMonths } from "date-fns";
-import { DayPicker, DayPickerProps } from "react-day-picker";
+import { DayPicker, type DayPickerProps } from "react-day-picker";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

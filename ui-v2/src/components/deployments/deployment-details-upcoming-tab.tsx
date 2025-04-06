@@ -1,15 +1,15 @@
 import { getRouteApi } from "@tanstack/react-router";
 
-import { Deployment } from "@/api/deployments";
+import type { Deployment } from "@/api/deployments";
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
 import {
-	FlowRunState,
+	type FlowRunState,
 	FlowRunsFilters,
 	FlowRunsList,
 	FlowRunsPagination,
 	FlowRunsRowCount,
 	type PaginationState,
-	SortFilters,
+	type SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
 import { useCallback, useMemo } from "react";

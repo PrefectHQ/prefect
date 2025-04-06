@@ -1,4 +1,4 @@
-import { Flow } from "@/api/flows";
+import type { Flow } from "@/api/flows";
 import FlowsTable from "./data-table";
 import { FlowsHeader } from "./flows-page-header";
 

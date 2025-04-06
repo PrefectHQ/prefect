@@ -1,4 +1,4 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -109,7 +109,7 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 			className="text-muted-foreground hover:underline p-2"
 			fontFamily="mono"
 		>
-			{data != 0 ? data : "None"}
+			{data !== 0 ? data : "None"}
 		</Typography>
 	);
 };
@@ -149,6 +149,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 	);
 };
 
+// TODO: Update this to use the flow run graph from src/components/ui/flow-run-activity-bar-graph
 export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 	const { data } = useQuery(
 		getLatestFlowRunsQueryParams(row.original.id || "", 16, {
@@ -163,6 +164,7 @@ export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 				.fill(1)
 				?.map((_, index) => (
 					<div
+						// biome-ignore lint/suspicious/noArrayIndexKey: ok for temporary placeholder component
 						key={index}
 						className={cn(
 							"flex-1 mr-[1px] rounded-full bg-gray-400",

@@ -13,7 +13,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Slot } from "@radix-ui/react-slot";
-import { VariantProps, cva } from "class-variance-authority";
+import { type VariantProps, cva } from "class-variance-authority";
 import * as React from "react";
 import { SidebarContext, useSidebar } from "./hooks";
 
@@ -73,7 +73,7 @@ const SidebarProvider = React.forwardRef<
 			return isMobile
 				? setOpenMobile((open) => !open)
 				: setOpen((open) => !open);
-		}, [isMobile, setOpen, setOpenMobile]);
+		}, [isMobile, setOpen]);
 
 		// Adds a keyboard shortcut to toggle the sidebar.
 		React.useEffect(() => {
@@ -105,15 +105,7 @@ const SidebarProvider = React.forwardRef<
 				setOpenMobile,
 				toggleSidebar,
 			}),
-			[
-				state,
-				open,
-				setOpen,
-				isMobile,
-				openMobile,
-				setOpenMobile,
-				toggleSidebar,
-			],
+			[state, open, setOpen, isMobile, openMobile, toggleSidebar],
 		);
 
 		return (

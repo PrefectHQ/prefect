@@ -1,4 +1,4 @@
-import {
+import type {
 	FlowRun,
 	FlowRunWithDeploymentAndFlow,
 	FlowRunWithFlow,
@@ -77,9 +77,7 @@ export const createFakeFlowRunWithFlow = (
 	};
 };
 
-export const createFakeFlowRuns = (
-	numberOfFlowRuns: number = 10,
-): FlowRun[] => {
+export const createFakeFlowRuns = (numberOfFlowRuns = 10): FlowRun[] => {
 	return Array.from({ length: numberOfFlowRuns }, () => createFakeFlowRun());
 };
 

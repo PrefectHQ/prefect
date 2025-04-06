@@ -1,4 +1,4 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { isRecord } from "../utilities/guards";
 
 export type SchemaValueError = string;

@@ -1,5 +1,5 @@
-import { components } from "@/api/prefect";
-import { ColumnDef } from "@tanstack/react-table";
+import type { components } from "@/api/prefect";
+import type { ColumnDef } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
 import { DeploymentCell, WorkPoolCell } from "./cells";
 
@@ -58,9 +58,9 @@ export const columns: ColumnDef<FlowRun>[] = [
 		accessorKey: "tags",
 		header: "Tags",
 		cell: ({ row }) =>
-			row.original.tags?.map((tag, index) => (
+			row.original.tags?.map((tag) => (
 				<span
-					key={index}
+					key={tag}
 					className="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded"
 				>
 					{tag}

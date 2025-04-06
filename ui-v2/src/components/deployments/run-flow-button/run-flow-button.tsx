@@ -1,4 +1,4 @@
-import { Deployment } from "@/api/deployments";
+import type { Deployment } from "@/api/deployments";
 import { useQuickRun } from "@/components/deployments/use-quick-run";
 import { Button } from "@/components/ui/button";
 import {

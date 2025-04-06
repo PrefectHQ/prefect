@@ -1,4 +1,4 @@
-import { SchemaObject, StringSubtype } from "openapi-typescript";
+import type { SchemaObject, StringSubtype } from "openapi-typescript";
 import { Textarea } from "../ui/textarea";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { SchemaFormInputStringFormatDate } from "./schema-form-input-string-format-date";

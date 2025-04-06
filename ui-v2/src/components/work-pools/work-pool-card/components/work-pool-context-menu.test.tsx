@@ -13,7 +13,7 @@ import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import {
 	WorkPoolContextMenu,
-	WorkPoolContextMenuProps,
+	type WorkPoolContextMenuProps,
 } from "./work-pool-context-menu";
 
 describe("WorkPoolContextMenu", () => {

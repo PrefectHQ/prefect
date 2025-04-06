@@ -1,4 +1,4 @@
-import { Artifact, ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { Artifact, ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	createFakeArtifact,
 	createFakeFlowRun,
@@ -16,7 +16,7 @@ import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import {
 	ArtifactTimelineCard,
-	ArtifactTimelineCardProps,
+	type ArtifactTimelineCardProps,
 } from "./timelineCard";
 
 // Wraps component in test with a Tanstack router provider

@@ -1,4 +1,4 @@
-import { SchemaObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 import { isDefined, isReferenceObject } from "./guards";
 import { isArray, isEmptyObject, isRecord } from "./guards";
 import { getSchemaDefinition } from "./mergeSchemaPropertyDefinition";
@@ -32,15 +32,17 @@ export function getIndexForAnyOfPropertyValue({
 
 	switch (typeof valueOrDefaultValue) {
 		case "string":
-			return definitions.findIndex((definition) => definition.type == "string");
+			return definitions.findIndex(
+				(definition) => definition.type === "string",
+			);
 		case "number":
 			return definitions.findIndex(
 				(definition) =>
-					definition.type == "number" || definition.type === "integer",
+					definition.type === "number" || definition.type === "integer",
 			);
 		case "boolean":
 			return definitions.findIndex(
-				(definition) => definition.type == "boolean",
+				(definition) => definition.type === "boolean",
 			);
 		case "object":
 			return getObjectDefinitionIndex(valueOrDefaultValue, definitions);

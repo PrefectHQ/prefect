@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { Input, InputProps } from "@/components/ui/input";
+import { Input, type InputProps } from "@/components/ui/input";
 import clsx from "clsx";
 import { createFakeFlowRunName } from "./create-fake-flow-run-name";
 

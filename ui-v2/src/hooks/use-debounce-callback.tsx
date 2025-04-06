@@ -15,7 +15,7 @@ import { useCallback, useRef } from "react";
 const useDebounceCallback = <Args extends unknown[], R>(
 	callback: (...args: Args) => R,
 	delay: number,
-	leading: boolean = false,
+	leading = false,
 ): ((...args: Args) => void) => {
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const callbackRef = useRef<(...args: Args) => R>(callback);

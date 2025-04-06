@@ -106,11 +106,12 @@ function getDefaultActionField({
 		case "pause-automation":
 		case "resume-automation":
 			return `actions.${index}.automation_id` as const;
-		case "send-notification":
-		case "cancel-flow-run":
-		case "suspend-flow-run":
-		case "resume-flow-run":
-		case "change-flow-run-state":
+		// TODO: add these back in once we have field names for them
+		// case "send-notification":
+		// case "cancel-flow-run":
+		// case "suspend-flow-run":
+		// case "resume-flow-run":
+		// case "change-flow-run-state":
 		default:
 			return null;
 	}

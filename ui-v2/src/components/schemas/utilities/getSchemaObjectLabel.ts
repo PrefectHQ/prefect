@@ -1,4 +1,4 @@
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { isReferenceObject } from "./guards";
 import { getSchemaDefinition } from "./mergeSchemaPropertyDefinition";
 

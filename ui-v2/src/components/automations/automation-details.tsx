@@ -1,4 +1,4 @@
-import { type Automation } from "@/api/automations";
+import type { Automation } from "@/api/automations";
 import { useGetAutomationActionResources } from "@/api/automations/use-get-automation-action-resources";
 import { ActionDetails } from "@/components/automations/action-details";
 import { Card } from "@/components/ui/card";
@@ -55,12 +55,13 @@ export const AutomationActions = ({ automation }: AutomationDetailsProps) => {
 			<ul className="flex flex-col gap-2">
 				{loading
 					? Array.from({ length: automation.actions.length }, (_, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: ok for loading skeletons
 							<Card className="p-4" key={i}>
 								<Skeleton className="p-2 h-2 w-full" />
 							</Card>
 						))
-					: automation.actions.map((action, i) => (
-							<li key={i}>
+					: automation.actions.map((action) => (
+							<li key={action.type}>
 								<ActionDetails
 									action={action}
 									automationsMap={automationsMap}

@@ -1,4 +1,4 @@
-import { SchemaObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 import { useMemo, useState } from "react";
 import {
 	Combobox,
@@ -9,8 +9,8 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "../ui/combobox";
-import { PrimitiveProperty } from "./types/primitives";
-import { WithPrimitiveEnum } from "./types/schemas";
+import type { PrimitiveProperty } from "./types/primitives";
+import type { WithPrimitiveEnum } from "./types/schemas";
 
 type SingleValueProps<T extends PrimitiveProperty> = {
 	value: T | undefined;
@@ -112,7 +112,7 @@ export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 							value={index}
 							onSelect={onSelect}
 							selected={isSelected(index)}
-							closeOnSelect={props.multiple ? false : true}
+							closeOnSelect={!props.multiple}
 						>
 							{String(value)}
 						</ComboboxCommandItem>

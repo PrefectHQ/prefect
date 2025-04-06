@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ReactRenderer } from "@storybook/react";
-import { DecoratorFunction } from "@storybook/types";
+import type { ReactRenderer } from "@storybook/react";
+import type { DecoratorFunction } from "@storybook/types";
 import { useEffect, useState } from "react";
 
 export const ModeDecorator: DecoratorFunction<ReactRenderer> = (Story) => {

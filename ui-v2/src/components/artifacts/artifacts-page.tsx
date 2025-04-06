@@ -1,11 +1,11 @@
-import { Artifact } from "@/api/artifacts";
+import type { Artifact } from "@/api/artifacts";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useMemo } from "react";
 import { ArtifactCard } from "./artifact-card";
 import { ArtifactsFilterComponent } from "./artifacts-filter";
 import { ArtifactsHeader } from "./artifacts-header";
 import { ArtifactsEmptyState } from "./empty-state";
-import { filterType } from "./types";
+import type { filterType } from "./types";
 
 export type ArtifactsPageProps = {
 	filters: filterType[];
