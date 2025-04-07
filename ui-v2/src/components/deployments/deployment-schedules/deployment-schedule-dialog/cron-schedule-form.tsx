@@ -78,7 +78,7 @@ export const CronScheduleForm = ({
 	const { updateDeploymentSchedule, isPending: updatePending } =
 		useUpdateDeploymentSchedule();
 
-	const form = useForm<FormSchema>({
+	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: DEFAULT_VALUES,
 	});

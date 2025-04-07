@@ -54,7 +54,7 @@ export const useCreateOrEditGlobalConcurrencyLimitForm = ({
 	const { updateGlobalConcurrencyLimit, status: updateStatus } =
 		useUpdateGlobalConcurrencyLimit();
 
-	const form = useForm<z.infer<typeof formSchema>>({
+	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: DEFAULT_VALUES,
 	});

@@ -1,10 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DetailsStep } from "./details-step";
 
-import {
-	AutomationWizardSchema,
-	type AutomationWizardSchema as TAutomationWizardSchema,
-} from "@/components/automations/automations-wizard/automation-schema";
+import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -12,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
 
 const DetailsStepFormContainer = () => {
-	const form = useForm<TAutomationWizardSchema>({
+	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
 		defaultValues: { actions: [{ type: undefined }] },
 	});
