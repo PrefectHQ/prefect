@@ -45,6 +45,8 @@ jobs:
 
       - name: Setup Biome CLI
         uses: biomejs/setup-biome@v2
+        with:
+          working-dir: ./ui-v2
 
       - name: Run Biome checks
         working-directory: ./ui-v2
