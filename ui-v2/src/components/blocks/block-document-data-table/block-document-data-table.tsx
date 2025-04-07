@@ -76,7 +76,6 @@ const createColumns = ({
 export type BlockDocumentsDataTableProps = {
 	blockDocumentsCount: number;
 	blockDocuments: Array<BlockDocument>;
-	pageCount: number;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
 	rowSelection: RowSelectionState;
