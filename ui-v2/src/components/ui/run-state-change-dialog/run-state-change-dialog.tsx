@@ -24,27 +24,11 @@ import {
 } from "@/components/ui/select";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Textarea } from "@/components/ui/textarea";
+import { RUN_STATES, type RunStates } from "@/utils/states";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-
-const RUN_STATES = {
-	COMPLETED: "Completed",
-	RUNNING: "Running",
-	SCHEDULED: "Scheduled",
-	PENDING: "Pending",
-	FAILED: "Failed",
-	CANCELLED: "Cancelled",
-	CANCELLING: "Cancelling",
-	CRASHED: "Crashed",
-	PAUSED: "Paused",
-} as const satisfies Record<
-	components["schemas"]["StateType"],
-	Capitalize<Lowercase<components["schemas"]["StateType"]>>
->;
-
-type RunStates = keyof typeof RUN_STATES;
 
 const formSchema = z.object({
 	state: z.enum(Object.keys(RUN_STATES) as [RunStates, ...RunStates[]]),
