@@ -1,6 +1,6 @@
 import type { BlockDocument } from "@/api/block-documents";
 import { SearchInput } from "@/components/ui/input";
-import type { RowSelectionState } from "@tanstack/react-table";
+import type { PaginationState, RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
@@ -16,6 +16,8 @@ type BlocksPageProps = {
 	blockTypeSlugsFilter: Array<string>;
 	onToggleBlockTypeSlug: (blockTypeIds: string) => void;
 	onRemoveBlockTypeSlug: (blockTypeIds: string) => void;
+	pagination: PaginationState;
+	onPaginationChange: (paginationState: PaginationState) => void;
 };
 
 export const BlocksPage = ({
@@ -26,6 +28,8 @@ export const BlocksPage = ({
 	blockTypeSlugsFilter,
 	onToggleBlockTypeSlug,
 	onRemoveBlockTypeSlug,
+	pagination,
+	onPaginationChange,
 }: BlocksPageProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -63,14 +67,8 @@ export const BlocksPage = ({
 						rowSelection={rowSelection}
 						setRowSelection={setRowSelection}
 						blockDocumentsCount={allCount}
-						pageCount={0}
-						pagination={{
-							pageIndex: 0,
-							pageSize: 10,
-						}}
-						onPaginationChange={() => {
-							/** TODO */
-						}}
+						pagination={pagination}
+						onPaginationChange={onPaginationChange}
 					/>
 				</div>
 			)}
