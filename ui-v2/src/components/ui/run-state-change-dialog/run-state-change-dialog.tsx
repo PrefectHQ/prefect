@@ -26,7 +26,7 @@ import {
 import { StateBadge } from "@/components/ui/state-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -69,23 +69,20 @@ export const RunStateChangeDialog = ({
 	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
-			state:
-				(Object.keys(RUN_STATES).find(
-					(state) => state !== currentState.type,
-				) as RunStates) || "PENDING",
+			state: undefined,
 			message: "",
 		},
 	});
 
-	const selectedState = form.watch("state");
-	const isCurrentState = selectedState === currentState.type;
-	const isSubmitDisabled = isSubmitting || isCurrentState;
+	const stateOptions = useMemo(
+		() =>
+			Object.entries(RUN_STATES).filter(([key]) => key !== currentState.type),
+		[currentState.type],
+	);
+
+	const isSubmitDisabled = isSubmitting || !form.watch("state");
 
 	const onSubmit = async (values: RunStateFormValues) => {
-		if (isCurrentState) {
-			return;
-		}
-
 		setIsSubmitting(true);
 		try {
 			await onSubmitChange(values);
@@ -138,16 +135,15 @@ export const RunStateChangeDialog = ({
 											</SelectTrigger>
 											<SelectContent className="w-full min-w-[300px]">
 												<SelectGroup>
-													{Object.keys(RUN_STATES).map((key) => (
+													{stateOptions.map(([key, value]) => (
 														<SelectItem
 															key={key}
 															value={key}
 															className="flex items-center"
-															disabled={key === currentState.type}
 														>
 															<StateBadge
 																type={key as components["schemas"]["StateType"]}
-																name={RUN_STATES[key as RunStates]}
+																name={value}
 															/>
 														</SelectItem>
 													))}
@@ -178,12 +174,6 @@ export const RunStateChangeDialog = ({
 						/>
 
 						<div className="flex flex-col gap-2 pt-4">
-							{isCurrentState && (
-								<p className="text-sm text-muted-foreground">
-									Please select a different state than the current one to
-									continue
-								</p>
-							)}
 							<div className="flex justify-end space-x-2">
 								<Button
 									type="button"

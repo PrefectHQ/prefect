@@ -42,7 +42,6 @@ export const useFlowRunStateDialog = () => {
 					const message =
 						error.message || "Unknown error while changing flow run state.";
 					toast.error(message);
-					throw error;
 				},
 			},
 		);
