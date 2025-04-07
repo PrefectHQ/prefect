@@ -47,7 +47,7 @@ export const buildListFilterBlockTypesQuery = (
 		},
 	});
 
-export const buildGetBlockTypesQuery = (slug: string) =>
+export const buildGetBlockTypeQuery = (slug: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detailSlug(slug),
 		queryFn: async () => {

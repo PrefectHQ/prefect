@@ -23,7 +23,7 @@ type BlockTypePageProps = {
 
 export const BlockTypePage = ({ blockType }: BlockTypePageProps) => {
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="flex flex-col gap-6">
 			<BlockTypePageHeader blockType={blockType} />
 			<BlockTypeCardDetails blockType={blockType} />
 		</div>
