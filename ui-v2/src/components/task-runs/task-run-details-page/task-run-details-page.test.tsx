@@ -123,10 +123,11 @@ describe("TaskRunDetailsPage", () => {
 
 	it("displays the task run inputs", async () => {
 		renderTaskRunDetailsPage({ tab: "TaskInputs" });
-      
-    await waitFor(() => {
+
+		await waitFor(() => {
 			expect(screen.getByText("test-task")).toBeInTheDocument();
 		});
+	});
 
 	it("copies task run ID to clipboard and shows success toast", async () => {
 		const [screen] = renderTaskRunDetailsPage();
@@ -141,6 +142,7 @@ describe("TaskRunDetailsPage", () => {
 
 		await waitFor(() => {
 			expect(within(tabPanel).getByText(/"name": \[\]/)).toBeInTheDocument();
+		});
 
 		// Open the dropdown menu
 		const moreButton = screen.getByRole("button", { expanded: false });
