@@ -1,5 +1,5 @@
 export {
 	type BlockType,
 	buildListFilterBlockTypesQuery,
-	buildGetBlockTypesQuery,
+	buildGetBlockTypeQuery,
 } from "./block-types";
