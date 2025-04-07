@@ -1,8 +1,10 @@
+import { Toaster } from "@/components/ui/sonner";
 import { createFakeState, createFakeTaskRun } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
 	RouterProvider,
 	createMemoryHistory,
+	createRoute,
 	createRouter,
 } from "@tanstack/react-router";
 import { createRootRoute } from "@tanstack/react-router";
@@ -28,16 +30,29 @@ describe("TaskRunDetailsPage", () => {
 	const renderTaskRunDetailsPage = (props = {}) => {
 		const rootRoute = createRootRoute({
 			component: () => (
-				<TaskRunDetailsPage
-					id="test-task-run-id"
-					tab="Logs"
-					onTabChange={mockOnTabChange}
-					{...props}
-				/>
+				<>
+					<Toaster />
+					<TaskRunDetailsPage
+						id="test-task-run-id"
+						tab="Logs"
+						onTabChange={mockOnTabChange}
+						{...props}
+					/>
+				</>
 			),
 		});
+
+		// Add a mock route for the flow run page
+		const flowRunRoute = createRoute({
+			path: "/runs/flow-run/$id",
+			getParentRoute: () => rootRoute,
+			component: () => <div>Flow Run Page</div>,
+		});
+
+		const routeTree = rootRoute.addChildren([flowRunRoute]);
+
 		const router = createRouter({
-			routeTree: rootRoute,
+			routeTree,
 			history: createMemoryHistory({
 				initialEntries: ["/"],
 			}),
@@ -46,9 +61,12 @@ describe("TaskRunDetailsPage", () => {
 			},
 		});
 
-		return render(<RouterProvider router={router} />, {
-			wrapper: createWrapper(),
-		});
+		return [
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			}),
+			router,
+		] as const;
 	};
 
 	beforeEach(() => {
@@ -83,7 +101,7 @@ describe("TaskRunDetailsPage", () => {
 	});
 
 	it("switches between tabs correctly", async () => {
-		const screen = renderTaskRunDetailsPage();
+		const [screen] = renderTaskRunDetailsPage();
 
 		// Wait for the task run data to be loaded
 		await waitFor(() => {
@@ -100,5 +118,87 @@ describe("TaskRunDetailsPage", () => {
 
 		await user.click(screen.getByRole("tab", { name: "Details" }));
 		expect(mockOnTabChange).toHaveBeenCalledWith("Details");
+	});
+
+	it("copies task run ID to clipboard and shows success toast", async () => {
+		const [screen] = renderTaskRunDetailsPage();
+		const user = userEvent.setup();
+
+		// Wait for the task run data to be loaded
+		await waitFor(() => {
+			expect(screen.getByText("test-task")).toBeInTheDocument();
+		});
+
+		// Open the dropdown menu
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		// Wait for the dropdown menu to be visible and click the Copy ID option
+		await waitFor(() => {
+			expect(screen.getByText("Copy ID")).toBeInTheDocument();
+		});
+		await user.click(screen.getByText("Copy ID"));
+
+		// Verify clipboard API was called with the correct ID
+		expect(await navigator.clipboard.readText()).toBe(mockTaskRun.id);
+
+		// Verify success toast was shown
+		await waitFor(() => {
+			expect(
+				screen.getByText("Copied task run ID to clipboard"),
+			).toBeInTheDocument();
+		});
+	});
+
+	it("deletes task run and navigates away", async () => {
+		// Mock the delete API endpoint
+		server.use(
+			http.delete(buildApiUrl("/task_runs/:id"), () => {
+				return new HttpResponse(null, { status: 204 });
+			}),
+		);
+
+		const [screen, router] = renderTaskRunDetailsPage();
+		const user = userEvent.setup();
+
+		// Wait for the task run data to be loaded
+		await waitFor(() => {
+			expect(screen.getByText("test-task")).toBeInTheDocument();
+		});
+
+		// Open the dropdown menu
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		// Wait for the dropdown menu to be visible and click the Delete option
+		await waitFor(() => {
+			expect(screen.getByText("Delete")).toBeInTheDocument();
+		});
+		await user.click(screen.getByText("Delete"));
+
+		// Verify delete confirmation dialog appears
+		await waitFor(() => {
+			expect(screen.getByText("Delete Task Run")).toBeInTheDocument();
+			expect(
+				screen.getByText(
+					`Are you sure you want to delete task run ${mockTaskRun.name}?`,
+				),
+			).toBeInTheDocument();
+		});
+
+		// Click confirm in the dialog
+		await user.click(screen.getByRole("button", { name: /Delete/i }));
+
+		// Verify success toast was shown
+		await waitFor(() => {
+			expect(screen.getByText("Task run deleted")).toBeInTheDocument();
+		});
+
+		// Verify we're on the flow run page
+		await waitFor(() => {
+			expect(router.state.location.pathname).toBe(
+				`/runs/flow-run/${mockTaskRun.flow_run_id}`,
+			);
+		});
 	});
 });

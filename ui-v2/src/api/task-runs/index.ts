@@ -252,3 +252,31 @@ export const useSetTaskRunState = () => {
 		...rest,
 	};
 };
+
+/**
+ * Hook for deleting a task run
+ *
+ * @returns Mutation object for deleting a task run with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteTaskRun, isLoading } = useDeleteTaskRun();
+ * ```
+ */
+export const useDeleteTaskRun = () => {
+	const queryClient = useQueryClient();
+	const { mutate: deleteTaskRun, ...rest } = useMutation({
+		mutationFn: async ({ id }: { id: string }) => {
+			const res = await getQueryService().DELETE("/task_runs/{id}", {
+				params: { path: { id } },
+			});
+			return res.data;
+		},
+		onSettled: () => {
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return { deleteTaskRun, ...rest };
+};
