@@ -9,7 +9,7 @@ type DeploymentDescriptionProps = {
 export const DeploymentDescription = ({
 	deployment,
 }: DeploymentDescriptionProps) => (
-	<div className="prose">
+	<div className="prose max-w-none">
 		<Markdown remarkPlugins={[remarkGfm]}>{deployment.description}</Markdown>
 	</div>
 );

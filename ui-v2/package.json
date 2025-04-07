@@ -21,6 +21,7 @@
 	"dependencies": {
 		"@codemirror/lang-json": "^6.0.1",
 		"@codemirror/lang-markdown": "^6.3.2",
+		"@codemirror/lang-python": "^6.1.7",
 		"@hookform/resolvers": "^5.0.1",
 		"@ngneat/falso": "^7.3.0",
 		"@prefecthq/graphs": "^3.0.5",

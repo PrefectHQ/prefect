@@ -42,6 +42,7 @@ import { Route as WorkPoolsWorkPoolWorkPoolNameEditImport } from './routes/work-
 import { Route as DeploymentsDeploymentIdRunImport } from './routes/deployments/deployment_.$id.run'
 import { Route as DeploymentsDeploymentIdEditImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateImport } from './routes/deployments/deployment_.$id.duplicate'
+import { Route as BlocksCatalogSlugCreateImport } from './routes/blocks/catalog_.$slug.create'
 import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameImport } from './routes/work-pools/work-pool.$workPoolName.queue.$workQueueName'
 
@@ -239,6 +240,12 @@ const DeploymentsDeploymentIdDuplicateRoute =
     path: '/deployments/deployment/$id/duplicate',
     getParentRoute: () => rootRoute,
   } as any)
+
+const BlocksCatalogSlugCreateRoute = BlocksCatalogSlugCreateImport.update({
+  id: '/blocks/catalog_/$slug/create',
+  path: '/blocks/catalog/$slug/create',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const AutomationsAutomationIdEditRoute =
   AutomationsAutomationIdEditImport.update({
@@ -454,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AutomationsAutomationIdEditImport
       parentRoute: typeof AutomationsAutomationIdImport
     }
+    '/blocks/catalog_/$slug/create': {
+      id: '/blocks/catalog_/$slug/create'
+      path: '/blocks/catalog/$slug/create'
+      fullPath: '/blocks/catalog/$slug/create'
+      preLoaderRoute: typeof BlocksCatalogSlugCreateImport
+      parentRoute: typeof rootRoute
+    }
     '/deployments/deployment_/$id/duplicate': {
       id: '/deployments/deployment_/$id/duplicate'
       path: '/deployments/deployment/$id/duplicate'
@@ -564,6 +578,7 @@ export interface FileRoutesByFullPath {
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$workPoolName': typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
+  '/blocks/catalog/$slug/create': typeof BlocksCatalogSlugCreateRoute
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
@@ -600,6 +615,7 @@ export interface FileRoutesByTo {
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$workPoolName': typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
+  '/blocks/catalog/$slug/create': typeof BlocksCatalogSlugCreateRoute
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
@@ -637,6 +653,7 @@ export interface FileRoutesById {
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$workPoolName': typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
+  '/blocks/catalog_/$slug/create': typeof BlocksCatalogSlugCreateRoute
   '/deployments/deployment_/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment_/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
@@ -675,6 +692,7 @@ export interface FileRouteTypes {
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$workPoolName'
     | '/automations/automation/$id/edit'
+    | '/blocks/catalog/$slug/create'
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
@@ -710,6 +728,7 @@ export interface FileRouteTypes {
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$workPoolName'
     | '/automations/automation/$id/edit'
+    | '/blocks/catalog/$slug/create'
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
@@ -745,6 +764,7 @@ export interface FileRouteTypes {
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$workPoolName'
     | '/automations/automation/$id/edit'
+    | '/blocks/catalog_/$slug/create'
     | '/deployments/deployment_/$id/duplicate'
     | '/deployments/deployment_/$id/edit'
     | '/deployments/deployment_/$id/run'
@@ -780,6 +800,7 @@ export interface RootRouteChildren {
   RunsFlowRunIdRoute: typeof RunsFlowRunIdRoute
   RunsTaskRunIdRoute: typeof RunsTaskRunIdRoute
   WorkPoolsWorkPoolWorkPoolNameRoute: typeof WorkPoolsWorkPoolWorkPoolNameRouteWithChildren
+  BlocksCatalogSlugCreateRoute: typeof BlocksCatalogSlugCreateRoute
   DeploymentsDeploymentIdDuplicateRoute: typeof DeploymentsDeploymentIdDuplicateRoute
   DeploymentsDeploymentIdEditRoute: typeof DeploymentsDeploymentIdEditRoute
   DeploymentsDeploymentIdRunRoute: typeof DeploymentsDeploymentIdRunRoute
@@ -815,6 +836,7 @@ const rootRouteChildren: RootRouteChildren = {
   RunsTaskRunIdRoute: RunsTaskRunIdRoute,
   WorkPoolsWorkPoolWorkPoolNameRoute:
     WorkPoolsWorkPoolWorkPoolNameRouteWithChildren,
+  BlocksCatalogSlugCreateRoute: BlocksCatalogSlugCreateRoute,
   DeploymentsDeploymentIdDuplicateRoute: DeploymentsDeploymentIdDuplicateRoute,
   DeploymentsDeploymentIdEditRoute: DeploymentsDeploymentIdEditRoute,
   DeploymentsDeploymentIdRunRoute: DeploymentsDeploymentIdRunRoute,
@@ -858,6 +880,7 @@ export const routeTree = rootRoute
         "/runs/flow-run/$id",
         "/runs/task-run/$id",
         "/work-pools/work-pool/$workPoolName",
+        "/blocks/catalog_/$slug/create",
         "/deployments/deployment_/$id/duplicate",
         "/deployments/deployment_/$id/edit",
         "/deployments/deployment_/$id/run",
@@ -958,6 +981,9 @@ export const routeTree = rootRoute
     "/automations/automation/$id/edit": {
       "filePath": "automations/automation.$id.edit.ts",
       "parent": "/automations/automation/$id"
+    },
+    "/blocks/catalog_/$slug/create": {
+      "filePath": "blocks/catalog_.$slug.create.tsx"
     },
     "/deployments/deployment_/$id/duplicate": {
       "filePath": "deployments/deployment_.$id.duplicate.tsx"

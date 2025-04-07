@@ -1,4 +1,5 @@
 import type { BlockDocument } from "@/api/block-documents";
+import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { Typography } from "@/components/ui/typography";
 import { Link } from "@tanstack/react-router";
 
@@ -14,13 +15,11 @@ export const BlockDocumentCell = ({
 	return (
 		<div className="flex gap-4 items-center">
 			{block_type && block_type_name && (
-				<div className="p-1 bg-gray-300 rounded-md">
-					<img
-						alt={`${block_type_name} logo`}
-						src={block_type.logo_url ?? undefined}
-						className="size-6"
-					/>
-				</div>
+				<BlockTypeLogo
+					size="sm"
+					logoUrl={block_type.logo_url}
+					alt={`${block_type_name} logo`}
+				/>
 			)}
 			<div className="flex flex-col">
 				{name && (
