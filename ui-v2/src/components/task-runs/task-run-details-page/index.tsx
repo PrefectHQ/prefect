@@ -1,4 +1,8 @@
-import { type TaskRun, buildGetTaskRunDetailsQuery } from "@/api/task-runs";
+import {
+	type TaskRun,
+	buildGetTaskRunDetailsQuery,
+	useDeleteTaskRun,
+} from "@/api/task-runs";
 import { TaskRunDetails } from "@/components/task-runs/task-run-details/task-run-details";
 import { TaskRunLogs } from "@/components/task-runs/task-run-logs";
 import {
@@ -9,6 +13,17 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import {
+	DeleteConfirmationDialog,
+	useDeleteConfirmationDialog,
+} from "@/components/ui/delete-confirmation-dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
@@ -19,7 +34,10 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
+import { MoreVertical } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 type TaskRunDetailsPageProps = {
 	id: string;
@@ -39,6 +57,8 @@ export const TaskRunDetailsPage = ({
 		...buildGetTaskRunDetailsQuery(id),
 		refetchInterval,
 	});
+	const { deleteTaskRun } = useDeleteTaskRun();
+	const { navigate } = useRouter();
 
 	useEffect(() => {
 		if (taskRun.state_type === "RUNNING" || taskRun.state_type === "PENDING") {
@@ -48,10 +68,35 @@ export const TaskRunDetailsPage = ({
 		}
 	}, [taskRun]);
 
+	const onDeleteRunClicked = () => {
+		deleteTaskRun(
+			{ id: taskRun.id },
+			{
+				onSuccess: () => {
+					setRefetchInterval(false);
+					toast.success("Task run deleted");
+					if (taskRun.flow_run_id) {
+						void navigate({
+							to: "/runs/flow-run/$id",
+							params: { id: taskRun.flow_run_id },
+							replace: true,
+						});
+					} else {
+						void navigate({ to: "/runs", replace: true });
+					}
+				},
+				onError: (error) => {
+					const message =
+						error.message || "Unknown error while deleting task run.";
+					console.error(message);
+				},
+			},
+		);
+	};
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-2">
-				<Header taskRun={taskRun} />
+				<Header taskRun={taskRun} onDeleteRunClicked={onDeleteRunClicked} />
 			</div>
 			<div className="grid lg:grid-cols-[1fr_250px] grid-cols-[1fr] gap-4">
 				<TabsLayout
@@ -74,44 +119,86 @@ export const TaskRunDetailsPage = ({
 	);
 };
 
-const Header = ({ taskRun }: { taskRun: TaskRun }) => {
+const Header = ({
+	taskRun,
+	onDeleteRunClicked,
+}: { taskRun: TaskRun; onDeleteRunClicked: () => void }) => {
+	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
-				<BreadcrumbItem>
-					<BreadcrumbLink to="/runs" className="text-xl font-semibold">
-						Runs
-					</BreadcrumbLink>
-				</BreadcrumbItem>
-				<BreadcrumbSeparator />
-				{taskRun.flow_run_id && (
-					<>
-						<BreadcrumbItem>
-							<BreadcrumbLink
-								to="/runs/flow-run/$id"
-								params={{ id: taskRun.flow_run_id }}
-								className="text-xl font-semibold"
-							>
-								{taskRun.flow_run_name}
-							</BreadcrumbLink>
-						</BreadcrumbItem>
-						<BreadcrumbSeparator />
-					</>
-				)}
-				<BreadcrumbItem className="text-xl">
-					<BreadcrumbPage className="font-semibold">
-						{taskRun.name}
-					</BreadcrumbPage>
-					{taskRun.state && (
-						<StateBadge
-							type={taskRun.state.type}
-							name={taskRun.state.name}
-							className="ml-2"
-						/>
+		<div className="flex flex-row justify-between">
+			<Breadcrumb>
+				<BreadcrumbList>
+					<BreadcrumbItem>
+						<BreadcrumbLink to="/runs" className="text-xl font-semibold">
+							Runs
+						</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					{taskRun.flow_run_id && (
+						<>
+							<BreadcrumbItem>
+								<BreadcrumbLink
+									to="/runs/flow-run/$id"
+									params={{ id: taskRun.flow_run_id }}
+									className="text-xl font-semibold"
+								>
+									{taskRun.flow_run_name}
+								</BreadcrumbLink>
+							</BreadcrumbItem>
+							<BreadcrumbSeparator />
+						</>
 					)}
-				</BreadcrumbItem>
-			</BreadcrumbList>
-		</Breadcrumb>
+					<BreadcrumbItem className="text-xl">
+						<BreadcrumbPage className="font-semibold">
+							{taskRun.name}
+						</BreadcrumbPage>
+						{taskRun.state && (
+							<StateBadge
+								type={taskRun.state.type}
+								name={taskRun.state.name}
+								className="ml-2"
+							/>
+						)}
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="outline" className="p-2">
+						<MoreVertical className="w-4 h-4" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<DropdownMenuItem
+						onClick={() => {
+							alert("Still working on this");
+						}}
+					>
+						Change state
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={() => {
+							toast.success("Copied task run ID to clipboard");
+							void navigator.clipboard.writeText(taskRun.id);
+						}}
+					>
+						Copy ID
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={() =>
+							confirmDelete({
+								title: "Delete Task Run",
+								description: `Are you sure you want to delete task run ${taskRun.name}?`,
+								onConfirm: onDeleteRunClicked,
+							})
+						}
+					>
+						Delete
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<DeleteConfirmationDialog {...dialogState} />
+		</div>
 	);
 };
 
