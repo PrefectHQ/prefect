@@ -1254,7 +1254,7 @@
                     "type": "integer"
                 },
                 "maximum_related_resources": {
-                    "default": 500,
+                    "default": 100,
                     "description": "The maximum number of related resources an Event may have.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES",
