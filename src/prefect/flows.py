@@ -534,7 +534,10 @@ class Flow(Generic[P, R]):
         new_fn.__kwdefaults__ = (
             copy(self.fn.__kwdefaults__) if self.fn.__kwdefaults__ else None
         )
-
+        if hasattr(self.fn, "__prefect_self__"):
+            new_fn.__prefect_self__ = self.fn.__prefect_self__
+        elif hasattr(self.fn, "__prefect_cls__"):
+            new_fn.__prefect_cls__ = self.fn.__prefect_cls__
         new_flow = Flow(
             fn=new_fn,
             name=name or self.name,
