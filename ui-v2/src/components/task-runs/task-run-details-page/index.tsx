@@ -88,7 +88,7 @@ export const TaskRunDetailsPage = ({
 				onError: (error) => {
 					const message =
 						error.message || "Unknown error while deleting task run.";
-					console.error(message);
+					toast.error(message);
 				},
 			},
 		);
