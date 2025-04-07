@@ -41,11 +41,14 @@ jobs:
 
       - name: Install UI dependencies
         working-directory: ./ui-v2
-        run: npm ci install
+        run: npm ci
 
-      - name: Check formatting
+      - name: Setup Biome CLI
+        uses: biomejs/setup-biome@v2
+
+      - name: Run Biome checks
         working-directory: ./ui-v2
-        run: npm run format:check
+        run: biome ci
 
       - name: Lint
         working-directory: ./ui-v2
