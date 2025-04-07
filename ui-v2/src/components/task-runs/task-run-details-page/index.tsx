@@ -10,6 +10,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Icon } from "@/components/ui/icons";
+import { JsonInput } from "@/components/ui/json-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,7 +64,7 @@ export const TaskRunDetailsPage = ({
 						</Suspense>
 					}
 					artifactsContent={<div>🚧🚧 Pardon our dust! 🚧🚧</div>}
-					taskInputsContent={<div>🚧🚧 Pardon our dust! 🚧🚧</div>}
+					taskInputsContent={<TaskInputs taskRun={taskRun} />}
 					detailsContent={<TaskRunDetails taskRun={taskRun} />}
 				/>
 				<div className="hidden lg:block">
@@ -186,5 +187,11 @@ const LogsSkeleton = () => {
 			</div>
 			<Skeleton className="h-32" />
 		</div>
+	);
+};
+
+const TaskInputs = ({ taskRun }: { taskRun: TaskRun }) => {
+	return (
+		<JsonInput value={JSON.stringify(taskRun.task_inputs, null, 2)} disabled />
 	);
 };
