@@ -51,7 +51,7 @@ export const VariableDialog = ({
 	open,
 	variableToEdit,
 }: VariableDialogProps) => {
-	const form = useForm<z.infer<typeof formSchema>>({
+	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
 	});

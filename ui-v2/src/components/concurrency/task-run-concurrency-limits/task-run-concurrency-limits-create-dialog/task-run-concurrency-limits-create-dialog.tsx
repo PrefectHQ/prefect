@@ -49,7 +49,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 	const { createTaskRunConcurrencyLimit, isPending } =
 		useCreateTaskRunConcurrencyLimit();
 
-	const form = useForm<z.infer<typeof formSchema>>({
+	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: DEFAULT_VALUES,
 	});
