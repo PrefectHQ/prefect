@@ -127,6 +127,12 @@ describe("TaskRunDetailsPage", () => {
 		await waitFor(() => {
 			expect(screen.getByText("test-task")).toBeInTheDocument();
 		});
+
+		const tabPanel = screen.getByRole("tabpanel", { name: "Task Inputs" });
+
+		await waitFor(() => {
+			expect(within(tabPanel).getByText(/"name": \[\]/)).toBeInTheDocument();
+		});
 	});
 
 	it("copies task run ID to clipboard and shows success toast", async () => {
@@ -136,12 +142,6 @@ describe("TaskRunDetailsPage", () => {
 		// Wait for the task run data to be loaded
 		await waitFor(() => {
 			expect(screen.getByText("test-task")).toBeInTheDocument();
-		});
-
-		const tabPanel = screen.getByRole("tabpanel", { name: "Task Inputs" });
-
-		await waitFor(() => {
-			expect(within(tabPanel).getByText(/"name": \[\]/)).toBeInTheDocument();
 		});
 
 		// Open the dropdown menu
