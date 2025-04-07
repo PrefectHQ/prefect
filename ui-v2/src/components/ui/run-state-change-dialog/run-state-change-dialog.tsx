@@ -1,3 +1,4 @@
+import { RUN_STATES, type RunStates } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RUN_STATES, type RunStates } from "@/utils/states";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";

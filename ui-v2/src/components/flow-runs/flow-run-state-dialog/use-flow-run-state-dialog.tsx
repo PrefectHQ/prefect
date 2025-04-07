@@ -1,9 +1,9 @@
 import type { FlowRun } from "@/api/flow-runs";
 import { useSetFlowRunState } from "@/api/flow-runs";
+import { RUN_STATES } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 import type { RunStateFormValues } from "@/components/ui/run-state-change-dialog";
 import { StateBadge } from "@/components/ui/state-badge";
-import { RUN_STATES } from "@/utils/states";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
