@@ -5,7 +5,7 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskRun } from ".";
-import { queryKeyFactory, useSetTaskRunState } from ".";
+import { queryKeyFactory, useDeleteTaskRun, useSetTaskRunState } from ".";
 
 describe("task runs api", () => {
 	describe("useSetTaskRunState", () => {
@@ -133,6 +133,23 @@ describe("task runs api", () => {
 			});
 			expect(onError).toHaveBeenCalledTimes(1);
 			expect(result.current.error).toBeInstanceOf(Error);
+		});
+	});
+
+	describe("useDeleteTaskRun", () => {
+		// TODO: update this test when there's a list query to ensure the cache is invalidated
+		it("calls the correct API endpoint and returns success", async () => {
+			const taskRunId = "test-task-run-id";
+
+			const { result } = renderHook(() => useDeleteTaskRun(), {
+				wrapper: createWrapper(),
+			});
+
+			act(() => {
+				result.current.deleteTaskRun({ id: taskRunId });
+			});
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		});
 	});
 });

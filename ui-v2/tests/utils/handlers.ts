@@ -120,6 +120,16 @@ const settingsHandlers = [
 	}),
 ];
 
+const taskRunHandlers = [
+	http.post(buildApiUrl("/task_runs/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.delete(buildApiUrl("/task_runs/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+];
+
 const taskRunConcurrencyLimitsHandlers = [
 	http.post(buildApiUrl("/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
@@ -168,7 +178,7 @@ const workPoolsHandlers = [
 	}),
 ];
 
-const workeQueuesHandlers = [
+const workQueuesHandlers = [
 	http.post(buildApiUrl("/work_queues/filter"), () => {
 		return HttpResponse.json([]);
 	}),
@@ -183,9 +193,10 @@ export const handlers = [
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
 	...settingsHandlers,
+	...taskRunHandlers,
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
 	...versionHandlers,
 	...workPoolsHandlers,
-	...workeQueuesHandlers,
+	...workQueuesHandlers,
 ];
