@@ -2,9 +2,9 @@ import type { BlockDocument } from "@/api/block-documents";
 import { SearchInput } from "@/components/ui/input";
 import type { PaginationState, RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
+import { Breadcrumb, BreadcrumbItem } from "../ui/breadcrumb";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
-import { BlocksPageHeader } from "./blocks-page-header";
 import { BlocksRowCount } from "./blocks-row-count";
 import { BlocksEmptyState } from "./empty-state";
 
@@ -35,7 +35,11 @@ export const BlocksPage = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<BlocksPageHeader />
+			<Breadcrumb>
+				<BreadcrumbItem className="text-xl font-semibold">
+					Blocks
+				</BreadcrumbItem>
+			</Breadcrumb>{" "}
 			{allCount === 0 ? (
 				<BlocksEmptyState />
 			) : (
