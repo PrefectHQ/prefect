@@ -21,7 +21,7 @@ export function BlockTypeCard({ blockType }: BlockTypeCardProps) {
 			</div>
 
 			{blockType.description && (
-				<div className="prose max-w-none h-40 overflow-y-scroll">
+				<div className="prose max-w-none h-32 overflow-y-scroll">
 					<Markdown remarkPlugins={[remarkGfm]}>
 						{blockType.description}
 					</Markdown>
