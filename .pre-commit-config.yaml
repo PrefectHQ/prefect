@@ -71,14 +71,14 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_ref.py
           )$
-      - id: format-ui-v2
-        name: Format UI v2
+      - id: check-ui-v2
+        name: Check UI v2
         language: system
         entry: sh
         args:
           [
             "-c",
-            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run format",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run check:staged",
           ]
         files: |
           (?x)^(
