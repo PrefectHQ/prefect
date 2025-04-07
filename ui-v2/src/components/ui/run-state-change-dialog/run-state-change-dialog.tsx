@@ -31,9 +31,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const formSchema = z.object({
-	state: z.enum(Object.keys(RUN_STATES) as [RunStates, ...RunStates[]]),
+	state: z.enum(
+		Object.keys(RUN_STATES) as [
+			components["schemas"]["StateType"],
+			...components["schemas"]["StateType"][],
+		],
+	),
 	message: z.string().optional().default(""),
-	force: z.boolean().default(false),
 });
 
 export type RunStateFormValues = z.infer<typeof formSchema>;
@@ -70,7 +74,6 @@ export const RunStateChangeDialog = ({
 					(state) => state !== currentState.type,
 				) as RunStates) || "PENDING",
 			message: "",
-			force: false,
 		},
 	});
 
@@ -88,7 +91,8 @@ export const RunStateChangeDialog = ({
 			await onSubmitChange(values);
 			onOpenChange(false);
 		} catch {
-			// Error handling is done by the caller
+			// Error is handled/displayed by the onSubmitChange promise
+			// (typically via a toast in the mutation's onError callback)
 		} finally {
 			setIsSubmitting(false);
 		}
