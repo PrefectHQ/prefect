@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import warnings
 from collections.abc import Callable, Mapping
+from enum import Enum
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -1105,6 +1106,19 @@ class DeploymentSchedule(ObjectBaseModel):
 class VersionInfo(PrefectBaseModel, extra="allow"):
     type: str = Field(default=..., description="The type of version info.")
     version: str = Field(default=..., description="The version of the deployment.")
+
+
+class BranchingScheduleHandling(str, Enum):
+    KEEP = "keep"
+    REMOVE = "remove"
+    INACTIVE = "inactive"
+
+
+class DeploymentBranchingOptions(ObjectBaseModel):
+    schedule_handling: BranchingScheduleHandling = Field(
+        default=BranchingScheduleHandling.REMOVE,
+        description="Whether to keep, remove, or set inactive the existing schedules when branching",
+    )
 
 
 class Deployment(ObjectBaseModel):

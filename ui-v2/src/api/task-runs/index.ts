@@ -1,11 +1,22 @@
-import { queryOptions } from "@tanstack/react-query";
-import { components } from "../prefect";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
+import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
-export type TaskRun = components["schemas"]["TaskRun"];
+export type TaskRun = components["schemas"]["UITaskRun"];
 
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
+
+type SetTaskRunStateBody =
+	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
+
+type SetTaskRunStateParams = {
+	id: string;
+} & SetTaskRunStateBody;
 
 /**
  * Query key factory for task-related queries
@@ -13,13 +24,19 @@ export type TaskRunsFilter =
  * @property {function} all - Returns base key for all task run queries
  * @property {function} lists - Returns key for all list-type task run queries
  * @property {function} list - Generates key for a specific filtered task run query
+ * @property {function} counts - Returns key for all count-type task run queries
+ * @property {function} flowRunsCount - Generates key for a specific flow run count task run query
+ * @property {function} details - Returns key for all details-type task run queries
+ * @property {function} detail - Generates key for a specific details-type task run query
  *
  * ```
- * all			=>   ['task']
- * lists		=>   ['task', 'list']
- * list			=>   ['task', 'list', { ...filter }]
- * counts		=>   ['task', 'count']
- * flowRunsCount	=>   ['task', 'count', 'flow-runs', ["id-0", "id-1"]]
+ * all			=>   ['taskRuns']
+ * lists		=>   ['taskRuns', 'list']
+ * list			=>   ['taskRuns', 'list', { ...filter }]
+ * counts		=>   ['taskRuns', 'count']
+ * flowRunsCount	=>   ['taskRuns', 'count', 'flow-runs', ["id-0", "id-1"]]
+ * details		=>   ['taskRuns', 'details']
+ * detail		=>   ['taskRuns', 'details', id]
  * ```
  */
 export const queryKeyFactory = {
@@ -33,6 +50,8 @@ export const queryKeyFactory = {
 		"flow-runs",
 		flowRunIds,
 	],
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 /**
@@ -57,7 +76,7 @@ export const buildListTaskRunsQuery = (
 		sort: "ID_DESC",
 		offset: 0,
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -96,4 +115,140 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 			return res.data ?? {};
 		},
 	});
+};
+
+/**
+ * Builds a query configuration for fetching a task run by id
+ *
+ * @param id - The id of the task run to fetch
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildGetTaskRunQuery("task-run-id"));
+ * ```
+ */
+export const buildGetTaskRunQuery = (id: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error(
+					`Received empty response from server for task run ${id}`,
+				);
+			}
+			return res.data;
+		},
+	});
+};
+
+/**
+ * Builds a query configuration for fetching task run details
+ *
+ * @param id - The id of the task run
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildGetTaskRunDetailsQuery("id-0"));
+ * ```
+ */
+export const buildGetTaskRunDetailsQuery = (id: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error(
+					`Received empty response from server for task run ${id}`,
+				);
+			}
+			return res.data;
+		},
+	});
+};
+
+/**
+ * Hook for changing a task run's state
+ *
+ * @returns Mutation object for setting a task run state with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { setTaskRunState, isLoading } = useSetTaskRunState();
+ *
+ * setTaskRunState({
+ *   id: "task-run-id",
+ *   state: { type: "COMPLETED" },
+ *   message: "State changed by user"
+ * });
+ * ```
+ */
+export const useSetTaskRunState = () => {
+	const queryClient = useQueryClient();
+	const { mutate: setTaskRunState, ...rest } = useMutation({
+		mutationFn: async ({ id, ...params }: SetTaskRunStateParams) => {
+			const res = await getQueryService().POST("/task_runs/{id}/set_state", {
+				params: { path: { id } },
+				body: params,
+			});
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onMutate: async ({ id, state }) => {
+			await queryClient.cancelQueries({ queryKey: queryKeyFactory.detail(id) });
+
+			const previousTaskRun = queryClient.getQueryData<TaskRun>(
+				queryKeyFactory.detail(id),
+			);
+
+			if (previousTaskRun?.state) {
+				queryClient.setQueryData<TaskRun>(queryKeyFactory.detail(id), {
+					...previousTaskRun,
+					state: {
+						id: previousTaskRun.state.id,
+						type: state.type,
+						name: state.name ?? previousTaskRun.state.name,
+						message: state.message ?? previousTaskRun.state.message,
+						timestamp: new Date().toISOString(),
+						data: previousTaskRun.state.data,
+						state_details: previousTaskRun.state.state_details,
+					},
+				});
+			}
+
+			return { previousTaskRun };
+		},
+		onError: (err, { id }, context) => {
+			// Roll back optimistic update on error
+			if (context?.previousTaskRun) {
+				queryClient.setQueryData(
+					queryKeyFactory.detail(id),
+					context.previousTaskRun,
+				);
+			}
+
+			throw err instanceof Error
+				? err
+				: new Error("Failed to update task run state");
+		},
+		onSettled: (_data, _error, { id }) => {
+			void Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+			]);
+		},
+	});
+	return {
+		setTaskRunState,
+		...rest,
+	};
 };

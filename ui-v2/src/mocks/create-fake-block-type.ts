@@ -1,7 +1,7 @@
 import type { components } from "@/api/prefect";
 import { rand } from "@ngneat/falso";
 
-const BLOCK_TYPES: Array<components["schemas"]["BlockType"]> = [
+export const BLOCK_TYPES: Array<components["schemas"]["BlockType"]> = [
 	{
 		id: "4e6bf197-73c5-4101-b5eb-789d4f47010f",
 		created: "2024-12-02T18:19:08.044621Z",

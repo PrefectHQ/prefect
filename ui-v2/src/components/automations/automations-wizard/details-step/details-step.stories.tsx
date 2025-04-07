@@ -19,7 +19,7 @@ export default meta;
 export const story: StoryObj = { name: "DetailsStep" };
 
 function DetailsStepsStory() {
-	const form = useForm<AutomationWizardSchema>({
+	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
 		defaultValues: { actions: [{ type: undefined }] },
 	});

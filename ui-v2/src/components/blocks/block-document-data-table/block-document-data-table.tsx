@@ -1,17 +1,17 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
-import { CheckedState } from "@radix-ui/react-checkbox";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 import {
-	OnChangeFn,
-	PaginationState,
-	RowSelectionState,
+	type OnChangeFn,
+	type PaginationState,
+	type RowSelectionState,
 	createColumnHelper,
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 import { useCallback } from "react";
 
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { BlockDocumentActionMenu } from "@/components/blocks/block-document-action-menu";
 import { useDeleteBlockDocumentConfirmationDialog } from "@/components/blocks/use-delete-block-document-confirmation-dialog";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -76,7 +76,6 @@ const createColumns = ({
 export type BlockDocumentsDataTableProps = {
 	blockDocumentsCount: number;
 	blockDocuments: Array<BlockDocument>;
-	pageCount: number;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
 	rowSelection: RowSelectionState;

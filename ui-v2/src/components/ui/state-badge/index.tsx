@@ -3,6 +3,7 @@ import { cva } from "class-variance-authority";
 
 import { ICONS as COMPONENT_ICONS } from "@/components/ui/icons";
 
+import { cn } from "@/lib/utils";
 import { capitalize } from "@/utils";
 import { Badge } from "../badge";
 
@@ -40,12 +41,15 @@ const stateBadgeVariants = cva("gap-1", {
 export type StateBadgeProps = {
 	type: components["schemas"]["StateType"];
 	name?: string | null;
+	className?: string;
 };
 
-export const StateBadge = ({ type, name }: StateBadgeProps) => {
+export const StateBadge = ({ type, name, className }: StateBadgeProps) => {
 	const Icon = ICONS[type];
 	return (
-		<Badge className={stateBadgeVariants({ state: type })}>
+		<Badge
+			className={cn(stateBadgeVariants({ state: type }), "px-2", className)}
+		>
 			<Icon size={16} />
 			{name ?? capitalize(type)}
 		</Badge>

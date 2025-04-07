@@ -46,6 +46,7 @@ ServerRoutes = Literal[
     "/csrf-token",
     "/deployments/",
     "/deployments/{id}",
+    "/deployments/{id}/branch",
     "/deployments/{id}/create_flow_run",
     "/deployments/{id}/pause_deployment",
     "/deployments/{id}/resume_deployment",

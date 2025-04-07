@@ -1,4 +1,4 @@
-import { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 import { ArtifactTimelineCard } from "./timelineCard";
@@ -27,7 +27,7 @@ export const TimelineRow = ({ artifact }: TimelineRowProps) => {
 					<div
 						className="size-4 rounded-full bg-white my-5 mx-auto border-2"
 						style={{ margin: "20px calc(50% + 2px)" }}
-					></div>
+					/>
 				</div>
 			</div>
 			<div className="grow mt-1">

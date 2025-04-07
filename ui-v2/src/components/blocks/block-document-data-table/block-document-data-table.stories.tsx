@@ -1,4 +1,4 @@
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";

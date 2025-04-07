@@ -5,9 +5,9 @@ import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckedState } from "@radix-ui/react-checkbox";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 import { useMemo } from "react";
-import { FlowRunCardData } from "../flow-run-card";
+import type { FlowRunCardData } from "../flow-run-card";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 
 type CountOnlyProps = {

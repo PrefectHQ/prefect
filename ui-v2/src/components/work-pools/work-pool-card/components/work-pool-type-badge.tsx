@@ -1,6 +1,6 @@
-import { WorkPool } from "@/api/work-pools";
+import type { WorkPool } from "@/api/work-pools";
 import { Badge } from "@/components/ui/badge";
-import { Icon, IconId } from "@/components/ui/icons";
+import { Icon, type IconId } from "@/components/ui/icons";
 
 type WorkPoolTypeBadgeProps = {
 	type: WorkPool["type"];

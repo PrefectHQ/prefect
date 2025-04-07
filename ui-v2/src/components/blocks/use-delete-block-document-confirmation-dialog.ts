@@ -1,4 +1,7 @@
-import { BlockDocument, useDeleteBlockDocument } from "@/api/block-documents";
+import {
+	type BlockDocument,
+	useDeleteBlockDocument,
+} from "@/api/block-documents";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { getRouteApi } from "@tanstack/react-router";
 import { toast } from "sonner";

@@ -1,4 +1,4 @@
-import type { components } from "@/api/prefect";
+import type { TaskRun } from "@/api/task-runs";
 import {
 	randAlphaNumeric,
 	randNumber,
@@ -9,10 +9,8 @@ import {
 } from "@ngneat/falso";
 import { createFakeState } from "./create-fake-state";
 
-export const createFakeTaskRun = (
-	overrides?: Partial<components["schemas"]["TaskRun"]>,
-): components["schemas"]["TaskRun"] => {
-	const { stateType, stateName } = createFakeState();
+export const createFakeTaskRun = (overrides?: Partial<TaskRun>): TaskRun => {
+	const state = overrides?.state ?? createFakeState();
 
 	return {
 		id: randUuid(),
@@ -20,6 +18,7 @@ export const createFakeTaskRun = (
 		updated: randPastDate().toISOString(),
 		name: `${randVerb()}-task-${randAlphaNumeric({ length: 3 }).join()}`,
 		flow_run_id: randUuid(),
+		flow_run_name: `${randVerb()}-flow-${randAlphaNumeric({ length: 3 }).join()}`,
 		task_key: "say_hello-6b199e75",
 		dynamic_key: randUuid(),
 		cache_key: null,
@@ -38,8 +37,8 @@ export const createFakeTaskRun = (
 		task_inputs: {
 			name: [],
 		},
-		state_type: stateType,
-		state_name: stateName,
+		state_type: state.type,
+		state_name: state.name,
 		run_count: randNumber({ max: 20 }),
 		flow_run_run_count: randNumber({ max: 5 }),
 		expected_start_time: randPastDate().toISOString(),
@@ -49,32 +48,7 @@ export const createFakeTaskRun = (
 		total_run_time: 0,
 		estimated_run_time: randNumber({ max: 30, precision: 2 }),
 		estimated_start_time_delta: randNumber({ max: 30, precision: 2 }),
-		state: {
-			id: randUuid(),
-			type: stateType,
-			name: stateName,
-			timestamp: randPastDate().toISOString(),
-			message: "",
-			data: null,
-			state_details: {
-				flow_run_id: randUuid(),
-				task_run_id: randUuid(),
-				child_flow_run_id: null,
-				scheduled_time: null,
-				cache_key: null,
-				cache_expiration: null,
-				deferred: false,
-				untrackable_result: false,
-				pause_timeout: null,
-				pause_reschedule: false,
-				pause_key: null,
-				run_input_keyset: null,
-				refresh_cache: null,
-				retriable: null,
-				transition_id: null,
-				task_parameters_id: null,
-			},
-		},
+		state,
 		...overrides,
 	};
 };
