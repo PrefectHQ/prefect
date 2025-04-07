@@ -3,10 +3,7 @@ import type { Deployment } from "@/api/deployments";
 import type { Flow } from "@/api/flows";
 import type { WorkPool } from "@/api/work-pools";
 import type { WorkQueue } from "@/api/work-queues";
-import {
-	AutomationWizardSchema,
-	type AutomationWizardSchema as TAutomationWizardSchema,
-} from "@/components/automations/automations-wizard/automation-schema";
+import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";
 import {
 	createFakeAutomation,
@@ -26,7 +23,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { ActionsStep } from "./actions-step";
 
 const ActionStepFormContainer = () => {
-	const form = useForm<TAutomationWizardSchema>({
+	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
 		defaultValues: { actions: [{ type: undefined }] },
 	});

@@ -19,7 +19,7 @@ type WizardStep = (typeof WIZARD_STEPS)[number];
 
 export const AutomationWizard = () => {
 	const stepper = useStepper(WIZARD_STEPS.length);
-	const form = useForm<TAutomationWizardSchema>({
+	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
 		defaultValues: { actions: [{ type: undefined }] },
 	});
