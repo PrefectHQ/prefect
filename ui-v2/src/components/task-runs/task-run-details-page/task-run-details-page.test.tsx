@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { createFakeState, createFakeTaskRun } from "@/mocks";
+import "@/mocks/mock-json-input";
 import { QueryClient } from "@tanstack/react-query";
 import {
 	RouterProvider,
@@ -8,7 +9,7 @@ import {
 	createRouter,
 } from "@tanstack/react-router";
 import { createRootRoute } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
@@ -118,6 +119,20 @@ describe("TaskRunDetailsPage", () => {
 
 		await user.click(screen.getByRole("tab", { name: "Details" }));
 		expect(mockOnTabChange).toHaveBeenCalledWith("Details");
+	});
+
+	it("displays the task run inputs", async () => {
+		renderTaskRunDetailsPage({ tab: "TaskInputs" });
+
+		await waitFor(() => {
+			expect(screen.getByText("test-task")).toBeInTheDocument();
+		});
+
+		const tabPanel = screen.getByRole("tabpanel", { name: "Task Inputs" });
+
+		await waitFor(() => {
+			expect(within(tabPanel).getByText(/"name": \[\]/)).toBeInTheDocument();
+		});
 	});
 
 	it("copies task run ID to clipboard and shows success toast", async () => {

@@ -2,7 +2,7 @@ import React from "react";
 import { vi } from "vitest";
 
 //  Mock out JsonInput because the underlying CodeMirror editor
-//  relies on browser APIs that are not available in JSDOM.
+// relies on browser APIs that are not available in JSDOM.
 // TODO: Ensure input into JsonInput is covered by Playwright tests.
 export const MockJsonInput = React.forwardRef<
 	HTMLTextAreaElement,
@@ -27,8 +27,4 @@ MockJsonInput.displayName = "MockJsonInput";
 
 vi.mock("@/components/ui/json-input", () => ({
 	JsonInput: MockJsonInput,
-}));
-
-vi.mock("@/hooks/use-debounce", () => ({
-	default: (v: unknown) => v,
 }));
