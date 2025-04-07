@@ -8,6 +8,7 @@ import { buildListFilterBlockTypesQuery } from "@/api/block-types";
 import { BlocksPage } from "@/components/blocks/blocks-page";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import type { PaginationState } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
@@ -58,6 +59,7 @@ export const Route = createFileRoute("/blocks/")({
 function RouteComponent() {
 	const [search, onSearch] = useSearch();
 	const [blockTypeSlugs, onSetBlockTypeSlugs] = useFilterByBlockTypes();
+	const [pagination, onPaginationChange] = usePagination();
 
 	const { data: allBlockDocumentsCount } = useSuspenseQuery(
 		buildCountAllBlockDocumentsQuery(),
@@ -65,7 +67,7 @@ function RouteComponent() {
 
 	const { data: blockDocuments } = useQuery(
 		buildListFilterBlockDocumentsQuery({
-			sort: "BLOCK_TYPE_AND_NAME_ASC",
+			sort: "NAME_ASC",
 			include_secrets: false,
 			block_documents: {
 				name: { like_: search },
@@ -77,8 +79,8 @@ function RouteComponent() {
 					any_: blockTypeSlugs.length > 0 ? blockTypeSlugs : undefined,
 				},
 			},
-			// TODO
-			offset: 0,
+			offset: pagination.pageIndex * pagination.pageSize,
+			limit: pagination.pageSize,
 		}),
 	);
 
@@ -105,6 +107,8 @@ function RouteComponent() {
 			blockTypeSlugsFilter={blockTypeSlugs}
 			onRemoveBlockTypeSlug={handleRemoveBlockType}
 			onToggleBlockTypeSlug={handleToggleBlockType}
+			pagination={pagination}
+			onPaginationChange={onPaginationChange}
 		/>
 	);
 }
@@ -149,4 +153,37 @@ function useFilterByBlockTypes() {
 	);
 
 	return [blockTypes, onSetBlockTypes] as const;
+}
+
+function usePagination() {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	// React Table uses 0-based pagination, so we need to subtract 1 from the page number
+	const pageIndex = (search.page ?? 1) - 1;
+	const pageSize = search.limit ?? 10;
+	const pagination: PaginationState = useMemo(
+		() => ({
+			pageIndex,
+			pageSize,
+		}),
+		[pageIndex, pageSize],
+	);
+
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					page: newPagination.pageIndex + 1,
+					limit: newPagination.pageSize,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [pagination, onPaginationChange] as const;
 }
