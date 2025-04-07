@@ -62,7 +62,7 @@ export const RunStateChangeDialog = ({
 }: RunStateDialogProps) => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const form = useForm<RunStateFormValues>({
+	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
 			state:
