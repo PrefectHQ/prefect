@@ -1393,6 +1393,34 @@ class TestUpdateDeployment:
 
         assert run is not None
 
+    async def test_update_deployment_does_not_delete_runs_waiting_for_a_concurrency_slot(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+        flow: orm_models.Flow,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.AwaitingConcurrencySlot(),
+                auto_scheduled=True,
+            ),
+        )
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(),
+        )
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert run is not None
+
 
 @pytest.fixture
 async def deployment_schedules(

@@ -56,6 +56,7 @@ async def _delete_scheduled_runs(
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.state_name != schemas.states.AwaitingConcurrencySlot().name,
         db.FlowRun.run_count == 0,
     )
 

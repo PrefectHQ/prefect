@@ -468,6 +468,24 @@ def AwaitingRetry(
     )
 
 
+def AwaitingConcurrencySlot(
+    cls: type[_State] = State,
+    scheduled_time: Optional[DateTime] = None,
+    **kwargs: Any,
+) -> _State:
+    """Convenience function for creating `AwaitingConcurrencySlot` states.
+
+    Returns:
+        State: a AwaitingConcurrencySlot state
+    """
+    return Scheduled(
+        cls=cls,
+        scheduled_time=scheduled_time,
+        name="AwaitingConcurrencySlot",
+        **kwargs,
+    )
+
+
 def Retrying(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Retrying` states.
 
