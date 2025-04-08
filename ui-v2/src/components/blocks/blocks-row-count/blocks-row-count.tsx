@@ -7,7 +7,7 @@ import { pluralize } from "@/utils";
 import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { useMemo } from "react";
 
-type BlocksRowCountProps = {
+export type BlocksRowCountProps = {
 	count: number;
 	rowSelection: RowSelectionState;
 	setRowSelection: OnChangeFn<RowSelectionState>;
