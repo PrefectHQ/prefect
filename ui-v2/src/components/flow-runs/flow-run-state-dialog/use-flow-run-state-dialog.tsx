@@ -1,21 +1,16 @@
 import type { FlowRun } from "@/api/flow-runs";
 import { useSetFlowRunState } from "@/api/flow-runs";
-import { RUN_STATES } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 import type { RunStateFormValues } from "@/components/ui/run-state-change-dialog";
 import { StateBadge } from "@/components/ui/state-badge";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export const useFlowRunStateDialog = (flowRun: FlowRun | null) => {
+export const useFlowRunStateDialog = (flowRun: FlowRun) => {
 	const [open, setOpen] = useState(false);
 	const { mutateAsync: setFlowRunState } = useSetFlowRunState();
 
 	const handleSubmitChange = async (values: RunStateFormValues) => {
-		if (!flowRun?.id) {
-			return;
-		}
-
 		await setFlowRunState(
 			{
 				id: flowRun.id,
@@ -51,21 +46,16 @@ export const useFlowRunStateDialog = (flowRun: FlowRun | null) => {
 	};
 
 	return {
-		dialogProps:
-			open && flowRun?.state
-				? {
-						currentState: {
-							id: flowRun.state.id,
-							type: flowRun.state.type,
-							name: flowRun.state.name ?? RUN_STATES[flowRun.state.type],
-							message: flowRun.state.message,
-						},
-						open,
-						onOpenChange: setOpen,
-						title: "Change Flow Run State",
-						onSubmitChange: handleSubmitChange,
-					}
-				: null,
+		dialogProps: {
+			currentState: {
+				type: flowRun.state_type,
+				name: flowRun.state_name,
+			},
+			open,
+			onOpenChange: setOpen,
+			title: "Change Flow Run State",
+			onSubmitChange: handleSubmitChange,
+		},
 		openDialog,
 	};
 };

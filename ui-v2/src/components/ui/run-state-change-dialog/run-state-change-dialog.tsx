@@ -43,10 +43,8 @@ const formSchema = z.object({
 export type RunStateFormValues = z.infer<typeof formSchema>;
 
 type RunState = {
-	id: string;
-	type: RunStates;
-	name: string;
-	message?: string | null;
+	type: RunStates | null | undefined;
+	name: string | null | undefined;
 };
 
 export type RunStateDialogProps = {
@@ -107,10 +105,12 @@ export const RunStateChangeDialog = ({
 						onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
 						className="space-y-4"
 					>
-						<div className="mb-4">
-							<FormLabel className="mb-2 block">Current State</FormLabel>
-							<StateBadge type={currentState.type} name={currentState.name} />
-						</div>
+						{currentState.type && currentState.name && (
+							<div className="mb-4">
+								<FormLabel className="mb-2 block">Current State</FormLabel>
+								<StateBadge type={currentState.type} name={currentState.name} />
+							</div>
+						)}
 
 						<FormField
 							control={form.control}
