@@ -1,3 +1,4 @@
+import { buildListArtifactsQuery } from "@/api/artifacts";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
@@ -32,6 +33,22 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 						any_: [params.id],
 					},
 				},
+			}),
+		);
+
+		void queryClient.prefetchQuery(
+			buildListArtifactsQuery({
+				artifacts: {
+					operator: "and_",
+					task_run_id: {
+						any_: [params.id],
+					},
+					type: {
+						not_any_: ["result"],
+					},
+				},
+				sort: "ID_DESC",
+				offset: 0,
 			}),
 		);
 
