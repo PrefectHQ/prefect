@@ -3,13 +3,11 @@ import {
 	useDeleteBlockDocument,
 } from "@/api/block-documents";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { getRouteApi } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-const routeApi = getRouteApi("/blocks/");
-
 export const useDeleteBlockDocumentConfirmationDialog = () => {
-	const navigate = routeApi.useNavigate();
+	const navigate = useNavigate();
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 
 	const { deleteBlockDocument, mutateAsync } = useDeleteBlockDocument();
