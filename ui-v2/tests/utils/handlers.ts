@@ -39,6 +39,12 @@ const blockDocumentsHandlers = [
 	}),
 ];
 
+const blockSchemasHandlers = [
+	http.post(buildApiUrl("/block_schemas/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+];
+
 const blockTypesHandlers = [
 	http.post(buildApiUrl("/block_types/filter"), () => {
 		return HttpResponse.json([]);
@@ -187,6 +193,7 @@ const workQueuesHandlers = [
 export const handlers = [
 	...automationsHandlers,
 	...blockDocumentsHandlers,
+	...blockSchemasHandlers,
 	...blockTypesHandlers,
 	...deploymentsHandlers,
 	...flowHandlers,
