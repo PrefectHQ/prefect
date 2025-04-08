@@ -42,13 +42,13 @@ describe("Artifacts Card", () => {
 
 	it("renders artifact card with updated date", () => {
 		const artifact = createFakeArtifact({
-			updated: "2021-09-01T12:00:00Z",
+			created: "2021-09-01T12:00:00Z",
 		});
 		const { getByText } = render(<ArtifactsCardRouter artifact={artifact} />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(getByText("Last Updated")).toBeTruthy();
+		expect(getByText("Created")).toBeTruthy();
 		expect(getByText("Sep 1st, 2021 at 12:00 PM")).toBeTruthy();
 	});
 

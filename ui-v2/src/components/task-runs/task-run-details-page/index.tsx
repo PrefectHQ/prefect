@@ -3,6 +3,7 @@ import {
 	buildGetTaskRunDetailsQuery,
 	useDeleteTaskRun,
 } from "@/api/task-runs";
+import { TaskRunArtifacts } from "@/components/task-runs/task-run-artifacts";
 import { TaskRunDetails } from "@/components/task-runs/task-run-details/task-run-details";
 import { TaskRunLogs } from "@/components/task-runs/task-run-logs";
 import {
@@ -108,7 +109,11 @@ export const TaskRunDetailsPage = ({
 							<TaskRunLogs taskRun={taskRun} />
 						</Suspense>
 					}
-					artifactsContent={<div>🚧🚧 Pardon our dust! 🚧🚧</div>}
+					artifactsContent={
+						<Suspense fallback={<ArtifactsSkeleton />}>
+							<TaskRunArtifacts taskRun={taskRun} />
+						</Suspense>
+					}
 					taskInputsContent={<TaskInputs taskRun={taskRun} />}
 					detailsContent={<TaskRunDetails taskRun={taskRun} />}
 				/>
@@ -273,6 +278,23 @@ const LogsSkeleton = () => {
 				<Skeleton className="h-8 w-32" />
 			</div>
 			<Skeleton className="h-32" />
+		</div>
+	);
+};
+
+const ArtifactsSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-2">
+			<div className="flex flex-row justify-end">
+				<Skeleton className="h-8 w-12" />
+			</div>
+
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+				<Skeleton className="h-40" />
+				<Skeleton className="h-40" />
+				<Skeleton className="h-40" />
+				<Skeleton className="h-40" />
+			</div>
 		</div>
 	);
 };
