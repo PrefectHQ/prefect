@@ -27,10 +27,8 @@ const DialogDemo = () => {
 			<Button onClick={() => setOpen(true)}>Change Flow Run State</Button>
 			<RunStateChangeDialog
 				currentState={{
-					id: "test-state-id",
 					type: "COMPLETED",
 					name: "Completed",
-					message: "Initial state message",
 				}}
 				open={open}
 				onOpenChange={setOpen}
