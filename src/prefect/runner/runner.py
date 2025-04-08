@@ -1363,7 +1363,9 @@ class Runner:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            readiness_result = await self._runs_task_group.start(
+            readiness_result: (
+                anyio.abc.Process | Exception
+            ) = await self._runs_task_group.start(
                 partial(
                     self._submit_run_and_capture_errors,
                     flow_run=flow_run,
@@ -1374,7 +1376,7 @@ class Runner:
             if readiness_result and not isinstance(readiness_result, Exception):
                 async with self._flow_run_process_map_lock:
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=readiness_result, flow_run=flow_run
+                        pid=readiness_result.pid, flow_run=flow_run
                     )
             # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
             if self.heartbeat_seconds is not None:
