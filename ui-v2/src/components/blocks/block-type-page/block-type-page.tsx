@@ -1,5 +1,6 @@
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
+import { PythonBlockSnippet } from "@/components/blocks/python-example-snippet";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -9,11 +10,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PythonInput } from "@/components/ui/python-input";
 import { Typography } from "@/components/ui/typography";
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
-
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -76,10 +74,13 @@ function BlockTypeCardDetails({ blockType }: BlockTypePageProps) {
 				)}
 
 				{blockType.code_example && (
-					<PythonExampleSnippet
-						codeExample={blockType.code_example}
-						name={blockType.name}
-					/>
+					<div className="flex flex-col gap-4">
+						<Typography variant="h4">Example</Typography>
+						<PythonBlockSnippet
+							codeExample={blockType.code_example}
+							name={blockType.name}
+						/>
+					</div>
 				)}
 
 				<div className="flex justify-end">
@@ -113,38 +114,6 @@ function BlockTypeDescription({
 	return (
 		<div className="prose max-w-none">
 			<Markdown remarkPlugins={[remarkGfm]}>{retDescription}</Markdown>
-		</div>
-	);
-}
-
-type PythonExampleSnippetProps = {
-	codeExample: string;
-	name: string;
-};
-function PythonExampleSnippet({
-	codeExample,
-	name,
-}: PythonExampleSnippetProps) {
-	const snippet = useMemo(() => {
-		const [, genericSnippet = ""] =
-			codeExample.match(/```python([\S\s]*?)```/) ?? [];
-		const customSnippet = genericSnippet.replace(
-			"BLOCK_NAME",
-			name ?? "block-name",
-		);
-		return customSnippet.trim();
-	}, [codeExample, name]);
-
-	return (
-		<div className="flex flex-col gap-4">
-			<Typography variant="h4">Example</Typography>
-			<PythonInput
-				className="p-2"
-				value={snippet}
-				disabled
-				copy
-				hideLineNumbers
-			/>
 		</div>
 	);
 }

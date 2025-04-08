@@ -42,7 +42,7 @@ export const BlockDocumentActionMenu = ({
 						Copy Name
 					</DropdownMenuItem>
 				)}
-				<Link to="/blocks/block/$id" params={{ id }}>
+				<Link to="/blocks/block/$id/edit" params={{ id }}>
 					<DropdownMenuItem>Edit</DropdownMenuItem>
 				</Link>
 				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
