@@ -21,7 +21,7 @@ export function BlockTypeCard({ blockType }: BlockTypeCardProps) {
 			</div>
 
 			{blockType.description && (
-				<div className="prose max-w-none h-32 overflow-y-scroll">
+				<div className="prose max-w-none h-32 overflow-y-scroll text-sm">
 					<Markdown remarkPlugins={[remarkGfm]}>
 						{blockType.description}
 					</Markdown>
@@ -29,13 +29,13 @@ export function BlockTypeCard({ blockType }: BlockTypeCardProps) {
 			)}
 
 			<div className="flex justify-end gap-4">
-				<Button variant="secondary">
+				<Button variant="secondary" size="sm">
 					<Link to="/blocks/catalog/$slug" params={{ slug: blockType.slug }}>
 						Details
 					</Link>
 				</Button>
 
-				<Button>
+				<Button size="sm">
 					<Link
 						to="/blocks/catalog/$slug/create"
 						params={{ slug: blockType.slug }}
