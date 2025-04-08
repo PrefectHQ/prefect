@@ -149,7 +149,7 @@ async def read_work_queue_runs(
     """
     Get flow runs from the work queue.
     """
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         work_queue, flow_runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue_id,
