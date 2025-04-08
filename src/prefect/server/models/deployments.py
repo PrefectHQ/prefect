@@ -43,6 +43,7 @@ async def _delete_scheduled_runs(
     session: AsyncSession,
     deployment_id: UUID,
     auto_scheduled_only: bool = False,
+    future_only: bool = False,
 ) -> None:
     """
     This utility function deletes all of a deployment's runs that are in a Scheduled state
@@ -52,6 +53,8 @@ async def _delete_scheduled_runs(
     Args:
         deployment_id: the deployment for which we should delete runs.
         auto_scheduled_only: if True, only delete auto scheduled runs. Defaults to `False`.
+        future_only: if True, only delete runs that are scheduled to run in the future.
+            Defaults to `False`.
     """
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
@@ -63,6 +66,11 @@ async def _delete_scheduled_runs(
     if auto_scheduled_only:
         delete_query = delete_query.where(
             db.FlowRun.auto_scheduled.is_(True),
+        )
+
+    if future_only:
+        delete_query = delete_query.where(
+            db.FlowRun.next_scheduled_start_time > now("UTC"),
         )
 
     await session.execute(delete_query)
@@ -148,7 +156,10 @@ async def create_deployment(
     # schedules and any runs from the old deployment.
 
     await _delete_scheduled_runs(
-        session=session, deployment_id=deployment_id, auto_scheduled_only=True
+        session=session,
+        deployment_id=deployment_id,
+        auto_scheduled_only=True,
+        future_only=True,
     )
 
     await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
@@ -264,7 +275,10 @@ async def update_deployment(
 
     # delete any auto scheduled runs that would have reflected the old deployment config
     await _delete_scheduled_runs(
-        session=session, deployment_id=deployment_id, auto_scheduled_only=True
+        session=session,
+        deployment_id=deployment_id,
+        auto_scheduled_only=True,
+        future_only=True,
     )
 
     if should_update_schedules:
