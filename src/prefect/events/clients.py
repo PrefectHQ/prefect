@@ -579,6 +579,7 @@ class PrefectEventSubscriber:
     _seen_events: MutableMapping[UUID, bool]
 
     _api_key: Optional[str]
+    _auth_token: Optional[str]
 
     def __init__(
         self,
@@ -593,7 +594,8 @@ class PrefectEventSubscriber:
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
         """
-        self._api_key = PREFECT_API_AUTH_STRING.value()
+        self._api_key = None
+        self._auth_token = PREFECT_API_AUTH_STRING.value()
 
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
@@ -643,8 +645,10 @@ class PrefectEventSubscriber:
         await pong
 
         logger.debug("  authenticating...")
+        # Use the API key (for Cloud) OR the auth token (for self-hosted with auth string)
+        token = self._api_key or self._auth_token
         await self._websocket.send(
-            orjson.dumps({"type": "auth", "token": self._api_key}).decode()
+            orjson.dumps({"type": "auth", "token": token}).decode()
         )
 
         try:
