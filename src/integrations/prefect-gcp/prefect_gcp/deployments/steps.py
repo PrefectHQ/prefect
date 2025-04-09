@@ -3,12 +3,11 @@ Prefect deployment steps for code storage in and retrieval from Google Cloud Sto
 """
 
 from pathlib import Path, PurePosixPath
-from typing import Dict, Optional
+from typing import Dict, Optional, TypedDict
 
 import google.auth
 from google.cloud.storage import Client as StorageClient
 from google.oauth2.service_account import Credentials
-from typing_extensions import TypedDict
 
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
 
