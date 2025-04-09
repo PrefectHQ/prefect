@@ -316,11 +316,20 @@ class RecentDeploymentsScheduler(Scheduler):
     """
 
     # this scheduler runs on a tight loop
-    loop_seconds: float = 5
+    loop_seconds: float
 
     @classmethod
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.scheduler
+
+    def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
+        super().__init__(
+            loop_seconds=(
+                loop_seconds
+                or get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
+            ),
+            **kwargs,
+        )
 
     @db_injector
     def _get_select_deployments_to_schedule_query(
