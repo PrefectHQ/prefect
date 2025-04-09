@@ -10,7 +10,9 @@ PYTHON_VERSIONS = [
     "3.13",
 ]
 
-SKIP_VERSIONS: dict[str, list[str]] = {}
+SKIP_VERSIONS: dict[str, list[str]] = {
+    "prefect-ray": ["3.13"],
+}
 
 
 def get_changed_packages(commit_range: str) -> list[str]:
