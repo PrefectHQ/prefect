@@ -1,15 +1,15 @@
 import datetime
+from datetime import timezone
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import pendulum
-import pydantic.version
 import pytest
-from pydantic import SecretStr
+from pydantic import BaseModel, SecretStr
 
 from prefect.exceptions import ParameterBindError
+from prefect.types._datetime import Date, DateTime, Duration
 from prefect.utilities import callables
 
 
@@ -140,7 +140,7 @@ class TestFunctionToSchema:
     def test_function_with_datetime_arguments(self):
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = DateTime(2025, 1, 1, tzinfo=timezone.utc),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             pass
@@ -231,7 +231,12 @@ class TestFunctionToSchema:
                     "title": "a",
                     "type": "array",
                 },
-                "b": {"position": 1, "title": "b", "type": "object"},
+                "b": {
+                    "additionalProperties": True,
+                    "position": 1,
+                    "title": "b",
+                    "type": "object",
+                },
                 "c": {"position": 2, "title": "c"},
                 "d": {
                     "maxItems": 2,
@@ -274,7 +279,7 @@ class TestFunctionToSchema:
         }
 
     def test_function_with_user_defined_pydantic_model(self):
-        class Foo(pydantic.BaseModel):
+        class Foo(BaseModel):
             y: int
             z: str
 
@@ -310,9 +315,8 @@ class TestFunctionToSchema:
         # this import ensures this test imports the installed version of
         # pydantic (not pydantic.v1) and allows us to test that we
         # generate consistent schemas across v1 and v2
-        import pydantic
 
-        class Foo(pydantic.BaseModel):
+        class Foo(BaseModel):
             bar: str
 
         def f(foo: Foo = Foo(bar="baz")): ...
@@ -343,9 +347,8 @@ class TestFunctionToSchema:
         # this import ensures this test imports the installed version of
         # pydantic (not pydantic.v1) and allows us to test that we
         # generate consistent schemas across v1 and v2
-        import pydantic
 
-        class Foo(pydantic.BaseModel):
+        class Foo(BaseModel):
             bar: str
 
         class Color(Enum):
@@ -355,14 +358,14 @@ class TestFunctionToSchema:
 
         def f(
             a: int,
-            s: List[None],
+            s: list[None],
             m: Foo,
             i: int = 0,
             x: float = 1.0,
             model: Foo = Foo(bar="bar"),
-            pdt: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
-            pdate: pendulum.Date = pendulum.date(2025, 1, 1),
-            pduration: pendulum.Duration = pendulum.duration(seconds=5),
+            pdt: DateTime = DateTime(2025, 1, 1, tzinfo=timezone.utc),
+            pdate: Date = Date(2025, 1, 1),
+            pduration: Duration = Duration(seconds=5),
             c: Color = Color.BLUE,
         ): ...
 
@@ -962,12 +965,12 @@ class TestEntrypointToSchema:
     def test_function_with_datetime_arguments(self, tmp_path: Path):
         source_code = dedent(
             """
-        import pendulum
         import datetime                 
+        from prefect.types import DateTime
 
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = DateTime(2025, 1, 1, tzinfo=datetime.timezone.utc),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             pass
@@ -1076,7 +1079,12 @@ class TestEntrypointToSchema:
                     "title": "a",
                     "type": "array",
                 },
-                "b": {"position": 1, "title": "b", "type": "object"},
+                "b": {
+                    "additionalProperties": True,
+                    "position": 1,
+                    "title": "b",
+                    "type": "object",
+                },
                 "c": {"position": 2, "title": "c"},
                 "d": {
                     "maxItems": 2,
@@ -1126,9 +1134,9 @@ class TestEntrypointToSchema:
     def test_function_with_user_defined_pydantic_model(self, tmp_path: Path):
         source_code = dedent(
             """
-        import pydantic
+        from pydantic import BaseModel
 
-        class Foo(pydantic.BaseModel):
+        class Foo(BaseModel):
             y: int
             z: str
 
@@ -1168,9 +1176,9 @@ class TestEntrypointToSchema:
     ):
         source_code = dedent(
             """
-        import pydantic
+        from pydantic import BaseModel
 
-        class Foo(pydantic.BaseModel):
+        class Foo(BaseModel):
             bar: str
 
         def f(foo: Foo = Foo(bar="baz")):
@@ -1204,13 +1212,13 @@ class TestEntrypointToSchema:
     def test_function_with_complex_args_across_v1_and_v2(self, tmp_path: Path):
         source_code = dedent(
             """
-        import pydantic
-        import pendulum
-        import datetime
+        from datetime import timezone
+        from pydantic import BaseModel
         from enum import Enum
-        from typing import List
 
-        class Foo(pydantic.BaseModel):
+        from prefect.types._datetime import DateTime, Date, Duration
+
+        class Foo(BaseModel):
             bar: str
 
         class Color(Enum):
@@ -1220,14 +1228,14 @@ class TestEntrypointToSchema:
 
         def f(
             a: int,
-            s: List[None],
+            s: list[None],
             m: Foo,
             i: int = 0,
             x: float = 1.0,
             model: Foo = Foo(bar="bar"),
-            pdt: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
-            pdate: pendulum.Date = pendulum.date(2025, 1, 1),
-            pduration: pendulum.Duration = pendulum.duration(seconds=5),
+            pdt: DateTime = DateTime(2025, 1, 1, tzinfo=timezone.utc),
+            pdate: Date = Date(2025, 1, 1),
+            pduration: Duration = Duration(seconds=5),
             c: Color = Color.BLUE,
         ):
             pass

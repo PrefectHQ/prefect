@@ -14,7 +14,7 @@ from typing import (
 )
 from uuid import UUID
 
-from prefect.types._datetime import DateTime, now
+import prefect.types._datetime
 
 from .schemas.events import RelatedResource
 
@@ -23,7 +23,9 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 ResourceCacheEntry = Dict[str, Union[str, "ObjectBaseModel", None]]
-RelatedResourceCache = Dict[str, Tuple[ResourceCacheEntry, DateTime]]
+RelatedResourceCache = Dict[
+    str, Tuple[ResourceCacheEntry, prefect.types._datetime.DateTime]
+]
 
 MAX_CACHE_SIZE = 100
 RESOURCE_CACHE: RelatedResourceCache = {}
@@ -31,7 +33,7 @@ RESOURCE_CACHE: RelatedResourceCache = {}
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
     return [
-        RelatedResource.model_validate(
+        RelatedResource(
             {
                 "prefect.resource.id": f"prefect.tag.{tag}",
                 "prefect.resource.role": "tag",
@@ -42,9 +44,11 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
 
 
 def object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource:
-    resource_id = f"prefect.{kind}.{object.id}"
+    if as_related_resource := getattr(object, "as_related_resource", None):
+        return as_related_resource(role=role)
 
-    return RelatedResource.model_validate(
+    resource_id = f"prefect.{kind}.{object.id}"
+    return RelatedResource(
         {
             "prefect.resource.id": resource_id,
             "prefect.resource.role": role,
@@ -205,7 +209,7 @@ async def _get_and_cache_related_object(
             "object": obj_,
         }
 
-    cache[cache_key] = (entry, now("UTC"))
+    cache[cache_key] = (entry, prefect.types._datetime.now("UTC"))
 
     # In the case of a worker or agent this cache could be long-lived. To keep
     # from running out of memory only keep `MAX_CACHE_SIZE` entries in the

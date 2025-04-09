@@ -1121,17 +1121,34 @@ async def run_dbt_cloud_job(
     logger = get_run_logger()
 
     run = await task(dbt_cloud_job.trigger.aio)(dbt_cloud_job)
-    while targeted_retries > 0:
-        try:
-            await task(run.wait_for_completion.aio)(run)
-            result = await task(run.fetch_result.aio)(run)
-            return result
-        except DbtCloudJobRunFailed:
+
+    # Always try waiting for completion at least once
+    try:
+        await task(run.wait_for_completion.aio)(run)
+        result = await task(run.fetch_result.aio)(run)
+        return result
+    except DbtCloudJobRunFailed:
+        if targeted_retries <= 0:
+            raise DbtCloudJobRunFailed(
+                f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
+            )
+
+        # Continue with retries if targeted_retries > 0
+        remaining_retries = targeted_retries
+        while remaining_retries > 0:
             logger.info(
-                f"Retrying job run with ID: {run.run_id} {targeted_retries} more times"
+                f"Retrying job run with ID: {run.run_id} {remaining_retries} more times"
             )
             run = await task(run.retry_failed_steps.aio)(run)
-            targeted_retries -= 1
-    raise DbtCloudJobRunFailed(
-        f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
-    )
+            remaining_retries -= 1
+            try:
+                await task(run.wait_for_completion.aio)(run)
+                result = await task(run.fetch_result.aio)(run)
+                return result
+            except DbtCloudJobRunFailed:
+                if remaining_retries <= 0:
+                    break
+
+        raise DbtCloudJobRunFailed(
+            f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
+        )

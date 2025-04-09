@@ -3,14 +3,12 @@ Prefect deployment steps for code storage in and retrieval from Google Cloud Sto
 """
 
 from pathlib import Path, PurePosixPath
-from typing import Dict, Optional
+from typing import Dict, Optional, TypedDict
 
 import google.auth
 from google.cloud.storage import Client as StorageClient
 from google.oauth2.service_account import Credentials
-from typing_extensions import TypedDict
 
-from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
 
 
@@ -23,11 +21,6 @@ class PushToGcsOutput(TypedDict):
     folder: str
 
 
-@deprecated_callable(start_date="Jun 2023", help="Use `PushToGcsOutput` instead.")
-class PushProjectToGcsOutput(PushToGcsOutput):
-    """Deprecated. Use `PushToGcsOutput` instead."""
-
-
 class PullFromGcsOutput(TypedDict):
     """
     The output of the `pull_from_gcs` step.
@@ -36,11 +29,6 @@ class PullFromGcsOutput(TypedDict):
     bucket: str
     folder: str
     directory: str
-
-
-@deprecated_callable(start_date="Jun 2023", help="Use `PullFromGcsOutput` instead.")
-class PullProjectFromGcsOutput(PullFromGcsOutput):
-    """Deprecated. Use `PullFromGcsOutput` instead."""
 
 
 def push_to_gcs(
@@ -148,20 +136,12 @@ def push_to_gcs(
     }
 
 
-@deprecated_callable(start_date="Jun 2023", help="Use `push_to_gcs` instead.")
-def push_project_to_gcs(*args, **kwargs) -> PushToGcsOutput:
-    """
-    Deprecated. Use `push_to_gcs` instead.
-    """
-    return push_to_gcs(*args, **kwargs)
-
-
 def pull_from_gcs(
     bucket: str,
     folder: str,
     project: Optional[str] = None,
     credentials: Optional[Dict] = None,
-) -> PullProjectFromGcsOutput:
+) -> PullFromGcsOutput:
     """
     Pulls the contents of a project from an GCS bucket to the current working directory.
 
@@ -249,11 +229,3 @@ def pull_from_gcs(
         "folder": folder,
         "directory": str(local_path),
     }
-
-
-@deprecated_callable(start_date="Jun 2023", help="Use `pull_from_gcs` instead.")
-def pull_project_from_gcs(*args, **kwargs) -> PullProjectFromGcsOutput:
-    """
-    Deprecated. Use `pull_from_gcs` instead.
-    """
-    return pull_from_gcs(*args, **kwargs)

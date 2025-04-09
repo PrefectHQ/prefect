@@ -1254,7 +1254,7 @@
                     "type": "integer"
                 },
                 "maximum_related_resources": {
-                    "default": 500,
+                    "default": 100,
                     "description": "The maximum number of related resources an Event may have.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES",
@@ -1988,7 +1988,7 @@
                 "tag_concurrency_slot_wait_seconds": {
                     "default": 30,
                     "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "supported_environment_variables": [
                         "PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS",
                         "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS"
@@ -2140,6 +2140,15 @@
                         "PREFECT_TASKS_REFRESH_CACHE"
                     ],
                     "title": "Refresh Cache",
+                    "type": "boolean"
+                },
+                "default_no_cache": {
+                    "default": false,
+                    "description": "If `True`, sets the default cache policy on all tasks to `NO_CACHE`.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_DEFAULT_NO_CACHE"
+                    ],
+                    "title": "Default No Cache",
                     "type": "boolean"
                 },
                 "default_retries": {

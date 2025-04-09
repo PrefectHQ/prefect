@@ -23,6 +23,7 @@ from prefect._internal.schemas.validators import (
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
+    WorkPoolStorageConfiguration,
 )
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -38,6 +39,7 @@ from prefect.types import (
     DateTime,
     KeyValueLabelsField,
     Name,
+    NameOrEmpty,
     NonEmptyishName,
     NonNegativeFloat,
     NonNegativeInteger,
@@ -211,7 +213,7 @@ class DeploymentCreate(ActionBaseModel):
     ) -> Union[str, list[str]]:
         return convert_to_strings(values)
 
-    name: str = Field(..., description="The name of the deployment.")
+    name: NameOrEmpty = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     paused: Optional[bool] = Field(default=None)
     schedules: list[DeploymentScheduleCreate] = Field(
@@ -251,11 +253,27 @@ class DeploymentCreate(ActionBaseModel):
     infrastructure_document_id: Optional[UUID] = Field(default=None)
     description: Optional[str] = Field(default=None)
     path: Optional[str] = Field(default=None)
-    version: Optional[str] = Field(default=None)
     entrypoint: Optional[str] = Field(default=None)
     job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
+    )
+
+    # Versionining
+    version: Optional[str] = Field(default=None)
+    version_info: Optional[objects.VersionInfo] = Field(
+        default=None, description="Version information for the deployment."
+    )
+
+    # Branching
+    branch: Optional[str] = Field(
+        default=None, description="The branch of the deployment."
+    )
+    base: Optional[UUID] = Field(
+        default=None, description="The base deployment of the deployment."
+    )
+    root: Optional[UUID] = Field(
+        default=None, description="The root deployment of the deployment."
     )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
@@ -287,6 +305,9 @@ class DeploymentUpdate(ActionBaseModel):
         return remove_old_deployment_fields(values)
 
     version: Optional[str] = Field(default=None)
+    version_info: Optional[objects.VersionInfo] = Field(
+        default=None, description="Version information for the deployment."
+    )
     description: Optional[str] = Field(default=None)
     parameters: Optional[dict[str, Any]] = Field(
         default=None,
@@ -350,6 +371,25 @@ class DeploymentUpdate(ActionBaseModel):
 
         if variables_schema is not None:
             jsonschema.validate(self.job_variables, variables_schema)
+
+
+class DeploymentBranch(ActionBaseModel):
+    branch: str = Field(..., description="Name of the branch to create")
+    options: objects.DeploymentBranchingOptions = Field(
+        default_factory=objects.DeploymentBranchingOptions,
+        description="Configuration options for how the deployment should be branched",
+    )
+    overrides: Optional[DeploymentUpdate] = Field(
+        default=None,
+        description="Optional values to override in the branched deployment",
+    )
+
+    @field_validator("branch")
+    @classmethod
+    def validate_branch_length(cls, v: str) -> str:
+        if len(v.strip()) < 1:
+            raise ValueError("Branch name cannot be empty or contain only whitespace")
+        return v
 
 
 class FlowRunUpdate(ActionBaseModel):
@@ -443,6 +483,9 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = Field(default=None)
 
     labels: KeyValueLabelsField = Field(default_factory=dict)
+    work_pool_name: Optional[str] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
 
 
 class DeploymentFlowRunCreate(ActionBaseModel):
@@ -684,6 +727,10 @@ class WorkPoolCreate(ActionBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="A concurrency limit for the work pool."
     )
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkPoolUpdate(ActionBaseModel):
@@ -693,6 +740,10 @@ class WorkPoolUpdate(ActionBaseModel):
     is_paused: Optional[bool] = Field(default=None)
     base_job_template: Optional[dict[str, Any]] = Field(default=None)
     concurrency_limit: Optional[int] = Field(default=None)
+    storage_configuration: Optional[WorkPoolStorageConfiguration] = Field(
+        default=None,
+        description="A storage configuration for the work pool.",
+    )
 
 
 class WorkQueueCreate(ActionBaseModel):

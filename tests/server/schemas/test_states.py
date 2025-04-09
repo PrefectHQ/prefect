@@ -1,6 +1,6 @@
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-import pendulum
 import pydantic
 import pytest
 
@@ -36,19 +36,19 @@ class TestState:
         assert state.name == "My Running State"
 
     def test_state_default_timestamp(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         state = State(type=StateType.RUNNING)
         assert state.timestamp >= dt
 
     def test_state_copy_does_not_create_insertable_object(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
         new_state = state.model_copy()
         # Same UUID
         assert new_state.id == state.id
 
     def test_state_copy_with_field_reset_creates_insertable_object(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         state = State(type=StateType.RUNNING, timestamp=dt, id=uuid4())
         new_state = state.reset_fields()
         # New UUID
@@ -113,20 +113,20 @@ class TestStateConvenienceFunctions:
         assert state.type == StateType.PENDING
 
     def test_scheduled(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         state = Scheduled(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
         assert state.name == "Scheduled"
         assert state.state_details.scheduled_time == dt
 
     def test_scheduled_without_scheduled_time_defaults_to_now(self):
-        dt1 = pendulum.now("UTC")
+        dt1 = datetime.now(timezone.utc)
         state = Scheduled()
-        dt2 = pendulum.now("UTC")
+        dt2 = datetime.now(timezone.utc)
         assert dt1 <= state.state_details.scheduled_time <= dt2
 
     def test_scheduled_with_state_details_cant_provide_scheduled_time(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         with pytest.raises(ValueError, match="(extra scheduled_time)"):
             Scheduled(
                 scheduled_time=dt,
@@ -134,29 +134,29 @@ class TestStateConvenienceFunctions:
             )
 
     def test_awaiting_retry(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         state = AwaitingRetry(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
         assert state.name == "AwaitingRetry"
         assert state.state_details.scheduled_time == dt
 
     def test_awaiting_retry_without_scheduled_time_defaults_to_now(self):
-        dt1 = pendulum.now("UTC")
+        dt1 = datetime.now(timezone.utc)
         state = AwaitingRetry()
-        dt2 = pendulum.now("UTC")
+        dt2 = datetime.now(timezone.utc)
         assert dt1 <= state.state_details.scheduled_time <= dt2
 
     def test_late(self):
-        dt = pendulum.now("UTC")
+        dt = datetime.now(timezone.utc)
         state = Late(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
         assert state.name == "Late"
         assert state.state_details.scheduled_time == dt
 
     def test_late_without_scheduled_time_defaults_to_now(self):
-        dt1 = pendulum.now("UTC")
+        dt1 = datetime.now(timezone.utc)
         state = Late()
-        dt2 = pendulum.now("UTC")
+        dt2 = datetime.now(timezone.utc)
         assert dt1 <= state.state_details.scheduled_time <= dt2
 
     def test_retrying(self):

@@ -11,7 +11,7 @@ import {
 	createFakeWorkQueue,
 } from "@/mocks";
 import { routerDecorator } from "@/storybook/utils";
-import { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { ActionDetails } from "./action-details";
 
 const ACTIONS: Array<Automation["actions"][number]> = [
@@ -25,9 +25,7 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 		type: "run-deployment",
 		deployment_id: "abc",
 		source: "selected",
-		// @ts-expect-error Need to fix typings with open API
 		parameters: { Hello: "World", Goodbye: "World" },
-		// @ts-expect-error Need to fix typings with open API
 		job_variables: { var1: "abc", var2: { foo: "bar" } },
 	},
 	{ type: "pause-deployment", deployment_id: null, source: "inferred" },
@@ -132,10 +130,9 @@ export const Story: StoryObj = {
 function ActionDetailsStory() {
 	return (
 		<ul className="flex flex-col gap-4">
-			{ACTIONS.map((action, i) => (
-				<li key={i}>
+			{ACTIONS.map((action) => (
+				<li key={action.type}>
 					<ActionDetails
-						key={i}
 						action={action}
 						automationsMap={MOCK_AUTOMATIONS_MAP}
 						blockDocumentsMap={MOCK_BLOCK_DOCUMENTS_MAP}

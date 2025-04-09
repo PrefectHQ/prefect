@@ -36,7 +36,6 @@ from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 pytest.register_assert_rewrite("prefect.testing.utilities")
 
 import prefect
-import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
@@ -66,7 +65,7 @@ from prefect.settings import (
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import now
 from prefect.utilities.dispatch import get_registry_for_type
 
 # isort: split
@@ -88,7 +87,7 @@ from .fixtures.telemetry import *
 from .fixtures.time import *
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--exclude-services",
         action="store_true",
@@ -141,6 +140,7 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/_internal",
     "tests/server/orchestration/test_rules.py",
     "tests/test_flows.py",
+    "tests/server/orchestration/api/ui/test_task_runs.py",
 ]
 
 
@@ -546,7 +546,7 @@ def disable_csrf_protection():
 
 
 @pytest.fixture
-def start_of_test() -> DateTime:
+def start_of_test() -> datetime.datetime:
     return now("UTC")
 
 

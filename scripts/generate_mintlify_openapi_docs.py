@@ -22,8 +22,8 @@ def docs_path() -> Path:
 
 
 """Load the overall Mintlify configuration file"""
-with open(docs_path() / "mint.json", "r") as f:
-    mint_json = json.load(f)
+with open(docs_path() / "docs.json", "r") as f:
+    docs_json = json.load(f)
 
 
 def current_version() -> str:
@@ -45,19 +45,21 @@ def main():
     suggestions = generate_schema_documentation(version, server_docs_path)
 
     # Find the "Server API" section and replace the "pages" content other than the index
-    for group in mint_json["navigation"]:
-        if group["group"] == "API Reference" and group["version"] == version:
-            for sub_group in group["pages"]:
-                if isinstance(sub_group, dict) and sub_group["group"] == "REST API":
-                    for rest_group in sub_group["pages"]:
-                        if (
-                            isinstance(rest_group, dict)
-                            and rest_group["group"] == "Server API"
-                        ):
-                            rest_group["pages"][1:] = suggestions
+    for tab in docs_json["navigation"]["tabs"]:
+        if tab["tab"] == "API Reference":
+            for group in tab["groups"]:
+                if group["group"] == "API Reference":
+                    for page in group["pages"]:
+                        if isinstance(page, dict) and page["group"] == "REST API":
+                            for rest_group in page["pages"]:
+                                if (
+                                    isinstance(rest_group, dict)
+                                    and rest_group["group"] == "Server API"
+                                ):
+                                    rest_group["pages"][1:] = suggestions
 
-    # Write out the updated mint.json file
-    write_mint(mint_json)
+    # Write out the updated docs.json file
+    write_docs(docs_json)
 
 
 def ensure_npx_environment():
@@ -76,6 +78,13 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     from it, then returns Mintlify's recommended navigation updates."""
     openapi_schema = create_app().openapi()
     openapi_schema["info"]["version"] = version
+
+    # Omit UI routes from the OpenAPI to avoid including them in the docs.
+    # UI routes are not intended to be used by users.
+    for path in list(openapi_schema["paths"].keys()):
+        if path.startswith("/api/ui/"):
+            print("Dropping UI route:", path)
+            del openapi_schema["paths"][path]
 
     schema_path = server_docs_path / "schema.json"
     with open(schema_path, "w") as f:
@@ -108,10 +117,10 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     return suggestions
 
 
-def write_mint(update_mint_json: Mint):
-    """Write updated mint.json file out"""
-    with open(docs_path() / "mint.json", "w") as f:
-        json.dump(update_mint_json, f, indent=2, ensure_ascii=False)
+def write_docs(updated_docs_json: Mint):
+    """Write updated docs.json file out"""
+    with open(docs_path() / "docs.json", "w") as f:
+        json.dump(updated_docs_json, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import warnings
 from collections.abc import Callable, Mapping
+from enum import Enum
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -32,7 +33,7 @@ from pydantic import (
 )
 from typing_extensions import Literal, Self, TypeVar
 
-from prefect._internal.compatibility import deprecated
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -60,7 +61,8 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
@@ -200,7 +202,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
+    timestamp: datetime.datetime = Field(default_factory=lambda: now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
@@ -212,10 +214,46 @@ class State(ObjectBaseModel, Generic[R]):
     ] = Field(default=None)
 
     @overload
+    async def aresult(
+        self: "State[R]",
+        raise_on_failure: Literal[True] = ...,
+        retry_result_failure: bool = ...,
+    ) -> R: ...
+
+    @overload
+    async def aresult(
+        self: "State[R]",
+        raise_on_failure: Literal[False] = False,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]: ...
+
+    @overload
+    async def aresult(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]: ...
+
+    async def aresult(
+        self,
+        raise_on_failure: bool = True,
+        retry_result_failure: bool = True,
+    ) -> Union[R, Exception]:
+        """
+        Retrieve the result attached to this state.
+        """
+        from prefect.states import get_state_result
+
+        return await get_state_result(
+            self,
+            raise_on_failure=raise_on_failure,
+            retry_result_failure=retry_result_failure,
+        )
+
+    @overload
     def result(
         self: "State[R]",
         raise_on_failure: Literal[True] = ...,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> R: ...
 
@@ -223,7 +261,6 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
@@ -231,21 +268,13 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: bool = ...,
-        fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]: ...
 
-    @deprecated.deprecated_parameter(
-        "fetch",
-        when=lambda fetch: fetch is not True,
-        start_date="Oct 2024",
-        end_date="Jan 2025",
-        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
-    )
+    @async_dispatch(aresult)
     def result(
         self,
         raise_on_failure: bool = True,
-        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -317,11 +346,12 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.states import get_state_result
 
-        return get_state_result(
-            self,
-            raise_on_failure=raise_on_failure,
-            fetch=fetch,
-            retry_result_failure=retry_result_failure,
+        return run_coro_as_sync(
+            get_state_result(
+                self,
+                raise_on_failure=raise_on_failure,
+                retry_result_failure=retry_result_failure,
+            )
         )
 
     @model_validator(mode="after")
@@ -338,7 +368,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = DateTime.now("utc")
+                self.state_details.scheduled_time = now("UTC")  # pyright: ignore[reportAttributeAccessIssue] DateTime is split into two types depending on Python version
         return self
 
     @model_validator(mode="after")
@@ -385,7 +415,7 @@ class State(ObjectBaseModel, Generic[R]):
         database again. The 'timestamp' is reset using the default factory.
         """
         update = {
-            "timestamp": self.model_fields["timestamp"].get_default(),
+            "timestamp": type(self).model_fields["timestamp"].get_default(),
             **(update or {}),
         }
         return super().model_copy(update=update, deep=deep)
@@ -397,9 +427,9 @@ class State(ObjectBaseModel, Generic[R]):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": DateTime.now("utc"),
-                "updated": DateTime.now("utc"),
-                "timestamp": DateTime.now("utc"),
+                "created": now("UTC"),
+                "updated": now("UTC"),
+                "timestamp": now("UTC"),
             },
             **kwargs,
         )
@@ -1073,12 +1103,36 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
+class VersionInfo(PrefectBaseModel, extra="allow"):
+    type: str = Field(default=..., description="The type of version info.")
+    version: str = Field(default=..., description="The version of the deployment.")
+
+
+class BranchingScheduleHandling(str, Enum):
+    KEEP = "keep"
+    REMOVE = "remove"
+    INACTIVE = "inactive"
+
+
+class DeploymentBranchingOptions(ObjectBaseModel):
+    schedule_handling: BranchingScheduleHandling = Field(
+        default=BranchingScheduleHandling.REMOVE,
+        description="Whether to keep, remove, or set inactive the existing schedules when branching",
+    )
+
+
 class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: Name = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
+    )
+    version_id: Optional[UUID] = Field(
+        default=None, description="The ID of the current version of the deployment."
+    )
+    version_info: Optional[VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
     )
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
@@ -1346,7 +1400,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: DateTime | None = None
+        self, late_runs_count: int, last_polled: datetime.datetime | None = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1368,7 +1422,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or DateTime.now("UTC").diff(last_polled).in_seconds()
+                or (now("UTC") - last_polled).total_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False
@@ -1445,6 +1499,19 @@ class Agent(ObjectBaseModel):
     )
 
 
+class WorkPoolStorageConfiguration(PrefectBaseModel):
+    """A work pool storage configuration"""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    bundle_upload_step: Optional[dict[str, Any]] = Field(
+        default=None, description="The bundle upload step for the work pool."
+    )
+    bundle_execution_step: Optional[dict[str, Any]] = Field(
+        default=None, description="The bundle execution step for the work pool."
+    )
+
+
 class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 
@@ -1467,6 +1534,11 @@ class WorkPool(ObjectBaseModel):
     )
     status: Optional[WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
+    )
+
+    storage_configuration: WorkPoolStorageConfiguration = Field(
+        default_factory=WorkPoolStorageConfiguration,
+        description="The storage configuration for the work pool.",
     )
 
     # this required field has a default of None so that the custom validator

@@ -8,6 +8,18 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Update `events` table `event_related_occurred` index for Postgres
+SQLite: None
+Postgres: `7a73514ca2d6`
+
+# Add `deployment_version` table
+SQLite: `bbca16f6f218`
+Postgres: `06b7c293bc69`
+
+# Add `storage_configuration` to work pool
+SQLite: `3457c6ca2360`
+Postgres: `b5f5644500d2`
+
 # Add parameters column to deployment schedules
 SQLite: `67f886da208e`
 Postgres: `c163acd7e8e3`

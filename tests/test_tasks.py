@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import sys
 import threading
 import time
 from asyncio import Event, sleep
@@ -53,6 +54,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_DEFAULT_RETRIES,
+    PREFECT_TASKS_DEFAULT_NO_CACHE,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
     temporary_settings,
@@ -400,7 +402,7 @@ class TestTaskCall:
         x: int
 
     class BaseFoo:
-        def __init__(self, x):
+        def __init__(self, x: int):
             self.x = x
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
@@ -418,15 +420,45 @@ class TestTaskCall:
         assert isinstance(Foo(x=10).instance_method, Task)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_task_supports_instance_methods_called_with_instance(self, T):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17649
+        """
+
+        class Foo(T):
+            @task
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        # call like a class method with provided instance
+        assert Foo.instance_method(f) == 1
+        # call as instance method to ensure there was no class binding in above call
+        assert f.instance_method() == 1
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_task_supports_class_methods(self, T):
         class Foo(T):
+            @task
+            @classmethod
+            def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @task
-            def class_method(cls):
+            def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
+
+        if sys.version_info < (3, 13):
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Task)
+        else:
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Task)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_task_supports_static_methods(self, T):
@@ -436,8 +468,16 @@ class TestTaskCall:
             def static_method():
                 return "static"
 
+            @staticmethod
+            @task
+            def static_method_of_a_different_order():
+                return "static"
+
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
+
+        assert Foo.static_method_of_a_different_order() == "static"
+        assert isinstance(Foo.static_method_of_a_different_order, Task)
 
     def test_instance_method_doesnt_create_copy_of_self(self):
         class Foo(pydantic.BaseModel):
@@ -511,46 +551,45 @@ class TestTaskCall:
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_class_methods(self, T):
         class Foo(T):
+            @task
+            @classmethod
+            async def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @task
-            async def class_method(cls):
+            async def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert await Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Task)
 
+        if sys.version_info < (3, 13):
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Task)
+        else:
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a task because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Task)
+
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_task_supports_async_static_methods(self, T):
         class Foo(T):
+            @task
+            @staticmethod
+            async def static_method():
+                return "static"
+
             @staticmethod
             @task
-            async def static_method():
+            async def static_method_of_a_different_order():
                 return "static"
 
         assert await Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Task)
 
-    def test_error_message_if_decorate_classmethod(self):
-        with pytest.raises(
-            TypeError, match="@classmethod should be applied on top of @task"
-        ):
-
-            class Foo:
-                @task
-                @classmethod
-                def bar():
-                    pass
-
-    def test_error_message_if_decorate_staticmethod(self):
-        with pytest.raises(
-            TypeError, match="@staticmethod should be applied on top of @task"
-        ):
-
-            class Foo:
-                @task
-                @staticmethod
-                def bar():
-                    pass
+        assert await Foo.static_method_of_a_different_order() == "static"
+        assert isinstance(Foo.static_method_of_a_different_order, Task)
 
     def test_returns_when_cache_result_in_memory_is_false_sync_task(self):
         @task(cache_result_in_memory=False)
@@ -1848,6 +1887,46 @@ class TestTaskCaching:
         assert (
             "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
         )
+
+    async def test_no_cache_can_be_configured_as_default(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+
+    async def test_no_cache_default_can_be_overrided(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(cache_policy=DEFAULT)
+            def foo(x):
+                return x
+
+            @task(cache_key_fn=lambda **kwargs: "")
+            def bar(x):
+                return x
+
+        assert foo.cache_policy == DEFAULT
+        assert bar.cache_policy != NO_CACHE
+
+    async def test_no_cache_default_is_respected_even_with_result_persistence(self):
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(persist_result=True)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+
+        with temporary_settings({PREFECT_TASKS_DEFAULT_NO_CACHE: True}):
+
+            @task(result_storage_key="foo-bar")
+            def zig(x):
+                return x
+
+        assert zig.cache_policy == NO_CACHE
 
     @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
     async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(

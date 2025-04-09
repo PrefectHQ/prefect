@@ -2,7 +2,15 @@ import inspect
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Literal,
+    Optional,
+    Union,
+)
 
 from typing_extensions import Self
 
@@ -14,6 +22,24 @@ if TYPE_CHECKING:
     from prefect.filesystems import WritableFileSystem
     from prefect.locking.protocol import LockManager
     from prefect.transactions import IsolationLevel
+
+STABLE_TRANSFORMS: dict[type, Callable[[Any], Any]] = {}
+
+
+def _register_stable_transforms() -> None:
+    """
+    Some inputs do not reliably produce deterministic byte strings when serialized via
+    `cloudpickle`. This utility registers stabilizing transformations of such types
+    so that cache keys that utilize them are deterministic across invocations.
+    """
+    try:
+        import pandas as pd
+
+        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [
+            df[col] for col in sorted(df.columns)
+        ]
+    except (ImportError, ModuleNotFoundError):
+        pass
 
 
 @dataclass
@@ -341,7 +367,8 @@ class Inputs(CachePolicy):
 
         for key, val in inputs.items():
             if key not in exclude:
-                hashed_inputs[key] = val
+                transformer = STABLE_TRANSFORMS.get(type(val))  # type: ignore[reportUnknownMemberType]
+                hashed_inputs[key] = transformer(val) if transformer else val
 
         try:
             return hash_objects(hashed_inputs, raise_on_failure=True)
@@ -361,6 +388,8 @@ class Inputs(CachePolicy):
             raise TypeError("Can only subtract strings from key policies.")
         return Inputs(exclude=self.exclude + [other])
 
+
+_register_stable_transforms()
 
 INPUTS = Inputs()
 NONE = _None()

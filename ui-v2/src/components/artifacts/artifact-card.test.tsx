@@ -1,4 +1,4 @@
-import { Artifact } from "@/api/artifacts";
+import type { Artifact } from "@/api/artifacts";
 import { createFakeArtifact } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
@@ -10,7 +10,7 @@ import {
 import { render } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
-import { ArtifactCard, ArtifactsCardProps } from "./artifact-card";
+import { ArtifactCard, type ArtifactsCardProps } from "./artifact-card";
 
 // Wraps component in test with a Tanstack router provider
 const ArtifactsCardRouter = (props: ArtifactsCardProps) => {
@@ -42,13 +42,13 @@ describe("Artifacts Card", () => {
 
 	it("renders artifact card with updated date", () => {
 		const artifact = createFakeArtifact({
-			updated: "2021-09-01T12:00:00Z",
+			created: "2021-09-01T12:00:00Z",
 		});
 		const { getByText } = render(<ArtifactsCardRouter artifact={artifact} />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(getByText("Last Updated")).toBeTruthy();
+		expect(getByText("Created")).toBeTruthy();
 		expect(getByText("Sep 1st, 2021 at 12:00 PM")).toBeTruthy();
 	});
 

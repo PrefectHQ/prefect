@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Union
+from uuid import UUID
 
 from httpx import HTTPStatusError, RequestError
 
@@ -10,7 +11,6 @@ from prefect.exceptions import ObjectNotFound
 
 if TYPE_CHECKING:
     import datetime
-    from uuid import UUID
 
     from prefect.client.schemas import FlowRun
     from prefect.client.schemas.actions import (
@@ -28,7 +28,9 @@ if TYPE_CHECKING:
     )
     from prefect.client.schemas.objects import (
         ConcurrencyOptions,
+        DeploymentBranchingOptions,
         DeploymentSchedule,
+        VersionInfo,
     )
     from prefect.client.schemas.responses import (
         DeploymentResponse,
@@ -45,9 +47,10 @@ if TYPE_CHECKING:
 class DeploymentClient(BaseClient):
     def create_deployment(
         self,
-        flow_id: "UUID",
+        flow_id: UUID,
         name: str,
         version: str | None = None,
+        version_info: "VersionInfo | None" = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,
@@ -56,16 +59,19 @@ class DeploymentClient(BaseClient):
         work_queue_name: str | None = None,
         work_pool_name: str | None = None,
         tags: list[str] | None = None,
-        storage_document_id: "UUID | None" = None,
+        storage_document_id: UUID | None = None,
         path: str | None = None,
         entrypoint: str | None = None,
-        infrastructure_document_id: "UUID | None" = None,
+        infrastructure_document_id: UUID | None = None,
         parameter_openapi_schema: dict[str, Any] | None = None,
         paused: bool | None = None,
         pull_steps: list[dict[str, Any]] | None = None,
         enforce_parameter_schema: bool | None = None,
         job_variables: dict[str, Any] | None = None,
-    ) -> "UUID":
+        branch: str | None = None,
+        base: UUID | None = None,
+        root: UUID | None = None,
+    ) -> UUID:
         """
         Create a deployment.
 
@@ -89,7 +95,6 @@ class DeploymentClient(BaseClient):
         Returns:
             the ID of the deployment in the backend
         """
-        from uuid import UUID
 
         from prefect.client.schemas.actions import DeploymentCreate
 
@@ -99,6 +104,7 @@ class DeploymentClient(BaseClient):
             flow_id=flow_id,
             name=name,
             version=version,
+            version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
@@ -115,6 +121,9 @@ class DeploymentClient(BaseClient):
             concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
+            branch=branch,
+            base=base,
+            root=root,
         )
 
         if work_pool_name is not None:
@@ -123,20 +132,29 @@ class DeploymentClient(BaseClient):
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {
             field
-            for field in ["work_pool_name", "work_queue_name"]
+            for field in [
+                "work_pool_name",
+                "work_queue_name",
+            ]
             if field not in deployment_create.model_fields_set
         }
 
-        if deployment_create.paused is None:
-            exclude.add("paused")
+        exclude_if_none = [
+            "paused",
+            "pull_steps",
+            "enforce_parameter_schema",
+            "version_info",
+            "branch",
+            "base",
+            "root",
+        ]
 
-        if deployment_create.pull_steps is None:
-            exclude.add("pull_steps")
-
-        if deployment_create.enforce_parameter_schema is None:
-            exclude.add("enforce_parameter_schema")
+        for field in exclude_if_none:
+            if getattr(deployment_create, field) is None:
+                exclude.add(field)
 
         json = deployment_create.model_dump(mode="json", exclude=exclude)
+
         response = self.request(
             "POST",
             "/deployments/",
@@ -148,7 +166,7 @@ class DeploymentClient(BaseClient):
 
         return UUID(deployment_id)
 
-    def set_deployment_paused_state(self, deployment_id: "UUID", paused: bool) -> None:
+    def set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None:
         self.request(
             "PATCH",
             "/deployments/{id}",
@@ -158,7 +176,7 @@ class DeploymentClient(BaseClient):
 
     def update_deployment(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
         deployment: "DeploymentUpdate",
     ) -> None:
         self.request(
@@ -172,12 +190,10 @@ class DeploymentClient(BaseClient):
             ),
         )
 
-    def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> "UUID":
+    def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> UUID:
         """
         Create a deployment from a prepared `DeploymentCreate` schema.
         """
-        from uuid import UUID
-
         # TODO: We are likely to remove this method once we have considered the
         #       packaging interface for deployments further.
         response = self.request(
@@ -191,7 +207,7 @@ class DeploymentClient(BaseClient):
 
     def read_deployment(
         self,
-        deployment_id: Union["UUID", str],
+        deployment_id: Union[UUID, str],
     ) -> "DeploymentResponse":
         """
         Query the Prefect API for a deployment by id.
@@ -202,7 +218,6 @@ class DeploymentClient(BaseClient):
         Returns:
             a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
         """
-        from uuid import UUID
 
         from prefect.client.schemas.responses import DeploymentResponse
 
@@ -328,7 +343,7 @@ class DeploymentClient(BaseClient):
 
     def delete_deployment(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
     ) -> None:
         """
         Delete deployment by id.
@@ -353,7 +368,7 @@ class DeploymentClient(BaseClient):
 
     def create_deployment_schedules(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
         schedules: list[tuple["SCHEDULE_TYPES", bool]],
     ) -> list["DeploymentSchedule"]:
         """
@@ -392,7 +407,7 @@ class DeploymentClient(BaseClient):
 
     def read_deployment_schedules(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
     ) -> list["DeploymentSchedule"]:
         """
         Query the Prefect API for a deployment's schedules.
@@ -420,8 +435,8 @@ class DeploymentClient(BaseClient):
 
     def update_deployment_schedule(
         self,
-        deployment_id: "UUID",
-        schedule_id: "UUID",
+        deployment_id: UUID,
+        schedule_id: UUID,
         active: bool | None = None,
         schedule: "SCHEDULE_TYPES | None" = None,
     ) -> None:
@@ -460,8 +475,8 @@ class DeploymentClient(BaseClient):
 
     def delete_deployment_schedule(
         self,
-        deployment_id: "UUID",
-        schedule_id: "UUID",
+        deployment_id: UUID,
+        schedule_id: UUID,
     ) -> None:
         """
         Delete a deployment schedule.
@@ -487,7 +502,7 @@ class DeploymentClient(BaseClient):
 
     def get_scheduled_flow_runs_for_deployments(
         self,
-        deployment_ids: list["UUID"],
+        deployment_ids: list[UUID],
         scheduled_before: "datetime.datetime | None" = None,
         limit: int | None = None,
     ) -> list["FlowRunResponse"]:
@@ -509,7 +524,7 @@ class DeploymentClient(BaseClient):
 
     def create_flow_run_from_deployment(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
         *,
         parameters: dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
@@ -517,7 +532,7 @@ class DeploymentClient(BaseClient):
         name: str | None = None,
         tags: Iterable[str] | None = None,
         idempotency_key: str | None = None,
-        parent_task_run_id: "UUID | None" = None,
+        parent_task_run_id: UUID | None = None,
         work_queue_name: str | None = None,
         job_variables: dict[str, Any] | None = None,
         labels: "KeyValueLabelsField | None" = None,
@@ -586,13 +601,36 @@ class DeploymentClient(BaseClient):
         )
         return FlowRun.model_validate(response.json())
 
+    def create_deployment_branch(
+        self,
+        deployment_id: UUID,
+        branch: str,
+        options: "DeploymentBranchingOptions | None" = None,
+        overrides: "DeploymentUpdate | None" = None,
+    ) -> UUID:
+        from prefect.client.schemas.actions import DeploymentBranch
+        from prefect.client.schemas.objects import DeploymentBranchingOptions
+
+        response = self.request(
+            "POST",
+            "/deployments/{id}/branch",
+            path_params={"id": deployment_id},
+            json=DeploymentBranch(
+                branch=branch,
+                options=options or DeploymentBranchingOptions(),
+                overrides=overrides,
+            ).model_dump(mode="json", exclude_unset=True),
+        )
+        return UUID(response.json().get("id"))
+
 
 class DeploymentAsyncClient(BaseAsyncClient):
     async def create_deployment(
         self,
-        flow_id: "UUID",
+        flow_id: UUID,
         name: str,
         version: str | None = None,
+        version_info: "VersionInfo | None" = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,
@@ -601,16 +639,19 @@ class DeploymentAsyncClient(BaseAsyncClient):
         work_queue_name: str | None = None,
         work_pool_name: str | None = None,
         tags: list[str] | None = None,
-        storage_document_id: "UUID | None" = None,
+        storage_document_id: UUID | None = None,
         path: str | None = None,
         entrypoint: str | None = None,
-        infrastructure_document_id: "UUID | None" = None,
+        infrastructure_document_id: UUID | None = None,
         parameter_openapi_schema: dict[str, Any] | None = None,
         paused: bool | None = None,
         pull_steps: list[dict[str, Any]] | None = None,
         enforce_parameter_schema: bool | None = None,
         job_variables: dict[str, Any] | None = None,
-    ) -> "UUID":
+        branch: str | None = None,
+        base: UUID | None = None,
+        root: UUID | None = None,
+    ) -> UUID:
         """
         Create a deployment.
 
@@ -634,7 +675,6 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Returns:
             the ID of the deployment in the backend
         """
-        from uuid import UUID
 
         from prefect.client.schemas.actions import DeploymentCreate
 
@@ -644,6 +684,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             flow_id=flow_id,
             name=name,
             version=version,
+            version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
@@ -660,6 +701,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
             concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
+            branch=branch,
+            base=base,
+            root=root,
         )
 
         if work_pool_name is not None:
@@ -668,20 +712,29 @@ class DeploymentAsyncClient(BaseAsyncClient):
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {
             field
-            for field in ["work_pool_name", "work_queue_name"]
+            for field in [
+                "work_pool_name",
+                "work_queue_name",
+            ]
             if field not in deployment_create.model_fields_set
         }
 
-        if deployment_create.paused is None:
-            exclude.add("paused")
+        exclude_if_none = [
+            "paused",
+            "pull_steps",
+            "enforce_parameter_schema",
+            "version_info",
+            "branch",
+            "base",
+            "root",
+        ]
 
-        if deployment_create.pull_steps is None:
-            exclude.add("pull_steps")
-
-        if deployment_create.enforce_parameter_schema is None:
-            exclude.add("enforce_parameter_schema")
+        for field in exclude_if_none:
+            if getattr(deployment_create, field) is None:
+                exclude.add(field)
 
         json = deployment_create.model_dump(mode="json", exclude=exclude)
+
         response = await self.request(
             "POST",
             "/deployments/",
@@ -694,7 +747,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         return UUID(deployment_id)
 
     async def set_deployment_paused_state(
-        self, deployment_id: "UUID", paused: bool
+        self, deployment_id: UUID, paused: bool
     ) -> None:
         await self.request(
             "PATCH",
@@ -705,7 +758,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def update_deployment(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
         deployment: "DeploymentUpdate",
     ) -> None:
         await self.request(
@@ -719,13 +772,10 @@ class DeploymentAsyncClient(BaseAsyncClient):
             ),
         )
 
-    async def _create_deployment_from_schema(
-        self, schema: "DeploymentCreate"
-    ) -> "UUID":
+    async def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> UUID:
         """
         Create a deployment from a prepared `DeploymentCreate` schema.
         """
-        from uuid import UUID
 
         # TODO: We are likely to remove this method once we have considered the
         #       packaging interface for deployments further.
@@ -740,7 +790,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def read_deployment(
         self,
-        deployment_id: Union["UUID", str],
+        deployment_id: Union[UUID, str],
     ) -> "DeploymentResponse":
         """
         Query the Prefect API for a deployment by id.
@@ -751,7 +801,6 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Returns:
             a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
         """
-        from uuid import UUID
 
         from prefect.client.schemas.responses import DeploymentResponse
 
@@ -877,7 +926,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def delete_deployment(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
     ) -> None:
         """
         Delete deployment by id.
@@ -902,7 +951,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def create_deployment_schedules(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
         schedules: list[tuple["SCHEDULE_TYPES", bool]],
     ) -> list["DeploymentSchedule"]:
         """
@@ -941,7 +990,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def read_deployment_schedules(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
     ) -> list["DeploymentSchedule"]:
         """
         Query the Prefect API for a deployment's schedules.
@@ -969,8 +1018,8 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def update_deployment_schedule(
         self,
-        deployment_id: "UUID",
-        schedule_id: "UUID",
+        deployment_id: UUID,
+        schedule_id: UUID,
         active: bool | None = None,
         schedule: "SCHEDULE_TYPES | None" = None,
     ) -> None:
@@ -1009,8 +1058,8 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def delete_deployment_schedule(
         self,
-        deployment_id: "UUID",
-        schedule_id: "UUID",
+        deployment_id: UUID,
+        schedule_id: UUID,
     ) -> None:
         """
         Delete a deployment schedule.
@@ -1036,7 +1085,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def get_scheduled_flow_runs_for_deployments(
         self,
-        deployment_ids: list["UUID"],
+        deployment_ids: list[UUID],
         scheduled_before: "datetime.datetime | None" = None,
         limit: int | None = None,
     ) -> list["FlowRun"]:
@@ -1058,7 +1107,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
     async def create_flow_run_from_deployment(
         self,
-        deployment_id: "UUID",
+        deployment_id: UUID,
         *,
         parameters: dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
@@ -1066,7 +1115,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         name: str | None = None,
         tags: Iterable[str] | None = None,
         idempotency_key: str | None = None,
-        parent_task_run_id: "UUID | None" = None,
+        parent_task_run_id: UUID | None = None,
         work_queue_name: str | None = None,
         job_variables: dict[str, Any] | None = None,
         labels: "KeyValueLabelsField | None" = None,
@@ -1134,3 +1183,25 @@ class DeploymentAsyncClient(BaseAsyncClient):
             json=flow_run_create.model_dump(mode="json", exclude_unset=True),
         )
         return FlowRun.model_validate(response.json())
+
+    async def create_deployment_branch(
+        self,
+        deployment_id: UUID,
+        branch: str,
+        options: "DeploymentBranchingOptions | None" = None,
+        overrides: "DeploymentUpdate | None" = None,
+    ) -> UUID:
+        from prefect.client.schemas.actions import DeploymentBranch
+        from prefect.client.schemas.objects import DeploymentBranchingOptions
+
+        response = await self.request(
+            "POST",
+            "/deployments/{id}/branch",
+            path_params={"id": deployment_id},
+            json=DeploymentBranch(
+                branch=branch,
+                options=options or DeploymentBranchingOptions(),
+                overrides=overrides,
+            ).model_dump(mode="json", exclude_unset=True),
+        )
+        return UUID(response.json().get("id"))

@@ -1,6 +1,7 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -20,6 +21,8 @@ export type BlockDocumentsFilter =
  *  counts		=>   ['"block-documents', 'count'] // key to match ['"block-documents, 'list', ...
  *  countAll	=>   ['"block-documents', 'count', 'all']
  *  countFilter	=>   ['"block-documents', 'count', { ...filter1 }]
+ *  details		=>	 ['"block-documents', 'details']
+ *  detail		=>	 ['"block-documents', 'details', id]
  * ```
  * */
 export const queryKeyFactory = {
@@ -32,6 +35,8 @@ export const queryKeyFactory = {
 	countAll: () => [...queryKeyFactory.counts(), "all"] as const,
 	countFilter: (filter: BlockDocumentsFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -55,6 +60,7 @@ export const buildListFilterBlockDocumentsQuery = (
 			}
 			return res.data;
 		},
+		placeholderData: keepPreviousData,
 		enabled,
 	});
 
@@ -71,10 +77,7 @@ export const buildCountFilterBlockDocumentsQuery = (
 			const res = await getQueryService().POST("/block_documents/count", {
 				body: filter,
 			});
-			if (!res.data) {
-				throw new Error("'data' exoected");
-			}
-			return res.data;
+			return res.data ?? 0;
 		},
 	});
 export const buildCountAllBlockDocumentsQuery = () =>
@@ -82,8 +85,19 @@ export const buildCountAllBlockDocumentsQuery = () =>
 		queryKey: queryKeyFactory.countAll(),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/block_documents/count");
+			return res.data ?? 0;
+		},
+	});
+
+export const buildGetBlockDocumentQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/block_documents/{id}", {
+				params: { path: { id } },
+			});
 			if (!res.data) {
-				throw new Error("'data' exoected");
+				throw new Error('Expecting "data"');
 			}
 			return res.data;
 		},

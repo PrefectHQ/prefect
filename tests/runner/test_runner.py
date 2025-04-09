@@ -20,7 +20,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import anyio
-import pendulum
 import pytest
 import uv
 from starlette import status
@@ -36,6 +35,7 @@ from prefect.client.schemas.objects import (
     FlowRun,
     State,
     StateType,
+    VersionInfo,
     Worker,
     WorkerStatus,
 )
@@ -50,8 +50,9 @@ from prefect.docker.docker_image import DockerImage
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
+from prefect.events.schemas.events import Event
 from prefect.events.worker import EventsWorker
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check, start_webserver
@@ -67,6 +68,7 @@ from prefect.settings import (
 )
 from prefect.states import Cancelling
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import now
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
@@ -841,6 +843,59 @@ class TestRunner:
 
         # We should get at least 5 heartbeats since the flow should take about 5 seconds to run
         assert len(heartbeat_events) > 5
+
+    async def test_runner_heartbeats_include_deployment_version(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
+        runner = Runner(heartbeat_seconds=30)
+
+        await runner.add_deployment(await dummy_flow_1.to_deployment(__file__))
+
+        # mock the client to return a DeploymentResponse with a version_id and
+        # version_info, which would be the case if the deployment was created Prefect
+        # Cloud experimental deployment versioning support.
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+        deployment.version_id = uuid.UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+        deployment.version_info = VersionInfo(
+            type="githubulous",
+            version="1.2.3.4.5.6",
+        )
+
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.read_deployment"
+        ) as mock_read_deployment:
+            mock_read_deployment.return_value = deployment
+
+            await prefect_client.create_flow_run_from_deployment(
+                deployment_id=deployment.id
+            )
+            await runner.start(run_once=True)
+
+            await asserting_events_worker.drain()
+
+        heartbeat_events: list[Event] = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 1
+
+        heartbeat = heartbeat_events[0]
+
+        resource = heartbeat.resource_in_role["deployment"]
+
+        assert resource["prefect.resource.id"] == f"prefect.deployment.{deployment.id}"
+        assert (
+            resource["prefect.deployment.version-id"]
+            == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        )
+        assert resource["prefect.deployment.version-type"] == "githubulous"
+        assert resource["prefect.deployment.version"] == "1.2.3.4.5.6"
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
@@ -1943,18 +1998,6 @@ class TestRunnerDeployment:
         assert deployment.version == "test"
         assert deployment.description == "I'm just here for tests"
 
-    def test_from_flow_raises_when_using_flow_loaded_from_entrypoint(self):
-        da_flow = load_flow_from_entrypoint("tests/runner/test_runner.py:dummy_flow_1")
-
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Cannot create a RunnerDeployment from a flow that has been loaded from"
-                " an entrypoint"
-            ),
-        ):
-            RunnerDeployment.from_flow(da_flow, __file__)
-
     def test_from_flow_raises_on_interactively_defined_flow(self):
         @flow
         def da_flow():
@@ -2583,12 +2626,12 @@ class TestRunnerDeployment:
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):
         runner = Runner()
-        runner.last_polled = pendulum.now("utc").subtract(minutes=5)
+        runner.last_polled = now("UTC") - datetime.timedelta(minutes=5)
 
         health_check = perform_health_check(runner)
         assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-        runner.last_polled = pendulum.now("utc")
+        runner.last_polled = now("UTC")
         assert health_check().status_code == status.HTTP_200_OK
 
     @pytest.mark.skip("This test is flaky and needs to be fixed")
@@ -2860,7 +2903,7 @@ class TestDeploy:
             name="test-registry/test-image",
         )
         assert image.name == "test-registry/test-image"
-        assert image.tag.startswith(str(pendulum.now("utc").year))
+        assert image.tag.startswith(str(now("UTC").year))
 
         # test image tag can be inferred
         image = DockerImage(

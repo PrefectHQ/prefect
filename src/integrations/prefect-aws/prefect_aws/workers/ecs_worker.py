@@ -68,6 +68,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -98,7 +99,6 @@ ECS_POST_REGISTRATION_FIELDS = [
     "registeredBy",
     "deregisteredAt",
 ]
-
 
 DEFAULT_TASK_DEFINITION_TEMPLATE = """
 containerDefinitions:
@@ -759,10 +759,25 @@ class ECSWorker(BaseWorker):
                 logger, ecs_client, task_definition_arn
             )
             if configuration.task_definition:
+                template_with_placeholders = self.work_pool.base_job_template[
+                    "job_configuration"
+                ]["task_definition"]
+                placeholders = [
+                    placeholder.name
+                    for placeholder in find_placeholders(template_with_placeholders)
+                ]
+
                 logger.warning(
-                    "Ignoring task definition in configuration since task definition"
-                    " ARN is provided on the task run request."
+                    "Skipping task definition construction since a task definition"
+                    " ARN is provided."
                 )
+
+                if placeholders:
+                    logger.warning(
+                        "The following job variable references"
+                        " in the task definition template will be ignored: "
+                        + ", ".join(placeholders)
+                    )
 
         self._validate_task_definition(task_definition, configuration)
 
@@ -830,10 +845,14 @@ class ECSWorker(BaseWorker):
                 if not cached_task_definition[
                     "status"
                 ] == "ACTIVE" or not self._task_definitions_equal(
-                    task_definition, cached_task_definition
+                    task_definition, cached_task_definition, logger
                 ):
                     cached_task_definition_arn = None
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to retrieve task definition for cached arn {cached_task_definition_arn!r}. "
+                    f"Error: {e}"
+                )
                 cached_task_definition_arn = None
 
         if (
@@ -846,12 +865,16 @@ class ECSWorker(BaseWorker):
                     logger, ecs_client, family_name
                 )
                 if task_definition_from_family and self._task_definitions_equal(
-                    task_definition, task_definition_from_family
+                    task_definition, task_definition_from_family, logger
                 ):
                     cached_task_definition_arn = task_definition_from_family[
                         "taskDefinitionArn"
                     ]
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to retrieve task definition for family {family_name!r}. "
+                    f"Error: {e}"
+                )
                 cached_task_definition_arn = None
 
         if not cached_task_definition_arn:
@@ -1687,7 +1710,9 @@ class ECSWorker(BaseWorker):
             )
         return task["tasks"][0]
 
-    def _task_definitions_equal(self, taskdef_1, taskdef_2) -> bool:
+    def _task_definitions_equal(
+        self, taskdef_1, taskdef_2, logger: logging.Logger
+    ) -> bool:
         """
         Compare two task definitions.
 
@@ -1721,5 +1746,34 @@ class ECSWorker(BaseWorker):
         for field in ECS_POST_REGISTRATION_FIELDS:
             taskdef_1.pop(field, None)
             taskdef_2.pop(field, None)
+
+        # Log differences between task definitions for debugging
+        if taskdef_1 != taskdef_2:
+            logger.debug(
+                "The generated task definition and the retrieved task definition are not equal."
+            )
+            # Find and log differences in keys
+            keys1 = set(taskdef_1.keys())
+            keys2 = set(taskdef_2.keys())
+
+            if keys1 != keys2:
+                keys_only_in_1 = keys1 - keys2
+                keys_only_in_2 = keys2 - keys1
+                if keys_only_in_1:
+                    logger.debug(
+                        f"Keys only in generated task definition: {keys_only_in_1}"
+                    )
+                if keys_only_in_2:
+                    logger.debug(
+                        f"Keys only in retrieved task definition: {keys_only_in_2}"
+                    )
+
+            # Find and log differences in values for common keys
+            common_keys = keys1.intersection(keys2)
+            for key in common_keys:
+                if taskdef_1[key] != taskdef_2[key]:
+                    logger.debug(f"Value differs for key '{key}':")
+                    logger.debug(f" Generated:  {taskdef_1[key]}")
+                    logger.debug(f" Retrieved: {taskdef_2[key]}")
 
         return taskdef_1 == taskdef_2

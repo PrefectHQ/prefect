@@ -71,13 +71,14 @@ Example:
     ```
 """
 
+from __future__ import annotations
+
 import asyncio
 from contextlib import ExitStack
 from typing import (
     Any,
     Callable,
     Coroutine,
-    Dict,
     Iterable,
     Optional,
     Set,
@@ -87,6 +88,8 @@ from typing import (
 )
 
 import distributed
+import distributed.deploy
+import distributed.deploy.cluster
 from typing_extensions import ParamSpec
 
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -103,7 +106,7 @@ logger = get_logger(__name__)
 
 P = ParamSpec("P")
 T = TypeVar("T")
-F = TypeVar("F", bound=PrefectFuture)
+F = TypeVar("F", bound=PrefectFuture[Any])
 R = TypeVar("R")
 
 
@@ -140,14 +143,7 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
             else:
                 return future_result
 
-        _result = self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
-        if asyncio.iscoroutine(_result):
-            _result = run_coro_as_sync(_result)
-        return _result
+        return self._final_state.result(raise_on_failure=raise_on_failure, _sync=True)
 
     def __del__(self):
         if self._final_state or self._wrapped_future.done():
@@ -229,15 +225,18 @@ class DaskTaskRunner(TaskRunner):
 
     def __init__(
         self,
-        cluster: Optional[distributed.deploy.Cluster] = None,
+        cluster: Optional[distributed.deploy.cluster.Cluster] = None,
         address: Optional[str] = None,
-        cluster_class: Union[str, Callable, None] = None,
-        cluster_kwargs: Optional[Dict] = None,
-        adapt_kwargs: Optional[Dict] = None,
-        client_kwargs: Optional[Dict] = None,
+        cluster_class: Union[
+            str, Callable[[], distributed.deploy.cluster.Cluster], None
+        ] = None,
+        cluster_kwargs: Optional[dict[str, Any]] = None,
+        adapt_kwargs: Optional[dict[str, Any]] = None,
+        client_kwargs: Optional[dict[str, Any]] = None,
         performance_report_path: Optional[str] = None,
     ):
         # Validate settings and infer defaults
+        resolved_cluster_class: distributed.deploy.cluster.Cluster | None = None
         if address:
             if cluster or cluster_class or cluster_kwargs or adapt_kwargs:
                 raise ValueError(
@@ -251,9 +250,12 @@ class DaskTaskRunner(TaskRunner):
                 )
         else:
             if isinstance(cluster_class, str):
-                cluster_class = from_qualified_name(cluster_class)
+                resolved_cluster_class = from_qualified_name(cluster_class)
+            elif isinstance(cluster_class, Callable):
+                # Store the callable itself, don't instantiate here
+                resolved_cluster_class = cluster_class
             else:
-                cluster_class = cluster_class
+                resolved_cluster_class = cluster_class
 
         # Create a copies of incoming kwargs since we may mutate them
         cluster_kwargs = cluster_kwargs.copy() if cluster_kwargs else {}
@@ -276,16 +278,22 @@ class DaskTaskRunner(TaskRunner):
             )
 
         # Store settings
-        self.address = address
-        self.cluster_class = cluster_class
-        self.cluster_kwargs = cluster_kwargs
-        self.adapt_kwargs = adapt_kwargs
-        self.client_kwargs = client_kwargs
-        self.performance_report_path = performance_report_path
+        self.address: str | None = address
+        self.cluster_class: (
+            str | Callable[[], distributed.deploy.cluster.Cluster] | None
+        ) = cluster_class
+
+        self.resolved_cluster_class: distributed.deploy.cluster.Cluster | None = (
+            resolved_cluster_class
+        )
+        self.cluster_kwargs: dict[str, Any] = cluster_kwargs
+        self.adapt_kwargs: dict[str, Any] = adapt_kwargs
+        self.client_kwargs: dict[str, Any] = client_kwargs
+        self.performance_report_path: str | None = performance_report_path
 
         # Runtime attributes
-        self._client: PrefectDaskClient = None
-        self._cluster: "distributed.deploy.Cluster" = cluster
+        self._client: PrefectDaskClient | None = None
+        self._cluster: distributed.deploy.cluster.Cluster | None = cluster
 
         self._exit_stack = ExitStack()
 
@@ -306,6 +314,90 @@ class DaskTaskRunner(TaskRunner):
         else:
             return False
 
+    @property
+    def client(self) -> PrefectDaskClient:
+        """
+        Get the Dask client for the task runner.
+
+        The client is created on first access. If a remote cluster is not
+        provided, the client will attempt to create/connect to a local cluster.
+        """
+        if not self._client:
+            in_dask = False
+            try:
+                client = distributed.get_client()
+                if client.cluster is not None:
+                    self._cluster = client.cluster
+                elif client.scheduler is not None:
+                    self.address = client.scheduler.address
+                else:
+                    raise RuntimeError("No global client found and no address provided")
+                in_dask = True
+            except ValueError:
+                pass
+
+            if self._cluster:
+                self.logger.info(f"Connecting to existing Dask cluster {self._cluster}")
+                self._connect_to = self._cluster
+                if self.adapt_kwargs:
+                    self._cluster.adapt(**self.adapt_kwargs)
+            elif self.address:
+                self.logger.info(
+                    f"Connecting to an existing Dask cluster at {self.address}"
+                )
+                self._connect_to = self.address
+            else:
+                # Determine the cluster class to use
+                if self.resolved_cluster_class:
+                    # Use the resolved class if a string was provided
+                    class_to_instantiate = self.resolved_cluster_class
+                elif callable(self.cluster_class):
+                    # Use the provided class object if it's callable
+                    class_to_instantiate = self.cluster_class
+                else:
+                    # Default to LocalCluster only if no specific class was provided or resolved
+                    class_to_instantiate = distributed.LocalCluster
+
+                self.logger.info(
+                    "Creating a new Dask cluster with "
+                    f"`{to_qualified_name(class_to_instantiate)}`"
+                )
+                self._connect_to = self._cluster = self._exit_stack.enter_context(
+                    class_to_instantiate(**self.cluster_kwargs)
+                )
+
+                if self.adapt_kwargs:
+                    # self._cluster should be non-None here after instantiation
+                    if self._cluster:
+                        maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
+                        if asyncio.iscoroutine(maybe_coro):
+                            run_coro_as_sync(maybe_coro)
+                    else:
+                        # This case should ideally not happen if instantiation succeeded
+                        self.logger.warning(
+                            "Cluster object not found after instantiation, cannot apply adapt_kwargs."
+                        )
+
+            self._client = self._exit_stack.enter_context(
+                PrefectDaskClient(self._connect_to, **self.client_kwargs)
+            )
+
+            if self.performance_report_path:
+                # Register our client as current so that it's found by distributed.get_client()
+                self._exit_stack.enter_context(
+                    distributed.Client.as_current(self._client)
+                )
+                self._exit_stack.enter_context(
+                    distributed.performance_report(self.performance_report_path)
+                )
+
+            if self._client.dashboard_link and not in_dask:
+                self.logger.info(
+                    f"The Dask dashboard is available at {self._client.dashboard_link}",
+                )
+
+        return self._client
+
     def duplicate(self):
         """
         Create a new instance of the task runner with the same settings.
@@ -323,26 +415,26 @@ class DaskTaskRunner(TaskRunner):
     def submit(
         self,
         task: "Task[P, Coroutine[Any, Any, R]]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
+        dependencies: dict[str, Set[TaskRunInput]] | None = None,
     ) -> PrefectDaskFuture[R]: ...
 
     @overload
     def submit(
         self,
         task: "Task[Any, R]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
+        dependencies: dict[str, Set[TaskRunInput]] | None = None,
     ) -> PrefectDaskFuture[R]: ...
 
     def submit(
         self,
         task: "Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectDaskFuture[R]]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
+        dependencies: dict[str, Set[TaskRunInput]] | None = None,
     ) -> PrefectDaskFuture[R]:
         if not self._started:
             raise RuntimeError(
@@ -353,7 +445,7 @@ class DaskTaskRunner(TaskRunner):
         parameters = self._optimize_futures(parameters)
         wait_for = self._optimize_futures(wait_for) if wait_for else None
 
-        future = self._client.submit(
+        future = self.client.submit(
             task,
             parameters=parameters,
             wait_for=wait_for,
@@ -368,32 +460,30 @@ class DaskTaskRunner(TaskRunner):
     def map(
         self,
         task: "Task[P, Coroutine[Any, Any, R]]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectDaskFuture[R]]: ...
 
     @overload
     def map(
         self,
-        task: "Task[Any, R]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        task: "Task[P, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectDaskFuture[R]]: ...
 
     def map(
         self,
-        task: "Task",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        task: "Task[P, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ):
         return super().map(task, parameters, wait_for)
 
-    def _optimize_futures(self, expr):
-        def visit_fn(expr):
+    def _optimize_futures(self, expr: PrefectDaskFuture[Any] | Any) -> Any:
+        def visit_fn(expr: Any) -> Any:
             if isinstance(expr, PrefectDaskFuture):
-                dask_future = expr.wrapped_future
-                if dask_future is not None:
-                    return dask_future
+                return expr.wrapped_future
             # Fallback to return the expression unaltered
             return expr
 
@@ -401,70 +491,13 @@ class DaskTaskRunner(TaskRunner):
 
     def __enter__(self):
         """
-        Start the task runner and prep for context exit.
-        - Creates a cluster if an external address is not set.
-        - Creates a client to connect to the cluster.
+        Start the task runner and create an exit stack to manage shutdown.
         """
-        in_dask = False
-        try:
-            client = distributed.get_client()
-            if client.cluster is not None:
-                self._cluster = client.cluster
-            elif client.scheduler is not None:
-                self.address = client.scheduler.address
-            else:
-                raise RuntimeError("No global client found and no address provided")
-            in_dask = True
-        except ValueError:
-            pass
-
         super().__enter__()
-        exit_stack = self._exit_stack.__enter__()
-
-        if self._cluster:
-            self.logger.info(f"Connecting to existing Dask cluster {self._cluster}")
-            self._connect_to = self._cluster
-            if self.adapt_kwargs:
-                self._cluster.adapt(**self.adapt_kwargs)
-        elif self.address:
-            self.logger.info(
-                f"Connecting to an existing Dask cluster at {self.address}"
-            )
-            self._connect_to = self.address
-        else:
-            self.cluster_class = self.cluster_class or distributed.LocalCluster
-
-            self.logger.info(
-                f"Creating a new Dask cluster with "
-                f"`{to_qualified_name(self.cluster_class)}`"
-            )
-            self._connect_to = self._cluster = exit_stack.enter_context(
-                self.cluster_class(**self.cluster_kwargs)
-            )
-
-            if self.adapt_kwargs:
-                maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
-                if asyncio.iscoroutine(maybe_coro):
-                    run_coro_as_sync(maybe_coro)
-
-        self._client = exit_stack.enter_context(
-            PrefectDaskClient(self._connect_to, **self.client_kwargs)
-        )
-
-        if self.performance_report_path:
-            # Register our client as current so that it's found by distributed.get_client()
-            exit_stack.enter_context(distributed.Client.as_current(self._client))
-            exit_stack.enter_context(
-                distributed.performance_report(self.performance_report_path)
-            )
-
-        if self._client.dashboard_link and not in_dask:
-            self.logger.info(
-                f"The Dask dashboard is available at {self._client.dashboard_link}",
-            )
+        self._exit_stack.__enter__()
 
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         self._exit_stack.__exit__(*args)
         super().__exit__(*args)

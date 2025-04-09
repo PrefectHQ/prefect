@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import Callable, Optional
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from fastapi import status
@@ -10,6 +9,7 @@ from httpx import AsyncClient
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
+from prefect.types._datetime import now
 from tests.server import AsyncSessionGetter
 
 
@@ -75,8 +75,8 @@ async def scheduled_flow_runs(
                     flow_version="0.1",
                     state=schemas.states.State(
                         type=schemas.states.StateType.SCHEDULED,
-                        timestamp=pendulum.now("UTC"),
-                        state_details={"scheduled_time": pendulum.now("UTC")},
+                        timestamp=now("UTC"),
+                        state_details={"scheduled_time": now("UTC")},
                     ),
                 ),
             )

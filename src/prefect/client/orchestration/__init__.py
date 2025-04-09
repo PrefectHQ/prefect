@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import base64
 import datetime
@@ -82,7 +83,6 @@ from prefect.client.orchestration._blocks_types.client import (
 import prefect
 import prefect.exceptions
 from prefect.logging.loggers import get_run_logger
-import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
@@ -1164,6 +1164,10 @@ class PrefectClient(
 
     def client_version(self) -> str:
         return prefect.__version__
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop | None:
+        return self._loop
 
     async def raise_for_api_version_mismatch(self) -> None:
         # Cloud is always compatible as a server

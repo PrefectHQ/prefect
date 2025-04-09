@@ -125,10 +125,10 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
     timeout: int = Field(
         default=600,
         gt=0,
-        le=86400,
+        le=604800,
         description=(
             "Max allowed duration the Job may be active before Cloud Run will "
-            "actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
+            "actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
     _job_name: str = PrivateAttr(default=None)
@@ -379,12 +379,14 @@ class CloudRunWorkerV2Variables(BaseVariables):
         default_factory=dict,
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
-        example={
-            "ENV_VAR_NAME": {
-                "secret": "SECRET_NAME",
-                "version": "latest",
+        examples=[
+            {
+                "ENV_VAR_NAME": {
+                    "secret": "SECRET_NAME",
+                    "version": "latest",
+                }
             }
-        },
+        ],
     )
     cloudsql_instances: Optional[List[str]] = Field(
         default_factory=list,

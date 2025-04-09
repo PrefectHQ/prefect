@@ -603,10 +603,13 @@ async def read_flow_run_graph(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
-    since: DateTime = earliest_possible_datetime(),
+    since: datetime.datetime = earliest_possible_datetime(),
 ) -> Graph:
     """Given a flow run, return the graph of it's task and subflow runs. If a `since`
     datetime is provided, only return items that may have changed since that time."""
+    if isinstance(since, str):
+        since = DateTime.fromisoformat(since)
+
     return await db.queries.flow_run_graph_v2(
         session=session,
         flow_run_id=flow_run_id,

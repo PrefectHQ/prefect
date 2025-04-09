@@ -16,6 +16,7 @@ from textwrap import dedent
 from typing import Any, List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
+from zoneinfo import ZoneInfo
 
 import anyio
 import pydantic
@@ -86,7 +87,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.transactions import get_transaction, transaction
-from prefect.types._datetime import DateTime, Timezone
+from prefect.types._datetime import DateTime
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -903,18 +904,49 @@ class TestFlowCall:
         assert isinstance(Foo(x=10).instance_method, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
+    def test_flow_supports_instance_methods_called_with_instance(self, T):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17649
+        """
+
+        class Foo(T):
+            @flow
+            def instance_method(self):
+                return self.x
+
+        f = Foo(x=1)
+        # call like a class method with provided instance
+        assert Foo.instance_method(f) == 1
+        # call as instance method to ensure there was no class binding in above call
+        assert f.instance_method() == 1
+
+    @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_flow_supports_class_methods(self, T):
         class Foo(T):
             def __init__(self, x):
                 self.x = x
 
-            @classmethod
             @flow
+            @classmethod
             def class_method(cls):
                 return cls.__name__
 
+            @classmethod
+            @flow
+            def class_method_of_a_different_order(cls):
+                return cls.__name__
+
         assert Foo.class_method() == "Foo"
+        print(Foo.class_method)
         assert isinstance(Foo.class_method, Flow)
+
+        if sys.version_info < (3, 13):
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Flow)
+        else:
+            assert Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a flow because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     def test_flow_supports_static_methods(self, T):
@@ -922,13 +954,21 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
+            @flow
+            @staticmethod
+            def static_method():
+                return "static"
+
             @staticmethod
             @flow
-            def static_method():
+            def static_method_of_different_order():
                 return "static"
 
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
+
+        assert Foo.static_method_of_different_order() == "static"
+        assert isinstance(Foo.static_method_of_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_flow_supports_async_instance_methods(self, T):
@@ -948,13 +988,26 @@ class TestFlowCall:
             def __init__(self, x):
                 self.x = x
 
+            @flow
+            @classmethod
+            async def class_method(cls):
+                return cls.__name__
+
             @classmethod
             @flow
-            async def class_method(cls):
+            async def class_method_of_a_different_order(cls):
                 return cls.__name__
 
         assert await Foo.class_method() == "Foo"
         assert isinstance(Foo.class_method, Flow)
+
+        if sys.version_info < (3, 13):
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            assert isinstance(Foo.class_method_of_a_different_order, Flow)
+        else:
+            assert await Foo.class_method_of_a_different_order() == "Foo"
+            # Doesn't show up as a flow because @classmethod isn't chainable in Python 3.13+
+            assert not isinstance(Foo.class_method_of_a_different_order, Flow)
 
     @pytest.mark.parametrize("T", [BaseFoo, BaseFooModel])
     async def test_flow_supports_async_static_methods(self, T):
@@ -967,8 +1020,16 @@ class TestFlowCall:
             async def static_method():
                 return "static"
 
+            @staticmethod
+            @flow
+            async def static_method_of_different_order():
+                return "static"
+
         assert await Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
+
+        assert await Foo.static_method_of_different_order() == "static"
+        assert isinstance(Foo.static_method_of_different_order, Flow)
 
     def test_flow_supports_instance_methods_with_basemodel(self):
         class Foo(pydantic.BaseModel):
@@ -986,8 +1047,8 @@ class TestFlowCall:
         class Foo(pydantic.BaseModel):
             model_config = pydantic.ConfigDict(ignored_types=(Flow,))
 
-            @classmethod
             @flow
+            @classmethod
             def class_method(cls):
                 return cls.__name__
 
@@ -1005,28 +1066,6 @@ class TestFlowCall:
 
         assert Foo.static_method() == "static"
         assert isinstance(Foo.static_method, Flow)
-
-    def test_error_message_if_decorate_classmethod(self):
-        with pytest.raises(
-            TypeError, match="@classmethod should be applied on top of @flow"
-        ):
-
-            class Foo:
-                @flow
-                @classmethod
-                def bar(cls):
-                    pass
-
-    def test_error_message_if_decorate_staticmethod(self):
-        with pytest.raises(
-            TypeError, match="@staticmethod should be applied on top of @flow"
-        ):
-
-            class Foo:
-                @flow
-                @staticmethod
-                def bar():
-                    pass
 
     def test_returns_when_cache_result_in_memory_is_false_sync_flow(self):
         @flow(cache_result_in_memory=False)
@@ -5604,11 +5643,12 @@ class TestSafeLoadFlowFromEntrypoint:
         import datetime
         from prefect import flow
         from prefect.types import DateTime
+        from zoneinfo import ZoneInfo
 
         @flow
         def f(
             x: datetime.datetime,
-            y: DateTime = DateTime(2025, 1, 1),
+            y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             return x, y, z
@@ -5619,7 +5659,7 @@ class TestSafeLoadFlowFromEntrypoint:
         assert result is not None
         assert result(datetime.datetime(2025, 1, 1)) == (
             datetime.datetime(2025, 1, 1),
-            DateTime(2025, 1, 1, tzinfo=Timezone("UTC")),
+            DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
             datetime.timedelta(seconds=5),
         )
 
@@ -5759,3 +5799,23 @@ class TestSafeLoadFlowFromEntrypoint:
 
         with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
             safe_load_flow_from_entrypoint(entrypoint)()
+
+
+class TestDeeplyNestedFlows:
+    async def test_async_flow_inside_mapped_async_tasks(self):
+        """this is a regression test for https://github.com/PrefectHQ/prefect/issues/17710"""
+
+        @flow
+        async def identity(item: int):
+            return item
+
+        @task
+        async def async_task(item: int):
+            return await identity(item)
+
+        @flow
+        async def async_flow():
+            return async_task.map([1, 2, 3]).result()
+
+        result = await async_flow()
+        assert result == [1, 2, 3]

@@ -1,4 +1,4 @@
-import { PrimitiveProperty } from "../types/primitives";
+import type { PrimitiveProperty } from "../types/primitives";
 import { isRecord } from "./guards";
 
 type PrimitiveConstructor =

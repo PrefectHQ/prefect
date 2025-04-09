@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
-from prefect._internal.compatibility.deprecated import deprecated_parameter
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 
 
@@ -167,42 +166,16 @@ async def delete_concurrency_limit(
 
 
 @db_injector
-@deprecated_parameter(
-    name="create_if_missing",
-    start_date="Sep 2024",
-    end_date="Oct 2024",
-    when=lambda x: x is not None,
-    help="Limits must be explicitly created before acquiring concurrency slots.",
-)
-async def bulk_read_or_create_concurrency_limits(
+async def bulk_read_concurrency_limits(
     db: PrefectDBInterface,
     session: AsyncSession,
     names: List[str],
-    create_if_missing: Optional[bool] = None,
 ) -> List[orm_models.ConcurrencyLimitV2]:
     # Get all existing concurrency limits in `names`.
     existing_query = sa.select(db.ConcurrencyLimitV2).where(
         db.ConcurrencyLimitV2.name.in_(names)
     )
     existing_limits = list((await session.execute(existing_query)).scalars().all())
-
-    # If any limits aren't present in the database, create them as inactive,
-    # unless we've been told not to.
-    missing_names = set(names) - {str(limit.name) for limit in existing_limits}
-
-    if missing_names and create_if_missing:
-        new_limits = [
-            db.ConcurrencyLimitV2(
-                **schemas.core.ConcurrencyLimitV2(
-                    name=name, limit=1, active=False
-                ).model_dump()
-            )
-            for name in missing_names
-        ]
-        session.add_all(new_limits)
-        await session.flush()
-
-        existing_limits += new_limits
 
     return existing_limits
 

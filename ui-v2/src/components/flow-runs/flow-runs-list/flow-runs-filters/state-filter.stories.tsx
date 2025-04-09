@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { useState } from "react";
 import { StateFilter } from "./state-filter";
-import { FlowRunState } from "./state-filters.constants";
+import type { FlowRunState } from "./state-filters.constants";
 
 const meta: Meta<typeof StateFilter> = {
 	title: "Components/FlowRuns/StateFilter",

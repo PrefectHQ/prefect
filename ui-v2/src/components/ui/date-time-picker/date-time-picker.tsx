@@ -19,6 +19,7 @@ export type DateTimePickerProps = {
 	/** Expected as an ISO string */
 	value: string | undefined;
 	onValueChange: (value: string | undefined) => void;
+	defaultMonth?: Date;
 	/** Used for schema form */
 	id?: string;
 };
@@ -27,6 +28,7 @@ export function DateTimePicker({
 	value,
 	onValueChange,
 	id,
+	defaultMonth,
 }: DateTimePickerProps) {
 	const [date, setDate] = useState<Date | undefined>(getInitialDate(value));
 
@@ -45,10 +47,10 @@ export function DateTimePicker({
 			const newDate = new Date(date);
 			if (type === "hour") {
 				newDate.setHours(
-					(parseInt(value) % 12) + (newDate.getHours() >= 12 ? 12 : 0),
+					(Number.parseInt(value) % 12) + (newDate.getHours() >= 12 ? 12 : 0),
 				);
 			} else if (type === "minute") {
-				newDate.setMinutes(parseInt(value));
+				newDate.setMinutes(Number.parseInt(value));
 			} else if (type === "ampm") {
 				const currentHours = newDate.getHours();
 				newDate.setHours(
@@ -85,6 +87,7 @@ export function DateTimePicker({
 						mode="single"
 						selected={date}
 						onSelect={handleDateChange}
+						defaultMonth={defaultMonth}
 						initialFocus
 					/>
 					<div className="flex flex-col sm:flex-row sm:h-[300px] divide-y sm:divide-y-0 sm:divide-x">

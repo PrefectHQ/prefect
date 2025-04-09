@@ -196,7 +196,7 @@ class Flow(Generic[P, R]):
     #       exactly in the @flow decorator
     def __init__(
         self,
-        fn: Callable[P, R],
+        fn: Callable[P, R] | "classmethod[Any, P, R]" | "staticmethod[P, R]",
         name: Optional[str] = None,
         version: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
@@ -269,6 +269,14 @@ class Flow(Generic[P, R]):
                             f"@flow({hook_name}=[hook1, hook2])\ndef"
                             " my_flow():\n\tpass"
                         )
+
+        if isinstance(fn, classmethod):
+            fn = cast(Callable[P, R], fn.__func__)
+            self._isclassmethod = True
+
+        if isinstance(fn, staticmethod):
+            fn = cast(Callable[P, R], fn.__func__)
+            self._isstaticmethod = True
 
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -396,23 +404,34 @@ class Flow(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
+    @property
+    def isclassmethod(self) -> bool:
+        return getattr(self, "_isclassmethod", False)
+
+    @property
+    def isstaticmethod(self) -> bool:
+        return getattr(self, "_isstaticmethod", False)
+
     def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
         """
-        Implement the descriptor protocol so that the flow can be used as an instance method.
+        Implement the descriptor protocol so that the flow can be used as an instance or class method.
         When an instance method is loaded, this method is called with the "self" instance as
         an argument. We return a copy of the flow with that instance bound to the flow's function.
         """
+        # wrapped function is a classmethod
+        if self.isclassmethod:
+            bound_task = copy(self)
+            setattr(bound_task.fn, "__prefect_cls__", owner)
+            return bound_task
 
-        # if no instance is provided, it's being accessed on the class
-        if instance is None:
-            return self
+        # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
+        # of the task's function. This will allow it to be automatically added to the task's parameters
+        if instance:
+            bound_task = copy(self)
+            bound_task.fn.__prefect_self__ = instance  # type: ignore[attr-defined]
+            return bound_task
 
-        # if the flow is being accessed on an instance, bind the instance to the __prefect_self__ attribute
-        # of the flow's function. This will allow it to be automatically added to the flow's parameters
-        else:
-            bound_flow = copy(self)
-            setattr(bound_flow.fn, "__prefect_self__", instance)
-            return bound_flow
+        return self
 
     def with_options(
         self,
@@ -617,7 +636,8 @@ class Flow(Generic[P, R]):
         cast_parameters = {
             k: v
             for k, v in dict(iter(model)).items()
-            if k in model.model_fields_set or model.model_fields[k].default_factory
+            if k in model.model_fields_set
+            or type(model).model_fields[k].default_factory
         }
         return cast_parameters
 
@@ -635,6 +655,10 @@ class Flow(Generic[P, R]):
         for key, value in parameters.items():
             # do not serialize the bound self object
             if self.ismethod and value is getattr(self.fn, "__prefect_self__", None):
+                continue
+            if self.isclassmethod and value is getattr(
+                self.fn, "__prefect_cls__", None
+            ):
                 continue
             if isinstance(value, (PrefectFuture, State)):
                 # Don't call jsonable_encoder() on a PrefectFuture or State to
@@ -1895,11 +1919,6 @@ class FlowDecorator:
             >>>     pass
         """
         if __fn:
-            if isinstance(__fn, (classmethod, staticmethod)):
-                method_decorator = type(__fn).__name__
-                raise TypeError(
-                    f"@{method_decorator} should be applied on top of @flow"
-                )
             return Flow(
                 fn=__fn,
                 name=name,

@@ -1,8 +1,10 @@
 """
 Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
 """
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
+from __future__ import annotations
 
 import asyncio
 import datetime
@@ -314,7 +316,7 @@ class Task(Generic[P, R]):
     #       exactly in the @task decorator
     def __init__(
         self,
-        fn: Callable[P, R],
+        fn: Callable[P, R] | "classmethod[Any, P, R]" | "staticmethod[P, R]",
         name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
@@ -378,6 +380,14 @@ class Task(Generic[P, R]):
                             " my_task():\n\tpass"
                         )
 
+        if isinstance(fn, classmethod):
+            fn = cast(Callable[P, R], fn.__func__)
+            self._isclassmethod = True
+
+        if isinstance(fn, staticmethod):
+            fn = cast(Callable[P, R], fn.__func__)
+            self._isstaticmethod = True
+
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
@@ -422,6 +432,11 @@ class Task(Generic[P, R]):
 
         self.task_key: str = _generate_task_key(self.fn)
 
+        # determine cache and result configuration
+        settings = get_current_settings()
+        if settings.tasks.default_no_cache and cache_policy is NotSet:
+            cache_policy = NO_CACHE
+
         if cache_policy is not NotSet and cache_key_fn is not None:
             logger.warning(
                 f"Both `cache_policy` and `cache_key_fn` are set on task {self}. `cache_key_fn` will be used."
@@ -458,7 +473,7 @@ class Task(Generic[P, R]):
                 )
         elif cache_policy is NotSet and result_storage_key is None:
             self.cache_policy = DEFAULT
-        elif result_storage_key:
+        elif cache_policy != NO_CACHE and result_storage_key:
             # TODO: handle this situation with double storage
             self.cache_policy = None
         else:
@@ -468,7 +483,6 @@ class Task(Generic[P, R]):
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
 
-        settings = get_current_settings()
         self.retries: int = (
             retries if retries is not None else settings.tasks.default_retries
         )
@@ -532,23 +546,34 @@ class Task(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
+    @property
+    def isclassmethod(self) -> bool:
+        return getattr(self, "_isclassmethod", False)
+
+    @property
+    def isstaticmethod(self) -> bool:
+        return getattr(self, "_isstaticmethod", False)
+
     def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
         an argument. We return a copy of the task with that instance bound to the task's function.
         """
-
-        # if no instance is provided, it's being accessed on the class
-        if instance is None:
-            return self
+        # wrapped function is a classmethod
+        if self.isclassmethod:
+            bound_task = copy(self)
+            setattr(bound_task.fn, "__prefect_cls__", owner)
+            return bound_task
 
         # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
         # of the task's function. This will allow it to be automatically added to the task's parameters
-        else:
+        if instance:
             bound_task = copy(self)
             bound_task.fn.__prefect_self__ = instance  # type: ignore[attr-defined]
             return bound_task
+
+        return self
 
     def with_options(
         self,
@@ -739,6 +764,11 @@ class Task(Generic[P, R]):
     def on_rollback(
         self, fn: Callable[["Transaction"], None]
     ) -> Callable[["Transaction"], None]:
+        if asyncio.iscoroutinefunction(fn):
+            raise ValueError(
+                "Asynchronous rollback hooks are not yet supported. Rollback hooks must be synchronous functions."
+            )
+
         self.on_rollback_hooks.append(fn)
         return fn
 
@@ -1847,9 +1877,6 @@ def task(
     """
 
     if __fn:
-        if isinstance(__fn, (classmethod, staticmethod)):
-            method_decorator = type(__fn).__name__
-            raise TypeError(f"@{method_decorator} should be applied on top of @task")
         return Task(
             fn=__fn,
             name=name,

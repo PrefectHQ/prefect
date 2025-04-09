@@ -22,15 +22,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flavor:
-          - ""
-          - "-conda"
-          - "-kubernetes"
+        image:
+          - "prefecthq/prefect"
+          - "prefecthq/prefect-client"
         python-version:
           - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
+        flavor:
+        - ""
+        - "-conda"
+        - "-kubernetes"
+        exclude:
+        - image: "prefecthq/prefect-client"
+          flavor: "-conda"
+        - image: "prefecthq/prefect-client"
+          flavor: "-kubernetes"
 
     steps:
       - name: Validate Prerelease Tag
@@ -60,13 +69,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate tags for prefecthq/prefect-dev
+      - name: Generate tags for ${{ matrix.image }}-dev
         id: metadata-dev
         uses: docker/metadata-action@v5
         # do not generate the development tags on true release events, only pre-releases
         if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
         with:
-          images: prefecthq/prefect-dev
+          images: ${{ matrix.image }}-dev
           tags: |
             type=raw,value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
@@ -83,13 +92,13 @@ jobs:
             "${{ github.api_url }}/repos/${{ github.repository }}/releases/latest" \
           | jq -r .tag_name)" >> $GITHUB_ENV
 
-      - name: Generate tags for prefecthq/prefect
+      - name: Generate tags for ${{ matrix.image }}
         id: metadata-prod
         uses: docker/metadata-action@v5
         # generate the production tags on release events or when manually triggered for 3-latest
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
         with:
-          images: prefecthq/prefect
+          images: ${{ matrix.image }}
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
           # push `latest` and `X` tags only when the release is marked as latest
           # push `3-latest` tags on latest release or manual trigger
@@ -111,6 +120,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ (matrix.image == 'prefecthq/prefect-client') && 'client/Dockerfile' || 'Dockerfile' }}
           platforms: linux/amd64,linux/arm64
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}

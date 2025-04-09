@@ -1,9 +1,9 @@
+import datetime
 from datetime import timedelta
 from typing import List
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @pytest.fixture
@@ -479,7 +480,7 @@ class TestCompoundTriggerAll:
                         id=uuid4(),
                         trigger=compound_automation_all_with_match.trigger.triggers[0],
                         trigger_states={TriggerState.Triggered},
-                        triggered=pendulum.now("UTC"),
+                        triggered=now("UTC"),
                     )
                 ),
                 db.CompositeTriggerChildFiring(
@@ -487,7 +488,7 @@ class TestCompoundTriggerAll:
                         id=uuid4(),
                         trigger=compound_automation_all_with_match.trigger.triggers[1],
                         trigger_states={TriggerState.Triggered},
-                        triggered=pendulum.now("UTC"),
+                        triggered=now("UTC"),
                     )
                 ),
             ]
@@ -1148,7 +1149,7 @@ class TestSequenceTriggers:
         baseline: DateTime = start_of_test
         return [
             ReceivedEvent(
-                occurred=baseline.add(seconds=1),
+                occurred=baseline + datetime.timedelta(seconds=1),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1156,7 +1157,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=2),
+                occurred=baseline + datetime.timedelta(seconds=2),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1164,7 +1165,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(minutes=14),
+                occurred=baseline + datetime.timedelta(minutes=14),
                 resource={
                     "prefect.resource.id": "prefect.cake.23456",
                 },
@@ -1286,7 +1287,7 @@ class TestSequenceTriggers:
         baseline: DateTime = start_of_test
         return [
             ReceivedEvent(
-                occurred=baseline.add(seconds=1),
+                occurred=baseline + datetime.timedelta(seconds=1),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.23456",
                 },
@@ -1294,7 +1295,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=2),
+                occurred=baseline + datetime.timedelta(seconds=2),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1302,7 +1303,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=3),
+                occurred=baseline + datetime.timedelta(seconds=3),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1310,7 +1311,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=4),
+                occurred=baseline + datetime.timedelta(seconds=4),
                 resource={
                     "prefect.resource.id": "prefect.cake.23456",
                 },
@@ -1347,7 +1348,7 @@ class TestSequenceTriggers:
         baseline: DateTime = start_of_test
         return [
             ReceivedEvent(
-                occurred=baseline.add(seconds=1),
+                occurred=baseline + datetime.timedelta(seconds=1),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1355,7 +1356,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=2),
+                occurred=baseline + datetime.timedelta(seconds=2),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1363,7 +1364,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=3),
+                occurred=baseline + datetime.timedelta(seconds=3),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1371,7 +1372,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(minutes=14),
+                occurred=baseline + datetime.timedelta(minutes=14),
                 resource={
                     "prefect.resource.id": "prefect.cake.23456",
                 },
@@ -1472,7 +1473,7 @@ class TestSequenceTriggers:
         baseline: DateTime = start_of_test
         return [
             ReceivedEvent(
-                occurred=baseline.add(seconds=4),
+                occurred=baseline + datetime.timedelta(seconds=4),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1480,7 +1481,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=5),
+                occurred=baseline + datetime.timedelta(seconds=5),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1488,7 +1489,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=6),
+                occurred=baseline + datetime.timedelta(seconds=6),
                 resource={
                     "prefect.resource.id": "prefect.cake.23456",
                 },
@@ -1496,7 +1497,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=7),
+                occurred=baseline + datetime.timedelta(seconds=7),
                 resource={
                     "prefect.resource.id": "prefect.guests.12345",
                 },
@@ -1504,7 +1505,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=8),
+                occurred=baseline + datetime.timedelta(seconds=8),
                 resource={
                     "prefect.resource.id": "prefect.cake.23456",
                 },
@@ -1559,7 +1560,7 @@ class TestSequenceTriggers:
         baseline: DateTime = start_of_test
         return [
             ReceivedEvent(
-                occurred=baseline.add(seconds=4),
+                occurred=baseline + datetime.timedelta(seconds=4),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.12345",
                 },
@@ -1567,7 +1568,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=5),
+                occurred=baseline + datetime.timedelta(seconds=5),
                 resource={
                     "prefect.resource.id": "prefect.cake.12345",
                 },
@@ -1575,7 +1576,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=6),
+                occurred=baseline + datetime.timedelta(seconds=6),
                 resource={
                     "prefect.resource.id": "prefect.ingredients.23456",
                 },
@@ -1583,7 +1584,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=7),
+                occurred=baseline + datetime.timedelta(seconds=7),
                 resource={
                     "prefect.resource.id": "prefect.cake.23456",
                 },
@@ -1591,7 +1592,7 @@ class TestSequenceTriggers:
                 id=uuid4(),
             ),
             ReceivedEvent(
-                occurred=baseline.add(seconds=8),
+                occurred=baseline + datetime.timedelta(seconds=8),
                 resource={
                     "prefect.resource.id": "prefect.guests.12345",
                 },

@@ -113,7 +113,7 @@ from prefect.states import (
     Pending,
     exception_to_failed_state,
 )
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -992,7 +992,7 @@ class Runner:
         if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled: DateTime = DateTime.now("UTC")
+        self.last_polled: datetime.datetime = now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
@@ -1158,15 +1158,7 @@ class Runner:
 
         flow, deployment = await self._get_flow_and_deployment(flow_run)
         if deployment:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                        "prefect.resource.role": "deployment",
-                        "prefect.resource.name": deployment.name,
-                    }
-                )
-            )
+            related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
         if flow:
             related.append(
@@ -1211,15 +1203,7 @@ class Runner:
         related: list[RelatedResource] = []
         tags: list[str] = []
         if deployment:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                        "prefect.resource.role": "deployment",
-                        "prefect.resource.name": deployment.name,
-                    }
-                )
-            )
+            related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
         if flow:
             related.append(
@@ -1258,7 +1242,9 @@ class Runner:
         """
         Retrieve scheduled flow runs for this runner.
         """
-        scheduled_before = DateTime.now("utc").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = now("UTC") + datetime.timedelta(
+            seconds=int(self._prefetch_seconds)
+        )
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )
@@ -1377,7 +1363,9 @@ class Runner:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            readiness_result = await self._runs_task_group.start(
+            readiness_result: (
+                anyio.abc.Process | Exception
+            ) = await self._runs_task_group.start(
                 partial(
                     self._submit_run_and_capture_errors,
                     flow_run=flow_run,
@@ -1388,7 +1376,7 @@ class Runner:
             if readiness_result and not isinstance(readiness_result, Exception):
                 async with self._flow_run_process_map_lock:
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=readiness_result, flow_run=flow_run
+                        pid=readiness_result.pid, flow_run=flow_run
                     )
             # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
             if self.heartbeat_seconds is not None:

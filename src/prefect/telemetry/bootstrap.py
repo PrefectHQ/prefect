@@ -10,7 +10,9 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 if TYPE_CHECKING:
-    from opentelemetry.sdk._logs import LoggerProvider
+    from opentelemetry.sdk._logs import (
+        LoggerProvider,  # pyright: ignore[reportPrivateImportUsage]
+    )
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.trace import TracerProvider
 

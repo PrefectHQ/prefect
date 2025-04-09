@@ -1,7 +1,9 @@
 import asyncio
+import uuid
 from datetime import timedelta
 from typing import AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 import sqlalchemy as sa
@@ -11,13 +13,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import ORMEventResource
 from prefect.server.events.filters import EventFilter
-from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.events.schemas.events import (
+    ReceivedEvent,
+    RelatedResource,
+    Resource,
+)
 from prefect.server.events.services import event_persister
 from prefect.server.events.services.event_persister import batch_delete
 from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
 from prefect.types import DateTime
+from prefect.types._datetime import now
 
 
 @db_injector
@@ -56,7 +63,7 @@ async def event_persister_handler() -> AsyncGenerator[MessageHandler, None]:
 @pytest.fixture
 def event() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=DateTime.now("UTC"),
+        occurred=now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "my.resource.id", "label-1": "value-1"},
         related=[
@@ -80,7 +87,32 @@ def event() -> ReceivedEvent:
             },
         ],
         payload={"hello": "world"},
-        received=DateTime(2022, 2, 3, 4, 5, 6, 7).in_timezone("UTC"),
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
+        id=uuid4(),
+        follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+    )
+
+
+@pytest.fixture
+def event_with_many_related_resources() -> ReceivedEvent:
+    return ReceivedEvent(
+        occurred=now("UTC"),
+        event="hello",
+        resource=Resource(
+            {"prefect.resource.id": "my.resource.id", "label-1": "value-1"}
+        ),
+        related=[
+            RelatedResource(
+                {
+                    "prefect.resource.id": str(uuid.uuid4()),
+                    "prefect.resource.role": "test.related",
+                    "data": "test.data",
+                }
+            )
+            for _ in range(99)
+        ],
+        payload={"hello": "world"},
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
         id=uuid4(),
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -90,6 +122,16 @@ def event() -> ReceivedEvent:
 def message(event: ReceivedEvent) -> Message:
     return CapturedMessage(
         data=event.model_dump_json().encode(),
+        attributes={},
+    )
+
+
+@pytest.fixture
+def message_with_many_related_resources(
+    event_with_many_related_resources: ReceivedEvent,
+) -> Message:
+    return CapturedMessage(
+        data=event_with_many_related_resources.model_dump_json().encode(),
         attributes={},
     )
 
@@ -144,7 +186,7 @@ async def test_handling_message_writes_event(
             },
         ],
         payload={"hello": "world"},
-        received=DateTime(2022, 2, 3, 4, 5, 6, 7).in_timezone("UTC"),
+        received=DateTime(2022, 2, 3, 4, 5, 6, 7).astimezone(ZoneInfo("UTC")),
         id=event.id,
         follows=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
     )
@@ -185,6 +227,24 @@ async def test_handling_message_writes_event_resources(
     assert related_3.resource_id == "related-3"
     assert related_3.resource_role == "role-2"
     assert related_3.resource == {"label-1": "value-5", "label-2": "value-6"}
+
+
+async def test_handling_message_writes_event_resources_with_many_related_resources(
+    frozen_time: DateTime,
+    db: PrefectDBInterface,
+    event_persister_handler: MessageHandler,
+    message_with_many_related_resources: Message,
+    session: AsyncSession,
+    event_with_many_related_resources: ReceivedEvent,
+):
+    await event_persister_handler(message_with_many_related_resources)
+
+    resources = await get_resources(session, event_with_many_related_resources.id, db)
+    assert len(resources) == 100
+
+    event = await get_event(event_with_many_related_resources.id)
+    assert event
+    assert event == event_with_many_related_resources
 
 
 @pytest.fixture
@@ -299,7 +359,7 @@ async def test_trims_messages_periodically(
     # Create entries with slightly different insert times. Since the event_resources are filtered based on the
     # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
     for _ in range(3):
-        timestamp = DateTime.now("UTC")
+        timestamp = now("UTC")
         await write_events(
             session, [event.model_copy(update={"id": uuid4(), "occurred": timestamp})]
         )
@@ -324,7 +384,7 @@ async def test_trims_messages_periodically(
     assert any(resource.occurred >= cutoff_date for resource in initial_resources)
 
     # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
-    retention_period = DateTime.now("UTC") - cutoff_date
+    retention_period = now("UTC") - cutoff_date
     with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
         async with event_persister.create_handler(
             flush_every=timedelta(seconds=0.001),
@@ -350,7 +410,7 @@ async def test_batch_delete(
     )
 
     number_deleted = await batch_delete(
-        session, db.Event, db.Event.occurred <= DateTime.now("UTC"), batch_size=3
+        session, db.Event, db.Event.occurred <= now("UTC"), batch_size=3
     )
 
     assert number_deleted == 10

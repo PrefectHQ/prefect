@@ -1,10 +1,10 @@
 import contextlib
+import datetime
 import random
 import sqlite3
 from itertools import product
 from unittest.mock import MagicMock
 
-import pendulum
 import pytest
 import sqlalchemy.exc
 
@@ -27,6 +27,7 @@ from prefect.server.schemas.responses import (
     StateWaitDetails,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types._datetime import now
 
 # Convert constant from set to list for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -46,11 +47,11 @@ async def commit_task_run_state(
         state_type == states.StateType.SCHEDULED
         and "scheduled_time" not in state_details
     ):
-        state_details.update({"scheduled_time": pendulum.now("UTC")})
+        state_details.update({"scheduled_time": now("UTC")})
 
     new_state = schemas.states.State(
         type=state_type,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=now("UTC") - datetime.timedelta(seconds=5),
         state_details=state_details,
         name=state_name,
     )

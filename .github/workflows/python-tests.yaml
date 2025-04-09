@@ -75,6 +75,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
         exclude:
           - database: "sqlite"
             test-type:
@@ -114,7 +115,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
-        run: uv sync --frozen
+        run: uv sync --locked
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -247,7 +248,7 @@ jobs:
           docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
-        run: uv sync --frozen
+        run: uv sync --locked
 
       - name: Start database container
         if: ${{ startsWith(matrix.database, 'postgres') }}
@@ -332,7 +333,7 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
-        run: uv sync
+        run: uv sync --locked
 
       - name: Run tests
         run: |

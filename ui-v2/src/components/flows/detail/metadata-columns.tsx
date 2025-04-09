@@ -1,5 +1,5 @@
-import { components } from "@/api/prefect";
-import { ColumnDef } from "@tanstack/react-table";
+import type { components } from "@/api/prefect";
+import type { ColumnDef } from "@tanstack/react-table";
 
 type Flow = components["schemas"]["Flow"];
 type FlowMetadata = { attribute: string; value: string | string[] | null };

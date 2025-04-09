@@ -5,6 +5,7 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
+from datetime import datetime
 from typing import Any, Callable, List, Optional
 
 import typer
@@ -70,7 +71,7 @@ class PrefectTyper(typer.Typer):
         self,
         *args: Any,
         deprecated: bool = False,
-        deprecated_start_date: Optional[str] = None,
+        deprecated_start_date: Optional[datetime] = None,
         deprecated_help: str = "",
         deprecated_name: str = "",
         **kwargs: Any,
@@ -125,7 +126,7 @@ class PrefectTyper(typer.Typer):
         *args: Any,
         aliases: Optional[List[str]] = None,
         deprecated: bool = False,
-        deprecated_start_date: Optional[str] = None,
+        deprecated_start_date: Optional[datetime] = None,
         deprecated_help: str = "",
         deprecated_name: str = "",
         **kwargs: Any,

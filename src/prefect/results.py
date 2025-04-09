@@ -31,6 +31,7 @@ from pydantic import (
 from typing_extensions import ParamSpec, Self
 
 import prefect
+import prefect.types._datetime
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
@@ -519,7 +520,7 @@ class ResultStore(BaseModel):
         if metadata.expiration:
             # if the result has an expiration,
             # check if it is still in the future
-            exists = metadata.expiration > DateTime.now("utc")
+            exists = metadata.expiration > prefect.types._datetime.now("UTC")
         else:
             exists = True
         return exists
@@ -552,7 +553,11 @@ class ResultStore(BaseModel):
         if self.result_storage_block_id is None and (
             _resolve_path := getattr(self.result_storage, "_resolve_path", None)
         ):
-            return str(_resolve_path(key))
+            path_key = _resolve_path(key)
+            if path_key is not None:
+                return str(_resolve_path(key))
+            else:
+                return key
         return key
 
     @sync_compatible
@@ -684,7 +689,9 @@ class ResultStore(BaseModel):
 
         if self.result_storage_block_id is None:
             if _resolve_path := getattr(self.result_storage, "_resolve_path", None):
-                key = str(_resolve_path(key))
+                path_key = _resolve_path(key)
+                if path_key is not None:
+                    key = str(_resolve_path(key))
 
         return ResultRecord(
             result=obj,
@@ -773,7 +780,7 @@ class ResultStore(BaseModel):
                 )
                 else Path(".").resolve()
             )
-            base_key = str(Path(key).relative_to(basepath))
+            base_key = key if basepath is None else str(Path(key).relative_to(basepath))
         else:
             base_key = key
         if (

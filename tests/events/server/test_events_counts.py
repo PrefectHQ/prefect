@@ -1,11 +1,13 @@
+import datetime
 import math
 from datetime import timedelta
 from typing import AsyncGenerator, Dict, List, Tuple
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from whenever import ZonedDateTime
 
 from prefect.server.events.counting import PIVOT_DATETIME, Countable, TimeUnit
 from prefect.server.events.filters import (
@@ -17,7 +19,7 @@ from prefect.server.events.storage.database import (
     count_events,
     write_events,
 )
-from prefect.types import Date, DateTime
+from prefect.types._datetime import Date, DateTime, Duration, end_of_period, now
 
 # Note: the counts in this module are sensitive to the number and shape of events
 # we produce in conftest.py and may need to be adjusted if we make changes.
@@ -25,16 +27,23 @@ from prefect.types import Date, DateTime
 
 @pytest.fixture(scope="module")
 def known_dates() -> Tuple[Date, ...]:
-    dates = [Date.today().subtract(days=days_ago) for days_ago in [5, 4, 3, 2, 1]]
+    dates = [
+        datetime.date.today() - datetime.timedelta(days=days_ago)
+        for days_ago in [5, 4, 3, 2, 1]
+    ]
     return tuple(dates)
 
 
 @pytest.fixture(scope="module")
-def known_times(known_dates: Tuple[Date, ...]) -> Tuple[DateTime, DateTime]:
+def known_times(
+    known_dates: Tuple[Date, ...],
+) -> Tuple[datetime.datetime, datetime.datetime]:
     start, end = known_dates[0], known_dates[-1]
     return (
-        DateTime(start.year, start.month, start.day).in_timezone("UTC"),
-        DateTime(end.year, end.month, end.day, 23, 59, 59, 999999).in_timezone("UTC"),
+        ZonedDateTime(start.year, start.month, start.day, tz="UTC").py_datetime(),
+        ZonedDateTime(
+            end.year, end.month, end.day, 23, 59, 59, nanosecond=999999999, tz="UTC"
+        ).py_datetime(),
     )
 
 
@@ -127,7 +136,8 @@ def all_events(known_dates: Tuple[Date, ...]) -> List[ReceivedEvent]:
                 hour=i,
                 minute=i * 2,
                 second=i * 2,
-            ).in_timezone("UTC")
+                tzinfo=ZoneInfo("UTC"),
+            )
 
             related = list(related_options[i % len(related_options)])
 
@@ -157,17 +167,18 @@ async def events_query_session(
 
 
 def datetime_from_date(
-    date: Date, hour: int = 0, minute: int = 0, second: int = 0, microsecond=0
-) -> DateTime:
-    return DateTime(
+    date: Date, hour: int = 0, minute: int = 0, second: int = 0, microsecond: int = 0
+) -> datetime.datetime:
+    return ZonedDateTime(
         date.year,
         date.month,
         date.day,
         hour=hour,
         minute=minute,
         second=second,
-        microsecond=microsecond,
-    ).in_timezone("UTC")
+        nanosecond=microsecond * 1000,
+        tz="UTC",
+    ).py_datetime()
 
 
 async def test_counting_by_day_legacy(
@@ -237,7 +248,7 @@ async def test_counting_by_time_no_future_events_backfilled(
         filter=EventFilter(
             occurred=EventOccurredFilter(
                 since=known_times[0],
-                until=known_times[1].add(days=2).in_timezone("UTC"),
+                until=known_times[1] + datetime.timedelta(days=1),
             ),
         ),
         countable=Countable.day,
@@ -283,10 +294,12 @@ async def test_counting_by_time_no_future_events_backfilled(
         ),
         EventCount(
             value="5",
-            label=f"{known_dates[4].add(days=1).isoformat()}T00:00:00+00:00",
+            label=f"{(known_dates[4] + datetime.timedelta(days=1)).isoformat()}T00:00:00+00:00",
             count=0,
-            start_time=datetime_from_date(known_dates[4].add(days=1)),
-            end_time=datetime_from_date(known_dates[4].add(days=1), 23, 59, 59, 999999),
+            start_time=datetime_from_date(known_dates[4] + datetime.timedelta(days=1)),
+            end_time=datetime_from_date(
+                known_dates[4] + datetime.timedelta(days=1), 23, 59, 59, 999999
+            ),
         ),
     ]
 
@@ -313,7 +326,9 @@ async def test_counting_by_time_per_hour(
     for date in known_dates:
         for i in range(20):
             start_time = datetime_from_date(date, hour=i)
-            index = int((start_time - datetime_from_date(known_dates[0])).total_hours())
+            index = int(
+                (start_time - datetime_from_date(known_dates[0])).total_seconds() / 3600
+            )
             expected[index] = EventCount(
                 value=str(index),
                 label=start_time.isoformat(),
@@ -328,7 +343,9 @@ async def test_counting_by_time_per_hour(
     # about the length of the result and then assert that the result contains
     # all of the expected spans and assert that the count is 0 for the others.
 
-    assert len(counts) == math.ceil((known_times[1] - known_times[0]).total_hours())
+    assert len(counts) == math.ceil(
+        (known_times[1] - known_times[0]).total_seconds() / 3600
+    )
     assert len(expected) == 100
 
     for i, count in enumerate(counts):
@@ -362,7 +379,7 @@ async def test_counting_by_time_per_minute(
         for i in range(20):
             start_time = datetime_from_date(date, hour=i, minute=i * 2)
             index = int(
-                (start_time - datetime_from_date(known_dates[0])).total_minutes()
+                (start_time - datetime_from_date(known_dates[0])).total_seconds() / 60
             )
             expected[index] = EventCount(
                 value=str(index),
@@ -399,7 +416,7 @@ async def test_counting_by_time_per_second(
         filter=EventFilter(
             occurred=EventOccurredFilter(
                 since=known_times[0],
-                until=known_times[0].add(seconds=600),
+                until=known_times[0] + datetime.timedelta(seconds=600),
             ),
         ),
         countable=Countable.time,
@@ -503,7 +520,7 @@ async def test_counting_by_time_large_interval(
     # about the length of the result and then assert that the result contains
     # all of the expected spans and assert that the count is 0 for the others.
 
-    assert len(counts) == (until - since).total_hours() * 2 + 1
+    assert len(counts) == (until - since).total_seconds() / 1800 + 1
     assert len(expected) == 5
 
     for i, count in enumerate(counts):
@@ -645,7 +662,7 @@ async def test_counting_by_time_per_two_days(
     # bucket with 20 or the last the first bucket will have 20 events and the
     # last 40 depending on which day it runs.
 
-    two_days = pendulum.Duration(days=2)
+    two_days = Duration(days=2)
     first_span_index = math.floor(
         (datetime_from_date(known_dates[0]) - PIVOT_DATETIME) / two_days
     )
@@ -681,9 +698,13 @@ async def test_counting_by_time_per_two_days(
         expected = [
             EventCount(
                 value="0",
-                label=datetime_from_date(known_dates[0].subtract(days=1)).isoformat(),
+                label=datetime_from_date(
+                    known_dates[0] - datetime.timedelta(days=1)
+                ).isoformat(),
                 count=20,
-                start_time=datetime_from_date(known_dates[0].subtract(days=1)),
+                start_time=datetime_from_date(
+                    known_dates[0] - datetime.timedelta(days=1)
+                ),
                 end_time=datetime_from_date(known_dates[0], 23, 59, 59, 999999),
             ),
             EventCount(
@@ -726,18 +747,18 @@ async def test_counting_by_time_per_week(
     # Since we compute weeks based on the week starting on Monday it's possible
     # for this test to either encounter a single week or two weeks depending
     # on what day of the week it's run.
-    counts_by_week = {}
+    counts_by_week: dict[datetime.datetime, int] = {}
     for date in known_dates:
-        start_day = (
-            DateTime(year=date.year, month=date.month, day=date.day)
-            .in_timezone("UTC")
-            .start_of("week")
+        start_day = datetime.datetime(
+            year=date.year, month=date.month, day=date.day, tzinfo=ZoneInfo("UTC")
         )
+        # go to the start of the week
+        start_day = start_day - datetime.timedelta(days=start_day.weekday())
         if start_day not in counts_by_week:
             counts_by_week[start_day] = 0
         counts_by_week[start_day] += 20  # We generate 20 events per known date
 
-    expected = []
+    expected: list[EventCount] = []
     for i, (date, count) in enumerate(counts_by_week.items()):
         expected.append(
             EventCount(
@@ -745,7 +766,7 @@ async def test_counting_by_time_per_week(
                 label=date.isoformat(),
                 count=count,
                 start_time=date,
-                end_time=date.end_of("week"),
+                end_time=end_of_period(date, "week"),
             )
         )
 
@@ -873,8 +894,8 @@ async def test_counting_by_time_must_result_in_reasonable_number_of_buckets(
             session=events_query_session,
             filter=EventFilter(
                 occurred=EventOccurredFilter(
-                    since=pendulum.now("UTC").subtract(days=7),
-                    until=pendulum.now("UTC"),
+                    since=now("UTC") - datetime.timedelta(days=7),
+                    until=now("UTC"),
                 ),
             ),
             countable=Countable.time,

@@ -172,7 +172,7 @@ class State(StateBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = now("utc")
+                self.state_details.scheduled_time = now("UTC")
 
         return self
 
@@ -213,9 +213,9 @@ class State(StateBaseModel):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": now("utc"),
-                "updated": now("utc"),
-                "timestamp": now("utc"),
+                "created": now("UTC"),
+                "updated": now("UTC"),
+                "timestamp": now("UTC"),
             },
             deep=True,
             **kwargs,

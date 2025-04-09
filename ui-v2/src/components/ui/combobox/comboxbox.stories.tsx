@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Automation } from "@/api/automations";
+import type { Automation } from "@/api/automations";
 import { createFakeAutomation } from "@/mocks";
 import { useDeferredValue, useMemo, useState } from "react";
 import {

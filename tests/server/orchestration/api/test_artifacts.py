@@ -1,12 +1,14 @@
 from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
+from httpx import AsyncClient
 from starlette import status
 
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import Deployment, Flow
 from prefect.server.schemas import actions
+from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -81,8 +83,8 @@ async def artifacts(flow_run, task_run, client):
 
 
 @pytest.fixture
-async def flow_artifacts(client, deployment):
-    flow_data = {"name": "my-flow"}
+async def flow_artifacts(client: AsyncClient, flow: Flow, deployment: Deployment):
+    flow_data = {"name": flow.name}
     response = await client.post("/flows/", json=flow_data)
 
     flow = response.json()
@@ -758,7 +760,7 @@ class TestCountArtifacts:
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifact, client):
         response = await client.post("/artifacts/filter")
-        now = pendulum.now("utc")
+        current_time = now("UTC")
         assert response.status_code == status.HTTP_200_OK
         artifact_id = response.json()[0]["id"]
         artifact_key = response.json()[0]["key"]
@@ -776,13 +778,13 @@ class TestUpdateArtifact:
         assert updated_artifact.data == {"new": "data"}
         assert updated_artifact.key == artifact_key
         assert str(updated_artifact.flow_run_id) == artifact_flow_run_id
-        assert updated_artifact.created < now
-        assert updated_artifact.updated > now
+        assert updated_artifact.created < current_time
+        assert updated_artifact.updated > current_time
 
     async def test_update_artifact_does_not_update_if_fields_are_not_set(
         self, artifact, client
     ):
-        now = pendulum.now("utc")
+        current_time = now("UTC")
         artifact_id = artifact["id"]
 
         response = await client.patch(
@@ -796,8 +798,8 @@ class TestUpdateArtifact:
         assert updated_artifact.data == artifact["data"]
         assert updated_artifact.key == artifact["key"]
         assert str(updated_artifact.flow_run_id) == artifact["flow_run_id"]
-        assert updated_artifact.created < now
-        assert updated_artifact.updated > now
+        assert updated_artifact.created < current_time
+        assert updated_artifact.updated > current_time
 
     async def test_update_artifact_raises_error_if_artifact_not_found(
         self, artifacts, client

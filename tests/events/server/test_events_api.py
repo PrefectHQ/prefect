@@ -1,4 +1,5 @@
 import base64
+import datetime
 import re
 from typing import Generator, List
 from unittest import mock
@@ -302,14 +303,16 @@ def count_events() -> Generator[mock.AsyncMock, None, None]:
                 value="hello",
                 label="world",
                 count=42,
-                start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+                start_time=prefect.types._datetime.now("UTC")
+                - datetime.timedelta(days=7),
                 end_time=prefect.types._datetime.now("UTC"),
             ),
             EventCount(
                 value="goodbye",
                 label="moon",
                 count=24,
-                start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+                start_time=prefect.types._datetime.now("UTC")
+                - datetime.timedelta(days=7),
                 end_time=prefect.types._datetime.now("UTC"),
             ),
         ]
@@ -333,14 +336,14 @@ async def test_counting_events_by_day(
             value="hello",
             label="world",
             count=42,
-            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            start_time=prefect.types._datetime.now("UTC") - datetime.timedelta(days=7),
             end_time=prefect.types._datetime.now("UTC"),
         ),
         EventCount(
             value="goodbye",
             label="moon",
             count=24,
-            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            start_time=prefect.types._datetime.now("UTC") - datetime.timedelta(days=7),
             end_time=prefect.types._datetime.now("UTC"),
         ),
     ]
@@ -377,14 +380,14 @@ async def test_counting_events_by_time(
             value="hello",
             label="world",
             count=42,
-            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            start_time=prefect.types._datetime.now("UTC") - datetime.timedelta(days=7),
             end_time=prefect.types._datetime.now("UTC"),
         ),
         EventCount(
             value="goodbye",
             label="moon",
             count=24,
-            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            start_time=prefect.types._datetime.now("UTC") - datetime.timedelta(days=7),
             end_time=prefect.types._datetime.now("UTC"),
         ),
     ]
@@ -439,14 +442,14 @@ async def test_counting_events_by_event_with_a_filter(
             value="hello",
             label="world",
             count=42,
-            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            start_time=prefect.types._datetime.now("UTC") - datetime.timedelta(days=7),
             end_time=prefect.types._datetime.now("UTC"),
         ),
         EventCount(
             value="goodbye",
             label="moon",
             count=24,
-            start_time=prefect.types._datetime.now("UTC").subtract(days=7),
+            start_time=prefect.types._datetime.now("UTC") - datetime.timedelta(days=7),
             end_time=prefect.types._datetime.now("UTC"),
         ),
     ]

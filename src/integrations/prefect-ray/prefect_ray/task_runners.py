@@ -51,8 +51,7 @@ Example:
 
     @flow(task_runner=RayTaskRunner)
     def count_to(highest_number):
-        for number in range(highest_number):
-            shout.submit(number)
+        shout.map(range(highest_number)).wait()
 
     if __name__ == "__main__":
         count_to(10)
@@ -143,9 +142,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
             else:
                 return object_ref_result
 
-        _result = self._final_state.result(
-            raise_on_failure=raise_on_failure, fetch=True
-        )
+        _result = self._final_state.result(raise_on_failure=raise_on_failure)
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):

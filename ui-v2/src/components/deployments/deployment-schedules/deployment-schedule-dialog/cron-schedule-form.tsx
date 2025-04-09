@@ -78,7 +78,7 @@ export const CronScheduleForm = ({
 	const { updateDeploymentSchedule, isPending: updatePending } =
 		useUpdateDeploymentSchedule();
 
-	const form = useForm<FormSchema>({
+	const form = useForm({
 		resolver: zodResolver(formSchema),
 		defaultValues: DEFAULT_VALUES,
 	});
@@ -249,7 +249,7 @@ const DayOrDialog = () => {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<button className="cursor-help">
+				<button type="button" className="cursor-help">
 					<Icon id="Info" className="size-4 inline" />
 				</button>
 			</DialogTrigger>
