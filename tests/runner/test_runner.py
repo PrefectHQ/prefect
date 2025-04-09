@@ -27,6 +27,7 @@ from starlette import status
 import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect._experimental.bundles import create_bundle_for_flow_run
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.cli.deploy import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -74,6 +75,13 @@ from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
+
+
+@pytest.fixture(autouse=True)
+def suppress_deprecation_warnings() -> Generator[None, None, None]:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=PrefectDeprecationWarning)
+        yield
 
 
 @flow(version="test")
@@ -361,7 +369,9 @@ class TestServe:
         log_level = "DEBUG"
 
         # Mock build_server to return a webserver mock object
-        with mock.patch("prefect.runner.server.build_server") as mock_build_server:
+        with mock.patch(
+            "prefect.runner.server.build_server", new_callable=mock.AsyncMock
+        ) as mock_build_server:
             webserver_mock = mock.MagicMock()
             mock_build_server.return_value = webserver_mock
 
