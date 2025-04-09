@@ -1,21 +1,21 @@
 import json
 import subprocess
 import sys
-from typing import Dict, List, Set
 
 PYTHON_VERSIONS = [
     "3.9",
     "3.10",
     "3.11",
     "3.12",
+    "3.13",
 ]
 
-SKIP_VERSIONS = {
-    "prefect-ray": ["3.12"],
+SKIP_VERSIONS: dict[str, list[str]] = {
+    "prefect-ray": ["3.13"],
 }
 
 
-def get_changed_packages(commit_range: str) -> List[str]:
+def get_changed_packages(commit_range: str) -> list[str]:
     # Get the list of changed files in the specified commit range
     result = subprocess.run(
         ["git", "diff", "--name-only", commit_range],
@@ -25,7 +25,7 @@ def get_changed_packages(commit_range: str) -> List[str]:
     )
     changed_files = result.stdout.split()
     # Filter for src/integrations directories
-    packages: Set[str] = set()
+    packages: set[str] = set()
     for file in changed_files:
         parts = file.split("/")
         if len(parts) > 1 and parts[0] == "src" and parts[1] == "integrations":
@@ -33,8 +33,10 @@ def get_changed_packages(commit_range: str) -> List[str]:
     return list(packages)
 
 
-def generate_matrix(packages: List[str], python_versions: List[str]) -> Dict:
-    matrix = {"include": []}
+def generate_matrix(
+    packages: list[str], python_versions: list[str]
+) -> dict[str, list[dict[str, str]]]:
+    matrix: dict[str, list[dict[str, str]]] = {"include": []}
     for package in packages:
         for version in python_versions:
             if version in SKIP_VERSIONS.get(package, []):

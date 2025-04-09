@@ -4,7 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-snowflake"
-dependencies = ["snowflake>=1.2.0", "snowflake-connector-python>=3.0.4", "prefect>=3.0.0"]
+dependencies = [
+  "snowflake>=1.2.0",
+  "snowflake-connector-python>=3.0.4",
+  "prefect>=3.0.0",
+]
 dynamic = ["version"]
 description = "Prefect integrations for interacting with Snowflake"
 readme = "README.md"
@@ -22,6 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Libraries",
 ]
 
