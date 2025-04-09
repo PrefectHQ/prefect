@@ -63,6 +63,7 @@ This example does **_not_** require:
 
 The core of the background processing is a Python function decorated with `@prefect.task`. This marks the function as a unit of work that Prefect can manage (e.g. observe, cache, retry, etc.)
 
+{/* pmd-metadata: notest */}
 ```python src/foo/task.py
 import inspect
 from typing import Any, Callable
@@ -121,6 +122,7 @@ Key details:
 
 The FastAPI application provides API endpoints to trigger the background task and check its status.
 
+{/* pmd-metadata: notest */}
 ```python src/foo/api.py
 import logging
 from uuid import UUID
