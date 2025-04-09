@@ -37,6 +37,10 @@ const blockDocumentsHandlers = [
 	http.delete(buildApiUrl("/block_documents/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
+
+	http.patch(buildApiUrl("/block_documents/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const blockSchemasHandlers = [
