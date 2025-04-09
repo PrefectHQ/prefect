@@ -32,7 +32,7 @@ def google_auth(monkeypatch):
     )
     google_auth_mock.default.side_effect = lambda *args, **kwargs: (
         default_credentials_mock,
-        None,
+        "my_project",
     )
     monkeypatch.setattr("google.auth", google_auth_mock)
     return google_auth_mock
@@ -70,8 +70,9 @@ class Blob:
         Path(filename).write_text("abcdef")
 
 
-class CloudStorageClient:
-    def __init__(self, credentials=None, project=None):
+class CloudStorageClient(MagicMock):
+    def __init__(self, credentials=None, project=None, *args, **kwargs):
+        super().__init__()
         self.credentials = credentials
         self.project = project
 
@@ -315,11 +316,10 @@ def service_account_info_json(monkeypatch):
 
 @pytest.fixture
 def gcp_credentials(
-    monkeypatch,
-    google_auth,
-    mock_credentials,
-    job_service_client,
-    job_service_async_client,
+    google_auth: MagicMock,
+    mock_credentials: MagicMock,
+    job_service_client: MagicMock,
+    job_service_async_client: MagicMock,
 ):
     gcp_credentials_mock = MagicMock(spec=GcpCredentials)
     gcp_credentials_mock.service_account_info = None
