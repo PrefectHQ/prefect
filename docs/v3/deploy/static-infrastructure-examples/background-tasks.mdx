@@ -3,7 +3,7 @@ title: Deploy a web application powered by background tasks
 description: Learn how to background heavy tasks from a web application to dedicated infrastructure.
 ---
 
-This example demonstrates how to leverage [background tasks](/v3/develop/deferred-tasks) in the context of a web application using Prefect for task submission, execution, monitoring, and result storage. We'll build out an application using FastAPI to offer API endpoints to our clients, and task workers to execute the background tasks these endpoints defer.
+This example demonstrates how to use [background tasks](/v3/develop/deferred-tasks) in the context of a web application using Prefect for task submission, execution, monitoring, and result storage. We'll build out an application using FastAPI to offer API endpoints to our clients, and task workers to execute the background tasks these endpoints defer.
 
 <Tip>
 Refer to the [examples repository](https://github.com/PrefectHQ/examples/pull/20) for the complete example's source code.
@@ -287,7 +287,7 @@ CMD ["uvicorn", "src.foo.api:app", "--host", "0.0.0.0", "--port", "8000"]
 
 <Accordion title="Dockerfile Key Details">
 
-- **Base Stage (`base`)**: Sets up Python, `uv`, installs all dependencies from `pyproject.toml` into a base layer to leverage Docker caching, and copies the source code.
+- **Base Stage (`base`)**: Sets up Python, `uv`, installs all dependencies from `pyproject.toml` into a base layer to make use of Docker caching, and copies the source code.
 - **Server Stage (`server`)**: Builds upon the `base` stage. Sets the default command (`CMD`) to start the Prefect server.
 - **Task Worker Stage (`task`)**: Builds upon the `base` stage. Sets the `CMD` to run the `src/foo/task.py` script, which is expected to contain the `serve()` call for the task(s).
 - **API Stage (`api`)**: Builds upon the `base` stage. Sets the `CMD` to start the FastAPI application using `uvicorn`.
