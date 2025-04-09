@@ -557,7 +557,7 @@ class AsyncTransaction(BaseTransaction):
             for hook in reversed(self.on_rollback_hooks):
                 await self.run_hook(hook, "rollback")
 
-            self.state = TransactionState.ROLLED_BACK
+            self.state: TransactionState = TransactionState.ROLLED_BACK
 
             for child in reversed(self.children):
                 await child.rollback()
