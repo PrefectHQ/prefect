@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 import inspect
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Union, overload
 
 import anyio
 import httpx
 from typing_extensions import Literal, TypeAlias
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -119,6 +121,11 @@ def submit_to_runner(
 ) -> list[FlowRun]: ...
 
 
+@deprecated_callable(
+    start_date=datetime(2025, 4, 1),
+    end_date=datetime(2025, 10, 1),
+    help="Use background tasks (https://docs.prefect.io/v3/develop/deferred-tasks) or `run_deployment` and `.serve` instead of submitting runs to the Runner webserver.",
+)
 @sync_compatible
 async def submit_to_runner(
     prefect_callable: Flow[Any, Any],
@@ -186,13 +193,18 @@ async def submit_to_runner(
     return submitted_runs
 
 
+@deprecated_callable(
+    start_date=datetime(2025, 4, 1),
+    end_date=datetime(2025, 10, 1),
+    help="Use background tasks (https://docs.prefect.io/v3/develop/deferred-tasks) or `run_deployment` and `.serve` instead of submitting runs to the Runner webserver.",
+)
 @sync_compatible
 async def wait_for_submitted_runs(
     flow_run_filter: FlowRunFilter | None = None,
     task_run_filter: TaskRunFilter | None = None,
     timeout: float | None = None,
     poll_interval: float = 3.0,
-):
+) -> uuid.UUID | None:
     """
     Wait for completion of any provided flow runs (eventually task runs), as well as subflow runs
     of the current flow run (if called from within a flow run and subflow runs exist).
