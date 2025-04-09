@@ -1,0 +1,455 @@
+---
+title: Deploy background tasks with Docker Compose
+description: Learn how to use Prefect to manage background tasks triggered from a web API
+---
+
+This example demonstrates how to run [background tasks](/v3/develop/deferred-tasks) triggered by a web application using Prefect for task submission, execution, and monitoring. We'll build a simple application using FastAPI to provide the API endpoints, and Prefect to handle the long-running background work.
+
+<Tip>
+Refer to [the complete example](https://github.com/PrefectHQ/examples/pull/20) for details on the application code.
+</Tip>
+
+This pattern is useful when you need to perform operations that are too long for a standard web request-response cycle, such as data processing, sending emails, or interacting with external APIs that might be slow.
+
+
+
+## Overview
+
+In this example, you will set up:
+
+- `@prefect.task` definitions representing the work you want to run in the background
+- A `fastapi` application providing API endpoints to:
+    - Receive task parameters via `POST` request and submit the task to Prefect with `.delay()`
+    - Allow polling for the task's status via a `GET` request using its `task_run_id`
+- A `compose.yaml` to manage lifecycles of the web app, Prefect server and task worker(s)
+
+<Note>
+This example does **_not_** require:
+- Prefect Cloud
+- creating a Prefect Deployment
+- creating a work pool
+</Note>
+
+## Useful things to remember
+
+- You can call any Python code from your task definitions (including other flows and tasks!)
+- Prefect [Results](/v3/concepts/caching.html) allow you to save/serialize the `return` value of your task definitions to your result storage (e.g. a local directory, S3, GCS, etc), enabling [caching](/v3/develop/task-caching) and [idempotency](/v3/develop/transactions).
+
+
+
+## Defining the background task
+
+The core of the background processing is a Python function decorated with `@prefect.task`. This marks the function as a unit of work that Prefect can manage (e.g. observe, cache, retry, etc.)
+
+```python src/foo/task.py
+import inspect
+from typing import Any, Callable
+
+import marvin
+
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE
+from prefect.task_worker import serve
+
+
+def def _print_output(output: Any):
+    print(f"result type: {type(output)}")
+    print(f"result: {output!r}")
+
+
+@task(cache_policy=INPUTS + TASK_SOURCE)
+async def cast_data_to_type[T](
+    data: Any,
+    target: type[T],
+    instructions: str,
+    on_complete: Callable[[T], None] | None = _print_output,
+) -> T:
+    output = await marvin.cast_async(
+        data,
+        target=target,
+        instructions=instructions,
+    )
+
+    if on_complete:
+        if inspect.iscoroutinefunction(on_complete):
+            await on_complete(output)
+        else:
+            on_complete(output)
+
+    return output
+
+
+def main():
+    """main entrypoint for the task"""
+    serve(cast_data_to_type)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+Key aspects:
+
+- `@task`: Decorator that registers the function with Prefect.
+- `cache_policy`: Optional caching based on `INPUTS` and `TASK_SOURCE`.
+- `serve(cast_data_to_type)`: This function starts a websocket client subscribed to newly `delay()`ed task runs.
+
+
+
+## Building the FastAPI application
+
+The FastAPI application provides API endpoints to trigger the background task and check its status.
+
+```python src/foo/api.py
+import logging
+from uuid import UUID
+
+from fastapi import Depends, FastAPI, Response
+from fastapi.responses import JSONResponse
+
+from foo._internal import get_form_data, get_task_result, StructuredOutputRequest
+from foo.task import cast_data_to_type
+
+logger = logging.getLogger(__name__)
+
+app = FastAPI()
+
+
+@app.post("/tasks", status_code=202)
+async def submit_task(
+    form_data: StructuredOutputRequest = Depends(get_form_data),
+) -> JSONResponse:
+    """Submits the background task to Prefect.
+
+    Receives task parameters, calls `.delay()` on the Prefect task,
+    and returns the task run ID.
+    """
+    future = cast_data_to_type.delay(
+        form_data.payload,
+        target=form_data.target_type,
+        instructions=form_data.instructions,
+    )
+    logger.info(f"Submitted task run: {future.task_run_id}")
+    return {"task_run_id": str(future.task_run_id)}
+
+
+@app.get("/tasks/{task_run_id}/status")
+async def get_task_status_api(task_run_id: UUID) -> Response:
+    """Checks the status of a submitted task run.
+
+    Uses the helper function `get_task_result` which queries the Prefect API.
+    Returns the status and result/error message.
+    """
+    status, data = await get_task_result(task_run_id)
+
+    response_data = {"task_run_id": str(task_run_id), "status": status}
+    http_status_code = 200 # Default to 200 OK
+
+    if status == "completed":
+        response_data["result"] = data
+    elif status == "error":
+        response_data["message"] = data
+        # Optionally set a different HTTP status for errors
+
+    return JSONResponse(response_data, status_code=http_status_code)
+```
+<Accordion title="Checking Task Status with the Prefect Client">
+
+The `get_task_result` helper function (in `src/foo/_internal/_prefect.py`) uses the Prefect Python client to interact with the Prefect API:
+
+```python src/foo/_internal/_prefect.py
+from typing import Any, Literal, cast
+from uuid import UUID
+
+
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.objects import TaskRun
+from prefect.logging import get_logger
+
+logger = get_logger(__name__)
+
+Status = Literal["completed", "pending", "error"]
+
+
+def _any_task_run_result(task_run: TaskRun) -> Any:
+    try:
+        return cast(Any, task_run.state.result(_sync=True))  # type: ignore
+    except Exception as e:
+        logger.warning(f"Could not retrieve result for task run {task_run.id}: {e}")
+        return None
+
+
+async def get_task_result(task_run_id: UUID) -> tuple[Status, Any]:
+    """Get task result or status.
+
+    Returns:
+        tuple: (status, data)
+            status: "completed", "pending", or "error"
+            data: the result if completed, error message if error, None if pending
+    """
+    try:
+        async with get_client() as client:
+            task_run = await client.read_task_run(task_run_id)
+            if not task_run.state:
+                return "pending", None
+
+            if task_run.state.is_completed():
+                try:
+                    result = _any_task_run_result(task_run)
+                    return "completed", result
+                except Exception as e:
+                    logger.warning(
+                        f"Could not retrieve result for completed task run {task_run_id}: {e}"
+                    )
+                    return "completed", "<Could not retrieve result>"
+
+            elif task_run.state.is_failed():
+                try:
+                    error_result = _any_task_run_result(task_run)
+                    error_message = (
+                        str(error_result)
+                        if error_result
+                        else "Task failed without specific error message."
+                    )
+                    return "error", error_message
+                except Exception as e:
+                    logger.warning(
+                        f"Could not retrieve error result for failed task run {task_run_id}: {e}"
+                    )
+                    return "error", "<Could not retrieve error message>"
+
+            else:
+                return "pending", None
+
+    except Exception as e:
+        logger.error(f"Error checking task status for {task_run_id}: {e}")
+        return "error", f"Failed to check task status: {str(e)}"
+```
+
+This function fetches the `TaskRun` object from the API and checks its `state` to determine if it's `Completed`, `Failed`, or still `Pending`/`Running`. If completed, it attempts to retrieve the result using `task_run.state.result()`. If failed, it tries to get the error message.
+
+
+</Accordion>
+## Building the Docker Image
+
+A multi-stage `Dockerfile` is used to create optimized images for each service (Prefect server, task worker, and web API). This approach helps keep image sizes small and separates build dependencies from runtime dependencies.
+
+```dockerfile Dockerfile
+# Stage 1: Base image with Python and uv
+FROM --platform=linux/amd64 ghcr.io/astral-sh/uv:python3.12-bookworm-slim as base
+
+WORKDIR /app
+
+# Set environment variables for uv
+ENV UV_SYSTEM_PYTHON=1
+ENV PATH="/root/.local/bin:$PATH"
+
+# Copy project definition and lock file
+COPY pyproject.toml uv.lock* ./
+
+# Install dependencies using uv, leveraging cache
+# Note: We install all dependencies needed for all stages here.
+# A more optimized approach might separate dependencies per stage.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r pyproject.toml
+
+# Copy the source code
+COPY src/ /app/src
+
+# --- Server Stage --- #
+FROM base as server
+
+# Expose the default Prefect server port
+EXPOSE 4200
+
+# Command to start the Prefect server
+CMD ["prefect", "server", "start"]
+
+# --- Task Worker Stage --- #
+FROM base as task
+
+# Command to start the task worker by running the task script
+# This script should call `prefect.task_worker.serve(...)`
+CMD ["python", "src/foo/task.py"]
+
+# --- API Stage --- #
+FROM base as api
+
+# Expose the default FastAPI port
+EXPOSE 8000
+
+# Command to start the FastAPI server using uvicorn
+# Ensure uvicorn is included in dependencies if using this command
+CMD ["uvicorn", "src.foo.api:app", "--host", "0.0.0.0", "--port", "8000"]
+
+```
+
+Key aspects of this `Dockerfile`:
+
+- **Base Stage (`base`)**: Sets up Python, `uv`, installs all dependencies from `pyproject.toml` into a base layer to leverage Docker caching, and copies the source code.
+- **Server Stage (`server`)**: Builds upon the `base` stage. Sets the default command (`CMD`) to start the Prefect server.
+- **Task Worker Stage (`task`)**: Builds upon the `base` stage. Sets the `CMD` to run the `src/foo/task.py` script, which is expected to contain the `serve()` call for the task(s).
+- **API Stage (`api`)**: Builds upon the `base` stage. Sets the `CMD` to start the FastAPI application using `uvicorn`.
+
+The `docker-compose.yaml` file then uses the `target` build argument to specify which of these final stages (`server`, `task`, `api`) to use for each service container.
+
+## Orchestrating with Docker Compose
+
+We use `docker-compose.yaml` to define and run the multi-container application, managing the lifecycles of the FastAPI web server, the Prefect API server, database and task worker(s).
+
+```yaml compose.yaml
+services:
+
+  prefect-server:
+    build:
+      context: .
+      target: server
+    ports:
+      - "4200:4200" # Expose Prefect UI/API
+    volumes:
+      - prefect-data:/root/.prefect # Persist Prefect DB
+    environment:
+      # Allow connections from other containers
+      PREFECT_SERVER_API_HOST: 0.0.0.0
+
+  task:
+    build:
+      context: .
+      target: task # Use the 'task' stage from Dockerfile
+    deploy:
+      replicas: 1 # task workers are safely horizontally scalable (think redis stream consumer groups)
+    volumes:
+      # Mount storage for results
+      - ./task-storage:/task-storage
+    depends_on:
+      # Wait for Prefect API to be available
+      prefect-server:
+        condition: service_started
+    environment:
+      # Point the worker to the Prefect API
+      PREFECT_API_URL: http://prefect-server:4200/api
+      # --- Prefect Configuration --- #
+      # Store results locally in the mounted volume
+      PREFECT_LOCAL_STORAGE_PATH: /task-storage
+      # Enable capturing print statements as logs
+      PREFECT_LOGGING_LOG_PRINTS: "true"
+      # Automatically persist results for tasks
+      PREFECT_RESULTS_PERSIST_BY_DEFAULT: "true"
+      # Disable Marvin's default print handler if needed
+      MARVIN_ENABLE_DEFAULT_PRINT_HANDLER: "false"
+      # Pass necessary secrets to the task environment
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+
+    develop:
+      # Optional: Watch for code changes for development
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+            - task-storage/
+        - action: rebuild
+          path: uv.lock
+
+  api:
+    build:
+      context: .
+      target: api # Use the 'api' stage from Dockerfile
+    volumes:
+      - ./task-storage:/task-storage # Access task results if needed
+    ports:
+      - "8000:8000" # Expose the web API
+    depends_on:
+      task:
+        condition: service_started # Optional: wait for worker
+      prefect-server:
+        condition: service_started # Wait for Prefect API
+    environment:
+      # Point the API application to the Prefect API
+      PREFECT_API_URL: http://prefect-server:4200/api
+      # Allow API to potentially read results from same path
+      PREFECT_LOCAL_STORAGE_PATH: /task-storage
+    develop:
+      # Optional: Watch for code changes for development
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+            - task-storage/
+        - action: rebuild
+          path: uv.lock
+
+volumes:
+  # Named volumes for data persistence
+  postgres_data: {} # Likely unused in this specific example
+  prefect-data: {}
+  task-storage: {}
+```
+
+<Accordion title="Key Service Configurations">
+
+- **`prefect-server`**: Runs the Prefect API server and UI.
+    - `build`: Uses a multi-stage `Dockerfile` (not shown here, but present in the example repo) targeting the `server` stage.
+    - `ports`: Exposes the Prefect API/UI on port `4200`.
+    - `volumes`: Uses a named volume `prefect-data` to persist the Prefect SQLite database (`/root/.prefect/prefect.db`) across container restarts.
+    - `PREFECT_SERVER_API_HOST=0.0.0.0`: Makes the API server listen on all interfaces within the Docker network, allowing the `task` and `api` services to connect.
+
+- **`task`**: Runs the Prefect task worker process (executing `python src/foo/task.py` which calls `serve`).
+    - `build`: Uses the `task` stage from the `Dockerfile`.
+    - `depends_on`: Ensures the `prefect-server` service is started before this service attempts to connect.
+    - `PREFECT_API_URL`: Crucial setting that tells the worker where to find the Prefect API to poll for submitted task runs.
+    - `PREFECT_LOCAL_STORAGE_PATH=/task-storage`: Configures the worker to store task run results in the `/task-storage` directory inside the container. This path is mounted to the host using the `task-storage` named volume via `volumes: - ./task-storage:/task-storage` (or just `task-storage:` if using a named volume without a host path binding).
+    - `PREFECT_RESULTS_PERSIST_BY_DEFAULT=true`: Tells Prefect tasks to automatically save their results using the configured storage (defined by `PREFECT_LOCAL_STORAGE_PATH` in this case).
+    - `PREFECT_LOGGING_LOG_PRINTS=true`: Configures the Prefect logger to capture output from `print()` statements within tasks.
+    - `OPENAI_API_KEY=${OPENAI_API_KEY}`: Passes secrets needed by the task code from the host environment (via a `.env` file loaded by Docker Compose) into the container's environment.
+
+- **`api`**: Runs the FastAPI web application.
+    - `build`: Uses the `api` stage from the `Dockerfile`.
+    - `depends_on`: Waits for the `prefect-server` (required for submitting tasks and checking status) and optionally the `task` worker.
+    - `PREFECT_API_URL`: Tells the FastAPI application where to send `.delay()` calls and status check requests.
+    - `PREFECT_LOCAL_STORAGE_PATH`: May be needed if the API itself needs to directly read result files (though typically fetching results via `task_run.state.result()` is preferred).
+
+- **`volumes`**: Defines named volumes (`prefect-data`, `task-storage`) to persist data generated by the containers.
+
+Environment variables (like `OPENAI_API_KEY`) are typically loaded by Docker Compose from a `.env` file in the project root.
+
+</Accordion>
+
+## Running this example
+
+1.  **Prerequisites:** Docker Desktop (or equivalent) with `docker compose` support.
+2.  **Get the Code:** Clone the [Prefect examples repository](https://github.com/PrefectHQ/examples) and navigate to the `apps/background-tasks` directory.
+3.  **Configure Secrets (if needed):** Create a `.env` file in the project root if your task requires secrets (like the `OPENAI_API_KEY` used in the example). Docker Compose automatically loads variables from this file.
+    ```dotenv .env
+    OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ```
+4.  **Build and Run Services:**
+    ```bash
+    docker compose up --build --watch
+    ```
+    *   `--build`: Builds the container images if they don't exist or if the Dockerfile/context has changed.
+    *   `--watch`: Watches for changes in the project and rebuilds the containers as needed.
+    *   `--detach`: Runs the containers in detached mode (in the background).
+5.  **Access Services:**
+    - API Endpoint (for submitting tasks): `POST http://localhost:8000/tasks`
+    - API Endpoint (for checking status): `GET http://localhost:8000/tasks/{task_run_id}/status`
+    - Prefect UI (for observing task runs): [http://localhost:4200](http://localhost:4200)
+
+### Cleaning up
+
+```bash
+docker compose down
+```
+*   Use `docker compose down -v` to also remove the named volumes (`prefect-data`, `task-storage`) if you want a completely clean restart.
+
+## Next Steps
+
+This example provides a robust pattern for integrating Prefect-managed background tasks with any web API framework. You can:
+
+- Adapt the `@task` definition (`src/foo/task.py`) to perform your specific long-running work.
+- Modify the API endpoints (`src/foo/api.py`) to accept different inputs or return different responses.
+- Configure Prefect settings (environment variables in `compose.yaml`) further, for example, using different result storage or logging levels.
+- Deploy these services to cloud infrastructure using managed container services.

@@ -3,101 +3,65 @@ title: Run tasks in the background
 description: See examples of using Prefect tasks and the task worker.
 ---
 
-Prefect tasks help you quickly execute small, discrete units of work. _Deferred_ Prefect tasks run in a 
-background process using a Prefect task worker. Use deferred tasks to move work out of the foreground of your 
+Prefect [tasks](/v3/develop/write-tasks)  help you quickly execute small, discrete units of work. Tasks have a `delay` method that allows you to defer execution to a task worker somewhere else (a long-lived process / container). Use background tasks to move work out of the foreground of your 
 application and distribute concurrent execution across multiple processes or machines.
 
-For example, if you have a web application, deferred tasks allow you to offload processes such as sending emails, processing 
-images, or inserting data into a database.
+For example, imagine a web application that needs to trigger a task that will run longer than a desirable request-response cycle. You can defer tasks from your endpoint to independent, horizontally scalable task workers on separate infrastructure.
 
-## Using deferred tasks
+## Defining and running background tasks
 
-Prefect tasks are Python functions that can be run immediately or deferred for background execution.
-
-Define a task by adding the `@task` decorator to a Python function, and use the `delay` method to 
-run the task in the background.
-
-If you schedule the task for background execution, you can run a task worker in a separate process or container to execute 
-the task. This process is similar to a Celery worker or an arq worker.
-
-### Defining a task
-
-Add the `@task` decorator to a Python function to define a Prefect task:
+- Define a task by adding the `@task` decorator to a Python function (like any other Prefect task)
+- Use the `.delay()` method to background a run of this task
+- Use the `.serve()` method or `serve()` function to start a task worker and execute any waiting task runs
 
 ```python
 from prefect import task
 
 @task
-def my_background_task(name: str):
-    # Task logic here
-    print(f"Hello, {name}!")
+def add(a: int, b: int):
+    return a + b
+
+add.delay(1, 2) # background one task run
+add.delay(42, 100) # background another task run
+
+
+add.serve() # start a task worker and execute any waiting task runs
 ```
 
-### Calling tasks
+<Tip>
+`.delay()` has the same signature as the `@task` decorated function.
+</Tip>
 
-You can call a task to run it immediately, or you can defer the task by scheduling it for background execution with 
-`Task.delay`.
 
-<Note>
-You can submit tasks to a _task runner_ such as Ray or Dask within 
-a workflow, which in Prefect is called a _flow_. However, this guide focuses on deferring task execution outside of 
-workflows. For example, by calling `my_task.delay()` within a web application.
-</Note>
-
-However you run a task, Prefect uses your task configuration to manage and control task execution.
-The following example shows both methods of calling a task and using `delay`:
+To listen for multiple different background tasks at once, you can use the `serve()` function with a list of tasks:
 
 ```python
-# Import the previously-defined task
-from myproject.tasks import my_background_task
-
-# Run the task immediately
-my_background_task("Joaquim")
-
-# Schedule the task for execution outside of this process
-my_background_task.delay("Agrajag")
-```
-
-### Executing deferred tasks with a task worker
-
-To run tasks in a separate process or container, start a task worker.
-
-The task worker continually receives instructions to execute deferred tasks from Prefect's API, executes them, and 
-reports the results back to the API.
-
-<Note>
-Task workers only run deferred tasks, not tasks you call directly as normal Python functions.
-</Note>
-
-Run a task worker by passing tasks into the `prefect.task_worker.serve()` method:
-
-```python tasks.py
 from prefect import task
 from prefect.task_worker import serve
 
+@task(log_prints=True)
+def add(a: int, b: int):
+    print(f"{a} + {b} = {a + b}")
 
-@task
-def my_background_task(name: str):
-    # Task logic here
-    print(f"Hello, {name}!")
+@task(log_prints=True)
+def multiply(a: int, b: int):
+    print(f"{a} * {b} = {a * b}")
 
+A = [1, 2, 3]
+B = [4, 5, 6]
 
-if __name__ == "__main__":
-    # NOTE: The serve() function accepts multiple tasks. The Task worker 
-    # will listen for scheduled task runs for all tasks passed in.
-    serve(my_background_task)
+add.map(A, B, deferred=True) # background 3 task runs - i.e. zip(A, B)
+multiply.map(A, B, deferred=True) # background 3 task runs - i.e. zip(A, B)
+
+serve(add, multiply) # start a task worker listening for both `add` and `multiply`
 ```
 
-The task worker begins listening for scheduled tasks. If tasks were scheduled before the task worker started, 
-it will begin processing them.
+<Tip>
+`.map()` accepts `(list[P.args], list[P.kwargs])` for each task, and `deferred=True` to run the tasks in the background (instead of the current context's task runner)
+</Tip>
 
-You can also use the helper CLI command `prefect task serve` to start a task worker:
 
-```bash
-prefect task serve my_task.py:my_background_task
-```
-
-## Guided exploration of deferred tasks and task workers in Prefect
+<Accordion title="Beginner walkthrough of the Prefect background task examples repository">
 
 Here are some examples of using deferred tasks and task workers in Prefect.
 
@@ -313,3 +277,8 @@ This guide showed you how to send tasks to multiple Prefect task workers running
 This allows you to observe these tasks executing in parallel and very quickly with web sockets, with no polling required.
 
 See additional examples in the [deferred tasks GitHub repository](https://github.com/PrefectHQ/prefect-background-task-examples.git).
+</Accordion>
+
+## Next steps
+
+- Explore a [complete example of a FastAPI application that backgrounds tasks](/v3/deploy/static-infrastructure-examples/background-tasks)
