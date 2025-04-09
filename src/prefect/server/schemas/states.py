@@ -461,7 +461,7 @@ def AwaitingRetry(
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
-        State: a AwaitingRetry state
+        State: an AwaitingRetry state
     """
     return Scheduled(
         cls=cls, scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs
@@ -476,7 +476,7 @@ def AwaitingConcurrencySlot(
     """Convenience function for creating `AwaitingConcurrencySlot` states.
 
     Returns:
-        State: a AwaitingConcurrencySlot state
+        State: an AwaitingConcurrencySlot state
     """
     return Scheduled(
         cls=cls,
