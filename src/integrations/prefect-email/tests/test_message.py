@@ -34,11 +34,15 @@ async def test_email_send_message(
 ):
     subject = "Example Flow Notification"
     msg_plain = "This proves msg plain is attached first!"
-    msg = "<h1>This proves msg is attached second!</h1>"
+    msg = '<h1>This proves msg is attached second!</h1><img src="cid:image1">'
 
     attachment = pathlib.Path(__file__).parent.absolute() / "attachment.txt"
     with open(attachment, "rb") as f:
         attachment_text = f.read()
+
+    inline_image_path = pathlib.Path(__file__).parent.absolute() / "image.png"
+    with open(inline_image_path, "rb") as img_file:
+        inline_image_data = img_file.read()
 
     @flow
     async def test_flow():
@@ -48,6 +52,7 @@ async def test_email_send_message(
             msg=msg,
             msg_plain=msg_plain,
             attachments=[attachment],
+            inline_images={"image1": str(inline_image_path)},
             email_to=email_to,
             email_to_cc=email_to_cc,
             email_to_bcc=email_to_bcc,
@@ -68,6 +73,12 @@ async def test_email_send_message(
     assert message.get_payload()[1].get_payload() == msg
     attachment = message.get_payload()[2].get_payload()
     assert base64.b64decode(attachment) == attachment_text
+
+    inline_image_part = message.get_payload()[3]
+    assert inline_image_part["Content-ID"] == "<image1>"
+    assert inline_image_part["Content-Disposition"] == "inline"
+    image = inline_image_part.get_payload()
+    assert base64.b64decode(image) == inline_image_data
 
     for key, val in email_to_dict.items():
         if isinstance(val, list):
