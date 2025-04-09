@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional
 
 import uvicorn
@@ -8,6 +9,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
@@ -252,6 +254,11 @@ def _build_generic_endpoint_for_flows(
     return _create_flow_run_for_flow_from_fqn
 
 
+@deprecated_callable(
+    start_date=datetime(2025, 4, 1),
+    end_date=datetime(2025, 10, 1),
+    help="Use background tasks (https://docs.prefect.io/v3/develop/deferred-tasks) or `run_deployment` and `.serve` instead of submitting runs to the Runner webserver.",
+)
 async def build_server(runner: "Runner") -> FastAPI:
     """
     Build a FastAPI server for a runner.
@@ -296,6 +303,11 @@ async def build_server(runner: "Runner") -> FastAPI:
     return webserver
 
 
+@deprecated_callable(
+    start_date=datetime(2025, 4, 1),
+    end_date=datetime(2025, 10, 1),
+    help="Use background tasks (https://docs.prefect.io/v3/develop/deferred-tasks) or `run_deployment` and `.serve` instead of submitting runs to the Runner webserver.",
+)
 def start_webserver(runner: "Runner", log_level: str | None = None) -> None:
     """
     Run a FastAPI server for a runner.
