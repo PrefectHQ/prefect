@@ -41,8 +41,7 @@ async def test_email_send_message(
         attachment_text = f.read()
 
     inline_image_path = pathlib.Path(__file__).parent.absolute() / "image.png"
-    with open(inline_image_path, "rb") as img_file:
-        inline_image_data = img_file.read()
+    inline_image_data = inline_image_path.read_bytes()
 
     @flow
     async def test_flow():
