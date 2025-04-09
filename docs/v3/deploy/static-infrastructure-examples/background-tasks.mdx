@@ -6,7 +6,7 @@ description: Learn how to background heavy tasks from a web application to dedic
 This example demonstrates how to use [background tasks](/v3/develop/deferred-tasks) in the context of a web application using Prefect for task submission, execution, monitoring, and result storage. We'll build out an application using FastAPI to offer API endpoints to our clients, and task workers to execute the background tasks these endpoints defer.
 
 <Tip>
-Refer to the [examples repository](https://github.com/PrefectHQ/examples/pull/20) for the complete example's source code.
+Refer to the [examples repository](https://github.com/PrefectHQ/examples/tree/main/apps/background-tasks) for the complete example's source code.
 </Tip>
 
 This pattern is useful when you need to perform operations that are too long for a standard web request-response cycle, such as data processing, sending emails, or interacting with external APIs that might be slow.
