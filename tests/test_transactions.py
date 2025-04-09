@@ -4,7 +4,7 @@ import threading
 import uuid
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -1085,3 +1085,95 @@ class TestIsolationLevel:
                     isolation_level=IsolationLevel.SERIALIZABLE,
                 ):
                     pass
+
+
+class TestHooks:
+    class TestTransaction:
+        def test_sync_on_commit_hook(self):
+            spy = MagicMock()
+            with transaction(key="test_sync_on_commit_hook") as txn:
+                txn.stage("foo", on_commit_hooks=[spy])
+
+            spy.assert_called_once_with(txn)
+
+        def test_sync_on_rollback_hook(self):
+            spy = MagicMock()
+            txn = None
+            with pytest.raises(RuntimeError):
+                with transaction(key="test_sync_on_rollback_hook") as txn:
+                    txn.stage("foo", on_rollback_hooks=[spy])
+                    raise RuntimeError("I left the stove on!")
+
+            assert txn is not None
+            spy.assert_called_once_with(txn)
+
+        def test_async_on_commit_hook(self):
+            spy = AsyncMock()
+
+            async def async_on_commit_hook(txn: Transaction):
+                await spy(txn)
+
+            with transaction(key="test_async_on_commit_hook") as txn:
+                txn.stage("foo", on_commit_hooks=[async_on_commit_hook])
+
+            spy.assert_called_once_with(txn)
+
+        def test_async_on_rollback_hook(self):
+            spy = AsyncMock()
+
+            async def async_on_rollback_hook(txn: Transaction):
+                await spy(txn)
+
+            txn = None
+            with pytest.raises(RuntimeError):
+                with transaction(key="test_async_on_rollback_hook") as txn:
+                    txn.stage("foo", on_rollback_hooks=[async_on_rollback_hook])
+                    raise RuntimeError("I forgot my keys at home!")
+
+            assert txn is not None
+            spy.assert_called_once_with(txn)
+
+    class TestAsyncTransaction:
+        async def test_sync_on_commit_hook(self):
+            spy = MagicMock()
+            async with atransaction(key="test_sync_on_commit_hook") as txn:
+                txn.stage("foo", on_commit_hooks=[spy])
+
+            spy.assert_called_once_with(txn)
+
+        async def test_sync_on_rollback_hook(self):
+            spy = MagicMock()
+            txn = None
+            with pytest.raises(RuntimeError):
+                async with atransaction(key="test_sync_on_rollback_hook") as txn:
+                    txn.stage("foo", on_rollback_hooks=[spy])
+                    raise RuntimeError("I forgot to pay my internet bill!")
+
+            assert txn is not None
+            spy.assert_called_once_with(txn)
+
+        async def test_async_on_commit_hook(self):
+            spy = AsyncMock()
+
+            async def async_on_commit_hook(txn: AsyncTransaction):
+                await spy(txn)
+
+            async with atransaction(key="test_async_on_commit_hook") as txn:
+                txn.stage("foo", on_commit_hooks=[async_on_commit_hook])
+
+            spy.assert_called_once_with(txn)
+
+        async def test_async_on_rollback_hook(self):
+            spy = AsyncMock()
+
+            async def async_on_rollback_hook(txn: AsyncTransaction):
+                await spy(txn)
+
+            txn = None
+            with pytest.raises(RuntimeError):
+                async with atransaction(key="test_async_on_rollback_hook") as txn:
+                    txn.stage("foo", on_rollback_hooks=[async_on_rollback_hook])
+                    raise RuntimeError("The sump pump is unplugged!")
+
+            assert txn is not None
+            spy.assert_called_once_with(txn)

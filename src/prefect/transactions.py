@@ -38,6 +38,7 @@ from prefect.results import (
 )
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 
 
@@ -382,7 +383,10 @@ class Transaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            hook(self)
+            if asyncio.iscoroutinefunction(hook):
+                run_coro_as_sync(hook(self))
+            else:
+                hook(self)
         except Exception as exc:
             if should_log:
                 self.logger.error(
