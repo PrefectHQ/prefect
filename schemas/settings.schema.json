@@ -1715,6 +1715,15 @@
                     ],
                     "title": "Insert Batch Size",
                     "type": "integer"
+                },
+                "recent_deployments_loop_seconds": {
+                    "default": 5,
+                    "description": "\n        The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS"
+                    ],
+                    "title": "Recent Deployments Loop Seconds",
+                    "type": "number"
                 }
             },
             "title": "ServerServicesSchedulerSettings",

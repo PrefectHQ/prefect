@@ -6,10 +6,13 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import PrefectDBInterface
 from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS,
+    temporary_settings,
 )
 from prefect.types._datetime import now
 from prefect.utilities.callables import parameter_schema
@@ -422,7 +425,9 @@ async def test_create_schedules_from_multiple_deployments_in_batches(flow, sessi
     assert len(runs) > PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
 
 
-async def test_scheduler_respects_paused(flow, session):
+async def test_scheduler_respects_paused(
+    flow: schemas.core.Flow, session: AsyncSession
+):
     await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -450,7 +455,7 @@ async def test_scheduler_respects_paused(flow, session):
 
 
 async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
-    flow, session
+    flow: schemas.core.Flow, session: AsyncSession
 ):
     """
     Create 3 runs, cancel one, and check that the scheduler doesn't overwrite the cancelled run
@@ -508,11 +513,12 @@ async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
     assert {r.state_type for r in runs} == {"SCHEDULED", "SCHEDULED", "CANCELLED"}
 
 
+@pytest.mark.usefixtures(
+    "deployment_without_schedules", "deployment_with_inactive_schedules"
+)
 async def test_only_looks_at_deployments_with_active_schedules(
-    session,
-    deployment_without_schedules,
-    deployment_with_inactive_schedules,
-    deployment_with_active_schedules,
+    session: AsyncSession,
+    deployment_with_active_schedules: schemas.core.Deployment,
 ):
     n_runs = await models.flow_runs.count_flow_runs(session=session)
     assert n_runs == 0
@@ -528,8 +534,19 @@ class TestRecentDeploymentsScheduler:
     async def test_tight_loop_by_default(self):
         assert RecentDeploymentsScheduler().loop_seconds == 5
 
+    async def test_tight_loop_can_be_configured(self):
+        assert RecentDeploymentsScheduler(loop_seconds=1).loop_seconds == 1
+
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS: 42}
+        ):
+            assert RecentDeploymentsScheduler().loop_seconds == 42
+
     async def test_schedules_runs_for_recently_created_deployments(
-        self, deployment, session, db
+        self,
+        deployment: schemas.core.Deployment,
+        session: AsyncSession,
+        db: PrefectDBInterface,
     ):
         recent_scheduler = RecentDeploymentsScheduler()
         count_query = (
@@ -546,7 +563,10 @@ class TestRecentDeploymentsScheduler:
         assert runs_count == recent_scheduler.min_runs
 
     async def test_schedules_runs_for_recently_updated_deployments(
-        self, deployment, session, db
+        self,
+        deployment: schemas.core.Deployment,
+        session: AsyncSession,
+        db: PrefectDBInterface,
     ):
         # artificially move the created time back (updated time will still be recent)
         await session.execute(
@@ -575,7 +595,10 @@ class TestRecentDeploymentsScheduler:
         assert runs_count == recent_scheduler.min_runs
 
     async def test_schedules_no_runs_for_deployments_updated_a_while_ago(
-        self, deployment, session, db
+        self,
+        deployment: schemas.core.Deployment,
+        session: AsyncSession,
+        db: PrefectDBInterface,
     ):
         # artificially move the updated time back
         await session.execute(
@@ -605,10 +628,11 @@ class TestRecentDeploymentsScheduler:
 
     async def test_only_looks_at_deployments_with_active_schedules(
         self,
-        session,
-        deployment_without_schedules,
-        deployment_with_inactive_schedules,
-        deployment_with_active_schedules,
+        session: AsyncSession,
+        db: PrefectDBInterface,
+        deployment_without_schedules: schemas.core.Deployment,
+        deployment_with_inactive_schedules: schemas.core.Deployment,
+        deployment_with_active_schedules: schemas.core.Deployment,
     ):
         n_runs = await models.flow_runs.count_flow_runs(session=session)
         assert n_runs == 0
