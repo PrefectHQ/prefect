@@ -65,45 +65,36 @@ The core of the background processing is a Python function decorated with `@pref
 
 {/* pmd-metadata: notest */}
 ```python src/foo/task.py
-import inspect
-from typing import Any, Callable
+from typing import Any, TypeVar
 
 import marvin
 
-from prefect import task
+from prefect import task, Task
 from prefect.cache_policies import INPUTS, TASK_SOURCE
+from prefect.states import State
 from prefect.task_worker import serve
+from prefect.client.schemas.objects import TaskRun
+
+T = TypeVar("T")
 
 
-def def _print_output(output: Any):
-    print(f"result type: {type(output)}")
-    print(f"result: {output!r}")
+def _print_output(task: Task, task_run: TaskRun, state: State[T]):
+    result = state.result()
+    print(f"result type: {type(result)}")
+    print(f"result: {result!r}")
 
 
-@task(cache_policy=INPUTS + TASK_SOURCE)
-async def cast_data_to_type[T](
-    data: Any,
-    target: type[T],
-    instructions: str,
-    on_complete: Callable[[T], None] | None = _print_output,
-) -> T:
-    output = await marvin.cast_async(
+@task(cache_policy=INPUTS + TASK_SOURCE, on_completion=[_print_output])
+async def create_structured_output(data: Any, target: type[T], instructions: str) -> T:
+    return await marvin.cast_async(
         data,
         target=target,
         instructions=instructions,
     )
 
-    if on_complete:
-        if inspect.iscoroutinefunction(on_complete):
-            await on_complete(output)
-        else:
-            on_complete(output)
-
-    return output
-
 
 def main():
-    serve(cast_data_to_type)
+    serve(create_structured_output)
 
 
 if __name__ == "__main__":
@@ -114,7 +105,7 @@ Key details:
 
 - `@task`: Decorator to define our task we want to run in the background.
 - `cache_policy`: Caching based on `INPUTS` and `TASK_SOURCE`.
-- `serve(cast_data_to_type)`: This function starts a task worker subscribed to newly `delay()`ed task runs.
+- `serve(create_structured_output)`: This function starts a task worker subscribed to newly `delay()`ed task runs.
 
 
 
@@ -131,7 +122,7 @@ from fastapi import Depends, FastAPI, Response
 from fastapi.responses import JSONResponse
 
 from foo._internal import get_form_data, get_task_result, StructuredOutputRequest
-from foo.task import cast_data_to_type
+from foo.task import create_structured_output
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +134,7 @@ async def submit_task(
     form_data: StructuredOutputRequest = Depends(get_form_data),
 ) -> JSONResponse:
     """Submit a task to Prefect for background execution."""
-    future = cast_data_to_type.delay(
+    future = create_structured_output.delay(
         form_data.payload,
         target=form_data.target_type,
         instructions=form_data.instructions,
