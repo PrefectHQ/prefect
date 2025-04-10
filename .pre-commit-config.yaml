@@ -36,10 +36,10 @@ repos:
 
   - repo: local
     hooks:
-      - id: generate-mintlify-openapi-docs
-        name: Generating OpenAPI docs for Mintlify
+      - id: run-all-generators
+        name: Running All Generators
         language: system
-        entry: uv run -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
+        entry: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/run_precommit_generation_scripts.py
         pass_filenames: false
         files: |
           (?x)^(
@@ -47,29 +47,11 @@ repos:
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
               src/prefect/server/events/.*|
-              scripts/generate_mintlify_openapi_docs.py
-          )$
-      - id: generate-settings-schema
-        name: Generating Settings Schema
-        language: system
-        entry: uv run -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
               src/prefect/settings/models/.*|
-              scripts/generate_settings_schema.py
-          )$
-      - id: generate-settings-ref
-        name: Generating Settings Reference
-        language: system
-        entry: uv run -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              src/prefect/settings/models/.*|
-              scripts/generate_settings_ref.py
+              scripts/generate_mintlify_openapi_docs.py|
+              scripts/generate_settings_schema.py|
+              scripts/generate_settings_ref.py|
+              scripts/run_all_generators.py
           )$
       - id: check-ui-v2
         name: Check UI v2
