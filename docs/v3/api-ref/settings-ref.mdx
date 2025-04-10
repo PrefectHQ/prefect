@@ -1393,7 +1393,7 @@ The maximum number of related resources an Event may have.
 
 **Type**: `integer`
 
-**Default**: `500`
+**Default**: `100`
 
 **TOML dotted key path**: `server.events.maximum_related_resources`
 
@@ -1938,6 +1938,20 @@ Whether or not to start the scheduler service in the server application.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`, `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`
+
+### `recent_deployments_loop_seconds`
+
+        The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
+        
+
+**Type**: `number`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.scheduler.recent_deployments_loop_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS`
 
 ---
 ## ServerServicesSettings

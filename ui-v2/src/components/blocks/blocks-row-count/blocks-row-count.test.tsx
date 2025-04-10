@@ -1,29 +1,38 @@
 import { Toaster } from "@/components/ui/sonner";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	RouterProvider,
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+} from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BlocksRowCount } from "./blocks-row-count";
+import { describe, expect, it, vi } from "vitest";
+import { BlocksRowCount, type BlocksRowCountProps } from "./blocks-row-count";
 
-describe("BlocksRowCount", () => {
-	beforeEach(() => {
-		// Mocks away getRouteApi dependency in `useDeleteDeploymentConfirmationDialog`
-		// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
-		vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
-			const mod = await importOriginal();
-			return {
-				...mod,
-				getRouteApi: () => ({
-					useNavigate: vi.fn,
-				}),
-			};
-		});
+// Wraps component in test with a Tanstack router provider
+const BlocksRowCountRouter = (props: BlocksRowCountProps) => {
+	const rootRoute = createRootRoute({
+		component: () => <BlocksRowCount {...props} />,
 	});
 
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({
+			initialEntries: ["/"],
+		}),
+		context: { queryClient: new QueryClient() },
+	});
+	return <RouterProvider router={router} />;
+};
+
+describe("BlocksRowCount", () => {
 	it("renders total count when there is no selected values", () => {
 		// ------------ Setup
 		render(
-			<BlocksRowCount
+			<BlocksRowCountRouter
 				count={101}
 				setRowSelection={vi.fn()}
 				rowSelection={{}}
@@ -41,7 +50,7 @@ describe("BlocksRowCount", () => {
 		render(
 			<>
 				<Toaster />
-				<BlocksRowCount
+				<BlocksRowCountRouter
 					count={1}
 					setRowSelection={mockSetRowSelection}
 					rowSelection={{ "1": true, "2": true }}

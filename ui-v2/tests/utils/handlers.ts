@@ -37,6 +37,16 @@ const blockDocumentsHandlers = [
 	http.delete(buildApiUrl("/block_documents/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
+
+	http.patch(buildApiUrl("/block_documents/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+];
+
+const blockSchemasHandlers = [
+	http.post(buildApiUrl("/block_schemas/filter"), () => {
+		return HttpResponse.json([]);
+	}),
 ];
 
 const blockTypesHandlers = [
@@ -120,6 +130,16 @@ const settingsHandlers = [
 	}),
 ];
 
+const taskRunHandlers = [
+	http.post(buildApiUrl("/task_runs/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.delete(buildApiUrl("/task_runs/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+];
+
 const taskRunConcurrencyLimitsHandlers = [
 	http.post(buildApiUrl("/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
@@ -168,7 +188,7 @@ const workPoolsHandlers = [
 	}),
 ];
 
-const workeQueuesHandlers = [
+const workQueuesHandlers = [
 	http.post(buildApiUrl("/work_queues/filter"), () => {
 		return HttpResponse.json([]);
 	}),
@@ -177,15 +197,17 @@ const workeQueuesHandlers = [
 export const handlers = [
 	...automationsHandlers,
 	...blockDocumentsHandlers,
+	...blockSchemasHandlers,
 	...blockTypesHandlers,
 	...deploymentsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
 	...settingsHandlers,
+	...taskRunHandlers,
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
 	...versionHandlers,
 	...workPoolsHandlers,
-	...workeQueuesHandlers,
+	...workQueuesHandlers,
 ];
