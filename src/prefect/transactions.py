@@ -717,7 +717,7 @@ async def atransaction(
             child transactions are committed
         - overwrite: Whether to overwrite an existing transaction record in the store
         - write_on_commit: Whether to write the result to the store on commit. If not provided,
-            will default will be determined by the current run context. If no run context is
+            the default will be determined by the current run context. If no run context is
             available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
 
     Yields:
