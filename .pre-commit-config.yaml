@@ -36,8 +36,8 @@ repos:
 
   - repo: local
     hooks:
-      - id: run-all-generators
-        name: Running All Generators
+      - id: auto-generate-documentation
+        name: Auto-generating Documentation
         language: system
         entry: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/run_precommit_generation_scripts.py
         pass_filenames: false
