@@ -14850,8 +14850,20 @@
             "Constant": {
                 "properties": {
                     "input_type": {
-                        "type": "string",
-                        "const": "constant",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "task_run"
+                            },
+                            {
+                                "type": "string",
+                                "const": "parameter"
+                            },
+                            {
+                                "type": "string",
+                                "const": "constant"
+                            }
+                        ],
                         "title": "Input Type",
                         "default": "constant"
                     },
@@ -21027,8 +21039,20 @@
             "Parameter": {
                 "properties": {
                     "input_type": {
-                        "type": "string",
-                        "const": "parameter",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "task_run"
+                            },
+                            {
+                                "type": "string",
+                                "const": "parameter"
+                            },
+                            {
+                                "type": "string",
+                                "const": "constant"
+                            }
+                        ],
                         "title": "Input Type",
                         "default": "parameter"
                     },
@@ -22757,13 +22781,7 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "task_key",
-                    "dynamic_key",
-                    "id",
-                    "created",
-                    "updated"
-                ],
+                "required": [],
                 "title": "TaskRun",
                 "description": "An ORM representation of task run data."
             },
@@ -23640,8 +23658,20 @@
             "TaskRunResult": {
                 "properties": {
                     "input_type": {
-                        "type": "string",
-                        "const": "task_run",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "task_run"
+                            },
+                            {
+                                "type": "string",
+                                "const": "parameter"
+                            },
+                            {
+                                "type": "string",
+                                "const": "constant"
+                            }
+                        ],
                         "title": "Input Type",
                         "default": "task_run"
                     },
@@ -24053,13 +24083,7 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "task_key",
-                    "dynamic_key",
-                    "id",
-                    "created",
-                    "updated"
-                ],
+                "required": [],
                 "title": "UITaskRun",
                 "description": "A task run with additional details for display in the UI."
             },
@@ -25746,8 +25770,15 @@
                         "description": "The work pool with which the queue is associated."
                     },
                     "last_heartbeat_time": {
-                        "type": "string",
-                        "format": "date-time",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Last Heartbeat Time",
                         "description": "The last time the worker process sent a heartbeat."
                     },

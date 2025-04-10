@@ -5174,9 +5174,8 @@ export interface components {
             /**
              * Input Type
              * @default constant
-             * @constant
              */
-            input_type: "constant";
+            input_type: "task_run" | "parameter" | "constant";
             /** Type */
             type: string;
         };
@@ -7866,9 +7865,8 @@ export interface components {
             /**
              * Input Type
              * @default parameter
-             * @constant
              */
-            input_type: "parameter";
+            input_type: "task_run" | "parameter" | "constant";
             /** Name */
             name: string;
         };
@@ -8658,11 +8656,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id: string;
+            id?: string;
             /** Created */
-            created: string | null;
+            created?: string | null;
             /** Updated */
-            updated: string | null;
+            updated?: string | null;
             /** Name */
             name?: string;
             /**
@@ -8674,12 +8672,12 @@ export interface components {
              * Task Key
              * @description A unique identifier for the task being run.
              */
-            task_key: string;
+            task_key?: string;
             /**
              * Dynamic Key
              * @description A dynamic key used to differentiate between multiple runs of the same task within the same flow run.
              */
-            dynamic_key: string;
+            dynamic_key?: string;
             /**
              * Cache Key
              * @description An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.
@@ -9153,9 +9151,8 @@ export interface components {
             /**
              * Input Type
              * @default task_run
-             * @constant
              */
-            input_type: "task_run";
+            input_type: "task_run" | "parameter" | "constant";
             /**
              * Id
              * Format: uuid
@@ -9207,11 +9204,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id: string;
+            id?: string;
             /** Created */
-            created: string | null;
+            created?: string | null;
             /** Updated */
-            updated: string | null;
+            updated?: string | null;
             /** Name */
             name?: string;
             /**
@@ -9223,12 +9220,12 @@ export interface components {
              * Task Key
              * @description A unique identifier for the task being run.
              */
-            task_key: string;
+            task_key?: string;
             /**
              * Dynamic Key
              * @description A dynamic key used to differentiate between multiple runs of the same task within the same flow run.
              */
-            dynamic_key: string;
+            dynamic_key?: string;
             /**
              * Cache Key
              * @description An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.
@@ -10052,10 +10049,9 @@ export interface components {
             work_pool_id: string;
             /**
              * Last Heartbeat Time
-             * Format: date-time
              * @description The last time the worker process sent a heartbeat.
              */
-            last_heartbeat_time?: string;
+            last_heartbeat_time?: string | null;
             /**
              * Heartbeat Interval Seconds
              * @description The number of seconds to expect between heartbeats sent by the worker.
