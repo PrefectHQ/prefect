@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import copy
+import inspect
 import logging
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
@@ -70,7 +71,7 @@ class BaseTransaction(ContextModel, abc.ABC):
 
     store: Optional[ResultStore] = None
     key: Optional[str] = None
-    children: list[Union[AsyncTransaction, Transaction]] = Field(default_factory=list)
+    children: list[Self] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
     isolation_level: Optional[IsolationLevel] = IsolationLevel.READ_COMMITTED
     state: TransactionState = TransactionState.PENDING
@@ -212,7 +213,7 @@ class BaseTransaction(ContextModel, abc.ABC):
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
 
-    def add_child(self, transaction: AsyncTransaction | Transaction) -> None:
+    def add_child(self, transaction: Self) -> None:
         self.children.append(transaction)
 
     def get_parent(self) -> Self | None:
@@ -339,7 +340,7 @@ class Transaction(BaseTransaction):
 
         try:
             for child in self.children:
-                if isinstance(child, AsyncTransaction):
+                if inspect.iscoroutinefunction(child.commit):
                     run_coro_as_sync(child.commit())
                 else:
                     child.commit()
@@ -415,7 +416,7 @@ class Transaction(BaseTransaction):
             self.state: TransactionState = TransactionState.ROLLED_BACK
 
             for child in reversed(self.children):
-                if isinstance(child, AsyncTransaction):
+                if inspect.iscoroutinefunction(child.rollback):
                     run_coro_as_sync(child.rollback())
                 else:
                     child.rollback()
