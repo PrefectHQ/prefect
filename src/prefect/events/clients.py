@@ -658,13 +658,13 @@ class PrefectEventSubscriber:
         except AssertionError as e:
             raise Exception(
                 "Unable to authenticate to the event stream. Please ensure the "
-                "provided api_key you are using is valid for this environment. "
+                "provided api_key or auth_token you are using is valid for this environment. "
                 f"Reason: {e.args[0]}"
             )
         except ConnectionClosedError as e:
             reason = getattr(e.rcvd, "reason", None)
             msg = "Unable to authenticate to the event stream. Please ensure the "
-            msg += "provided api_key you are using is valid for this environment. "
+            msg += "provided api_key or auth_token you are using is valid for this environment. "
             msg += f"Reason: {reason}" if reason else ""
             raise Exception(msg) from e
 
