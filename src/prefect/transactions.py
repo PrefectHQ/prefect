@@ -41,6 +41,8 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum
 
+logger: logging.Logger = get_logger("transactions")
+
 
 class IsolationLevel(AutoEnum):
     READ_COMMITTED = AutoEnum.auto()
@@ -68,7 +70,7 @@ class BaseTransaction(ContextModel, abc.ABC):
 
     store: Optional[ResultStore] = None
     key: Optional[str] = None
-    children: list[Self] = Field(default_factory=list)
+    children: list[Union[AsyncTransaction, Transaction]] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
     isolation_level: Optional[IsolationLevel] = IsolationLevel.READ_COMMITTED
     state: TransactionState = TransactionState.PENDING
@@ -210,7 +212,7 @@ class BaseTransaction(ContextModel, abc.ABC):
         # this needs to go before begin, which could set the state to committed
         self.state = TransactionState.ACTIVE
 
-    def add_child(self, transaction: Self) -> None:
+    def add_child(self, transaction: AsyncTransaction | Transaction) -> None:
         self.children.append(transaction)
 
     def get_parent(self) -> Self | None:
@@ -337,7 +339,10 @@ class Transaction(BaseTransaction):
 
         try:
             for child in self.children:
-                child.commit()
+                if isinstance(child, AsyncTransaction):
+                    run_coro_as_sync(child.commit())
+                else:
+                    child.commit()
 
             for hook in self.on_commit_hooks:
                 self.run_hook(hook, "commit")
@@ -410,7 +415,10 @@ class Transaction(BaseTransaction):
             self.state: TransactionState = TransactionState.ROLLED_BACK
 
             for child in reversed(self.children):
-                child.rollback()
+                if isinstance(child, AsyncTransaction):
+                    run_coro_as_sync(child.rollback())
+                else:
+                    child.rollback()
 
             return True
         except Exception:
@@ -485,7 +493,10 @@ class AsyncTransaction(BaseTransaction):
 
         try:
             for child in self.children:
-                await child.commit()
+                if isinstance(child, AsyncTransaction):
+                    await child.commit()
+                else:
+                    child.commit()
 
             for hook in self.on_commit_hooks:
                 await self.run_hook(hook, "commit")
@@ -560,7 +571,10 @@ class AsyncTransaction(BaseTransaction):
             self.state: TransactionState = TransactionState.ROLLED_BACK
 
             for child in reversed(self.children):
-                await child.rollback()
+                if isinstance(child, AsyncTransaction):
+                    await child.rollback()
+                else:
+                    child.rollback()
 
             return True
         except Exception:
