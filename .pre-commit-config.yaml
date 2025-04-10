@@ -51,7 +51,7 @@ repos:
               scripts/generate_mintlify_openapi_docs.py|
               scripts/generate_settings_schema.py|
               scripts/generate_settings_ref.py|
-              scripts/run_all_generators.py
+              scripts/run_precommit_generation_scripts.py
           )$
       - id: check-ui-v2
         name: Check UI v2
