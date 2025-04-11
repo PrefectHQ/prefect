@@ -13,6 +13,7 @@ import {
 	buildListFilterBlockDocumentsQuery,
 	queryKeyFactory,
 	useDeleteBlockDocument,
+	useUpdateBlockDocument,
 } from "./block-documents";
 
 describe("block documents queries", () => {
@@ -109,9 +110,7 @@ describe("block documents queries", () => {
 
 			const { result: useDeleteBlockDocumentResult } = renderHook(
 				useDeleteBlockDocument,
-				{
-					wrapper: createWrapper({ queryClient }),
-				},
+				{ wrapper: createWrapper({ queryClient }) },
 			);
 
 			act(() =>
@@ -124,6 +123,54 @@ describe("block documents queries", () => {
 				expect(useDeleteBlockDocumentResult.current.isSuccess).toBe(true),
 			);
 			expect(useListBlockDocumentsResult.current.data).toHaveLength(0);
+		});
+	});
+
+	describe("useUpdateBlockDocument", () => {
+		it("invalidates cache and fetches updated value", async () => {
+			const mockBlockDocument = createFakeBlockDocument();
+			const updatedBlockDocument = {
+				...mockBlockDocument,
+				data: { foo: "bar" },
+			};
+			const queryClient = new QueryClient();
+			const FILTER = {
+				offset: 0,
+				sort: "NAME_ASC" as const,
+				include_secrets: false,
+			};
+			queryClient.setQueryData(queryKeyFactory.listFilter(FILTER), [
+				mockBlockDocument,
+			]);
+			mockFilterListBlocksAPI([updatedBlockDocument]);
+
+			queryClient.setQueryData(queryKeyFactory.listFilter(FILTER), [
+				mockBlockDocument,
+			]);
+
+			const { result: useListBlockDocumentsResult } = renderHook(
+				() => useSuspenseQuery(buildListFilterBlockDocumentsQuery(FILTER)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useUpdateBlockDocumentResult } = renderHook(
+				useUpdateBlockDocument,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useUpdateBlockDocumentResult.current.updateBlockDocument({
+					...updatedBlockDocument,
+					merge_existing_data: false,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useUpdateBlockDocumentResult.current.isSuccess).toBe(true),
+			);
+			expect(useListBlockDocumentsResult.current.data).toEqual([
+				updatedBlockDocument,
+			]);
 		});
 	});
 });
