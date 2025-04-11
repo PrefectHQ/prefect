@@ -911,6 +911,7 @@ async def update_deployment_schedule(
             session=session,
             deployment_id=deployment_id,
             auto_scheduled_only=True,
+            future_only=True,
         )
 
 
