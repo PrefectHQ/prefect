@@ -219,7 +219,7 @@ class BaseTransaction(ContextModel, abc.ABC):
     def get_parent(self) -> Self | None:
         parent = None
         if self._token:
-            prev_var = getattr(self._token, "old_value")
+            prev_var = self._token.old_value
             if prev_var != Token.MISSING:
                 parent = prev_var
         else:
