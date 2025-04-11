@@ -81,7 +81,7 @@ Include these `source` addresses in your firewall rules to explicitly allow flow
 
 ### Images
 
-Managed execution requires that you run the official Prefect Docker image: `prefecthq/prefect:3-latest`.
+Managed execution requires that you run an official Prefect Docker image, such as `prefecthq/prefect:3-latest`.
 However, as noted above, you can install Python package dependencies at runtime.
 If you need to use your own image, we recommend using another type of work pool.
 
@@ -91,7 +91,7 @@ You must store flow code in an accessible remote location.
 Prefect supports git-based cloud providers such as GitHub, Bitbucket, or GitLab.
 Remote block-based storage is also supported, so S3, GCS, and Azure Blob are additional code storage options.
 
-### Resources
+### Resources & Limitations
 
 All flow runs receive:
 - 4vCPUs
