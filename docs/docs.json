@@ -131,7 +131,8 @@
               {
                 "group": "Static infrastructure examples",
                 "pages": [
-                  "v3/deploy/static-infrastructure-examples/docker"
+                  "v3/deploy/static-infrastructure-examples/docker",
+                  "v3/deploy/static-infrastructure-examples/background-tasks"
                 ]
               },
               "v3/deploy/daemonize-processes"
