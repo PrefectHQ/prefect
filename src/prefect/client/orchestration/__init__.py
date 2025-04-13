@@ -834,7 +834,7 @@ class PrefectClient(
         Query the Prefect API for a task run by id.
 
         Args:
-            task_run_id: the task run ID of interest
+            task_run_id: The unique identifier of the task run to retrieve.
 
         Returns:
             a Task Run model representation of the task run
@@ -901,7 +901,7 @@ class PrefectClient(
         Delete a task run by id.
 
         Args:
-            task_run_id: the task run ID of interest
+            task_run_id: The unique identifier of the task run to retrieve.
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
             httpx.RequestError: If requests fails
@@ -1635,8 +1635,7 @@ class SyncPrefectClient(
         Query the Prefect API for a task run by id.
 
         Args:
-            task_run_id: the task run ID of interest
-
+            task_run_id: The unique identifier of the task run to retrieve.
         Returns:
             a Task Run model representation of the task run
         """
