@@ -3128,16 +3128,36 @@ class TestTransactionHooks:
         assert "Running commit hook 'commit'" in caplog.text
         assert "Commit hook 'commit' finished running successfully" in caplog.text
 
-    async def test_async_rollback_hooks_are_not_supported(self):
+    async def test_async_rollback_hooks(self):
+        spy = AsyncMock()
+
         @task
         def foo():
             pass
 
-        with pytest.raises(
-            ValueError,
-            match="Asynchronous rollback hooks are not yet supported. Rollback hooks must be synchronous functions.",
-        ):
+        @foo.on_rollback
+        async def rollback(txn):
+            await spy()
 
-            @foo.on_rollback
-            async def rollback(txn):
-                pass
+        with pytest.raises(RuntimeError):
+            with transaction():
+                foo()
+                raise RuntimeError("Zut alors!")
+
+        spy.assert_called_once()
+
+    async def test_async_commit_hooks(self):
+        spy = AsyncMock()
+
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        async def commit(txn):
+            await spy()
+
+        with transaction():
+            foo()
+
+        spy.assert_called_once()
