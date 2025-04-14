@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import threading
-from typing import Any, Optional, TypedDict
+from typing import Any, TypedDict
 
 from typing_extensions import Self
 
@@ -19,7 +21,7 @@ class _LockInfo(TypedDict):
 
     holder: str
     lock: threading.Lock
-    expiration_timer: Optional[threading.Timer]
+    expiration_timer: threading.Timer | None
 
 
 class MemoryLockManager(LockManager):
@@ -63,8 +65,8 @@ class MemoryLockManager(LockManager):
         self,
         key: str,
         holder: str,
-        acquire_timeout: Optional[float] = None,
-        hold_timeout: Optional[float] = None,
+        acquire_timeout: float | None = None,
+        hold_timeout: float | None = None,
     ) -> bool:
         with self._locks_dict_lock:
             if key not in self._locks:
@@ -116,13 +118,13 @@ class MemoryLockManager(LockManager):
         self,
         key: str,
         holder: str,
-        acquire_timeout: Optional[float] = None,
-        hold_timeout: Optional[float] = None,
+        acquire_timeout: float | None = None,
+        hold_timeout: float | None = None,
     ) -> bool:
         with self._locks_dict_lock:
             if key not in self._locks:
                 lock = threading.Lock()
-                await asyncio.to_thread(lock.acquire)
+                lock.acquire()
                 expiration_timer = None
                 if hold_timeout is not None:
                     expiration_timer = threading.Timer(
@@ -192,7 +194,7 @@ class MemoryLockManager(LockManager):
             and lock_info["holder"] == holder
         )
 
-    def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
+    def wait_for_lock(self, key: str, timeout: float | None = None) -> bool:
         lock_info: _LockInfo | None = self._locks.get(key)
         if lock_info is None:
             return True
@@ -206,7 +208,7 @@ class MemoryLockManager(LockManager):
             return lock_acquired
         return True
 
-    async def await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
+    async def await_for_lock(self, key: str, timeout: float | None = None) -> bool:
         lock_info: _LockInfo | None = self._locks.get(key, None)
         if lock_info is None:
             return True

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import os
 import socket
@@ -33,6 +34,7 @@ from typing_extensions import ParamSpec, Self
 import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
 from prefect.exceptions import (
@@ -475,10 +477,17 @@ class ResultStore(BaseModel):
         Returns:
             str: A unique identifier string.
         """
+        current_loop = get_running_loop()
         hostname = socket.gethostname()
         pid = os.getpid()
         thread_name = threading.current_thread().name
         thread_id = threading.get_ident()
+        if current_loop:
+            current_task = asyncio.current_task()
+            if current_task:
+                # include the task id to ensure uniqueness because there might be
+                # multiple tasks running in the same thread
+                return f"{hostname}:{pid}:{thread_id}:{thread_name}:{id(current_task)}"
         return f"{hostname}:{pid}:{thread_id}:{thread_name}"
 
     @sync_compatible

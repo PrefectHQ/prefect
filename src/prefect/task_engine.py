@@ -81,7 +81,13 @@ from prefect.states import (
     return_value_to_state,
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
-from prefect.transactions import IsolationLevel, Transaction, transaction
+from prefect.transactions import (
+    AsyncTransaction,
+    IsolationLevel,
+    Transaction,
+    atransaction,
+    transaction,
+)
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -1020,7 +1026,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # otherwise, return the exception
             return self._raised
 
-    async def handle_success(self, result: R, transaction: Transaction) -> R:
+    async def handle_success(self, result: R, transaction: AsyncTransaction) -> R:
         if self.task.cache_expiration is not None:
             expiration = prefect.types._datetime.now("UTC") + self.task.cache_expiration
         else:
@@ -1302,7 +1308,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         await self.call_hooks()
 
     @asynccontextmanager
-    async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
+    async def transaction_context(self) -> AsyncGenerator[AsyncTransaction, None]:
         # refresh cache setting is now repurposes as overwrite transaction record
         overwrite = (
             self.task.refresh_cache
@@ -1317,7 +1323,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else None
         )
 
-        with transaction(
+        async with atransaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
@@ -1349,7 +1355,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 await self.handle_exception(exc)
 
     async def call_task_fn(
-        self, transaction: Transaction
+        self, transaction: AsyncTransaction
     ) -> Union[R, Coroutine[Any, Any, R]]:
         """
         Convenience method to call the task function. Returns a coroutine if the
@@ -1357,7 +1363,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
         parameters = self.parameters or {}
         if transaction.is_committed():
-            result = transaction.read()
+            result = await transaction.read()
         else:
             result = await call_with_parameters(self.task.fn, parameters)
         await self.handle_success(result, transaction=transaction)
