@@ -1,32 +1,107 @@
 ---
 title: Retrieve code from storage
-description: Learn about where to store your flow code.
+description: Learn about code storage as it relates to execution of deployments
 ---
 
 When a deployment runs, the execution environment needs access to the flow code.
-Flow code is not stored in Prefect server or Prefect Cloud.
+Flow code is not stored directly in Prefect server or Prefect Cloud; instead, it must be made available to the execution environment. There are two main ways to achieve this:
 
-You have several flow code storage options for remote execution:
+1.  **Include source code directly in your runtime:** Often, this means [building your code into a Docker image](/v3/deploy/infrastructure-examples/docker/).
+2.  **Retrieve code from storage at runtime:** The worker pulls code from a specified location before starting the flow run.
+
+This page focuses on the second approach: retrieving code from storage. You have several options for where your code can be stored and pulled from:
+
+- Local filesystem
 - Git-based storage (GitHub, GitLab, Bitbucket)
-- Docker image-based storage
-- Cloud-provider storage (AWS S3, Azure Blob Storage, GCP GCS)
+- Blob storage (AWS S3, Azure Blob Storage, GCP GCS)
 
-Each of these options is popular - your choice will depend upon your team's needs and tools.
+The ideal choice depends on your team's needs and tools.
 
-Local storage is also an option for deployments that run locally.
-
-In the examples below, we show how to create a work pool-based deployment for each of these storage options. 
+In the examples below, we show how to create a deployment configured to run on [dynamic infrastructure](/v3/deploy/infrastructure-concepts/work-pools) for each of these storage options. 
 
 ## Deployment creation options
-You can create a deployment through [Python code with the `flow.deploy` method](/v3/deploy/infrastructure-concepts/deploy-via-python) or through a [YAML specification defined in a `prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml).
+As detailed in the [Deployment overview](/v3/deploy), you can create a deployment in one of two main ways:
 
-When using the Python `deploy` method specify a flow storage location other than a Docker image requires the `flow.from_source` method. The `source` and `entrypoint` arguments are required. 
+- [Python code with the `flow.deploy` method](/v3/deploy/infrastructure-concepts/deploy-via-python)
 
-The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
+    - When using `.deploy`, specify a storage location for your flow with the `flow.from_source` method.
 
-The `source` is either a URL to a git repository or a storage object.
+    - The `source` is either a URL to a git repository or a storage object. For example:
+        - A local directory: `source=Path(__file__).parent` or `source=/path/to/file`
+        - A URL to a git repository: `source="https://github.com/org/my-repo.git"`
+        - A storage object: `source=GitRepository(url="https://github.com/org/my-repo.git")`
 
-To create a `prefect.yaml` file interactively, run `prefect deploy` from the CLI and select the appropriate storage option.
+    - The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
+
+
+- [YAML specification defined in a `prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml)
+
+    - To create a `prefect.yaml` file interactively, run `prefect deploy` from the CLI and follow the prompts.
+
+    - The `prefect.yaml` file may define a `pull` section that specifies the storage location for your flow. For example:
+        - Set the working directory:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.set_working_directory:
+                directory: /path/to/directory
+        ```
+        - Clone a git repository:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/my-repo.git
+        ```
+        - Pull from blob storage:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.pull_from_blob_storage:
+                container: my-container
+                folder: my-folder
+        ```
+
+Whether you use `from_source` or `prefect.yaml` to specify the storage location for your flow code, the resulting deployment will have a set of `pull` steps that your worker will use to retrieve the flow code at runtime.
+
+
+## Store code locally
+
+If using a Process work pool, you can use one of the remote code storage options shown above, or you can store your flow code in a local folder.
+
+Here is an example of how to create a deployment with flow code stored locally:
+
+<CodeGroup>
+
+```python local_process_deploy_local_code.py
+from prefect import flow
+from pathlib import Path
+
+
+@flow(log_prints=True)
+def my_flow(name: str = "World"):
+    print(f"Hello {name}!")
+
+
+if __name__ == "__main__":
+    my_flow.from_source(
+        source=str(Path(__file__).parent),  # code stored in local directory
+        entrypoint="local_process_deploy_local_code.py:my_flow",
+    ).deploy(
+        name="local-process-deploy-local-code",
+        work_pool_name="my-process-pool",
+    )
+```
+
+```yaml prefect.yaml
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: /my_directory
+
+deployments:
+- name: local-process-deploy-local-code
+  entrypoint: local_process_deploy_local_code.py:my_flow
+  work_pool:
+    name: my-process-pool
+```
+</CodeGroup>
 
 ## Git-based storage
 
@@ -40,8 +115,13 @@ For a public repository, you can use the repository URL directly.
 
 If you are using a private repository and are authenticated in your environment at deployment creation and deployment execution, you can use the repository URL directly.
 
-Alternatively, for a private repository, you can create a `Secret` block or create a credentials block specific to your git-based version control platform to store your credentials. 
-Then you can reference the block in the Python `deploy` method or the `prefect.yaml` file pull step.
+Alternatively, for a private repository, you can create a `Secret` block or `git`-platform-specific credentials [block](/v3/develop/blocks/) to store your credentials:
+
+- [`GitHubCredentials`](https://docs.prefect.io/integrations/prefect-github/)
+- [`BitBucketCredentials`](https://docs.prefect.io/integrations/prefect-bitbucket/)
+- [`GitLabCredentials`](https://docs.prefect.io/integrations/prefect-gitlab/)
+
+Then you can reference this block in the Python `deploy` method or the `prefect.yaml` file pull step.
 
 If using the Python `deploy` method with a private repository that references a block, provide a [`GitRepository`](https://reference.prefect.io/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL, as shown below.
 
@@ -50,20 +130,20 @@ If using the Python `deploy` method with a private repository that references a 
 
     <CodeGroup>
 
-    ```python gh_no_block.py
+    ```python gh_public_repo.py
     from prefect import flow
 
     if __name__ == "__main__":
         flow.from_source(
             source="https://github.com/org/my-public-repo.git",
-            entrypoint="gh_no_block.py:my_flow",
+            entrypoint="gh_public_repo.py:my_flow",
         ).deploy(
             name="my-github-deployment",
             work_pool_name="my_pool",
         )
     ```
 
-    ```python gh_credentials_block.py
+    ```python gh_private_repo_credentials_block.py
     from prefect import flow
     from prefect.runner.storage import GitRepository
     from prefect_github import GitHubCredentials
@@ -78,14 +158,14 @@ If using the Python `deploy` method with a private repository that references a 
 
         flow.from_source(
             source=github_repo,
-            entrypoint="gh_credentials_block.py:my_flow",
+            entrypoint="gh_private_repo_credentials_block.py:my_flow",
         ).deploy(
             name="private-github-deploy",
             work_pool_name="my_pool",
         )
     ```
 
-    ```python gh_secret_block.py
+    ```python gh_private_repo_secret_block.py
     from prefect import flow
     from prefect.runner.storage import GitRepository
     from prefect.blocks.system import Secret
@@ -102,7 +182,7 @@ If using the Python `deploy` method with a private repository that references a 
 
         flow.from_source(
             source=github_repo,
-            entrypoint="gh_secret_block.py:my_flow",
+            entrypoint="gh_private_repo_secret_block.py:my_flow",
         ).deploy(
             name="private-github-deploy",
             work_pool_name="my_pool",
@@ -121,43 +201,38 @@ If using the Python `deploy` method with a private repository that references a 
     ```
     </CodeGroup>
 
-    For accessing a private repository, we suggest creating a personal access token.
+    For accessing a private repository, we suggest creating a [Personal Access Tokens (PATs)](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
     We recommend using HTTPS with [fine-grained Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) to limit access by repository. 
     
-    See the GitHub docs for [Personal Access Tokens (PATs)](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
+    Per least privilege, we recommend granting the token the ability to read **Contents** and for your repository.
 
-    Under *Your Profile -> Developer Settings -> Personal access tokens -> Fine-grained token* choose *Generate New Token* and 
-    fill in the required fields. 
-    
-    Under *Repository access* choose *Only select repositories* and grant the token permissions for *Contents*.
+    If using a `Secret` block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
 
-    If using a Secret block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
+    If using a `GitHubCredentials` block to store your credentials, you can create it ahead of time and reference it at deployment creation. 
 
-    If using a credentials block, you can create it ahead of time and reference it at deployment creation. 
-
-    1. Install prefect-github with `pip install -U prefect-github`
-    1. Register the blocks in that library to make them available on the server with `prefect block register -m prefect_github`
-    1. Create a GitHub Credentials block through code or the Prefect UI and reference it at deployment creation as shown above.
+    1. Install `prefect-github` with `pip install -U prefect-github`
+    2. Register all block types defined in `prefect-github` with `prefect block register -m prefect_github`
+    3. Create a GitHub Credentials block through code or the Prefect UI and reference it at deployment creation as shown above.
 
   </Tab>  
   <Tab title="Bitbucket">
     <CodeGroup>
 
-    ```python bb_no_block.py
+    ```python bb_public_repo.py
     from prefect import flow
 
 
     if __name__ == "__main__":
         flow.from_source(
             source="https://bitbucket.com/org/my-public-repo.git",
-            entrypoint="bb_no_block.py:my_flow",
+            entrypoint="bb_public_repo.py:my_flow",
         ).deploy(
             name="my-bitbucket-deployment",
             work_pool_name="my_pool",
         )
     ```
 
-    ```python bb_credentials_block.py
+    ```python bb_private_repo_credentials_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -172,14 +247,14 @@ If using the Python `deploy` method with a private repository that references a 
 
         flow.from_source(
             source=source,
-            entrypoint="bb_credentials_block.py:my_flow",
+            entrypoint="bb_private_repo_credentials_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
             work_pool_name="my_pool",
         )
     ```
 
-    ```python bb_secret_block.py
+    ```python bb_private_repo_secret_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -196,7 +271,7 @@ If using the Python `deploy` method with a private repository that references a 
         
         flow.from_source(
             source=github_repo,
-            entrypoint="bb_secret_block.py:my_flow",
+            entrypoint="bb_private_repo_secret_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
             work_pool_name="my_pool",
@@ -217,17 +292,17 @@ If using the Python `deploy` method with a private repository that references a 
 
     For accessing a private repository, we recommend using HTTPS with Repository, Project, or Workspace [Access Tokens](https://support.atlassian.com/bitbucket-cloud/docs/access-tokens/). 
     
-    You can create a Repository Access Token with Scopes -> Repositories -> Read.
+    [Create a token](https://support.atlassian.com/bitbucket-cloud/docs/create-a-repository-access-token/) with **read** access to the repository.
 
     Bitbucket requires you prepend the token string with `x-token-auth:` The full string looks like this: `x-token-auth:abc_123_this_is_a_token`. 
 
-    If using a Secret block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
+    If using a `Secret` block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
 
-    If using a credentials block, you can create it ahead of time and reference it at deployment creation. 
+    If using a `BitBucketCredentials` block to store your credentials, you can create it ahead of time and reference it at deployment creation. 
 
-    1. Install prefect-bitbucket with `pip install -U prefect-bitbucket`
-    1. Register the blocks in that library with `prefect block register -m prefect_bitbucket` 
-    1. Create a Bitbucket credentials block in code or the Prefect UI and reference at deployment creation as shown above.
+    1. Install `prefect-bitbucket` with `pip install -U prefect-bitbucket`
+    2. Register all block types defined in `prefect-bitbucket` with `prefect block register -m prefect_bitbucket` 
+    3. Create a `BitBucketCredentials` block in code or the Prefect UI and reference at deployment creation as shown above.
 
   </Tab>
 
@@ -235,7 +310,7 @@ If using the Python `deploy` method with a private repository that references a 
 
     <CodeGroup>
 
-    ```python gl_no_block.py
+    ```python gl_public_repo.py
     from prefect import flow
 
 
@@ -244,14 +319,14 @@ If using the Python `deploy` method with a private repository that references a 
 
         flow.from_source(
             source=gitlab_repo,
-            entrypoint="gl_no_block.py:my_flow"
+            entrypoint="gl_public_repo.py:my_flow"
         ).deploy(
             name="my-gitlab-deployment",
             work_pool_name="my_pool",
         )
     ```
 
-    ```python gl_credentials_block.py
+    ```python gl_private_repo_credentials_block.py
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -267,14 +342,14 @@ If using the Python `deploy` method with a private repository that references a 
         
         flow.from_source(
             source=gitlab_repo,
-            entrypoint="gl_credentials_block.py:my_flow",
+            entrypoint="gl_private_repo_credentials_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
             work_pool_name="my_pool",
         )
     ```
 
-    ```python gl_secret_block.py    
+    ```python gl_private_repo_secret_block.py    
 
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -291,7 +366,7 @@ If using the Python `deploy` method with a private repository that references a 
 
         flow.from_source(   
             source=gitlab_repo,
-            entrypoint="gl_secret_block.py:my_flow",
+            entrypoint="gl_private_repo_secret_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
             work_pool_name="my_pool",
@@ -312,15 +387,14 @@ If using the Python `deploy` method with a private repository that references a 
 
     For accessing a private repository, we recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
 
-    In your repository in the GitLab UI, select *Settings -> Repository -> Project Access Tokens* and check 
-    *read_repository* under *Select scopes*.
+    [Create a token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) with the **read_repository** scope.
 
-    If using a Secret block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
+    If using a `Secret` block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
 
-    If using a credentials block, you can create it ahead of time and reference it at deployment creation. 
+    If using a `GitLabCredentials` block to store your credentials, you can create it ahead of time and reference it at deployment creation. 
 
-    1. Install prefect-gitlab with `pip install -U prefect-gitlab`
-    1. Register the blocks in that library with `prefect block register -m prefect_gitlab` 
+    1. Install `prefect-gitlab` with `pip install -U prefect-gitlab`
+    1. Register all block types defined in `prefect-gitlab` with `prefect block register -m prefect_gitlab` 
     1. Create a GitLab credentials block in code or the Prefect UI and reference it at deployment creation as shown above.
 
   </Tab>
@@ -332,9 +406,8 @@ The default is `"main"`.
 <Warning>
 **Push your code**
 
-When you make a change to your code, Prefect does not push your code to your git-based version control platform.
-You need to push your code manually or as part of your CI/CD pipeline.
-This is intentional to avoid confusion about the git history and push process.
+When you make a change to your code, Prefect does not push your code to your `git`-based version control platform.
+This is intentional to avoid confusion about the `git` history and push process.
 </Warning>
 
 ## Docker-based storage
@@ -367,6 +440,7 @@ if __name__ == "__main__":
         name="my-docker-deploy",
         work_pool_name="my_pool",
         image="my-docker-image:latest",
+        push=False
     )
 ```
 
@@ -374,10 +448,10 @@ if __name__ == "__main__":
 # build section allows you to manage and build docker images
 build:
 - prefect_docker.deployments.steps.build_docker_image:
-    requires: prefect-docker>=0.3.1
+    requires: prefect-docker>=0.6.1
     id: build-image
     dockerfile: auto
-    image_name: my_username/default
+    image_name: my-registry/my-image
     tag: latest
 
 # push section allows you to manage if and how this project is uploaded to remote locations
@@ -392,19 +466,11 @@ pull:
 # the deployments section allows you to provide configuration for deploying flows
 deployments:
 - name: my-docker-deployment
-  version: null
-  tags: []
-  concurrency_limit: null
-  description: null
   entrypoint: my_file.py:my_flow
-  parameters: {}
   work_pool:
     name: my_pool
-    work_queue_name: null
     job_variables:
       image: '{{ build-image.image }}'
-  enforce_parameter_schema: true
-  schedules: []
 
 ```
 </CodeGroup>
@@ -417,14 +483,12 @@ To push the image to a remote registry, pass `push=True` in the Python `deploy` 
 
 ### Custom Docker image
 
-By default, your deployment will use the base Prefect image when creating your image.
-Alternatively, you can create a custom Docker image outside of Prefect. 
-If doing this with and you don't need push or pull steps in the `prefect.yaml` file.
-Instead, the work pool can reference the image directly.
+By default, deployment flow runs associated with a Docker work pool will use the base Prefect image when executing.
+Alternatively, you can create a custom Docker image outside of Prefect by running `docker build` && `docker push` elsewhere (e.g. in your CI/CD pipeline) and then reference the `image` in the `job_variables` section of your deployment definition, or set the `image` as a default directly on the work pool.
 
 For more information, see [this discussion of custom Docker images](/v3/deploy/infrastructure-examples/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
-## Cloud-provider storage
+## Blob storage
 
 Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported storage location, such as AWS S3, Azure Blob Storage, or GCP GCS.
 
@@ -735,80 +799,6 @@ We also include Python code that shows how to use an existing storage block and 
 </Tabs>
 
 Another authentication option is to give the [worker](/v3/deploy/infrastructure-concepts/workers/) access to the storage location at runtime through SSH keys.
-
-## Store code locally
-
-If using a Process work pool, you can use one of the remote code storage options shown above, or you can store your flow code in a local folder.
-
-Here is an example of how to create a deployment with flow code stored locally:
-
-<CodeGroup>
-
-```python local_process_deploy_local_code.py
-from prefect import flow
-from pathlib import Path
-
-
-@flow(log_prints=True)
-def my_flow(name: str = "World"):
-    print(f"Hello {name}!")
-    print(str(Path(__file__).parent))  # dynamic path
-
-
-if __name__ == "__main__":
-    my_flow.from_source(
-        source=str(Path(__file__).parent),  # code stored in local directory
-        entrypoint="local_process_deploy_local_code.py:my_flow",
-    ).deploy(
-        name="local-process-deploy-local-code",
-        work_pool_name="my-process-pool",
-    )
-```
-
-```yaml prefect.yaml
-build: null
-
-push: null
-
-pull:
-- prefect.deployments.steps.set_working_directory:
-    directory: /my_directory
-
-deployments:
-- name: local-process-deploy-local-code
-  version: null
-  tags: []
-  concurrency_limit: null
-  description: null
-  entrypoint: local_process_deploy_local_code.py:my_flow
-  parameters: {}
-  work_pool:
-    name: my-process-pool
-    work_queue_name: null
-    job_variables: {}
-  enforce_parameter_schema: true
-  schedules: []
-```
-</CodeGroup>
-
-## Include or exclude files from storage
-
-By default, Prefect includes all files in the current folder when you create a deployment.
-
-When using a git repository, Docker image, or cloud-provider storage location, you may want to exclude certain files or directories. 
-If you are familiar with Docker you are likely familiar with the [`.dockerignore`](https://docs.docker.com/engine/reference/builder/#dockerignore-file) file. 
-For remote storage, the `.prefectignore` file serves the same purpose and follows a similar syntax. 
-For example, an entry of `*.pyc` will exclude all `.pyc` files from upload.
-
-## Update flow code
-
-After creating a deployment, you may need to change your flow code.
-If baking your flow code into a Docker image, you will need to rebuild your image.
-If storing your flow code in a git-based version control platform or a cloud-based storage location, often you can update your flow code without rebuilding your deployment.
-
-The exception is when something the server needs to know about has changed, such as the flow entrypoint parameters.
-
-Rerun the Python script with `deploy` or run `prefect deploy` from the CLI for YAML-based deployments to update your deployment with the new flow code.
 
 ## Flow code storage for deployments created with `serve` 
 
