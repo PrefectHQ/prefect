@@ -73,24 +73,15 @@ Alternatively, you can create a `requirements.txt` file and reference it in your
 
 Flows running on Prefect Managed infrastructure can be assigned static IP addresses on outbound traffic, which will pose as the `source` address for requests interacting with your system or database.
 
-<Note>
-At this time, static outbound IP addresses are only available for flows running on `prefect:3-*` images, which is the default image when creating a new `Prefect Managed` work pool.
-
-Be sure to verify the execution environment image of your `Prefect Managed` work pool, and review our [Prefect 3.0 Migration Guide](/v3/resources/upgrade-to-prefect-3#upgrade-to-prefect-3-0)
-
-<img src="/docs/images/managed-work-pool-image.png" alt="Prefect Managed work pool image selector" />
-</Note>
-
 Include these `source` addresses in your firewall rules to explicitly allow flows to communicate with your environment.
 
-- `34.138.254.187`
-- `34.148.94.191`
-- `35.237.184.46`
-- `35.185.96.175`
+- `184.73.85.134`
+- `52.4.218.198`
+- `44.217.117.74`
 
 ### Images
 
-Managed execution requires that you run the official Prefect Docker image: `prefecthq/prefect:3-latest`.
+Managed execution requires that you run an official Prefect Docker image, such as `prefecthq/prefect:3-latest`.
 However, as noted above, you can install Python package dependencies at runtime.
 If you need to use your own image, we recommend using another type of work pool.
 
@@ -100,10 +91,14 @@ You must store flow code in an accessible remote location.
 Prefect supports git-based cloud providers such as GitHub, Bitbucket, or GitLab.
 Remote block-based storage is also supported, so S3, GCS, and Azure Blob are additional code storage options.
 
-### Resources
+### Resources & Limitations
 
-Memory is limited to 2 GB of RAM, which includes all operations such as dependency installation.
-Maximum job run time is 24 hours.
+All flow runs receive:
+- 4vCPUs
+- 16GB of RAM
+- 128GB of ephemeral storage
+
+Maximum flow run time is limited to 24 hours.
 
 ## Next steps
 
