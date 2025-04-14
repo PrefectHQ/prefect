@@ -31,6 +31,7 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
+from prefect.assets import Asset, Resource
 import prefect.states
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
@@ -353,6 +354,7 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
+        depends: Optional[list[Asset | Resource]] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -431,7 +433,7 @@ class Task(Generic[P, R]):
         self.tags: set[str] = set(tags if tags else [])
 
         self.task_key: str = _generate_task_key(self.fn)
-
+        self.depends: list[Asset | Resource] = depends or []
         # determine cache and result configuration
         settings = get_current_settings()
         if settings.tasks.default_no_cache and cache_policy is NotSet:
@@ -694,14 +696,14 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
-            cache_policy=cache_policy
-            if cache_policy is not NotSet
-            else self.cache_policy,
+            cache_policy=(
+                cache_policy if cache_policy is not NotSet else self.cache_policy
+            ),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            task_run_name=task_run_name
-            if task_run_name is not NotSet
-            else self.task_run_name,
+            task_run_name=(
+                task_run_name if task_run_name is not NotSet else self.task_run_name
+            ),
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds
@@ -1662,6 +1664,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Literal[None] = None,
     viz_return_value: Any = None,
+    depends: Optional[list[Asset | Resource]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1697,6 +1700,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    depends: Optional[list[Asset | Resource]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1733,6 +1737,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    depends: Optional[list[Asset | Resource]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1766,6 +1771,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    depends: Optional[list[Asset | Resource]] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1902,6 +1908,7 @@ def task(
             on_failure=on_failure,
             retry_condition_fn=retry_condition_fn,
             viz_return_value=viz_return_value,
+            depends=depends,
         )
     else:
         return cast(
@@ -1931,5 +1938,6 @@ def task(
                 on_failure=on_failure,
                 retry_condition_fn=retry_condition_fn,
                 viz_return_value=viz_return_value,
+                depends=depends,
             ),
         )

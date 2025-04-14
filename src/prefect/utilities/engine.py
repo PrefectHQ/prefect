@@ -4,7 +4,7 @@ import os
 import signal
 import time
 from collections.abc import Awaitable, Callable, Generator
-from functools import partial
+from functools import lru_cache, partial
 from logging import Logger
 from typing import (
     TYPE_CHECKING,
@@ -22,10 +22,15 @@ from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
+from prefect.assets import Asset, Resource
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import OrchestrationResult, TaskRun
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas.objects import (
+    TaskRunInput,
+    TaskRunResult,
+    TaskRunStore,
+)
 from prefect.client.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
@@ -42,7 +47,7 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.results import ResultRecord, should_persist_result
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
@@ -128,7 +133,14 @@ def collect_task_run_inputs_sync(
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+                inputs.add(
+                    TaskRunResult(
+                        id=state.state_details.task_run_id,
+                        store=TaskRunStore(
+                            depends=set(state.state_details.asset_dependencies or [])
+                        ),
+                    )
+                )
 
     visit_collection(
         expr,
@@ -247,7 +259,8 @@ async def resolve_inputs(
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure)
+            and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
@@ -609,6 +622,27 @@ async def check_api_reachable(client: "PrefectClient", fail_message: str) -> Non
     API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
 
 
+def emit_task_run_asset_dependency_events(
+    task_run: TaskRun,
+    downstreams: list[Asset],
+    upstreams: list[Asset | Resource],
+) -> None:
+    for upstream, downstream in {
+        (upstream, downstream) for upstream in upstreams for downstream in downstreams
+    }:
+        emit_event(
+            event="prefect.asset-dependency",
+            resource={
+                "prefect.resource.id": f"prefect.task-run.{task_run.id}",
+                "prefect.resource.name": task_run.name,
+            },
+            payload={
+                "upstream": upstream,
+                "downstream": downstream,
+            },
+        )
+
+
 def emit_task_run_state_change_event(
     task_run: TaskRun,
     initial_state: Optional[State[Any]],
@@ -739,14 +773,17 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
         #       incorrectly evaluate to false — to resolve this, we must track all
         #       annotations wrapping the current expression but this is not yet
         #       implemented.
-        isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+        isinstance(context.get("annotation"), allow_failure)
+        and state.is_failed()
     ):
         raise UpstreamTaskError(
             f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
             " 'COMPLETED' state."
         )
 
-    result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
+    result: Any = state.result(
+        raise_on_failure=False, _sync=True
+    )  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(

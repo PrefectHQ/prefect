@@ -34,10 +34,11 @@ from opentelemetry import trace
 from typing_extensions import ParamSpec, Self
 
 import prefect.types._datetime
+from prefect.assets import Asset
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.client.schemas.objects import State, TaskRunInput, TaskRunResult
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
@@ -88,6 +89,7 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
+    emit_task_run_asset_dependency_events,
     emit_task_run_state_change_event,
     link_state_to_result,
     resolve_to_final_result,
@@ -444,6 +446,19 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
         new_state.state_details.flow_run_id = self.task_run.flow_run_id
+        new_state.state_details.asset_dependencies = (
+            self.task.depends
+            if self.task.depends
+            else [
+                dependency
+                for input_list in self.task_run.task_inputs.values()
+                for result in input_list
+                if isinstance(result, TaskRunResult)
+                and result.store
+                and result.store.depends
+                for dependency in result.store.depends
+            ]
+        )
 
         # Predictively update the de-normalized task_run.state_* attributes
         self.task_run.state_id = new_state.id
@@ -458,7 +473,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = state.data.result
             else:
                 result = state.data
-
+            emit_task_run_asset_dependency_events(
+                task_run=self.task_run,
+                downstreams=[
+                    asset for asset in self.task.depends if isinstance(asset, Asset)
+                ],
+                upstreams=[
+                    dependency
+                    for input_list in self.task_run.task_inputs.values()
+                    for result in input_list
+                    if isinstance(result, TaskRunResult)
+                    and result.store
+                    and result.store.depends
+                    for dependency in result.store.depends
+                ],
+            )
             link_state_to_result(state, result)
 
         # emit a state change event
@@ -468,6 +497,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             validated_state=self.task_run.state,
             follows=self._last_event,
         )
+
         self._telemetry.update_state(new_state)
         return new_state
 
@@ -977,6 +1007,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
         new_state.state_details.flow_run_id = self.task_run.flow_run_id
+        new_state.state_details.asset_dependencies = self.task.depends
 
         # Predictively update the de-normalized task_run.state_* attributes
         self.task_run.state_id = new_state.id
