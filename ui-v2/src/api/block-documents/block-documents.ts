@@ -1,6 +1,7 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -20,6 +21,8 @@ export type BlockDocumentsFilter =
  *  counts		=>   ['"block-documents', 'count'] // key to match ['"block-documents, 'list', ...
  *  countAll	=>   ['"block-documents', 'count', 'all']
  *  countFilter	=>   ['"block-documents', 'count', { ...filter1 }]
+ *  details		=>	 ['"block-documents', 'details']
+ *  detail		=>	 ['"block-documents', 'details', id]
  * ```
  * */
 export const queryKeyFactory = {
@@ -32,6 +35,8 @@ export const queryKeyFactory = {
 	countAll: () => [...queryKeyFactory.counts(), "all"] as const,
 	countFilter: (filter: BlockDocumentsFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -55,6 +60,7 @@ export const buildListFilterBlockDocumentsQuery = (
 			}
 			return res.data;
 		},
+		placeholderData: keepPreviousData,
 		enabled,
 	});
 
@@ -80,6 +86,20 @@ export const buildCountAllBlockDocumentsQuery = () =>
 		queryFn: async () => {
 			const res = await getQueryService().POST("/block_documents/count");
 			return res.data ?? 0;
+		},
+	});
+
+export const buildGetBlockDocumentQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/block_documents/{id}", {
+				params: { path: { id } },
+			});
+			if (!res.data) {
+				throw new Error('Expecting "data"');
+			}
+			return res.data;
 		},
 	});
 
@@ -130,4 +150,52 @@ export const useDeleteBlockDocument = () => {
 	});
 
 	return { deleteBlockDocument, ...rest };
+};
+
+type UseUpdateBlockDocument = {
+	id: string;
+} & components["schemas"]["BlockDocumentUpdate"];
+
+/**
+ * Hook for updating a block document
+ *
+ * @returns Mutation object for updating a block document with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { updateBlockDocument } = useUpdateBlockDocument();
+ *
+ * // Update a block document by id
+ * updateBlockDocument({id: blockDocument.id, ...updateBlockDocument, merge_existing_data: false }, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Block document updated successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to update block document:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useUpdateBlockDocument = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: updateBlockDocument, ...rest } = useMutation({
+		mutationFn: ({ id, ...body }: UseUpdateBlockDocument) =>
+			getQueryService().PATCH("/block_documents/{id}", {
+				body,
+				params: { path: { id } },
+			}),
+		onSuccess: (_, { id }) => {
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.detail(id),
+			});
+		},
+	});
+
+	return { updateBlockDocument, ...rest };
 };

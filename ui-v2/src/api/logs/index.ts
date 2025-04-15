@@ -1,5 +1,9 @@
 import type { components } from "@/api/prefect";
-import { queryOptions } from "@tanstack/react-query";
+import {
+	infiniteQueryOptions,
+	keepPreviousData,
+	queryOptions,
+} from "@tanstack/react-query";
 import { getQueryService } from "../service";
 
 type LogsFilter = components["schemas"]["Body_read_logs_logs_filter_post"];
@@ -21,6 +25,9 @@ export const queryKeyFactory = {
 	all: () => ["logs"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: LogsFilter) => [...queryKeyFactory.lists(), filter] as const,
+	infiniteLists: () => [...queryKeyFactory.lists(), "infinite"] as const,
+	infiniteList: (filter: Omit<LogsFilter, "offset">) =>
+		[...queryKeyFactory.infiniteLists(), filter] as const,
 };
 
 /**
@@ -55,4 +62,25 @@ export const buildFilterLogsQuery = (filter: LogsFilter) =>
 			});
 			return res.data ?? [];
 		},
+	});
+
+export const buildInfiniteFilterLogsQuery = (
+	filter: Omit<LogsFilter, "offset">,
+) =>
+	infiniteQueryOptions({
+		queryKey: queryKeyFactory.infiniteList(filter),
+		queryFn: async ({ pageParam = { offset: 0 } }) => {
+			const res = await getQueryService().POST("/logs/filter", {
+				body: { ...filter, offset: pageParam.offset },
+			});
+			return res.data ?? [];
+		},
+		initialPageParam: { offset: 0 },
+		getNextPageParam: (lastPage, pages) => {
+			if (lastPage.length === 0) {
+				return;
+			}
+			return { offset: pages.reduce((sum, page) => sum + page.length, 0) };
+		},
+		placeholderData: keepPreviousData,
 	});

@@ -1,75 +1,91 @@
-import {
-	buildCountFilterBlockDocumentsQuery,
-	buildListFilterBlockDocumentsQuery,
-} from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
+import { Breadcrumb, BreadcrumbItem } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { SearchInput } from "@/components/ui/input";
 import { Link } from "@tanstack/react-router";
-import { RowSelectionState } from "@tanstack/react-table";
+import type { PaginationState, RowSelectionState } from "@tanstack/react-table";
 import { useState } from "react";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
+import { BlockTypesMultiSelect } from "./block-types-multi-select";
+import { BlocksRowCount } from "./blocks-row-count";
 import { BlocksEmptyState } from "./empty-state";
-import { useDeleteBlockDocumentConfirmationDialog } from "./use-delete-block-document-confirmation-dialog";
 
-export const BlocksPage = () => {
+type BlocksPageProps = {
+	allCount: number;
+	blockDocuments: Array<BlockDocument> | undefined;
+	onSearch: (value?: string) => void;
+	search: string;
+	blockTypeSlugsFilter: Array<string>;
+	onToggleBlockTypeSlug: (blockTypeIds: string) => void;
+	onRemoveBlockTypeSlug: (blockTypeIds: string) => void;
+	pagination: PaginationState;
+	onPaginationChange: (paginationState: PaginationState) => void;
+};
+
+export const BlocksPage = ({
+	allCount,
+	blockDocuments = [],
+	onSearch,
+	search,
+	blockTypeSlugsFilter,
+	onToggleBlockTypeSlug,
+	onRemoveBlockTypeSlug,
+	pagination,
+	onPaginationChange,
+}: BlocksPageProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-	const [dialogState, handleConfirmDelete] =
-		useDeleteBlockDocumentConfirmationDialog();
-
-	const { data: blockDocuments } = useSuspenseQuery(
-		buildListFilterBlockDocumentsQuery(),
-	);
-	const { data: allBlockkDocumentsCount } = useSuspenseQuery(
-		buildCountFilterBlockDocumentsQuery(),
-	);
-
 	return (
-		<>
-			<div className="flex flex-col gap-4">
-				<BlocksPageHeader />
-				{allBlockkDocumentsCount === 0 ? (
-					<BlocksEmptyState />
-				) : (
+		<div className="flex flex-col gap-4">
+			<div className="flex items-center gap-2">
+				<Breadcrumb>
+					<BreadcrumbItem className="text-xl font-semibold">
+						Blocks
+					</BreadcrumbItem>
+				</Breadcrumb>
+				<Button size="icon" className="size-7" variant="outline">
+					<Link to="/blocks/catalog">
+						<Icon id="Plus" className="size-4" />
+					</Link>
+				</Button>
+			</div>
+			{allCount === 0 ? (
+				<BlocksEmptyState />
+			) : (
+				<div className="flex flex-col gap-4">
+					<div className="flex items-center justify-between">
+						<BlocksRowCount
+							rowSelection={rowSelection}
+							setRowSelection={setRowSelection}
+							count={allCount}
+						/>
+						<div className="flex items-center gap-2">
+							<BlockTypesMultiSelect
+								selectedBlockTypesSlugs={blockTypeSlugsFilter}
+								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
+							/>
+							<div className="min-w-56">
+								<SearchInput
+									aria-label="search blocks"
+									placeholder="Search blocks"
+									value={search}
+									onChange={(e) => onSearch(e.target.value)}
+								/>
+							</div>
+						</div>
+					</div>
 					<BlockDocumentsDataTable
 						blockDocuments={blockDocuments}
 						rowSelection={rowSelection}
 						setRowSelection={setRowSelection}
-						blockDocumentsCount={allBlockkDocumentsCount}
-						pageCount={0}
-						pagination={{
-							pageIndex: 0,
-							pageSize: 10,
-						}}
-						onPaginationChange={() => {
-							/** TODO */
-						}}
-						onDelete={() => handleConfirmDelete(Object.keys(rowSelection))}
+						blockDocumentsCount={allCount}
+						pagination={pagination}
+						onPaginationChange={onPaginationChange}
 					/>
-				)}
-			</div>
-			<DeleteConfirmationDialog {...dialogState} />
-		</>
-	);
-};
-
-function BlocksPageHeader() {
-	return (
-		<div className="flex gap-2 items-center">
-			<Typography className="font-semibold">Blocks</Typography>
-			<Link to="/blocks/catalog">
-				<Button
-					size="icon"
-					className="size-7"
-					variant="outline"
-					aria-label="add block document"
-				>
-					<Icon id="Plus" className="size-4" />
-				</Button>
-			</Link>
+				</div>
+			)}
 		</div>
 	);
-}
+};

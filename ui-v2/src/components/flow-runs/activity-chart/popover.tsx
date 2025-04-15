@@ -1,4 +1,4 @@
-import { FlowRun } from "@/api/flow-runs";
+import type { FlowRun } from "@/api/flow-runs";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";

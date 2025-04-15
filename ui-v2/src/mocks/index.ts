@@ -1,7 +1,11 @@
 export { createFakeArtifact } from "./create-fake-artifact";
 export { createFakeAutomation } from "./create-fake-automation";
 export { createFakeBlockDocument } from "./create-fake-block-document";
-export { createFakeBlockType } from "./create-fake-block-type";
+export {
+	createFakeBlockSchema,
+	BLOCK_SCHEMAS,
+} from "./create-fake-block-schema";
+export { createFakeBlockType, BLOCK_TYPES } from "./create-fake-block-type";
 export {
 	createFakeDeployment,
 	createFakeDeploymentWithFlow,

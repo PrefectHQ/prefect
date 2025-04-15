@@ -401,6 +401,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME": {
         "test_value": timedelta(hours=10)
     },
+    "PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS": {
+        "test_value": 5.0
+    },
     "PREFECT_SERVER_SERVICES_SCHEDULER_MIN_RUNS": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME": {
         "test_value": timedelta(minutes=10)

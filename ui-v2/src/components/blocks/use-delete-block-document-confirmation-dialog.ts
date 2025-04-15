@@ -1,12 +1,13 @@
-import { BlockDocument, useDeleteBlockDocument } from "@/api/block-documents";
+import {
+	type BlockDocument,
+	useDeleteBlockDocument,
+} from "@/api/block-documents";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { getRouteApi } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-const routeApi = getRouteApi("/blocks/");
-
 export const useDeleteBlockDocumentConfirmationDialog = () => {
-	const navigate = routeApi.useNavigate();
+	const navigate = useNavigate();
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 
 	const { deleteBlockDocument, mutateAsync } = useDeleteBlockDocument();
@@ -16,9 +17,11 @@ export const useDeleteBlockDocumentConfirmationDialog = () => {
 		blockDocument: BlockDocument | Array<string>,
 		{
 			shouldNavigate = false,
+			onSuccess = () => {},
 		}: {
 			/** Should navigate back to /blocks */
 			shouldNavigate?: boolean;
+			onSuccess?: () => void;
 		} = {},
 	) => {
 		if (Array.isArray(blockDocument)) {
@@ -40,15 +43,16 @@ export const useDeleteBlockDocumentConfirmationDialog = () => {
 			};
 
 			const description =
-				blockDocument.length > 0
+				blockDocument.length > 1
 					? `Are you sure you want to delete these ${blockDocument.length} selected blocks?`
-					: "Are you sure you want to delete this selectged block?";
+					: "Are you sure you want to delete this selected block?";
 
 			confirmDelete({
 				title: "Delete Blocks",
 				description,
 				onConfirm: () => {
 					void handleDeleteBlockDocuments();
+					onSuccess();
 				},
 			});
 		} else {
@@ -62,6 +66,7 @@ export const useDeleteBlockDocumentConfirmationDialog = () => {
 							if (shouldNavigate) {
 								void navigate({ to: "/blocks" });
 							}
+							onSuccess();
 						},
 						onError: (error) => {
 							const message =

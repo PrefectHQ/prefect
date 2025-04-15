@@ -947,7 +947,7 @@
                             "type": "string",
                             "format": "date-time",
                             "description": "Only include runs that start or end after this time.",
-                            "default": "0001-01-01T00:00:00",
+                            "default": "0001-01-01T00:00:00+00:00",
                             "title": "Since"
                         },
                         "description": "Only include runs that start or end after this time."
@@ -9124,414 +9124,6 @@
                 "responses": {
                     "200": {
                         "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/flows/count-deployments": {
-            "post": {
-                "tags": [
-                    "Flows",
-                    "UI"
-                ],
-                "summary": "Count Deployments By Flow",
-                "description": "Get deployment counts by flow id.",
-                "operationId": "count_deployments_by_flow_ui_flows_count_deployments_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_count_deployments_by_flow_ui_flows_count_deployments_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "integer"
-                                    },
-                                    "propertyNames": {
-                                        "format": "uuid"
-                                    },
-                                    "title": "Response Count Deployments By Flow Ui Flows Count Deployments Post"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/flows/next-runs": {
-            "post": {
-                "tags": [
-                    "Flows",
-                    "UI"
-                ],
-                "summary": "Next Runs By Flow",
-                "description": "Get the next flow run by flow id.",
-                "operationId": "next_runs_by_flow_ui_flows_next_runs_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_next_runs_by_flow_ui_flows_next_runs_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "anyOf": [
-                                            {
-                                                "$ref": "#/components/schemas/SimpleNextFlowRun"
-                                            },
-                                            {
-                                                "type": "null"
-                                            }
-                                        ]
-                                    },
-                                    "propertyNames": {
-                                        "format": "uuid"
-                                    },
-                                    "title": "Response Next Runs By Flow Ui Flows Next Runs Post"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/flow_runs/history": {
-            "post": {
-                "tags": [
-                    "Flow Runs",
-                    "UI"
-                ],
-                "summary": "Read Flow Run History",
-                "operationId": "read_flow_run_history_ui_flow_runs_history_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_read_flow_run_history_ui_flow_runs_history_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/SimpleFlowRun"
-                                    },
-                                    "title": "Response Read Flow Run History Ui Flow Runs History Post"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/flow_runs/count-task-runs": {
-            "post": {
-                "tags": [
-                    "Flow Runs",
-                    "UI"
-                ],
-                "summary": "Count Task Runs By Flow Run",
-                "description": "Get task run counts by flow run id.",
-                "operationId": "count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "integer"
-                                    },
-                                    "propertyNames": {
-                                        "format": "uuid"
-                                    },
-                                    "title": "Response Count Task Runs By Flow Run Ui Flow Runs Count Task Runs Post"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/schemas/validate": {
-            "post": {
-                "tags": [
-                    "UI",
-                    "Schemas"
-                ],
-                "summary": "Validate Obj",
-                "operationId": "validate_obj_ui_schemas_validate_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_validate_obj_ui_schemas_validate_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SchemaValuesValidationResponse"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/task_runs/dashboard/counts": {
-            "post": {
-                "tags": [
-                    "Task Runs",
-                    "UI"
-                ],
-                "summary": "Read Dashboard Task Run Counts",
-                "operationId": "read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/TaskRunCount"
-                                    },
-                                    "title": "Response Read Dashboard Task Run Counts Ui Task Runs Dashboard Counts Post"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/ui/task_runs/count": {
-            "post": {
-                "tags": [
-                    "Task Runs",
-                    "UI"
-                ],
-                "summary": "Read Task Run Counts By State",
-                "operationId": "read_task_run_counts_by_state_ui_task_runs_count_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_read_task_run_counts_by_state_ui_task_runs_count_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/CountByState"
-                                }
-                            }
-                        }
                     },
                     "422": {
                         "description": "Validation Error",
@@ -24148,6 +23740,328 @@
                     "second"
                 ],
                 "title": "TimeUnit"
+            },
+            "UITaskRun": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "examples": [
+                            "my-task-run"
+                        ]
+                    },
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id",
+                        "description": "The flow run id of the task run."
+                    },
+                    "task_key": {
+                        "type": "string",
+                        "title": "Task Key",
+                        "description": "A unique identifier for the task being run."
+                    },
+                    "dynamic_key": {
+                        "type": "string",
+                        "title": "Dynamic Key",
+                        "description": "A dynamic key used to differentiate between multiple runs of the same task within the same flow run."
+                    },
+                    "cache_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cache Key",
+                        "description": "An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run."
+                    },
+                    "cache_expiration": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cache Expiration",
+                        "description": "Specifies when the cached state should expire."
+                    },
+                    "task_version": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Task Version",
+                        "description": "The version of the task being run."
+                    },
+                    "empirical_policy": {
+                        "$ref": "#/components/schemas/TaskRunPolicy"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags for the task run.",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
+                    },
+                    "state_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Id",
+                        "description": "The id of the current task run state."
+                    },
+                    "task_inputs": {
+                        "additionalProperties": {
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Parameter"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Constant"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Task Inputs",
+                        "description": "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+                    },
+                    "state_type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The type of the current task run state."
+                    },
+                    "state_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Name",
+                        "description": "The name of the current task run state."
+                    },
+                    "run_count": {
+                        "type": "integer",
+                        "title": "Run Count",
+                        "description": "The number of times the task run has been executed.",
+                        "default": 0
+                    },
+                    "flow_run_run_count": {
+                        "type": "integer",
+                        "title": "Flow Run Run Count",
+                        "description": "If the parent flow has retried, this indicates the flow retry this run is associated with.",
+                        "default": 0
+                    },
+                    "expected_start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Expected Start Time",
+                        "description": "The task run's expected start time."
+                    },
+                    "next_scheduled_start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Next Scheduled Start Time",
+                        "description": "The next time the task run is scheduled to start."
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time",
+                        "description": "The actual start time."
+                    },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "End Time",
+                        "description": "The actual end time."
+                    },
+                    "total_run_time": {
+                        "type": "number",
+                        "title": "Total Run Time",
+                        "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
+                        "default": 0.0
+                    },
+                    "estimated_run_time": {
+                        "type": "number",
+                        "title": "Estimated Run Time",
+                        "description": "A real-time estimate of total run time.",
+                        "default": 0.0
+                    },
+                    "estimated_start_time_delta": {
+                        "type": "number",
+                        "title": "Estimated Start Time Delta",
+                        "description": "The difference between actual and expected start time.",
+                        "default": 0.0
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current task run state."
+                    },
+                    "flow_run_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_key",
+                    "dynamic_key",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "UITaskRun",
+                "description": "A task run with additional details for display in the UI."
             },
             "UpdatedBy": {
                 "properties": {

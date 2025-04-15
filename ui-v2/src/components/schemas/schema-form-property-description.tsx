@@ -1,4 +1,4 @@
-import { SchemaObject } from "openapi-typescript";
+import type { SchemaObject } from "openapi-typescript";
 import { useMemo } from "react";
 
 export type SchemaFormPropertyDescriptionProps = {

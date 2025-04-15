@@ -1,13 +1,13 @@
+import type { Deployment } from "@/api/deployments";
+import type { Flow } from "@/api/flows";
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 import {
 	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { Deployment } from "../deployments";
-import { Flow } from "../flows";
-import { components } from "../prefect";
-import { getQueryService } from "../service";
 
 export type FlowRun = components["schemas"]["FlowRun"];
 export type FlowRunWithFlow = FlowRun & {
@@ -26,17 +26,35 @@ export type FlowRunsPaginateFilter =
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
 
 /**
+ * The request body for setting a flow run state
+ */
+type SetFlowRunStateBody =
+	components["schemas"]["Body_set_flow_run_state_flow_runs__id__set_state_post"];
+
+/**
+ * Parameters for setting a flow run state, combining the path param with the request body
+ */
+type SetFlowRunStateParams = {
+	id: string;
+} & SetFlowRunStateBody;
+
+/**
  * Query key factory for flows-related queries
  *
  * @property {function} all - Returns base key for all flow run queries
  * @property {function} lists - Returns key for all list-type flow run queries
  * @property {function} list - Generates key for a specific filtered flow run query
+ * @property {function} paginate - Returns key for all paginated flow run queries
+ * @property {function} details - Returns key for all details-type flow run queries
+ * @property {function} detail - Generates key for a specific details-type flow run query
  *
  * ```
  * all    	=> 	['flowRuns']
  * lists  	=>  ['flowRuns', 'list']
  * filter	=>	['flowRuns', 'list', 'filter', {...filters}]
  * paginate	=>	['flowRuns', 'list', 'paginate', {...filters}]
+ * details	=>	['flowRuns', 'details']
+ * detail	=>	['flowRuns', 'details', id]
  * ```
  */
 export const queryKeyFactory = {
@@ -46,6 +64,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), "filter", filter] as const,
 	paginate: (filter: FlowRunsPaginateFilter) =>
 		[...queryKeyFactory.lists(), "paginate", filter] as const,
+	details: () => [...queryKeyFactory.all(), "details"] as const,
+	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
 
 /**
@@ -70,7 +90,7 @@ export const buildFilterFlowRunsQuery = (
 		sort: "ID_DESC",
 		offset: 0,
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.filter(filter),
@@ -101,7 +121,7 @@ export const buildPaginateFlowRunsQuery = (
 		page: 1,
 		sort: "START_TIME_DESC",
 	},
-	refetchInterval: number = 30_000,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.paginate(filter),
@@ -117,6 +137,35 @@ export const buildPaginateFlowRunsQuery = (
 		placeholderData: keepPreviousData,
 		staleTime: 1000,
 		refetchInterval,
+	});
+};
+
+/**
+ * Builds a query configuration for fetching a flow run by id
+ *
+ * @param id - The id of the flow run to fetch
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildGetFlowRunDetailsQuery("id-0"));
+ * ```
+ */
+export const buildGetFlowRunDetailsQuery = (id: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/flow_runs/{id}", {
+				params: { path: { id } },
+			});
+
+			if (!res.data) {
+				throw new Error(
+					`Received empty response from server for flow run ${id}`,
+				);
+			}
+			return res.data;
+		},
 	});
 };
 
@@ -214,6 +263,86 @@ export const useDeploymentCreateFlowRun = () => {
 	});
 	return {
 		createDeploymentFlowRun,
+		...rest,
+	};
+};
+
+/**
+ * Hook for changing a flow run's state
+ *
+ * @returns Mutation object for setting a flow run state with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { setFlowRunState, isLoading } = useSetFlowRunState();
+ *
+ * setFlowRunState({
+ *   id: "flow-run-id",
+ *   state: { type: "COMPLETED" },
+ *   message: "State changed by user"
+ * });
+ * ```
+ */
+export const useSetFlowRunState = () => {
+	const queryClient = useQueryClient();
+	const { mutate: setFlowRunState, ...rest } = useMutation({
+		mutationFn: async ({ id, ...params }: SetFlowRunStateParams) => {
+			const res = await getQueryService().POST("/flow_runs/{id}/set_state", {
+				params: { path: { id } },
+				body: params,
+			});
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onMutate: async ({ id, state }) => {
+			await queryClient.cancelQueries({ queryKey: queryKeyFactory.detail(id) });
+
+			const previousFlowRun = queryClient.getQueryData<FlowRun>(
+				queryKeyFactory.detail(id),
+			);
+
+			if (previousFlowRun?.state) {
+				queryClient.setQueryData<FlowRun>(queryKeyFactory.detail(id), {
+					...previousFlowRun,
+					state: {
+						id: previousFlowRun.state.id,
+						type: state.type,
+						name: state.name ?? previousFlowRun.state.name,
+						message: state.message ?? previousFlowRun.state.message,
+						timestamp: new Date().toISOString(),
+						data: previousFlowRun.state.data,
+						state_details: previousFlowRun.state.state_details,
+					},
+				});
+			}
+
+			return { previousFlowRun };
+		},
+		onError: (err, { id }, context) => {
+			// Roll back optimistic update on error
+			if (context?.previousFlowRun) {
+				queryClient.setQueryData(
+					queryKeyFactory.detail(id),
+					context.previousFlowRun,
+				);
+			}
+
+			throw err instanceof Error
+				? err
+				: new Error("Failed to update flow run state");
+		},
+		onSettled: (_data, _error, { id }) => {
+			void Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+			]);
+		},
+	});
+	return {
+		setFlowRunState,
 		...rest,
 	};
 };

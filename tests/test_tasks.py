@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import random
 import sys
 import threading
 import time
@@ -2007,6 +2008,27 @@ class TestTaskCaching:
             return x
 
         assert foo(1) == 1
+
+    async def test_cache_policy_lock_manager_async(self, tmp_path):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/17785"""
+        cache_policy = (INPUTS + TASK_SOURCE).configure(
+            isolation_level=IsolationLevel.SERIALIZABLE,
+            lock_manager=MemoryLockManager(),
+        )
+
+        @task(cache_policy=cache_policy)
+        async def my_task(x: int):
+            await asyncio.sleep(random.randint(1, 3))
+            result = x + random.randint(1, 100)
+            return result
+
+        tasks = [my_task(42) for _ in range(3)]
+        results = await asyncio.gather(*tasks)
+
+        # Assert all results are the same since the second and third calls should be cached
+        assert len(set(results)) == 1, (
+            f"Expected all results to be identical but got {results}"
+        )
 
     def test_cache_policy_serializable_isolation_level_with_no_manager(self):
         cache_policy = Inputs().configure(isolation_level=IsolationLevel.SERIALIZABLE)

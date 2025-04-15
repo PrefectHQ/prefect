@@ -1,4 +1,4 @@
-import { buildFilterLogsQuery } from "@/api/logs";
+import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import type { components } from "@/api/prefect";
 import { RunLogs } from "@/components/ui/run-logs";
 import {
@@ -8,8 +8,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
 type TaskRunLogsProps = {
 	taskRun: components["schemas"]["TaskRun"];
@@ -21,25 +21,33 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 		"TIMESTAMP_ASC" | "TIMESTAMP_DESC"
 	>("TIMESTAMP_ASC");
 
-	const { data: logs } = useSuspenseQuery(
-		buildFilterLogsQuery({
-			limit: 200,
-			offset: 0,
-			sort: sortOrder,
-			logs: {
-				operator: "and_",
-				level: {
-					ge_: levelFilter,
+	const queryOptions = useMemo(
+		() => ({
+			...buildInfiniteFilterLogsQuery({
+				limit: 50,
+				sort: sortOrder,
+				logs: {
+					operator: "and_",
+					level: { ge_: levelFilter },
+					task_run_id: { any_: [taskRun.id] },
 				},
-				task_run_id: {
-					any_: [taskRun.id],
-				},
-			},
+			}),
+			refetchInterval:
+				taskRun.state_type === "RUNNING" ? 5000 : (false as const),
 		}),
+		[levelFilter, sortOrder, taskRun.id, taskRun.state_type],
 	);
 
+	const {
+		data: logs,
+		hasNextPage,
+		fetchNextPage,
+		isFetchingNextPage,
+	} = useSuspenseInfiniteQuery(queryOptions);
+
+	const noLogs = logs.pages.length === 1 && logs.pages[0].length === 0;
 	let message = "This run did not produce any logs.";
-	if (logs.length === 0) {
+	if (noLogs) {
 		if (levelFilter > 0) {
 			message = "No logs match your filter criteria";
 		} else if (
@@ -49,8 +57,6 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 			message = "Run has not yet started. Check back soon for logs.";
 		} else if (taskRun.state_type === "RUNNING") {
 			message = "Waiting for logs...";
-		} else {
-			message = "This run did not produce any logs.";
 		}
 	}
 
@@ -63,12 +69,25 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 				/>
 				<LogSortOrder sortOrder={sortOrder} setSortOrder={setSortOrder} />
 			</div>
-			{logs.length === 0 ? (
+			{noLogs ? (
 				<div className="flex flex-col gap-2 text-center bg-gray-100 p-2 rounded-md">
 					<span className="text-gray-500">{message}</span>
 				</div>
 			) : (
-				<RunLogs taskRun={taskRun} logs={logs} />
+				<div className="rounded-md">
+					<RunLogs
+						taskRun={taskRun}
+						logs={logs.pages.flat()}
+						onBottomReached={() => {
+							if (hasNextPage && !isFetchingNextPage) {
+								fetchNextPage().catch((error) => {
+									console.error(error);
+								});
+							}
+						}}
+						className="max-h-[85vh]"
+					/>
+				</div>
 			)}
 		</div>
 	);

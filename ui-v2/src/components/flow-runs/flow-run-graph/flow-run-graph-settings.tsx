@@ -4,8 +4,8 @@ import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
 import {
 	DEFAULT_HORIZONTAL_SCALE_MULTIPLIER,
-	HorizontalMode,
-	VerticalMode,
+	type HorizontalMode,
+	type VerticalMode,
 	isHorizontalMode,
 	isVerticalMode,
 	layout,
@@ -73,48 +73,36 @@ export function FlowRunGraphSettings() {
 	const [hideArtifacts, setHideArtifacts] = useState(layout.disableArtifacts);
 	const [hideEvents, setHideEvents] = useState(layout.disableEvents);
 
-	const handleLayoutChange = useCallback(
-		(value: string) => {
-			if (!isLayoutOption(value)) {
-				return;
-			}
+	const handleLayoutChange = useCallback((value: string) => {
+		if (!isLayoutOption(value)) {
+			return;
+		}
 
-			const [horizontal, vertical] = value.split("_");
+		const [horizontal, vertical] = value.split("_");
 
-			if (!isHorizontalMode(horizontal) || !isVerticalMode(vertical)) {
-				return;
-			}
+		if (!isHorizontalMode(horizontal) || !isVerticalMode(vertical)) {
+			return;
+		}
 
-			setSelectedLayoutOption(value);
-			setHorizontalMode(horizontal);
-			setVerticalMode(vertical);
-		},
-		[setSelectedLayoutOption],
-	);
+		setSelectedLayoutOption(value);
+		setHorizontalMode(horizontal);
+		setVerticalMode(vertical);
+	}, []);
 
-	const handleHideEdgesChange = useCallback(
-		(value: boolean) => {
-			setHideEdges(value);
-			setDisabledEdges(value);
-		},
-		[setHideEdges],
-	);
+	const handleHideEdgesChange = useCallback((value: boolean) => {
+		setHideEdges(value);
+		setDisabledEdges(value);
+	}, []);
 
-	const handleHideArtifactsChange = useCallback(
-		(value: boolean) => {
-			setHideArtifacts(value);
-			setDisabledArtifacts(value);
-		},
-		[setHideArtifacts],
-	);
+	const handleHideArtifactsChange = useCallback((value: boolean) => {
+		setHideArtifacts(value);
+		setDisabledArtifacts(value);
+	}, []);
 
-	const handleHideEventsChange = useCallback(
-		(value: boolean) => {
-			setHideEvents(value);
-			setDisabledEvents(value);
-		},
-		[setHideEvents],
-	);
+	const handleHideEventsChange = useCallback((value: boolean) => {
+		setHideEvents(value);
+		setDisabledEvents(value);
+	}, []);
 
 	return (
 		<div className="flex flex-col gap-2">

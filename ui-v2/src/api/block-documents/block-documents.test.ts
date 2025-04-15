@@ -9,9 +9,11 @@ import { createFakeBlockDocument } from "@/mocks";
 import {
 	type BlockDocument,
 	buildCountFilterBlockDocumentsQuery,
+	buildGetBlockDocumentQuery,
 	buildListFilterBlockDocumentsQuery,
 	queryKeyFactory,
 	useDeleteBlockDocument,
+	useUpdateBlockDocument,
 } from "./block-documents";
 
 describe("block documents queries", () => {
@@ -30,6 +32,14 @@ describe("block documents queries", () => {
 		);
 	};
 
+	const mockGetBlockAPI = (block: BlockDocument) => {
+		server.use(
+			http.get(buildApiUrl("/block_documents/:id"), () => {
+				return HttpResponse.json(block);
+			}),
+		);
+	};
+
 	it("is stores block documents list data", async () => {
 		// ------------ Mock API requests when cache is empty
 		const mockList = seedBlocksData();
@@ -44,6 +54,22 @@ describe("block documents queries", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("is gets single block document data by id", async () => {
+		// ------------ Mock API requests when cache is empty
+		const mockData = createFakeBlockDocument();
+		mockGetBlockAPI(mockData);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildGetBlockDocumentQuery(mockData.id)),
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(mockData);
 	});
 
 	it("is stores block documents count data", async () => {
@@ -84,9 +110,7 @@ describe("block documents queries", () => {
 
 			const { result: useDeleteBlockDocumentResult } = renderHook(
 				useDeleteBlockDocument,
-				{
-					wrapper: createWrapper({ queryClient }),
-				},
+				{ wrapper: createWrapper({ queryClient }) },
 			);
 
 			act(() =>
@@ -99,6 +123,54 @@ describe("block documents queries", () => {
 				expect(useDeleteBlockDocumentResult.current.isSuccess).toBe(true),
 			);
 			expect(useListBlockDocumentsResult.current.data).toHaveLength(0);
+		});
+	});
+
+	describe("useUpdateBlockDocument", () => {
+		it("invalidates cache and fetches updated value", async () => {
+			const mockBlockDocument = createFakeBlockDocument();
+			const updatedBlockDocument = {
+				...mockBlockDocument,
+				data: { foo: "bar" },
+			};
+			const queryClient = new QueryClient();
+			const FILTER = {
+				offset: 0,
+				sort: "NAME_ASC" as const,
+				include_secrets: false,
+			};
+			queryClient.setQueryData(queryKeyFactory.listFilter(FILTER), [
+				mockBlockDocument,
+			]);
+			mockFilterListBlocksAPI([updatedBlockDocument]);
+
+			queryClient.setQueryData(queryKeyFactory.listFilter(FILTER), [
+				mockBlockDocument,
+			]);
+
+			const { result: useListBlockDocumentsResult } = renderHook(
+				() => useSuspenseQuery(buildListFilterBlockDocumentsQuery(FILTER)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useUpdateBlockDocumentResult } = renderHook(
+				useUpdateBlockDocument,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useUpdateBlockDocumentResult.current.updateBlockDocument({
+					...updatedBlockDocument,
+					merge_existing_data: false,
+				}),
+			);
+
+			await waitFor(() =>
+				expect(useUpdateBlockDocumentResult.current.isSuccess).toBe(true),
+			);
+			expect(useListBlockDocumentsResult.current.data).toEqual([
+				updatedBlockDocument,
+			]);
 		});
 	});
 });

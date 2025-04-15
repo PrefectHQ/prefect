@@ -2813,6 +2813,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ui/task_runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Task Run With Flow Run Name
+         * @description Get a task run by id.
+         */
+        get: operations["read_task_run_with_flow_run_name_ui_task_runs__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -9178,6 +9198,139 @@ export interface components {
          * @enum {string}
          */
         TimeUnit: "week" | "day" | "hour" | "minute" | "second";
+        /**
+         * UITaskRun
+         * @description A task run with additional details for display in the UI.
+         */
+        UITaskRun: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /** Name */
+            name?: string;
+            /**
+             * Flow Run Id
+             * @description The flow run id of the task run.
+             */
+            flow_run_id?: string | null;
+            /**
+             * Task Key
+             * @description A unique identifier for the task being run.
+             */
+            task_key: string;
+            /**
+             * Dynamic Key
+             * @description A dynamic key used to differentiate between multiple runs of the same task within the same flow run.
+             */
+            dynamic_key: string;
+            /**
+             * Cache Key
+             * @description An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.
+             */
+            cache_key?: string | null;
+            /**
+             * Cache Expiration
+             * @description Specifies when the cached state should expire.
+             */
+            cache_expiration?: string | null;
+            /**
+             * Task Version
+             * @description The version of the task being run.
+             */
+            task_version?: string | null;
+            empirical_policy?: components["schemas"]["TaskRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags for the task run.
+             */
+            tags?: string[];
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
+            /**
+             * State Id
+             * @description The id of the current task run state.
+             */
+            state_id?: string | null;
+            /**
+             * Task Inputs
+             * @description Tracks the source of inputs to a task run. Used for internal bookkeeping.
+             */
+            task_inputs?: {
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+            };
+            /** @description The type of the current task run state. */
+            state_type?: components["schemas"]["StateType"] | null;
+            /**
+             * State Name
+             * @description The name of the current task run state.
+             */
+            state_name?: string | null;
+            /**
+             * Run Count
+             * @description The number of times the task run has been executed.
+             * @default 0
+             */
+            run_count: number;
+            /**
+             * Flow Run Run Count
+             * @description If the parent flow has retried, this indicates the flow retry this run is associated with.
+             * @default 0
+             */
+            flow_run_run_count: number;
+            /**
+             * Expected Start Time
+             * @description The task run's expected start time.
+             */
+            expected_start_time?: string | null;
+            /**
+             * Next Scheduled Start Time
+             * @description The next time the task run is scheduled to start.
+             */
+            next_scheduled_start_time?: string | null;
+            /**
+             * Start Time
+             * @description The actual start time.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description The actual end time.
+             */
+            end_time?: string | null;
+            /**
+             * Total Run Time
+             * @description Total run time. If the task run was executed multiple times, the time of each run will be summed.
+             * @default 0
+             */
+            total_run_time: number;
+            /**
+             * Estimated Run Time
+             * @description A real-time estimate of total run time.
+             * @default 0
+             */
+            estimated_run_time: number;
+            /**
+             * Estimated Start Time Delta
+             * @description The difference between actual and expected start time.
+             * @default 0
+             */
+            estimated_start_time_delta: number;
+            /** @description The current task run state. */
+            state?: components["schemas"]["State"] | null;
+            /** Flow Run Name */
+            flow_run_name?: string | null;
+        };
         /** UpdatedBy */
         UpdatedBy: {
             /**
@@ -15912,6 +16065,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CountByState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_task_run_with_flow_run_name_ui_task_runs__id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The task run id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UITaskRun"];
                 };
             };
             /** @description Validation Error */

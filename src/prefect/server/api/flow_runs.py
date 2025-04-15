@@ -48,7 +48,7 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
-from prefect.types._datetime import now
+from prefect.types._datetime import earliest_possible_datetime, now
 from prefect.utilities import schema_tools
 
 if TYPE_CHECKING:
@@ -353,7 +353,7 @@ async def read_flow_run_graph_v1(
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     since: datetime.datetime = Query(
-        default=jsonable_encoder(datetime.datetime.min),
+        default=jsonable_encoder(earliest_possible_datetime()),
         description="Only include runs that start or end after this time.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),

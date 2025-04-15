@@ -40,7 +40,7 @@ export const buildFilterVariablesQuery = (options: VariablesFilter) =>
 			const response = await getQueryService().POST("/variables/filter", {
 				body: options,
 			});
-			return response.data;
+			return response.data ?? [];
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
@@ -62,7 +62,7 @@ export const buildFilterCountQuery = (options: VariablesFilter) =>
 			const response = await getQueryService().POST("/variables/count", {
 				body: options,
 			});
-			return response.data;
+			return response.data ?? 0;
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
@@ -81,7 +81,7 @@ export const buillAllCountQuery = () =>
 		queryKey: queryKeyFactory.countsAll(),
 		queryFn: async () => {
 			const response = await getQueryService().POST("/variables/count");
-			return response.data;
+			return response.data ?? 0;
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
