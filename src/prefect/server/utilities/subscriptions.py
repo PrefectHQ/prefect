@@ -9,7 +9,7 @@ from starlette.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_SERVER_API_AUTH_STRING
+from prefect.settings import get_current_settings
 
 NORMAL_DISCONNECT_EXCEPTIONS = (IOError, ConnectionClosed, WebSocketDisconnect)
 
@@ -32,7 +32,11 @@ async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
         # with Prefect Cloud, even if server-side auth is not configured.
         message = await websocket.receive_json()
 
-        auth_setting = PREFECT_SERVER_API_AUTH_STRING.value()
+        auth_setting = (
+            auth_setting_secret.get_secret_value()
+            if (auth_setting_secret := get_current_settings().server.api.auth_string)
+            else None
+        )
         logger.debug(
             f"PREFECT_SERVER_API_AUTH_STRING setting: {'*' * len(auth_setting) if auth_setting else 'Not set'}"
         )
