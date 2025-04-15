@@ -174,7 +174,7 @@ class AzureBlobStorageCredentials(Block):
         )
 
     @_raise_help_msg("blob_storage")
-    def get_blob_client(self, container, blob) -> "BlobClient":
+    def get_blob_client(self, container: str, blob: str) -> "BlobClient":
         """
         Returns an authenticated Blob client that can be used to
         download and upload blobs.
@@ -221,7 +221,7 @@ class AzureBlobStorageCredentials(Block):
         return blob_client
 
     @_raise_help_msg("blob_storage")
-    def get_container_client(self, container) -> "ContainerClient":
+    def get_container_client(self, container: str) -> "ContainerClient":
         """
         Returns an authenticated Container client that can be used to create clients
         for Azure services.
