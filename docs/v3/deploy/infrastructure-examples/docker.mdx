@@ -1,6 +1,6 @@
 ---
 title: Run flows in Docker containers
-description: Learn how to deploy a flow to a Docker work pool with workers
+description: Learn how to execute deployments in isolated Docker containers
 ---
 
 In this example, you will set up:
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     buy.deploy(
         name="my-code-baked-into-an-image-deployment",
         work_pool_name="my-docker-pool",
-        image="my_registry/my_image:my_image_tag"
+        image="my_registry/my_image:my_image_tag" # YOUR IMAGE REGISTRY
     )
 ```
 
@@ -119,7 +119,7 @@ deployment, and how to run your deployment.
 Your deployment is visible on the `Deployments` page in the UI.
 
 By default, `.deploy` builds a Docker image with your flow code baked into it and pushes the image to the
-[Docker Hub](https://hub.docker.com/) registry specified in the `image` argument`.
+[Docker Hub](https://hub.docker.com/) registry implied by the `image` argument to `.deploy`.
 
 <Note>
 **Authentication to Docker Hub**
@@ -167,9 +167,9 @@ in a `requirements.txt` file.
 
 ### Automatically build a custom Docker image with a local Dockerfile
 
-If you want to use a custom Dockerfile, specify the path to the Dockerfile with the `DockerImage` class:
+If you want to use a custom image, specify the path to your Dockerfile via `DockerImage`:
 
-```python custom_dockerfile.py
+```python my_flow.py
 from prefect import flow
 from prefect.docker import DockerImage
 
@@ -199,7 +199,7 @@ For example, you can install a private Python package from GCP's artifact regist
 
 1. Create a custom base Dockerfile.
 
-   ```
+   ```Dockerfile sample.Dockerfile
    FROM python:3.12
 
    ARG AUTHED_ARTIFACT_REG_URL
@@ -208,9 +208,9 @@ For example, you can install a private Python package from GCP's artifact regist
    RUN pip install --extra-index-url ${AUTHED_ARTIFACT_REG_URL} -r /requirements.txt
    ```
 
-1. Create your deployment with the DockerImage class:
+1. Create your deployment with the `DockerImage` class:
 
-   ```python private-package.py
+   ```python deploy_using_private_package.py
    from prefect import flow
    from prefect.deployments.runner import DockerImage
    from prefect.blocks.system import Secret
@@ -223,7 +223,7 @@ For example, you can install a private Python package from GCP's artifact regist
 
 
    if __name__ == "__main__":
-       artifact_reg_url: Secret = Secret.load("artifact-reg-url")
+       artifact_reg_url = Secret.load("artifact-reg-url")
 
        my_flow.deploy(
            name="my-deployment",
@@ -231,16 +231,16 @@ For example, you can install a private Python package from GCP's artifact regist
            image=DockerImage(
                name="my-image",
                tag="test",
-               dockerfile="Dockerfile",
+               dockerfile="sample.Dockerfile",
                buildargs={"AUTHED_ARTIFACT_REG_URL": artifact_reg_url.get()},
            ),
        )
    ```
 
-Note that you used a [Prefect Secret block](/v3/develop/blocks/) to load the URL configuration for
+Note that this example used a [Prefect Secret block](/v3/develop/blocks/) to load the URL configuration for
 the artifact registry above.
 
-See all the optional keyword arguments for the [DockerImage class](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
+See all the optional keyword arguments for the [`DockerImage` class](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build).
 
 <Tip>
 **Default Docker namespace**
@@ -365,7 +365,7 @@ Create multiple deployments from one or more Python files that use `.deploy`.
 You can manage these deployments independently of one another to deploy the same flow with different configurations
 in the same codebase.
 
-To create multiple work pool-based deployments at once, use the `deploy` function, which is analogous to the `serve` function:
+To create multiple deployments at once, use the `deploy` function, which is analogous to the `serve` function:
 
 ```python
 from prefect import deploy, flow
@@ -379,7 +379,7 @@ def buy():
 if __name__ == "__main__":
     deploy(
         buy.to_deployment(name="dev-deploy", work_pool_name="my-docker-pool"),
-        buy.to_deployment(name="prod-deploy", work_pool_name="my-docker-pool"),
+        buy.to_deployment(name="prod-deploy", work_pool_name="my-other-docker-pool"),
         image="my-registry/my-image:dev",
         push=False,
     )
