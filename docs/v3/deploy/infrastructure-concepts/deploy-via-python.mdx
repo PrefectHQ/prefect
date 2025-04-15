@@ -3,25 +3,19 @@ title: Deploy flows with Python
 description: Learn how to use the Python SDK to deploy flows to run in work pools.
 ---
 
-Prefect offers a flexible way to deploy flows to dynamic infrastructure using the Python SDK. 
-This approach allows you to target specific work pools and utilize dynamically provisioned infrastructure.
+As an alternative to defining deployments in a `prefect.yaml` file, you can use the Python SDK to create deployments with [dynamic infrastructure](/v3/deploy/infrastructure-concepts/work-pools).
+This can be more flexible if you have to programmatically gather configuration at deployment time.
 
-Deploying flows to dynamic infrastructure offers a flexible and programmatic approach to managing your 
-Prefect workflows. While `flow.serve` remains a valid and straightforward method for deploying flows to persistent 
-infrastructure, there are scenarios where you might need to leverage dynamic, scalable resources. In these cases, 
-`flow.deploy` provides a powerful alternative that allows you to target specific work pools and utilize dynamically 
-provisioned infrastructure.
+## When to use `flow.deploy` instead of `flow.serve`
 
-## When to consider `flow.deploy` over `flow.serve`
+The `flow.serve` method is one [simple way to create a deployment with the Python SDK](/v3/deploy/run-flows-in-local-processes#serve-a-flow). It's ideal when you have readily available, static infrastructure for your flow runs and you don't need the dynamic dispatch of infrastructure per flow run offered by work pools.
 
-The `flow.serve` method is an excellent choice for many use cases, especially when you have readily available, persistent infrastructure. However, you might want to consider using `flow.deploy` in the following situations:
+However, you might want to consider using `flow.deploy` to associate your flow with a work pool that enables dynamic dispatch of infrastructure per flow run for the following reasons:
 
-1. Cost optimization: Dynamic infrastructure can help reduce costs by scaling resources up or down based on demand.
-2. Resource scarcity: If you have limited persistent infrastructure, dynamic provisioning can help manage resource allocation more efficiently.
-3. Varying workloads: For workflows with inconsistent resource needs, dynamic infrastructure can adapt to changing requirements.
-4. Cloud-native deployments: When working with cloud providers that offer serverless or auto-scaling options.
-
-By using `flow.deploy`, you can take advantage of Prefect's work pool system, which provides a layer of abstraction between your flows and the underlying infrastructure. This approach offers greater flexibility and efficiency in running your workflows when dynamic infrastructure is needed.
+1. **Cost optimization:** Dynamic infrastructure can help reduce costs by scaling resources up or down based on demand.
+2. **Resource scarcity:** If you have limited persistent infrastructure, dynamic provisioning can help manage resource allocation more efficiently.
+3. **Varying workloads:** For workflows with inconsistent resource needs, dynamic infrastructure can adapt to changing requirements.
+4. **Cloud-native deployments:** When working with cloud providers that offer serverless or auto-scaling options.
 
 Let's explore how to create a deployment using the Python SDK and leverage dynamic infrastructure through work pools.
 
@@ -29,14 +23,14 @@ Let's explore how to create a deployment using the Python SDK and leverage dynam
 
 Before deploying your flow using `flow.deploy`, ensure you have the following:
 
-1. A running Prefect server or Prefect Cloud workspace: You can either run a Prefect server locally or use a Prefect Cloud workspace. 
+1. **A running Prefect server or Prefect Cloud workspace:** You can either run a Prefect server locally or use a Prefect Cloud workspace. 
 To start a local server, run `prefect server start`. To use Prefect Cloud, sign up for an account at [app.prefect.cloud](https://app.prefect.cloud) 
 and follow the [Connect to Prefect Cloud](/v3/manage/cloud/connect-to-cloud/) guide.
 
-2. A Prefect flow: You should have a flow defined in your Python script. If you haven't created a flow yet, refer to the 
+2. **A Prefect flow:** You should have a flow defined in your Python script. If you haven't created a flow yet, refer to the 
 [Write Flows](/v3/develop/write-flows/) guide.
 
-3. A work pool: You need a work pool to manage the infrastructure for running your flow. If you haven't created a work pool, you can do so through 
+3. **A work pool:** You need a work pool to manage the infrastructure for running your flow. If you haven't created a work pool, you can do so through 
 the Prefect UI or using the Prefect CLI. For more information, see the [Work Pools](/v3/deploy/infrastructure-concepts/work-pools/) guide. 
 
     For examples in this guide, we'll use a Docker work pool created by running:
@@ -44,11 +38,11 @@ the Prefect UI or using the Prefect CLI. For more information, see the [Work Poo
     prefect work-pool create --type docker my-work-pool
     ```
 
-4. Docker: Docker will be used to build and store the image containing your flow code. You can download and install
+4. **Docker:** Docker will be used to build and store the image containing your flow code. You can download and install
 Docker from the [official Docker website](https://www.docker.com/get-started/). If you don't want to use Docker, you 
 can see other options in the [Use remote code storage](#use-remote-code-storage) section.
 
-5. (Optional) A Docker registry account: While not strictly necessary for local development, having an account with a Docker registry (such as 
+5. **(Optional) A Docker registry:** While not strictly necessary for local development, having an account with a Docker registry (such as 
 Docker Hub) is recommended for storing and sharing your Docker images.
 
 
@@ -56,6 +50,8 @@ With these prerequisites in place, you're ready to deploy your flow using `flow.
 
 
 ## Deploy a flow with `flow.deploy`
+
+
 
 To deploy a flow using `flow.deploy` and Docker, follow these steps:
 
@@ -86,8 +82,8 @@ To deploy a flow using `flow.deploy` and Docker, follow these steps:
             my_flow.deploy(
                 name="my-deployment",
                 work_pool_name="my-work-pool",
-                image="my-docker-image:dev",
-                push=False
+                image="my-registry.com/my-docker-image:my-tag",
+                push=False # switch to True to push to your image registry
             )
         ```
     </Step>
@@ -157,7 +153,7 @@ To deploy a flow with a schedule, you can use one of the following options:
         my_flow.deploy(
             name="my-deployment",
             work_pool_name="my-work-pool",
-            image="my-docker-image:dev",
+            image="my-registry.com/my-docker-image:my-tag",
             push=False,
             # Run once a minute
             interval=timedelta(minutes=1)
@@ -182,7 +178,7 @@ To deploy a flow with a schedule, you can use one of the following options:
         my_flow.deploy(
             name="my-deployment",
             work_pool_name="my-work-pool",
-            image="my-docker-image:dev",
+            image="my-registry.com/my-docker-image:my-tag",
             push=False,
             # Run once a day at midnight
             cron="0 0 * * *"
@@ -208,7 +204,7 @@ To deploy a flow with a schedule, you can use one of the following options:
         my_flow.deploy(
             name="my-deployment",
             work_pool_name="my-work-pool",
-            image="my-docker-image:dev",
+            image="my-registry.com/my-docker-image:my-tag",
             push=False,
             # Run every weekday at 9 AM
             rrule="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9;BYMINUTE=0"
@@ -239,7 +235,7 @@ To deploy a flow with a schedule, you can use one of the following options:
         my_flow.deploy(
             name="my-deployment",
             work_pool_name="my-work-pool",
-            image="my-docker-image:dev",
+            image="my-registry.com/my-docker-image:my-tag",
             push=False,
             # Run every 10 minutes starting from January 1, 2023
             # at 00:00 Central Time
@@ -322,7 +318,7 @@ if __name__ == "__main__":
         work_pool_name="my-work-pool",
         # Will print "Hello, Marvin!" by default instead of "Hello, world!"
         parameters={"name": "Marvin"},
-        image="my-docker-image:dev",
+        image="my-registry.com/my-docker-image:my-tag",
         push=False,
     )
 ```
@@ -351,7 +347,7 @@ if __name__ == "__main__":
         work_pool_name="my-work-pool",
         # Will print "Hello, Marvin!" by default instead of "Hello, world!"
         job_variables={"env": {"NAME": "Marvin"}},
-        image="my-docker-image:dev",
+        image="my-registry.com/my-docker-image:my-tag",
         push=False,
     )
 ```
@@ -387,7 +383,7 @@ if __name__ == "__main__":
         my_flow_2.to_deployment("my-deployment-2"),
 
         # Specify shared configuration for both deployments
-        image="my-docker-image:dev",
+        image="my-registry.com/my-docker-image:my-tag",
         push=False,
         work_pool_name="my-work-pool",  
     )

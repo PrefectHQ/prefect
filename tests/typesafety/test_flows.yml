@@ -7,7 +7,7 @@
   # this has to be a regex, because mypy randomly (!) switches between ... and [*Any, **Any] syntax here
   out: "main:2: note: Revealed type is \"\
         def \\(\
-           source: Union\\[builtins\\.str, prefect\\.runner\\.storage\\.RunnerStorage, prefect\\.filesystems\\.ReadableDeploymentStorage\\],
+           source: Union\\[builtins\\.str, pathlib\\.Path, prefect\\.runner\\.storage\\.RunnerStorage, prefect\\.filesystems\\.ReadableDeploymentStorage\\],
            entrypoint: builtins\\.str\
        \\) -> Union\\[\
          prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\],

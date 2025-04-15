@@ -1130,7 +1130,7 @@ class Flow(Generic[P, R]):
     @classmethod
     async def afrom_source(
         cls,
-        source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
+        source: Union[str, Path, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
     ) -> "Flow[..., Any]":
         """
@@ -1244,7 +1244,7 @@ class Flow(Generic[P, R]):
     @async_dispatch(afrom_source)
     def from_source(
         cls,
-        source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
+        source: Union[str, Path, "RunnerStorage", ReadableDeploymentStorage],
         entrypoint: str,
     ) -> "Flow[..., Any]":
         """
@@ -1976,7 +1976,7 @@ class FlowDecorator:
         # manually here.
         @staticmethod
         def from_source(
-            source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
+            source: Union[str, Path, "RunnerStorage", ReadableDeploymentStorage],
             entrypoint: str,
         ) -> Union["Flow[..., Any]", Coroutine[Any, Any, "Flow[..., Any]"]]: ...
 
