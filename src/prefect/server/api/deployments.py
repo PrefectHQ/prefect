@@ -103,7 +103,9 @@ async def create_deployment(
             exclude_unset=True,
         )
 
-        requested_concurrency_limit = deployment_dict.pop("global_concurrency_limit_id")
+        requested_concurrency_limit = deployment_dict.pop(
+            "global_concurrency_limit_id", "unset"
+        )
         if requested_concurrency_limit != "unset":
             if requested_concurrency_limit:
                 concurrency_limit = (
