@@ -1,4 +1,4 @@
-import os
+import socket
 from uuid import UUID
 
 import pytest
@@ -101,7 +101,7 @@ def test_trace_provider(telemetry_account_id: UUID, telemetry_workspace_id: UUID
 
     assert resource_attributes == {
         "service.name": "prefect",
-        "service.instance.id": os.uname().nodename,
+        "service.instance.id": socket.gethostname(),
         "prefect.account": str(telemetry_account_id),
         "prefect.workspace": str(telemetry_workspace_id),
     }
@@ -142,7 +142,7 @@ def test_meter_provider(telemetry_account_id: UUID, telemetry_workspace_id: UUID
 
     assert resource_attributes == {
         "service.name": "prefect",
-        "service.instance.id": os.uname().nodename,
+        "service.instance.id": socket.gethostname(),
         "prefect.account": str(telemetry_account_id),
         "prefect.workspace": str(telemetry_workspace_id),
     }
