@@ -3,7 +3,7 @@ title: Run flows in local processes
 description: Create a deployment for a flow by calling the `serve` method.
 ---
 
-The simplest way to create a [deployment](/v3/deploy/infrastructure-examples/docker/) for your flow is by calling its `serve` method.
+The simplest way to create a [deployment](/v3/deploy) for your flow is by calling its `serve` method.
 
 ## Serve a flow
 
@@ -24,9 +24,8 @@ def hello_world(name: str = "world", goodbye: bool = False):
 
 
 if __name__ == "__main__":
-    # creates a deployment and stays running to monitor for work instructions 
-    # generated on the server
-
+    # creates a deployment and starts a long-running
+    # process that listens for scheduled work
     hello_world.serve(name="my-first-deployment",
         tags=["onboarding"],
         parameters={"goodbye": True},
@@ -54,11 +53,13 @@ When running this in environments where restarts are expected use the
 
 ```python
 if __name__ == "__main__":
-    hello_world.serve(name="my-first-deployment",
-                        tags=["onboarding"],
-                        parameters={"goodbye": True},
-                        pause_on_shutdown=False,
-                        interval=60)
+    hello_world.serve(
+        name="my-first-deployment",
+        tags=["onboarding"],
+        parameters={"goodbye": True},
+        pause_on_shutdown=False,
+        interval=60
+    )
 ```
 </Tip>
 
@@ -74,6 +75,8 @@ Here's how to use some of those options:
 description is set from the docstring of the flow function (if documented)
 - `version`: a keyword that allows you to track changes to your deployment; uses a hash of the 
 file containing the flow by default; popular options include semver tags or git commit hashes
+- `triggers`: a keyword that allows you to define a set of conditions for when the deployment should run; see 
+[triggers](/v3/automate/events/custom-triggers/) for more on Prefect Events concepts
 
 Next, add these options to your deployment:
 
@@ -87,6 +90,13 @@ if __name__ == "__main__":
         version="tutorial/deployments",
     )
 ```
+
+
+<Tip>
+**Triggers with `.serve`**
+
+See this [example](/v3/automate/events/automations-triggers#trigger-a-downstream-deployment-with-an-event) that triggers downstream work on upstream events.
+</Tip>
 
 When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work.
 Stop the script in the CLI using `CTRL+C` and your schedule automatically pauses.
@@ -135,9 +145,9 @@ they can be executed and scheduled independently of each other
 
 A few optional steps for exploration include:
 
-- pause and unpause the schedule for the "sleeper" deployment
-- use the UI to submit ad-hoc runs for the "sleeper" deployment with different values for `sleep`
-- cancel an active run for the "sleeper" deployment from the UI
+- pause and unpause the schedule for the `"sleeper"` deployment
+- use the UI to submit ad-hoc runs for the `"sleeper"` deployment with different values for `sleep`
+- cancel an active run for the `"sleeper"` deployment from the UI
 
 <Tip>
 **Hybrid execution option**
@@ -154,10 +164,31 @@ Read more about our [hybrid model](https://www.prefect.io/security/overview/#hyb
 
 ## Retrieve a flow from remote storage
 
-You can retrieve flows from remote storage with the `flow.from_source` method.
+Just like the `.deploy` method, the `flow.from_source` method is used to define how to retrieve the flow that you want to serve.
 
-`flow.from_source` can accept a git repository URL and an entrypoint pointing to the flow to load from the repository:
 
+### `from_source`
+
+The `flow.from_source` method on `Flow` objects requires a `source` and an `entrypoint`.
+
+
+#### `source`
+The `source` of your deployment can be:
+- a path to a local directory such as `path/to/a/local/directory`
+- a repository URL such as `https://github.com/org/repo.git`
+- a `GitRepository` object that accepts
+    - a repository URL
+    - a reference to a branch, tag, or commit hash
+    - `GitCredentials` for private repositories
+
+#### `entrypoint`
+A flow `entrypoint` is the path to the file where the flow is located within that `source`, in the form 
+
+```python
+{path}:{flow_name}
+```
+
+For example, the following code will load the `hello` flow from the `flows/hello_world.py` file in the `PrefectHQ/prefect` repository:
 ```python load_from_url.py
 from prefect import flow
 
@@ -178,7 +209,6 @@ if __name__ == "__main__":
 16:40:34.706 | INFO    | Flow run 'muscular-perch' - Finished in state Completed()
 ```
 
-A flow entrypoint is the path to the file where the flow is located, and the name of the flow function separated by a colon.
 
 For more ways to store and access flow code, see the [Retrieve code from storage page](/v3/deploy/infrastructure-concepts/store-flow-code).
 
@@ -199,9 +229,18 @@ if __name__ == "__main__":
 ```
 </Tip>
 
+### Remote storage polling
+
 When you serve a flow loaded from remote storage, the serving process periodically polls your remote storage for updates to the flow's code. 
 This pattern allows you to update your flow code without restarting the serving process.
-Note that if you change the parameters to your flow, you'll need to restart the serving process.
+Note that if you change metadata associated with your flow's deployment such as parameters, you _will_ need to restart the serve process.
+
+
+## Containerize your serve process
+
+A simple deployment strategy is to define a `serve` process as the `ENTRYPOINT` of a container image.
+
+See [Serve flows in a long-lived Docker container](/v3/deploy/static-infrastructure-examples/docker) for a guide.
 
 ## If you need dynamic infrastructure
 
