@@ -183,6 +183,10 @@ class DeploymentCreate(ActionBaseModel):
     concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
         default=None, description="The deployment's concurrency options."
     )
+    global_concurrency_limit_id: Optional[UUID] = Field(
+        default=None,
+        description="The ID of the global concurrency limit to apply to the deployment.",
+    )
     enforce_parameter_schema: bool = Field(
         default=True,
         description=(
@@ -293,6 +297,10 @@ class DeploymentUpdate(ActionBaseModel):
     )
     concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
         default=None, description="The deployment's concurrency options."
+    )
+    global_concurrency_limit_id: Optional[UUID] = Field(
+        default=None,
+        description="The ID of the global concurrency limit to apply to the deployment.",
     )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,

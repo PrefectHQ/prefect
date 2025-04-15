@@ -597,6 +597,10 @@ class Deployment(ORMBaseModel):
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="The concurrency limit for the deployment."
     )
+    concurrency_limit_id: Optional[UUID] = Field(
+        default=None,
+        description="The concurrency limit id associated with the deployment.",
+    )
     concurrency_options: Optional[ConcurrencyOptions] = Field(
         default=None, description="The concurrency options for the deployment."
     )

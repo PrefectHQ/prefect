@@ -5374,6 +5374,11 @@ export interface components {
             /** @description The deployment's concurrency options. */
             concurrency_options?: components["schemas"]["ConcurrencyOptions"] | null;
             /**
+             * Global Concurrency Limit Id
+             * @description The ID of the global concurrency limit to apply to the deployment.
+             */
+            global_concurrency_limit_id?: string | null;
+            /**
              * Enforce Parameter Schema
              * @description Whether or not the deployment should enforce the parameter schema.
              * @default true
@@ -5934,6 +5939,11 @@ export interface components {
             concurrency_limit?: number | null;
             /** @description The deployment's concurrency options. */
             concurrency_options?: components["schemas"]["ConcurrencyOptions"] | null;
+            /**
+             * Global Concurrency Limit Id
+             * @description The ID of the global concurrency limit to apply to the deployment.
+             */
+            global_concurrency_limit_id?: string | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
