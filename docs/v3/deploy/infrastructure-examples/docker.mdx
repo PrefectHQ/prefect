@@ -365,7 +365,7 @@ Create multiple deployments from one or more Python files that use `.deploy`.
 You can manage these deployments independently of one another to deploy the same flow with different configurations
 in the same codebase.
 
-To create multiple work pool-based deployments at once, use the `deploy` function, which is analogous to the `serve` function:
+To create multiple deployments at once, use the `deploy` function, which is analogous to the `serve` function:
 
 ```python
 from prefect import deploy, flow
@@ -379,7 +379,7 @@ def buy():
 if __name__ == "__main__":
     deploy(
         buy.to_deployment(name="dev-deploy", work_pool_name="my-docker-pool"),
-        buy.to_deployment(name="prod-deploy", work_pool_name="my-docker-pool"),
+        buy.to_deployment(name="prod-deploy", work_pool_name="my-other-docker-pool"),
         image="my-registry/my-image:dev",
         push=False,
     )
