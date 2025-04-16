@@ -96,7 +96,7 @@ const GlobalConcurrencyLimitSelectImplementation = ({
 									setSearch("");
 								}}
 								//nb: Stringifies label so that UX has a hoverable state
-								value={String(option.label || null)}
+								value={String(option.label)}
 							>
 								{option.label}
 							</ComboboxCommandItem>
