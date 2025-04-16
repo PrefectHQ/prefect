@@ -3,7 +3,11 @@ from __future__ import annotations
 import abc
 import asyncio
 import datetime
+import json
+import subprocess
+import tempfile
 import threading
+import uuid
 import warnings
 from contextlib import AsyncExitStack
 from functools import partial
@@ -35,6 +39,7 @@ from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
     Integration,
     StateType,
@@ -48,6 +53,7 @@ from prefect.exceptions import (
     Abort,
     ObjectNotFound,
 )
+from prefect.futures import PrefectFlowRunFuture
 from prefect.logging.loggers import (
     PrefectLogAdapter,
     flow_run_logger,
@@ -81,11 +87,12 @@ from prefect.utilities.templating import (
 from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Flow, FlowRun
+    from prefect.client.schemas.objects import FlowRun
     from prefect.client.schemas.responses import (
         DeploymentResponse,
         WorkerFlowRunResponse,
     )
+    from prefect.flows import Flow
 
 
 class BaseJobConfiguration(BaseModel):
@@ -217,7 +224,7 @@ class BaseJobConfiguration(BaseModel):
         self,
         flow_run: "FlowRun",
         deployment: "DeploymentResponse | None" = None,
-        flow: "Flow | None" = None,
+        flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
     ) -> None:
@@ -314,7 +321,7 @@ class BaseJobConfiguration(BaseModel):
         return labels
 
     @staticmethod
-    def _base_flow_labels(flow: "Flow | None") -> dict[str, str]:
+    def _base_flow_labels(flow: "APIFlow | None") -> dict[str, str]:
         if flow is None:
             return {}
 
@@ -418,6 +425,7 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 C = TypeVar("C", bound=BaseJobConfiguration)
 V = TypeVar("V", bound=BaseVariables)
 R = TypeVar("R", bound=BaseWorkerResult)
+FR = TypeVar("FR")  # used to capture the return type of a flow
 
 
 @register_base_type
@@ -684,6 +692,150 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         raise NotImplementedError(
             "Workers must implement a method for running submitted flow runs"
         )
+
+    async def submit(
+        self,
+        flow: "Flow[..., FR]",
+        parameters: dict[str, Any] | None = None,
+        job_variables: dict[str, Any] | None = None,
+    ) -> "PrefectFlowRunFuture[FR]":
+        """
+        EXPERIMENTAL: The interface for this method is subject to change.
+
+        Submits a flow to run via the worker.
+
+        Args:
+            flow: The flow to submit
+            parameters: The parameters to pass to the flow
+
+        Returns:
+            A flow run object
+        """
+        warnings.warn(
+            "Ad-hoc flow submission via workers is experimental. The interface "
+            "and behavior of this feature are subject to change.",
+            category=FutureWarning,
+        )
+        if self._runs_task_group is None:
+            raise RuntimeError("Worker not properly initialized")
+
+        flow_run = await self._runs_task_group.start(
+            partial(
+                self._submit_adhoc_run,
+                flow=flow,
+                parameters=parameters,
+                job_variables=job_variables,
+            ),
+        )
+        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+    async def _submit_adhoc_run(
+        self,
+        flow: "Flow[..., FR]",
+        parameters: dict[str, Any] | None = None,
+        job_variables: dict[str, Any] | None = None,
+        task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
+    ):
+        """
+        Submits a flow run to the Kubernetes worker.
+        """
+        from prefect._experimental.bundles import (
+            convert_step_to_command,
+            create_bundle_for_flow_run,
+        )
+
+        if TYPE_CHECKING:
+            assert self._work_pool is not None
+
+        if (
+            self._work_pool.storage_configuration.bundle_upload_step is None
+            or self._work_pool.storage_configuration.bundle_execution_step is None
+        ):
+            raise RuntimeError(
+                f"Storage is not configured for work pool {self._work_pool.name!r}. "
+                "Please configure storage for the work pool by running `prefect "
+                "work-pool storage configure`."
+            )
+
+        bundle_key = str(uuid.uuid4())
+        upload_command = convert_step_to_command(
+            self._work_pool.storage_configuration.bundle_upload_step,
+            bundle_key,
+            quiet=True,
+        )
+        execute_command = convert_step_to_command(
+            self._work_pool.storage_configuration.bundle_execution_step, bundle_key
+        )
+
+        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+        async with get_client() as client:
+            flow_run = await client.create_flow_run(
+                flow,
+                parameters=parameters,
+                state=Pending(),
+                job_variables=job_variables,
+                work_pool_name=self._work_pool.name,
+            )
+            if task_status is not None:
+                # Emit the flow run object to .submit to allow it to return a future as soon as possible
+                task_status.started(flow_run)
+            # Avoid an API call to get the flow
+            api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+            logger = self.get_flow_run_logger(flow_run)
+
+            configuration = await self.job_configuration.from_template_and_values(
+                base_job_template=self._work_pool.base_job_template,
+                values=job_variables,
+                client=self._client,
+            )
+            configuration.prepare_for_flow_run(
+                flow_run=flow_run,
+                flow=api_flow,
+                work_pool=self._work_pool,
+                worker_name=self.name,
+            )
+
+            bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                await (
+                    anyio.Path(temp_dir)
+                    .joinpath(bundle_key)
+                    .write_bytes(json.dumps(bundle).encode("utf-8"))
+                )
+
+                try:
+                    full_command = upload_command + [bundle_key]
+                    logger.debug(
+                        "Uploading execution bundle with command: %s", full_command
+                    )
+                    await anyio.run_process(
+                        full_command,
+                        cwd=temp_dir,
+                    )
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+            logger.debug("Successfully uploaded execution bundle")
+
+            try:
+                result = await self.run(flow_run, configuration)
+
+                if result.status_code != 0:
+                    await self._propose_crashed_state(
+                        flow_run,
+                        (
+                            "Flow run infrastructure exited with non-zero status code"
+                            f" {result.status_code}."
+                        ),
+                    )
+            except Exception as exc:
+                # This flow run was being submitted and did not start successfully
+                logger.exception(
+                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                )
+                message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+                await self._propose_crashed_state(flow_run, message, client=client)
 
     @classmethod
     def __dispatch_key__(cls) -> str | None:
@@ -1230,11 +1382,13 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 exc_info=True,
             )
 
-    async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
+    async def _propose_crashed_state(
+        self, flow_run: "FlowRun", message: str, client: PrefectClient | None = None
+    ) -> None:
         run_logger = self.get_flow_run_logger(flow_run)
         try:
             state = await propose_state(
-                self.client,
+                client or self.client,
                 Crashed(message=message),
                 flow_run_id=flow_run.id,
             )
