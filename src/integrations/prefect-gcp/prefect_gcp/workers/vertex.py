@@ -513,12 +513,11 @@ class VertexAIWorker(BaseWorker):
         if "scheduling" in configuration.job_spec:
             scheduling_params = configuration.job_spec.pop("scheduling")
             # allow users to pass 'scheduling.strategy' as str
-            if type(scheduling_params.get("strategy")) is str:
+            if scheduling_params and type(scheduling_params.get("strategy")) is str:
                 scheduling_params["strategy"] = Scheduling.Strategy[
                     scheduling_params["strategy"]
                 ]
-
-            scheduling = Scheduling(**scheduling_params)
+                scheduling = Scheduling(**scheduling_params)
 
         # set 'scheduling.timeout' using "maximum_run_time_hours" for backward compatibility
         if "maximum_run_time_hours" in configuration.job_spec:
