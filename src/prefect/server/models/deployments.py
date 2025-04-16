@@ -105,13 +105,6 @@ async def create_deployment(
         exclude_unset=True, exclude={"schedules"}
     )
 
-    requested_concurrency_limit = insert_values.pop("concurrency_limit", "unset")
-
-    if requested_concurrency_limit != "unset" and deployment.concurrency_limit_id:
-        raise ValueError(
-            "Cannot provide both concurrency_limit and concurrency_limit_id"
-        )
-
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
     job_variables = insert_values.pop("job_variables", None)
@@ -184,6 +177,7 @@ async def create_deployment(
             ],
         )
 
+    requested_concurrency_limit = insert_values.pop("concurrency_limit", "unset")
     if requested_concurrency_limit != "unset":
         await _create_or_update_deployment_concurrency_limit(
             db, session, deployment_id, deployment.concurrency_limit
@@ -233,22 +227,11 @@ async def update_deployment(
         exclude={"work_pool_name"},
     )
 
-    requested_concurrency_limit_update = update_data.pop("concurrency_limit", "unset")
-
     requested_global_concurrency_limit_update = update_data.pop(
         "global_concurrency_limit_id", "unset"
     )
-
     if requested_global_concurrency_limit_update != "unset":
         update_data["concurrency_limit_id"] = requested_global_concurrency_limit_update
-
-    if (
-        requested_global_concurrency_limit_update != "unset"
-        and requested_concurrency_limit_update != "unset"
-    ):
-        raise ValueError(
-            "Cannot provide both concurrency_limit and concurrency_limit_id"
-        )
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
@@ -322,6 +305,7 @@ async def update_deployment(
             ],
         )
 
+    requested_concurrency_limit_update = update_data.pop("concurrency_limit", "unset")
     if requested_concurrency_limit_update != "unset":
         await _create_or_update_deployment_concurrency_limit(
             db, session, deployment_id, deployment.concurrency_limit

@@ -300,32 +300,6 @@ class TestCreateDeployment:
                 ),
             )
 
-    async def test_create_deployment_raises_error_with_both_concurrency_limit_and_id(
-        self, session: AsyncSession, flow: orm_models.Flow
-    ):
-        # Create a global concurrency limit first
-        global_limit = await models.concurrency_limits_v2.create_concurrency_limit(
-            session=session,
-            concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                name="test-limit",
-                limit=3,
-            ),
-        )
-
-        with pytest.raises(
-            ValueError,
-            match="Cannot provide both concurrency_limit and concurrency_limit_id",
-        ):
-            await models.deployments.create_deployment(
-                session=session,
-                deployment=schemas.core.Deployment(
-                    name="My Deployment",
-                    flow_id=flow.id,
-                    concurrency_limit=2,
-                    concurrency_limit_id=global_limit.id,
-                ),
-            )
-
     async def test_create_deployment_retains_concurrency_limit_if_not_provided_on_upsert(
         self,
         session: AsyncSession,
@@ -1467,32 +1441,6 @@ class TestUpdateDeployment:
 
         assert deployment.concurrency_limit_id is None
         assert deployment.global_concurrency_limit is None
-
-    async def test_update_deployment_raises_when_both_concurrency_id_and_limit_provided(
-        self,
-        session,
-        deployment,
-    ):
-        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
-            session=session,
-            concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                name="test-limit",
-                limit=5,
-            ),
-        )
-
-        with pytest.raises(
-            ValueError,
-            match="Cannot provide both concurrency_limit and concurrency_limit_id",
-        ):
-            await models.deployments.update_deployment(
-                session=session,
-                deployment_id=deployment.id,
-                deployment=schemas.actions.DeploymentUpdate(
-                    global_concurrency_limit_id=concurrency_limit.id,
-                    concurrency_limit=5,
-                ),
-            )
 
     async def test_update_deployment_deletes_autoscheduled_flow_runs_in_scheduled(
         self,

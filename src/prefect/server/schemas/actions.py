@@ -274,6 +274,17 @@ class DeploymentCreate(ActionBaseModel):
         )
         return values
 
+    @model_validator(mode="before")
+    def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
+        if values.get("concurrency_limit") and values.get(
+            "global_concurrency_limit_id"
+        ):
+            raise ValueError(
+                "A deployment cannot have both a concurrency limit and a global concurrency limit."
+            )
+        return values
+
 
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
@@ -364,6 +375,17 @@ class DeploymentUpdate(ActionBaseModel):
             if errors:
                 for error in errors:
                     raise error
+
+    @model_validator(mode="before")
+    def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
+        if values.get("concurrency_limit") and values.get(
+            "global_concurrency_limit_id"
+        ):
+            raise ValueError(
+                "A deployment cannot have both a concurrency limit and a global concurrency limit."
+            )
+        return values
 
 
 class FlowRunUpdate(ActionBaseModel):
