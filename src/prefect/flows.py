@@ -40,6 +40,7 @@ from typing import (
 from uuid import UUID
 
 import pydantic
+from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
@@ -104,6 +105,9 @@ from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
 from ._internal.pydantic.v2_validated_func import (
     V2ValidatedFunction as ValidatedFunction,
 )
+
+if TYPE_CHECKING:
+    from prefect.workers.base import BaseWorker
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -1982,6 +1986,141 @@ class FlowDecorator:
 
 
 flow: FlowDecorator = FlowDecorator()
+
+
+class InfrastructureBoundFlow(Flow[P, R]):
+    """
+    EXPERIMENTAL: This class is experimental and may be removed or changed in future
+        releases.
+
+    A flow that is bound to running on a specific infrastructure.
+
+    Attributes:
+        work_pool: The name of the work pool to run the flow on. The base job
+            configuration of the work pool will determine the configuration of the
+            infrastructure the flow will run on.
+        job_variables: Infrastructure configuration that will override the base job
+            configuration of the work pool.
+        worker_cls: The class of the worker to use to spin up infrastructure and submit
+            the flow to it.
+    """
+
+    def __init__(
+        self,
+        *args: Any,
+        work_pool: str,
+        job_variables: dict[str, Any],
+        worker_cls: type["BaseWorker[Any, Any, Any]"],
+        **kwargs: Any,
+    ):
+        super().__init__(*args, **kwargs)
+        self.work_pool = work_pool
+        self.job_variables = job_variables
+        self.worker_cls = worker_cls
+
+    @overload
+    def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Coroutine[Any, Any, T]: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> T: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]: ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]: ...
+
+    def __call__(
+        self,
+        *args: "P.args",
+        return_state: bool = False,
+        wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
+        **kwargs: "P.kwargs",
+    ):
+        async def modified_call(
+            *args: P.args,
+            return_state: bool = False,
+            # TODO: Handle wait_for once we have an asynchronous way to wait for futures
+            # We should wait locally for futures to resolve before spinning up
+            # infrastructure.
+            wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
+            **kwargs: P.kwargs,
+        ) -> R | State[R]:
+            try:
+                async with self.worker_cls(work_pool_name=self.work_pool) as worker:
+                    parameters = get_call_parameters(self, args, kwargs)
+                    future = await worker.submit(
+                        flow=self,
+                        parameters=parameters,
+                        job_variables=self.job_variables,
+                    )
+                    if return_state:
+                        await future.wait_async()
+                        return future.state
+                    return await future.aresult()
+            except (ExceptionGroup, BaseExceptionGroup) as exc:
+                # For less verbose tracebacks
+                exceptions = exc.exceptions
+                if len(exceptions) == 1:
+                    raise exceptions[0] from None
+                else:
+                    raise
+
+        if inspect.iscoroutinefunction(self.fn):
+            return modified_call(
+                *args, return_state=return_state, wait_for=wait_for, **kwargs
+            )
+        else:
+            return run_coro_as_sync(
+                modified_call(
+                    *args,
+                    return_state=return_state,
+                    wait_for=wait_for,
+                    **kwargs,
+                )
+            )
+
+
+def bind_flow_to_infrastructure(
+    flow: Flow[P, R],
+    work_pool: str,
+    worker_cls: type["BaseWorker[Any, Any, Any]"],
+    job_variables: dict[str, Any] | None = None,
+) -> InfrastructureBoundFlow[P, R]:
+    new = InfrastructureBoundFlow[P, R](
+        flow.fn,
+        work_pool=work_pool,
+        job_variables=job_variables or {},
+        worker_cls=worker_cls,
+    )
+    # Copy all attributes from the original flow
+    for attr, value in flow.__dict__.items():
+        setattr(new, attr, value)
+    return new
 
 
 def _raise_on_name_with_banned_characters(name: Optional[str]) -> Optional[str]:
