@@ -163,6 +163,13 @@ class TestVertexAIWorker:
                 status_code=0, identifier="mock_display_name"
             )
 
+    async def test_missing_scheduling(self, flow_run, job_config):
+        job_config.job_spec["scheduling"] = None
+
+        async with VertexAIWorker("test-pool") as worker:
+            job_config.prepare_for_flow_run(flow_run, None, None)
+            await worker.run(flow_run=flow_run, configuration=job_config)
+
     async def test_params_worker_run(self, flow_run, job_config):
         async with VertexAIWorker("test-pool") as worker:
             # Initialize scheduling parameters
