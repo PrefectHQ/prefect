@@ -851,20 +851,20 @@ async def gcs(
     bucket: str = typer.Option(
         ...,
         "--bucket",
-        help="The name of the GCS bucket to use.",
+        help="The name of the Google Cloud Storage bucket to use.",
         show_default=False,
-        prompt="Enter the name of the GCS bucket to use",
+        prompt="Enter the name of the Google Cloud Storage bucket to use",
     ),
     credentials_block_name: str = typer.Option(
         ...,
         "--gcp-credentials-block-name",
-        help="The name of the GCP credentials block to use.",
+        help="The name of the Google Cloud credentials block to use.",
         show_default=False,
-        prompt="Enter the name of the GCP credentials block to use",
+        prompt="Enter the name of the Google Cloud credentials block to use",
     ),
 ):
     """
-    EXPERIMENTAL: Configure GCS storage for a work pool.
+    EXPERIMENTAL: Configure Google Cloud storage for a work pool.
 
     \b
     Examples:
