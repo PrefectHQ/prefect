@@ -958,6 +958,34 @@ async def gcs_credentials(prefect_client: PrefectClient) -> BlockDocument:
     )
 
 
+@pytest.fixture
+async def azure_blob_storage_credentials(
+    prefect_client: PrefectClient,
+) -> BlockDocument:
+    azure_blob_storage_credentials_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="Azure Blob Storage Credentials",
+            slug="azure-blob-storage-credentials",
+        )
+    )
+
+    azure_blob_storage_credentials_schema = await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=azure_blob_storage_credentials_type.id,
+            fields={"properties": {"account_url": {"type": "string"}}},
+        )
+    )
+
+    return await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="my-azure-blob-storage-creds",
+            block_type_id=azure_blob_storage_credentials_type.id,
+            block_schema_id=azure_blob_storage_credentials_schema.id,
+            data={"account_url": "https://test-account.blob.core.windows.net"},
+        )
+    )
+
+
 class TestStorageConfigure:
     class TestS3:
         async def test_storage_configure(
@@ -1137,5 +1165,95 @@ class TestStorageConfigure:
                 expected_code=1,
                 expected_output_contains=[
                     "GCS credentials block 'nonexistent-credentials' does not exist"
+                ],
+            )
+
+    class TestAzureBlobStorage:
+        async def test_storage_configure(
+            self,
+            work_pool: WorkPool,
+            azure_blob_storage_credentials: BlockDocument,
+            prefect_client: PrefectClient,
+        ):
+            """Test configuring Azure Blob Storage for a work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "azure-blob-storage",
+                    work_pool.name,
+                    "--container",
+                    "test-container",
+                    "--azure-blob-storage-credentials-block-name",
+                    azure_blob_storage_credentials.name,
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Configured Azure Blob Storage for work pool {work_pool.name!r}"
+                ],
+            )
+
+            # Verify the configuration was saved
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_azure.experimental.bundles.upload": {
+                    "requires": "prefect-azure",
+                    "container": "test-container",
+                    "azure_blob_storage_credentials_block_name": azure_blob_storage_credentials.name,
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_azure.experimental.bundles.execute": {
+                    "requires": "prefect-azure",
+                    "container": "test-container",
+                    "azure_blob_storage_credentials_block_name": azure_blob_storage_credentials.name,
+                }
+            }
+
+        async def test_storage_configure_nonexistent_pool(
+            self, azure_blob_storage_credentials: BlockDocument
+        ):
+            """Test configuring Azure Blob Storage for a nonexistent work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "azure-blob-storage",
+                    "nonexistent-pool",
+                    "--container",
+                    "test-container",
+                    "--azure-blob-storage-credentials-block-name",
+                    azure_blob_storage_credentials.name,
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "Work pool 'nonexistent-pool' does not exist"
+                ],
+            )
+
+        async def test_storage_configure_azure_blob_storage_nonexistent_credentials(
+            self, work_pool: WorkPool
+        ):
+            """Test configuring Azure Blob Storage with nonexistent credentials block."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "azure-blob-storage",
+                    work_pool.name,
+                    "--container",
+                    "test-container",
+                    "--azure-blob-storage-credentials-block-name",
+                    "nonexistent-credentials",
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "Azure Blob Storage credentials block 'nonexistent-credentials' does not exist"
                 ],
             )
