@@ -631,7 +631,7 @@ def emit_task_run_asset_dependency_events(
         (upstream, downstream) for upstream in upstreams for downstream in downstreams
     }:
         emit_event(
-            event="prefect.asset-dependency",
+            event="prefect.asset.dependency",
             resource={
                 "prefect.resource.id": f"prefect.task-run.{task_run.id}",
                 "prefect.resource.name": task_run.name,
