@@ -1,6 +1,7 @@
 import os
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -58,23 +59,23 @@ class TestInfrastructureBoundFlow:
             return "The works"
 
         @dragged_through_the_garden.on_completion
-        def on_completion(flow: Flow[[], str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_completion(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} completed with state {state}")
 
         @dragged_through_the_garden.on_failure
-        def on_failure(flow: Flow[[], str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_failure(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} failed with state {state}")
 
         @dragged_through_the_garden.on_cancellation
-        def on_cancellation(flow: Flow[[], str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_cancellation(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} cancelled with state {state}")
 
         @dragged_through_the_garden.on_crashed
-        def on_crashed(flow: Flow[[], str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_crashed(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} crashed with state {state}")
 
         @dragged_through_the_garden.on_running
-        def on_running(flow: Flow[[], str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_running(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} is running with state {state}")
 
         infrastructure_bound_flow = bind_flow_to_infrastructure(
