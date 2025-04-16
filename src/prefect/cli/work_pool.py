@@ -710,6 +710,10 @@ def _determine_storage_type(storage_config: WorkPoolStorageConfiguration) -> str
         "prefect_gcp" in step for step in storage_config.bundle_upload_step.keys()
     ):
         return "GCS"
+    if storage_config.bundle_upload_step and any(
+        "prefect_azure" in step for step in storage_config.bundle_upload_step.keys()
+    ):
+        return "Azure Blob Storage"
     return "Unknown"
 
 
@@ -906,3 +910,73 @@ async def gcs(
             exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
 
         exit_with_success(f"Configured GCS storage for work pool {work_pool_name!r}")
+
+
+@work_pool_storage_configure_app.command()
+async def azure_blob_storage(
+    work_pool_name: str = typer.Argument(
+        ...,
+        help="The name of the work pool to configure storage for.",
+        show_default=False,
+    ),
+    container: str = typer.Option(
+        ...,
+        "--container",
+        help="The name of the Azure Blob Storage container to use.",
+        show_default=False,
+        prompt="Enter the name of the Azure Blob Storage container to use",
+    ),
+    credentials_block_name: str = typer.Option(
+        ...,
+        "--azure-blob-storage-credentials-block-name",
+        help="The name of the Azure Blob Storage credentials block to use.",
+        show_default=False,
+        prompt="Enter the name of the Azure Blob Storage credentials block to use",
+    ),
+):
+    """
+    EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
+    """
+    async with get_client() as client:
+        try:
+            await client.read_block_document_by_name(
+                name=credentials_block_name,
+                block_type_slug="azure-blob-storage-credentials",
+            )
+        except ObjectNotFound:
+            exit_with_error(
+                f"Azure Blob Storage credentials block {credentials_block_name!r} does not exist. Please create one using `prefect block create azure-blob-storage-credentials`."
+            )
+
+        try:
+            await client.update_work_pool(
+                work_pool_name=work_pool_name,
+                work_pool=WorkPoolUpdate(
+                    storage_configuration=WorkPoolStorageConfiguration(
+                        bundle_upload_step={
+                            "prefect_azure.experimental.bundles.upload": {
+                                "requires": "prefect-azure",
+                                "container": container,
+                                "azure_blob_storage_credentials_block_name": credentials_block_name,
+                            }
+                        },
+                        bundle_execution_step={
+                            "prefect_azure.experimental.bundles.execute": {
+                                "requires": "prefect-azure",
+                                "container": container,
+                                "azure_blob_storage_credentials_block_name": credentials_block_name,
+                            }
+                        },
+                    ),
+                ),
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
+
+        exit_with_success(
+            f"Configured Azure Blob Storage for work pool {work_pool_name!r}"
+        )
