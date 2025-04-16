@@ -1,5 +1,6 @@
 import type { BlockDocument } from "@/api/block-documents";
 import { BlockDocumentActionMenu } from "@/components/blocks/block-document-action-menu";
+import { BlockTypeDetails } from "@/components/blocks/block-type-details";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { DOCS_LINKS } from "@/components/ui/docs-link";
@@ -8,7 +9,6 @@ import { PythonBlockSnippet } from "../python-example-snippet";
 import { useDeleteBlockDocumentConfirmationDialog } from "../use-delete-block-document-confirmation-dialog";
 import { BlockDocumentDetailsPageHeader } from "./block-document-details-page-header";
 import { BlockDocumentSchemaProperties } from "./block-document-schema-properties";
-import { BlockTypeDetails } from "./block-type-details";
 
 type BlockDocumentDetailsPageProps = {
 	blockDocument: BlockDocument;
