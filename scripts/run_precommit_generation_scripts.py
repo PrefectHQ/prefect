@@ -4,7 +4,6 @@ the same environment. This avoids multiple virtual environment creations in pre-
 """
 
 import importlib.util
-import sys
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from types import ModuleType
@@ -29,17 +28,11 @@ def run_generator(script_name: str) -> None:
 
     script_path = Path(__file__).parent / script_name
 
-    original_argv = sys.argv.copy()
+    module = import_script(script_path)
 
-    try:
-        sys.argv = [str(script_path)]
-
-        module = import_script(script_path)
-
-        if hasattr(module, "main"):
-            module.main()
-    finally:
-        sys.argv = original_argv
+    if not hasattr(module, "main"):
+        raise AttributeError(f"Script {script_name} does not have a main function")
+    module.main()
 
     print(f"Completed {script_name}")
 
