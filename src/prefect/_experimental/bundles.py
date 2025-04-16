@@ -8,6 +8,7 @@ import multiprocessing.context
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, TypedDict
 
 import cloudpickle
@@ -99,7 +100,9 @@ def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
 
 
 def _extract_and_run_flow(
-    bundle: SerializedBundle, env: dict[str, Any] | None = None
+    bundle: SerializedBundle,
+    cwd: Path | str | None = None,
+    env: dict[str, Any] | None = None,
 ) -> None:
     """
     Extracts a flow from a bundle and runs it.
@@ -108,6 +111,7 @@ def _extract_and_run_flow(
 
     Args:
         bundle: The bundle to extract and run.
+        cwd: The working directory to use when running the flow.
         env: The environment to use when running the flow.
     """
 
@@ -119,6 +123,9 @@ def _extract_and_run_flow(
     flow = _deserialize_bundle_object(bundle["function"])
     context = _deserialize_bundle_object(bundle["context"])
     flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+    if cwd:
+        os.chdir(cwd)
 
     with SettingsContext(
         profile=settings_context.profile,
@@ -138,6 +145,8 @@ def _extract_and_run_flow(
 
 def execute_bundle_in_subprocess(
     bundle: SerializedBundle,
+    env: dict[str, Any] | None = None,
+    cwd: Path | str | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
     Executes a bundle in a subprocess.
@@ -150,6 +159,7 @@ def execute_bundle_in_subprocess(
     """
 
     ctx = multiprocessing.get_context("spawn")
+    env = env or {}
 
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
@@ -164,7 +174,9 @@ def execute_bundle_in_subprocess(
         kwargs={
             "bundle": bundle,
             "env": get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ,
+            | os.environ
+            | env,
+            "cwd": cwd,
         },
     )
 

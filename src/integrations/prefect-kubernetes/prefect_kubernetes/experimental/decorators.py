@@ -27,6 +27,8 @@ R = TypeVar("R")
 T = TypeVar("T")
 
 
+# TODO: Remove this class once a version of Prefect is released that has the
+# InfrastructureBoundFlow class.
 class InfrastructureBoundFlow(Flow[P, R]):
     def __init__(
         self,

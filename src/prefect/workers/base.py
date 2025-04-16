@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 import anyio
 import anyio.abc
 import httpx
+from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from importlib_metadata import (
     distributions,  # type: ignore[reportUnknownVariableType] incomplete typing
 )
@@ -744,98 +745,94 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             create_bundle_for_flow_run,
         )
 
-        if TYPE_CHECKING:
-            assert self._work_pool is not None
-
         if (
-            self._work_pool.storage_configuration.bundle_upload_step is None
-            or self._work_pool.storage_configuration.bundle_execution_step is None
+            self.work_pool.storage_configuration.bundle_upload_step is None
+            or self.work_pool.storage_configuration.bundle_execution_step is None
         ):
             raise RuntimeError(
-                f"Storage is not configured for work pool {self._work_pool.name!r}. "
+                f"Storage is not configured for work pool {self.work_pool.name!r}. "
                 "Please configure storage for the work pool by running `prefect "
                 "work-pool storage configure`."
             )
 
         bundle_key = str(uuid.uuid4())
         upload_command = convert_step_to_command(
-            self._work_pool.storage_configuration.bundle_upload_step,
+            self.work_pool.storage_configuration.bundle_upload_step,
             bundle_key,
             quiet=True,
         )
         execute_command = convert_step_to_command(
-            self._work_pool.storage_configuration.bundle_execution_step, bundle_key
+            self.work_pool.storage_configuration.bundle_execution_step, bundle_key
         )
 
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
-        async with get_client() as client:
-            flow_run = await client.create_flow_run(
-                flow,
-                parameters=parameters,
-                state=Pending(),
-                job_variables=job_variables,
-                work_pool_name=self._work_pool.name,
+        flow_run = await self.client.create_flow_run(
+            flow,
+            parameters=parameters,
+            state=Pending(),
+            job_variables=job_variables,
+            work_pool_name=self.work_pool.name,
+        )
+        if task_status is not None:
+            # Emit the flow run object to .submit to allow it to return a future as soon as possible
+            task_status.started(flow_run)
+        # Avoid an API call to get the flow
+        api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+        logger = self.get_flow_run_logger(flow_run)
+
+        configuration = await self.job_configuration.from_template_and_values(
+            base_job_template=self.work_pool.base_job_template,
+            values=job_variables,
+            client=self._client,
+        )
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=api_flow,
+            work_pool=self.work_pool,
+            worker_name=self.name,
+        )
+
+        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            await (
+                anyio.Path(temp_dir)
+                .joinpath(bundle_key)
+                .write_bytes(json.dumps(bundle).encode("utf-8"))
             )
-            if task_status is not None:
-                # Emit the flow run object to .submit to allow it to return a future as soon as possible
-                task_status.started(flow_run)
-            # Avoid an API call to get the flow
-            api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
-            logger = self.get_flow_run_logger(flow_run)
-
-            configuration = await self.job_configuration.from_template_and_values(
-                base_job_template=self._work_pool.base_job_template,
-                values=job_variables,
-                client=self._client,
-            )
-            configuration.prepare_for_flow_run(
-                flow_run=flow_run,
-                flow=api_flow,
-                work_pool=self._work_pool,
-                worker_name=self.name,
-            )
-
-            bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-
-            with tempfile.TemporaryDirectory() as temp_dir:
-                await (
-                    anyio.Path(temp_dir)
-                    .joinpath(bundle_key)
-                    .write_bytes(json.dumps(bundle).encode("utf-8"))
-                )
-
-                try:
-                    full_command = upload_command + [bundle_key]
-                    logger.debug(
-                        "Uploading execution bundle with command: %s", full_command
-                    )
-                    await anyio.run_process(
-                        full_command,
-                        cwd=temp_dir,
-                    )
-                except subprocess.CalledProcessError as e:
-                    raise RuntimeError(e.stderr.decode("utf-8")) from e
-
-            logger.debug("Successfully uploaded execution bundle")
 
             try:
-                result = await self.run(flow_run, configuration)
-
-                if result.status_code != 0:
-                    await self._propose_crashed_state(
-                        flow_run,
-                        (
-                            "Flow run infrastructure exited with non-zero status code"
-                            f" {result.status_code}."
-                        ),
-                    )
-            except Exception as exc:
-                # This flow run was being submitted and did not start successfully
-                logger.exception(
-                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                full_command = upload_command + [bundle_key]
+                logger.debug(
+                    "Uploading execution bundle with command: %s", full_command
                 )
-                message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
-                await self._propose_crashed_state(flow_run, message, client=client)
+                await anyio.run_process(
+                    full_command,
+                    cwd=temp_dir,
+                )
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+        logger.debug("Successfully uploaded execution bundle")
+
+        try:
+            result = await self.run(flow_run, configuration)
+
+            if result.status_code != 0:
+                await self._propose_crashed_state(
+                    flow_run,
+                    (
+                        "Flow run infrastructure exited with non-zero status code"
+                        f" {result.status_code}."
+                    ),
+                )
+        except Exception as exc:
+            # This flow run was being submitted and did not start successfully
+            logger.exception(
+                f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+            )
+            message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+            await self._propose_crashed_state(flow_run, message, client=self.client)
 
     @classmethod
     def __dispatch_key__(cls) -> str | None:
@@ -1499,8 +1496,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:
-        self._logger.debug("Exiting worker context...")
-        await self.teardown(*exc_info)
+        try:
+            self._logger.debug("Exiting worker context...")
+            await self.teardown(*exc_info)
+        except (ExceptionGroup, BaseExceptionGroup) as exc:
+            # For less verbose tracebacks
+            exceptions = exc.exceptions
+            if len(exceptions) == 1:
+                raise exceptions[0] from None
+            else:
+                raise
 
     def __repr__(self) -> str:
         return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"
