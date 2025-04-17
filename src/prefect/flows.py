@@ -2459,19 +2459,21 @@ async def load_flow_from_flow_run(
     If `ignore_storage=True` is provided, no pull from remote storage occurs.  This flag
     is largely for testing, and assumes the flow is already available locally.
     """
-    # if flow_run.deployment_id is None:
-    #     raise ValueError("Flow run does not have an associated deployment")
-
-    deployment = await client.read_deployment(flow_run.deployment_id)
-
-    if deployment.entrypoint is None and flow_run.entrypoint is None:
-        raise ValueError(
-            f"Deployment {deployment.id} does not have an entrypoint and can not be run."
-        )
-
-    # flow run takes precedence over deployment entrypoint
-    entrypoint = flow_run.entrypoint or deployment.entrypoint or None
-    pull_steps = flow_run.pull_steps or deployment.pull_steps or []
+    if flow_run.deployment_id is None:
+        if flow_run.entrypoint is None:
+            raise ValueError(
+                f"Deployment {flow_run.id} does not have an entrypoint and can not be run."
+            )
+        entrypoint = flow_run.entrypoint or None
+        pull_steps = flow_run.pull_steps or []
+    else:
+        deployment = await client.read_deployment(flow_run.deployment_id)
+        if deployment.entrypoint is None:
+            raise ValueError(
+                f"Deployment {deployment.id} does not have an entrypoint and can not be run."
+            )
+        entrypoint = deployment.entrypoint or None
+        pull_steps = deployment.pull_steps or []
 
     run_logger = flow_run_logger(flow_run)
 
