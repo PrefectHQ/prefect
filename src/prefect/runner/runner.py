@@ -780,6 +780,8 @@ class Runner:
         """
         if command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
+        elif os.name == "nt":
+            runner_command = command.split(" ")
         else:
             runner_command = shlex.split(command)
 
