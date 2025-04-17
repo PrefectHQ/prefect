@@ -13,7 +13,6 @@ import importlib.util
 import inspect
 import os
 import re
-import sys
 import tempfile
 import warnings
 from copy import copy
@@ -64,7 +63,7 @@ from prefect.exceptions import (
     TerminationSignal,
     UnspecifiedFlowError,
 )
-from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
+from prefect.filesystems import ReadableDeploymentStorage
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
@@ -2477,10 +2476,6 @@ async def load_flow_from_flow_run(
 
     run_logger = flow_run_logger(flow_run)
 
-    runner_storage_base_path = storage_base_path or os.environ.get(
-        "PREFECT__STORAGE_BASE_PATH"
-    )
-
     # If there's no colon, assume it's a module path
     if ":" not in entrypoint:
         run_logger.debug(f"Importing flow code from module path {entrypoint}")
@@ -2491,28 +2486,28 @@ async def load_flow_from_flow_run(
         )
         return flow
 
-    if not ignore_storage and not deployment.pull_steps:
-        sys.path.insert(0, ".")
-        if deployment.storage_document_id:
-            storage_document = await client.read_block_document(
-                deployment.storage_document_id
-            )
-            storage_block = Block._from_block_document(storage_document)
-        else:
-            basepath = deployment.path
-            if runner_storage_base_path:
-                basepath = str(basepath).replace(
-                    "$STORAGE_BASE_PATH", runner_storage_base_path
-                )
-            storage_block = LocalFileSystem(basepath=basepath)
-
-        from_path = (
-            str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
-            if runner_storage_base_path and deployment.path
-            else deployment.path
-        )
-        run_logger.info(f"Downloading flow code from storage at {from_path!r}")
-        await storage_block.get_directory(from_path=from_path, local_path=".")
+    # if not ignore_storage and not pull_steps:
+    #     sys.path.insert(0, ".")
+    #     if deployment.storage_document_id:
+    #         storage_document = await client.read_block_document(
+    #             deployment.storage_document_id
+    #         )
+    #         storage_block = Block._from_block_document(storage_document)
+    #     else:
+    #         basepath = deployment.path
+    #         if runner_storage_base_path:
+    #             basepath = str(basepath).replace(
+    #                 "$STORAGE_BASE_PATH", runner_storage_base_path
+    #             )
+    #         storage_block = LocalFileSystem(basepath=basepath)
+    #
+    #     from_path = (
+    #         str(deployment.path).replace("$STORAGE_BASE_PATH", runner_storage_base_path)
+    #         if runner_storage_base_path and deployment.path
+    #         else deployment.path
+    #     )
+    #     run_logger.info(f"Downloading flow code from storage at {from_path!r}")
+    #     await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if pull_steps:
         run_logger.debug(f"Running {len(pull_steps)} deployment pull step(s)")
