@@ -372,6 +372,7 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
+
     tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",

@@ -653,6 +653,16 @@ class FlowRun(ObjectBaseModel):
         default=None,
         description="Job variables for the flow run.",
     )
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
+        default=None,
+        description="Pull steps for cloning and running this deployment.",
+    )
+    entrypoint: Optional[str] = Field(
+        default=None,
+        description=(
+            "The path to the entrypoint for the workflow, relative to the `path`."
+        ),
+    )
 
     # These are server-side optimizations and should not be present on client models
     # TODO: Deprecate these fields

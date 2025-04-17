@@ -2464,10 +2464,14 @@ async def load_flow_from_flow_run(
 
     deployment = await client.read_deployment(flow_run.deployment_id)
 
-    if deployment.entrypoint is None:
+    if deployment.entrypoint is None and flow_run.entrypoint is None:
         raise ValueError(
             f"Deployment {deployment.id} does not have an entrypoint and can not be run."
         )
+
+    # flow run takes precedence over deployment entrypoint
+    entrypoint = flow_run.entrypoint or deployment.entrypoint or None
+    pull_steps = flow_run.pull_steps or deployment.pull_steps or []
 
     run_logger = flow_run_logger(flow_run)
 
@@ -2476,13 +2480,11 @@ async def load_flow_from_flow_run(
     )
 
     # If there's no colon, assume it's a module path
-    if ":" not in deployment.entrypoint:
-        run_logger.debug(
-            f"Importing flow code from module path {deployment.entrypoint}"
-        )
+    if ":" not in entrypoint:
+        run_logger.debug(f"Importing flow code from module path {entrypoint}")
         flow = await run_sync_in_worker_thread(
             load_flow_from_entrypoint,
-            deployment.entrypoint,
+            entrypoint,
             use_placeholder_flow=use_placeholder_flow,
         )
         return flow
@@ -2510,17 +2512,13 @@ async def load_flow_from_flow_run(
         run_logger.info(f"Downloading flow code from storage at {from_path!r}")
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
-    if deployment.pull_steps:
-        run_logger.debug(
-            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
-        )
+    if pull_steps:
+        run_logger.debug(f"Running {len(pull_steps)} deployment pull step(s)")
 
         from prefect.deployments.steps.core import StepExecutionError, run_steps
 
         try:
-            output = await run_steps(
-                deployment.pull_steps, print_function=run_logger.info
-            )
+            output = await run_steps(pull_steps, print_function=run_logger.info)
         except StepExecutionError as e:
             e = e.__cause__ or e
             run_logger.error(str(e))
@@ -2530,7 +2528,7 @@ async def load_flow_from_flow_run(
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
 
-    import_path = relative_path_to_current_platform(deployment.entrypoint)
+    import_path = relative_path_to_current_platform(entrypoint)
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
     try:
