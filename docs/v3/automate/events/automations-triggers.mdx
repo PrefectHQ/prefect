@@ -189,6 +189,43 @@ deployments:
               - external.resource.replied
 ```
 
+### Define deployment triggers using Terraform
+
+You can also set up a deployment trigger via Terraform resources, specifically via the `prefect_automation` [resource](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/automation).
+
+```hcl
+resource "prefect_deployment" "my_deployment" {
+  name            = "my-deployment"
+  work_pool_name  = "my-work-pool"
+  work_queue_name = "default"
+  entrypoint      = "path/to/flow.py:decorated_fn"
+}
+
+resource "prefect_automation" "event_trigger" {
+  name = "my-automation"
+  trigger = {
+    event = {
+      posture   = "Reactive"
+      expect    = ["external.resource.pinged"]
+      threshold = 1
+      within    = 0
+    }
+  }
+  actions = [
+    {
+      type          = "run-deployment"
+      source        = "selected"
+      deployment_id = prefect_deployment.my_deployment.id
+      parameters = jsonencode({
+        "param_1" : "{{ event }}"
+      })
+    },
+  ]
+}
+
+```
+
+
 ### Define triggers in `.serve` and `.deploy`
 
 To create deployments with triggers in Python, the trigger types `DeploymentEventTrigger`,
@@ -904,10 +941,10 @@ In the above example:
 
 ### Detect and respond to zombie flows
 
-If the infrastructure a flow is running on suddenly fails (for example, the machine crashes or a container is evicted), 
+If the infrastructure a flow is running on suddenly fails (for example, the machine crashes or a container is evicted),
 Prefect's orchestration engine will be unable to report state changes and the flow run will get stuck in the running state.
 
-Fortunately, flow runs triggered via deployment can emit heartbeats as they are running, and a Prefect automation can update 
+Fortunately, flow runs triggered via deployment can emit heartbeats as they are running, and a Prefect automation can update
 a flow run's state to crashed if the server stops receiving heartbeats for that flow run.
 
 <Note>
@@ -958,9 +995,9 @@ if __name__ == "__main__":
 ```
 
 The trigger definition says after each heartbeat event for a flow run we expect to see another heartbeat event or a
-terminal state event for that same flow run within 90 seconds of a heartbeat event. 
+terminal state event for that same flow run within 90 seconds of a heartbeat event.
 
-If `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed. 
+If `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed.
 You can adjust `within` in the trigger definition and `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` to change how quickly the automation
 will fire after the server stops receiving flow run heartbeats.
 
