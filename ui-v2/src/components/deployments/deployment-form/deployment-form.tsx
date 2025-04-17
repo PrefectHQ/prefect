@@ -176,7 +176,7 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 							<FormLabel>Global concurrency limit</FormLabel>
 							<FormControl>
 								<GlobalConcurrencyLimitSelect
-									presetOptions={[{ label: "None", value: "" }]}
+									presetOptions={[{ label: "None", value: null }]}
 									onSelect={field.onChange}
 									selected={field.value}
 								/>

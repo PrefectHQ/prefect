@@ -92,7 +92,7 @@ const GlobalConcurrencyLimitSelectImplementation = ({
 								key={option.label}
 								selected={selected === option.value}
 								onSelect={() => {
-									onSelect(option.value || null);
+									onSelect(option.value);
 									setSearch("");
 								}}
 								//nb: Stringifies label so that UX has a hoverable state
