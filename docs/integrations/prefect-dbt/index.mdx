@@ -302,38 +302,13 @@ To be notified when this model is skipped, the following automation trigger coul
 }
 ```
 
-#### Resources and lineage
-
-<Info>
-Resources in Prefect Cloud are currently experimental. Enable them by setting the `PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED` environment variable to `true` wherever flow runs are executed.
-</Info>
-
-The `PrefectDbtRunner` class automatically emits lineage events describing the relationships between the resources in your dbt project.
-Resources can be viewed in Prefect Cloud on the flow run page.
-Click "View graph" to display a lineage graph with nodes directly upstream and downstream of the selected resource.
-
-When running in Prefect Cloud, the lineage graph for executed nodes will be visible on the flow run page, showing upstream and downstream dependencies.
-
-To describe resource that exist outside of your dbt project and are upstream of a given node, supply the resource in your dbt config.
-For example, to describe a BigQuery table as an upstream resource of a dbt model, add the following to your model's config:
-
-```yaml
-prefect:
-  upstream_resources:
-    - name: "my_bigquery_table"
-      role: "table"
-      id: "bigquery://my-project.my_dataset.my_table"
-```
-
 #### Native dbt configuration
 
 You can disable these features for all resources in your dbt project config, or for specific resources in their own config:
 
 ```yaml
 prefect:
-  emit_events: False  # Disable all events
-  emit_node_events: False  # Disable node events
-  emit_lineage_events: False  # Disable lineage events
+  emit_events: False
 ```
 
 ### prefect-dbt 0.6.6 and earlier
