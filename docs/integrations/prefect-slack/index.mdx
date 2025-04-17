@@ -39,12 +39,14 @@ Slack's [Basic app setup](https://api.slack.com/authentication/basics) guide pro
 
 ### Write and run a flow
 
-```python
+<CodeGroup>
+
+```python sync
+import asyncio
 from prefect import flow
 from prefect.context import get_run_context
 from prefect_slack import SlackCredentials
 from prefect_slack.messages import send_chat_message
-
 
 @flow
 def example_send_message_flow():
@@ -53,15 +55,44 @@ def example_send_message_flow():
    # Run other tasks or flows here
 
    token = "xoxb-your-bot-token-here"
-   send_chat_message(
-         slack_credentials=SlackCredentials(token),
-         channel="#prefect",
-         text=f"Flow run {context.flow_run.name} completed :tada:"
-   )
+   asyncio.run(
+        send_chat_message(
+            slack_credentials=SlackCredentials(token),
+            channel="#prefect",
+            text=f"Flow run {context.flow_run.name} completed :tada:"
+        )
+    )
 
 if __name__ == "__main__":
     example_send_message_flow()
 ```
+
+
+```python async
+from prefect import flow
+from prefect.context import get_run_context
+from prefect_slack import SlackCredentials
+from prefect_slack.messages import send_chat_message
+
+
+@flow
+async def example_send_message_flow():
+   context = get_run_context()
+
+   # Run other tasks or flows here
+
+   token = "xoxb-your-bot-token-here"
+   await send_chat_message(
+        slack_credentials=SlackCredentials(token),
+        channel="#prefect",
+        text=f"Flow run {context.flow_run.name} completed :tada:"
+   )
+
+if __name__ == "__main__":
+    asyncio.run(example_send_message_flow())
+```
+
+</CodeGroup>
 
 ## Resources
 
