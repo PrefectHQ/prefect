@@ -1,8 +1,9 @@
 import ast
 import math
-from typing import TYPE_CHECKING, Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal
 
 import anyio
+from typing_extensions import TypeAlias
 
 from prefect.logging.loggers import get_logger
 from prefect.settings import get_current_settings
