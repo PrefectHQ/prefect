@@ -781,7 +781,7 @@ class Runner:
         if command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
-            runner_command = shlex.split(command)
+            runner_command = shlex.split(command, posix=(os.name != "nt"))
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
