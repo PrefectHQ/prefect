@@ -1,4 +1,6 @@
-from typing import ClassVar
+from __future__ import annotations
+
+from typing import ClassVar, Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
@@ -20,7 +22,7 @@ class _LogfireSettings(PrefectBaseSettings):
         description="If `True`, enables Logfire tracing. Set to `False` to disable Logfire tracing.",
     )
 
-    write_token: str | None = Field(
+    write_token: Optional[str] = Field(
         default=None,
         description="The Logfire write token to use for tracing.",
     )

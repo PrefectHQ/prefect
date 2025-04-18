@@ -354,6 +354,10 @@
                     ],
                     "title": "Lineage Events Enabled",
                     "type": "boolean"
+                },
+                "logfire": {
+                    "$ref": "#/$defs/_LogfireSettings",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ExperimentsSettings",
@@ -2314,6 +2318,38 @@
                 }
             },
             "title": "WorkerWebserverSettings",
+            "type": "object"
+        },
+        "_LogfireSettings": {
+            "description": "Settings for Logfire tracing",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "If `True`, enables Logfire tracing. Set to `False` to disable Logfire tracing.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_LOGFIRE_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "write_token": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The Logfire write token to use for tracing.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_LOGFIRE_WRITE_TOKEN"
+                    ],
+                    "title": "Write Token"
+                }
+            },
+            "title": "_LogfireSettings",
             "type": "object"
         }
     },

@@ -491,6 +491,12 @@ If `True`, enables emitting lineage events. Set to `False` to disable lineage ev
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED`
 
+### `logfire`
+
+**Type**: [_LogfireSettings](#_logfiresettings)
+
+**TOML dotted key path**: `experiments.logfire`
+
 ---
 ## FlowsSettings
 Settings for controlling flow behavior
@@ -2554,5 +2560,32 @@ The port the worker's webserver should bind to.
 
 **Supported environment variables**:
 `PREFECT_WORKER_WEBSERVER_PORT`
+
+---
+## _LogfireSettings
+Settings for Logfire tracing
+### `enabled`
+If `True`, enables Logfire tracing. Set to `False` to disable Logfire tracing.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.logfire.enabled`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_LOGFIRE_ENABLED`
+
+### `write_token`
+The Logfire write token to use for tracing.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `experiments.logfire.write_token`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_LOGFIRE_WRITE_TOKEN`
 
 ---
