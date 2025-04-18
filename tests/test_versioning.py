@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from subprocess import CompletedProcess
 
 import pytest
 from anyio import run_process
@@ -34,27 +35,23 @@ async def test_get_inferred_version_info_with_no_other_information():
 
 @pytest.fixture
 async def git_repo(project_dir: Path) -> GitVersionInfo:
-    result = await run_process(
-        ["git", "init", "--initial-branch", "my-default-branch"], check=False
-    )
-    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+    async def git(*args: str) -> CompletedProcess[bytes]:
+        result = await run_process(["git", *args], check=False)
+        assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+        return result
 
-    result = await run_process(
-        ["git", "remote", "add", "origin", "https://example.com/my-repo"], check=False
-    )
-    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+    await git("init", "--initial-branch", "my-default-branch")
+    await git("config", "user.email", "me@example.com")
+    await git("config", "user.name", "Me")
+    await git("remote", "add", "origin", "https://example.com/my-repo")
 
     test_file = project_dir / "test_file.txt"
     test_file.write_text("This is a test file for the git repository")
 
-    result = await run_process(["git", "add", "."], check=False)
-    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+    await git("add", ".")
+    await git("commit", "-m", "Initial commit")
 
-    result = await run_process(["git", "commit", "-m", "Initial commit"], check=False)
-    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
-
-    result = await run_process(["git", "rev-parse", "HEAD"], check=False)
-    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+    result = await git("rev-parse", "HEAD")
     commit_sha = result.stdout.decode().strip()
 
     return GitVersionInfo(
