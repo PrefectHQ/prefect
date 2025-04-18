@@ -67,6 +67,20 @@ def mock_runner_start():
         yield
 
 
+@pytest.fixture(autouse=True)
+def mock_base_worker_submit():
+    with (
+        mock.patch(
+            "prefect.workers.base.BaseWorker.submit", new_callable=mock.AsyncMock
+        ),
+        mock.patch(
+            "prefect_kubernetes.worker.KubernetesWorker.submit",
+            new_callable=mock.AsyncMock,
+        ),
+    ):
+        yield
+
+
 def pytest_markdown_docs_globals():
     return {
         "Mapped": Mapped,
