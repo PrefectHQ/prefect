@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import inspect
-from typing import Any
+from typing import Any, Optional
 
 import typer
 
@@ -33,11 +35,11 @@ def _import_tasks_from_module(module: str) -> list[Task[Any, Any]]:
 
 @task_app.command()
 async def serve(
-    entrypoints: list[str] | None = typer.Argument(
+    entrypoints: Optional[list[str]] = typer.Argument(
         None,
         help="The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.",
     ),
-    module: list[str] | None = typer.Option(
+    module: Optional[list[str]] = typer.Option(
         None,
         "--module",
         "-m",
