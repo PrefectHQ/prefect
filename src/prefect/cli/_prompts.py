@@ -4,9 +4,7 @@ Utilities for prompting the user for input
 
 from __future__ import annotations
 
-import ast
 import asyncio
-import math
 import os
 import shutil
 from datetime import timedelta
@@ -46,11 +44,10 @@ from prefect.client.utilities import client_injector
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities import urls
+from prefect.utilities._ast import find_flow_functions_in_file
 from prefect.utilities._git import get_git_remote_origin_url
-from prefect.utilities.asyncutils import LazySemaphore
-from prefect.utilities.filesystem import filter_files, get_open_file_limit
+from prefect.utilities.filesystem import filter_files
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
@@ -71,97 +68,8 @@ REQUIRED_FIELDS_FOR_CREDS_BLOCK = {
     "azure-blob-storage-credentials": ["account_url", "connection_string"],
 }
 
-# Only allow half of the open file limit to be open at once to allow for other
-# actors to open files.
-OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
 
 logger = get_logger(__name__)
-
-
-async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
-    decorator_name = "flow"
-    decorator_module = "prefect"
-    decorated_functions: list[dict[str, str]] = []
-    async with OPEN_FILE_SEMAPHORE:
-        try:
-            async with await anyio.open_file(path) as f:
-                try:
-                    tree = ast.parse(await f.read())
-                except SyntaxError:
-                    if PREFECT_DEBUG_MODE:
-                        get_logger().debug(
-                            f"Could not parse {path} as a Python file. Skipping."
-                        )
-                    return decorated_functions
-        except Exception as exc:
-            if PREFECT_DEBUG_MODE:
-                get_logger().debug(f"Could not open {path}: {exc}. Skipping.")
-            return decorated_functions
-
-    for node in ast.walk(tree):
-        if isinstance(
-            node,
-            (
-                ast.FunctionDef,
-                ast.AsyncFunctionDef,
-            ),
-        ):
-            for decorator in node.decorator_list:
-                # handles @flow
-                is_name_match = (
-                    isinstance(decorator, ast.Name) and decorator.id == decorator_name
-                )
-                # handles @flow()
-                is_func_name_match = (
-                    isinstance(decorator, ast.Call)
-                    and isinstance(decorator.func, ast.Name)
-                    and decorator.func.id == decorator_name
-                )
-                # handles @prefect.flow
-                is_module_attribute_match = (
-                    isinstance(decorator, ast.Attribute)
-                    and isinstance(decorator.value, ast.Name)
-                    and decorator.value.id == decorator_module
-                    and decorator.attr == decorator_name
-                )
-                # handles @prefect.flow()
-                is_module_attribute_func_match = (
-                    isinstance(decorator, ast.Call)
-                    and isinstance(decorator.func, ast.Attribute)
-                    and decorator.func.attr == decorator_name
-                    and isinstance(decorator.func.value, ast.Name)
-                    and decorator.func.value.id == decorator_module
-                )
-                if is_name_match or is_module_attribute_match:
-                    decorated_functions.append(
-                        {
-                            "flow_name": node.name,
-                            "function_name": node.name,
-                            "filepath": str(path),
-                        }
-                    )
-                if is_func_name_match or is_module_attribute_func_match:
-                    name_kwarg_node = None
-                    if TYPE_CHECKING:
-                        assert isinstance(decorator, ast.Call)
-                    for kw in decorator.keywords:
-                        if kw.arg == "name":
-                            name_kwarg_node = kw
-                            break
-                    if name_kwarg_node is not None and isinstance(
-                        name_kwarg_node.value, ast.Constant
-                    ):
-                        flow_name = name_kwarg_node.value.value
-                    else:
-                        flow_name = node.name
-                    decorated_functions.append(
-                        {
-                            "flow_name": flow_name,
-                            "function_name": node.name,
-                            "filepath": str(path),
-                        }
-                    )
-    return decorated_functions
 
 
 async def search_for_flow_functions(

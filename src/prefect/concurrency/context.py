@@ -13,7 +13,9 @@ class ConcurrencyContext(ContextModel):
     # Track the slots that have been acquired but were not able to be released
     # due to cancellation or some other error. These slots are released when
     # the context manager exits.
-    cleanup_slots: list[tuple[list[str], int, float]] = Field(default_factory=list)
+    cleanup_slots: list[tuple[list[str], int, float]] = Field(
+        default_factory=lambda: []
+    )
 
     def __exit__(self, *exc_info: Any) -> None:
         if self.cleanup_slots:
