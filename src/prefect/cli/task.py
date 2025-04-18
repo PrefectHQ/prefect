@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 from typing import Any, Optional
 
 import typer
@@ -16,7 +17,7 @@ from prefect.utilities.importtools import import_object, load_module
 task_app: PrefectTyper = PrefectTyper(name="task", help="Work with task scheduling.")
 app.add_typer(task_app, aliases=["task"])
 
-logger = get_logger("prefect.cli.task")
+logger: logging.Logger = get_logger("prefect.cli.task")
 
 
 def _import_tasks_from_module(module: str) -> list[Task[Any, Any]]:
