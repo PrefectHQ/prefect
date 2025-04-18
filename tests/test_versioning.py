@@ -34,24 +34,26 @@ async def test_get_inferred_version_info_with_no_other_information():
 
 @pytest.fixture
 async def git_repo(project_dir: Path) -> GitVersionInfo:
-    result = await run_process(["git", "init", "--initial-branch", "my-default-branch"])
+    result = await run_process(
+        ["git", "init", "--initial-branch", "my-default-branch"], check=False
+    )
     assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
     result = await run_process(
-        ["git", "remote", "add", "origin", "https://example.com/my-repo"]
+        ["git", "remote", "add", "origin", "https://example.com/my-repo"], check=False
     )
     assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
     test_file = project_dir / "test_file.txt"
     test_file.write_text("This is a test file for the git repository")
 
-    result = await run_process(["git", "add", "."])
+    result = await run_process(["git", "add", "."], check=False)
     assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
-    result = await run_process(["git", "commit", "-m", "Initial commit"])
+    result = await run_process(["git", "commit", "-m", "Initial commit"], check=False)
     assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
-    result = await run_process(["git", "rev-parse", "HEAD"])
+    result = await run_process(["git", "rev-parse", "HEAD"], check=False)
     assert result.returncode == 0, result.stdout + b"\n" + result.stderr
     commit_sha = result.stdout.decode().strip()
 
