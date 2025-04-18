@@ -126,7 +126,7 @@ class ServerServicesFlowRunNotificationsSettings(ServicesBaseSetting):
     )
 
     enabled: bool = Field(
-        default=True,
+        default=False,
         description="Whether or not to start the flow run notifications service in the server application.",
         validation_alias=AliasChoices(
             AliasPath("enabled"),
