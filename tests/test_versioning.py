@@ -28,6 +28,14 @@ def project_dir(tmp_path: Path):
         yield tmp_path
 
 
+@pytest.fixture(autouse=True)
+def clean_environment(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.delenv("GITHUB_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    monkeypatch.delenv("GITHUB_SERVER_URL", raising=False)
+
+
 async def test_get_inferred_version_info_with_no_other_information():
     version_info = await get_inferred_version_info()
     assert version_info is None
