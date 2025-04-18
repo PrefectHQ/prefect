@@ -307,6 +307,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
                 trigger_states={TriggerState.Triggered},
                 triggered=prefect.types._datetime.now("UTC"),
                 triggering_firings=[firing],
+                triggering_event=firing.triggering_event,
             ),
         )
         return
@@ -357,6 +358,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
                 trigger_states={TriggerState.Triggered},
                 triggered=prefect.types._datetime.now("UTC"),
                 triggering_firings=firings,
+                triggering_event=firing.triggering_event,
             ),
         )
 
