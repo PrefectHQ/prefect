@@ -35,24 +35,24 @@ async def test_get_inferred_version_info_with_no_other_information():
 @pytest.fixture
 async def git_repo(project_dir: Path) -> GitVersionInfo:
     result = await run_process(["git", "init", "--initial-branch", "my-default-branch"])
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
     result = await run_process(
         ["git", "remote", "add", "origin", "https://example.com/my-repo"]
     )
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
     test_file = project_dir / "test_file.txt"
     test_file.write_text("This is a test file for the git repository")
 
     result = await run_process(["git", "add", "."])
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
     result = await run_process(["git", "commit", "-m", "Initial commit"])
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
 
     result = await run_process(["git", "rev-parse", "HEAD"])
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stdout + b"\n" + result.stderr
     commit_sha = result.stdout.decode().strip()
 
     return GitVersionInfo(
