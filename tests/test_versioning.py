@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
 from anyio import run_process
 
-import prefect
-from prefect.deployments.base import initialize_project
 from prefect.utilities.filesystem import tmpchdir
 from prefect.versioning import (
     GithubVersionInfo,
@@ -15,16 +12,10 @@ from prefect.versioning import (
     get_inferred_version_info,
 )
 
-TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
-
 
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path: Path):
     with tmpchdir(str(tmp_path)):
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
-        prefect_home = tmp_path / ".prefect"
-        prefect_home.mkdir(exist_ok=True, mode=0o0700)
-        initialize_project()
         yield tmp_path
 
 
