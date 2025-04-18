@@ -3701,7 +3701,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.9,!=2.10.0,<3.0.0" },
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
-    { name = "pydantic-settings", specifier = ">2.2.1" },
+    { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "python-socks", extras = ["asyncio"], specifier = ">=2.5.3,<3.0" },
