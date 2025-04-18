@@ -62,6 +62,11 @@ async def serve(
             "You may provide entrypoints or modules, but not both at the same time."
         )
 
+    if not entrypoints and not module:
+        exit_with_error(
+            "You must provide either `path/to/file.py:task_func` or `--module module_name`."
+        )
+
     tasks: list[Task[Any, Any]] = []
 
     if entrypoints:
@@ -90,20 +95,14 @@ async def serve(
                 exit_with_error(
                     f"Module '{mod}' could not be imported. Please check the module name and try again.\n\n{e.__class__.__name__}: {e}"
                 )
-            plural = "s" if len(module_tasks) > 1 else ""
+            plural = "s" if len(module_tasks) != 1 else ""
             logger.debug(f"Found {len(module_tasks)} task{plural} in {mod!r}.")
             tasks.extend(module_tasks)
 
     if not tasks:
-        sources: dict[str, list[str]] = {}
-        if entrypoints:
-            sources["entrypoints"] = entrypoints
-        if module:
-            sources["module"] = module
-        if not sources:
-            exit_with_error(
-                "You must provide either `path/to/file.py:task_func` or `--module module_name`."
-            )
-        exit_with_error(f"No tasks found to serve in {sources!r}.")
+        sources = (
+            f"entrypoints: {entrypoints!r}" if entrypoints else f"modules: {module!r}"
+        )
+        exit_with_error(f"No tasks found to serve in {sources}.")
 
     await task_serve(*tasks, limit=limit)
