@@ -21,12 +21,7 @@ logger: logging.Logger = get_logger("prefect.cli.task")
 
 
 def _import_tasks_from_module(module: str) -> list[Task[Any, Any]]:
-    try:
-        mod = load_module(module)
-    except ModuleNotFoundError:
-        exit_with_error(
-            f"Module '{module}' could not be imported. Please check the module name and try again."
-        )
+    mod = load_module(module)
     return [
         obj
         for _, obj in inspect.getmembers(mod)
@@ -89,7 +84,12 @@ async def serve(
 
     elif module:
         for mod in module:
-            module_tasks = _import_tasks_from_module(mod)
+            try:
+                module_tasks = _import_tasks_from_module(mod)
+            except Exception as e:
+                exit_with_error(
+                    f"Module '{mod}' could not be imported. Please check the module name and try again.\n\n{e.__class__.__name__}: {e}"
+                )
             plural = "s" if len(module_tasks) > 1 else ""
             logger.debug(f"Found {len(module_tasks)} task{plural} in {mod!r}.")
             tasks.extend(module_tasks)
