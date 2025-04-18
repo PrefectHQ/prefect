@@ -1,4 +1,4 @@
-from typing import List
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -8,13 +8,16 @@ from prefect.cli.root import app
 from prefect.task_worker import serve as task_serve
 from prefect.utilities.importtools import import_object
 
+if TYPE_CHECKING:
+    from prefect.tasks import Task
+
 task_app: PrefectTyper = PrefectTyper(name="task", help="Work with task scheduling.")
 app.add_typer(task_app, aliases=["task"])
 
 
 @task_app.command()
 async def serve(
-    entrypoints: List[str] = typer.Argument(
+    entrypoints: list[str] = typer.Argument(
         ...,
         help="The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.",
     ),
@@ -33,7 +36,7 @@ async def serve(
             `./path/to/file.py:task_func_name`.
         limit: The maximum number of tasks that can be run concurrently.
     """
-    tasks = []
+    tasks: list["Task[..., Any]"] = []
 
     for entrypoint in entrypoints:
         if ".py:" not in entrypoint:
