@@ -1,8 +1,6 @@
-import {
-	buildGetBlockSchemaQuery,
-	buildListFilterBlockSchemasQuery,
-} from "@/api/block-schemas";
+import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
+import { BlockDocumentCreatePage } from "@/components/blocks/block-document-create-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -43,7 +41,7 @@ function RouteComponent() {
 		throw new Error("Block schema not found");
 	}
 
-	console.log({ blockSchema });
-
-	return "🚧🚧 Pardon our dust! 🚧🚧";
+	return (
+		<BlockDocumentCreatePage blockSchema={blockSchema} blockType={blockType} />
+	);
 }
