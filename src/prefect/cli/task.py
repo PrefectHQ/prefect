@@ -17,7 +17,7 @@ app.add_typer(task_app, aliases=["task"])
 logger = get_logger("prefect.cli.task")
 
 
-def _import_tasks_from_module(module: str) -> list[Task[..., Any]]:
+def _import_tasks_from_module(module: str) -> list[Task[Any, Any]]:
     try:
         mod = load_module(module)
     except ModuleNotFoundError:
@@ -37,11 +37,11 @@ async def serve(
         None,
         help="The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.",
     ),
-    module: str | None = typer.Option(
+    module: list[str] | None = typer.Option(
         None,
         "--module",
         "-m",
-        help="The module to import the tasks from. Defaults to the current directory.",
+        help="The module(s) to import the tasks from.",
     ),
     limit: int = typer.Option(
         10,
@@ -56,39 +56,51 @@ async def serve(
         entrypoints: List of strings representing the paths to one or more
             tasks. Each path should be in the format
             `./path/to/file.py:task_func_name`.
-        limit: The maximum number of tasks that can be run concurrently.
+        module: The module(s) to import the task definitions from.
+        limit: The maximum number of tasks that can be run concurrently. Defaults to 10.
     """
-    tasks: list["Task[..., Any]"] = []
+    if (entrypoints and any(entrypoints)) and (module and any(module)):
+        exit_with_error(
+            "You may provide entrypoints or modules, but not both at the same time."
+        )
 
-    for entrypoint in entrypoints or []:
-        if ".py:" not in entrypoint:
-            exit_with_error(
-                (
-                    f"Error: Invalid entrypoint format {entrypoint!r}. It "
-                    "must be of the form `./path/to/file.py:task_func_name`."
+    tasks: list[Task[Any, Any]] = []
+
+    if entrypoints:
+        for entrypoint in entrypoints:
+            if ".py:" not in entrypoint:
+                exit_with_error(
+                    (
+                        f"Error: Invalid entrypoint format {entrypoint!r}. It "
+                        "must be of the form `./path/to/file.py:task_func_name`."
+                    )
                 )
-            )
 
-        try:
-            tasks.append(import_object(entrypoint))
-        except Exception:
-            module, task_name = entrypoint.split(":")
-            exit_with_error(
-                f"Error: {module!r} has no function {task_name!r}.", style="red"
-            )
+            try:
+                tasks.append(import_object(entrypoint))
+            except Exception:
+                mod, task_name = entrypoint.split(":")
+                exit_with_error(
+                    f"Error: {mod!r} has no function {task_name!r}.", style="red"
+                )
 
-    if module:
-        module_tasks = _import_tasks_from_module(module)
-        logger.debug(f"Found {len(module_tasks)} tasks in {module!r}.")
-        tasks.extend(module_tasks)
+    elif module:
+        for mod in module:
+            module_tasks = _import_tasks_from_module(mod)
+            plural = "s" if len(module_tasks) > 1 else ""
+            logger.debug(f"Found {len(module_tasks)} task{plural} in {mod!r}.")
+            tasks.extend(module_tasks)
 
     if not tasks:
         sources: dict[str, list[str]] = {}
         if entrypoints:
             sources["entrypoints"] = entrypoints
         if module:
-            sources["module"] = [module]
-
+            sources["module"] = module
+        if not sources:
+            exit_with_error(
+                "You must provide either `path/to/file.py:task_func` or `--module module_name`."
+            )
         exit_with_error(f"No tasks found to serve in {sources!r}.")
 
     await task_serve(*tasks, limit=limit)
