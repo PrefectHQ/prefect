@@ -876,7 +876,9 @@ async def _version_info_from_options(
     if version_info := options.get("version_info"):
         return VersionInfo.model_validate_json(version_info)
 
-    if version_type := options.get("version_type", deploy_config.get("version_type")):
+    if version_type := (
+        options.get("version_type") or deploy_config.get("version_type")
+    ):
         app.console.print(f"Inferring version info for {version_type}...")
         return await get_inferred_version_info(version_type)
 
