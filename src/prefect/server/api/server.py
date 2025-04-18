@@ -62,6 +62,13 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
+if (settings := get_current_settings()).experiments.logfire.enabled:
+    import logfire  # pyright: ignore
+
+    logfire.configure(token=settings.experiments.logfire.write_token)  # pyright: ignore
+else:
+    logfire = None
+
 if TYPE_CHECKING:
     import logging
 
@@ -250,7 +257,7 @@ def copy_directory(directory: str, path: str) -> None:
                 shutil.rmtree(destination)
             shutil.copytree(source, destination, symlinks=True)
             # ensure copied files are writeable
-            for root, dirs, files in os.walk(destination):
+            for root, _, files in os.walk(destination):
                 for f in files:
                     os.chmod(os.path.join(root, f), 0o700)
         else:
@@ -329,6 +336,10 @@ def create_api_app(
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+
+    if logfire:
+        logfire.instrument_fastapi(api_app)  # pyright: ignore
+
     api_app.add_middleware(GZipMiddleware)
 
     @api_app.get(health_check_path, tags=["Root"])

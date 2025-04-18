@@ -6,7 +6,6 @@ from typing import Any, Dict, Tuple, Type
 
 from pydantic import (
     AliasChoices,
-    AliasPath,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     model_serializer,
@@ -47,17 +46,10 @@ class PrefectBaseSettings(BaseSettings):
         """
         env_filter: set[str] = set()
         for field_name, field in settings_cls.model_fields.items():
-            if field.validation_alias is not None and isinstance(
-                field.validation_alias, AliasChoices
+            if inspect.isclass(field.annotation) and issubclass(
+                field.annotation, PrefectBaseSettings
             ):
-                for alias in field.validation_alias.choices:
-                    if (
-                        isinstance(alias, AliasPath)
-                        and len(alias.path) > 0
-                        and isinstance(alias.path[0], str)
-                    ):
-                        env_filter.add(alias.path[0])
-            env_filter.add(field_name)
+                env_filter.add(field_name)
         return (
             init_settings,
             EnvFilterSettingsSource(

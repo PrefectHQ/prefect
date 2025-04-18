@@ -242,6 +242,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED": {"test_value": True},
+    "PREFECT_EXPERIMENTS_LOGFIRE_ENABLED": {"test_value": True},
+    "PREFECT_EXPERIMENTS_LOGFIRE_WRITE_TOKEN": {"test_value": "pylf_v1_us_ABCD1234"},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},

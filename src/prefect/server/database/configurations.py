@@ -31,6 +31,13 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
+if (settings := get_current_settings()).experiments.logfire.enabled:
+    import logfire  # pyright: ignore
+
+    logfire.configure(token=settings.experiments.logfire.write_token)  # pyright: ignore
+else:
+    logfire = None
+
 SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
 )
@@ -265,6 +272,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 **kwargs,
             )
 
+            if logfire:
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
+
             if TRACKER.active:
                 TRACKER.track_pool(engine.pool)
 
@@ -388,6 +398,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
             sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
+
+            if logfire:
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
 
             if TRACKER.active:
                 TRACKER.track_pool(engine.pool)

@@ -99,6 +99,9 @@ otel = [
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
 
+# logfire
+logfire = ["logfire[fastapi,sqlalchemy]>=3.14.0"]
+
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.8"]
 azure = ["prefect-azure>=0.4.0"]
