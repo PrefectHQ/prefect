@@ -62,10 +62,10 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
-if (settings := get_current_settings()).experiments.logfire.enabled:
+if get_current_settings().experiments.logfire.enabled:
     import logfire  # pyright: ignore
 
-    logfire.configure(token=settings.experiments.logfire.write_token)  # pyright: ignore
+    logfire.configure(token=get_current_settings().experiments.logfire.write_token)  # pyright: ignore
 else:
     logfire = None
 

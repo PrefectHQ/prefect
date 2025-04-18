@@ -99,9 +99,6 @@ otel = [
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
 
-# logfire
-logfire = ["logfire[fastapi,sqlalchemy]>=3.14.0"]
-
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.8"]
 azure = ["prefect-azure>=0.4.0"]
@@ -179,6 +176,8 @@ dev = [
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
+
+logfire = ["logfire[fastapi,sqlalchemy]>=3.14.0"]
 
 markdown-docs = [
     "pytest-markdown-docs>=0.6.0",
