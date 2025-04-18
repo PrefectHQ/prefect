@@ -18,8 +18,6 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, TypeVar, Un
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from typing_extensions import Self
 
-import prefect.logging
-import prefect.logging.configuration
 import prefect.settings
 import prefect.types._datetime
 from prefect._internal.compatibility.migration import getattr_migration
@@ -128,7 +126,7 @@ class ContextModel(BaseModel):
         def __init__(self, **kwargs: Any) -> None: ...
 
     # The context variable for storing data must be defined by the child class
-    __var__: ClassVar[ContextVar[Self]]
+    __var__: ClassVar[ContextVar[Any]]
     _token: Optional[Token[Self]] = PrivateAttr(None)
     model_config: ClassVar[ConfigDict] = ConfigDict(
         arbitrary_types_allowed=True,
