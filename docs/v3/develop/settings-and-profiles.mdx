@@ -260,6 +260,10 @@ Self-hosted Prefect servers can be equipped with Basic Authentication through tw
 
 With these settings, the UI will prompt for the full authentication string `"admin:pass"` (no quotes) upon first load. It is recommended to store this information in a secure way, such as a Kubernetes Secret or in a private `.env` file.
 
+If both `PREFECT_API_KEY` and `PREFECT_API_AUTH_STRING` are set on the client, `PREFECT_API_KEY` will take precedence. If you plan to use a
+self-hosted Prefect server, you may want to make sure `PREFECT_API_KEY` is not set in your active profile or as
+an environment variable, otherwise authentication will fail (`HTTP 401 Unauthorized`).
+
 Example `.env` file:
 
 ```bash .env
