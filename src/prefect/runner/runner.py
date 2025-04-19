@@ -636,7 +636,12 @@ class Runner:
 
                     return process
 
-    async def execute_bundle(self, bundle: SerializedBundle) -> None:
+    async def execute_bundle(
+        self,
+        bundle: SerializedBundle,
+        cwd: Path | str | None = None,
+        env: dict[str, str | None] | None = None,
+    ) -> None:
         """
         Executes a bundle in a subprocess.
         """
@@ -651,7 +656,7 @@ class Runner:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
-            process = execute_bundle_in_subprocess(bundle)
+            process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
 
             if process.pid is None:
                 # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
@@ -776,7 +781,7 @@ class Runner:
         if command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
-            runner_command = shlex.split(command)
+            runner_command = shlex.split(command, posix=(os.name != "nt"))
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -1158,15 +1163,7 @@ class Runner:
 
         flow, deployment = await self._get_flow_and_deployment(flow_run)
         if deployment:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                        "prefect.resource.role": "deployment",
-                        "prefect.resource.name": deployment.name,
-                    }
-                )
-            )
+            related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
         if flow:
             related.append(
@@ -1211,15 +1208,7 @@ class Runner:
         related: list[RelatedResource] = []
         tags: list[str] = []
         if deployment:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                        "prefect.resource.role": "deployment",
-                        "prefect.resource.name": deployment.name,
-                    }
-                )
-            )
+            related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
         if flow:
             related.append(
@@ -1379,7 +1368,9 @@ class Runner:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            readiness_result = await self._runs_task_group.start(
+            readiness_result: (
+                anyio.abc.Process | Exception
+            ) = await self._runs_task_group.start(
                 partial(
                     self._submit_run_and_capture_errors,
                     flow_run=flow_run,
@@ -1390,7 +1381,7 @@ class Runner:
             if readiness_result and not isinstance(readiness_result, Exception):
                 async with self._flow_run_process_map_lock:
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=readiness_result, flow_run=flow_run
+                        pid=readiness_result.pid, flow_run=flow_run
                     )
             # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
             if self.heartbeat_seconds is not None:

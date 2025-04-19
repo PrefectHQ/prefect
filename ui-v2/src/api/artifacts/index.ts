@@ -1,5 +1,5 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import { components } from "../prefect";
+import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type Artifact = components["schemas"]["Artifact"];
@@ -102,7 +102,7 @@ export const buildCountArtifactsQuery = (
 	},
 ) =>
 	queryOptions({
-		queryKey: queryKeyFactory["count"](filter),
+		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/artifacts/count", {
 				body: filter,
@@ -130,6 +130,9 @@ export const buildGetArtifactQuery = (id: string) =>
 			const res = await getQueryService().GET("/artifacts/{id}", {
 				params: { path: { id } },
 			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
 			return res.data;
 		},
 	});

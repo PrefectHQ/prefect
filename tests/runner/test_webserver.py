@@ -1,5 +1,6 @@
 import uuid
-from typing import Callable, List
+import warnings
+from typing import Callable, Generator, List
 from unittest import mock
 
 import pydantic
@@ -7,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from prefect import flow
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import FlowRun
 from prefect.runner import Runner
@@ -51,6 +53,13 @@ def tmp_runner_settings():
             PREFECT_RUNNER_SERVER_PORT: 0,
         }
     ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def suppress_deprecation_warnings() -> Generator[None, None, None]:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=PrefectDeprecationWarning)
         yield
 
 

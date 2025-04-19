@@ -6,6 +6,7 @@ These contexts should never be directly mutated by the user.
 For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
 
+import asyncio
 import os
 import sys
 import warnings
@@ -17,8 +18,6 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, TypeVar, Un
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from typing_extensions import Self
 
-import prefect.logging
-import prefect.logging.configuration
 import prefect.settings
 import prefect.types._datetime
 from prefect._internal.compatibility.migration import getattr_migration
@@ -127,7 +126,7 @@ class ContextModel(BaseModel):
         def __init__(self, **kwargs: Any) -> None: ...
 
     # The context variable for storing data must be defined by the child class
-    __var__: ClassVar[ContextVar[Self]]
+    __var__: ClassVar[ContextVar[Any]]
     _token: Optional[Token[Self]] = PrivateAttr(None)
     model_config: ClassVar[ConfigDict] = ConfigDict(
         arbitrary_types_allowed=True,
@@ -294,7 +293,7 @@ class AsyncClientContext(ContextModel):
     @asynccontextmanager
     async def get_or_create(cls) -> AsyncGenerator[Self, None]:
         ctx = cls.get()
-        if ctx:
+        if ctx and asyncio.get_running_loop() is ctx.client.loop:
             yield ctx
         else:
             async with cls() as ctx:

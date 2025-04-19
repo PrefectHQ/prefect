@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, ClassVar, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, TypeVar, Union
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -11,6 +11,9 @@ from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect.types import DateTime, KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
+
+if TYPE_CHECKING:
+    from prefect.events.schemas.events import RelatedResource
 
 T = TypeVar("T")
 
@@ -305,9 +308,29 @@ class FlowRunResponse(ObjectBaseModel):
 
 class DeploymentResponse(ObjectBaseModel):
     name: str = Field(default=..., description="The name of the deployment.")
+
+    # Versionining
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
+    version_id: Optional[UUID] = Field(
+        default=None, description="The ID of the current version of the deployment."
+    )
+    version_info: Optional[objects.VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
+    )
+
+    # Branching
+    branch: Optional[str] = Field(
+        default=None, description="The branch of the deployment."
+    )
+    base: Optional[UUID] = Field(
+        default=None, description="The base deployment of the deployment."
+    )
+    root: Optional[UUID] = Field(
+        default=None, description="The root deployment of the deployment."
+    )
+
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
     )
@@ -419,6 +442,31 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="Current status of the deployment.",
     )
+
+    def as_related_resource(self, role: str = "deployment") -> "RelatedResource":
+        from prefect.events.schemas.events import RelatedResource
+
+        labels = {
+            "prefect.resource.id": f"prefect.deployment.{self.id}",
+            "prefect.resource.role": role,
+            "prefect.resource.name": self.name,
+        }
+
+        if self.branch:
+            labels["prefect.deployment.branch"] = self.branch
+
+        if self.base:
+            labels["prefect.deployment.base"] = f"prefect.deployment.{self.base}"
+
+        if self.root:
+            labels["prefect.deployment.root"] = f"prefect.deployment.{self.root}"
+
+        if self.version_id and self.version_info:
+            labels["prefect.deployment.version-id"] = str(self.version_id)
+            labels["prefect.deployment.version-type"] = self.version_info.type
+            labels["prefect.deployment.version"] = self.version_info.version
+
+        return RelatedResource(labels)
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):

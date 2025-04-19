@@ -101,7 +101,7 @@ class PrefectBaseSettings(BaseSettings):
             context={"include_secrets": include_secrets},
         )
         env_variables: dict[str, str] = {}
-        for key in self.model_fields.keys():
+        for key in type(self).model_fields.keys():
             if isinstance(child_settings := getattr(self, key), PrefectBaseSettings):
                 child_env = child_settings.to_environment_variables(
                     exclude_unset=exclude_unset,
@@ -110,7 +110,7 @@ class PrefectBaseSettings(BaseSettings):
                 )
                 env_variables.update(child_env)
             elif (value := env.get(key)) is not None:
-                validation_alias = self.model_fields[key].validation_alias
+                validation_alias = type(self).model_fields[key].validation_alias
                 if include_aliases and validation_alias is not None:
                     if isinstance(validation_alias, AliasChoices):
                         for alias in validation_alias.choices:
@@ -134,9 +134,9 @@ class PrefectBaseSettings(BaseSettings):
     def ser_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> Any:
-        jsonable_self = handler(self)
+        jsonable_self: dict[str, Any] = handler(self)
         # iterate over fields to ensure child models that have been updated are also included
-        for key in self.model_fields.keys():
+        for key in type(self).model_fields.keys():
             if info.exclude and key in info.exclude:
                 continue
             if info.include and key not in info.include:

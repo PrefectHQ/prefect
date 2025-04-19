@@ -1,10 +1,10 @@
-import { ReferenceObject, SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { useId, useMemo } from "react";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
 import { SchemaFormPropertyMenu } from "./schema-form-property-menu";
-import { SchemaFormErrors } from "./types/errors";
+import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { isArray, isReferenceObject } from "./utilities/guards";
 import { getSchemaDefinition } from "./utilities/mergeSchemaPropertyDefinition";

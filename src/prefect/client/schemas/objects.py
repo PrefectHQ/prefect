@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import warnings
 from collections.abc import Callable, Mapping
+from enum import Enum
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -414,7 +415,7 @@ class State(ObjectBaseModel, Generic[R]):
         database again. The 'timestamp' is reset using the default factory.
         """
         update = {
-            "timestamp": self.model_fields["timestamp"].get_default(),
+            "timestamp": type(self).model_fields["timestamp"].get_default(),
             **(update or {}),
         }
         return super().model_copy(update=update, deep=deep)
@@ -1102,12 +1103,36 @@ class DeploymentSchedule(ObjectBaseModel):
     )
 
 
+class VersionInfo(PrefectBaseModel, extra="allow"):
+    type: str = Field(default=..., description="The type of version info.")
+    version: str = Field(default=..., description="The version of the deployment.")
+
+
+class BranchingScheduleHandling(str, Enum):
+    KEEP = "keep"
+    REMOVE = "remove"
+    INACTIVE = "inactive"
+
+
+class DeploymentBranchingOptions(ObjectBaseModel):
+    schedule_handling: BranchingScheduleHandling = Field(
+        default=BranchingScheduleHandling.REMOVE,
+        description="Whether to keep, remove, or set inactive the existing schedules when branching",
+    )
+
+
 class Deployment(ObjectBaseModel):
     """An ORM representation of deployment data."""
 
     name: Name = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
+    )
+    version_id: Optional[UUID] = Field(
+        default=None, description="The ID of the current version of the deployment."
+    )
+    version_info: Optional[VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
     )
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."

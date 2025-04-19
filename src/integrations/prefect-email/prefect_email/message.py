@@ -7,6 +7,7 @@ Tasks for interacting with email message services
 import os
 from email import encoders
 from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from functools import partial
@@ -31,6 +32,7 @@ async def email_send_message(
     email_to_cc: Optional[Union[str, List[str]]] = None,
     email_to_bcc: Optional[Union[str, List[str]]] = None,
     attachments: Optional[List[str]] = None,
+    inline_images: Optional[dict[str, str]] = None,
 ):
     """
     Sends an email message from an authenticated email service over SMTP.
@@ -52,6 +54,8 @@ async def email_send_message(
             separated by commas. If a list is provided, will join the items,
             separated by commas.
         attachments: Names of files that should be sent as attachment.
+        inline_images: A dictionary where keys are content IDs (cids) and values
+            are file paths to images to embed in the HTML body.
 
     Returns:
         MimeText: The MIME Multipart message of the email.
@@ -73,6 +77,7 @@ async def email_send_message(
                 subject="Example Flow Notification",
                 msg="This proves email_send_message works!",
                 email_to="someone@email.com",
+                inline_images={"image1": "path/to/image.png"},
             )
             return subject
 
@@ -113,6 +118,13 @@ async def email_send_message(
             f"attachment; filename= {filename}",
         )
         message.attach(part)
+
+    for cid, filepath in (inline_images or {}).items():
+        with open(filepath, "rb") as img_file:
+            img = MIMEImage(img_file.read())
+            img.add_header("Content-ID", f"<{cid}>")
+            img.add_header("Content-Disposition", "inline")
+            message.attach(img)
 
     with email_server_credentials.get_server() as server:
         partial_send_message = partial(server.send_message, message)

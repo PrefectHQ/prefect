@@ -1,5 +1,5 @@
-import { FlowRun } from "@/api/flow-runs";
-import { components } from "@/api/prefect";
+import type { FlowRun } from "@/api/flow-runs";
+import type { components } from "@/api/prefect";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { cva } from "class-variance-authority";
@@ -43,7 +43,7 @@ const FlowRunsBarChart = ({
 			setWidth(divRef.current.clientWidth);
 			setHeight(divRef.current.clientHeight - 25);
 		}
-	}, [divRef]);
+	}, []);
 
 	useEffect(() => {
 		findWindow();
@@ -51,7 +51,7 @@ const FlowRunsBarChart = ({
 		return () => {
 			window.removeEventListener("resize", findWindow);
 		};
-	}, [divRef, findWindow]);
+	}, [findWindow]);
 
 	// Organize flow runs with gaps
 	const organizeFlowRunsWithGaps = useCallback(
@@ -87,11 +87,11 @@ const FlowRunsBarChart = ({
 				return index;
 			};
 
-			sortedRuns.forEach((flowRun) => {
+			for (const flowRun of sortedRuns) {
 				const startTime = new Date(
 					flowRun.start_time ?? flowRun.expected_start_time ?? "",
 				);
-				if (!startTime) return;
+				if (!startTime) continue;
 
 				const bucketIndex = Math.min(
 					Math.floor((endWindow.getTime() - startTime.getTime()) / bars),
@@ -102,7 +102,7 @@ const FlowRunsBarChart = ({
 				if (emptyBucketIndex !== null) {
 					buckets[emptyBucketIndex] = flowRun;
 				}
-			});
+			}
 
 			return buckets;
 		},
@@ -154,7 +154,7 @@ const FlowRunsBarChart = ({
 					<div ref={divRef} className="w-full h-full flex items-end">
 						{barFlowRuns.map((flowRun, index) => (
 							<FlowRunCell
-								key={index}
+								key={flowRun?.id ?? index}
 								width={`${barWidth}px`}
 								height={flowRun ? calcHeight(flowRun) : "5px"}
 								flowName={flowName}

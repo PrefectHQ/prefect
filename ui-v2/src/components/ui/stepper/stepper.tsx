@@ -30,7 +30,7 @@ const Stepper = ({
 
 				return (
 					<Step
-						key={i}
+						key={step}
 						disabled={!isStepVisited}
 						onClick={() => onClick({ stepName: step, stepNum: i })}
 						number={i}
@@ -71,6 +71,7 @@ const Step = ({
 
 	return (
 		<button
+			type="button"
 			className={cn(
 				"flex items-center gap-3",
 				disabled && "cursor-not-allowed",

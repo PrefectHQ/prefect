@@ -2813,6 +2813,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ui/task_runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Task Run With Flow Run Name
+         * @description Get a task run by id.
+         */
+        get: operations["read_task_run_with_flow_run_name_ui_task_runs__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -2986,7 +3006,9 @@ export interface components {
              * Data
              * @description Data associated with the artifact, e.g. a result.; structure depends on the artifact type.
              */
-            data?: Record<string, never> | unknown | null;
+            data?: {
+                [key: string]: unknown;
+            } | unknown | null;
             /**
              * Metadata
              * @description User-defined artifact metadata. Content must be string key and value pairs.
@@ -3041,7 +3063,9 @@ export interface components {
              * Data
              * @description Data associated with the artifact, e.g. a result.; structure depends on the artifact type.
              */
-            data?: Record<string, never> | unknown | null;
+            data?: {
+                [key: string]: unknown;
+            } | unknown | null;
             /**
              * Metadata
              * @description User-defined artifact metadata. Content must be string key and value pairs.
@@ -3181,7 +3205,9 @@ export interface components {
              * Data
              * @description Data associated with the artifact, e.g. a result.; structure depends on the artifact type.
              */
-            data?: Record<string, never> | unknown | null;
+            data?: {
+                [key: string]: unknown;
+            } | unknown | null;
             /**
              * Metadata
              * @description User-defined artifact metadata. Content must be string key and value pairs.
@@ -3303,7 +3329,9 @@ export interface components {
          */
         ArtifactUpdate: {
             /** Data */
-            data?: Record<string, never> | unknown | null;
+            data?: {
+                [key: string]: unknown;
+            } | unknown | null;
             /** Description */
             description?: string | null;
             /** Metadata */
@@ -3517,7 +3545,9 @@ export interface components {
              * Data
              * @description The block document's data
              */
-            data?: Record<string, never>;
+            data?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Schema Id
              * Format: uuid
@@ -3544,7 +3574,9 @@ export interface components {
              * @description Record of the block document's references
              */
             block_document_references?: {
-                [key: string]: Record<string, never>;
+                [key: string]: {
+                    [key: string]: unknown;
+                };
             };
             /**
              * Is Anonymous
@@ -3567,7 +3599,9 @@ export interface components {
              * Data
              * @description The block document's data
              */
-            data?: Record<string, never>;
+            data?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Schema Id
              * Format: uuid
@@ -3680,7 +3714,9 @@ export interface components {
              * Data
              * @description The block document's data
              */
-            data?: Record<string, never>;
+            data?: {
+                [key: string]: unknown;
+            };
             /**
              * Merge Existing Data
              * @default true
@@ -3741,7 +3777,9 @@ export interface components {
              * Fields
              * @description The block schema's field schema
              */
-            fields?: Record<string, never>;
+            fields?: {
+                [key: string]: unknown;
+            };
             /**
              * Block Type Id
              * Format: uuid
@@ -4047,12 +4085,12 @@ export interface components {
         };
         /** Body_count_flow_runs_flow_runs_count_post */
         Body_count_flow_runs_flow_runs_count_post: {
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
         /** Body_count_flows_flows_count_post */
         Body_count_flows_flows_count_post: {
@@ -4181,12 +4219,12 @@ export interface components {
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
             history_interval: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
-            work_queues?: components["schemas"]["WorkQueueFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
         /** Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post */
         Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post: {
@@ -4740,7 +4778,9 @@ export interface components {
         /** Body_resume_flow_run_flow_runs__id__resume_post */
         Body_resume_flow_run_flow_runs__id__resume_post: {
             /** Run Input */
-            run_input?: Record<string, never> | null;
+            run_input?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** Body_schedule_deployment_deployments__id__schedule_post */
         Body_schedule_deployment_deployments__id__schedule_post: {
@@ -5345,7 +5385,9 @@ export interface components {
              */
             parameter_openapi_schema?: {
                 [key: string]: unknown;
-            } | Record<string, never> | null;
+            } | {
+                [key: string]: unknown;
+            } | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
@@ -5366,7 +5408,9 @@ export interface components {
                 [key: string]: boolean | number | string;
             } | null;
             /** Pull Steps */
-            pull_steps?: Record<string, never>[] | null;
+            pull_steps?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Work Queue Name */
             work_queue_name?: string | null;
             /**
@@ -5540,7 +5584,9 @@ export interface components {
              */
             enforce_parameter_schema?: boolean | null;
             /** Context */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             /** Infrastructure Document Id */
             infrastructure_document_id?: string | null;
             /** @description The empirical policy for the flow run. */
@@ -5569,7 +5615,9 @@ export interface components {
             /** Job Variables */
             job_variables?: {
                 [key: string]: unknown;
-            } | Record<string, never> | null;
+            } | {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * DeploymentOrFlowNameFilter
@@ -5652,12 +5700,16 @@ export interface components {
              * Job Variables
              * @description Overrides to apply to the base infrastructure block at runtime.
              */
-            job_variables?: Record<string, never>;
+            job_variables?: {
+                [key: string]: unknown;
+            };
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Tags
              * @description A list of tags for the deployment
@@ -5686,7 +5738,9 @@ export interface components {
              */
             parameter_openapi_schema?: {
                 [key: string]: unknown;
-            } | Record<string, never> | null;
+            } | {
+                [key: string]: unknown;
+            } | null;
             /**
              * Path
              * @description The path to the working directory for the workflow, relative to remote storage or an absolute path.
@@ -5696,7 +5750,9 @@ export interface components {
              * Pull Steps
              * @description Pull steps for cloning and running this deployment.
              */
-            pull_steps?: Record<string, never>[] | null;
+            pull_steps?: {
+                [key: string]: unknown;
+            }[] | null;
             /**
              * Entrypoint
              * @description The path to the entrypoint for the workflow, relative to the `path`.
@@ -5769,7 +5825,9 @@ export interface components {
              * Parameters
              * @description A dictionary of parameter value overrides.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Slug
              * @description A unique slug for the schedule.
@@ -5798,7 +5856,9 @@ export interface components {
              * Parameters
              * @description A dictionary of parameter value overrides.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Slug
              * @description A unique identifier for the schedule.
@@ -5826,7 +5886,9 @@ export interface components {
              * Parameters
              * @description A dictionary of parameter value overrides.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Slug
              * @description A unique identifier for the schedule.
@@ -5876,12 +5938,16 @@ export interface components {
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
              */
-            parameters?: Record<string, never> | null;
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Parameter Openapi Schema
              * @description The parameter schema of the flow, including defaults.
              */
-            parameter_openapi_schema?: Record<string, never> | null;
+            parameter_openapi_schema?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Tags
              * @description A list of deployment tags.
@@ -5900,9 +5966,13 @@ export interface components {
              * Job Variables
              * @description Overrides for the flow's infrastructure configuration.
              */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
             /** Pull Steps */
-            pull_steps?: Record<string, never>[] | null;
+            pull_steps?: {
+                [key: string]: unknown;
+            }[] | null;
             /** Entrypoint */
             entrypoint?: string | null;
             /** Storage Document Id */
@@ -5962,7 +6032,9 @@ export interface components {
              * Payload
              * @description An open-ended set of data describing what happened
              */
-            payload?: Record<string, never>;
+            payload?: {
+                [key: string]: unknown;
+            };
             /**
              * Id
              * Format: uuid
@@ -6421,7 +6493,9 @@ export interface components {
              * Parameters
              * @description Parameters for the flow run.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Idempotency Key
              * @description An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.
@@ -6431,7 +6505,9 @@ export interface components {
              * Context
              * @description Additional context for the flow run.
              */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             empirical_policy?: components["schemas"]["FlowRunPolicy"];
             /**
              * Tags
@@ -6530,7 +6606,9 @@ export interface components {
              * Job Variables
              * @description Variables used as overrides in the base job template
              */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * FlowRunCreate
@@ -6556,12 +6634,16 @@ export interface components {
              */
             flow_version?: string | null;
             /** Parameters */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Context
              * @description The context of the flow run.
              */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             /** Parent Task Run Id */
             parent_task_run_id?: string | null;
             /** Infrastructure Document Id */
@@ -6599,7 +6681,9 @@ export interface components {
              * Job Variables
              * @description The job variables to use when setting up flow run infrastructure.
              */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Deployment Id
              * @deprecated
@@ -7194,7 +7278,9 @@ export interface components {
              * Parameters
              * @description Parameters for the flow run.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Idempotency Key
              * @description An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.
@@ -7204,7 +7290,9 @@ export interface components {
              * Context
              * @description Additional context for the flow run.
              */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             empirical_policy?: components["schemas"]["FlowRunPolicy"];
             /**
              * Tags
@@ -7308,7 +7396,9 @@ export interface components {
              * Job Variables
              * @description Variables used as overrides in the base job template
              */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * FlowRunSort
@@ -7326,14 +7416,18 @@ export interface components {
             /** Flow Version */
             flow_version?: string | null;
             /** Parameters */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             empirical_policy?: components["schemas"]["FlowRunPolicy"];
             /** Tags */
             tags?: string[];
             /** Infrastructure Pid */
             infrastructure_pid?: string | null;
             /** Job Variables */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * FlowSort
@@ -7946,7 +8040,9 @@ export interface components {
              * Payload
              * @description An open-ended set of data describing what happened
              */
-            payload?: Record<string, never>;
+            payload?: {
+                [key: string]: unknown;
+            };
             /**
              * Id
              * Format: uuid
@@ -8118,12 +8214,16 @@ export interface components {
              * Parameters
              * @description The parameters to pass to the deployment, or None to use the deployment's default parameters
              */
-            parameters?: Record<string, never> | null;
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Job Variables
              * @description The job variables to pass to the created flow run, or None to use the deployment's default job variables
              */
-            job_variables?: Record<string, never> | null;
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * SavedSearch
@@ -9020,7 +9120,9 @@ export interface components {
              * Parameters
              * @description Parameters for the task run.
              */
-            parameters?: Record<string, never>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Task Inputs
              * @description Inputs provided to the task run.
@@ -9032,7 +9134,9 @@ export interface components {
              * Context
              * @description Additional context for the task run.
              */
-            context?: Record<string, never>;
+            context?: {
+                [key: string]: unknown;
+            };
             /** @description The task run's empirical retry policy. */
             empirical_policy?: components["schemas"]["TaskRunPolicy"];
             /**
@@ -9094,6 +9198,139 @@ export interface components {
          * @enum {string}
          */
         TimeUnit: "week" | "day" | "hour" | "minute" | "second";
+        /**
+         * UITaskRun
+         * @description A task run with additional details for display in the UI.
+         */
+        UITaskRun: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /** Name */
+            name?: string;
+            /**
+             * Flow Run Id
+             * @description The flow run id of the task run.
+             */
+            flow_run_id?: string | null;
+            /**
+             * Task Key
+             * @description A unique identifier for the task being run.
+             */
+            task_key: string;
+            /**
+             * Dynamic Key
+             * @description A dynamic key used to differentiate between multiple runs of the same task within the same flow run.
+             */
+            dynamic_key: string;
+            /**
+             * Cache Key
+             * @description An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.
+             */
+            cache_key?: string | null;
+            /**
+             * Cache Expiration
+             * @description Specifies when the cached state should expire.
+             */
+            cache_expiration?: string | null;
+            /**
+             * Task Version
+             * @description The version of the task being run.
+             */
+            task_version?: string | null;
+            empirical_policy?: components["schemas"]["TaskRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags for the task run.
+             */
+            tags?: string[];
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
+            /**
+             * State Id
+             * @description The id of the current task run state.
+             */
+            state_id?: string | null;
+            /**
+             * Task Inputs
+             * @description Tracks the source of inputs to a task run. Used for internal bookkeeping.
+             */
+            task_inputs?: {
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+            };
+            /** @description The type of the current task run state. */
+            state_type?: components["schemas"]["StateType"] | null;
+            /**
+             * State Name
+             * @description The name of the current task run state.
+             */
+            state_name?: string | null;
+            /**
+             * Run Count
+             * @description The number of times the task run has been executed.
+             * @default 0
+             */
+            run_count: number;
+            /**
+             * Flow Run Run Count
+             * @description If the parent flow has retried, this indicates the flow retry this run is associated with.
+             * @default 0
+             */
+            flow_run_run_count: number;
+            /**
+             * Expected Start Time
+             * @description The task run's expected start time.
+             */
+            expected_start_time?: string | null;
+            /**
+             * Next Scheduled Start Time
+             * @description The next time the task run is scheduled to start.
+             */
+            next_scheduled_start_time?: string | null;
+            /**
+             * Start Time
+             * @description The actual start time.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description The actual end time.
+             */
+            end_time?: string | null;
+            /**
+             * Total Run Time
+             * @description Total run time. If the task run was executed multiple times, the time of each run will be summed.
+             * @default 0
+             */
+            total_run_time: number;
+            /**
+             * Estimated Run Time
+             * @description A real-time estimate of total run time.
+             * @default 0
+             */
+            estimated_run_time: number;
+            /**
+             * Estimated Start Time Delta
+             * @description The difference between actual and expected start time.
+             * @default 0
+             */
+            estimated_start_time_delta: number;
+            /** @description The current task run state. */
+            state?: components["schemas"]["State"] | null;
+            /** Flow Run Name */
+            flow_run_name?: string | null;
+        };
         /** UpdatedBy */
         UpdatedBy: {
             /**
@@ -9141,7 +9378,9 @@ export interface components {
              * Value
              * @description The value of the variable
              */
-            value: string | number | boolean | Record<string, never> | unknown[] | null;
+            value: string | number | boolean | {
+                [key: string]: unknown;
+            } | unknown[] | null;
             /**
              * Tags
              * @description A list of variable tags
@@ -9162,7 +9401,9 @@ export interface components {
              * Value
              * @description The value of the variable
              */
-            value: string | number | boolean | Record<string, never> | unknown[] | null;
+            value: string | number | boolean | {
+                [key: string]: unknown;
+            } | unknown[] | null;
             /**
              * Tags
              * @description A list of variable tags
@@ -9254,7 +9495,9 @@ export interface components {
              * Value
              * @description The value of the variable
              */
-            value?: string | number | boolean | Record<string, never> | unknown[] | null;
+            value?: string | number | boolean | {
+                [key: string]: unknown;
+            } | unknown[] | null;
             /**
              * Tags
              * @description A list of variable tags
@@ -9294,7 +9537,9 @@ export interface components {
              * Base Job Template
              * @description The work pool's base job template.
              */
-            base_job_template?: Record<string, never>;
+            base_job_template?: {
+                [key: string]: unknown;
+            };
             /**
              * Is Paused
              * @description Pausing the work pool stops the delivery of all work.
@@ -9341,7 +9586,9 @@ export interface components {
              * Base Job Template
              * @description The work pool's base job template.
              */
-            base_job_template?: Record<string, never>;
+            base_job_template?: {
+                [key: string]: unknown;
+            };
             /**
              * Is Paused
              * @description Pausing the work pool stops the delivery of all work.
@@ -9421,12 +9668,16 @@ export interface components {
              * Bundle Upload Step
              * @description The step to use for uploading bundles to storage.
              */
-            bundle_upload_step?: Record<string, never> | null;
+            bundle_upload_step?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Bundle Execution Step
              * @description The step to use for executing bundles.
              */
-            bundle_execution_step?: Record<string, never> | null;
+            bundle_execution_step?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * WorkPoolUpdate
@@ -9438,7 +9689,9 @@ export interface components {
             /** Is Paused */
             is_paused?: boolean | null;
             /** Base Job Template */
-            base_job_template?: Record<string, never> | null;
+            base_job_template?: {
+                [key: string]: unknown;
+            } | null;
             /** Concurrency Limit */
             concurrency_limit?: number | null;
             /** @description The storage configuration for the work pool. */
@@ -10798,7 +11051,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {
@@ -14747,7 +15002,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -15808,6 +16065,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CountByState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_task_run_with_flow_run_name_ui_task_runs__id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The task run id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UITaskRun"];
                 };
             };
             /** @description Validation Error */

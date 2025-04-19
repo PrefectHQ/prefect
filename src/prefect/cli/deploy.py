@@ -496,8 +496,6 @@ async def _run_single_deploy(
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    should_prompt_for_save = is_interactive()
-
     deploy_config = _merge_with_default_deploy_config(deploy_config)
     deploy_config = _handle_deprecated_schedule_fields(deploy_config)
     (
@@ -795,7 +793,7 @@ async def _run_single_deploy(
         )
         app.console.print(message, soft_wrap=True)
 
-    if should_prompt_for_save:
+    if is_interactive() and not prefect_file.exists():
         if confirm(
             (
                 "Would you like to save configuration for this deployment for faster"
@@ -803,48 +801,26 @@ async def _run_single_deploy(
             ),
             console=app.console,
         ):
-            matching_deployment_exists = (
-                _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-                    deploy_config=deploy_config_before_templating,
-                    prefect_file=prefect_file,
-                )
+            deploy_config_before_templating.update({"schedules": _schedules})
+            _save_deployment_to_prefect_file(
+                deploy_config_before_templating,
+                build_steps=build_steps or None,
+                push_steps=push_steps or None,
+                pull_steps=pull_steps or None,
+                triggers=trigger_specs or None,
+                sla=sla_specs or None,
+                prefect_file=prefect_file,
             )
-            if matching_deployment_exists and not confirm(
+            app.console.print(
                 (
-                    "Found existing deployment configuration with name:"
-                    f" [yellow]{deploy_config_before_templating.get('name')}[/yellow]"
-                    " and entrypoint:"
-                    f" [yellow]{deploy_config_before_templating.get('entrypoint')}[/yellow]"
-                    f" in the [yellow]prefect.yaml[/yellow] file at {prefect_file}."
-                    " Would you like to overwrite that entry?"
+                    f"\n[green]Deployment configuration saved to {prefect_file}![/]"
+                    " You can now deploy using this deployment configuration"
+                    " with:\n\n\t[blue]$ prefect deploy -n"
+                    f" {deploy_config['name']}[/]\n\nYou can also make changes to"
+                    " this deployment configuration by making changes to the"
+                    " YAML file."
                 ),
-            ):
-                app.console.print(
-                    "[red]Cancelled saving deployment configuration"
-                    f" '{deploy_config_before_templating.get('name')}' to the"
-                    f" deployment configuration file[/red] at {prefect_file}"
-                )
-            else:
-                deploy_config_before_templating.update({"schedules": _schedules})
-                _save_deployment_to_prefect_file(
-                    deploy_config_before_templating,
-                    build_steps=build_steps or None,
-                    push_steps=push_steps or None,
-                    pull_steps=pull_steps or None,
-                    triggers=trigger_specs or None,
-                    sla=sla_specs or None,
-                    prefect_file=prefect_file,
-                )
-                app.console.print(
-                    (
-                        f"\n[green]Deployment configuration saved to {prefect_file}![/]"
-                        " You can now deploy using this deployment configuration"
-                        " with:\n\n\t[blue]$ prefect deploy -n"
-                        f" {deploy_config['name']}[/]\n\nYou can also make changes to"
-                        " this deployment configuration by making changes to the"
-                        " YAML file."
-                    ),
-                )
+            )
     active_workers = []
     if work_pool_name:
         active_workers = await client.read_workers_for_work_pool(
@@ -1636,25 +1612,6 @@ def _apply_cli_options_to_deploy_config(
             schedule_config["timezone"] = timezone
 
     return deploy_config, variable_overrides
-
-
-def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
-    deploy_config, prefect_file: Path = Path("prefect.yaml")
-) -> bool:
-    if prefect_file.exists():
-        with prefect_file.open(mode="r") as f:
-            parsed_prefect_file_contents = yaml.safe_load(f)
-            existing_deployments = parsed_prefect_file_contents.get("deployments")
-            if existing_deployments is not None:
-                for existing_deployment in existing_deployments:
-                    if existing_deployment.get("name") == deploy_config.get(
-                        "name"
-                    ) and (
-                        existing_deployment.get("entrypoint")
-                        == deploy_config.get("entrypoint")
-                    ):
-                        return True
-    return False
 
 
 def _initialize_deployment_triggers(

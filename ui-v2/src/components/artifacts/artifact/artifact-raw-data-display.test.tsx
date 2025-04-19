@@ -10,16 +10,14 @@ describe("ArtifactDataDisplay", () => {
 			data: "test-data",
 		});
 
-		const { getByText, queryByText, getByTestId } = render(
-			<ArtifactDataDisplay artifact={artifact} />,
-		);
+		const { getByTestId } = render(<ArtifactDataDisplay artifact={artifact} />);
 
-		expect(queryByText("test-data")).toBeFalsy();
+		expect(getByTestId("raw-data-display")).not.toBeVisible();
 
 		const toggleButton = getByTestId("show-raw-data-button");
 
 		fireEvent.click(toggleButton);
 
-		expect(getByText("test-data")).toBeTruthy();
+		expect(getByTestId("raw-data-display")).toBeVisible();
 	});
 });

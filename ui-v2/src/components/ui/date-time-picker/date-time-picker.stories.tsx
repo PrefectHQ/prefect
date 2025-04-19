@@ -14,3 +14,11 @@ export default meta;
 export const Story: StoryObj = {
 	name: "DateTimePicker",
 };
+
+export const customStartingDate: StoryObj = {
+	name: "CustomStartingDate",
+	args: {
+		value: "2025-03-05T00:00:00.000Z",
+		defaultMonth: new Date(2025, 2),
+	},
+};

@@ -27,9 +27,7 @@ const meta = {
 				},
 			},
 			parameters: {
-				// @ts-expect-error TODO: Fix OpenAPI Schema
 				goodbye: false,
-				// @ts-expect-error TODO: Fix OpenAPI Schema
 				name: "world",
 			},
 		}),

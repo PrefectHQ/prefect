@@ -1,18 +1,20 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable } from "@/components/ui/data-table";
-import { CheckedState } from "@radix-ui/react-checkbox";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 import {
-	OnChangeFn,
-	PaginationState,
-	RowSelectionState,
+	type OnChangeFn,
+	type PaginationState,
+	type RowSelectionState,
 	createColumnHelper,
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 import { useCallback } from "react";
 
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { BlockDocumentActionMenu } from "@/components/blocks/block-document-action-menu";
+import { useDeleteBlockDocumentConfirmationDialog } from "@/components/blocks/use-delete-block-document-confirmation-dialog";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { BlockDocumentCell } from "./block-document-cell";
 
 const columnHelper = createColumnHelper<BlockDocument>();
@@ -74,8 +76,6 @@ const createColumns = ({
 export type BlockDocumentsDataTableProps = {
 	blockDocumentsCount: number;
 	blockDocuments: Array<BlockDocument>;
-	onDelete: (blockDocument: BlockDocument) => void;
-	pageCount: number;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
 	rowSelection: RowSelectionState;
@@ -84,12 +84,14 @@ export type BlockDocumentsDataTableProps = {
 export const BlockDocumentsDataTable = ({
 	blockDocuments,
 	blockDocumentsCount,
-	onDelete,
 	onPaginationChange,
 	pagination,
 	rowSelection,
 	setRowSelection,
 }: BlockDocumentsDataTableProps) => {
+	const [dialogState, handleConfirmDelete] =
+		useDeleteBlockDocumentConfirmationDialog();
+
 	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
 		(updater) => {
 			let newPagination = pagination;
@@ -104,7 +106,7 @@ export const BlockDocumentsDataTable = ({
 	);
 
 	const table = useReactTable({
-		columns: createColumns({ onDelete }),
+		columns: createColumns({ onDelete: handleConfirmDelete }),
 		data: blockDocuments,
 		defaultColumn: { maxSize: 300 },
 		getCoreRowModel: getCoreRowModel(),
@@ -116,5 +118,10 @@ export const BlockDocumentsDataTable = ({
 		state: { pagination, rowSelection },
 	});
 
-	return <DataTable table={table} />;
+	return (
+		<>
+			<DataTable table={table} />
+			<DeleteConfirmationDialog {...dialogState} />
+		</>
+	);
 };

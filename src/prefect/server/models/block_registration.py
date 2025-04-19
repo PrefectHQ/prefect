@@ -152,14 +152,21 @@ async def _register_registry_blocks(session: AsyncSession) -> None:
     for block_class in block_registry.values():
         # each block schema gets its own transaction
         async with session.begin():
-            block_type_id = await register_block_type(
-                session=session,
-                block_type=block_class._to_block_type(),
-            )
-            await register_block_schema(
-                session=session,
-                block_schema=block_class._to_block_schema(block_type_id=block_type_id),
-            )
+            try:
+                block_type_id = await register_block_type(
+                    session=session,
+                    block_type=block_class._to_block_type(),
+                )
+                await register_block_schema(
+                    session=session,
+                    block_schema=block_class._to_block_schema(
+                        block_type_id=block_type_id
+                    ),
+                )
+            except Exception:
+                logger.exception(
+                    f"Failed to register block schema for block class {block_class}"
+                )
 
 
 async def _register_collection_blocks(session: AsyncSession) -> None:

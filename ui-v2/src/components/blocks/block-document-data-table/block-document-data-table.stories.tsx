@@ -1,4 +1,4 @@
-import { BlockDocument } from "@/api/block-documents";
+import type { BlockDocument } from "@/api/block-documents";
 import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
@@ -83,7 +83,6 @@ const meta = {
 		],
 		blockDocumentsCount: 2,
 		onPaginationChange: fn(),
-		onDelete: fn(),
 		pagination: {
 			pageIndex: 0,
 			pageSize: 10,

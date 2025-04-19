@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect-ray"
 description = "Prefect integrations with the Ray execution framework."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,!=3.13"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=3.0.0", "ray[default]>=2.0.0"]
+dependencies = ["prefect>=3.3.1", "ray[default]>=2.0.0"]
 dynamic = ["version"]
 
 [dependency-groups]

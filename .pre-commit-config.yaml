@@ -28,25 +28,18 @@ repos:
             src/prefect/events/.*|
             src/prefect/input/.*
           )$
-  - repo: local
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.6.11
     hooks:
-      # https://docs.astral.sh/uv/concepts/projects/sync/#checking-if-the-lockfile-is-up-to-date
-      - id: check-uv-lock
-        name: Check uv.lock
-        language: system
-        entry: uv lock --check
-        pass_filenames: false
-        files: |
-          (?x)^(
-            uv.lock
-          )$
+      - id: uv-lock
 
   - repo: local
     hooks:
-      - id: generate-mintlify-openapi-docs
-        name: Generating OpenAPI docs for Mintlify
+      - id: auto-generate-documentation
+        name: Auto-generating Documentation
         language: system
-        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
+        entry: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/run_precommit_generation_scripts.py
         pass_filenames: false
         files: |
           (?x)^(
@@ -54,53 +47,20 @@ repos:
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
               src/prefect/server/events/.*|
-              scripts/generate_mintlify_openapi_docs.py
-          )$
-      - id: generate-settings-schema
-        name: Generating Settings Schema
-        language: system
-        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
               src/prefect/settings/models/.*|
-              scripts/generate_settings_schema.py
+              scripts/generate_mintlify_openapi_docs.py|
+              scripts/generate_settings_schema.py|
+              scripts/generate_settings_ref.py|
+              scripts/run_precommit_generation_scripts.py
           )$
-      - id: generate-settings-ref
-        name: Generating Settings Reference
-        language: system
-        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              src/prefect/settings/models/.*|
-              scripts/generate_settings_ref.py
-          )$
-      - id: lint-ui-v2
-        name: Lint UI v2
+      - id: check-ui-v2
+        name: Check UI v2
         language: system
         entry: sh
         args:
           [
             "-c",
-            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run lint-staged",
-          ]
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              ui-v2/.*
-          )$
-        pass_filenames: false
-      - id: format-ui-v2
-        name: Format UI v2
-        language: system
-        entry: sh
-        args:
-          [
-            "-c",
-            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run format",
+            ". $NVM_DIR/nvm.sh || true && cd ui-v2 && nvm use || true && npm i --no-upgrade --silent --no-progress && npm run check:staged",
           ]
         files: |
           (?x)^(

@@ -33,9 +33,9 @@ def _register_stable_transforms() -> None:
     so that cache keys that utilize them are deterministic across invocations.
     """
     try:
-        import pandas as pd
+        import pandas as pd  # pyright: ignore
 
-        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [
+        STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
             df[col] for col in sorted(df.columns)
         ]
     except (ImportError, ModuleNotFoundError):
@@ -183,7 +183,7 @@ class CompoundCachePolicy(CachePolicy):
     Any keys that return `None` will be ignored.
     """
 
-    policies: list[CachePolicy] = field(default_factory=list)
+    policies: list[CachePolicy] = field(default_factory=lambda: [])
 
     def __post_init__(self) -> None:
         # flatten any CompoundCachePolicies
@@ -349,7 +349,7 @@ class Inputs(CachePolicy):
     Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
-    exclude: list[str] = field(default_factory=list)
+    exclude: list[str] = field(default_factory=lambda: [])
 
     def compute_key(
         self,

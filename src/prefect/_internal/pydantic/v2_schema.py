@@ -106,4 +106,5 @@ def create_v2_schema(
     # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
+
     return schema

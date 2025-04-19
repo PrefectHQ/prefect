@@ -385,6 +385,13 @@ class ServerServicesSchedulerSettings(ServicesBaseSetting):
         ),
     )
 
+    recent_deployments_loop_seconds: float = Field(
+        default=5,
+        description="""
+        The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
+        """,
+    )
+
 
 class ServerServicesPauseExpirationsSettings(ServicesBaseSetting):
     """

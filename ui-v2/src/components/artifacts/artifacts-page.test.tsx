@@ -9,7 +9,7 @@ import {
 import { render } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
-import { ArtifactsPage, ArtifactsPageProps } from "./artifacts-page";
+import { ArtifactsPage, type ArtifactsPageProps } from "./artifacts-page";
 
 // Wraps component in test with a Tanstack router provider
 const ArtifactsPageRouter = (props: ArtifactsPageProps) => {
