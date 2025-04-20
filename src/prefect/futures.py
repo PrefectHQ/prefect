@@ -605,7 +605,7 @@ def wait(
 
 def resolve_futures_to_states(
     expr: PrefectFuture[R] | Any,
-) -> Any:
+) -> PrefectFuture[R] | Any:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved to their final states.
