@@ -636,7 +636,7 @@ def resolve_futures_to_results(
             result = future.state.result()
             return result.result if isinstance(result, ResultRecord) else result
         else:
-            raise BaseException("At least one result did not complete successfully")
+            raise Exception("At least one result did not complete successfully")
 
     return _resolve_futures(expr, resolve_fn=_resolve_result)
 
