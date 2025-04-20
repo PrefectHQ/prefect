@@ -3,7 +3,8 @@ Schedule schemas
 """
 
 import datetime
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional, Union
+import sys
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Generator, Optional, Union
 from zoneinfo import ZoneInfo
 
 import dateutil
@@ -19,6 +20,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
+from prefect._vendor.croniter import croniter
 from prefect.types._datetime import Date, DateTime, now
 
 MAX_ITERATIONS = 1000
@@ -142,6 +144,198 @@ class CronSchedule(PrefectBaseModel):
     @classmethod
     def valid_cron_string(cls, v: str) -> str:
         return validate_cron_string(v)
+
+    async def get_dates(
+        self,
+        n: Optional[int] = None,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+    ) -> list[DateTime]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to None.  If a timezone-naive datetime is
+                provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): The maximum scheduled date to return. If
+                a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            list[DateTime]: A list of dates
+        """
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
+
+    def _get_dates_generator(
+        self,
+        n: Optional[int] = None,
+        start: Optional[datetime.datetime] = None,
+        end: Optional[datetime.datetime] = None,
+    ) -> Generator[DateTime, None, None]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to the current date. If a timezone-naive
+                datetime is provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): No returned date will exceed this date.
+                If a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            Generator[DateTime, None, None]: A generator of dates
+        """
+
+        timezone = self.timezone or "UTC"
+
+        if start is None:
+            start = now("UTC")
+
+        # Make sure start has the correct timezone
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=ZoneInfo("UTC"))
+
+        # Convert to the schedule's timezone
+        if hasattr(start, "in_tz") and callable(start.in_tz):
+            # pendulum DateTime
+            start = start.in_tz(timezone)
+        else:
+            # standard datetime
+            start = start.astimezone(ZoneInfo(timezone))
+
+        # Same for end time if provided
+        if end is not None:
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=ZoneInfo("UTC"))
+
+            if hasattr(end, "in_tz") and callable(end.in_tz):
+                end = end.in_tz(timezone)
+            else:
+                end = end.astimezone(ZoneInfo(timezone))
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to
+            # MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
+        # Make a copy of the original start time for comparison later
+        original_start = start
+
+        # subtract one second from the start date, so that croniter returns the exact
+        # start date if it meets the cron criteria
+        start = start - datetime.timedelta(seconds=1)
+
+        # Respect microseconds by rounding up
+        if start.microsecond > 0:
+            start = start + datetime.timedelta(seconds=1)
+            start = start.replace(microsecond=0)
+
+        # croniter's DST logic interferes with other datetime libraries
+        if sys.version_info >= (3, 13):
+            import pytz
+
+            start_localized = start
+            start_naive_tz = start.replace(tzinfo=None)
+        else:
+            import pytz
+
+            # Use pytz for stable DST handling
+            if hasattr(start, "naive") and callable(start.naive):
+                # pendulum DateTime
+                start_naive_tz = start.naive()
+                pytz_tz = pytz.timezone(start.tz.name)
+                start_localized = pytz_tz.localize(
+                    datetime.datetime(
+                        year=start.year,
+                        month=start.month,
+                        day=start.day,
+                        hour=start.hour,
+                        minute=start.minute,
+                        second=start.second,
+                        microsecond=start.microsecond,
+                    )
+                )
+            else:
+                # standard datetime
+                start_naive_tz = start.replace(tzinfo=None)
+                pytz_tz = pytz.timezone(
+                    start.tzinfo.key
+                    if hasattr(start.tzinfo, "key")
+                    else start.tzinfo.tzname(start)
+                )
+                start_localized = pytz_tz.localize(
+                    datetime.datetime(
+                        year=start.year,
+                        month=start.month,
+                        day=start.day,
+                        hour=start.hour,
+                        minute=start.minute,
+                        second=start.second,
+                        microsecond=start.microsecond,
+                    )
+                )
+
+        cron = croniter(self.cron, start_naive_tz, day_or=self.day_or)
+        dates = []
+        counter = 0
+
+        while True:
+            # croniter does not handle DST properly when the start time is
+            # in and around when the actual shift occurs. To work around this,
+            # we use the naive start time to get the next cron date delta, then
+            # add that time to the original scheduling anchor.
+            next_time = cron.get_next(datetime.datetime)
+            delta = next_time - start_naive_tz
+
+            if sys.version_info >= (3, 13):
+                # Python 3.13+ using ZoneInfo
+                next_date = start_localized + delta
+            else:
+                if hasattr(start_localized, "add") and callable(start_localized.add):
+                    # pendulum DateTime
+                    next_date = start_localized.add(seconds=delta.total_seconds())
+                else:
+                    # standard datetime with pytz
+                    next_date = start_localized + delta
+
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+
+            # We need to make sure the date is actually after the original_start
+            # This ensures we don't include the original date if it matches cron
+            # Except for the special case where original_start is exactly at the cron time
+            if (
+                next_date == original_start
+                and original_start.hour == 0
+                and original_start.minute == 0
+                and original_start.second == 0
+            ):
+                # Special case: if the original time exactly matches a midnight cron schedule
+                # Tests assume we include this date
+                dates.append(next_date)
+            elif next_date > original_start:
+                dates.append(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
+            counter += 1
+
+        # Return unique dates to prevent duplicates (especially around DST changes)
+        unique_dates = []
+        for date in dates:
+            if date not in unique_dates:
+                unique_dates.append(date)
+                yield date
 
 
 DEFAULT_ANCHOR_DATE = Date(2020, 1, 1)

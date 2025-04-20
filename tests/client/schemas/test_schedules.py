@@ -1,5 +1,6 @@
 import datetime
 from itertools import combinations
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -126,3 +127,24 @@ class TestConstructSchedule:
         assert (
             DeploymentScheduleCreate(active=value, schedule=schedule).active == expected
         )
+
+
+class TestCronScheduleGetDates:
+    async def test_get_dates_simple(self):
+        """Test that get_dates returns dates according to the cron schedule"""
+        # Create a simple cron schedule for midnight every day
+        cron_schedule = CronSchedule(cron="0 0 * * *")
+
+        # Use a fixed start date
+        start = datetime.datetime(2023, 1, 1, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
+
+        # Get 3 dates
+        dates = await cron_schedule.get_dates(n=3, start=start)
+
+        # Verify we have the expected number of dates
+        assert len(dates) == 3
+
+        # Verify all dates are at midnight
+        for date in dates:
+            assert date.hour == 0
+            assert date.minute == 0
