@@ -400,7 +400,7 @@ class PrefectEventsClient(EventsClient):
                 "Set PREFECT_DEBUG_MODE=1 to see the full error.",
                 self._events_socket_url,
                 str(e),
-                exc_info=PREFECT_DEBUG_MODE,
+                exc_info=PREFECT_DEBUG_MODE.value(),
             )
             raise
 
