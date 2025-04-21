@@ -613,9 +613,13 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
+    def _resolve_state(future: PrefectFuture[R]):
+        future.wait()
+        return future.state
+        
     return _resolve_futures(
         expr,
-        resolve_fn=lambda future: future.state if future.wait() or True else None,
+        resolve_fn=_resolve_state,
     )
 
 
