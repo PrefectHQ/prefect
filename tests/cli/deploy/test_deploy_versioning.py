@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
-from typing import Any
 from unittest import mock
 from uuid import uuid4
 
@@ -44,99 +42,6 @@ async def mock_create_deployment():
     ) as mock_create:
         mock_create.return_value = uuid4()
         yield mock_create
-
-
-@pytest.mark.parametrize(
-    "version_info, expected",
-    [
-        (
-            {
-                "type": "prefect:simple",
-                "version": "1.0.0",
-            },
-            VersionInfo(
-                type="prefect:simple",
-                version="1.0.0",
-            ),
-        ),
-        (
-            {
-                "type": "vcs:github",
-                "version": "abcdef12",
-                "branch": "main",
-                "url": "https://github.com/org/repo",
-                "repository": "org/repo",
-            },
-            VersionInfo(
-                type="vcs:github",
-                version="abcdef12",
-                branch="main",
-                url="https://github.com/org/repo",
-                repository="org/repo",
-            ),
-        ),
-        (
-            {
-                "type": "vcs:git",
-                "version": "abcdef12",
-                "branch": "main",
-                "url": "https://my.git.example.com/some-repo",
-                "repository": "some-repo",
-            },
-            VersionInfo(
-                type="vcs:git",
-                version="abcdef12",
-                branch="main",
-                url="https://my.git.example.com/some-repo",
-                repository="some-repo",
-            ),
-        ),
-        (
-            {
-                "type": "container:docker",
-                "version": "1.2.3",
-                "branch": "feature-branch",
-                "url": "https://hub.docker.com/r/myorg/myimage",
-                "image_name": "myimage",
-                "registry": "myorg",
-                "image": "myorg/myimage:1.2.3",
-            },
-            VersionInfo(
-                type="container:docker",
-                version="1.2.3",
-                branch="feature-branch",
-                url="https://hub.docker.com/r/myorg/myimage",
-                image_name="myimage",
-                registry="myorg",
-                image="myorg/myimage:1.2.3",
-            ),
-        ),
-    ],
-)
-async def test_deploy_with_explicit_version_info(
-    version_info: dict[str, Any],
-    expected: VersionInfo,
-    mock_create_deployment: mock.AsyncMock,
-):
-    as_json = json.dumps(version_info)
-    await run_sync_in_worker_thread(
-        invoke_and_assert,
-        command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
-            f"--version-info '{as_json}'"
-        ),
-        expected_code=0,
-        expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
-        ],
-    )
-
-    mock_create_deployment.assert_awaited_once()
-
-    passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
-
-    assert passed_version_info == expected
 
 
 async def test_deploy_with_simple_version(mock_create_deployment: mock.AsyncMock):

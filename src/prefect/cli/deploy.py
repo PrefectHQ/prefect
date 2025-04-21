@@ -272,12 +272,6 @@ async def deploy(
     version: str = typer.Option(
         None, "--version", help="A version to give the deployment."
     ),
-    version_info: str = typer.Option(
-        None,
-        "--version-info",
-        help="Version information for the deployment, minimally including"
-        " 'type', 'branch', 'version', and 'url'.",
-    ),
     tags: List[str] = typer.Option(
         None,
         "-t",
@@ -428,7 +422,6 @@ async def deploy(
         "description": description,
         "version_type": version_type,
         "version": version,
-        "version_info": version_info,
         "tags": tags,
         "concurrency_limit": concurrency_limit_config,
         "work_pool_name": work_pool_name,
@@ -873,9 +866,6 @@ async def _run_single_deploy(
 async def _version_info_from_options(
     options: dict[str, Any], deploy_config: dict[str, Any]
 ) -> Optional[VersionInfo]:
-    if version_info := options.get("version_info"):
-        return VersionInfo.model_validate_json(version_info)
-
     if version_type := (
         options.get("version_type") or deploy_config.get("version_type")
     ):

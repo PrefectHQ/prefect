@@ -37,24 +37,6 @@ class GitVersionInfo(VersionInfo):
     repository: str
 
 
-class DockerVersionInfo(VersionInfo):
-    type: Literal["container:docker"] = "container:docker"
-    version: str
-    branch: str
-    url: str
-    image_name: str
-    registry: str
-    image: str
-
-    @model_validator(mode="after")
-    def validate_docker_requirements(self):
-        if not hasattr(self, "image") or not self.image:
-            raise ValueError("image is required when type is 'container:docker'")
-        if not self.registry:
-            raise ValueError("registry is required when type is 'container:docker'")
-        return self
-
-
 async def get_github_version_info(
     version: Optional[str] = None,
     branch: Optional[str] = None,
