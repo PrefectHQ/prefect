@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from enum import Enum
 from typing import Any, Callable, Coroutine, Dict, Literal, Optional
