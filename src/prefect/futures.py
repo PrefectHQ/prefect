@@ -612,19 +612,44 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
+
+    def _resolve_state(future: PrefectFuture[R]):
+        future.wait()
+        return future.state
+
+    return _resolve_futures(
+        expr,
+        resolve_fn=_resolve_state,
+    )
+
+
+def resolve_futures_to_results(
+    expr: PrefectFuture[R] | Any,
+) -> Any:
+    """
+    Given a Python built-in collection, recursively find `PrefectFutures` and build a
+    new collection with the same structure with futures resolved to their final results.
+    Resolving futures to their final result may wait for execution to complete.
+
+    Unsupported object types will be returned without modification.
+    """
+
+    def _resolve_result(future: PrefectFuture[R]) -> Any:
+        future.wait()
+        if future.state.is_completed():
+            return future.result()
+        else:
+            raise Exception("At least one result did not complete successfully")
+
+    return _resolve_futures(expr, resolve_fn=_resolve_result)
+
+
+def _resolve_futures(
+    expr: PrefectFuture[R] | Any,
+    resolve_fn: Callable[[PrefectFuture[R]], Any],
+) -> Any:
+    """Helper function to resolve PrefectFutures in a collection."""
     futures: set[PrefectFuture[R]] = set()
-
-    def _collect_futures(
-        futures: set[PrefectFuture[R]], expr: Any | PrefectFuture[R], context: Any
-    ) -> Any | PrefectFuture[R]:
-        # Expressions inside quotes should not be traversed
-        if isinstance(context.get("annotation"), quote):
-            raise StopVisiting()
-
-        if isinstance(expr, PrefectFuture):
-            futures.add(expr)
-
-        return expr
 
     visit_collection(
         expr,
@@ -633,31 +658,39 @@ def resolve_futures_to_states(
         context={},
     )
 
-    # if no futures were found, return the original expression
+    # If no futures were found, return the original expression
     if not futures:
         return expr
 
-    # Get final states for each future
-    states: list[State] = []
-    for future in futures:
-        future.wait()
-        states.append(future.state)
+    # Resolve each future using the provided resolve function
+    resolved_values = {future: resolve_fn(future) for future in futures}
 
-    states_by_future = dict(zip(futures, states))
-
-    def replace_futures_with_states(expr: Any, context: Any) -> Any:
+    def replace_futures(expr: Any, context: Any) -> Any:
         # Expressions inside quotes should not be modified
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
-            return states_by_future[expr]
+            return resolved_values[expr]
         else:
             return expr
 
     return visit_collection(
         expr,
-        visit_fn=replace_futures_with_states,
+        visit_fn=replace_futures,
         return_data=True,
         context={},
     )
+
+
+def _collect_futures(
+    futures: set[PrefectFuture[R]], expr: Any | PrefectFuture[R], context: Any
+) -> Any | PrefectFuture[R]:
+    # Expressions inside quotes should not be traversed
+    if isinstance(context.get("annotation"), quote):
+        raise StopVisiting()
+
+    if isinstance(expr, PrefectFuture):
+        futures.add(expr)
+
+    return expr
