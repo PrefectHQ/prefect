@@ -509,7 +509,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     "volumes": [
                         *existing_volumes,
                         *job_variable_volumes,
-                        # This is a temporary volume for the bundle and result
+                        # This is a temporary volume for the bundle
                         f"{temp_dir}:/tmp/",
                     ],
                 }
@@ -561,9 +561,6 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 work_pool=self._work_pool,
                 worker_name=self.name,
             )
-
-            if not flow.result_storage:
-                flow.result_storage = Path(temp_dir) / "results"
 
             bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
