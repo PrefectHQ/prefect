@@ -19,6 +19,7 @@ from prefect.futures import (
     PrefectFutureList,
     PrefectWrappedFuture,
     as_completed,
+    resolve_futures_to_results,
     resolve_futures_to_states,
     wait,
 )
@@ -275,6 +276,56 @@ class TestResolveFuturesToStates:
             foo=future.state,
             nested_list=[[future.state]],
             nested_dict={"key": [future.state]},
+        )
+
+
+class TestResolveFuturesToResults:
+    def test_resolve_futures_to_results_with_no_futures(self):
+        expr = [1, 2, 3]
+        result = resolve_futures_to_results(expr)
+        assert result == [1, 2, 3]
+
+    @pytest.mark.parametrize("_type", [list, tuple, set])
+    def test_resolve_futures_transforms_future_in_listlike_type(self, _type):
+        future = MockFuture(data="foo")
+        result = resolve_futures_to_results(_type(["a", future, "b"]))
+        assert result == _type(["a", "foo", "b"])
+
+    @pytest.mark.parametrize("_type", [dict, OrderedDict])
+    def test_resolve_futures_transforms_future_in_dictlike_type(self, _type):
+        key_future = MockFuture(data="foo")
+        value_future = MockFuture(data="bar")
+        result = resolve_futures_to_results(
+            _type([("a", 1), (key_future, value_future), ("b", 2)])
+        )
+        assert result == _type([("a", 1), ("foo", "bar"), ("b", 2)])
+
+    def test_resolve_futures_transforms_future_in_dataclass(self):
+        @dataclass
+        class Foo:
+            a: int
+            foo: str
+            b: int = 2
+
+        future = MockFuture(data="bar")
+        assert resolve_futures_to_results(Foo(a=1, foo=future)) == Foo(
+            a=1, foo="bar", b=2
+        )
+
+    def test_resolves_futures_in_nested_collections(self):
+        @dataclass
+        class Foo:
+            foo: str
+            nested_list: list
+            nested_dict: dict
+
+        future = MockFuture(data="bar")
+        assert resolve_futures_to_results(
+            Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
+        ) == Foo(
+            foo="bar",
+            nested_list=[["bar"]],
+            nested_dict={"key": ["bar"]},
         )
 
 
