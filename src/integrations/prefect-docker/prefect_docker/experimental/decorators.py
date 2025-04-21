@@ -12,23 +12,23 @@ R = TypeVar("R")
 
 def docker(work_pool: str, **job_variables: Any) -> Callable[[Flow[P, R]], Flow[P, R]]:
     """
-    Decorator that binds execution of a flow to a Kubernetes work pool
+    Decorator that binds execution of a flow to a Docker work pool
 
     Args:
-        work_pool: The name of the Kubernetes work pool to use
+        work_pool: The name of the Docker work pool to use
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
         ```python
         from prefect import flow
-        from prefect_kubernetes import kubernetes
+        from prefect_docker import docker
 
-        @kubernetes(work_pool="my-pool")
+        @docker(work_pool="my-pool")
         @flow
         def my_flow():
             ...
 
-        # This will run the flow in a Kubernetes job
+        # This will run the flow in a Docker container
         my_flow()
         ```
     """
