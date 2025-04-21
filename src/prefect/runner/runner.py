@@ -237,7 +237,7 @@ class Runner:
         self._deployment_ids: set[UUID] = set()
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
         self.__flow_run_process_map_lock: asyncio.Lock | None = None
-        self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
+        self._flow_run_bundle_map: dict[UUID, "SerializedBundle"] = dict()
         # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
         self._rescheduling: bool = False
 

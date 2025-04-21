@@ -17,12 +17,24 @@ checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastruc
 from __future__ import annotations
 
 import enum
+import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import urllib.parse
+import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple
+from pathlib import Path
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generator,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 
 import anyio.abc
 import docker
@@ -33,13 +45,19 @@ from docker.constants import DEFAULT_TIMEOUT_SECONDS as DEFAULT_DOCKER_TIMEOUT_S
 from docker.models.containers import Container
 from pydantic import Field
 from slugify import slugify
-from typing_extensions import Literal
+from typing_extensions import Literal, ParamSpec
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
+from prefect.client.schemas.objects import (
+    Flow as APIFlow,
+)
+from prefect.client.schemas.objects import FlowRun
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.settings import PREFECT_API_URL
+from prefect.states import Pending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import (
     format_outlier_version_name,
     get_prefect_image_name,
@@ -51,7 +69,6 @@ from prefect_docker.types import VolumeStr
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import (
-        Flow,
         FlowRun,
         WorkPool,
     )
@@ -121,7 +138,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default=None,
         description="The image pull policy to use when pulling images.",
     )
-    networks: List[str] = Field(
+    networks: list[str] = Field(
         default_factory=list,
         description="Docker networks that created containers should be connected to.",
     )
@@ -136,7 +153,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default=False,
         description="If set, containers will be deleted on completion.",
     )
-    volumes: List[VolumeStr] = Field(
+    volumes: list[VolumeStr] = Field(
         default_factory=list,
         description="A list of volume to mount into created containers.",
         examples=["/my/local/path:/path/in/container"],
@@ -172,7 +189,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         default=False,
         description="Give extended privileges to created container.",
     )
-    container_create_kwargs: Optional[Dict[str, Any]] = Field(
+    container_create_kwargs: Optional[dict[str, Any]] = Field(
         default=None,
         title="Container Configuration",
         description=(
@@ -180,7 +197,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         ),
     )
 
-    def _convert_labels_to_docker_format(self, labels: Dict[str, str]):
+    def _convert_labels_to_docker_format(self, labels: dict[str, str]):
         """Converts labels to the format expected by Docker."""
         labels = labels or {}
         new_labels = {}
@@ -246,7 +263,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         self,
         flow_run: "FlowRun",
         deployment: "DeploymentResponse | None" = None,
-        flow: "Flow | None" = None,
+        flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: "str | None" = None,
     ):
@@ -304,7 +321,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         # Default to unset
         return None
 
-    def get_extra_hosts(self, docker_client) -> Optional[Dict[str, str]]:
+    def get_extra_hosts(self, docker_client) -> Optional[dict[str, str]]:
         """
         A host.docker.internal -> host-gateway mapping is necessary for communicating
         with the API on Linux machines. Docker Desktop on macOS will automatically
@@ -368,7 +385,11 @@ class DockerWorkerResult(BaseWorkerResult):
     """Contains information about a completed Docker container"""
 
 
-class DockerWorker(BaseWorker):
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerResult]):
     """Prefect worker that executes flow runs within Docker containers."""
 
     type = "docker"
@@ -407,9 +428,9 @@ class DockerWorker(BaseWorker):
     async def run(
         self,
         flow_run: "FlowRun",
-        configuration: BaseJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> BaseWorkerResult:
+        configuration: DockerWorkerJobConfiguration,
+        task_status: Optional[anyio.abc.TaskStatus[str]] = None,
+    ) -> DockerWorkerResult:
         """
         Executes a flow run within a Docker container and waits for the flow run
         to complete.
@@ -435,6 +456,156 @@ class DockerWorker(BaseWorker):
             status_code=exit_code if exit_code is not None else -1,
             identifier=container_pid,
         )
+
+    async def _submit_adhoc_run(
+        self,
+        flow: prefect.Flow[..., R],
+        parameters: dict[str, Any] | None = None,
+        job_variables: dict[str, Any] | None = None,
+        task_status: anyio.abc.TaskStatus[FlowRun] | None = None,
+    ):
+        """
+        Submit a flow to run in a Docker container.
+        """
+        from prefect._experimental.bundles import (
+            convert_step_to_command,
+            create_bundle_for_flow_run,
+        )
+
+        if TYPE_CHECKING:
+            assert self._client is not None
+            assert self._work_pool is not None
+
+        storage_configured_on_work_pool = (
+            self._work_pool.storage_configuration.bundle_upload_step is not None
+            and self._work_pool.storage_configuration.bundle_execution_step is not None
+        )
+
+        bundle_key = str(uuid.uuid4())
+        with tempfile.TemporaryDirectory(
+            delete=storage_configured_on_work_pool
+        ) as temp_dir:
+            upload_command = None
+            if not storage_configured_on_work_pool:
+                execute_command = [
+                    "python",
+                    "-m",
+                    "prefect._experimental.bundles.execute",
+                    "--key",
+                    (Path("/tmp") / bundle_key).as_posix(),
+                ]
+                existing_volumes: list[str] = (
+                    get_from_dict(
+                        self._work_pool.base_job_template,
+                        "configuration.properties.volumes.default",
+                    )
+                    or []
+                )
+                job_variable_volumes: list[str] = (
+                    job_variables.get("volumes", []) if job_variables else []
+                )
+                job_variables = (job_variables or {}) | {
+                    "command": " ".join(execute_command),
+                    "volumes": [
+                        *existing_volumes,
+                        *job_variable_volumes,
+                        # This is a temporary volume for the bundle and result
+                        f"{temp_dir}:/tmp/",
+                    ],
+                }
+            else:
+                if TYPE_CHECKING:
+                    assert (
+                        self._work_pool.storage_configuration.bundle_upload_step
+                        is not None
+                    )
+                    assert (
+                        self._work_pool.storage_configuration.bundle_execution_step
+                        is not None
+                    )
+                upload_command = convert_step_to_command(
+                    self._work_pool.storage_configuration.bundle_upload_step,
+                    bundle_key,
+                    quiet=True,
+                )
+                execute_command = convert_step_to_command(
+                    self._work_pool.storage_configuration.bundle_execution_step,
+                    bundle_key,
+                )
+
+                job_variables = (job_variables or {}) | {
+                    "command": " ".join(execute_command)
+                }
+            flow_run = await self._client.create_flow_run(
+                flow,
+                parameters=parameters,
+                state=Pending(),
+                job_variables=job_variables,
+                work_pool_name=self._work_pool.name,
+            )
+            if task_status is not None:
+                # Emit the flow run object to .submit to allow it to return a future as soon as possible
+                task_status.started(flow_run)
+            # Avoid an API call to get the flow
+            api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+            logger = self.get_flow_run_logger(flow_run)
+
+            configuration = await self.job_configuration.from_template_and_values(
+                base_job_template=self._work_pool.base_job_template,
+                values=job_variables,
+                client=self._client,
+            )
+            configuration.prepare_for_flow_run(
+                flow_run=flow_run,
+                flow=api_flow,
+                work_pool=self._work_pool,
+                worker_name=self.name,
+            )
+
+            if not flow.result_storage:
+                flow.result_storage = Path(temp_dir) / "results"
+
+            bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+            await (
+                anyio.Path(temp_dir)
+                .joinpath(bundle_key)
+                .write_bytes(json.dumps(bundle).encode("utf-8"))
+            )
+
+            if upload_command:
+                try:
+                    full_command = upload_command + [bundle_key]
+                    logger.debug(
+                        "Uploading execution bundle with command: %s", full_command
+                    )
+                    await anyio.run_process(
+                        full_command,
+                        cwd=temp_dir,
+                    )
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+        logger.debug("Successfully uploaded execution bundle")
+
+        try:
+            result = await self.run(flow_run, configuration)
+
+            if result.status_code != 0:
+                await self._propose_crashed_state(
+                    flow_run,
+                    (
+                        "Flow run infrastructure exited with non-zero status code"
+                        f" {result.status_code}."
+                    ),
+                )
+        except Exception as exc:
+            # This flow run was being submitted and did not start successfully
+            logger.exception(
+                f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+            )
+            message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+            await self._propose_crashed_state(flow_run, message)
 
     def _get_client(self):
         """Returns a docker client."""
@@ -479,7 +650,7 @@ class DockerWorker(BaseWorker):
         self,
         docker_client: "DockerClient",
         configuration: DockerWorkerJobConfiguration,
-    ) -> Dict:
+    ) -> dict[str, Any]:
         """Builds a dictionary of container settings to pass to the Docker API."""
         network_mode = configuration.get_network_mode()
 
@@ -708,7 +879,7 @@ class DockerWorker(BaseWorker):
         )
         return container
 
-    def _container_as_resource(self, container: "Container") -> Dict[str, str]:
+    def _container_as_resource(self, container: "Container") -> dict[str, str]:
         """Convert a container to a resource dictionary"""
         return {
             "prefect.resource.id": f"prefect.docker.container.{container.id}",
