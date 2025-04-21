@@ -1,3 +1,3 @@
-from .decorators import cloud_run
+from .decorators import cloud_run, vertex_ai
 
-__all__ = ["cloud_run"]
+__all__ = ["cloud_run", "vertex_ai"]
