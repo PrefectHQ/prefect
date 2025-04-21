@@ -1131,7 +1131,7 @@ class Deployment(ObjectBaseModel):
     version_id: Optional[UUID] = Field(
         default=None, description="The ID of the current version of the deployment."
     )
-    version_info: Optional[VersionInfo] = Field(
+    version_info: VersionInfo | None = Field(
         default=None, description="A description of this version of the deployment."
     )
     description: Optional[str] = Field(

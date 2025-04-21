@@ -131,7 +131,7 @@ class VersionType(str, Enum):
 
 async def get_inferred_version_info(
     version_type: Optional[str] = None,
-) -> Optional[VersionInfo]:
+) -> VersionInfo | None:
     """
     Attempts to infer version information from the environment.
 

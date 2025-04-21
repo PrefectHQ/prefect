@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 from uuid import UUID
 
 from httpx import HTTPStatusError, RequestError
@@ -50,7 +50,7 @@ class DeploymentClient(BaseClient):
         flow_id: UUID,
         name: str,
         version: str | None = None,
-        version_info: "Optional[VersionInfo]" = None,
+        version_info: "VersionInfo | None" = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,
@@ -644,7 +644,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         flow_id: UUID,
         name: str,
         version: str | None = None,
-        version_info: "Optional[VersionInfo]" = None,
+        version_info: "VersionInfo | None" = None,
         schedules: list["DeploymentScheduleCreate"] | None = None,
         concurrency_limit: int | None = None,
         concurrency_options: "ConcurrencyOptions | None" = None,

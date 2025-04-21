@@ -865,7 +865,7 @@ async def _run_single_deploy(
 
 async def _version_info_from_options(
     options: dict[str, Any], deploy_config: dict[str, Any]
-) -> Optional[VersionInfo]:
+) -> VersionInfo | None:
     if version_type := (
         options.get("version_type") or deploy_config.get("version_type")
     ):

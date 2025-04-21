@@ -285,7 +285,7 @@ class RunnerDeployment(BaseModel):
         self,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
-        version_info: Optional[VersionInfo] = None,
+        version_info: VersionInfo | None = None,
     ) -> UUID:
         work_pool_name = work_pool_name or self.work_pool_name
 
@@ -376,7 +376,7 @@ class RunnerDeployment(BaseModel):
         self,
         deployment_id: UUID,
         client: PrefectClient,
-        version_info: Optional[VersionInfo],
+        version_info: VersionInfo | None,
     ):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
@@ -442,7 +442,7 @@ class RunnerDeployment(BaseModel):
         self,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
-        version_info: Optional[VersionInfo] = None,
+        version_info: VersionInfo | None = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
