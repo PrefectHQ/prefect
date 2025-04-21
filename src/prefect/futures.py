@@ -15,7 +15,6 @@ from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.results import ResultRecord
 from prefect.states import Pending, State
 from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
@@ -613,10 +612,11 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
+
     def _resolve_state(future: PrefectFuture[R]):
         future.wait()
         return future.state
-        
+
     return _resolve_futures(
         expr,
         resolve_fn=_resolve_state,
