@@ -29,6 +29,8 @@ Example:
 
 """
 
+from __future__ import annotations
+
 import importlib
 import tempfile
 from datetime import datetime, timedelta
