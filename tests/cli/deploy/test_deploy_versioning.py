@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 import prefect
+from prefect._versioning import GitVersionInfo
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import VersionInfo
@@ -15,7 +16,6 @@ from prefect.deployments.base import initialize_project
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
-from prefect.versioning import GitVersionInfo
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 

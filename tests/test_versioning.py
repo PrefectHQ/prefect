@@ -6,12 +6,12 @@ from subprocess import CompletedProcess
 import pytest
 from anyio import run_process
 
-from prefect.utilities.filesystem import tmpchdir
-from prefect.versioning import (
+from prefect._versioning import (
     GithubVersionInfo,
     GitVersionInfo,
     get_inferred_version_info,
 )
+from prefect.utilities.filesystem import tmpchdir
 
 
 @pytest.fixture(autouse=True)

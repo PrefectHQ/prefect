@@ -23,6 +23,7 @@ from yaml.error import YAMLError
 
 import prefect
 from prefect._experimental.sla.objects import SlaTypes
+from prefect._versioning import get_inferred_version_info
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -77,7 +78,6 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
-from prefect.versioning import get_inferred_version_info
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
