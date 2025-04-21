@@ -633,8 +633,7 @@ def resolve_futures_to_results(
     def _resolve_result(future: PrefectFuture[R]) -> Any:
         future.wait()
         if future.state.is_completed():
-            result = future.state.result()
-            return result.result if isinstance(result, ResultRecord) else result
+            return future.result()
         else:
             raise Exception("At least one result did not complete successfully")
 
