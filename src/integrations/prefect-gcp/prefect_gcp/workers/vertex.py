@@ -398,7 +398,11 @@ class VertexAIWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
-class VertexAIWorker(BaseWorker):
+class VertexAIWorker(
+    BaseWorker[
+        VertexAIWorkerJobConfiguration, VertexAIWorkerVariables, VertexAIWorkerResult
+    ]
+):
     """Prefect worker that executes flow runs within Vertex AI Jobs."""
 
     type = "vertex-ai"
