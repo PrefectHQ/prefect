@@ -65,7 +65,7 @@ class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
     """Configuration that accepts both batch/v1 *and* Volcano manifests."""
 
     # optional helper variable (queue) that can be templated in Volcano manifests
-    queue: str | None = Field(default=None)
+    queue: Optional[str] = Field(default=None)
 
     # ---------------------------------------------------------------------
     # Validation override
@@ -174,7 +174,7 @@ class VolcanoWorker(KubernetesWorker):
         job_name: str,
         configuration: KubernetesWorkerJobConfiguration,
         client: ApiClient,
-    ) -> V1Pod | None:
+    ) -> Optional[V1Pod]:
         """
         Locate the first Pod belonging to the Job.
 
@@ -301,8 +301,8 @@ class VolcanoWorker(KubernetesWorker):
         self,
         configuration: VolcanoWorkerJobConfiguration,
         client: ApiClient,
-        secret_name: str | None = None,
-        secret_key: str | None = None,
+        secret_name: Optional[str] = None,
+        secret_key: Optional[str] = None,
     ):
         """
         Same logic as parent class, but first finds the "main" container, then reads/writes env,
@@ -353,7 +353,7 @@ class VolcanoWorker(KubernetesWorker):
         self,
         flow_run: "FlowRun",
         configuration: "VolcanoWorkerJobConfiguration",
-        task_status: anyio.abc.TaskStatus[int] | None = None,
+        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> "KubernetesWorkerResult":
         logger = self.get_flow_run_logger(flow_run)
 
