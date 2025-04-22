@@ -1,3 +1,5 @@
+import asyncio
+import sys
 import uuid
 from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
@@ -8,7 +10,10 @@ from prefect_docker.worker import DockerWorker
 
 import prefect
 from prefect.client.schemas.actions import WorkPoolCreate
-from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
+from prefect.client.schemas.objects import (
+    WorkPool,
+    WorkPoolStorageConfiguration,
+)
 from prefect.futures import PrefectFuture
 
 
@@ -29,6 +34,14 @@ def mock_submit(monkeypatch: pytest.MonkeyPatch) -> Generator[AsyncMock, None, N
     mock = AsyncMock(return_value=mock_future)
 
     monkeypatch.setattr(DockerWorker, "submit", mock)
+    yield mock
+
+
+@pytest.fixture
+def mock_run(monkeypatch: pytest.MonkeyPatch) -> Generator[AsyncMock, None, None]:
+    mock = AsyncMock()
+    mock.return_value = MagicMock(status_code=0)
+    monkeypatch.setattr(DockerWorker, "run", mock)
     yield mock
 
 
@@ -168,26 +181,33 @@ def test_submit_method_receives_work_pool_name(mock_submit: AsyncMock) -> None:
     assert "job_variables" in kwargs
 
 
-def test_uses_volume_mount_when_work_pool_has_storage_configuration(
-    work_pool_without_storage_configuration: WorkPool, mock_submit: AsyncMock
+async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
+    work_pool_without_storage_configuration: WorkPool,
+    mock_run: AsyncMock,
 ) -> None:
-    """Test that a volume mount is used when the work pool has a storage configuration"""
+    """Test that a volume mount is used when the work pool is missing storage configuration"""
 
-    @docker(
-        work_pool=work_pool_without_storage_configuration.name,
-        volumes=["/tmp/test:/tmp/test"],
-    )
     @prefect.flow
     def test_flow():
         return "test"
 
-    test_flow()
+    async with DockerWorker(
+        work_pool_name=work_pool_without_storage_configuration.name
+    ) as worker:
+        await worker.submit(
+            test_flow, job_variables={"volumes": ["/tmp/test:/tmp/test"]}
+        )
+        # Small sleep to ensure the run mock is called
+        await asyncio.sleep(0.1)
 
-    mock_submit.assert_called_once()
-    kwargs = mock_submit.call_args.kwargs
-    assert "job_variables" in kwargs
-    job_variables = kwargs["job_variables"]
-    assert "volumes" in job_variables
-    assert len(job_variables["volumes"]) == 2
-    assert job_variables["volumes"][0] == "/tmp/test:/tmp/test"
-    assert job_variables["volumes"][1].endswith("/tmp/")
+        mock_run.assert_called_once()
+        kwargs = mock_run.call_args.kwargs
+        configuration = kwargs["configuration"]
+        assert len(configuration.volumes) == 2
+        assert configuration.volumes[0] == "/tmp/test:/tmp/test"
+        assert configuration.volumes[1].endswith("/tmp/")
+
+        python_version = sys.version_info
+        assert configuration.command.startswith(
+            f"uv run --with prefect --python {python_version.major}.{python_version.minor} -m prefect._experimental.bundles.execute"
+        )

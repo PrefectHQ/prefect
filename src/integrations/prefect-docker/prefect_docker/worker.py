@@ -471,13 +471,9 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             create_bundle_for_flow_run,
         )
 
-        if TYPE_CHECKING:
-            assert self._client is not None
-            assert self._work_pool is not None
-
         storage_configured_on_work_pool = (
-            self._work_pool.storage_configuration.bundle_upload_step is not None
-            and self._work_pool.storage_configuration.bundle_execution_step is not None
+            self.work_pool.storage_configuration.bundle_upload_step is not None
+            and self.work_pool.storage_configuration.bundle_execution_step is not None
         )
 
         bundle_key = str(uuid.uuid4())
@@ -492,7 +488,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 )
                 existing_volumes: list[str] = (
                     get_from_dict(
-                        self._work_pool.base_job_template,
+                        self.work_pool.base_job_template,
                         "configuration.properties.volumes.default",
                     )
                     or []
@@ -512,32 +508,32 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             else:
                 if TYPE_CHECKING:
                     assert (
-                        self._work_pool.storage_configuration.bundle_upload_step
+                        self.work_pool.storage_configuration.bundle_upload_step
                         is not None
                     )
                     assert (
-                        self._work_pool.storage_configuration.bundle_execution_step
+                        self.work_pool.storage_configuration.bundle_execution_step
                         is not None
                     )
                 upload_command = convert_step_to_command(
-                    self._work_pool.storage_configuration.bundle_upload_step,
+                    self.work_pool.storage_configuration.bundle_upload_step,
                     bundle_key,
                     quiet=True,
                 )
                 execute_command = convert_step_to_command(
-                    self._work_pool.storage_configuration.bundle_execution_step,
+                    self.work_pool.storage_configuration.bundle_execution_step,
                     bundle_key,
                 )
 
                 job_variables = (job_variables or {}) | {
                     "command": " ".join(execute_command)
                 }
-            flow_run = await self._client.create_flow_run(
+            flow_run = await self.client.create_flow_run(
                 flow,
                 parameters=parameters,
                 state=Pending(),
                 job_variables=job_variables,
-                work_pool_name=self._work_pool.name,
+                work_pool_name=self.work_pool.name,
             )
             if task_status is not None:
                 # Emit the flow run object to .submit to allow it to return a future as soon as possible
@@ -547,14 +543,14 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             logger = self.get_flow_run_logger(flow_run)
 
             configuration = await self.job_configuration.from_template_and_values(
-                base_job_template=self._work_pool.base_job_template,
+                base_job_template=self.work_pool.base_job_template,
                 values=job_variables,
                 client=self._client,
             )
             configuration.prepare_for_flow_run(
                 flow_run=flow_run,
                 flow=api_flow,
-                work_pool=self._work_pool,
+                work_pool=self.work_pool,
                 worker_name=self.name,
             )
 
@@ -582,7 +578,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         logger.debug("Successfully uploaded execution bundle")
 
         try:
-            result = await self.run(flow_run, configuration)
+            result = await self.run(flow_run=flow_run, configuration=configuration)
 
             if result.status_code != 0:
                 await self._propose_crashed_state(
