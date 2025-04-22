@@ -22,15 +22,17 @@ import tempfile
 import threading
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
 import anyio
 import anyio.abc
 from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
+from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
+from prefect.states import Pending
 from prefect.utilities.processutils import get_sys_executable
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import (
@@ -41,8 +43,11 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
+    from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
+    from prefect.flows import Flow
+
+FR = TypeVar("FR")  # used to capture the return type of a flow
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
@@ -60,7 +65,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         self,
         flow_run: "FlowRun",
         deployment: "DeploymentResponse | None" = None,
-        flow: "Flow | None" = None,
+        flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
     ) -> None:
@@ -230,6 +235,58 @@ class ProcessWorker(
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
+
+    async def _submit_adhoc_run(
+        self,
+        flow: "Flow[..., FR]",
+        parameters: dict[str, Any] | None = None,
+        job_variables: dict[str, Any] | None = None,
+        task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
+    ):
+        from prefect._experimental.bundles import (
+            create_bundle_for_flow_run,
+        )
+
+        flow_run = await self.client.create_flow_run(
+            flow,
+            parameters=parameters,
+            state=Pending(),
+            job_variables=job_variables,
+            work_pool_name=self.work_pool.name,
+        )
+        if task_status is not None:
+            # Emit the flow run object to .submit to allow it to return a future as soon as possible
+            task_status.started(flow_run)
+
+        api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+        logger = self.get_flow_run_logger(flow_run)
+
+        configuration = await self.job_configuration.from_template_and_values(
+            base_job_template=self.work_pool.base_job_template,
+            values=job_variables or {},
+            client=self._client,
+        )
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=api_flow,
+            work_pool=self.work_pool,
+            worker_name=self.name,
+        )
+
+        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+        logger.debug("Executing flow run bundle in subprocess...")
+        try:
+            await self._runner.execute_bundle(
+                bundle=bundle,
+                cwd=configuration.working_dir,
+                env=configuration.env,
+            )
+        except Exception:
+            logger.exception("Error executing flow run bundle in subprocess")
+            await self._propose_crashed_state(flow_run, "Flow run execution failed")
+        finally:
+            logger.debug("Flow run bundle execution complete")
 
     async def __aenter__(self) -> ProcessWorker:
         await super().__aenter__()

@@ -76,7 +76,9 @@ async def scheduled_flow_runs(
                     state=schemas.states.State(
                         type=schemas.states.StateType.SCHEDULED,
                         timestamp=now("UTC"),
-                        state_details={"scheduled_time": now("UTC")},
+                        state_details={
+                            "scheduled_time": now("UTC") + timedelta(minutes=1)
+                        },
                     ),
                 ),
             )

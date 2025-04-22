@@ -706,6 +706,14 @@ def _determine_storage_type(storage_config: WorkPoolStorageConfiguration) -> str
         "prefect_aws" in step for step in storage_config.bundle_upload_step.keys()
     ):
         return "S3"
+    if storage_config.bundle_upload_step and any(
+        "prefect_gcp" in step for step in storage_config.bundle_upload_step.keys()
+    ):
+        return "GCS"
+    if storage_config.bundle_upload_step and any(
+        "prefect_azure" in step for step in storage_config.bundle_upload_step.keys()
+    ):
+        return "Azure Blob Storage"
     return "Unknown"
 
 
@@ -771,14 +779,11 @@ work_pool_storage_app.add_typer(work_pool_storage_configure_app)
 
 @work_pool_storage_configure_app.command()
 async def s3(
-    work_pool_name: Annotated[
-        str,
-        typer.Argument(
-            ...,
-            help="The name of the work pool to configure storage for.",
-            show_default=False,
-        ),
-    ],
+    work_pool_name: str = typer.Argument(
+        ...,
+        help="The name of the work pool to configure storage for.",
+        show_default=False,
+    ),
     bucket: str = typer.Option(
         ...,
         "--bucket",
@@ -789,7 +794,7 @@ async def s3(
     credentials_block_name: str = typer.Option(
         ...,
         "--aws-credentials-block-name",
-        help="The name of the credentials block to use.",
+        help="The name of the AWS credentials block to use.",
         show_default=False,
         prompt="Enter the name of the AWS credentials block to use",
     ),
@@ -799,7 +804,7 @@ async def s3(
 
     \b
     Examples:
-        $ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --credentials-block-name my-credentials
+        $ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-credentials-block-name my-credentials
     """
     # TODO: Allow passing in AWS keys and creating a block for the user.
     async with get_client() as client:
@@ -838,3 +843,140 @@ async def s3(
             exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
 
         exit_with_success(f"Configured S3 storage for work pool {work_pool_name!r}")
+
+
+@work_pool_storage_configure_app.command()
+async def gcs(
+    work_pool_name: str = typer.Argument(
+        ...,
+        help="The name of the work pool to configure storage for.",
+        show_default=False,
+    ),
+    bucket: str = typer.Option(
+        ...,
+        "--bucket",
+        help="The name of the Google Cloud Storage bucket to use.",
+        show_default=False,
+        prompt="Enter the name of the Google Cloud Storage bucket to use",
+    ),
+    credentials_block_name: str = typer.Option(
+        ...,
+        "--gcp-credentials-block-name",
+        help="The name of the Google Cloud credentials block to use.",
+        show_default=False,
+        prompt="Enter the name of the Google Cloud credentials block to use",
+    ),
+):
+    """
+    EXPERIMENTAL: Configure Google Cloud storage for a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-credentials-block-name my-credentials
+    """
+    async with get_client() as client:
+        try:
+            await client.read_block_document_by_name(
+                name=credentials_block_name, block_type_slug="gcp-credentials"
+            )
+        except ObjectNotFound:
+            exit_with_error(
+                f"GCS credentials block {credentials_block_name!r} does not exist. Please create one using `prefect block create gcp-credentials`."
+            )
+
+        try:
+            await client.update_work_pool(
+                work_pool_name=work_pool_name,
+                work_pool=WorkPoolUpdate(
+                    storage_configuration=WorkPoolStorageConfiguration(
+                        bundle_upload_step={
+                            "prefect_gcp.experimental.bundles.upload": {
+                                "requires": "prefect-gcp",
+                                "bucket": bucket,
+                                "credentials_block_name": credentials_block_name,
+                            }
+                        },
+                        bundle_execution_step={
+                            "prefect_gcp.experimental.bundles.execute": {
+                                "requires": "prefect-gcp",
+                                "bucket": bucket,
+                                "credentials_block_name": credentials_block_name,
+                            }
+                        },
+                    ),
+                ),
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
+
+        exit_with_success(f"Configured GCS storage for work pool {work_pool_name!r}")
+
+
+@work_pool_storage_configure_app.command()
+async def azure_blob_storage(
+    work_pool_name: str = typer.Argument(
+        ...,
+        help="The name of the work pool to configure storage for.",
+        show_default=False,
+    ),
+    container: str = typer.Option(
+        ...,
+        "--container",
+        help="The name of the Azure Blob Storage container to use.",
+        show_default=False,
+        prompt="Enter the name of the Azure Blob Storage container to use",
+    ),
+    credentials_block_name: str = typer.Option(
+        ...,
+        "--azure-blob-storage-credentials-block-name",
+        help="The name of the Azure Blob Storage credentials block to use.",
+        show_default=False,
+        prompt="Enter the name of the Azure Blob Storage credentials block to use",
+    ),
+):
+    """
+    EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
+
+    \b
+    Examples:
+        $ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
+    """
+    async with get_client() as client:
+        try:
+            await client.read_block_document_by_name(
+                name=credentials_block_name,
+                block_type_slug="azure-blob-storage-credentials",
+            )
+        except ObjectNotFound:
+            exit_with_error(
+                f"Azure Blob Storage credentials block {credentials_block_name!r} does not exist. Please create one using `prefect block create azure-blob-storage-credentials`."
+            )
+
+        try:
+            await client.update_work_pool(
+                work_pool_name=work_pool_name,
+                work_pool=WorkPoolUpdate(
+                    storage_configuration=WorkPoolStorageConfiguration(
+                        bundle_upload_step={
+                            "prefect_azure.experimental.bundles.upload": {
+                                "requires": "prefect-azure",
+                                "container": container,
+                                "azure_blob_storage_credentials_block_name": credentials_block_name,
+                            }
+                        },
+                        bundle_execution_step={
+                            "prefect_azure.experimental.bundles.execute": {
+                                "requires": "prefect-azure",
+                                "container": container,
+                                "azure_blob_storage_credentials_block_name": credentials_block_name,
+                            }
+                        },
+                    ),
+                ),
+            )
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
+
+        exit_with_success(
+            f"Configured Azure Blob Storage for work pool {work_pool_name!r}"
+        )

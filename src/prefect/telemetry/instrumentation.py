@@ -1,6 +1,6 @@
 import logging
-import os
 import re
+import socket
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 from uuid import UUID
@@ -74,7 +74,7 @@ def setup_exporters(
     resource = Resource.create(
         {
             "service.name": "prefect",
-            "service.instance.id": os.uname().nodename,
+            "service.instance.id": socket.gethostname(),
             "prefect.account": str(account_id),
             "prefect.workspace": str(workspace_id),
         }

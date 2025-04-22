@@ -636,7 +636,12 @@ class Runner:
 
                     return process
 
-    async def execute_bundle(self, bundle: SerializedBundle) -> None:
+    async def execute_bundle(
+        self,
+        bundle: SerializedBundle,
+        cwd: Path | str | None = None,
+        env: dict[str, str | None] | None = None,
+    ) -> None:
         """
         Executes a bundle in a subprocess.
         """
@@ -651,7 +656,7 @@ class Runner:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
-            process = execute_bundle_in_subprocess(bundle)
+            process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
 
             if process.pid is None:
                 # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
@@ -776,7 +781,7 @@ class Runner:
         if command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
-            runner_command = shlex.split(command)
+            runner_command = shlex.split(command, posix=(os.name != "nt"))
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
