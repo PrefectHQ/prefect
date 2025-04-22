@@ -409,7 +409,15 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             self.test_mode = bool(os.getenv("PREFECT_DOCKER_TEST_MODE", False))
         else:
             self.test_mode = test_mode
+        self.__tmp_dir = None
         super().__init__(*args, **kwargs)
+
+    @property
+    def _tmp_dir(self) -> str:
+        """Returns a temporary directory for the worker."""
+        if self.__tmp_dir is None:
+            self.__tmp_dir = tempfile.mkdtemp()
+        return self.__tmp_dir
 
     async def setup(self):
         if not self.test_mode:
@@ -477,103 +485,99 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         )
 
         bundle_key = str(uuid.uuid4())
-        with tempfile.TemporaryDirectory(
-            delete=storage_configured_on_work_pool
-        ) as temp_dir:
-            upload_command = None
-            if not storage_configured_on_work_pool:
-                execute_command = convert_step_to_command(
-                    {"prefect._experimental.bundles.execute": {"requires": "prefect"}},
-                    f"/tmp/{bundle_key}",
-                )
-                existing_volumes: list[str] = (
-                    get_from_dict(
-                        self.work_pool.base_job_template,
-                        "configuration.properties.volumes.default",
-                    )
-                    or []
-                )
-                job_variable_volumes: list[str] = (
-                    job_variables.get("volumes", []) if job_variables else []
-                )
-                job_variables = (job_variables or {}) | {
-                    "command": " ".join(execute_command),
-                    "volumes": [
-                        *existing_volumes,
-                        *job_variable_volumes,
-                        # This is a temporary volume for the bundle
-                        f"{temp_dir}:/tmp/",
-                    ],
-                }
-            else:
-                if TYPE_CHECKING:
-                    assert (
-                        self.work_pool.storage_configuration.bundle_upload_step
-                        is not None
-                    )
-                    assert (
-                        self.work_pool.storage_configuration.bundle_execution_step
-                        is not None
-                    )
-                upload_command = convert_step_to_command(
-                    self.work_pool.storage_configuration.bundle_upload_step,
-                    bundle_key,
-                    quiet=True,
-                )
-                execute_command = convert_step_to_command(
-                    self.work_pool.storage_configuration.bundle_execution_step,
-                    bundle_key,
-                )
-
-                job_variables = (job_variables or {}) | {
-                    "command": " ".join(execute_command)
-                }
-            flow_run = await self.client.create_flow_run(
-                flow,
-                parameters=parameters,
-                state=Pending(),
-                job_variables=job_variables,
-                work_pool_name=self.work_pool.name,
+        upload_command = None
+        if not storage_configured_on_work_pool:
+            execute_command = convert_step_to_command(
+                {"prefect._experimental.bundles.execute": {"requires": "prefect"}},
+                f"/tmp/{bundle_key}",
             )
-            if task_status is not None:
-                # Emit the flow run object to .submit to allow it to return a future as soon as possible
-                task_status.started(flow_run)
-            # Avoid an API call to get the flow
-            api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
-            logger = self.get_flow_run_logger(flow_run)
-
-            configuration = await self.job_configuration.from_template_and_values(
-                base_job_template=self.work_pool.base_job_template,
-                values=job_variables,
-                client=self._client,
+            existing_volumes: list[str] = (
+                get_from_dict(
+                    self.work_pool.base_job_template,
+                    "configuration.properties.volumes.default",
+                )
+                or []
             )
-            configuration.prepare_for_flow_run(
-                flow_run=flow_run,
-                flow=api_flow,
-                work_pool=self.work_pool,
-                worker_name=self.name,
+            job_variable_volumes: list[str] = (
+                job_variables.get("volumes", []) if job_variables else []
+            )
+            job_variables = (job_variables or {}) | {
+                "command": " ".join(execute_command),
+                "volumes": [
+                    *existing_volumes,
+                    *job_variable_volumes,
+                    # This is a temporary volume for the bundle
+                    f"{self._tmp_dir}:/tmp/",
+                ],
+            }
+        else:
+            if TYPE_CHECKING:
+                assert (
+                    self.work_pool.storage_configuration.bundle_upload_step is not None
+                )
+                assert (
+                    self.work_pool.storage_configuration.bundle_execution_step
+                    is not None
+                )
+            upload_command = convert_step_to_command(
+                self.work_pool.storage_configuration.bundle_upload_step,
+                bundle_key,
+                quiet=True,
+            )
+            execute_command = convert_step_to_command(
+                self.work_pool.storage_configuration.bundle_execution_step,
+                bundle_key,
             )
 
-            bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+            job_variables = (job_variables or {}) | {
+                "command": " ".join(execute_command)
+            }
+        flow_run = await self.client.create_flow_run(
+            flow,
+            parameters=parameters,
+            state=Pending(),
+            job_variables=job_variables,
+            work_pool_name=self.work_pool.name,
+        )
+        if task_status is not None:
+            # Emit the flow run object to .submit to allow it to return a future as soon as possible
+            task_status.started(flow_run)
+        # Avoid an API call to get the flow
+        api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+        logger = self.get_flow_run_logger(flow_run)
 
-            await (
-                anyio.Path(temp_dir)
-                .joinpath(bundle_key)
-                .write_bytes(json.dumps(bundle).encode("utf-8"))
-            )
+        configuration = await self.job_configuration.from_template_and_values(
+            base_job_template=self.work_pool.base_job_template,
+            values=job_variables,
+            client=self._client,
+        )
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=api_flow,
+            work_pool=self.work_pool,
+            worker_name=self.name,
+        )
 
-            if upload_command:
-                try:
-                    full_command = upload_command + [bundle_key]
-                    logger.debug(
-                        "Uploading execution bundle with command: %s", full_command
-                    )
-                    await anyio.run_process(
-                        full_command,
-                        cwd=temp_dir,
-                    )
-                except subprocess.CalledProcessError as e:
-                    raise RuntimeError(e.stderr.decode("utf-8")) from e
+        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+        await (
+            anyio.Path(self._tmp_dir)
+            .joinpath(bundle_key)
+            .write_bytes(json.dumps(bundle).encode("utf-8"))
+        )
+
+        if upload_command:
+            try:
+                full_command = upload_command + [bundle_key]
+                logger.debug(
+                    "Uploading execution bundle with command: %s", full_command
+                )
+                await anyio.run_process(
+                    full_command,
+                    cwd=self._tmp_dir,
+                )
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(e.stderr.decode("utf-8")) from e
 
         logger.debug("Successfully uploaded execution bundle")
 
