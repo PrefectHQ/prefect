@@ -23,6 +23,7 @@ from yaml.error import YAMLError
 
 import prefect
 from prefect._experimental.sla.objects import SlaTypes
+from prefect._versioning import get_inferred_version_info
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -45,7 +46,7 @@ from prefect.client.base import ServerType
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, VersionInfo
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -263,6 +264,11 @@ async def deploy(
             " will be populated from the flow's description."
         ),
     ),
+    version_type: str = typer.Option(
+        None,
+        "--version-type",
+        help="The type of version to use for this deployment.",
+    ),
     version: str = typer.Option(
         None, "--version", help="A version to give the deployment."
     ),
@@ -414,6 +420,7 @@ async def deploy(
     options: dict[str, Any] = {
         "entrypoint": entrypoint,
         "description": description,
+        "version_type": version_type,
         "version": version,
         "tags": tags,
         "concurrency_limit": concurrency_limit_config,
@@ -760,7 +767,10 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    apply_coro = deployment.apply()
+    version_info = await _version_info_from_options(options, deploy_config)
+
+    app.console.print(f"Version info: {version_info}")
+    apply_coro = deployment.apply(version_info=version_info)
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 
@@ -851,6 +861,21 @@ async def _run_single_deploy(
         ),
         style="blue",
     )
+
+
+async def _version_info_from_options(
+    options: dict[str, Any], deploy_config: dict[str, Any]
+) -> VersionInfo | None:
+    if version_type := (
+        options.get("version_type") or deploy_config.get("version_type")
+    ):
+        app.console.print(f"Inferring version info for {version_type}...")
+        return await get_inferred_version_info(version_type)
+
+    if version := options.get("version"):
+        return VersionInfo(type="prefect:simple", version=version)
+
+    return None
 
 
 async def _run_multi_deploy(

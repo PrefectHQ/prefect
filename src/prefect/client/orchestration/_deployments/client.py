@@ -153,13 +153,14 @@ class DeploymentClient(BaseClient):
             if getattr(deployment_create, field) is None:
                 exclude.add(field)
 
-        json = deployment_create.model_dump(mode="json", exclude=exclude)
+        payload = deployment_create.model_dump(mode="json", exclude=exclude)
+        if deployment_create.version_info:
+            payload["version_info"] = deployment_create.version_info.model_dump(
+                mode="json"
+            )
 
-        response = self.request(
-            "POST",
-            "/deployments/",
-            json=json,
-        )
+        response = self.request("POST", "/deployments/", json=payload)
+
         deployment_id = response.json().get("id")
         if not deployment_id:
             raise RequestError(f"Malformed response: {response}")
@@ -179,15 +180,28 @@ class DeploymentClient(BaseClient):
         deployment_id: UUID,
         deployment: "DeploymentUpdate",
     ) -> None:
+        exclude_if_none = [
+            "version_info",
+        ]
+
+        exclude = {"name", "flow_name", "triggers"}
+        for field in exclude_if_none:
+            if getattr(deployment, field) is None:
+                exclude.add(field)
+
+        payload = deployment.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude=exclude,
+        )
+        if deployment.version_info:
+            payload["version_info"] = deployment.version_info.model_dump(mode="json")
+
         self.request(
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
-            json=deployment.model_dump(
-                mode="json",
-                exclude_unset=True,
-                exclude={"name", "flow_name", "triggers"},
-            ),
+            json=payload,
         )
 
     def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> UUID:
@@ -733,13 +747,13 @@ class DeploymentAsyncClient(BaseAsyncClient):
             if getattr(deployment_create, field) is None:
                 exclude.add(field)
 
-        json = deployment_create.model_dump(mode="json", exclude=exclude)
+        payload = deployment_create.model_dump(mode="json", exclude=exclude)
+        if deployment_create.version_info:
+            payload["version_info"] = deployment_create.version_info.model_dump(
+                mode="json"
+            )
 
-        response = await self.request(
-            "POST",
-            "/deployments/",
-            json=json,
-        )
+        response = await self.request("POST", "/deployments/", json=payload)
         deployment_id = response.json().get("id")
         if not deployment_id:
             raise RequestError(f"Malformed response: {response}")
@@ -761,15 +775,28 @@ class DeploymentAsyncClient(BaseAsyncClient):
         deployment_id: UUID,
         deployment: "DeploymentUpdate",
     ) -> None:
+        exclude_if_none = [
+            "version_info",
+        ]
+
+        exclude = {"name", "flow_name", "triggers"}
+        for field in exclude_if_none:
+            if getattr(deployment, field) is None:
+                exclude.add(field)
+
+        payload = deployment.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude=exclude,
+        )
+        if deployment.version_info:
+            payload["version_info"] = deployment.version_info.model_dump(mode="json")
+
         await self.request(
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
-            json=deployment.model_dump(
-                mode="json",
-                exclude_unset=True,
-                exclude={"name", "flow_name", "triggers"},
-            ),
+            json=payload,
         )
 
     async def _create_deployment_from_schema(self, schema: "DeploymentCreate") -> UUID:
