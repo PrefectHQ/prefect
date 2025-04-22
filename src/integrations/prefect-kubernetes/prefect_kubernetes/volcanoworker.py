@@ -1,11 +1,11 @@
-"""volcanoworker.py – Custom Prefect worker that can handle both Kubernetes **batch/v1**
+"""volcanoworker.py – Custom Prefect worker that can handle both Kubernetes **batch/v1**
 Jobs *and* Volcano **batch.volcano.sh/v1alpha1** Jobs.
 
 * Default base‑job‑template is **Kubernetes** (so existing pools need not change).
 * If a deployment (or pool base‑template) overrides `apiVersion` to
   `batch.volcano.sh/v1alpha1`, this worker automatically switches to Volcano
-  logic: creation via `CustomObjectsApi`, pod selector `volcano.sh/job-name`,
-  status polling via Job `status.state`.
+  logic: creation via `CustomObjectsApi`, pod selector `volcano.sh/job-name`,
+  status polling via Job `status.state`.
 * Otherwise it behaves exactly like the upstream `KubernetesWorker`.
 
 Only minimal, internal‑use functionality is implemented.
@@ -178,11 +178,11 @@ class VolcanoWorker(KubernetesWorker):
         """
         Locate the first Pod belonging to the Job.
 
-        - Volcano Job：依次尝试
+        - Volcano Job: Try the following in order:
             1. `volcano.sh/job-name=<job>`
             2. `job-name=<job>`
             3. ownerReferences.name == <job>
-        - batch/v1 Job：保持父类行为
+        - batch/v1 Job: Maintain parent class behavior
         """
         timeout = configuration.pod_watch_timeout_seconds or 0
         deadline = anyio.current_time() + timeout if timeout else None
@@ -194,28 +194,28 @@ class VolcanoWorker(KubernetesWorker):
         ]
 
         while True:
-            # 1. 先按 label selector 查
+            # 1. First try label selector
             for sel in selectors:
                 pods = await core.list_namespaced_pod(
                     configuration.namespace, label_selector=sel
                 )
                 if pods.items:
-                    return pods.items[0]            # ← 找到了！
+                    return pods.items[0]            # ← Found it!
 
-            # 2. 再兜底 ownerReferences
+            # 2. Fallback to ownerReferences
             pods = await core.list_namespaced_pod(configuration.namespace)
             for pod in pods.items:
                 for ref in pod.metadata.owner_references or []:
                     if ref.kind.lower() == "job" and ref.name == job_name:
                         return pod
 
-            # ——— 没找到；判断是否超时 ———
+            # --- Not found; check if timeout reached ---
             if deadline and anyio.current_time() >= deadline:
                 logger.error("Pod for Volcano Job %s not found in %ss",
                             job_name, timeout)
                 return None
 
-            await asyncio.sleep(2)   # 每 2 秒再查一次
+            await asyncio.sleep(2)   # Check again every 2 seconds
 
     # ------------------------------------------------------------------
     # Watch logic; for Volcano we poll status.state
@@ -249,7 +249,7 @@ class VolcanoWorker(KubernetesWorker):
                 )
                 state_obj = job.get("status", {}).get("state", "Unknown")
 
-                # 安全兼容判断（防止 future 出现 dict）
+                # Safe compatibility check (prevent future dict issues)
                 if isinstance(state_obj, dict):
                     state = state_obj.get("phase", "Unknown")
                 else:
@@ -260,7 +260,7 @@ class VolcanoWorker(KubernetesWorker):
                     return state
                 await asyncio.sleep(5)
 
-        # 注意：必须将协程包装为 Task，否则 asyncio.wait 会报 TypeError
+        # Note: Must wrap coroutine as Task, otherwise asyncio.wait will raise TypeError
         poll_task = asyncio.create_task(_poll_state())
         tasks = [poll_task]
 
@@ -275,7 +275,7 @@ class VolcanoWorker(KubernetesWorker):
         final_state: str = next(iter(done)).result()
         logger.info("Volcano Job %s finished with state %s", job_name, final_state)
 
-        # 读取容器状态作为退出码
+        # Read container status as exit code
         core = CoreV1Api(client)
         pod = await core.read_namespaced_pod(pod.metadata.name, configuration.namespace)
         cs = pod.status.container_statuses and pod.status.container_statuses[0]
@@ -305,17 +305,17 @@ class VolcanoWorker(KubernetesWorker):
         secret_key: str | None = None,
     ):
         """
-        与父类相同逻辑，但先找到“主” container，再读/写 env，
-        从而兼容 batch/v1 **和** Volcano 两种 manifest。
+        Same logic as parent class, but first finds the "main" container, then reads/writes env,
+        to be compatible with both batch/v1 **and** Volcano manifests.
         """
         container = configuration._main_container()
 
-        # 取出 env 列表；如果为空就新建
+        # Get env list; create new one if empty
         manifest_env: list[dict[str, Any]] = container.get("env") or []
         container["env"] = manifest_env
 
         # ------------------------------------------------------------
-        # 下面的内容与父类基本一致，只是用了 manifest_env 变量
+        # Content below is basically the same as parent class, just using manifest_env variable
         # ------------------------------------------------------------
         api_key_entry = next(
             (e for e in manifest_env if e.get("name") == "PREFECT_API_KEY"), {}
@@ -330,7 +330,7 @@ class VolcanoWorker(KubernetesWorker):
                 namespace=configuration.namespace,
                 client=client,
             )
-            # 记录，便于 worker 退出时删除
+            # Record for deletion when worker exits
             self._created_secrets[(secret.metadata.name, secret.metadata.namespace)] = (
                 configuration
             )
@@ -343,7 +343,7 @@ class VolcanoWorker(KubernetesWorker):
                     "secretKeyRef": {"name": secret_name, "key": secret_key}
                 },
             }
-            # 用新 entry 替换旧的
+            # Replace old entry with new one
             container["env"] = [
                 new_entry if e.get("name") == "PREFECT_API_KEY" else e
                 for e in manifest_env
@@ -361,7 +361,7 @@ class VolcanoWorker(KubernetesWorker):
             logger.info("Creating Kubernetes/Volcano job...")
             job = await self._create_job(configuration, client)
 
-            # -------- 修正点：适配 dict / V1Job 两种返回 ----------
+            # -------- Fix point: Adapt to both dict / V1Job returns ----------
             if isinstance(job, dict):        # Volcano path
                 job_name   = job["metadata"]["name"]
                 namespace  = job["metadata"]["namespace"]
@@ -373,7 +373,7 @@ class VolcanoWorker(KubernetesWorker):
             if task_status is not None:
                 task_status.started(pid)
 
-            # 其余逻辑与父类完全相同，只是把 `namespace` 传进去 ----------------
+            # The rest of the logic is identical to the parent class, just passing in `namespace` ----------------
             events_replicator = KubernetesEventsReplicator(
                 client=client,
                 job_name=job_name,
