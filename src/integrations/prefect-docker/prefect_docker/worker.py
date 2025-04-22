@@ -26,7 +26,6 @@ import tempfile
 import urllib.parse
 import uuid
 import warnings
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -487,13 +486,10 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         ) as temp_dir:
             upload_command = None
             if not storage_configured_on_work_pool:
-                execute_command = [
-                    "python",
-                    "-m",
-                    "prefect._experimental.bundles.execute",
-                    "--key",
-                    (Path("/tmp") / bundle_key).as_posix(),
-                ]
+                execute_command = convert_step_to_command(
+                    {"prefect._experimental.bundles.execute": {"requires": "prefect"}},
+                    f"/tmp/{bundle_key}",
+                )
                 existing_volumes: list[str] = (
                     get_from_dict(
                         self._work_pool.base_job_template,
