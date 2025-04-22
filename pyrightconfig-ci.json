@@ -57,6 +57,7 @@
 		"src/prefect/_internal/pytz.py",
 		"src/prefect/_internal/retries.py",
 		"src/prefect/_vendor/",
+		"src/prefect/_versioning.py",
 		"src/prefect/blocks/",
 		"src/prefect/cli/",
 		"src/prefect/deployments/",
