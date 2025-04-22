@@ -512,7 +512,13 @@ class AzureContainerWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
-class AzureContainerWorker(BaseWorker):
+class AzureContainerWorker(
+    BaseWorker[
+        AzureContainerJobConfiguration,
+        AzureContainerVariables,
+        AzureContainerWorkerResult,
+    ]
+):
     """
     A Prefect worker that runs flows in an Azure Container Instance.
     """

@@ -24,7 +24,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.1.1",
+  "prefect>=3.3.5",
   "google-api-python-client>=2.20.0",
   "google-cloud-storage>=2.0.0",
   "tenacity>=8.0.0",

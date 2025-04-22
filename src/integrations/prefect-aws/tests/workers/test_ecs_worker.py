@@ -1146,13 +1146,11 @@ async def test_network_config_from_custom_settings_invalid_subnet(
 
     def handle_error(exc_group: ExceptionGroup):
         assert len(exc_group.exceptions) == 1
-        assert isinstance(exc_group.exceptions[0], ExceptionGroup)
-        assert len(exc_group.exceptions[0].exceptions) == 1
-        assert isinstance(exc_group.exceptions[0].exceptions[0], ValueError)
+        assert isinstance(exc_group.exceptions[0], ValueError)
         assert (
             f"Subnets ['sn-8asdas'] not found within VPC with ID {vpc.id}."
             "Please check that VPC is associated with supplied subnets."
-        ) in str(exc_group.exceptions[0].exceptions[0])
+        ) in str(exc_group.exceptions[0])
 
     with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
@@ -1191,13 +1189,11 @@ async def test_network_config_from_custom_settings_invalid_subnet_multiple_vpc_s
 
     def handle_error(exc_group: ExceptionGroup):
         assert len(exc_group.exceptions) == 1
-        assert isinstance(exc_group.exceptions[0], ExceptionGroup)
-        assert len(exc_group.exceptions[0].exceptions) == 1
-        assert isinstance(exc_group.exceptions[0].exceptions[0], ValueError)
+        assert isinstance(exc_group.exceptions[0], ValueError)
         assert (
             f"Subnets ['{invalid_subnet_id}', '{subnet.id}'] not found within VPC with ID"
             f" {vpc.id}.Please check that VPC is associated with supplied subnets."
-        ) in str(exc_group.exceptions[0].exceptions[0])
+        ) in str(exc_group.exceptions[0])
 
     with catch({ValueError: handle_error}):
         async with ECSWorker(work_pool_name="test") as worker:
@@ -1308,9 +1304,7 @@ async def test_network_config_missing_default_vpc(
     configuration = await construct_configuration(aws_credentials=aws_credentials)
 
     def handle_error(exc_grp: ExceptionGroup):
-        assert len(exc_grp.exceptions) == 1
-        assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
-        exc = exc_grp.exceptions[0].exceptions[0]
+        exc = exc_grp.exceptions[0]
         assert isinstance(exc, ValueError)
         assert "Failed to find the default VPC" in str(exc)
 
@@ -1333,9 +1327,7 @@ async def test_network_config_from_vpc_with_no_subnets(
     )
 
     def handle_error(exc_grp: ExceptionGroup):
-        assert len(exc_grp.exceptions) == 1
-        assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
-        exc = exc_grp.exceptions[0].exceptions[0]
+        exc = exc_grp.exceptions[0]
         assert isinstance(exc, ValueError)
         assert "Failed to find subnets for VPC with ID" in str(exc)
 
@@ -1358,9 +1350,7 @@ async def test_bridge_network_mode_raises_on_fargate(
     )
 
     def handle_error(exc_grp: ExceptionGroup):
-        assert len(exc_grp.exceptions) == 1
-        assert isinstance(exc_grp.exceptions[0], ExceptionGroup)
-        exc = exc_grp.exceptions[0].exceptions[0]
+        exc = exc_grp.exceptions[0]
         assert isinstance(exc, ValueError)
         assert (
             "Found network mode 'bridge' which is not compatible with launch type"

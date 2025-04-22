@@ -469,7 +469,13 @@ class CloudRunWorkerV2Result(BaseWorkerResult):
     """
 
 
-class CloudRunWorkerV2(BaseWorker):
+class CloudRunWorkerV2(
+    BaseWorker[
+        CloudRunWorkerJobV2Configuration,
+        CloudRunWorkerV2Variables,
+        CloudRunWorkerV2Result,
+    ]
+):
     """
     The Cloud Run worker V2.
     """

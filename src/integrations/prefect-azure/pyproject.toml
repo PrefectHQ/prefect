@@ -28,7 +28,7 @@ dependencies = [
   "azure_identity>=1.10",
   "azure_mgmt_containerinstance>=10.0",
   "azure-mgmt-resource>=21.2",
-  "prefect>=3.1.1",
+  "prefect>=3.3.5",
   "prefect-docker>=0.6.2",
   "setuptools",                         #required in 3.12 to get pkg_resources (used by azureml.core)
 ]
