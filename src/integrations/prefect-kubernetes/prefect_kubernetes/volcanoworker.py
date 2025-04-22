@@ -10,56 +10,49 @@ Jobs *and* Volcano **batch.volcano.sh/v1alpha1** Jobs.
 
 Only minimal, internal‑use functionality is implemented.
 """
+
 from __future__ import annotations
 
 import asyncio
-import anyio
-import json
 import logging
 import shlex
-from datetime import datetime
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
-import kubernetes_asyncio
+import anyio
 from kubernetes_asyncio.client import (
     ApiClient,
     CoreV1Api,
     CustomObjectsApi,
     V1Pod,
-    BatchV1Api,
 )
 from kubernetes_asyncio.client.exceptions import ApiException
-from kubernetes_asyncio.client.models import CoreV1Event, CoreV1EventList
 from pydantic import Field, model_validator
-from typing_extensions import Self
 
 from prefect.utilities.dockerutils import get_prefect_image_name
-from prefect.utilities.templating import find_placeholders
+from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
-    _slugify_label_key,
-    _slugify_label_value,
     _slugify_name,
 )
-from prefect_kubernetes.events import KubernetesEventsReplicator
-from prefect_kubernetes.settings import KubernetesSettings
 from prefect_kubernetes.worker import (
     KubernetesWorker,
     KubernetesWorkerJobConfiguration,
-    KubernetesWorkerVariables,
     KubernetesWorkerResult,
+    KubernetesWorkerVariables,
 )
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client import ApiClient
-    from prefect_kubernetes.volcanoworker import (          # noqa: F401
-        VolcanoWorkerJobConfiguration,
-        KubernetesWorkerResult,
-    )
+
     from prefect.client.schemas.objects import FlowRun
+    from prefect_kubernetes.volcanoworker import (  # noqa: F401
+        KubernetesWorkerResult,
+        VolcanoWorkerJobConfiguration,
+    )
 
 # ---------------------------------------------------------------------------
 # Job configuration ----------------------------------------------------------
 # ---------------------------------------------------------------------------
+
 
 class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
     """Configuration that accepts both batch/v1 *and* Volcano manifests."""
@@ -71,13 +64,13 @@ class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
     # Validation override
     # ---------------------------------------------------------------------
 
-    @model_validator(mode="after")              
-    def _validate_job_manifest(cls, self):      
+    @model_validator(mode="after")
+    def _validate_job_manifest(cls, self):
         api_version = self.job_manifest.get("apiVersion", "batch/v1")
         if api_version == "batch.volcano.sh/v1alpha1":
             if "tasks" not in self.job_manifest.get("spec", {}):
                 raise ValueError("Volcano job must contain spec.tasks")
-            return self                       
+            return self
         return super()._validate_job_manifest()
 
     # ------------------------------------------------------------------
@@ -86,7 +79,9 @@ class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
 
     def _main_container(self) -> Dict[str, Any]:
         if self.job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
-            return self.job_manifest["spec"]["tasks"][0]["template"]["spec"]["containers"][0]
+            return self.job_manifest["spec"]["tasks"][0]["template"]["spec"][
+                "containers"
+            ][0]
         return self.job_manifest["spec"]["template"]["spec"]["containers"][0]
 
     # Replace populate helpers so they use _main_container()
@@ -112,16 +107,20 @@ class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
         existing = container.get("env") or []
         container["env"] = [*env, *existing]
 
+
 # ---------------------------------------------------------------------------
 # Variable schema (inherits everything, plus queue) -------------------------
 # ---------------------------------------------------------------------------
 
+
 class VolcanoWorkerVariables(KubernetesWorkerVariables):
     queue: str = Field(default="default", description="Volcano queue name")
+
 
 # ---------------------------------------------------------------------------
 # Worker implementation ------------------------------------------------------
 # ---------------------------------------------------------------------------
+
 
 class VolcanoWorker(KubernetesWorker):
     """Worker that detects manifest kind at runtime and submits to Volcano if asked."""
@@ -137,7 +136,9 @@ class VolcanoWorker(KubernetesWorker):
     # Job‑creation / fetch overrides
     # ---------------------------------------------------------------------
 
-    async def _create_job(self, configuration: VolcanoWorkerJobConfiguration, client: ApiClient):  # type: ignore[override]
+    async def _create_job(
+        self, configuration: VolcanoWorkerJobConfiguration, client: ApiClient
+    ):  # type: ignore[override]
         api_version = configuration.job_manifest.get("apiVersion", "batch/v1")
         if api_version == "batch.volcano.sh/v1alpha1":
             await self._replace_api_key_with_secret(configuration, client)
@@ -152,7 +153,13 @@ class VolcanoWorker(KubernetesWorker):
         # else fall back to parent (Kubernetes Job)
         return await super()._create_job(configuration, client)  # type: ignore[arg-type]
 
-    async def _get_job(self, logger: logging.Logger, job_name: str, configuration: VolcanoWorkerJobConfiguration, client: ApiClient):  # noqa: E501
+    async def _get_job(
+        self,
+        logger: logging.Logger,
+        job_name: str,
+        configuration: VolcanoWorkerJobConfiguration,
+        client: ApiClient,
+    ):  # noqa: E501
         if configuration.job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
             api = CustomObjectsApi(client)
             try:
@@ -168,7 +175,7 @@ class VolcanoWorker(KubernetesWorker):
                 return None
         return await super()._get_job(logger, job_name, configuration, client)  # type: ignore[arg-type]
 
-    async def _get_job_pod(            # noqa: E501
+    async def _get_job_pod(  # noqa: E501
         self,
         logger: logging.Logger,
         job_name: str,
@@ -200,7 +207,7 @@ class VolcanoWorker(KubernetesWorker):
                     configuration.namespace, label_selector=sel
                 )
                 if pods.items:
-                    return pods.items[0]            # ← Found it!
+                    return pods.items[0]  # ← Found it!
 
             # 2. Fallback to ownerReferences
             pods = await core.list_namespaced_pod(configuration.namespace)
@@ -211,11 +218,12 @@ class VolcanoWorker(KubernetesWorker):
 
             # --- Not found; check if timeout reached ---
             if deadline and anyio.current_time() >= deadline:
-                logger.error("Pod for Volcano Job %s not found in %ss",
-                            job_name, timeout)
+                logger.error(
+                    "Pod for Volcano Job %s not found in %ss", job_name, timeout
+                )
                 return None
 
-            await asyncio.sleep(2)   # Check again every 2 seconds
+            await asyncio.sleep(2)  # Check again every 2 seconds
 
     # ------------------------------------------------------------------
     # Watch logic; for Volcano we poll status.state
@@ -230,7 +238,9 @@ class VolcanoWorker(KubernetesWorker):
         flow_run: "FlowRun",
     ) -> int:
         if configuration.job_manifest.get("apiVersion") != "batch.volcano.sh/v1alpha1":
-            return await super()._watch_job(logger, job_name, configuration, client, flow_run)  # type: ignore[arg-type]
+            return await super()._watch_job(
+                logger, job_name, configuration, client, flow_run
+            )  # type: ignore[arg-type]
 
         # Volcano path ---------------------------------------------------
         pod = await self._get_job_pod(logger, job_name, configuration, client)
@@ -266,7 +276,9 @@ class VolcanoWorker(KubernetesWorker):
 
         if configuration.stream_output:
             stream_task = asyncio.create_task(
-                self._stream_job_logs(logger, pod.metadata.name, job_name, configuration, client)
+                self._stream_job_logs(
+                    logger, pod.metadata.name, job_name, configuration, client
+                )
             )
             tasks.append(stream_task)
 
@@ -287,7 +299,9 @@ class VolcanoWorker(KubernetesWorker):
     # PID helper override (job is dict for Volcano)
     # ------------------------------------------------------------------
 
-    async def _get_infrastructure_pid(self, job: Union[Dict[str, Any], Any], client: ApiClient) -> str:  # type: ignore[override]
+    async def _get_infrastructure_pid(
+        self, job: Union[Dict[str, Any], Any], client: ApiClient
+    ) -> str:  # type: ignore[override]
         cluster_uid = await self._get_cluster_uid(client)
         if isinstance(job, dict):  # Volcano
             ns = job["metadata"]["namespace"]
@@ -296,8 +310,8 @@ class VolcanoWorker(KubernetesWorker):
             ns = job.metadata.namespace
             name = job.metadata.name
         return f"{cluster_uid}:{ns}:{name}"
-    
-    async def _replace_api_key_with_secret(        # noqa: C901 – keep it simple
+
+    async def _replace_api_key_with_secret(  # noqa: C901 – keep it simple
         self,
         configuration: VolcanoWorkerJobConfiguration,
         client: ApiClient,
@@ -339,9 +353,7 @@ class VolcanoWorker(KubernetesWorker):
             secret_key = secret_key or "value"
             new_entry = {
                 "name": "PREFECT_API_KEY",
-                "valueFrom": {
-                    "secretKeyRef": {"name": secret_name, "key": secret_key}
-                },
+                "valueFrom": {"secretKeyRef": {"name": secret_name, "key": secret_key}},
             }
             # Replace old entry with new one
             container["env"] = [
@@ -349,7 +361,7 @@ class VolcanoWorker(KubernetesWorker):
                 for e in manifest_env
             ]
 
-    async def run(                                           # type: ignore[override]
+    async def run(  # type: ignore[override]
         self,
         flow_run: "FlowRun",
         configuration: "VolcanoWorkerJobConfiguration",
@@ -362,12 +374,12 @@ class VolcanoWorker(KubernetesWorker):
             job = await self._create_job(configuration, client)
 
             # -------- Fix point: Adapt to both dict / V1Job returns ----------
-            if isinstance(job, dict):        # Volcano path
-                job_name   = job["metadata"]["name"]
-                namespace  = job["metadata"]["namespace"]
-            else:                            # batch/v1 path
-                job_name   = job.metadata.name
-                namespace  = job.metadata.namespace
+            if isinstance(job, dict):  # Volcano path
+                job_name = job["metadata"]["name"]
+                namespace = job["metadata"]["namespace"]
+            else:  # batch/v1 path
+                job_name = job.metadata.name
+                namespace = job.metadata.namespace
 
             pid = await self._get_infrastructure_pid(job, client)
             if task_status is not None:
