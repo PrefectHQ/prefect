@@ -312,6 +312,7 @@ class TestCompoundTriggerAny:
         firing: Firing = act.call_args.args[0]
 
         assert firing.trigger.id == compound_automation_any_nested.trigger.id
+        assert firing.triggering_event == flow_run_events[-1]
 
     async def test_compound_automation_any_double_nested_trigger(
         self,
@@ -328,6 +329,7 @@ class TestCompoundTriggerAny:
         firing: Firing = act.call_args.args[0]
 
         assert firing.trigger.id == compound_automation_any_double_nested.trigger.id
+        assert firing.triggering_event == flow_run_events[-1]
 
 
 class TestCompoundTriggerAll:

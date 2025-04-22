@@ -131,7 +131,8 @@
               {
                 "group": "Static infrastructure examples",
                 "pages": [
-                  "v3/deploy/static-infrastructure-examples/docker"
+                  "v3/deploy/static-infrastructure-examples/docker",
+                  "v3/deploy/static-infrastructure-examples/background-tasks"
                 ]
               },
               "v3/deploy/daemonize-processes"
@@ -1467,6 +1468,10 @@
     {
       "destination": "/v3/api-ref/settings-ref",
       "source": "/v3/develop/settings-ref"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/store-flow-code#cloud-provider-storage",
+      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code#blob-storage"
     }
   ]
 }

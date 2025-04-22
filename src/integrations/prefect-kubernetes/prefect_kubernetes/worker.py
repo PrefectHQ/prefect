@@ -792,6 +792,7 @@ class KubernetesWorker(
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
+    # TODO: Remove this once `.submit` is available on the `BaseWorker` class in a published release
     async def submit(
         self,
         flow: "Flow[..., R]",
@@ -828,6 +829,7 @@ class KubernetesWorker(
         )
         return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 
+    # TODO: Remove this once `.submit` is available on the `BaseWorker` class in a published release
     async def _submit_adhoc_run(
         self,
         flow: "Flow[..., R]",

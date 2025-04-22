@@ -923,90 +923,337 @@ async def aws_credentials(prefect_client: PrefectClient) -> BlockDocument:
     )
 
 
+@pytest.fixture
+async def gcs_credentials(prefect_client: PrefectClient) -> BlockDocument:
+    gcs_credentials_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="GCP Credentials",
+            slug="gcp-credentials",
+        )
+    )
+
+    gcs_credentials_schema = await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=gcs_credentials_type.id,
+            fields={"properties": {"service_account_info": {"type": "object"}}},
+        )
+    )
+
+    return await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="my-gcs-creds",
+            block_type_id=gcs_credentials_type.id,
+            block_schema_id=gcs_credentials_schema.id,
+            data={
+                "service_account_info": {
+                    "type": "service_account",
+                    "project_id": "test-project",
+                    "private_key": "test-private-key",
+                    "client_email": "test-client-email",
+                    "private_key_id": "test-private-key-id",
+                    "client_id": "test-client-id",
+                }
+            },
+        )
+    )
+
+
+@pytest.fixture
+async def azure_blob_storage_credentials(
+    prefect_client: PrefectClient,
+) -> BlockDocument:
+    azure_blob_storage_credentials_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="Azure Blob Storage Credentials",
+            slug="azure-blob-storage-credentials",
+        )
+    )
+
+    azure_blob_storage_credentials_schema = await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=azure_blob_storage_credentials_type.id,
+            fields={"properties": {"account_url": {"type": "string"}}},
+        )
+    )
+
+    return await prefect_client.create_block_document(
+        block_document=BlockDocumentCreate(
+            name="my-azure-blob-storage-creds",
+            block_type_id=azure_blob_storage_credentials_type.id,
+            block_schema_id=azure_blob_storage_credentials_schema.id,
+            data={"account_url": "https://test-account.blob.core.windows.net"},
+        )
+    )
+
+
 class TestStorageConfigure:
-    async def test_storage_configure_s3(
-        self,
-        prefect_client: PrefectClient,
-        work_pool: WorkPool,
-        aws_credentials: BlockDocument,
-    ):
-        """Test configuring S3 storage for a work pool."""
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=[
-                "work-pool",
-                "storage",
-                "configure",
-                "s3",
-                work_pool.name,
-                "--bucket",
-                "test-bucket",
-                "--aws-credentials-block-name",
-                aws_credentials.name,
-            ],
-            expected_code=0,
-            expected_output_contains=[
-                f"Configured S3 storage for work pool {work_pool.name!r}"
-            ],
-        )
+    class TestS3:
+        async def test_storage_configure(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            """Test configuring S3 storage for a work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Configured S3 storage for work pool {work_pool.name!r}"
+                ],
+            )
 
-        # Verify the configuration was saved
-        client_res = await prefect_client.read_work_pool(work_pool.name)
-        assert client_res.storage_configuration.bundle_upload_step is not None
-        assert (
-            client_res.storage_configuration.bundle_upload_step[
-                "prefect_aws.experimental.bundles.upload"
-            ]["bucket"]
-            == "test-bucket"
-        )
-        assert (
-            client_res.storage_configuration.bundle_upload_step[
-                "prefect_aws.experimental.bundles.upload"
-            ]["aws_credentials_block_name"]
-            == aws_credentials.name
-        )
+            # Verify the configuration was saved
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "requires": "prefect-aws",
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "requires": "prefect-aws",
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                }
+            }
 
-    async def test_storage_configure_s3_nonexistent_pool(
-        self, aws_credentials: BlockDocument
-    ):
-        """Test configuring S3 storage for a nonexistent work pool."""
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=[
-                "work-pool",
-                "storage",
-                "configure",
-                "s3",
-                "nonexistent-pool",
-                "--bucket",
-                "test-bucket",
-                "--aws-credentials-block-name",
-                aws_credentials.name,
-            ],
-            expected_code=1,
-            expected_output_contains=["Work pool 'nonexistent-pool' does not exist"],
-        )
+        async def test_storage_configure_nonexistent_pool(
+            self, aws_credentials: BlockDocument
+        ):
+            """Test configuring S3 storage for a nonexistent work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    "nonexistent-pool",
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "Work pool 'nonexistent-pool' does not exist"
+                ],
+            )
 
-    async def test_storage_configure_s3_nonexistent_credentials(
-        self, work_pool: WorkPool
-    ):
-        """Test configuring S3 storage with nonexistent credentials block."""
-        res = await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=[
-                "work-pool",
-                "storage",
-                "configure",
-                "s3",
-                work_pool.name,
-                "--bucket",
-                "test-bucket",
-                "--aws-credentials-block-name",
-                "nonexistent-credentials",
-            ],
-            expected_code=1,
-            expected_output_contains=[
-                "AWS credentials block 'nonexistent-credentials' does not exist"
-            ],
-        )
-        assert res.exit_code == 1
+        async def test_storage_configure_s3_nonexistent_credentials(
+            self, work_pool: WorkPool
+        ):
+            """Test configuring S3 storage with nonexistent credentials block."""
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    "nonexistent-credentials",
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "AWS credentials block 'nonexistent-credentials' does not exist"
+                ],
+            )
+            assert res.exit_code == 1
+
+    class TestGCS:
+        async def test_storage_configure(
+            self,
+            work_pool: WorkPool,
+            gcs_credentials: BlockDocument,
+            prefect_client: PrefectClient,
+        ):
+            """Test configuring GCS storage for a work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--gcp-credentials-block-name",
+                    gcs_credentials.name,
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Configured GCS storage for work pool {work_pool.name!r}"
+                ],
+            )
+
+            # Verify the configuration was saved
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_gcp.experimental.bundles.upload": {
+                    "requires": "prefect-gcp",
+                    "bucket": "test-bucket",
+                    "credentials_block_name": gcs_credentials.name,
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_gcp.experimental.bundles.execute": {
+                    "requires": "prefect-gcp",
+                    "bucket": "test-bucket",
+                    "credentials_block_name": gcs_credentials.name,
+                }
+            }
+
+        async def test_storage_configure_nonexistent_pool(
+            self, gcs_credentials: BlockDocument
+        ):
+            """Test configuring GCS storage for a nonexistent work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    "nonexistent-pool",
+                    "--bucket",
+                    "test-bucket",
+                    "--gcp-credentials-block-name",
+                    gcs_credentials.name,
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "Work pool 'nonexistent-pool' does not exist"
+                ],
+            )
+
+        async def test_storage_configure_gcs_nonexistent_credentials(
+            self, work_pool: WorkPool
+        ):
+            """Test configuring GCS storage with nonexistent credentials block."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--gcp-credentials-block-name",
+                    "nonexistent-credentials",
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "GCS credentials block 'nonexistent-credentials' does not exist"
+                ],
+            )
+
+    class TestAzureBlobStorage:
+        async def test_storage_configure(
+            self,
+            work_pool: WorkPool,
+            azure_blob_storage_credentials: BlockDocument,
+            prefect_client: PrefectClient,
+        ):
+            """Test configuring Azure Blob Storage for a work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "azure-blob-storage",
+                    work_pool.name,
+                    "--container",
+                    "test-container",
+                    "--azure-blob-storage-credentials-block-name",
+                    azure_blob_storage_credentials.name,
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Configured Azure Blob Storage for work pool {work_pool.name!r}"
+                ],
+            )
+
+            # Verify the configuration was saved
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_azure.experimental.bundles.upload": {
+                    "requires": "prefect-azure",
+                    "container": "test-container",
+                    "azure_blob_storage_credentials_block_name": azure_blob_storage_credentials.name,
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_azure.experimental.bundles.execute": {
+                    "requires": "prefect-azure",
+                    "container": "test-container",
+                    "azure_blob_storage_credentials_block_name": azure_blob_storage_credentials.name,
+                }
+            }
+
+        async def test_storage_configure_nonexistent_pool(
+            self, azure_blob_storage_credentials: BlockDocument
+        ):
+            """Test configuring Azure Blob Storage for a nonexistent work pool."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "azure-blob-storage",
+                    "nonexistent-pool",
+                    "--container",
+                    "test-container",
+                    "--azure-blob-storage-credentials-block-name",
+                    azure_blob_storage_credentials.name,
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "Work pool 'nonexistent-pool' does not exist"
+                ],
+            )
+
+        async def test_storage_configure_azure_blob_storage_nonexistent_credentials(
+            self, work_pool: WorkPool
+        ):
+            """Test configuring Azure Blob Storage with nonexistent credentials block."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "azure-blob-storage",
+                    work_pool.name,
+                    "--container",
+                    "test-container",
+                    "--azure-blob-storage-credentials-block-name",
+                    "nonexistent-credentials",
+                ],
+                expected_code=1,
+                expected_output_contains=[
+                    "Azure Blob Storage credentials block 'nonexistent-credentials' does not exist"
+                ],
+            )

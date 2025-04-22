@@ -130,6 +130,9 @@ export const buildGetArtifactQuery = (id: string) =>
 			const res = await getQueryService().GET("/artifacts/{id}", {
 				params: { path: { id } },
 			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
 			return res.data;
 		},
 	});

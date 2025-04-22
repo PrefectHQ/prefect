@@ -39,6 +39,7 @@ import prefect.types._datetime
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
     PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
@@ -367,7 +368,7 @@ class PrefectEventsClient(EventsClient):
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
-    def _log_debug(self, message: str, *args, **kwargs) -> None:
+    def _log_debug(self, message: str, *args: Any, **kwargs: Any) -> None:
         message = f"EventsClient(id={id(self)}): " + message
         logger.debug(message, *args, **kwargs)
 
@@ -399,7 +400,7 @@ class PrefectEventsClient(EventsClient):
                 "Set PREFECT_DEBUG_MODE=1 to see the full error.",
                 self._events_socket_url,
                 str(e),
-                exc_info=PREFECT_DEBUG_MODE,
+                exc_info=PREFECT_DEBUG_MODE.value(),
             )
             raise
 
@@ -578,6 +579,7 @@ class PrefectEventSubscriber:
     _seen_events: MutableMapping[UUID, bool]
 
     _api_key: Optional[str]
+    _auth_token: Optional[str]
 
     def __init__(
         self,
@@ -593,6 +595,8 @@ class PrefectEventSubscriber:
                 the client should attempt to reconnect
         """
         self._api_key = None
+        self._auth_token = PREFECT_API_AUTH_STRING.value()
+
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
 
@@ -641,8 +645,10 @@ class PrefectEventSubscriber:
         await pong
 
         logger.debug("  authenticating...")
+        # Use the API key (for Cloud) OR the auth token (for self-hosted with auth string)
+        token = self._api_key or self._auth_token
         await self._websocket.send(
-            orjson.dumps({"type": "auth", "token": self._api_key}).decode()
+            orjson.dumps({"type": "auth", "token": token}).decode()
         )
 
         try:
@@ -652,13 +658,13 @@ class PrefectEventSubscriber:
         except AssertionError as e:
             raise Exception(
                 "Unable to authenticate to the event stream. Please ensure the "
-                "provided api_key you are using is valid for this environment. "
+                "provided api_key or auth_token you are using is valid for this environment. "
                 f"Reason: {e.args[0]}"
             )
         except ConnectionClosedError as e:
             reason = getattr(e.rcvd, "reason", None)
             msg = "Unable to authenticate to the event stream. Please ensure the "
-            msg += "provided api_key you are using is valid for this environment. "
+            msg += "provided api_key or auth_token you are using is valid for this environment. "
             msg += f"Reason: {reason}" if reason else ""
             raise Exception(msg) from e
 
