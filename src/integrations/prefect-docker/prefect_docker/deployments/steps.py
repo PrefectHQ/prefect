@@ -239,9 +239,16 @@ def build_docker_image(
             f.writelines(line + "\n" for line in lines)
 
         if persist_dockerfile:
+            logger.info(
+                "Persisting auto-generated Dockerfile to disk. You can use `dockerfile_output_path` to specify the output path."
+            )
             output_path = Path(dockerfile_output_path or "Dockerfile.generated")
             with output_path.open("w") as out_file:
                 out_file.writelines(line + "\n" for line in lines)
+        else:
+            logger.info(
+                "Deleting auto-generated Dockerfile after build. Consider using `persist_dockerfile` to save it."
+            )
 
         dockerfile = str(temp_dockerfile)
 
