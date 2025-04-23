@@ -48,6 +48,7 @@ from prefect.client.schemas.objects import (
     WorkPool,
 )
 from prefect.client.utilities import inject_client
+from prefect.context import FlowRunContext, TagsContext
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
@@ -75,6 +76,7 @@ from prefect.states import (
     Pending,
     exception_to_failed_state,
 )
+from prefect.tasks import Task
 from prefect.types import KeyValueLabels
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
@@ -775,12 +777,28 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         )
 
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+        parameters = parameters or {}
+        parent_task_run = None
+
+        if flow_run_ctx := FlowRunContext.get():
+            parent_task = Task[Any, Any](
+                name=flow.name,
+                fn=flow.fn,
+                version=flow.version,
+            )
+            parent_task_run = await parent_task.create_run(
+                flow_run_context=flow_run_ctx,
+                parameters=parameters,
+            )
+
         flow_run = await self.client.create_flow_run(
             flow,
-            parameters=parameters,
+            parameters=flow.serialize_parameters(parameters),
             state=Pending(),
             job_variables=job_variables,
             work_pool_name=self.work_pool.name,
+            tags=TagsContext.get().current_tags,
+            parent_task_run_id=getattr(parent_task_run, "id", None),
         )
         if task_status is not None:
             # Emit the flow run object to .submit to allow it to return a future as soon as possible
