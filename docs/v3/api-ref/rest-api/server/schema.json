@@ -15228,6 +15228,19 @@
                         ],
                         "description": "The deployment's concurrency options."
                     },
+                    "global_concurrency_limit_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Global Concurrency Limit Id",
+                        "description": "The ID of the global concurrency limit to apply to the deployment."
+                    },
                     "enforce_parameter_schema": {
                         "type": "boolean",
                         "title": "Enforce Parameter Schema",
@@ -16627,6 +16640,19 @@
                             }
                         ],
                         "description": "The deployment's concurrency options."
+                    },
+                    "global_concurrency_limit_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Global Concurrency Limit Id",
+                        "description": "The ID of the global concurrency limit to apply to the deployment."
                     },
                     "parameters": {
                         "anyOf": [

@@ -153,6 +153,42 @@ class TestDeploymentCreate:
         )
         deployment_create.check_valid_configuration(base_job_template)
 
+    def test_validate_concurrency_limits_raises_with_both_limits(self):
+        """Test that validation fails when both concurrency_limit and global_concurrency_limit_id are set"""
+        # Test validation fails when both limits are provided
+        with pytest.raises(
+            ValueError,
+            match="A deployment cannot have both a concurrency limit and a global concurrency limit.",
+        ):
+            DeploymentCreate(
+                name="test-deployment",
+                flow_id=uuid4(),
+                concurrency_limit=5,
+                global_concurrency_limit_id=uuid4(),
+            )
+
+        # Test validation passes with just concurrency_limit
+        deployment = DeploymentCreate(
+            name="test-deployment", flow_id=uuid4(), concurrency_limit=5
+        )
+        assert deployment.concurrency_limit == 5
+        assert deployment.global_concurrency_limit_id is None
+
+        # Test validation passes with just global_concurrency_limit_id
+        global_limit_id = uuid4()
+        deployment = DeploymentCreate(
+            name="test-deployment",
+            flow_id=uuid4(),
+            global_concurrency_limit_id=global_limit_id,
+        )
+        assert deployment.global_concurrency_limit_id == global_limit_id
+        assert deployment.concurrency_limit is None
+
+        # Test validation passes with neither limit
+        deployment = DeploymentCreate(name="test-deployment", flow_id=uuid4())
+        assert deployment.concurrency_limit is None
+        assert deployment.global_concurrency_limit_id is None
+
 
 class TestDeploymentUpdate:
     def test_update_with_worker_pool_queue_id_warns(self):
@@ -255,6 +291,35 @@ class TestDeploymentUpdate:
             job_variables={"my_field": "my_value"},
         )
         deployment_update.check_valid_configuration(base_job_template)
+
+
+def test_validate_concurrency_limits_raises_with_both_limits():
+    """Test that validation fails when both concurrency_limit and global_concurrency_limit_id are set"""
+    # Test validation fails when both limits are provided
+    with pytest.raises(
+        ValueError,
+        match="A deployment cannot have both a concurrency limit and a global concurrency limit.",
+    ):
+        DeploymentUpdate(
+            concurrency_limit=5,
+            global_concurrency_limit_id=uuid4(),
+        )
+
+    # Test validation passes with just concurrency_limit
+    deployment = DeploymentUpdate(concurrency_limit=5)
+    assert deployment.concurrency_limit == 5
+    assert deployment.global_concurrency_limit_id is None
+
+    # Test validation passes with just global_concurrency_limit_id
+    global_limit_id = uuid4()
+    deployment = DeploymentUpdate(global_concurrency_limit_id=global_limit_id)
+    assert deployment.global_concurrency_limit_id == global_limit_id
+    assert deployment.concurrency_limit is None
+
+    # Test validation passes with neither limit
+    deployment = DeploymentUpdate()
+    assert deployment.concurrency_limit is None
+    assert deployment.global_concurrency_limit_id is None
 
 
 class TestBlockTypeUpdate:

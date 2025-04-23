@@ -261,6 +261,45 @@ class TestCreateDeployment:
         assert deployment.global_concurrency_limit is not None
         assert deployment.global_concurrency_limit.limit == 2
 
+    async def test_create_deployment_with_global_concurrency_limit_id(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        # Create a global concurrency limit first
+        global_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=3,
+            ),
+        )
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit_id=global_limit.id,
+            ),
+        )
+        assert deployment is not None
+        assert deployment.concurrency_limit_id == global_limit.id
+        assert deployment.global_concurrency_limit.id == global_limit.id
+        assert deployment.global_concurrency_limit.limit == 3
+
+    async def test_create_deployment_with_nonexistent_concurrency_limit_id(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        nonexistent_id = uuid4()
+        with pytest.raises(sa.exc.IntegrityError):
+            await models.deployments.create_deployment(
+                session=session,
+                deployment=schemas.core.Deployment(
+                    name="My Deployment",
+                    flow_id=flow.id,
+                    concurrency_limit_id=nonexistent_id,
+                ),
+            )
+
     async def test_create_deployment_retains_concurrency_limit_if_not_provided_on_upsert(
         self,
         session: AsyncSession,
@@ -1335,6 +1374,73 @@ class TestUpdateDeployment:
         assert updated_deployment._concurrency_limit == 42
         assert updated_deployment.global_concurrency_limit.limit == 42
         assert updated_deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
+
+    async def test_update_deployment_with_global_concurrency_limit_id(
+        self,
+        session,
+        deployment,
+    ):
+        # Create a concurrency limit
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=5,
+            ),
+        )
+
+        # Update deployment with concurrency limit ID
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                global_concurrency_limit_id=concurrency_limit.id,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+
+        assert deployment.concurrency_limit_id == concurrency_limit.id
+        assert deployment.global_concurrency_limit.id == concurrency_limit.id
+        assert deployment.global_concurrency_limit.limit == 5
+
+    async def test_update_deployment_with_none_global_concurrency_limit_id(
+        self,
+        session,
+        deployment,
+    ):
+        # First set a concurrency limit
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=5,
+            ),
+        )
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                global_concurrency_limit_id=concurrency_limit.id,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+
+        # Then remove it by setting to None
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                global_concurrency_limit_id=None,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+
+        assert deployment.concurrency_limit_id is None
+        assert deployment.global_concurrency_limit is None
 
     async def test_update_deployment_deletes_autoscheduled_flow_runs_in_scheduled(
         self,
