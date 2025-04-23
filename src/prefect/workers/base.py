@@ -720,6 +720,15 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         if self._runs_task_group is None:
             raise RuntimeError("Worker not properly initialized")
 
+        from prefect.results import get_result_store
+
+        current_result_store = get_result_store()
+        if current_result_store.result_storage is None and flow.result_storage is None:
+            self._logger.warning(
+                f"Flow {flow.name!r} has no result storage configured. Please configure "
+                "result storage for the flow if you want to retrieve the result for the flow run."
+            )
+
         flow_run = await self._runs_task_group.start(
             partial(
                 self._submit_adhoc_run,

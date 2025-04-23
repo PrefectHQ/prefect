@@ -29,6 +29,8 @@ Example:
 
 """
 
+from __future__ import annotations
+
 import importlib
 import tempfile
 from datetime import datetime, timedelta
@@ -63,6 +65,7 @@ from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     ConcurrencyOptions,
+    VersionInfo,
 )
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
@@ -281,7 +284,10 @@ class RunnerDeployment(BaseModel):
         return reconcile_schedules_runner(values)
 
     async def _create(
-        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+        self,
+        work_pool_name: Optional[str] = None,
+        image: Optional[str] = None,
+        version_info: VersionInfo | None = None,
     ) -> UUID:
         work_pool_name = work_pool_name or self.work_pool_name
 
@@ -312,6 +318,7 @@ class RunnerDeployment(BaseModel):
                 work_queue_name=self.work_queue_name,
                 work_pool_name=work_pool_name,
                 version=self.version,
+                version_info=version_info,
                 paused=self.paused,
                 schedules=self.schedules,
                 concurrency_limit=self.concurrency_limit,
@@ -367,7 +374,12 @@ class RunnerDeployment(BaseModel):
 
             return deployment_id
 
-    async def _update(self, deployment_id: UUID, client: PrefectClient):
+    async def _update(
+        self,
+        deployment_id: UUID,
+        client: PrefectClient,
+        version_info: VersionInfo | None,
+    ):
         parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
             exclude_unset=True
         )
@@ -388,6 +400,7 @@ class RunnerDeployment(BaseModel):
             deployment_id,
             deployment=DeploymentUpdate(
                 **update_payload,
+                version_info=version_info,
                 parameter_openapi_schema=parameter_openapi_schema,
             ),
         )
@@ -428,7 +441,10 @@ class RunnerDeployment(BaseModel):
 
     @sync_compatible
     async def apply(
-        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+        self,
+        work_pool_name: Optional[str] = None,
+        image: Optional[str] = None,
+        version_info: VersionInfo | None = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -439,7 +455,7 @@ class RunnerDeployment(BaseModel):
             image: The registry, name, and tag of the Docker image to
                 use for this deployment. Only used when the deployment is
                 deployed to a work pool.
-
+            version_info: Version information for the deployment.
         Returns:
             The ID of the created deployment.
         """
@@ -448,13 +464,13 @@ class RunnerDeployment(BaseModel):
             try:
                 deployment = await client.read_deployment_by_name(self.full_name)
             except ObjectNotFound:
-                return await self._create(work_pool_name, image)
+                return await self._create(work_pool_name, image, version_info)
             else:
                 if image:
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
-                return await self._update(deployment.id, client)
+                return await self._update(deployment.id, client, version_info)
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):

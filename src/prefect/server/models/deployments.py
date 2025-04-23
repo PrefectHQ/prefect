@@ -228,7 +228,13 @@ async def update_deployment(
         exclude={"work_pool_name"},
     )
 
+    requested_global_concurrency_limit_update = update_data.pop(
+        "global_concurrency_limit_id", "unset"
+    )
     requested_concurrency_limit_update = update_data.pop("concurrency_limit", "unset")
+
+    if requested_global_concurrency_limit_update != "unset":
+        update_data["concurrency_limit_id"] = requested_global_concurrency_limit_update
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.

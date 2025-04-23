@@ -396,6 +396,67 @@ class TestCreateDeployment:
         )
         assert n_runs == 0
 
+    async def test_creating_deployment_with_global_concurrency_limit_id(
+        self, session, client, flow
+    ):
+        # Create a global concurrency limit
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=5,
+            ),
+        )
+        await session.commit()
+
+        # Create deployment with global concurrency limit
+        response = await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment1",
+                flow_id=flow.id,
+                global_concurrency_limit_id=concurrency_limit.id,  # Changed from global_concurrency_limit_id
+            ).model_dump(mode="json", exclude_unset=True),
+        )
+
+        assert response.status_code == 201
+        deployment_data = response.json()
+        assert deployment_data["global_concurrency_limit"]["id"] == str(
+            concurrency_limit.id
+        )
+
+    async def test_creating_deployment_with_both_concurrency_limits_fails(
+        self, session, client, flow
+    ):
+        # Create a global concurrency limit
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=5,
+            ),
+        )
+        await session.commit()
+
+        # Attempt to create deployment with both limits
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "My Deployment",
+                "flow_id": str(flow.id),
+                "global_concurrency_limit_id": str(
+                    concurrency_limit.id
+                ),  # Changed from global_concurrency_limit_id
+                "concurrency_limit": 2,
+            },
+        )
+
+        assert response.status_code == 422
+        assert (
+            "Value error, A deployment cannot have both a concurrency limit and a global concurrency limit."
+            in response.json()["exception_detail"][0]["msg"]
+        )
+
     async def test_upserting_deployment_with_inactive_schedule_deletes_existing_auto_scheduled_runs(
         self, client, deployment, session
     ):
@@ -2443,6 +2504,58 @@ class TestUpdateDeployment:
         assert deployment
         assert deployment._concurrency_limit == 1
         assert deployment.global_concurrency_limit.limit == 1
+
+    async def test_updating_deployment_with_global_concurrency_limit_id(
+        self, session, client, deployment
+    ):
+        # Create a global concurrency limit
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=5,
+            ),
+        )
+        await session.commit()
+
+        # Update deployment with global concurrency limit
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={"global_concurrency_limit_id": str(concurrency_limit.id)},
+        )
+
+        assert response.status_code == 204
+
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit.id == concurrency_limit.id
+
+    async def test_updating_deployment_with_both_concurrency_limits_fails(
+        self, session, client, deployment
+    ):
+        # Create a global concurrency limit
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name="test-limit",
+                limit=5,
+            ),
+        )
+        await session.commit()
+
+        # Attempt to update deployment with both limits
+        response = await client.patch(
+            f"/deployments/{deployment.id}",
+            json={
+                "global_concurrency_limit_id": str(concurrency_limit.id),
+                "concurrency_limit": 2,
+            },
+        )
+
+        assert response.status_code == 422
+        assert (
+            "Value error, A deployment cannot have both a concurrency limit and a global concurrency limit."
+            in response.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestGetScheduledFlowRuns:

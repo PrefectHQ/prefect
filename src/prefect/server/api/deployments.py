@@ -98,9 +98,31 @@ async def create_deployment(
             )
 
         # hydrate the input model into a full model
-        deployment_dict = deployment.model_dump(
-            exclude={"work_pool_name"}, exclude_unset=True
+        deployment_dict: dict = deployment.model_dump(
+            exclude={"work_pool_name"},
+            exclude_unset=True,
         )
+
+        requested_concurrency_limit = deployment_dict.pop(
+            "global_concurrency_limit_id", "unset"
+        )
+        if requested_concurrency_limit != "unset":
+            if requested_concurrency_limit:
+                concurrency_limit = (
+                    await models.concurrency_limits_v2.read_concurrency_limit(
+                        session=session,
+                        concurrency_limit_id=requested_concurrency_limit,
+                    )
+                )
+
+                if not concurrency_limit:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Concurrency limit not found",
+                    )
+
+            deployment_dict["concurrency_limit_id"] = requested_concurrency_limit
+
         if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
@@ -300,8 +322,24 @@ async def update_deployment(
                     detail="Invalid schema: Unable to validate schema with circular references.",
                 )
 
+        if deployment.global_concurrency_limit_id:
+            concurrency_limit = (
+                await models.concurrency_limits_v2.read_concurrency_limit(
+                    session=session,
+                    concurrency_limit_id=deployment.global_concurrency_limit_id,
+                )
+            )
+
+            if not concurrency_limit:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Concurrency limit not found",
+                )
+
         result = await models.deployments.update_deployment(
-            session=session, deployment_id=deployment_id, deployment=deployment
+            session=session,
+            deployment_id=deployment_id,
+            deployment=deployment,
         )
 
         for schedule in schedules_to_patch:
