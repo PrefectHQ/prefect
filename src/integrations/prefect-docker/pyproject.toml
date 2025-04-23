@@ -23,7 +23,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=3.1.1", "docker>=6.1.1", "exceptiongroup"]
+dependencies = ["prefect>=3.3.5", "docker>=6.1.1", "exceptiongroup"]
 dynamic = ["version"]
 
 [dependency-groups]
@@ -71,7 +71,7 @@ fail_under = 80
 show_missing = true
 
 [tool.uv.sources]
-prefect = { path = "../../../" }
+prefect = { path = "../../../", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

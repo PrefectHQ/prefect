@@ -10,7 +10,6 @@ import docker.models.containers
 import pytest
 from docker import DockerClient
 from docker.models.containers import Container
-from exceptiongroup import ExceptionGroup
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.types import VolumeStr
 from prefect_docker.worker import (
@@ -212,14 +211,11 @@ async def test_container_creation_failure_reraises_if_not_name_conflict(
         "test error"
     )
 
-    with pytest.raises(ExceptionGroup) as exc:
+    with pytest.raises(docker.errors.APIError, match="test error"):
         async with DockerWorker(work_pool_name="test") as worker:
             await worker.run(
                 flow_run=flow_run, configuration=default_docker_worker_job_configuration
             )
-    assert len(exc.value.exceptions) == 1
-    assert isinstance(exc.value.exceptions[0], docker.errors.APIError)
-    assert "test error" in str(exc.value.exceptions[0])
 
 
 async def test_uses_image_setting(
@@ -1195,15 +1191,13 @@ async def test_emits_event_container_creation_failure(
 
     worker_resource = None
     with patch("prefect_docker.worker.emit_event") as mock_emit:
-        with pytest.raises(ExceptionGroup) as exc:
+        with pytest.raises(docker.errors.APIError, match="test error"):
             async with DockerWorker(work_pool_name="test") as worker:
                 worker_resource = worker._event_resource()
                 await worker.run(
                     flow_run=flow_run,
                     configuration=default_docker_worker_job_configuration,
                 )
-        assert len(exc.value.exceptions) == 1
-        assert isinstance(exc.value.exceptions[0], docker.errors.APIError)
 
         mock_emit.assert_called_once_with(
             event="prefect.docker.container.creation-failed",

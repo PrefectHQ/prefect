@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
-import cloudpickle
+import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
@@ -22,12 +22,18 @@ from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
-try:
-    import uv
+from .execute import execute_bundle_from_file
 
-    uv_path = uv.find_uv_bin()
-except (ImportError, ModuleNotFoundError):
-    uv_path = "uv"
+
+def _get_uv_path() -> str:
+    try:
+        import uv
+
+        uv_path = uv.find_uv_bin()
+    except (ImportError, ModuleNotFoundError):
+        uv_path = "uv"
+
+    return uv_path
 
 
 class SerializedBundle(TypedDict):
@@ -46,7 +52,7 @@ def _serialize_bundle_object(obj: Any) -> str:
     """
     Serializes an object to a string.
     """
-    return base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()
+    return base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
 
 
 def _deserialize_bundle_object(serialized_obj: str) -> Any:
@@ -80,7 +86,7 @@ def create_bundle_for_flow_run(
         "flow_run": flow_run.model_dump(mode="json"),
         "dependencies": subprocess.check_output(
             [
-                uv_path,
+                _get_uv_path(),
                 "pip",
                 "freeze",
                 # Exclude editable installs because we won't be able to install them in the execution environment
@@ -164,7 +170,7 @@ def execute_bundle_in_subprocess(
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
         subprocess.check_call(
-            [uv_path, "pip", "install", *dependencies.split("\n")],
+            [_get_uv_path(), "pip", "install", *dependencies.split("\n")],
             # Copy the current environment to ensure we install into the correct venv
             env=os.environ,
         )
@@ -238,3 +244,13 @@ def convert_step_to_command(
     command.extend(["--key", key])
 
     return command
+
+
+__all__ = [
+    "execute_bundle_from_file",
+    "convert_step_to_command",
+    "create_bundle_for_flow_run",
+    "extract_flow_from_bundle",
+    "execute_bundle_in_subprocess",
+    "SerializedBundle",
+]
