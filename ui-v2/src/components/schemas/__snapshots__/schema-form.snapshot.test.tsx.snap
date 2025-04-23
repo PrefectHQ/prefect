@@ -44,6 +44,7 @@ exports[`property.type > boolean > base 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -142,6 +143,7 @@ exports[`property.type > boolean > enum 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -187,6 +189,7 @@ exports[`property.type > boolean > enum 1`] = `
           >
             Select
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"
@@ -257,6 +260,7 @@ exports[`property.type > boolean > with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -355,6 +359,7 @@ exports[`property.type > boolean > with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -453,6 +458,7 @@ exports[`property.type > integer > base 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -541,6 +547,7 @@ exports[`property.type > integer > enum 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -586,6 +593,7 @@ exports[`property.type > integer > enum 1`] = `
           >
             Select
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"
@@ -656,6 +664,7 @@ exports[`property.type > integer > with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -744,6 +753,7 @@ exports[`property.type > integer > with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -832,6 +842,7 @@ exports[`property.type > null > base 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -919,6 +930,7 @@ exports[`property.type > number > base 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1007,6 +1019,7 @@ exports[`property.type > number > enum 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1052,6 +1065,7 @@ exports[`property.type > number > enum 1`] = `
           >
             Select
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"
@@ -1122,6 +1136,7 @@ exports[`property.type > number > with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1210,6 +1225,7 @@ exports[`property.type > number > with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1298,6 +1314,7 @@ exports[`property.type > string >  1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1386,6 +1403,7 @@ exports[`property.type > string > enum 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1431,6 +1449,7 @@ exports[`property.type > string > enum 1`] = `
           >
             Select
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"
@@ -1501,6 +1520,7 @@ exports[`property.type > string > enum with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1546,6 +1566,7 @@ exports[`property.type > string > enum with default 1`] = `
           >
             foo
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"
@@ -1616,6 +1637,7 @@ exports[`property.type > string > enum with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1661,6 +1683,7 @@ exports[`property.type > string > enum with value 1`] = `
           >
             foo
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"
@@ -1731,6 +1754,7 @@ exports[`property.type > string > format:date 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1773,6 +1797,7 @@ exports[`property.type > string > format:date 1`] = `
             type="button"
           >
             <svg
+              aria-hidden="true"
               class="lucide lucide-calendar mr-2 h-4 w-4"
               fill="none"
               height="24"
@@ -1856,6 +1881,7 @@ exports[`property.type > string > format:date with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -1898,6 +1924,7 @@ exports[`property.type > string > format:date with default 1`] = `
             type="button"
           >
             <svg
+              aria-hidden="true"
               class="lucide lucide-calendar mr-2 h-4 w-4"
               fill="none"
               height="24"
@@ -1979,6 +2006,7 @@ exports[`property.type > string > format:date with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2021,6 +2049,7 @@ exports[`property.type > string > format:date with value 1`] = `
             type="button"
           >
             <svg
+              aria-hidden="true"
               class="lucide lucide-calendar mr-2 h-4 w-4"
               fill="none"
               height="24"
@@ -2102,6 +2131,7 @@ exports[`property.type > string > format:date-time 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2213,6 +2243,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2322,6 +2353,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2431,6 +2463,7 @@ exports[`property.type > string > format:json-string 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2599,6 +2632,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2773,6 +2807,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -2947,6 +2982,7 @@ exports[`property.type > string > with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -3037,6 +3073,7 @@ exports[`property.type > string > with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -3127,6 +3164,7 @@ exports[`property.type > unknown > base 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -3295,6 +3333,7 @@ exports[`property.type > unknown > with default 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -3463,6 +3502,7 @@ exports[`property.type > unknown > with value 1`] = `
                 Open menu
               </span>
               <svg
+                aria-hidden="true"
                 class="lucide lucide-ellipsis-vertical size-4"
                 fill="none"
                 height="24"
@@ -3508,6 +3548,7 @@ exports[`property.type > unknown > with value 1`] = `
           >
             foo
             <svg
+              aria-hidden="true"
               class="lucide lucide-chevrons-up-down size-4 opacity-50"
               fill="none"
               height="24"

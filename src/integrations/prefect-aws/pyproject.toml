@@ -28,7 +28,7 @@ dependencies = [
   "botocore>=1.27.53",
   "mypy_boto3_s3>=1.24.94",
   "mypy_boto3_secretsmanager>=1.26.49",
-  "prefect>=3.2.13",
+  "prefect>=3.3.5",
   "pyparsing>=3.1.1",
   "tenacity>=8.0.0",
 ]
