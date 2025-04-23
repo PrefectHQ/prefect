@@ -2435,7 +2435,7 @@ class TestSubmit:
                     assert isinstance(future, PrefectFlowRunFuture)
 
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
-        assert flow_run.tags == ["foo", "bar"]
+        assert set(flow_run.tags) == {"foo", "bar"}
 
 
 class TestBackwardsCompatibility:
