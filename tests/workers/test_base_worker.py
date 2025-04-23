@@ -33,6 +33,7 @@ from prefect.client.schemas.objects import (
     WorkPoolStorageConfiguration,
     WorkQueue,
 )
+from prefect.context import FlowRunContext
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -2362,6 +2363,46 @@ class TestSubmit:
 
         # Upload step should have been run
         mock_run_process.assert_called_once()
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_flow_from_within_flow(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        class PlainOlWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
+            type = "plain-ol'"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            print("I'd like to speak to your supervisor")
+
+        @flow
+        async def parent_flow():
+            flow_run_ctx = FlowRunContext.get()
+            async with PlainOlWorker(work_pool_name=work_pool.name) as worker:
+                with pytest.warns(FutureWarning):
+                    future = await worker.submit(test_flow)
+                    assert isinstance(future, PrefectFlowRunFuture)
+                    return flow_run_ctx.flow_run.id, future.flow_run_id
+
+        parent_flow_run_id, child_flow_run_id = await parent_flow()
+        parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
+        child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
+        parent_task_run = await prefect_client.read_task_run(
+            child_flow_run.parent_task_run_id
+        )
+        assert child_flow_run.parent_task_run_id == parent_task_run.id
+        assert parent_task_run.flow_run_id == parent_flow_run.id
 
 
 class TestBackwardsCompatibility:
