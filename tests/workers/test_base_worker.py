@@ -2410,8 +2410,10 @@ class TestSubmit:
         work_pool: WorkPool,
         prefect_client: PrefectClient,
     ):
-        class PlainOlWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
-            type = "plain-ol'"
+        class AnotherPlainOlWorker(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "another-plain-ol'"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -2426,7 +2428,7 @@ class TestSubmit:
         def test_flow():
             print("It ain't much, but it's a living")
 
-        async with PlainOlWorker(work_pool_name=work_pool.name) as worker:
+        async with AnotherPlainOlWorker(work_pool_name=work_pool.name) as worker:
             with TagsContext(current_tags={"foo", "bar"}):
                 with pytest.warns(FutureWarning):
                     future = await worker.submit(test_flow)
