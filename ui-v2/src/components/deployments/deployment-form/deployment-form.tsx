@@ -1,4 +1,5 @@
 import type { Deployment } from "@/api/deployments";
+import { GlobalConcurrencyLimitSelect } from "@/components/global-concurrency-limit/global-concurrency-limit-select";
 import { SchemaForm } from "@/components/schemas";
 import type { PrefectSchemaObject } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,24 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 								<LimitCollissionStrategySelect
 									value={field.value}
 									onValueChange={field.onChange}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="global_concurrency_limit_id"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Global concurrency limit</FormLabel>
+							<FormControl>
+								<GlobalConcurrencyLimitSelect
+									presetOptions={[{ label: "None", value: null }]}
+									onSelect={field.onChange}
+									selected={field.value}
 								/>
 							</FormControl>
 							<FormMessage />

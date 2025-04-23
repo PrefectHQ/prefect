@@ -55,6 +55,7 @@ const createFormSchema = (
 			.optional()
 			.nullable()
 			.readonly(),
+		global_concurrency_limit_id: z.string().uuid().optional().nullable(),
 	});
 
 export type DeploymentFormSchema = z.infer<ReturnType<typeof createFormSchema>>;
@@ -65,6 +66,7 @@ const DEFAULT_VALUES: DeploymentFormSchema = {
 	tags: [],
 	job_variables: "",
 	enforce_parameter_schema: true,
+	global_concurrency_limit_id: null,
 };
 
 export const useDeploymentForm = (
@@ -98,6 +100,7 @@ export const useDeploymentForm = (
 			parameter_openapi_schema,
 			enforce_parameter_schema,
 			job_variables,
+			global_concurrency_limit,
 		} = deployment;
 
 		// nb: parameter form state and validation is handled separately using SchemaForm
@@ -115,6 +118,7 @@ export const useDeploymentForm = (
 			parameter_openapi_schema,
 			enforce_parameter_schema,
 			job_variables: job_variables ? JSON.stringify(job_variables) : "",
+			global_concurrency_limit_id: global_concurrency_limit?.id,
 		});
 	}, [form, deployment, setParametersFormValues]);
 
@@ -129,6 +133,7 @@ export const useDeploymentForm = (
 			enforce_parameter_schema,
 			concurrency_options,
 			parameter_openapi_schema,
+			global_concurrency_limit_id,
 		} = values;
 
 		const jobVariablesPayload = job_variables
@@ -172,6 +177,7 @@ export const useDeploymentForm = (
 						work_pool_name: work_pool_name || null,
 						// If value is "", set as null
 						work_queue_name: work_queue_name || null,
+						global_concurrency_limit_id,
 					},
 					{
 						onSuccess: ({ id }) => {
@@ -205,6 +211,7 @@ export const useDeploymentForm = (
 						work_pool_name: work_pool_name || null,
 						// If value is "", set as null
 						work_queue_name: work_queue_name || null,
+						global_concurrency_limit_id,
 					},
 					{
 						onSuccess: () => {
