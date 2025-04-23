@@ -4074,7 +4074,7 @@ dependencies = [
 requires-dist = [
     { name = "docker", specifier = ">=6.1.1" },
     { name = "exceptiongroup" },
-    { name = "prefect", directory = "." },
+    { name = "prefect", editable = "." },
 ]
 
 [package.metadata.requires-dev]
