@@ -33,6 +33,7 @@ from prefect.client.schemas.objects import (
     WorkPoolStorageConfiguration,
     WorkQueue,
 )
+from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -2362,6 +2363,79 @@ class TestSubmit:
 
         # Upload step should have been run
         mock_run_process.assert_called_once()
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_flow_from_within_flow(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        class PlainOlWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
+            type = "plain-ol'"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            print("It ain't much, but it's a living")
+
+        @flow
+        async def parent_flow():
+            flow_run_ctx = FlowRunContext.get()
+            async with PlainOlWorker(work_pool_name=work_pool.name) as worker:
+                with pytest.warns(FutureWarning):
+                    future = await worker.submit(test_flow)
+                    assert isinstance(future, PrefectFlowRunFuture)
+                    return flow_run_ctx.flow_run.id, future.flow_run_id
+
+        parent_flow_run_id, child_flow_run_id = await parent_flow()
+        parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
+        child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
+        parent_task_run = await prefect_client.read_task_run(
+            child_flow_run.parent_task_run_id
+        )
+        assert child_flow_run.parent_task_run_id == parent_task_run.id
+        assert parent_task_run.flow_run_id == parent_flow_run.id
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_flow_from_within_flow_propagates_tags(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        class AnotherPlainOlWorker(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "another-plain-ol'"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            print("It ain't much, but it's a living")
+
+        async with AnotherPlainOlWorker(work_pool_name=work_pool.name) as worker:
+            with TagsContext(current_tags={"foo", "bar"}):
+                with pytest.warns(FutureWarning):
+                    future = await worker.submit(test_flow)
+                    assert isinstance(future, PrefectFlowRunFuture)
+
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert set(flow_run.tags) == {"foo", "bar"}
 
 
 class TestBackwardsCompatibility:
