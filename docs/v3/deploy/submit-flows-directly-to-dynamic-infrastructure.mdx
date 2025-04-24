@@ -1,0 +1,196 @@
+---
+title: Submit flows directly to dynamic infrastructure
+description: Learn how to submit flows directly to different infrastructure types without a deployment
+---
+
+<Warning>
+**Beta Feature**
+
+This feature is currently in beta. While we encourage you to try it out and provide feedback, please be aware that the API may change in future releases, potentially including breaking changes.
+</Warning>
+
+Prefect allows you to submit workflows directly to different infrastructure types without requiring a deployment. This enables you to dynamically choose where your workflows run based on their requirements, such as:
+
+- Training machine learning models that require GPUs
+- Processing large datasets that need significant memory
+- Running lightweight tasks that can use minimal resources
+
+## Benefits
+
+Submitting workflows directly to dynamic infrastructure provides several advantages:
+
+- **Dynamic resource allocation**: Choose infrastructure based on workflow requirements at runtime
+- **Cost efficiency**: Use expensive infrastructure only when needed
+- **Consistency**: Ensure workflows always run on the appropriate infrastructure type
+- **Simplified workflow management**: No need to create and maintain deployments for different infrastructure types
+
+## Supported infrastructure
+
+Direct submission of workflows is currently supported for the following infrastructures:
+
+| Infrastructure | Required Package | Decorator |
+|---------------|-----------------|-----------|
+| Docker | `prefect-docker` | `@docker` |
+| Kubernetes | `prefect-kubernetes` | `@kubernetes` |
+| AWS ECS | `prefect-aws` | `@ecs` |
+| Google Cloud Run | `prefect-gcp` | `@cloud_run` |
+| Google Vertex AI | `prefect-gcp` | `@vertex_ai` |
+| Azure Container Instances | `prefect-azure` | `@azure_container_instance` |
+
+Each package can be installed using pip, for example:
+```bash
+pip install prefect-docker
+```
+
+## Prerequisites
+
+Before submitting workflows to specific infrastructure, you'll need:
+
+1. A work pool for each infrastructure type you want to use
+2. Object storage to associate with your work pool(s)
+3. A storage block to use for result storage
+
+## Setting up work pools and storage
+
+### Creating a work pool
+
+Create work pools for each infrastructure type using the Prefect CLI:
+
+```bash
+prefect work-pool create NAME --type WORK_POOL_TYPE
+```
+
+For detailed information on creating and configuring work pools, refer to the [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools).
+
+### Configuring work pool storage
+
+To enable Prefect to run workflows in remote infrastructure, work pools need an associated storage location to store serialized versions of submitted workflows.
+
+Configure storage for your work pools using one of the supported storage types:
+
+<CodeGroup>
+```bash S3
+prefect work-pool storage configure s3 WORK_POOL_NAME \
+    --bucket BUCKET_NAME \
+    --aws-credentials-block-name BLOCK_NAME
+```
+
+```bash Google Cloud Storage
+prefect work-pool storage configure gcs WORK_POOL_NAME \
+    --bucket BUCKET_NAME \
+    --gcp-credentials-block-name BLOCK_NAME
+```
+
+```base Azure Blob Storage
+prefect work-pool storage configure azure-blob-storage WORK_POOL_NAME \
+    --container CONTAINER_NAME \
+    --azure-blob-storage-credentials-block-name BLOCK_NAME
+```
+</CodeGroup>
+
+To allow Prefect to upload and download serialized workflows, you can [create a block](/v3/develop/blocks) containing credentials with permission to access your configured storage location.
+
+If a credentials block is not provided, Prefect will use the default credentials (e.g., a local profile or an IAM role) as determined by the corresponding cloud provider.
+
+You can inspect your storage configuration using:
+
+```bash
+prefect work-pool storage inspect WORK_POOL_NAME
+```
+
+### Configuring result storage
+
+To retrieve the return value from an infrastructure-bound workflow, you'll need to [configure result storage](/v3/develop/results) for your workflow.
+
+The result storage location must be accessible by the workflow submitter and the remote infrastructure, so most of the time you'll want to use an object storage location like S3, GCS, or Azure Blob storage.
+
+Return values for submitted workflows must be serializable for storage and retrieval.
+
+<Note>
+**Local storage for `@docker`**
+
+When using the `@docker` decorator with a local Docker engine, you can use volume mounts to share data between your Docker container and host machine.
+
+Here's an example:
+
+```python
+from prefect import flow
+from prefect.filesystems import LocalFileSystem
+from prefect_docker.experimental import docker
+
+
+result_storage = LocalFileSystem(basepath="/tmp/results")
+result_storage.save("result-storage", overwrite=True)
+
+
+@docker(
+    work_pool="above-ground",
+    volumes=["/tmp/results:/tmp/results"],
+)
+@flow(result_storage=result_storage)
+def run_in_docker(name: str):
+    return(f"Hello, {name}!")
+
+
+print(run_in_docker("world")) # prints "Hello, world!"
+```
+
+To use local storage, ensure that:
+1. The volume mount path is identical on both the host and container side
+2. The `LocalFileSystem` block's `basepath` matches the path specified in the volume mount
+</Note>
+
+## Submitting workflows to specific infrastructure
+
+To submit a flow to specific infrastructure, use the appropriate decorator for that infrastructure type.
+
+Here's an example using `@kubernetes`:
+
+```python
+from prefect import flow
+from prefect_kubernetes.experimental.decorators import kubernetes
+
+
+# Submit `my_remote_flow` to run in a Kubernetes job
+@kubernetes(work_pool="olympic")
+@flow
+def my_remote_flow(name: str):
+    print(f"Hello {name}!")
+
+@flow
+def my_flow():
+    my_remote_flow("Marvin")
+
+# Run the flow
+my_flow()
+```
+
+When you run this code on your machine, `my_flow` will execute locally, while `my_remote_flow` will be submitted to run in a Kubernetes job.
+
+<Note>
+**Parameters must be serializable**
+
+Parameters passed to infrastructure-bound flows are serialized with `cloudpickle` to allow them to be transported to the destination infrastructure. 
+
+Most Python objects can be serialized with `cloudpickle`, but objects like database connections cannot be serialized. For parameters that cannot be serialized, you'll need to create the object inside your infrastructure-bound workflow.
+</Note>
+
+## Customizing infrastructure configuration
+
+You can override the default configuration by providing additional kwargs to the infrastructure decorator:
+
+```python
+from prefect import flow
+from prefect_kubernetes.experimental.decorators import kubernetes
+
+
+@kubernetes(
+    work_pool="my-kubernetes-pool",
+    namespace="custom-namespace"
+)
+@flow
+def custom_namespace_flow():
+    pass
+```
+
+Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](v3/deploy/infrastructure-concepts/work-pools#base-job-template) for the specified work pool.
