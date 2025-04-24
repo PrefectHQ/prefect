@@ -3780,7 +3780,7 @@ dev = [
     { name = "types-cachetools", specifier = ">=5.3.1" },
     { name = "types-dateparser", specifier = ">=1.2.0" },
     { name = "types-pyyaml", specifier = ">=6.0.12" },
-    { name = "uv", specifier = ">=0.5.30" },
+    { name = "uv", specifier = ">=0.6.9" },
     { name = "vale", specifier = ">=3.9.5" },
     { name = "virtualenv", specifier = ">=20.29.2" },
     { name = "watchfiles", specifier = ">=1.0.4" },
