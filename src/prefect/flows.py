@@ -2106,6 +2106,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
     def submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
         """
+        EXPERIMENTAL: This method is experimental and may be removed or changed in future
+            releases.
+
         Submit the flow to run on remote infrastructure.
 
         Args:
