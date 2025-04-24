@@ -767,7 +767,7 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    version_info = await _version_info_from_options(options, deploy_config)
+    version_info = await _version_info_from_options(client, options, deploy_config)
 
     apply_coro = deployment.apply(version_info=version_info)
     if TYPE_CHECKING:
@@ -863,8 +863,13 @@ async def _run_single_deploy(
 
 
 async def _version_info_from_options(
-    options: dict[str, Any], deploy_config: dict[str, Any]
+    client: "PrefectClient",
+    options: dict[str, Any],
+    deploy_config: dict[str, Any],
 ) -> VersionInfo | None:
+    if client.server_type != ServerType.CLOUD:
+        return None
+
     if version := options.get("version"):
         return VersionInfo(type="prefect:simple", version=version)
 
