@@ -23,7 +23,7 @@ def project_dir(tmp_path: Path):
 @pytest.fixture(autouse=True)
 def clean_environment(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("GITHUB_SHA", raising=False)
-    monkeypatch.delenv("GITHUB_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
     monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
     monkeypatch.delenv("GITHUB_SERVER_URL", raising=False)
 
@@ -75,7 +75,7 @@ async def github_repo(
     project_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> GithubVersionInfo:
     monkeypatch.setenv("GITHUB_SHA", "abcdef1234567890")
-    monkeypatch.setenv("GITHUB_REF", "my-current-branch")
+    monkeypatch.setenv("GITHUB_REF_NAME", "my-current-branch")
     monkeypatch.setenv("GITHUB_REPOSITORY", "org/test-repo")
     monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
     return GithubVersionInfo(

@@ -5996,6 +5996,8 @@ export interface components {
              * @description Whether or not the deployment should enforce the parameter schema.
              */
             enforce_parameter_schema?: boolean | null;
+            /** @description A description of this version of the deployment. */
+            version_info?: components["schemas"]["VersionInfo"] | null;
         };
         /**
          * DoNothing

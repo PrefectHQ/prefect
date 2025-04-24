@@ -353,6 +353,10 @@ class DeploymentUpdate(ActionBaseModel):
     )
     model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
+    version_info: Optional[schemas.core.VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
+    )
+
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """
         Check that the combination of base_job_template defaults and job_variables
