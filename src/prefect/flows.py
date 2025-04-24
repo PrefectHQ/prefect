@@ -2147,6 +2147,63 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
         return run_coro_as_sync(submit_func())
 
+    def with_options(
+        self,
+        *,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        retries: Optional[int] = None,
+        retry_delay_seconds: Optional[Union[int, float]] = None,
+        description: Optional[str] = None,
+        flow_run_name: Optional[Union[Callable[[], str], str]] = None,
+        task_runner: Union[
+            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
+        ] = None,
+        timeout_seconds: Union[int, float, None] = None,
+        validate_parameters: Optional[bool] = None,
+        persist_result: Optional[bool] = NotSet,  # type: ignore
+        result_storage: Optional[ResultStorage] = NotSet,  # type: ignore
+        result_serializer: Optional[ResultSerializer] = NotSet,  # type: ignore
+        cache_result_in_memory: Optional[bool] = None,
+        log_prints: Optional[bool] = NotSet,  # type: ignore
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
+    ) -> "InfrastructureBoundFlow[P, R]":
+        new_flow = super().with_options(
+            name=name,
+            version=version,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            description=description,
+            flow_run_name=flow_run_name,
+            task_runner=task_runner,
+            timeout_seconds=timeout_seconds,
+            validate_parameters=validate_parameters,
+            persist_result=persist_result,
+            result_storage=result_storage,
+            result_serializer=result_serializer,
+            cache_result_in_memory=cache_result_in_memory,
+            log_prints=log_prints,
+            on_completion=on_completion,
+            on_failure=on_failure,
+            on_cancellation=on_cancellation,
+            on_crashed=on_crashed,
+            on_running=on_running,
+        )
+        new_infrastructure_bound_flow = bind_flow_to_infrastructure(
+            new_flow,
+            self.work_pool,
+            self.worker_cls,
+            job_variables=job_variables
+            if job_variables is not None
+            else self.job_variables,
+        )
+        return new_infrastructure_bound_flow
+
 
 def bind_flow_to_infrastructure(
     flow: Flow[P, R],
