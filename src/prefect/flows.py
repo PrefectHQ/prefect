@@ -65,7 +65,7 @@ from prefect.exceptions import (
     UnspecifiedFlowError,
 )
 from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFlowRunFuture, PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
@@ -2103,6 +2103,46 @@ class InfrastructureBoundFlow(Flow[P, R]):
                     **kwargs,
                 )
             )
+
+    def submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
+        """
+        Submit the flow to run on remote infrastructure.
+
+        Args:
+            *args: Positional arguments to pass to the flow.
+            **kwargs: Keyword arguments to pass to the flow.
+
+        Returns:
+            A `PrefectFlowRunFuture` that can be used to retrieve the result of the flow run.
+
+        Examples:
+            Submit a flow to run on Kubernetes:
+
+            ```python
+            from prefect import flow
+            from prefect_kubernetes.experimental import kubernetes
+
+            @kubernetes(work_pool="my-kubernetes-work-pool")
+            @flow
+            def my_flow(x: int, y: int):
+                return x + y
+
+            future = my_flow.submit(x=1, y=2)
+            result = future.result()
+            print(result)
+            ```
+        """
+
+        async def submit_func():
+            async with self.worker_cls(work_pool_name=self.work_pool) as worker:
+                parameters = get_call_parameters(self, args, kwargs)
+                return await worker.submit(
+                    flow=self,
+                    parameters=parameters,
+                    job_variables=self.job_variables,
+                )
+
+        return run_coro_as_sync(submit_func())
 
 
 def bind_flow_to_infrastructure(
