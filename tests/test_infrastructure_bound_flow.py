@@ -205,3 +205,37 @@ class TestInfrastructureBoundFlow:
         result = infrastructure_bound_flow(return_state=True)
         assert result.is_completed()
         assert result.result() == "Hello, world!"
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_submit(self, work_pool: WorkPool, result_storage: LocalFileSystem):
+        @flow(
+            result_storage=result_storage,
+        )
+        def my_flow(x: int, y: int):
+            return x + y
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        future = infrastructure_bound_flow.submit(x=1, y=2)
+        assert future.result() == 3
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_submit_with_error(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(
+            result_storage=result_storage,
+            validate_parameters=False,
+        )
+        def my_flow(x: int, y: int):
+            return x + y
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        future = infrastructure_bound_flow.submit(x=1, y="not an int")
+        with pytest.raises(TypeError):
+            future.result()
