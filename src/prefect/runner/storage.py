@@ -316,7 +316,10 @@ class GitRepository:
             cmd += ["--sparse"]
 
         # Limit git history and set path to clone to
-        cmd += ["--depth", "1", str(self.destination)]
+        if not self._commit_sha:
+            cmd += ["--depth", "1"]
+
+        cmd += [str(self.destination)]
 
         try:
             await run_process(cmd)
