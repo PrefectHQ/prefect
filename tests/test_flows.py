@@ -289,7 +289,7 @@ class TestDecorator:
 
 class TestResultPersistence:
     @pytest.mark.parametrize("persist_result", [True, False])
-    def test_persist_result_set_to_bool(self, persist_result):
+    def test_persist_result_set_to_bool(self, persist_result: bool):
         @flow(persist_result=persist_result)
         def my_flow():
             pass
