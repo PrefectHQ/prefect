@@ -15228,6 +15228,19 @@
                         ],
                         "description": "The deployment's concurrency options."
                     },
+                    "global_concurrency_limit_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Global Concurrency Limit Id",
+                        "description": "The ID of the global concurrency limit to apply to the deployment."
+                    },
                     "enforce_parameter_schema": {
                         "type": "boolean",
                         "title": "Enforce Parameter Schema",
@@ -15416,6 +15429,17 @@
                         "type": "object",
                         "title": "Job Variables",
                         "description": "Overrides for the flow's infrastructure configuration."
+                    },
+                    "version_info": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/VersionInfo"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "A description of this version of the deployment."
                     }
                 },
                 "additionalProperties": false,
@@ -16616,6 +16640,19 @@
                             }
                         ],
                         "description": "The deployment's concurrency options."
+                    },
+                    "global_concurrency_limit_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Global Concurrency Limit Id",
+                        "description": "The ID of the global concurrency limit to apply to the deployment."
                     },
                     "parameters": {
                         "anyOf": [
@@ -24544,6 +24581,27 @@
                 "type": "object",
                 "title": "VariableUpdate",
                 "description": "Data used by the Prefect REST API to update a Variable."
+            },
+            "VersionInfo": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "title": "Type",
+                        "description": "The type of version info."
+                    },
+                    "version": {
+                        "type": "string",
+                        "title": "Version",
+                        "description": "The version of the deployment."
+                    }
+                },
+                "additionalProperties": true,
+                "type": "object",
+                "required": [
+                    "type",
+                    "version"
+                ],
+                "title": "VersionInfo"
             },
             "WorkPool": {
                 "properties": {

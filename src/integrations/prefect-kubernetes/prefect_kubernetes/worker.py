@@ -108,13 +108,8 @@ import enum
 import json
 import logging
 import shlex
-import subprocess
-import tempfile
-import uuid
-import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -155,8 +150,6 @@ from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.exceptions import (
     InfrastructureError,
 )
-from prefect.futures import PrefectFlowRunFuture
-from prefect.states import Pending
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
@@ -179,7 +172,6 @@ from prefect_kubernetes.utilities import (
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
-    from prefect.flows import Flow
 
 # Captures flow return type
 R = TypeVar("R")
@@ -736,152 +728,6 @@ class KubernetesWorker(
                 )
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
-
-    # TODO: Remove this once `.submit` is available on the `BaseWorker` class in a published release
-    async def submit(
-        self,
-        flow: "Flow[..., R]",
-        parameters: dict[str, Any] | None = None,
-        job_variables: dict[str, Any] | None = None,
-    ) -> "PrefectFlowRunFuture[R]":
-        """
-        EXPERIMENTAL: The interface for this method is subject to change.
-
-        Submits a flow to run in a Kubernetes job.
-
-        Args:
-            flow: The flow to submit
-            parameters: The parameters to pass to the flow
-
-        Returns:
-            A flow run object
-        """
-        warnings.warn(
-            "The `submit` method on the Kubernetes worker is experimental. The interface "
-            "and behavior of this method are subject to change.",
-            category=FutureWarning,
-        )
-        if self._runs_task_group is None:
-            raise RuntimeError("Worker not properly initialized")
-
-        flow_run = await self._runs_task_group.start(
-            partial(
-                self._submit_adhoc_run,
-                flow=flow,
-                parameters=parameters,
-                job_variables=job_variables,
-            ),
-        )
-        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
-
-    # TODO: Remove this once `.submit` is available on the `BaseWorker` class in a published release
-    async def _submit_adhoc_run(
-        self,
-        flow: "Flow[..., R]",
-        parameters: dict[str, Any] | None = None,
-        job_variables: dict[str, Any] | None = None,
-        task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
-    ):
-        """
-        Submits a flow run to the Kubernetes worker.
-        """
-        from prefect._experimental.bundles import (
-            convert_step_to_command,
-            create_bundle_for_flow_run,
-        )
-
-        if TYPE_CHECKING:
-            assert self._client is not None
-            assert self._work_pool is not None
-
-        if (
-            self._work_pool.storage_configuration.bundle_upload_step is None
-            or self._work_pool.storage_configuration.bundle_execution_step is None
-        ):
-            raise RuntimeError(
-                f"Storage is not configured for work pool {self._work_pool.name!r}. "
-                "Please configure storage for the work pool by running `prefect "
-                "work-pool storage configure`."
-            )
-
-        bundle_key = str(uuid.uuid4())
-        upload_command = convert_step_to_command(
-            self._work_pool.storage_configuration.bundle_upload_step,
-            bundle_key,
-            quiet=True,
-        )
-        execute_command = convert_step_to_command(
-            self._work_pool.storage_configuration.bundle_execution_step, bundle_key
-        )
-
-        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
-        flow_run = await self._client.create_flow_run(
-            flow,
-            parameters=parameters,
-            state=Pending(),
-            job_variables=job_variables,
-            work_pool_name=self._work_pool.name,
-        )
-        if task_status is not None:
-            # Emit the flow run object to .submit to allow it to return a future as soon as possible
-            task_status.started(flow_run)
-        # Avoid an API call to get the flow
-        api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
-        logger = self.get_flow_run_logger(flow_run)
-
-        configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=self._work_pool.base_job_template,
-            values=job_variables,
-            client=self._client,
-        )
-        configuration.prepare_for_flow_run(
-            flow_run=flow_run,
-            flow=api_flow,
-            work_pool=self._work_pool,
-            worker_name=self.name,
-        )
-
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            await (
-                anyio.Path(temp_dir)
-                .joinpath(bundle_key)
-                .write_bytes(json.dumps(bundle).encode("utf-8"))
-            )
-
-            try:
-                full_command = upload_command + [bundle_key]
-                logger.debug(
-                    "Uploading execution bundle with command: %s", full_command
-                )
-                await anyio.run_process(
-                    full_command,
-                    cwd=temp_dir,
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(e.stderr.decode("utf-8")) from e
-
-        logger.debug("Successfully uploaded execution bundle")
-
-        try:
-            result = await self.run(flow_run, configuration)
-
-            if result.status_code != 0:
-                await self._propose_crashed_state(
-                    flow_run,
-                    (
-                        "Flow run infrastructure exited with non-zero status code"
-                        f" {result.status_code}."
-                    ),
-                )
-        except Exception as exc:
-            # This flow run was being submitted and did not start successfully
-            logger.exception(
-                f"Failed to submit flow run '{flow_run.id}' to infrastructure."
-            )
-            message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
-            await self._propose_crashed_state(flow_run, message)
 
     async def teardown(self, *exc_info: Any):
         await super().teardown(*exc_info)
