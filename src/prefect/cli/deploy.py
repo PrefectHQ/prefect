@@ -867,9 +867,6 @@ async def _version_info_from_options(
     options: dict[str, Any],
     deploy_config: dict[str, Any],
 ) -> VersionInfo | None:
-    if client.server_type != ServerType.CLOUD:
-        return None
-
     if version := options.get("version"):
         return VersionInfo(type="prefect:simple", version=version)
 
