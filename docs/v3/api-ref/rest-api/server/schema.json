@@ -16805,6 +16805,17 @@
                         ],
                         "title": "Enforce Parameter Schema",
                         "description": "Whether or not the deployment should enforce the parameter schema."
+                    },
+                    "version_info": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/VersionInfo"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "A description of this version of the deployment."
                     }
                 },
                 "additionalProperties": false,

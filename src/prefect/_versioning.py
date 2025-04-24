@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from enum import Enum
 from typing import Any, Callable, Coroutine, Dict, Literal, Optional
+from urllib.parse import urlparse
 
 from anyio import run_process
 from pydantic import Field, model_validator
@@ -49,7 +50,7 @@ async def get_github_version_info(
 
     Args:
         version: The commit SHA, falls back to GITHUB_SHA env var
-        branch: The git branch, falls back to GITHUB_REF env var
+        branch: The git branch, falls back to GITHUB_REF_NAME env var
         repository: The repository name, falls back to GITHUB_REPOSITORY env var
         url: The repository URL, constructed from GITHUB_SERVER_URL/GITHUB_REPOSITORY if not provided
 
@@ -60,14 +61,16 @@ async def get_github_version_info(
         ValueError: If any required fields cannot be determined
     """
     version = version or os.getenv("GITHUB_SHA")
-    branch = branch or os.getenv("GITHUB_REF")
+    branch = branch or os.getenv("GITHUB_REF_NAME")
     repository = repository or os.getenv("GITHUB_REPOSITORY")
     url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
 
     if not version:
         raise ValueError("version is required - must be provided or set in GITHUB_SHA")
     if not branch:
-        raise ValueError("branch is required - must be provided or set in GITHUB_REF")
+        raise ValueError(
+            "branch is required - must be provided or set in GITHUB_REF_NAME"
+        )
     if not repository:
         raise ValueError(
             "repository is required - must be provided or set in GITHUB_REPOSITORY"
@@ -104,8 +107,10 @@ async def get_git_version_info(
             remote_url = result.stdout.decode().strip()
 
             # Extract just the repository name (last part of the path)
-            repo_name = os.path.basename(remote_url.split(":")[1].rstrip(".git"))
-            repository = repo_name
+            repo_url = urlparse(remote_url)
+            repository = repo_url.path.strip("/")
+            if repository.endswith(".git"):
+                repository = repository[:-4]
 
         if not url and repository:
             # Use the full remote URL as the URL
