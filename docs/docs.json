@@ -118,6 +118,7 @@
                   "v3/deploy/infrastructure-concepts/customize"
                 ]
               },
+              "v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
               {
                 "group": "Dynamic infrastructure examples",
                 "pages": [

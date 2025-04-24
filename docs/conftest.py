@@ -47,6 +47,8 @@ SKIP_FILES = {
     "docs/v3/develop/logging.mdx": "Needs Debugging in CI",
     "docs/v3/develop/variables.mdx": "Needs Debugging in CI",
     "docs/v3/develop/write-flows.mdx": "Needs Debugging in CI",
+    # --- Below this line are files that need a release of a new Prefect integration ---
+    "docs/v3/deploy/submit-flows-directly-to-dynamic-infrastructure.mdx": "Needs a release of prefect-docker",
 }
 
 
@@ -64,6 +66,20 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture(autouse=True)
 def mock_runner_start():
     with mock.patch("prefect.cli.flow.Runner.start", new_callable=mock.AsyncMock):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_base_worker_submit():
+    with (
+        mock.patch(
+            "prefect.workers.base.BaseWorker.submit", new_callable=mock.AsyncMock
+        ),
+        mock.patch(
+            "prefect_kubernetes.worker.KubernetesWorker.submit",
+            new_callable=mock.AsyncMock,
+        ),
+    ):
         yield
 
 
