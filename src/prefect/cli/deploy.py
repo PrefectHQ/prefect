@@ -769,7 +769,6 @@ async def _run_single_deploy(
 
     version_info = await _version_info_from_options(options, deploy_config)
 
-    app.console.print(f"Version info: {version_info}")
     apply_coro = deployment.apply(version_info=version_info)
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
@@ -866,14 +865,12 @@ async def _run_single_deploy(
 async def _version_info_from_options(
     options: dict[str, Any], deploy_config: dict[str, Any]
 ) -> VersionInfo | None:
-    if version_type := (
-        options.get("version_type") or deploy_config.get("version_type")
-    ):
-        app.console.print(f"Inferring version info for {version_type}...")
-        return await get_inferred_version_info(version_type)
-
     if version := options.get("version"):
         return VersionInfo(type="prefect:simple", version=version)
+
+    version_type = options.get("version_type") or deploy_config.get("version_type")
+    if version_info := await get_inferred_version_info(version_type):
+        return version_info
 
     return None
 
