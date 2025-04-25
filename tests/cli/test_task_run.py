@@ -197,7 +197,7 @@ def test_ls_state_type_filter_invalid_raises():
     invoke_and_assert(
         command=["task-run", "ls", "--state-type", "invalid"],
         expected_code=2,
-        expected_output_contains="Invalid value for '--state-type'",
+        expected_output_contains=["Invalid value for", "state-type"],
     )
 
 
