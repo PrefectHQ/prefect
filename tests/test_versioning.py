@@ -70,6 +70,7 @@ async def git_repo(project_dir: Path) -> GitVersionInfo:
     await git("init", "--initial-branch", "my-default-branch")
     await git("config", "user.email", "me@example.com")
     await git("config", "user.name", "Me")
+    await run_process(["git", "remote", "remove", "origin"], check=False)
     await git("remote", "add", "origin", "https://example.com/my-repo")
 
     test_file = project_dir / "test_file.txt"
@@ -150,6 +151,7 @@ async def github_repo(
     await git("init", "--initial-branch", "my-default-branch")
     await git("config", "user.email", "me@example.com")
     await git("config", "user.name", "Me")
+    await run_process(["git", "remote", "remove", "origin"], check=False)
     await git("remote", "add", "origin", "https://github.com/org/test-repo")
 
     test_file = project_dir / "test_file.txt"
@@ -309,28 +311,82 @@ async def test_get_inferred_version_info_with_azure_devops_version_info(
 
 
 async def test_github_takes_precedence_over_git(
-    git_repo: GitVersionInfo, github_repo: GithubVersionInfo
+    git_repo: GitVersionInfo, monkeypatch: pytest.MonkeyPatch
 ):
+    monkeypatch.setenv("GITHUB_SHA", "abcdef1234567890")
+    monkeypatch.setenv("GITHUB_REF_NAME", "my-current-branch")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "org/test-repo")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+
     version_info = await get_inferred_version_info()
-    assert version_info == github_repo
+    assert version_info == GithubVersionInfo(
+        type="vcs:github",
+        version="Initial commit",
+        branch="my-current-branch",
+        repository="org/test-repo",
+        url="https://github.com/org/test-repo",
+        commit_sha="abcdef1234567890",
+        message="Initial commit",
+    )
 
 
 async def test_gitlab_takes_precedence_over_git(
-    git_repo: GitVersionInfo, gitlab_repo: GitlabVersionInfo
+    git_repo: GitVersionInfo, monkeypatch: pytest.MonkeyPatch
 ):
+    monkeypatch.setenv("CI_COMMIT_SHA", "abcdef1234567890")
+    monkeypatch.setenv("CI_COMMIT_REF_NAME", "my-current-branch")
+    monkeypatch.setenv("CI_PROJECT_NAME", "org/test-repo")
+    monkeypatch.setenv("CI_PROJECT_URL", "https://gitlab.com/org/test-repo")
+
     version_info = await get_inferred_version_info()
-    assert version_info == gitlab_repo
+    assert version_info == GitlabVersionInfo(
+        type="vcs:gitlab",
+        version="Initial commit",
+        branch="my-current-branch",
+        repository="org/test-repo",
+        url="https://gitlab.com/org/test-repo",
+        commit_sha="abcdef1234567890",
+        message="Initial commit",
+    )
 
 
 async def test_bitbucket_takes_precedence_over_git(
-    git_repo: GitVersionInfo, bitbucket_repo: BitbucketVersionInfo
+    git_repo: GitVersionInfo, monkeypatch: pytest.MonkeyPatch
 ):
+    monkeypatch.setenv("BITBUCKET_COMMIT", "abcdef1234567890")
+    monkeypatch.setenv("BITBUCKET_BRANCH", "my-current-branch")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "org/test-repo")
+    monkeypatch.setenv(
+        "BITBUCKET_GIT_HTTP_ORIGIN", "https://bitbucket.org/org/test-repo"
+    )
+
     version_info = await get_inferred_version_info()
-    assert version_info == bitbucket_repo
+    assert version_info == BitbucketVersionInfo(
+        type="vcs:bitbucket",
+        version="Initial commit",
+        branch="my-current-branch",
+        repository="org/test-repo",
+        url="https://bitbucket.org/org/test-repo",
+        commit_sha="abcdef1234567890",
+        message="Initial commit",
+    )
 
 
 async def test_azure_devops_takes_precedence_over_git(
-    git_repo: GitVersionInfo, azure_devops_repo: AzureDevopsVersionInfo
+    git_repo: GitVersionInfo, monkeypatch: pytest.MonkeyPatch
 ):
+    monkeypatch.setenv("BUILD_SOURCEVERSION", "abcdef1234567890")
+    monkeypatch.setenv("BUILD_SOURCEBRANCHNAME", "my-current-branch")
+    monkeypatch.setenv("BUILD_REPOSITORY_NAME", "org/test-repo")
+    monkeypatch.setenv("BUILD_REPOSITORY_URI", "https://dev.azure.com/org/test-repo")
+
     version_info = await get_inferred_version_info()
-    assert version_info == azure_devops_repo
+    assert version_info == AzureDevopsVersionInfo(
+        type="vcs:azuredevops",
+        version="Initial commit",
+        branch="my-current-branch",
+        repository="org/test-repo",
+        url="https://dev.azure.com/org/test-repo",
+        commit_sha="abcdef1234567890",
+        message="Initial commit",
+    )

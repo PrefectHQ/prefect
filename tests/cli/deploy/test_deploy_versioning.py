@@ -77,7 +77,7 @@ async def mock_get_inferred_version_info():
     ) as mock_get_inferred:
         mock_get_inferred.return_value = GitVersionInfo(
             type="vcs:git",
-            version="abcdef12",
+            version="Initial commit",
             commit_sha="abcdef12",
             message="Initial commit",
             branch="main",
@@ -111,7 +111,7 @@ async def test_deploy_with_inferred_version(
 
     assert passed_version_info == VersionInfo(
         type="vcs:git",
-        version="abcdef12",
+        version="Initial commit",
         commit_sha="abcdef12",
         message="Initial commit",
         branch="main",

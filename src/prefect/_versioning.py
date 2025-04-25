@@ -138,26 +138,32 @@ async def get_github_version_info(
     Raises:
         ValueError: If any required fields cannot be determined
     """
-    commit_sha = commit_sha or os.getenv("GITHUB_SHA")
-    branch = branch or os.getenv("GITHUB_REF_NAME")
-    repository = repository or os.getenv("GITHUB_REPOSITORY")
-    url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
+    try:
+        commit_sha = commit_sha or os.getenv("GITHUB_SHA")
+        branch = branch or os.getenv("GITHUB_REF_NAME")
+        repository = repository or os.getenv("GITHUB_REPOSITORY")
+        url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
 
-    if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
-        message = result.stdout.decode().strip().splitlines()[0]
+        if not message:
+            result = await run_process(["git", "log", "-1", "--pretty=%B"])
+            message = result.stdout.decode().strip().splitlines()[0]
 
-    if not commit_sha:
+        if not commit_sha:
+            raise ValueError(
+                "commit_sha is required - must be provided or set in GITHUB_SHA"
+            )
+        if not branch:
+            raise ValueError(
+                "branch is required - must be provided or set in GITHUB_REF_NAME"
+            )
+        if not repository:
+            raise ValueError(
+                "repository is required - must be provided or set in GITHUB_REPOSITORY"
+            )
+
+    except Exception as e:
         raise ValueError(
-            "commit_sha is required - must be provided or set in GITHUB_SHA"
-        )
-    if not branch:
-        raise ValueError(
-            "branch is required - must be provided or set in GITHUB_REF_NAME"
-        )
-    if not repository:
-        raise ValueError(
-            "repository is required - must be provided or set in GITHUB_REPOSITORY"
+            f"Error getting git version info: {e}. You may not be in a Github repository."
         )
 
     return GithubVersionInfo(
@@ -193,29 +199,37 @@ async def get_gitlab_version_info(
     Raises:
         ValueError: If any required fields cannot be determined
     """
-    commit_sha = commit_sha or os.getenv("CI_COMMIT_SHA")
-    branch = branch or os.getenv("CI_COMMIT_REF_NAME")
-    repository = repository or os.getenv("CI_PROJECT_NAME")
-    url = url or os.getenv("CI_PROJECT_URL")
+    try:
+        commit_sha = commit_sha or os.getenv("CI_COMMIT_SHA")
+        branch = branch or os.getenv("CI_COMMIT_REF_NAME")
+        repository = repository or os.getenv("CI_PROJECT_NAME")
+        url = url or os.getenv("CI_PROJECT_URL")
 
-    if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
-        message = result.stdout.decode().strip().splitlines()[0]
+        if not message:
+            result = await run_process(["git", "log", "-1", "--pretty=%B"])
+            message = result.stdout.decode().strip().splitlines()[0]
 
-    if not commit_sha:
+        if not commit_sha:
+            raise ValueError(
+                "commit_sha is required - must be provided or set in CI_COMMIT_SHA"
+            )
+        if not branch:
+            raise ValueError(
+                "branch is required - must be provided or set in CI_COMMIT_REF_NAME"
+            )
+        if not repository:
+            raise ValueError(
+                "repository is required - must be provided or set in CI_PROJECT_NAME"
+            )
+        if not url:
+            raise ValueError(
+                "url is required - must be provided or set in CI_PROJECT_URL"
+            )
+
+    except Exception as e:
         raise ValueError(
-            "commit_sha is required - must be provided or set in CI_COMMIT_SHA"
+            f"Error getting git version info: {e}. You may not be in a Gitlab repository."
         )
-    if not branch:
-        raise ValueError(
-            "branch is required - must be provided or set in CI_COMMIT_REF_NAME"
-        )
-    if not repository:
-        raise ValueError(
-            "repository is required - must be provided or set in CI_PROJECT_NAME"
-        )
-    if not url:
-        raise ValueError("url is required - must be provided or set in CI_PROJECT_URL")
 
     return GitlabVersionInfo(
         type="vcs:gitlab",
@@ -250,30 +264,36 @@ async def get_bitbucket_version_info(
     Raises:
         ValueError: If any required fields cannot be determined
     """
-    commit_sha = commit_sha or os.getenv("BITBUCKET_COMMIT")
-    branch = branch or os.getenv("BITBUCKET_BRANCH")
-    repository = repository or os.getenv("BITBUCKET_REPO_SLUG")
-    url = url or os.getenv("BITBUCKET_GIT_HTTP_ORIGIN")
+    try:
+        commit_sha = commit_sha or os.getenv("BITBUCKET_COMMIT")
+        branch = branch or os.getenv("BITBUCKET_BRANCH")
+        repository = repository or os.getenv("BITBUCKET_REPO_SLUG")
+        url = url or os.getenv("BITBUCKET_GIT_HTTP_ORIGIN")
 
-    if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
-        message = result.stdout.decode().strip().splitlines()[0]
+        if not message:
+            result = await run_process(["git", "log", "-1", "--pretty=%B"])
+            message = result.stdout.decode().strip().splitlines()[0]
 
-    if not commit_sha:
+        if not commit_sha:
+            raise ValueError(
+                "commit_sha is required - must be provided or set in BITBUCKET_COMMIT"
+            )
+        if not branch:
+            raise ValueError(
+                "branch is required - must be provided or set in BITBUCKET_BRANCH"
+            )
+        if not repository:
+            raise ValueError(
+                "repository is required - must be provided or set in BITBUCKET_REPO_SLUG"
+            )
+        if not url:
+            raise ValueError(
+                "url is required - must be provided or set in BITBUCKET_GIT_HTTP_ORIGIN"
+            )
+
+    except Exception as e:
         raise ValueError(
-            "commit_sha is required - must be provided or set in BITBUCKET_COMMIT"
-        )
-    if not branch:
-        raise ValueError(
-            "branch is required - must be provided or set in BITBUCKET_BRANCH"
-        )
-    if not repository:
-        raise ValueError(
-            "repository is required - must be provided or set in BITBUCKET_REPO_SLUG"
-        )
-    if not url:
-        raise ValueError(
-            "url is required - must be provided or set in BITBUCKET_GIT_HTTP_ORIGIN"
+            f"Error getting git version info: {e}. You may not be in a Bitbucket repository."
         )
 
     return BitbucketVersionInfo(
@@ -309,30 +329,36 @@ async def get_azuredevops_version_info(
     Raises:
         ValueError: If any required fields cannot be determined
     """
-    commit_sha = commit_sha or os.getenv("BUILD_SOURCEVERSION")
-    branch = branch or os.getenv("BUILD_SOURCEBRANCHNAME")
-    repository = repository or os.getenv("BUILD_REPOSITORY_NAME")
-    url = url or os.getenv("BUILD_REPOSITORY_URI")
+    try:
+        commit_sha = commit_sha or os.getenv("BUILD_SOURCEVERSION")
+        branch = branch or os.getenv("BUILD_SOURCEBRANCHNAME")
+        repository = repository or os.getenv("BUILD_REPOSITORY_NAME")
+        url = url or os.getenv("BUILD_REPOSITORY_URI")
 
-    if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
-        message = result.stdout.decode().strip().splitlines()[0]
+        if not message:
+            result = await run_process(["git", "log", "-1", "--pretty=%B"])
+            message = result.stdout.decode().strip().splitlines()[0]
 
-    if not commit_sha:
+        if not commit_sha:
+            raise ValueError(
+                "commit_sha is required - must be provided or set in BUILD_SOURCEVERSION"
+            )
+        if not branch:
+            raise ValueError(
+                "branch is required - must be provided or set in BUILD_SOURCEBRANCHNAME"
+            )
+        if not repository:
+            raise ValueError(
+                "repository is required - must be provided or set in BUILD_REPOSITORY_NAME"
+            )
+        if not url:
+            raise ValueError(
+                "url is required - must be provided or set in BUILD_REPOSITORY_URI"
+            )
+
+    except Exception as e:
         raise ValueError(
-            "commit_sha is required - must be provided or set in BUILD_SOURCEVERSION"
-        )
-    if not branch:
-        raise ValueError(
-            "branch is required - must be provided or set in BUILD_SOURCEBRANCHNAME"
-        )
-    if not repository:
-        raise ValueError(
-            "repository is required - must be provided or set in BUILD_REPOSITORY_NAME"
-        )
-    if not url:
-        raise ValueError(
-            "url is required - must be provided or set in BUILD_REPOSITORY_URI"
+            f"Error getting git version info: {e}. You may not be in an Azure DevOps repository."
         )
 
     return AzureDevopsVersionInfo(
@@ -376,7 +402,7 @@ async def get_git_version_info(
 
         if not message:
             result = await run_process(["git", "log", "-1", "--pretty=%B"])
-            message = result.stdout.decode().strip()
+            message = result.stdout.decode().strip().splitlines()[0]
 
         if not url and repository:
             # Use the full remote URL as the URL
