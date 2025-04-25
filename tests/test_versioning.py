@@ -169,7 +169,7 @@ async def github_repo(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://github.com/org/test-repo",
+        url="https://github.com/org/test-repo/tree/abcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -211,7 +211,7 @@ async def gitlab_repo(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://gitlab.com/org/test-repo",
+        url="https://gitlab.com/org/test-repo/-/tree/abcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -255,7 +255,7 @@ async def bitbucket_repo(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://bitbucket.org/org/test-repo",
+        url="https://bitbucket.org/org/test-repo/src/abcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -297,7 +297,7 @@ async def azure_devops_repo(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://dev.azure.com/org/test-repo",
+        url="https://dev.azure.com/org/test-repo?version=GCabcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -324,7 +324,7 @@ async def test_github_takes_precedence_over_git(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://github.com/org/test-repo",
+        url="https://github.com/org/test-repo/tree/abcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -344,7 +344,7 @@ async def test_gitlab_takes_precedence_over_git(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://gitlab.com/org/test-repo",
+        url="https://gitlab.com/org/test-repo/-/tree/abcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -366,7 +366,7 @@ async def test_bitbucket_takes_precedence_over_git(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://bitbucket.org/org/test-repo",
+        url="https://bitbucket.org/org/test-repo/src/abcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )
@@ -386,7 +386,7 @@ async def test_azure_devops_takes_precedence_over_git(
         version="Initial commit",
         branch="my-current-branch",
         repository="org/test-repo",
-        url="https://dev.azure.com/org/test-repo",
+        url="https://dev.azure.com/org/test-repo?version=GCabcdef1234567890",
         commit_sha="abcdef1234567890",
         message="Initial commit",
     )

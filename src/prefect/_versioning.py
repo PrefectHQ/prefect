@@ -130,7 +130,7 @@ async def get_github_version_info(
         message: The commit message, falls back to git log -1 --pretty=%B
         branch: The git branch, falls back to GITHUB_REF_NAME env var
         repository: The repository name, falls back to GITHUB_REPOSITORY env var
-        url: The repository URL, constructed from GITHUB_SERVER_URL/GITHUB_REPOSITORY if not provided
+        url: The repository URL, constructed from GITHUB_SERVER_URL/GITHUB_REPOSITORY/tree/GITHUB_SHA if not provided
 
     Returns:
         A GithubVersionInfo
@@ -142,7 +142,7 @@ async def get_github_version_info(
         commit_sha = commit_sha or os.getenv("GITHUB_SHA")
         branch = branch or os.getenv("GITHUB_REF_NAME")
         repository = repository or os.getenv("GITHUB_REPOSITORY")
-        url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
+        url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}/tree/{commit_sha}"
 
         if not message:
             result = await run_process(["git", "log", "-1", "--pretty=%B"])
@@ -191,7 +191,7 @@ async def get_gitlab_version_info(
         message: The commit message, falls back to git log -1 --pretty=%B
         branch: The git branch, falls back to CI_COMMIT_REF_NAME env var
         repository: The repository name, falls back to CI_PROJECT_NAME env var
-        url: The repository URL, constructed from CI_PROJECT_URL if not provided
+        url: The repository URL, constructed from CI_PROJECT_URL/-/tree/CI_COMMIT_SHA if not provided
 
     Returns:
         A GitlabVersionInfo
@@ -203,7 +203,7 @@ async def get_gitlab_version_info(
         commit_sha = commit_sha or os.getenv("CI_COMMIT_SHA")
         branch = branch or os.getenv("CI_COMMIT_REF_NAME")
         repository = repository or os.getenv("CI_PROJECT_NAME")
-        url = url or os.getenv("CI_PROJECT_URL")
+        url = url or f"{os.getenv('CI_PROJECT_URL')}/-/tree/{commit_sha}"
 
         if not message:
             result = await run_process(["git", "log", "-1", "--pretty=%B"])
@@ -256,7 +256,7 @@ async def get_bitbucket_version_info(
         message: The commit message, falls back to git log -1 --pretty=%B
         branch: The git branch, falls back to BITBUCKET_BRANCH env var
         repository: The repository name, falls back to BITBUCKET_REPO_SLUG env var
-        url: The repository URL, constructed from BITBUCKET_GIT_HTTP_ORIGIN if not provided
+        url: The repository URL, constructed from BITBUCKET_GIT_HTTP_ORIGIN/BITBUCKET_REPO_SLUG/src/BITBUCKET_COMMIT if not provided
 
     Returns:
         A BitbucketVersionInfo
@@ -268,7 +268,7 @@ async def get_bitbucket_version_info(
         commit_sha = commit_sha or os.getenv("BITBUCKET_COMMIT")
         branch = branch or os.getenv("BITBUCKET_BRANCH")
         repository = repository or os.getenv("BITBUCKET_REPO_SLUG")
-        url = url or os.getenv("BITBUCKET_GIT_HTTP_ORIGIN")
+        url = url or f"{os.getenv('BITBUCKET_GIT_HTTP_ORIGIN')}/src/{commit_sha}"
 
         if not message:
             result = await run_process(["git", "log", "-1", "--pretty=%B"])
@@ -321,7 +321,7 @@ async def get_azuredevops_version_info(
         message: The commit message, falls back to git log -1 --pretty=%B
         branch: The git branch, falls back to BUILD_SOURCEBRANCHNAME env var
         repository: The repository name, falls back to BUILD_REPOSITORY_NAME env var
-        url: The repository URL, constructed from BUILD_REPOSITORY_URI if not provided
+        url: The repository URL, constructed from BUILD_REPOSITORY_URI?version=GCBUILD_SOURCEVERSION if not provided
 
     Returns:
         An AzureDevopsVersionInfo
@@ -333,7 +333,7 @@ async def get_azuredevops_version_info(
         commit_sha = commit_sha or os.getenv("BUILD_SOURCEVERSION")
         branch = branch or os.getenv("BUILD_SOURCEBRANCHNAME")
         repository = repository or os.getenv("BUILD_REPOSITORY_NAME")
-        url = url or os.getenv("BUILD_REPOSITORY_URI")
+        url = url or f"{os.getenv('BUILD_REPOSITORY_URI')}?version=GC{commit_sha}"
 
         if not message:
             result = await run_process(["git", "log", "-1", "--pretty=%B"])
