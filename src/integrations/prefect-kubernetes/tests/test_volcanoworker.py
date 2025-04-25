@@ -43,7 +43,7 @@ def minimal_volcano_manifest(image: str = "busybox") -> dict:
                                 {
                                     "name": "c1",
                                     "image": image,
-                                    "args": ["echo", "hello"],
+                                    "command": ["prefect", "flow-run", "execute"],
                                 }
                             ],
                             "restartPolicy": "Never",
@@ -88,7 +88,7 @@ async def test_job_configuration_prepare(job_cfg, dummy_flow_run):
     mc = job_cfg._main_container()
     # Image / args should not be None
     assert "image" in mc and mc["image"]
-    assert mc["args"] == ["prefect", "flow-run", "execute"]
+    assert "command" in mc and mc["command"] == ["prefect", "flow-run", "execute"]
 
     # ENV should contain PREFECT__FLOW_RUN_ID
     env_names = {e["name"] for e in mc["env"]}
@@ -117,7 +117,7 @@ async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
 
     worker = VolcanoWorker(work_pool_name="dummy")
     pod = await worker._get_job_pod(
-        logger=worker.logger,
+        logger=worker._logger,
         job_name="my-job",
         configuration=job_cfg,
         client=MagicMock(),
@@ -168,6 +168,13 @@ async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
         VolcanoWorker,
         "_get_cluster_uid",
         AsyncMock(return_value="CLUSTER-UID"),
+    )
+
+    # Mock kubernetes client configuration to avoid kubeconfig errors
+    monkeypatch.setattr(
+        VolcanoWorker,
+        "_get_configured_kubernetes_client",
+        AsyncMock(return_value=MagicMock(__aenter__=AsyncMock(return_value=MagicMock()), __aexit__=AsyncMock())),
     )
 
     async with VolcanoWorker(work_pool_name="dummy-pool") as worker:
