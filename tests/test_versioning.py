@@ -84,7 +84,7 @@ async def git_repo(project_dir: Path) -> GitVersionInfo:
 
     return GitVersionInfo(
         type="vcs:git",
-        version="Initial commit",
+        version=commit_sha[:8],
         branch="my-default-branch",
         url="https://example.com/my-repo",
         repository="my-repo",
@@ -123,7 +123,7 @@ async def git_repo_many_lines_message(project_dir: Path) -> GitVersionInfo:
 
     return GitVersionInfo(
         type="vcs:git",
-        version="Initial commit",
+        version=commit_sha[:8],
         branch="my-default-branch",
         url="https://example.com/my-repo",
         repository="my-repo",
@@ -166,7 +166,7 @@ async def github_repo(
     monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
     return GithubVersionInfo(
         type="vcs:github",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://github.com/org/test-repo/tree/abcdef1234567890",
@@ -208,7 +208,7 @@ async def gitlab_repo(
     monkeypatch.setenv("CI_PROJECT_URL", "https://gitlab.com/org/test-repo")
     return GitlabVersionInfo(
         type="vcs:gitlab",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://gitlab.com/org/test-repo/-/tree/abcdef1234567890",
@@ -252,7 +252,7 @@ async def bitbucket_repo(
     )
     return BitbucketVersionInfo(
         type="vcs:bitbucket",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://bitbucket.org/org/test-repo/src/abcdef1234567890",
@@ -294,7 +294,7 @@ async def azure_devops_repo(
     monkeypatch.setenv("BUILD_REPOSITORY_URI", "https://dev.azure.com/org/test-repo")
     return AzureDevopsVersionInfo(
         type="vcs:azuredevops",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://dev.azure.com/org/test-repo?version=GCabcdef1234567890",
@@ -321,7 +321,7 @@ async def test_github_takes_precedence_over_git(
     version_info = await get_inferred_version_info()
     assert version_info == GithubVersionInfo(
         type="vcs:github",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://github.com/org/test-repo/tree/abcdef1234567890",
@@ -341,7 +341,7 @@ async def test_gitlab_takes_precedence_over_git(
     version_info = await get_inferred_version_info()
     assert version_info == GitlabVersionInfo(
         type="vcs:gitlab",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://gitlab.com/org/test-repo/-/tree/abcdef1234567890",
@@ -363,7 +363,7 @@ async def test_bitbucket_takes_precedence_over_git(
     version_info = await get_inferred_version_info()
     assert version_info == BitbucketVersionInfo(
         type="vcs:bitbucket",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://bitbucket.org/org/test-repo/src/abcdef1234567890",
@@ -383,7 +383,7 @@ async def test_azure_devops_takes_precedence_over_git(
     version_info = await get_inferred_version_info()
     assert version_info == AzureDevopsVersionInfo(
         type="vcs:azuredevops",
-        version="Initial commit",
+        version="abcdef12",
         branch="my-current-branch",
         repository="org/test-repo",
         url="https://dev.azure.com/org/test-repo?version=GCabcdef1234567890",

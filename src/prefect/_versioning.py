@@ -168,7 +168,7 @@ async def get_github_version_info(
 
     return GithubVersionInfo(
         type="vcs:github",
-        version=message,
+        version=commit_sha[:8],
         commit_sha=commit_sha,
         message=message,
         branch=branch,
@@ -233,7 +233,7 @@ async def get_gitlab_version_info(
 
     return GitlabVersionInfo(
         type="vcs:gitlab",
-        version=message,
+        version=commit_sha[:8],
         commit_sha=commit_sha,
         message=message,
         branch=branch,
@@ -298,7 +298,7 @@ async def get_bitbucket_version_info(
 
     return BitbucketVersionInfo(
         type="vcs:bitbucket",
-        version=message,
+        version=commit_sha[:8],
         commit_sha=commit_sha,
         message=message,
         branch=branch,
@@ -363,7 +363,7 @@ async def get_azuredevops_version_info(
 
     return AzureDevopsVersionInfo(
         type="vcs:azuredevops",
-        version=message,
+        version=commit_sha[:8],
         commit_sha=commit_sha,
         message=message,
         branch=branch,
@@ -418,7 +418,7 @@ async def get_git_version_info(
 
     return GitVersionInfo(
         type="vcs:git",
-        version=message,
+        version=commit_sha[:8],
         branch=branch,
         url=url,
         repository=repository,
