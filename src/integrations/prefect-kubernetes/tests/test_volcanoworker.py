@@ -8,18 +8,17 @@ without touching any real Kubernetes / Volcano clusters.
 from __future__ import annotations
 
 import uuid
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from kubernetes_asyncio.client import V1Pod
-
 
 pytest.importorskip("prefect_kubernetes.volcanoworker")
 from prefect_kubernetes.volcanoworker import (  # noqa: E402
     VolcanoWorker,
     VolcanoWorkerJobConfiguration,
 )
+
 
 def minimal_volcano_manifest(image: str = "busybox") -> dict:
     """Return a minimal valid Volcano Job manifest."""
@@ -73,6 +72,7 @@ async def job_cfg():
     )
     return cfg
 
+
 @pytest.mark.asyncio
 async def test_job_configuration_prepare(job_cfg, dummy_flow_run):
     """
@@ -94,12 +94,14 @@ async def test_job_configuration_prepare(job_cfg, dummy_flow_run):
     env_names = {e["name"] for e in mc["env"]}
     assert "PREFECT__FLOW_RUN_ID" in env_names
 
+
 @pytest.mark.asyncio
 async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
     """
     _get_job_pod should try in order:
       volcano.sh/job-name → job-name → ownerReferences
     """
+
     # --- Create fake CoreV1Api.list_namespaced_pod ---
     async def fake_list_ns_pod(namespace, label_selector=None):
         fake_resp = MagicMock(items=[])
@@ -126,9 +128,12 @@ async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
     # Confirm pod was returned
     assert pod is not None
     # Should use volcano.sh/job-name first
-    assert list_pod_mock.await_args_list[0].kwargs["label_selector"].startswith(
-        "volcano.sh/job-name"
+    assert (
+        list_pod_mock.await_args_list[0]
+        .kwargs["label_selector"]
+        .startswith("volcano.sh/job-name")
     )
+
 
 @pytest.mark.asyncio
 async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
@@ -147,7 +152,9 @@ async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
     create_job_mock = AsyncMock(return_value=fake_job)
     monkeypatch.setattr(
         "prefect_kubernetes.volcanoworker.CustomObjectsApi",
-        MagicMock(return_value=MagicMock(create_namespaced_custom_object=create_job_mock)),
+        MagicMock(
+            return_value=MagicMock(create_namespaced_custom_object=create_job_mock)
+        ),
     )
 
     monkeypatch.setattr(
