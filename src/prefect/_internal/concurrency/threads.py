@@ -174,13 +174,13 @@ class EventLoopThread(Portal):
             # Track the portal running the call
             call.set_runner(self)
 
+            if self._run_once:
+                call.future.add_done_callback(lambda _: self.shutdown())
+
             # Submit the call to the event loop
             assert self._loop is not None
             asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
-
             self._submitted_count += 1
-            if self._run_once:
-                call.future.add_done_callback(lambda _: self.shutdown())
 
         return call
 
