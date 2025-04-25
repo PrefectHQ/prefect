@@ -417,7 +417,8 @@ This is intentional to avoid confusion about the `git` history and push process.
 to authenticate to GitHub at runtime and access private repositories without creating a block and storing long
 lived credentials.
 
-1. [Install the Prefect Cloud GitHub App](https://github.com/apps/{github_app_name}/installations/new?) and authorize it to access your repositories.
+1. [Install the Prefect Cloud GitHub App](https://github.com/apps/{github_app_name}/installations/new?) and select the
+repositories you want to be able to access.
 
 2. Add the following pull steps to your `prefect.yaml` file. Make sure to replace `owner/repository` with the name of your repository:
 
@@ -428,7 +429,6 @@ pull:
         script: uv tool run prefect-cloud github token owner/repository
     - prefect.deployments.steps.git_clone:
         id: git-clone
-        branch: main
         repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/owner/repository.git
 ```
 
