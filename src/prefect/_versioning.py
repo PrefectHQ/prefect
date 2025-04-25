@@ -21,6 +21,8 @@ class SimpleVersionInfo(VersionInfo):
 class GithubVersionInfo(VersionInfo):
     type: Literal["vcs:github"] = "vcs:github"
     version: str
+    commit_sha: str
+    message: str
     branch: str
     url: str
     repository: str
@@ -31,10 +33,83 @@ class GithubVersionInfo(VersionInfo):
             raise ValueError("branch is required when type is 'vcs:github'")
         return self
 
+    @model_validator(mode="after")
+    def validate_commit_sha(self):
+        if not self.commit_sha:
+            raise ValueError("commit_sha is required when type is 'vcs:github'")
+        return self
+
+
+class GitlabVersionInfo(VersionInfo):
+    type: Literal["vcs:gitlab"] = "vcs:gitlab"
+    version: str
+    commit_sha: str
+    message: str
+    branch: str
+    url: str
+    repository: str
+
+    @model_validator(mode="after")
+    def validate_branch(self):
+        if not self.branch:
+            raise ValueError("branch is required when type is 'vcs:gitlab'")
+        return self
+
+    @model_validator(mode="after")
+    def validate_commit_sha(self):
+        if not self.commit_sha:
+            raise ValueError("commit_sha is required when type is 'vcs:gitlab'")
+        return self
+
+
+class BitbucketVersionInfo(VersionInfo):
+    type: Literal["vcs:bitbucket"] = "vcs:bitbucket"
+    version: str
+    commit_sha: str
+    message: str
+    branch: str
+    url: str
+    repository: str
+
+    @model_validator(mode="after")
+    def validate_branch(self):
+        if not self.branch:
+            raise ValueError("branch is required when type is 'vcs:bitbucket'")
+        return self
+
+    @model_validator(mode="after")
+    def validate_commit_sha(self):
+        if not self.commit_sha:
+            raise ValueError("commit_sha is required when type is 'vcs:bitbucket'")
+        return self
+
+
+class AzureDevopsVersionInfo(VersionInfo):
+    type: Literal["vcs:azuredevops"] = "vcs:azuredevops"
+    version: str
+    commit_sha: str
+    message: str
+    branch: str
+    url: str
+
+    @model_validator(mode="after")
+    def validate_branch(self):
+        if not self.branch:
+            raise ValueError("branch is required when type is 'vcs:azuredevops'")
+        return self
+
+    @model_validator(mode="after")
+    def validate_commit_sha(self):
+        if not self.commit_sha:
+            raise ValueError("commit_sha is required when type is 'vcs:azuredevops'")
+        return self
+
 
 class GitVersionInfo(VersionInfo):
     type: Literal["vcs:git"] = "vcs:git"
     version: str
+    commit_sha: str
+    message: str
     branch: str
     url: str
     repository: str
@@ -87,16 +162,18 @@ async def get_github_version_info(
 
 async def get_git_version_info(
     version: Optional[str] = None,
+    commit_sha: Optional[str] = None,
+    message: Optional[str] = None,
     branch: Optional[str] = None,
     url: Optional[str] = None,
     repository: Optional[str] = None,
 ) -> GitVersionInfo:
     try:
-        if not version:
+        if not commit_sha:
             # Run git command and get stdout
             result = await run_process(["git", "rev-parse", "HEAD"])
             # Decode bytes to string and strip whitespace
-            version = result.stdout.decode().strip()
+            commit_sha = result.stdout.decode().strip()
 
         if not branch:
             result = await run_process(["git", "rev-parse", "--abbrev-ref", "HEAD"])
@@ -112,6 +189,10 @@ async def get_git_version_info(
             if repository.endswith(".git"):
                 repository = repository[:-4]
 
+        if not message:
+            result = await run_process(["git", "log", "-1", "--pretty=%B"])
+            message = result.stdout.decode().strip()
+
         if not url and repository:
             # Use the full remote URL as the URL
             result = await run_process(["git", "config", "--get", "remote.origin.url"])
@@ -125,15 +206,23 @@ async def get_git_version_info(
         raise ValueError("Could not determine git repository URL")
 
     return GitVersionInfo(
-        type="vcs:git", version=version, branch=branch, url=url, repository=repository
+        type="vcs:git",
+        version=message,
+        branch=branch,
+        url=url,
+        repository=repository,
+        commit_sha=commit_sha,
+        message=message,
     )
 
 
 class VersionType(str, Enum):
     SIMPLE = "prefect:simple"
     GITHUB = "vcs:github"
+    GITLAB = "vcs:gitlab"
+    BITBUCKET = "vcs:bitbucket"
+    AZUREDEVOPS = "vcs:azuredevops"
     GIT = "vcs:git"
-    DOCKER = "container:docker"
 
 
 async def get_inferred_version_info(
