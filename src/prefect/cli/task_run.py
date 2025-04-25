@@ -3,20 +3,27 @@ Command line interface for working with task runs
 """
 
 import logging
-from typing import List
+from datetime import datetime
+from typing import List, cast
 from uuid import UUID
 
-import httpx
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
-from starlette import status
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import LogFilter, TaskRunFilter
+from prefect.client.schemas.filters import (
+    LogFilter,
+    LogFilterTaskRunId,
+    TaskRunFilter,
+    TaskRunFilterName,
+    TaskRunFilterState,
+    TaskRunFilterStateName,
+    TaskRunFilterStateType,
+)
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
@@ -42,11 +49,8 @@ async def inspect(id: UUID):
     async with get_client() as client:
         try:
             task_run = await client.read_task_run(id)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                exit_with_error(f"Task run {id!r} not found!")
-            else:
-                raise
+        except ObjectNotFound:
+            exit_with_error(f"Task run '{id}' not found!")
 
     app.console.print(Pretty(task_run))
 
@@ -64,21 +68,29 @@ async def ls(
     View recent task runs
     """
 
-    state_filter = {}
-    if state:
-        state_filter["name"] = {"any_": [s.capitalize() for s in state]}
-    if state_type:
-        state_filter["type"] = {"any_": state_type}
+    if state or state_type:
+        state_filter = TaskRunFilterState(
+            name=TaskRunFilterStateName(any_=[s.capitalize() for s in state])
+            if state
+            else None,
+            type=TaskRunFilterStateType(any_=state_type) if state_type else None,
+        )
+    else:
+        state_filter = None
 
     async with get_client() as client:
         task_runs = await client.read_task_runs(
             task_run_filter=TaskRunFilter(
-                name={"any_": task_run_name} if task_run_name else None,
-                state=state_filter if state_filter else None,
+                name=TaskRunFilterName(any_=task_run_name) if task_run_name else None,
+                state=state_filter,
             ),
             limit=limit,
             sort=TaskRunSort.EXPECTED_START_TIME_DESC,
         )
+
+    if not task_runs:
+        app.console.print("No task runs found.")
+        return
 
     table = Table(title="Task Runs")
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
@@ -87,18 +99,24 @@ async def ls(
     table.add_column("State", no_wrap=True)
     table.add_column("When", style="bold", no_wrap=True)
 
-    for task_run in sorted(task_runs, key=lambda d: d.created, reverse=True):
+    for task_run in sorted(
+        task_runs, key=lambda d: cast(datetime, d.created), reverse=True
+    ):
         task = task_run
-        timestamp = (
-            task_run.state.state_details.scheduled_time
-            if task_run.state.is_scheduled()
-            else task_run.state.timestamp
-        )
+        if task_run.state:
+            timestamp = (
+                task_run.state.state_details.scheduled_time
+                if task_run.state.is_scheduled()
+                else task_run.state.timestamp
+            )
+        else:
+            timestamp = task_run.created
+
         table.add_row(
             str(task_run.id),
             str(task.name),
             str(task_run.name),
-            str(task_run.state.type.value),
+            str(task_run.state.type.value) if task_run.state else "Unknown",
             human_friendly_diff(timestamp),
         )
 
@@ -118,7 +136,7 @@ async def logs(
         ),
     ),
     num_logs: int = typer.Option(
-        None,
+        LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS,
         "--num-logs",
         "-n",
         help=(
@@ -155,17 +173,11 @@ async def logs(
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
 
-    user_specified_num_logs = (
-        num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-        if head or tail or num_logs
-        else None
-    )
-
     # if using tail update offset according to LOGS_DEFAULT_PAGE_SIZE
     if tail:
-        offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
+        offset = max(0, num_logs - LOGS_DEFAULT_PAGE_SIZE)
 
-    log_filter = LogFilter(task_run_id={"any_": [id]})
+    log_filter = LogFilter(task_run_id=LogFilterTaskRunId(any_=[id]))
 
     async with get_client() as client:
         # Get the task run
@@ -175,12 +187,8 @@ async def logs(
             exit_with_error(f"task run {str(id)!r} not found!")
 
         while more_logs:
-            num_logs_to_return_from_page = (
-                LOGS_DEFAULT_PAGE_SIZE
-                if user_specified_num_logs is None
-                else min(
-                    LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs - num_logs_returned
-                )
+            num_logs_to_return_from_page = min(
+                LOGS_DEFAULT_PAGE_SIZE, num_logs - num_logs_returned
             )
 
             # Get the next page of logs
