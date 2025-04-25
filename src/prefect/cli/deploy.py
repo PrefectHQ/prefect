@@ -867,14 +867,14 @@ async def _version_info_from_options(
 ) -> VersionInfo | None:
     version_type = options.get("version_type") or deploy_config.get("version_type")
     if version_info := await get_inferred_version_info(version_type):
-        if version := options.get("version"):
+        if version := options.get("version") or deploy_config.get("version"):
             version_info.version = (
                 version  # use the supplied version as the version name
             )
             app.console.print(f"Using version: {version_info.version}")
         return version_info  # otherwise the version name is the first line of the commit message
 
-    if version := options.get("version"):
+    if version := options.get("version") or deploy_config.get("version"):
         return VersionInfo(type="prefect:simple", version=version)
 
     return None
