@@ -171,10 +171,14 @@ async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
     )
 
     # Mock kubernetes client configuration to avoid kubeconfig errors
+    client_mock = MagicMock()
+    client_context_manager = MagicMock()
+    client_context_manager.__aenter__ = AsyncMock(return_value=client_mock)
+    client_context_manager.__aexit__ = AsyncMock(return_value=None)
     monkeypatch.setattr(
         VolcanoWorker,
         "_get_configured_kubernetes_client",
-        AsyncMock(return_value=MagicMock(__aenter__=AsyncMock(return_value=MagicMock()), __aexit__=AsyncMock())),
+        MagicMock(return_value=client_context_manager),
     )
 
     async with VolcanoWorker(work_pool_name="dummy-pool") as worker:
