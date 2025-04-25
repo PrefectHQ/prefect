@@ -147,7 +147,7 @@ class State(StateBaseModel):
         field.
         """
 
-        field_keys = cls.model_json_schema()["properties"].keys()
+        field_keys = cls.model_fields.keys()
         state_data: dict[str, Any] = {
             field: getattr(orm_state, field, None)
             for field in field_keys
