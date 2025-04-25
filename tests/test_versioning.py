@@ -100,6 +100,45 @@ async def test_get_inferred_version_info_with_git_version_info(
 
 
 @pytest.fixture
+async def git_repo_many_lines_message(project_dir: Path) -> GitVersionInfo:
+    async def git(*args: str) -> CompletedProcess[bytes]:
+        result = await run_process(["git", *args], check=False)
+        assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+        return result
+
+    await git("init", "--initial-branch", "my-default-branch")
+    await git("config", "user.email", "me@example.com")
+    await git("config", "user.name", "Me")
+    await git("remote", "add", "origin", "https://example.com/my-repo")
+
+    test_file = project_dir / "test_file.txt"
+    test_file.write_text("This is a test file for the git repository")
+
+    await git("add", ".")
+    await git("commit", "-m", "Initial commit\nWith multiple lines")
+
+    result = await git("rev-parse", "HEAD")
+    commit_sha = result.stdout.decode().strip()
+
+    return GitVersionInfo(
+        type="vcs:git",
+        version="Initial commit",
+        branch="my-default-branch",
+        url="https://example.com/my-repo",
+        repository="my-repo",
+        commit_sha=commit_sha,
+        message="Initial commit",
+    )
+
+
+async def test_get_inferred_version_info_with_git_version_info_single_line_message(
+    git_repo_many_lines_message: GitVersionInfo,
+):
+    version_info = await get_inferred_version_info()
+    assert version_info == git_repo_many_lines_message
+
+
+@pytest.fixture
 async def github_repo(
     project_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> GithubVersionInfo:
