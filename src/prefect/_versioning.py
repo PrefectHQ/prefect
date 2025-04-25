@@ -24,8 +24,8 @@ class GithubVersionInfo(VersionInfo):
     commit_sha: str
     message: str
     branch: str
-    url: str
     repository: str
+    url: str
 
     @model_validator(mode="after")
     def validate_branch(self):
@@ -46,8 +46,8 @@ class GitlabVersionInfo(VersionInfo):
     commit_sha: str
     message: str
     branch: str
-    url: str
     repository: str
+    url: str
 
     @model_validator(mode="after")
     def validate_branch(self):
@@ -68,8 +68,8 @@ class BitbucketVersionInfo(VersionInfo):
     commit_sha: str
     message: str
     branch: str
-    url: str
     repository: str
+    url: str
 
     @model_validator(mode="after")
     def validate_branch(self):
@@ -90,6 +90,7 @@ class AzureDevopsVersionInfo(VersionInfo):
     commit_sha: str
     message: str
     branch: str
+    repository: str
     url: str
 
     @model_validator(mode="after")
@@ -111,12 +112,13 @@ class GitVersionInfo(VersionInfo):
     commit_sha: str
     message: str
     branch: str
-    url: str
     repository: str
+    url: str
 
 
 async def get_github_version_info(
-    version: Optional[str] = None,
+    commit_sha: Optional[str] = None,
+    message: Optional[str] = None,
     branch: Optional[str] = None,
     repository: Optional[str] = None,
     url: Optional[str] = None,
@@ -124,7 +126,8 @@ async def get_github_version_info(
     """Create a GithubVersionInfo object from provided values or environment variables.
 
     Args:
-        version: The commit SHA, falls back to GITHUB_SHA env var
+        commit_sha: The commit SHA, falls back to GITHUB_SHA env var
+        message: The commit message, falls back to git log -1 --pretty=%B
         branch: The git branch, falls back to GITHUB_REF_NAME env var
         repository: The repository name, falls back to GITHUB_REPOSITORY env var
         url: The repository URL, constructed from GITHUB_SERVER_URL/GITHUB_REPOSITORY if not provided
@@ -135,13 +138,19 @@ async def get_github_version_info(
     Raises:
         ValueError: If any required fields cannot be determined
     """
-    version = version or os.getenv("GITHUB_SHA")
+    commit_sha = commit_sha or os.getenv("GITHUB_SHA")
     branch = branch or os.getenv("GITHUB_REF_NAME")
     repository = repository or os.getenv("GITHUB_REPOSITORY")
     url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
 
-    if not version:
-        raise ValueError("version is required - must be provided or set in GITHUB_SHA")
+    if not message:
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip()
+
+    if not commit_sha:
+        raise ValueError(
+            "commit_sha is required - must be provided or set in GITHUB_SHA"
+        )
     if not branch:
         raise ValueError(
             "branch is required - must be provided or set in GITHUB_REF_NAME"
@@ -153,7 +162,181 @@ async def get_github_version_info(
 
     return GithubVersionInfo(
         type="vcs:github",
-        version=version,
+        version=message,
+        commit_sha=commit_sha,
+        message=message,
+        branch=branch,
+        repository=repository,
+        url=url,
+    )
+
+
+async def get_gitlab_version_info(
+    commit_sha: Optional[str] = None,
+    message: Optional[str] = None,
+    branch: Optional[str] = None,
+    repository: Optional[str] = None,
+    url: Optional[str] = None,
+) -> GitlabVersionInfo:
+    """Create a GitlabVersionInfo object from provided values or environment variables.
+
+    Args:
+        commit_sha: The commit SHA, falls back to CI_COMMIT_SHA env var
+        message: The commit message, falls back to git log -1 --pretty=%B
+        branch: The git branch, falls back to CI_COMMIT_REF_NAME env var
+        repository: The repository name, falls back to CI_PROJECT_NAME env var
+        url: The repository URL, constructed from CI_PROJECT_URL if not provided
+
+    Returns:
+        A GitlabVersionInfo
+
+    Raises:
+        ValueError: If any required fields cannot be determined
+    """
+    commit_sha = commit_sha or os.getenv("CI_COMMIT_SHA")
+    branch = branch or os.getenv("CI_COMMIT_REF_NAME")
+    repository = repository or os.getenv("CI_PROJECT_NAME")
+    url = url or os.getenv("CI_PROJECT_URL")
+
+    if not message:
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip()
+
+    if not commit_sha:
+        raise ValueError(
+            "commit_sha is required - must be provided or set in CI_COMMIT_SHA"
+        )
+    if not branch:
+        raise ValueError(
+            "branch is required - must be provided or set in CI_COMMIT_REF_NAME"
+        )
+    if not repository:
+        raise ValueError(
+            "repository is required - must be provided or set in CI_PROJECT_NAME"
+        )
+    if not url:
+        raise ValueError("url is required - must be provided or set in CI_PROJECT_URL")
+
+    return GitlabVersionInfo(
+        type="vcs:gitlab",
+        version=message,
+        commit_sha=commit_sha,
+        message=message,
+        branch=branch,
+        repository=repository,
+        url=url,
+    )
+
+
+async def get_bitbucket_version_info(
+    commit_sha: Optional[str] = None,
+    message: Optional[str] = None,
+    branch: Optional[str] = None,
+    repository: Optional[str] = None,
+    url: Optional[str] = None,
+) -> BitbucketVersionInfo:
+    """Create a BitbucketVersionInfo object from provided values or environment variables.
+
+    Args:
+        commit_sha: The commit SHA, falls back to BITBUCKET_COMMIT env var
+        message: The commit message, falls back to git log -1 --pretty=%B
+        branch: The git branch, falls back to BITBUCKET_BRANCH env var
+        repository: The repository name, falls back to BITBUCKET_REPO_SLUG env var
+        url: The repository URL, constructed from BITBUCKET_GIT_HTTP_ORIGIN if not provided
+
+    Returns:
+        A BitbucketVersionInfo
+
+    Raises:
+        ValueError: If any required fields cannot be determined
+    """
+    commit_sha = commit_sha or os.getenv("BITBUCKET_COMMIT")
+    branch = branch or os.getenv("BITBUCKET_BRANCH")
+    repository = repository or os.getenv("BITBUCKET_REPO_SLUG")
+    url = url or os.getenv("BITBUCKET_GIT_HTTP_ORIGIN")
+
+    if not message:
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip()
+
+    if not commit_sha:
+        raise ValueError(
+            "commit_sha is required - must be provided or set in BITBUCKET_COMMIT"
+        )
+    if not branch:
+        raise ValueError(
+            "branch is required - must be provided or set in BITBUCKET_BRANCH"
+        )
+    if not repository:
+        raise ValueError(
+            "repository is required - must be provided or set in BITBUCKET_REPO_SLUG"
+        )
+    if not url:
+        raise ValueError(
+            "url is required - must be provided or set in BITBUCKET_GIT_HTTP_ORIGIN"
+        )
+
+    return BitbucketVersionInfo(
+        type="vcs:bitbucket",
+        version=message,
+        commit_sha=commit_sha,
+        message=message,
+        branch=branch,
+        repository=repository,
+        url=url,
+    )
+
+
+async def get_azuredevops_version_info(
+    commit_sha: Optional[str] = None,
+    message: Optional[str] = None,
+    branch: Optional[str] = None,
+    repository: Optional[str] = None,
+    url: Optional[str] = None,
+) -> AzureDevopsVersionInfo:
+    """Create an AzureDevopsVersionInfo object from provided values or environment variables.
+
+    Args:
+        commit_sha: The commit SHA, falls back to BUILD_SOURCEVERSION env var
+        message: The commit message, falls back to git log -1 --pretty=%B
+        branch: The git branch, falls back to BUILD_SOURCEBRANCHNAME env var
+        repository: The repository name, falls back to BUILD_REPOSITORY_NAME env var
+        url: The repository URL, constructed from BUILD_REPOSITORY_URI if not provided
+
+    Returns:
+        An AzureDevopsVersionInfo
+
+    Raises:
+        ValueError: If any required fields cannot be determined
+    """
+    commit_sha = commit_sha or os.getenv("BUILD_SOURCEVERSION")
+    branch = branch or os.getenv("BUILD_SOURCEBRANCHNAME")
+    repository = repository or os.getenv("BUILD_REPOSITORY_NAME")
+    url = url or os.getenv("BUILD_REPOSITORY_URI")
+    message = message or os.getenv("BUILD_SOURCEVERSIONMESSAGE")
+
+    if not commit_sha:
+        raise ValueError(
+            "commit_sha is required - must be provided or set in BUILD_SOURCEVERSION"
+        )
+    if not branch:
+        raise ValueError(
+            "branch is required - must be provided or set in BUILD_SOURCEBRANCHNAME"
+        )
+    if not repository:
+        raise ValueError(
+            "repository is required - must be provided or set in BUILD_REPOSITORY_NAME"
+        )
+    if not url:
+        raise ValueError(
+            "url is required - must be provided or set in BUILD_REPOSITORY_URI"
+        )
+
+    return AzureDevopsVersionInfo(
+        type="vcs:azuredevops",
+        version=message,
+        commit_sha=commit_sha,
+        message=message,
         branch=branch,
         repository=repository,
         url=url,
@@ -161,7 +344,6 @@ async def get_github_version_info(
 
 
 async def get_git_version_info(
-    version: Optional[str] = None,
     commit_sha: Optional[str] = None,
     message: Optional[str] = None,
     branch: Optional[str] = None,
@@ -244,12 +426,18 @@ async def get_inferred_version_info(
     # Map version types to their getter functions
     type_to_getter: Dict[str, Callable[..., Coroutine[Any, Any, Any]]] = {
         VersionType.GITHUB: get_github_version_info,
+        VersionType.GITLAB: get_gitlab_version_info,
+        VersionType.BITBUCKET: get_bitbucket_version_info,
+        VersionType.AZUREDEVOPS: get_azuredevops_version_info,
         VersionType.GIT: get_git_version_info,
     }
 
     # Default order of getters to try
     default_getters = [
         get_github_version_info,
+        get_gitlab_version_info,
+        get_bitbucket_version_info,
+        get_azuredevops_version_info,
         get_git_version_info,
     ]
 
