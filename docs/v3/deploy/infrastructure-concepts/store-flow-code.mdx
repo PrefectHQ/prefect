@@ -412,6 +412,27 @@ When you make a change to your code, Prefect does not push your code to your `gi
 This is intentional to avoid confusion about the `git` history and push process.
 </Warning>
 
+### Prefect Cloud GitHub Integration
+ <span class="badge cloud"></span> If you're using Prefect Cloud you can use the Prefect Cloud GitHub App
+to authenticate to GitHub at runtime and access private repositories without creating a block and storing long
+lived credentials.
+
+1. [Install the Prefect Cloud GitHub App](https://github.com/apps/{github_app_name}/installations/new?) and authorize it to access your repositories.
+
+2. Add the following pull steps to your `prefect.yaml` file. Make sure to replace `owner/repository` with the name of your repository:
+
+```yaml
+pull:
+    - prefect.deployments.steps.run_shell_script:
+        id: get-github-token
+        script: uv tool run prefect-cloud github token owner/repository
+    - prefect.deployments.steps.git_clone:
+        id: git-clone
+        branch: main
+        repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/owner/repository.git
+```
+
+
 ## Docker-based storage
 
 Another popular flow code storage option is to include it in a Docker image. 
