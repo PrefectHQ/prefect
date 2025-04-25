@@ -144,10 +144,8 @@ async def get_github_version_info(
     url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
 
     if not message:
-        result = await run_process(
-            ["git", "log", "-1", "--pretty=%B", "|", "head", "-n", "1"]
-        )
-        message = result.stdout.decode().strip()
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip().splitlines()[0]
 
     if not commit_sha:
         raise ValueError(
@@ -201,10 +199,8 @@ async def get_gitlab_version_info(
     url = url or os.getenv("CI_PROJECT_URL")
 
     if not message:
-        result = await run_process(
-            ["git", "log", "-1", "--pretty=%B", "|", "head", "-n", "1"]
-        )
-        message = result.stdout.decode().strip()
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip().splitlines()[0]
 
     if not commit_sha:
         raise ValueError(
@@ -260,10 +256,8 @@ async def get_bitbucket_version_info(
     url = url or os.getenv("BITBUCKET_GIT_HTTP_ORIGIN")
 
     if not message:
-        result = await run_process(
-            ["git", "log", "-1", "--pretty=%B", "|", "head", "-n", "1"]
-        )
-        message = result.stdout.decode().strip()
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip().splitlines()[0]
 
     if not commit_sha:
         raise ValueError(
@@ -319,7 +313,10 @@ async def get_azuredevops_version_info(
     branch = branch or os.getenv("BUILD_SOURCEBRANCHNAME")
     repository = repository or os.getenv("BUILD_REPOSITORY_NAME")
     url = url or os.getenv("BUILD_REPOSITORY_URI")
-    message = message or os.getenv("BUILD_SOURCEVERSIONMESSAGE")
+
+    if not message:
+        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        message = result.stdout.decode().strip().splitlines()[0]
 
     if not commit_sha:
         raise ValueError(

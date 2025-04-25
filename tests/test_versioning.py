@@ -53,7 +53,6 @@ def clean_azure_devops_environment(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("BUILD_SOURCEBRANCHNAME", raising=False)
     monkeypatch.delenv("BUILD_REPOSITORY_NAME", raising=False)
     monkeypatch.delenv("BUILD_REPOSITORY_URI", raising=False)
-    monkeypatch.delenv("BUILD_SOURCEVERSIONMESSAGE", raising=False)
 
 
 async def test_get_inferred_version_info_with_no_other_information():
@@ -232,11 +231,26 @@ async def test_get_inferred_version_info_with_bitbucket_version_info(
 async def azure_devops_repo(
     project_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> AzureDevopsVersionInfo:
+    async def git(*args: str) -> CompletedProcess[bytes]:
+        result = await run_process(["git", *args], check=False)
+        assert result.returncode == 0, result.stdout + b"\n" + result.stderr
+        return result
+
+    await git("init", "--initial-branch", "my-default-branch")
+    await git("config", "user.email", "me@example.com")
+    await git("config", "user.name", "Me")
+    await git("remote", "add", "origin", "https://dev.azure.com/org/test-repo")
+
+    test_file = project_dir / "test_file.txt"
+    test_file.write_text("This is a test file for the git repository")
+
+    await git("add", ".")
+    await git("commit", "-m", "Initial commit")
+
     monkeypatch.setenv("BUILD_SOURCEVERSION", "abcdef1234567890")
     monkeypatch.setenv("BUILD_SOURCEBRANCHNAME", "my-current-branch")
     monkeypatch.setenv("BUILD_REPOSITORY_NAME", "org/test-repo")
     monkeypatch.setenv("BUILD_REPOSITORY_URI", "https://dev.azure.com/org/test-repo")
-    monkeypatch.setenv("BUILD_SOURCEVERSIONMESSAGE", "Initial commit")
     return AzureDevopsVersionInfo(
         type="vcs:azuredevops",
         version="Initial commit",
