@@ -118,3 +118,36 @@ async def test_deploy_with_inferred_version(
         url="https://github.com/org/repo",
         repository="org/repo",
     )
+
+
+async def test_deploy_with_inferred_version_and_version_name(
+    mock_create_deployment: mock.AsyncMock,
+    mock_get_inferred_version_info: mock.AsyncMock,
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=(
+            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            "--version-type vcs:git --version 'my-version-name'"
+        ),
+        expected_code=0,
+        expected_output_contains=[
+            "An important name/test-name",
+            "prefect worker start --pool 'test-pool'",
+        ],
+    )
+
+    mock_get_inferred_version_info.assert_awaited_once()
+    mock_create_deployment.assert_awaited_once()
+
+    passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+
+    assert passed_version_info == VersionInfo(
+        type="vcs:git",
+        version="my-version-name",
+        commit_sha="abcdef12",
+        message="Initial commit",
+        branch="main",
+        url="https://github.com/org/repo",
+        repository="org/repo",
+    )

@@ -865,12 +865,16 @@ async def _run_single_deploy(
 async def _version_info_from_options(
     options: dict[str, Any], deploy_config: dict[str, Any]
 ) -> VersionInfo | None:
-    if version := options.get("version"):
-        return VersionInfo(type="prefect:simple", version=version)
-
     version_type = options.get("version_type") or deploy_config.get("version_type")
     if version_info := await get_inferred_version_info(version_type):
-        return version_info
+        if version := options.get("version"):
+            version_info.version = (
+                version  # use the supplied version as the version name
+            )
+        return version_info  # otherwise the version name is the first line of the commit message
+
+    if version := options.get("version"):
+        return VersionInfo(type="prefect:simple", version=version)
 
     return None
 
