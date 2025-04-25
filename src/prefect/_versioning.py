@@ -144,7 +144,9 @@ async def get_github_version_info(
     url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}"
 
     if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        result = await run_process(
+            ["git", "log", "-1", "--pretty=%B", "|", "head", "-n", "1"]
+        )
         message = result.stdout.decode().strip()
 
     if not commit_sha:
@@ -199,7 +201,9 @@ async def get_gitlab_version_info(
     url = url or os.getenv("CI_PROJECT_URL")
 
     if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        result = await run_process(
+            ["git", "log", "-1", "--pretty=%B", "|", "head", "-n", "1"]
+        )
         message = result.stdout.decode().strip()
 
     if not commit_sha:
@@ -256,7 +260,9 @@ async def get_bitbucket_version_info(
     url = url or os.getenv("BITBUCKET_GIT_HTTP_ORIGIN")
 
     if not message:
-        result = await run_process(["git", "log", "-1", "--pretty=%B"])
+        result = await run_process(
+            ["git", "log", "-1", "--pretty=%B", "|", "head", "-n", "1"]
+        )
         message = result.stdout.decode().strip()
 
     if not commit_sha:
