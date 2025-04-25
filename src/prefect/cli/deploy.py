@@ -871,7 +871,6 @@ async def _version_info_from_options(
             version_info.version = (
                 version  # use the supplied version as the version name
             )
-            app.console.print(f"Using version: {version_info.version}")
         return version_info  # otherwise the version name is the first line of the commit message
 
     if version := options.get("version") or deploy_config.get("version"):
