@@ -578,6 +578,15 @@ def no_default_vpc():
     if not default_vpc:
         return
 
+    # Delete all subnets in the default VPC
+    for subnet in default_vpc.subnets.all():
+        subnet.delete()
+
+    # Delete all non-default security groups in the default VPC
+    for sg in default_vpc.security_groups.all():
+        if sg.group_name != "default":
+            sg.delete()
+
     default_vpc.delete()
 
 
