@@ -117,7 +117,15 @@ async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
     
     # Mock the Watch class to avoid timeout_seconds issue
     watch_mock = MagicMock()
-    watch_mock.stream = AsyncMock(return_value=[{"object": MagicMock(spec=V1Pod, status=MagicMock(phase="Running"))}])
+    # Fix: Make stream return an async iterator instead of a coroutine
+    watch_mock.stream = MagicMock(return_value=AsyncMock(__aiter__=AsyncMock(
+        return_value=AsyncMock(__anext__=AsyncMock(
+            side_effect=[
+                {"object": MagicMock(spec=V1Pod, status=MagicMock(phase="Running"))},
+                StopAsyncIteration
+            ]
+        ))
+    )))
     
     with patch("kubernetes_asyncio.watch.Watch", return_value=watch_mock):
         monkeypatch.setattr(
