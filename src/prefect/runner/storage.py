@@ -119,6 +119,7 @@ class GitRepository:
         credentials: Union[GitCredentials, Block, dict[str, Any], None] = None,
         name: str | None = None,
         branch: str | None = None,
+        commit_sha: str | None = None,
         include_submodules: bool = False,
         pull_interval: int | None = 60,
         directories: list[str] | None = None,
@@ -137,6 +138,7 @@ class GitRepository:
             )
         self._url = url
         self._branch = branch
+        self._commit_sha = commit_sha
         self._credentials = credentials
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
@@ -279,6 +281,15 @@ class GitRepository:
                 shutil.rmtree(self.destination)
                 await self._clone_repo()
 
+            if self._commit_sha:
+                await run_process(
+                    ["git", "checkout", self._commit_sha],
+                    cwd=self.destination,
+                )
+                self._logger.debug(
+                    f"Successfully checked out commit {self._commit_sha}"
+                )
+
         else:
             await self._clone_repo()
 
@@ -305,7 +316,10 @@ class GitRepository:
             cmd += ["--sparse"]
 
         # Limit git history and set path to clone to
-        cmd += ["--depth", "1", str(self.destination)]
+        if not self._commit_sha:
+            cmd += ["--depth", "1"]
+
+        cmd += [str(self.destination)]
 
         try:
             await run_process(cmd)
@@ -324,6 +338,13 @@ class GitRepository:
                 ["git", "sparse-checkout", "set", *self._directories],
                 cwd=self.destination,
             )
+
+        if self._commit_sha:
+            await run_process(
+                ["git", "checkout", self._commit_sha],
+                cwd=self.destination,
+            )
+            self._logger.debug(f"Successfully checked out commit {self._commit_sha}")
 
     def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, GitRepository):
