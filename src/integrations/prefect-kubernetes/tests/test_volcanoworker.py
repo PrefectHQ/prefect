@@ -8,11 +8,11 @@ without touching any real Kubernetes / Volcano clusters.
 from __future__ import annotations
 
 import uuid
+import warnings
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from kubernetes_asyncio.client import V1Pod
-import warnings
 
 pytest.importorskip("prefect_kubernetes.volcanoworker")
 from prefect_kubernetes.volcanoworker import (  # noqa: E402
@@ -114,19 +114,18 @@ async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
         return fake_resp
 
     list_pod_mock = AsyncMock(side_effect=fake_list_ns_pod)
-    
-    # Mock the Watch class to avoid timeout_seconds issue
+
+    # Create a real async generator for the watch stream
+    async def fake_watch_stream(*args, **kwargs):
+        pod = MagicMock(spec=V1Pod)
+        pod.status.phase = "Running"
+        pod.metadata.name = "test-pod"
+        yield {"object": pod}
+
+    # Mock the Watch class
     watch_mock = MagicMock()
-    # Fix: Make stream return an async iterator instead of a coroutine
-    watch_mock.stream = MagicMock(return_value=AsyncMock(__aiter__=AsyncMock(
-        return_value=AsyncMock(__anext__=AsyncMock(
-            side_effect=[
-                {"object": MagicMock(spec=V1Pod, status=MagicMock(phase="Running"))},
-                StopAsyncIteration
-            ]
-        ))
-    )))
-    
+    watch_mock.stream = MagicMock(return_value=fake_watch_stream())
+
     with patch("kubernetes_asyncio.watch.Watch", return_value=watch_mock):
         monkeypatch.setattr(
             "prefect_kubernetes.volcanoworker.CoreV1Api",
@@ -156,9 +155,12 @@ async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
       • PID format is clusterUID:ns:name
     """
     # Filter out FutureWarning about ad-hoc flow submission
-    warnings.filterwarnings("ignore", category=FutureWarning, 
-                           message="Ad-hoc flow submission via workers is experimental.*")
-    
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message="Ad-hoc flow submission via workers is experimental.*",
+    )
+
     fake_job = {
         "metadata": {
             "name": "vc-job-999",
