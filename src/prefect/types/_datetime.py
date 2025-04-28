@@ -5,7 +5,7 @@ import sys
 from contextlib import contextmanager
 from typing import Any, cast
 from unittest import mock
-from zoneinfo import ZoneInfo, available_timezones
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
@@ -76,27 +76,38 @@ def human_friendly_diff(
     if dt is None:
         return ""
 
-    # Handle naive datetimes consistently across Python versions
-    if dt.tzinfo is None:
-        local_tz = datetime.datetime.now().astimezone().tzinfo
-        dt = dt.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
-    elif hasattr(dt.tzinfo, "name"):
-        dt = dt.replace(tzinfo=ZoneInfo(getattr(dt.tzinfo, "name")))
-
-    # Handle other parameter if provided
-    if other is not None:
-        if other.tzinfo is None:
+    def _normalize(ts: datetime.datetime) -> datetime.datetime:
+        """Return *ts* with a valid ZoneInfo; fall back to UTC if needed."""
+        if ts.tzinfo is None:
             local_tz = datetime.datetime.now().astimezone().tzinfo
-            other = other.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
-        elif hasattr(other.tzinfo, "name"):
-            other = other.replace(tzinfo=ZoneInfo(getattr(other.tzinfo, "name")))
+            return ts.replace(tzinfo=local_tz).astimezone(ZoneInfo("UTC"))
+
+        if isinstance(ts.tzinfo, ZoneInfo):
+            return ts  # already valid
+
+        if tz_name := getattr(ts.tzinfo, "name", None):
+            try:
+                return ts.replace(tzinfo=ZoneInfo(tz_name))
+            except ZoneInfoNotFoundError:
+                pass
+
+        return ts.astimezone(ZoneInfo("UTC"))
+
+    dt = _normalize(dt)
+
+    if other is not None:
+        other = _normalize(other)
 
     if sys.version_info >= (3, 13):
+        # humanize expects ZoneInfo or None
         return humanize.naturaltime(dt, when=other)
 
-    return DateTime.instance(dt).diff_for_humans(
-        other=DateTime.instance(other) if other else None
+    # Ensure consistency for pendulum path by using UTC
+    pendulum_dt = DateTime.instance(dt.astimezone(ZoneInfo("UTC")))
+    pendulum_other = (
+        DateTime.instance(other.astimezone(ZoneInfo("UTC"))) if other else None
     )
+    return pendulum_dt.diff_for_humans(other=pendulum_other)
 
 
 def now(

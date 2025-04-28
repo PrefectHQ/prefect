@@ -141,7 +141,10 @@ async def wait_for_flow_run(
                 return flow_run
 
             async for event in subscriber:
-                state_type = StateType(event.resource["prefect.state-type"])
+                if not (state_type := event.resource.get("prefect.state-type")):
+                    logger.debug(f"Received {event.event!r} event")
+                    continue
+                state_type = StateType(state_type)
                 state = State(type=state_type)
 
                 if log_states:

@@ -239,7 +239,6 @@ async def create_secret(
         response = await run_sync_in_worker_thread(
             client.create_secret, **create_secret_kwargs
         )
-        print(response.pop("ResponseMetadata", None))
         return response
     except ClientError:
         logger.exception("Unable to create secret %s", secret_name)

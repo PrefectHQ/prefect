@@ -73,6 +73,14 @@ jobs:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
           PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
 
+      - name: Run deploy and execute smoke test using the built client
+        run: python client/client_deploy.py
+        working-directory: ${{ env.TMPDIR }}
+        env:
+          PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
+          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+
+
       - name: Install prefect from source
         run: uv pip install .
 
