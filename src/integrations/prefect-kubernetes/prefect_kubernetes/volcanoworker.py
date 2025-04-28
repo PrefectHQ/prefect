@@ -24,8 +24,8 @@ from kubernetes_asyncio.client import (
     ApiClient,
     CoreV1Api,
     CustomObjectsApi,
-    V1Pod,
     V1Job,
+    V1Pod,
 )
 from kubernetes_asyncio.client.exceptions import ApiException
 from pydantic import Field, model_validator
@@ -161,12 +161,15 @@ class VolcanoWorker(KubernetesWorker):
         job_name: str,
         namespace: str,
         client: "ApiClient",
-        job_manifest: Optional[Dict[str, Any]] = None
+        job_manifest: Optional[Dict[str, Any]] = None,
     ) -> Union[Dict[str, Any], "V1Job", None]:
         """
         Get a Kubernetes or Volcano job by name.
         """
-        if job_manifest and job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
+        if (
+            job_manifest
+            and job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1"
+        ):
             # For Volcano Job, use CustomObjectsApi
             custom_api = CustomObjectsApi(client)
             try:
@@ -175,7 +178,7 @@ class VolcanoWorker(KubernetesWorker):
                     version="v1alpha1",
                     namespace=namespace,
                     plural="jobs",
-                    name=job_name
+                    name=job_name,
                 )
             except ApiException as e:
                 if e.status == 404:
@@ -245,14 +248,14 @@ class VolcanoWorker(KubernetesWorker):
 
         # Get job and pod information
         job = await self._get_job(
-            job_name=job_name, 
-            namespace=configuration.namespace, 
+            job_name=job_name,
+            namespace=configuration.namespace,
             client=client,
-            job_manifest=configuration.job_manifest
+            job_manifest=configuration.job_manifest,
         )
         if not job:
             return -1
-        
+
         pod = await self._get_job_pod(logger, job_name, configuration, client)
         if not pod:
             return -1
@@ -260,21 +263,14 @@ class VolcanoWorker(KubernetesWorker):
         # Volcano Job monitoring
         tasks = [
             self._monitor_volcano_job_state(
-                logger, 
-                job_name, 
-                configuration.namespace, 
-                client
+                logger, job_name, configuration.namespace, client
             )
         ]
-        
+
         if configuration.stream_output:
             tasks.append(
                 self._stream_job_logs(
-                    logger, 
-                    pod.metadata.name, 
-                    job_name, 
-                    configuration, 
-                    client
+                    logger, pod.metadata.name, job_name, configuration, client
                 )
             )
 
@@ -283,14 +279,17 @@ class VolcanoWorker(KubernetesWorker):
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for result in results:
                     if isinstance(result, Exception):
-                        logger.error("Error while monitoring Volcano job", exc_info=result)
+                        logger.error(
+                            "Error while monitoring Volcano job", exc_info=result
+                        )
                         return -1
         except TimeoutError:
             logger.error(f"Volcano job {job_name!r} timed out.")
             return -1
 
-        return await self._get_container_exit_code(logger, job_name, configuration, client)
-    
+        return await self._get_container_exit_code(
+            logger, job_name, configuration, client
+        )
 
     # ------------------------------------------------------------------
     # PID helper override (job is dict for Volcano)
@@ -404,7 +403,6 @@ class VolcanoWorker(KubernetesWorker):
 
             return KubernetesWorkerResult(identifier=pid, status_code=status_code)
 
-
     async def _monitor_volcano_job_state(
         self,
         logger: logging.Logger,
@@ -414,7 +412,7 @@ class VolcanoWorker(KubernetesWorker):
     ) -> None:
         """
         Monitor the state of a Volcano job until completion.
-        
+
         Args:
             logger: Logger to use for logging
             job_name: Name of the Volcano job
@@ -435,13 +433,16 @@ class VolcanoWorker(KubernetesWorker):
                 logger.info(f"Volcano job {job_name!r} state: {volcano_state}")
 
                 if volcano_state in ["Completed", "Failed", "Aborted"]:
-                    logger.info(f"Volcano job {job_name!r} finished with state: {volcano_state}")
+                    logger.info(
+                        f"Volcano job {job_name!r} finished with state: {volcano_state}"
+                    )
                     return
 
                 await asyncio.sleep(5)  # Poll every 5 seconds
             except Exception as e:
                 logger.warning(f"Error monitoring Volcano job {job_name!r}: {e}")
                 await asyncio.sleep(5)
+
 
 # ---------------------------------------------------------------------------
 # Export for Prefect plugin system -----------------------------------------

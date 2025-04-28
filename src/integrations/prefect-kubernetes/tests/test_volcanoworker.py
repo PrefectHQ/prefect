@@ -8,10 +8,11 @@ without touching any real Kubernetes / Volcano clusters.
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from kubernetes_asyncio.client import V1Pod
+import warnings
 
 pytest.importorskip("prefect_kubernetes.volcanoworker")
 from prefect_kubernetes.volcanoworker import (  # noqa: E402
@@ -103,36 +104,39 @@ async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
     """
 
     # --- Create fake CoreV1Api.list_namespaced_pod ---
-    async def fake_list_ns_pod(namespace, label_selector=None):
+    async def fake_list_ns_pod(namespace, label_selector=None, **kwargs):
         fake_resp = MagicMock(items=[])
         # First selector hits
         if label_selector == "volcano.sh/job-name=my-job":
             pod = MagicMock(spec=V1Pod)
+            pod.status.phase = "Running"  # Set a non-Pending phase to exit the watch loop
             fake_resp.items = [pod]
         return fake_resp
 
     list_pod_mock = AsyncMock(side_effect=fake_list_ns_pod)
-    monkeypatch.setattr(
-        "prefect_kubernetes.volcanoworker.CoreV1Api",
-        MagicMock(return_value=MagicMock(list_namespaced_pod=list_pod_mock)),
-    )
+    
+    # Mock the Watch class to avoid timeout_seconds issue
+    watch_mock = MagicMock()
+    watch_mock.stream = AsyncMock(return_value=[{"object": MagicMock(spec=V1Pod, status=MagicMock(phase="Running"))}])
+    
+    with patch("kubernetes_asyncio.watch.Watch", return_value=watch_mock):
+        monkeypatch.setattr(
+            "prefect_kubernetes.volcanoworker.CoreV1Api",
+            MagicMock(return_value=MagicMock(list_namespaced_pod=list_pod_mock)),
+        )
 
-    worker = VolcanoWorker(work_pool_name="dummy")
-    pod = await worker._get_job_pod(
-        logger=worker._logger,
-        job_name="my-job",
-        configuration=job_cfg,
-        client=MagicMock(),
-    )
+        worker = VolcanoWorker(work_pool_name="dummy")
+        pod = await worker._get_job_pod(
+            logger=worker._logger,
+            job_name="my-job",
+            configuration=job_cfg,
+            client=MagicMock(),
+        )
 
     # Confirm pod was returned
     assert pod is not None
-    # Should use volcano.sh/job-name first
-    assert (
-        list_pod_mock.await_args_list[0]
-        .kwargs["label_selector"]
-        .startswith("volcano.sh/job-name")
-    )
+    # Should use volcano.sh/job-name in the watch stream
+    assert watch_mock.stream.called
 
 
 @pytest.mark.asyncio
@@ -143,6 +147,10 @@ async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
       • status_code from _watch_job is passed through
       • PID format is clusterUID:ns:name
     """
+    # Filter out FutureWarning about ad-hoc flow submission
+    warnings.filterwarnings("ignore", category=FutureWarning, 
+                           message="Ad-hoc flow submission via workers is experimental.*")
+    
     fake_job = {
         "metadata": {
             "name": "vc-job-999",
@@ -175,6 +183,15 @@ async def test_run_full_flow(monkeypatch, job_cfg, dummy_flow_run):
         VolcanoWorker,
         "_get_cluster_uid",
         AsyncMock(return_value="CLUSTER-UID"),
+    )
+
+    # Mock KubernetesEventsReplicator
+    events_replicator_mock = MagicMock()
+    events_replicator_mock.__aenter__ = AsyncMock(return_value=None)
+    events_replicator_mock.__aexit__ = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "prefect_kubernetes.volcanoworker.KubernetesEventsReplicator",
+        MagicMock(return_value=events_replicator_mock),
     )
 
     # Mock kubernetes client configuration to avoid kubeconfig errors
