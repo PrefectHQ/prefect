@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 
 from pydantic import BaseModel
@@ -40,10 +42,7 @@ class MockOffsetTZInfo(datetime.tzinfo):
 
 
 def test_human_friendly_diff_with_offset_tzinfo():
-    """Test that human_friendly_diff does not raise error with an offset tz name.
-
-    This test should FAIL before the fix is applied.
-    """
+    """Test that human_friendly_diff does not raise error with an offset tz name."""
     mock_tz = MockOffsetTZInfo(name="+05:30")
     dt_with_mock_offset = datetime.datetime.now().replace(tzinfo=mock_tz)
 
