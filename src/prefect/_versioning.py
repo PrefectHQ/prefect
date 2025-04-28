@@ -11,6 +11,11 @@ from pydantic import Field, model_validator
 from prefect.client.schemas.objects import VersionInfo
 
 
+async def get_commit_message_first_line() -> str:
+    result = await run_process(["git", "log", "-1", "--pretty=%B"])
+    return result.stdout.decode().strip().splitlines()[0]
+
+
 class SimpleVersionInfo(VersionInfo):
     type: Literal["prefect:simple"] = "prefect:simple"
     version: str = Field(default="")
@@ -145,8 +150,7 @@ async def get_github_version_info(
         url = url or f"{os.getenv('GITHUB_SERVER_URL')}/{repository}/tree/{commit_sha}"
 
         if not message:
-            result = await run_process(["git", "log", "-1", "--pretty=%B"])
-            message = result.stdout.decode().strip().splitlines()[0]
+            message = await get_commit_message_first_line()
 
         if not commit_sha:
             raise ValueError(
@@ -206,8 +210,7 @@ async def get_gitlab_version_info(
         url = url or f"{os.getenv('CI_PROJECT_URL')}/-/tree/{commit_sha}"
 
         if not message:
-            result = await run_process(["git", "log", "-1", "--pretty=%B"])
-            message = result.stdout.decode().strip().splitlines()[0]
+            message = await get_commit_message_first_line()
 
         if not commit_sha:
             raise ValueError(
@@ -271,8 +274,7 @@ async def get_bitbucket_version_info(
         url = url or f"{os.getenv('BITBUCKET_GIT_HTTP_ORIGIN')}/src/{commit_sha}"
 
         if not message:
-            result = await run_process(["git", "log", "-1", "--pretty=%B"])
-            message = result.stdout.decode().strip().splitlines()[0]
+            message = await get_commit_message_first_line()
 
         if not commit_sha:
             raise ValueError(
@@ -336,8 +338,7 @@ async def get_azuredevops_version_info(
         url = url or f"{os.getenv('BUILD_REPOSITORY_URI')}?version=GC{commit_sha}"
 
         if not message:
-            result = await run_process(["git", "log", "-1", "--pretty=%B"])
-            message = result.stdout.decode().strip().splitlines()[0]
+            message = await get_commit_message_first_line()
 
         if not commit_sha:
             raise ValueError(
@@ -401,8 +402,7 @@ async def get_git_version_info(
                 repository = repository[:-4]
 
         if not message:
-            result = await run_process(["git", "log", "-1", "--pretty=%B"])
-            message = result.stdout.decode().strip().splitlines()[0]
+            message = await get_commit_message_first_line()
 
         if not url and repository:
             # Use the full remote URL as the URL
