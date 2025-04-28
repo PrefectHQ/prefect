@@ -359,14 +359,6 @@ class GitRepository:
                     f" {exc.returncode}."
                 ) from exc_chain
 
-            # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
-            if self._directories:
-                self._logger.debug("Will add %s", self._directories)
-                await run_process(
-                    ["git", "sparse-checkout", "set", *self._directories],
-                    cwd=self.destination,
-                )
-
             # Checkout the specific commit
             await run_process(
                 ["git", "checkout", self._commit_sha],
@@ -394,13 +386,13 @@ class GitRepository:
                     f" {exc.returncode}."
                 ) from exc_chain
 
-            # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
-            if self._directories:
-                self._logger.debug("Will add %s", self._directories)
-                await run_process(
-                    ["git", "sparse-checkout", "set", *self._directories],
-                    cwd=self.destination,
-                )
+        # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
+        if self._directories:
+            self._logger.debug("Will add %s", self._directories)
+            await run_process(
+                ["git", "sparse-checkout", "set", *self._directories],
+                cwd=self.destination,
+            )
 
     def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, GitRepository):
