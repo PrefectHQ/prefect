@@ -141,6 +141,9 @@ async def wait_for_flow_run(
                 return flow_run
 
             async for event in subscriber:
+                if event.event == "prefect.flow-run.heartbeat":
+                    logger.debug("Heartbeat received")
+                    continue
                 state_type = StateType(event.resource["prefect.state-type"])
                 state = State(type=state_type)
 
