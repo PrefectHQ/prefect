@@ -6,7 +6,7 @@ from typing import Any, Callable, Coroutine, Dict, Literal, Optional
 from urllib.parse import urlparse
 
 from anyio import run_process
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from prefect.client.schemas.objects import VersionInfo
 
@@ -32,18 +32,6 @@ class GithubVersionInfo(VersionInfo):
     repository: str
     url: str
 
-    @model_validator(mode="after")
-    def validate_branch(self):
-        if not self.branch:
-            raise ValueError("branch is required when type is 'vcs:github'")
-        return self
-
-    @model_validator(mode="after")
-    def validate_commit_sha(self):
-        if not self.commit_sha:
-            raise ValueError("commit_sha is required when type is 'vcs:github'")
-        return self
-
 
 class GitlabVersionInfo(VersionInfo):
     type: Literal["vcs:gitlab"] = "vcs:gitlab"
@@ -53,18 +41,6 @@ class GitlabVersionInfo(VersionInfo):
     branch: str
     repository: str
     url: str
-
-    @model_validator(mode="after")
-    def validate_branch(self):
-        if not self.branch:
-            raise ValueError("branch is required when type is 'vcs:gitlab'")
-        return self
-
-    @model_validator(mode="after")
-    def validate_commit_sha(self):
-        if not self.commit_sha:
-            raise ValueError("commit_sha is required when type is 'vcs:gitlab'")
-        return self
 
 
 class BitbucketVersionInfo(VersionInfo):
@@ -76,18 +52,6 @@ class BitbucketVersionInfo(VersionInfo):
     repository: str
     url: str
 
-    @model_validator(mode="after")
-    def validate_branch(self):
-        if not self.branch:
-            raise ValueError("branch is required when type is 'vcs:bitbucket'")
-        return self
-
-    @model_validator(mode="after")
-    def validate_commit_sha(self):
-        if not self.commit_sha:
-            raise ValueError("commit_sha is required when type is 'vcs:bitbucket'")
-        return self
-
 
 class AzureDevopsVersionInfo(VersionInfo):
     type: Literal["vcs:azuredevops"] = "vcs:azuredevops"
@@ -97,18 +61,6 @@ class AzureDevopsVersionInfo(VersionInfo):
     branch: str
     repository: str
     url: str
-
-    @model_validator(mode="after")
-    def validate_branch(self):
-        if not self.branch:
-            raise ValueError("branch is required when type is 'vcs:azuredevops'")
-        return self
-
-    @model_validator(mode="after")
-    def validate_commit_sha(self):
-        if not self.commit_sha:
-            raise ValueError("commit_sha is required when type is 'vcs:azuredevops'")
-        return self
 
 
 class GitVersionInfo(VersionInfo):
