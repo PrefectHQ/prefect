@@ -102,7 +102,7 @@ class EventPersister(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Event persister already started"
-        self.consumer: Consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events", group="event_persister")
 
         async with create_handler(
             batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
