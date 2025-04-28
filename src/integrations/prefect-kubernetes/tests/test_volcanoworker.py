@@ -109,7 +109,9 @@ async def test_get_job_pod_selector_order(monkeypatch, job_cfg):
         # First selector hits
         if label_selector == "volcano.sh/job-name=my-job":
             pod = MagicMock(spec=V1Pod)
-            pod.status.phase = "Running"  # Set a non-Pending phase to exit the watch loop
+            pod.status.phase = (
+                "Running"  # Set a non-Pending phase to exit the watch loop
+            )
             fake_resp.items = [pod]
         return fake_resp
 
