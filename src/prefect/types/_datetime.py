@@ -85,8 +85,7 @@ def human_friendly_diff(
         if isinstance(ts.tzinfo, ZoneInfo):
             return ts  # already valid
 
-        tz_name = getattr(ts.tzinfo, "name", None)
-        if tz_name:
+        if tz_name := getattr(ts.tzinfo, "name", None):
             try:
                 return ts.replace(tzinfo=ZoneInfo(tz_name))
             except ZoneInfoNotFoundError:
