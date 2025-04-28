@@ -349,6 +349,8 @@ class GitRepository:
             cmd += ["--sparse"]
 
         if self._commit_sha:
+            cmd += [str(self.destination)]
+
             try:
                 await run_process(cmd)
             except subprocess.CalledProcessError as exc:
