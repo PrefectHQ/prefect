@@ -372,23 +372,36 @@ class TestGitRepository:
             ]
         )
 
+    async def test_pull_code_with_commit_sha(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
         # pretend the repo already exists
         monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
 
-        await repo.pull_code()
-        mock_run_process.assert_awaited_with(
-            [
-                "git",
-                "-c",
-                "url.https://token@github.com.insteadOf=https://github.com",
-                "pull",
-                "origin",
-                "--recurse-submodules",
-                "--depth",
-                "1",
-            ],
-            cwd=Path.cwd() / "repo",
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", commit_sha="1234567890"
         )
+
+        await repo.pull_code()
+
+        # Verify the expected git commands were called in order
+        expected_calls = [
+            call(
+                ["git", "config", "--get", "remote.origin.url"],
+                cwd=str(Path.cwd() / "repo"),
+            ),
+            call(
+                ["git", "pull", "origin", "--depth", "1"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(
+                ["git", "checkout", "1234567890"],
+                cwd=Path.cwd() / "repo",
+            ),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert mock_run_process.await_args_list == expected_calls
 
     async def test_git_clone_errors_obscure_access_token(
         self, monkeypatch, capsys, tmp_path: Path
@@ -607,6 +620,21 @@ class TestGitRepository:
             result = repo.to_pull_step()
             assert result == expected_output
 
+        def test_to_pull_step_with_commit_sha(self):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git", commit_sha="1234567890"
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "commit_sha": "1234567890",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
         def test_to_pull_step_with_unsaved_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
 
@@ -671,6 +699,37 @@ class TestGitRepository:
                 ),
             ):
                 repo.to_pull_step()
+
+    async def test_clone_repo_with_commit_sha(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        # pretend the repo doesn't exist
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", commit_sha="1234567890"
+        )
+
+        await repo.pull_code()
+
+        # Verify the expected git commands were called in order
+        expected_calls = [
+            call(
+                [
+                    "git",
+                    "clone",
+                    "https://github.com/org/repo.git",
+                    str(Path.cwd() / "repo"),
+                ]
+            ),
+            call(
+                ["git", "checkout", "1234567890"],
+                cwd=Path.cwd() / "repo",
+            ),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert mock_run_process.await_args_list == expected_calls
 
 
 class TestRemoteStorage:

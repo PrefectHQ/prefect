@@ -372,6 +372,10 @@ class GitRepository:
             pull_step["prefect.deployments.steps.git_clone"]["include_submodules"] = (
                 self._include_submodules
             )
+        if self._commit_sha:
+            pull_step["prefect.deployments.steps.git_clone"]["commit_sha"] = (
+                self._commit_sha
+            )
         if isinstance(self._credentials, Block):
             pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (
                 f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
