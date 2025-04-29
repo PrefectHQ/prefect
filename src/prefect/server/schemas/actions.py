@@ -183,6 +183,10 @@ class DeploymentCreate(ActionBaseModel):
     concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
         default=None, description="The deployment's concurrency options."
     )
+    global_concurrency_limit_id: Optional[UUID] = Field(
+        default=None,
+        description="The ID of the global concurrency limit to apply to the deployment.",
+    )
     enforce_parameter_schema: bool = Field(
         default=True,
         description=(
@@ -274,6 +278,17 @@ class DeploymentCreate(ActionBaseModel):
         )
         return values
 
+    @model_validator(mode="before")
+    def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
+        if values.get("concurrency_limit") and values.get(
+            "global_concurrency_limit_id"
+        ):
+            raise ValueError(
+                "A deployment cannot have both a concurrency limit and a global concurrency limit."
+            )
+        return values
+
 
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a deployment."""
@@ -297,6 +312,10 @@ class DeploymentUpdate(ActionBaseModel):
     )
     concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
         default=None, description="The deployment's concurrency options."
+    )
+    global_concurrency_limit_id: Optional[UUID] = Field(
+        default=None,
+        description="The ID of the global concurrency limit to apply to the deployment.",
     )
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -334,6 +353,10 @@ class DeploymentUpdate(ActionBaseModel):
     )
     model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
+    version_info: Optional[schemas.core.VersionInfo] = Field(
+        default=None, description="A description of this version of the deployment."
+    )
+
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """
         Check that the combination of base_job_template defaults and job_variables
@@ -360,6 +383,17 @@ class DeploymentUpdate(ActionBaseModel):
             if errors:
                 for error in errors:
                     raise error
+
+    @model_validator(mode="before")
+    def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
+        if values.get("concurrency_limit") and values.get(
+            "global_concurrency_limit_id"
+        ):
+            raise ValueError(
+                "A deployment cannot have both a concurrency limit and a global concurrency limit."
+            )
+        return values
 
 
 class FlowRunUpdate(ActionBaseModel):

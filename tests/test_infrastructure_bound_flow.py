@@ -2,6 +2,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -114,6 +115,59 @@ class TestInfrastructureBoundFlow:
             == ThreadPoolTaskRunner()  # this one is implicit
         )
 
+    def test_with_options(self, work_pool: WorkPool, result_storage: LocalFileSystem):
+        on_mock = MagicMock()
+
+        @flow(
+            result_storage=result_storage,
+        )
+        def hello_world():
+            return "Hello, world!"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=hello_world, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        infrastructure_bound_flow = infrastructure_bound_flow.with_options(
+            name="new-name",
+            description="new-description",
+            flow_run_name="new-flow-run-name",
+            retries=10,
+            retry_delay_seconds=1,
+            timeout_seconds=100,
+            validate_parameters=True,
+            persist_result=False,
+            result_storage=result_storage,
+            result_serializer=JSONSerializer(),
+            cache_result_in_memory=True,
+            log_prints=False,
+            on_completion=[on_mock],
+            on_failure=[on_mock],
+            on_cancellation=[on_mock],
+            on_crashed=[on_mock],
+            on_running=[on_mock],
+            job_variables={"key": "value"},
+        )
+
+        assert infrastructure_bound_flow.name == "new-name"
+        assert infrastructure_bound_flow.description == "new-description"
+        assert infrastructure_bound_flow.flow_run_name == "new-flow-run-name"
+        assert infrastructure_bound_flow.retries == 10
+        assert infrastructure_bound_flow.retry_delay_seconds == 1
+        assert infrastructure_bound_flow.timeout_seconds == 100
+        assert infrastructure_bound_flow.should_validate_parameters is True
+        assert infrastructure_bound_flow.persist_result is False
+        assert infrastructure_bound_flow.result_storage == result_storage
+        assert infrastructure_bound_flow.result_serializer == JSONSerializer()
+        assert infrastructure_bound_flow.cache_result_in_memory is True
+        assert infrastructure_bound_flow.log_prints is False
+        assert infrastructure_bound_flow.on_completion_hooks == [on_mock]
+        assert infrastructure_bound_flow.on_failure_hooks == [on_mock]
+        assert infrastructure_bound_flow.on_cancellation_hooks == [on_mock]
+        assert infrastructure_bound_flow.on_crashed_hooks == [on_mock]
+        assert infrastructure_bound_flow.on_running_hooks == [on_mock]
+        assert infrastructure_bound_flow.job_variables == {"key": "value"}
+
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     def test_basic_call(self, work_pool: WorkPool, result_storage: LocalFileSystem):
         @flow(
@@ -205,3 +259,37 @@ class TestInfrastructureBoundFlow:
         result = infrastructure_bound_flow(return_state=True)
         assert result.is_completed()
         assert result.result() == "Hello, world!"
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_submit(self, work_pool: WorkPool, result_storage: LocalFileSystem):
+        @flow(
+            result_storage=result_storage,
+        )
+        def my_flow(x: int, y: int):
+            return x + y
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        future = infrastructure_bound_flow.submit(x=1, y=2)
+        assert future.result() == 3
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_submit_with_error(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(
+            result_storage=result_storage,
+            validate_parameters=False,
+        )
+        def my_flow(x: int, y: int):
+            return x + y
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        future = infrastructure_bound_flow.submit(x=1, y="not an int")
+        with pytest.raises(TypeError):
+            future.result()

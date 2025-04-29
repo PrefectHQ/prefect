@@ -65,7 +65,7 @@ from prefect.exceptions import (
     UnspecifiedFlowError,
 )
 from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
-from prefect.futures import PrefectFuture
+from prefect.futures import PrefectFlowRunFuture, PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
@@ -2103,6 +2103,106 @@ class InfrastructureBoundFlow(Flow[P, R]):
                     **kwargs,
                 )
             )
+
+    def submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
+        """
+        EXPERIMENTAL: This method is experimental and may be removed or changed in future
+            releases.
+
+        Submit the flow to run on remote infrastructure.
+
+        Args:
+            *args: Positional arguments to pass to the flow.
+            **kwargs: Keyword arguments to pass to the flow.
+
+        Returns:
+            A `PrefectFlowRunFuture` that can be used to retrieve the result of the flow run.
+
+        Examples:
+            Submit a flow to run on Kubernetes:
+
+            ```python
+            from prefect import flow
+            from prefect_kubernetes.experimental import kubernetes
+
+            @kubernetes(work_pool="my-kubernetes-work-pool")
+            @flow
+            def my_flow(x: int, y: int):
+                return x + y
+
+            future = my_flow.submit(x=1, y=2)
+            result = future.result()
+            print(result)
+            ```
+        """
+
+        async def submit_func():
+            async with self.worker_cls(work_pool_name=self.work_pool) as worker:
+                parameters = get_call_parameters(self, args, kwargs)
+                return await worker.submit(
+                    flow=self,
+                    parameters=parameters,
+                    job_variables=self.job_variables,
+                )
+
+        return run_coro_as_sync(submit_func())
+
+    def with_options(
+        self,
+        *,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        retries: Optional[int] = None,
+        retry_delay_seconds: Optional[Union[int, float]] = None,
+        description: Optional[str] = None,
+        flow_run_name: Optional[Union[Callable[[], str], str]] = None,
+        task_runner: Union[
+            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
+        ] = None,
+        timeout_seconds: Union[int, float, None] = None,
+        validate_parameters: Optional[bool] = None,
+        persist_result: Optional[bool] = NotSet,  # type: ignore
+        result_storage: Optional[ResultStorage] = NotSet,  # type: ignore
+        result_serializer: Optional[ResultSerializer] = NotSet,  # type: ignore
+        cache_result_in_memory: Optional[bool] = None,
+        log_prints: Optional[bool] = NotSet,  # type: ignore
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
+    ) -> "InfrastructureBoundFlow[P, R]":
+        new_flow = super().with_options(
+            name=name,
+            version=version,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            description=description,
+            flow_run_name=flow_run_name,
+            task_runner=task_runner,
+            timeout_seconds=timeout_seconds,
+            validate_parameters=validate_parameters,
+            persist_result=persist_result,
+            result_storage=result_storage,
+            result_serializer=result_serializer,
+            cache_result_in_memory=cache_result_in_memory,
+            log_prints=log_prints,
+            on_completion=on_completion,
+            on_failure=on_failure,
+            on_cancellation=on_cancellation,
+            on_crashed=on_crashed,
+            on_running=on_running,
+        )
+        new_infrastructure_bound_flow = bind_flow_to_infrastructure(
+            new_flow,
+            self.work_pool,
+            self.worker_cls,
+            job_variables=job_variables
+            if job_variables is not None
+            else self.job_variables,
+        )
+        return new_infrastructure_bound_flow
 
 
 def bind_flow_to_infrastructure(

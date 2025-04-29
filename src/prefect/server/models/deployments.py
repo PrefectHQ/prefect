@@ -80,7 +80,7 @@ async def _delete_scheduled_runs(
 async def create_deployment(
     db: PrefectDBInterface,
     session: AsyncSession,
-    deployment: schemas.core.Deployment,
+    deployment: schemas.core.Deployment | schemas.actions.DeploymentCreate,
 ) -> Optional[orm_models.Deployment]:
     """Upserts a deployment.
 
@@ -102,7 +102,7 @@ async def create_deployment(
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
-        exclude_unset=True, exclude={"schedules"}
+        exclude_unset=True, exclude={"schedules", "version_info"}
     )
 
     requested_concurrency_limit = insert_values.pop("concurrency_limit", "unset")
@@ -122,6 +122,7 @@ async def create_deployment(
             "schedules",
             "job_variables",
             "concurrency_limit",
+            "version_info",
         },
     )
     if job_variables:
@@ -225,10 +226,16 @@ async def update_deployment(
     # the user, ignoring any defaults on the model
     update_data = deployment.model_dump_for_orm(
         exclude_unset=True,
-        exclude={"work_pool_name"},
+        exclude={"work_pool_name", "version_info"},
     )
 
+    requested_global_concurrency_limit_update = update_data.pop(
+        "global_concurrency_limit_id", "unset"
+    )
     requested_concurrency_limit_update = update_data.pop("concurrency_limit", "unset")
+
+    if requested_global_concurrency_limit_update != "unset":
+        update_data["concurrency_limit_id"] = requested_global_concurrency_limit_update
 
     # The job_variables field in client and server schemas is named
     # infra_overrides in the database.
