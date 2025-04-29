@@ -812,7 +812,7 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
             # insert a flow run notification policy
             await session.execute(
                 sa.text(
-                    "INSERT INTO flow_run_notification_policy (name, is_active, state_names, tags, message_template, block_document_id) VALUES ('enabled-policy', TRUE, '[]', '[]', null, :block_document_id);"
+                    "INSERT INTO flow_run_notification_policy (is_active, state_names, tags, message_template, block_document_id) VALUES (TRUE, '[]', '[]', null, :block_document_id);"
                 ),
                 {"block_document_id": block_document_id},
             )
@@ -820,7 +820,7 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
             # insert a flow run notification policy
             await session.execute(
                 sa.text(
-                    "INSERT INTO flow_run_notification_policy (name, is_active, state_names, tags, message_template, block_document_id) VALUES ('disabled-policy', FALSE, '[\"Running\"]', '[\"tag1\", \"tag2\"]', 'Flow {flow_name} is in state {flow_run_state_name}', :block_document_id);"
+                    "INSERT INTO flow_run_notification_policy (is_active, state_names, tags, message_template, block_document_id) VALUES (FALSE, '[\"Running\"]', '[\"tag1\", \"tag2\"]', 'Flow {flow_name} is in state {flow_run_state_name}', :block_document_id);"
                 ),
                 {"block_document_id": block_document_id},
             )
