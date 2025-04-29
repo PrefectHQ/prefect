@@ -1157,6 +1157,30 @@ async def test_create_flow_run_from_deployment(
     assert start_time <= flow_run.state.state_details.scheduled_time <= now("UTC")
 
 
+async def test_create_flow_run_from_deployment_with_base_model_parameters(
+    prefect_client: PrefectClient, deployment: DeploymentResponse
+):
+    class MyBaseModel(pydantic.BaseModel):
+        x: int
+        y: str
+
+    @flow
+    def my_flow(param: MyBaseModel):
+        pass
+
+    flow_id = await prefect_client.create_flow(my_flow)
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="my-deployment",
+    )
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id, parameters={"param": MyBaseModel(x=1, y="hello")}
+    )
+    assert flow_run.parameters == {"param": {"x": 1, "y": "hello"}}
+
+
 async def test_create_flow_run_from_deployment_idempotency(
     prefect_client: PrefectClient, deployment: DeploymentResponse
 ):
