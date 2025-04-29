@@ -123,7 +123,7 @@ class TestGitRepository:
             ]
         )
 
-    def test_init_commit_sha_and_branch(self):
+    def test_init_commit_sha_and_branch_raises(self):
         with pytest.raises(
             ValueError,
             match="Cannot provide both a branch and a commit SHA. Please provide only one.",
