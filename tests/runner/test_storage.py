@@ -123,6 +123,17 @@ class TestGitRepository:
             ]
         )
 
+    def test_init_commit_sha_and_branch(self):
+        with pytest.raises(
+            ValueError,
+            match="Cannot provide both a branch and a commit SHA. Please provide only one.",
+        ):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha="1234567890",
+                branch="main",
+            )
+
     def test_init_with_username_no_token(self):
         with pytest.raises(
             ValueError,
@@ -377,6 +388,14 @@ class TestGitRepository:
     ):
         # pretend the repo already exists
         monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+        # Mock is_current_commit to return False to trigger fetch
+        monkeypatch.setattr(
+            GitRepository, "is_current_commit", AsyncMock(return_value=False)
+        )
+        # Mock is_shallow_clone to return True to test unshallow behavior
+        monkeypatch.setattr(
+            GitRepository, "is_shallow_clone", AsyncMock(return_value=True)
+        )
 
         repo = GitRepository(
             url="https://github.com/org/repo.git", commit_sha="1234567890"
@@ -391,12 +410,48 @@ class TestGitRepository:
                 cwd=str(Path.cwd() / "repo"),
             ),
             call(
-                ["git", "pull", "origin", "--depth", "1"],
+                ["git", "fetch", "origin", "--unshallow"],
                 cwd=Path.cwd() / "repo",
             ),
             call(
                 ["git", "checkout", "1234567890"],
                 cwd=Path.cwd() / "repo",
+            ),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert mock_run_process.await_args_list == expected_calls
+
+    async def test_is_current_commit_no_sha_raises(self, mock_run_process: AsyncMock):
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        with pytest.raises(ValueError, match="No commit SHA provided"):
+            await repo.is_current_commit()
+
+    async def test_pull_code_with_commit_sha_when_current_commit(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        # pretend the repo already exists
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+        # Mock is_current_commit to return True to skip fetch/checkout
+        monkeypatch.setattr(
+            GitRepository, "is_current_commit", AsyncMock(return_value=True)
+        )
+        # Mock is_shallow_clone to return False (not relevant for this test)
+        monkeypatch.setattr(
+            GitRepository, "is_shallow_clone", AsyncMock(return_value=False)
+        )
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git", commit_sha="1234567890"
+        )
+
+        await repo.pull_code()
+
+        # Should only check the remote URL since the commit is already checked out
+        expected_calls = [
+            call(
+                ["git", "config", "--get", "remote.origin.url"],
+                cwd=str(Path.cwd() / "repo"),
             ),
         ]
 
@@ -719,6 +774,7 @@ class TestGitRepository:
                     "git",
                     "clone",
                     "https://github.com/org/repo.git",
+                    "--filter=blob:none",
                     str(Path.cwd() / "repo"),
                 ]
             ),

@@ -298,8 +298,12 @@ class GitRepository:
             # Add the git configuration, must be given after `git` and before the command
             cmd += self._git_config
 
+            # If the commit is already checked out, skip the pull
+            if self._commit_sha and await self.is_current_commit():
+                return
+
             # If checking out a specific commit, fetch the latest changes and unshallow the repository if necessary
-            if self._commit_sha and not await self.is_current_commit():
+            elif self._commit_sha:
                 if await self.is_shallow_clone():
                     cmd += ["fetch", "origin", "--unshallow"]
                 else:
