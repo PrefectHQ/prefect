@@ -751,7 +751,7 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
 
     # get the proper migration revisions
     if dialect.name == "postgresql":
-        revisions = ("ca25ef67243a", "4160a4841eed")
+        revisions = ("7a73514ca2d6", "4160a4841eed")
     else:
         revisions = ("bbca16f6f218", "7655f31c5157")
 
@@ -861,7 +861,11 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
             )
 
             # check the trigger
-            enabled_trigger = json.loads(enabled_automation[3])
+            enabled_trigger = (
+                json.loads(enabled_automation[3])
+                if dialect.name == "sqlite"
+                else enabled_automation[3]
+            )
             enabled_trigger_id = enabled_trigger["id"]
             assert enabled_trigger == {
                 "id": enabled_trigger_id,
@@ -875,7 +879,11 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
                 "threshold": 1,
                 "match_related": {},
             }
-            disabled_trigger = json.loads(disabled_automation[3])
+            disabled_trigger = (
+                json.loads(disabled_automation[3])
+                if dialect.name == "sqlite"
+                else disabled_automation[3]
+            )
             disabled_trigger_id = disabled_trigger["id"]
             assert disabled_trigger == {
                 "id": disabled_trigger_id,
@@ -893,9 +901,17 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
                 },
             }
             # check the actions
-            enabled_actions = json.loads(enabled_automation[4])
-            disabled_actions = json.loads(disabled_automation[4])
 
+            enabled_actions = (
+                json.loads(enabled_automation[4])
+                if dialect.name == "sqlite"
+                else enabled_automation[4]
+            )
+            disabled_actions = (
+                json.loads(disabled_automation[4])
+                if dialect.name == "sqlite"
+                else disabled_automation[4]
+            )
             assert enabled_actions == [
                 {
                     "body": textwrap.dedent("""

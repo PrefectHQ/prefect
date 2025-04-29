@@ -17,7 +17,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "4160a4841eed"
-down_revision = "ca25ef67243a"
+down_revision = "7a73514ca2d6"
 branch_labels = None
 depends_on = None
 
@@ -65,8 +65,8 @@ def upgrade():
                 row: sa.Row[tuple[UUID, bool, list[str], list[str], str | None, UUID]]
 
                 is_active = row[1]
-                state_names = json.loads(row[2])
-                tags = json.loads(row[3])
+                state_names = row[2]
+                tags = row[3]
                 message_template = row[4]
                 block_document_id = row[5]
 
