@@ -243,6 +243,21 @@ class GitRepository:
         except Exception:
             return False
 
+    async def is_current_commit(self) -> bool:
+        """
+        Check if the current commit is the same as the commit SHA
+        """
+        if not self._commit_sha:
+            raise ValueError("No commit SHA provided")
+        try:
+            result = await run_process(
+                ["git", "rev-parse", self._commit_sha],
+                cwd=self.destination,
+            )
+            return result.stdout.decode().strip() == self._commit_sha
+        except Exception:
+            return False
+
     async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
@@ -284,7 +299,7 @@ class GitRepository:
             cmd += self._git_config
 
             # If checking out a specific commit, fetch the latest changes and unshallow the repository if necessary
-            if self._commit_sha:
+            if self._commit_sha and not await self.is_current_commit():
                 if await self.is_shallow_clone():
                     cmd += ["fetch", "origin", "--unshallow"]
                 else:
@@ -350,44 +365,34 @@ class GitRepository:
 
         if self._commit_sha:
             cmd += ["--filter=blob:none"]
-            cmd += [str(self.destination)]
 
-            try:
-                await run_process(cmd)
-            except subprocess.CalledProcessError as exc:
-                # Hide the command used to avoid leaking the access token
-                exc_chain = None if self._credentials else exc
-                raise RuntimeError(
-                    f"Failed to clone repository {self._url!r} with exit code"
-                    f" {exc.returncode}."
-                ) from exc_chain
+        else:
+            if self._branch:
+                cmd += ["--branch", self._branch]
 
+            # Limit git history
+            cmd += ["--depth", "1"]
+
+        # Set path to clone to
+        cmd += [str(self.destination)]
+
+        try:
+            await run_process(cmd)
+        except subprocess.CalledProcessError as exc:
+            # Hide the command used to avoid leaking the access token
+            exc_chain = None if self._credentials else exc
+            raise RuntimeError(
+                f"Failed to clone repository {self._url!r} with exit code"
+                f" {exc.returncode}."
+            ) from exc_chain
+
+        if self._commit_sha:
             # Checkout the specific commit
             await run_process(
                 ["git", "checkout", self._commit_sha],
                 cwd=self.destination,
             )
             self._logger.debug(f"Successfully checked out commit {self._commit_sha}")
-
-        else:
-            if self._branch:
-                cmd += ["--branch", self._branch]
-
-            # Limit git history and set path to clone to
-            if not self._commit_sha:
-                cmd += ["--depth", "1"]
-
-            cmd += [str(self.destination)]
-
-            try:
-                await run_process(cmd)
-            except subprocess.CalledProcessError as exc:
-                # Hide the command used to avoid leaking the access token
-                exc_chain = None if self._credentials else exc
-                raise RuntimeError(
-                    f"Failed to clone repository {self._url!r} with exit code"
-                    f" {exc.returncode}."
-                ) from exc_chain
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
         if self._directories:
