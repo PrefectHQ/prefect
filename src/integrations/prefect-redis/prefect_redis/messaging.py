@@ -224,7 +224,9 @@ class Consumer(_Consumer):
         max_retries: int = 3,
         trim_every: timedelta = timedelta(seconds=60),
     ):
-        self.name = name or topic
+        self.name = (
+            name or f"{topic}-{socket.gethostname()}-{uuid.uuid4().hex}"
+        )  # Generate unique consumer name
         self.stream = topic  # Use topic as stream name
         self.group = group or topic  # Use topic as default group name
         self.block = block
