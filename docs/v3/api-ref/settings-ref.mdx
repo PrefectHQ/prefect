@@ -1629,21 +1629,6 @@ The number of expired events and event resources the event persister will attemp
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE`
 
 ---
-## ServerServicesFlowRunNotificationsSettings
-Settings for controlling the flow run notifications service
-### `enabled`
-Whether or not to start the flow run notifications service in the server application.
-
-**Type**: `boolean`
-
-**Default**: `True`
-
-**TOML dotted key path**: `server.services.flow_run_notifications.enabled`
-
-**Supported environment variables**:
-`PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`, `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`
-
----
 ## ServerServicesForemanSettings
 Settings for controlling the foreman service
 ### `enabled`
@@ -1973,12 +1958,6 @@ Settings for controlling server services
 **Type**: [ServerServicesEventLoggerSettings](#serverserviceseventloggersettings)
 
 **TOML dotted key path**: `server.services.event_logger`
-
-### `flow_run_notifications`
-
-**Type**: [ServerServicesFlowRunNotificationsSettings](#serverservicesflowrunnotificationssettings)
-
-**TOML dotted key path**: `server.services.flow_run_notifications`
 
 ### `foreman`
 

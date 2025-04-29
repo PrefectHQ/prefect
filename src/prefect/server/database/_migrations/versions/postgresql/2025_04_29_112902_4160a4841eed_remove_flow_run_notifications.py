@@ -1,12 +1,10 @@
 """Remove flow run notifications
 
-Revision ID: 7655f31c5157
-Revises: bbca16f6f218
-Create Date: 2025-04-28 13:37:22.112876
+Revision ID: 4160a4841eed
+Revises: ca25ef67243a
+Create Date: 2025-04-29 11:29:02.482732
 
 """
-
-from __future__ import annotations
 
 import json
 import textwrap
@@ -18,10 +16,11 @@ from alembic import op
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = "7655f31c5157"
-down_revision = "bbca16f6f218"
+revision = "4160a4841eed"
+down_revision = "ca25ef67243a"
 branch_labels = None
 depends_on = None
+
 
 DEFAULT_BODY = textwrap.dedent("""
 Flow run {{ flow.name }}/{{ flow_run.name }} observed in state `{{ flow_run.state.name }}` at {{ flow_run.state.timestamp }}.
@@ -51,11 +50,13 @@ def upgrade():
     batch_size = 500
     with op.get_context().autocommit_block():
         while True:
-            rows = conn.execute(
-                sa.text(
-                    "SELECT id, is_active, state_names, tags, message_template, block_document_id FROM flow_run_notification_policy LIMIT :batch_size"
-                ),
-                {"batch_size": batch_size},
+            rows = (
+                conn.execute(
+                    sa.text(
+                        "SELECT id, is_active, state_names, tags, message_template, block_document_id FROM flow_run_notification_policy LIMIT :batch_size"
+                    ),
+                    {"batch_size": batch_size},
+                )
             ).fetchall()
             if len(rows) <= 0:
                 break
@@ -130,26 +131,19 @@ def downgrade():
         sa.Column(
             "id",
             prefect.server.utilities.database.UUID(),
-            server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
-                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
-                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
-                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
-                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
-                " lower(hex(randomblob(6)))\n    )\n    )"
-            ),
+            server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
             prefect.server.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
             prefect.server.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
@@ -175,26 +169,19 @@ def downgrade():
         sa.Column(
             "id",
             prefect.server.utilities.database.UUID(),
-            server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
-                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
-                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
-                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
-                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
-                " lower(hex(randomblob(6)))\n    )\n    )"
-            ),
+            server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
             prefect.server.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
             prefect.server.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),

@@ -116,26 +116,6 @@ class ServerServicesEventLoggerSettings(ServicesBaseSetting):
     )
 
 
-class ServerServicesFlowRunNotificationsSettings(ServicesBaseSetting):
-    """
-    Settings for controlling the flow run notifications service
-    """
-
-    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "services", "flow_run_notifications")
-    )
-
-    enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the flow run notifications service in the server application.",
-        validation_alias=AliasChoices(
-            AliasPath("enabled"),
-            "prefect_server_services_flow_run_notifications_enabled",
-            "prefect_api_services_flow_run_notifications_enabled",
-        ),
-    )
-
-
 class ServerServicesForemanSettings(ServicesBaseSetting):
     """
     Settings for controlling the foreman service
@@ -489,10 +469,6 @@ class ServerServicesSettings(PrefectBaseSettings):
     event_logger: ServerServicesEventLoggerSettings = Field(
         default_factory=ServerServicesEventLoggerSettings,
         description="Settings for controlling the event logger service",
-    )
-    flow_run_notifications: ServerServicesFlowRunNotificationsSettings = Field(
-        default_factory=ServerServicesFlowRunNotificationsSettings,
-        description="Settings for controlling the flow run notifications service",
     )
     foreman: ServerServicesForemanSettings = Field(
         default_factory=ServerServicesForemanSettings,

@@ -45,7 +45,6 @@ from prefect._internal.schemas.validators import (
     validate_block_document_name,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
-    validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_not_negative,
     validate_parent_and_ref_diff,
@@ -63,7 +62,7 @@ from prefect.types import (
 )
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.collections import AutoEnum, listrepr, visit_collection
+from prefect.utilities.collections import AutoEnum, visit_collection
 from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
@@ -72,19 +71,6 @@ R = TypeVar("R", default=Any)
 
 DEFAULT_BLOCK_SCHEMA_VERSION: Literal["non-versioned"] = "non-versioned"
 DEFAULT_AGENT_WORK_POOL_NAME: Literal["default-agent-pool"] = "default-agent-pool"
-FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS: list[str] = [
-    "flow_run_notification_policy_id",
-    "flow_id",
-    "flow_name",
-    "flow_run_url",
-    "flow_run_id",
-    "flow_run_name",
-    "flow_run_parameters",
-    "flow_run_state_type",
-    "flow_run_state_name",
-    "flow_run_state_timestamp",
-    "flow_run_state_message",
-]
 
 
 class StateType(AutoEnum):
@@ -1444,41 +1430,6 @@ class WorkQueueStatusDetail(PrefectBaseModel):
             "The policy used to determine whether or not the work queue is healthy."
         ),
     )
-
-
-class FlowRunNotificationPolicy(ObjectBaseModel):
-    """An ORM representation of a flow run notification."""
-
-    is_active: bool = Field(
-        default=True, description="Whether the policy is currently active"
-    )
-    state_names: list[str] = Field(
-        default=..., description="The flow run states that trigger notifications"
-    )
-    tags: list[str] = Field(
-        default=...,
-        description="The flow run tags that trigger notifications (set [] to disable)",
-    )
-    block_document_id: UUID = Field(
-        default=..., description="The block document ID used for sending notifications"
-    )
-    message_template: Optional[str] = Field(
-        default=None,
-        description=(
-            "A templatable notification message. Use {braces} to add variables."
-            " Valid variables include:"
-            f" {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
-        ),
-        examples=[
-            "Flow run {flow_run_name} with id {flow_run_id} entered state"
-            " {flow_run_state_name}."
-        ],
-    )
-
-    @field_validator("message_template")
-    @classmethod
-    def validate_message_template_variables(cls, v: Optional[str]) -> Optional[str]:
-        return validate_message_template_variables(v)
 
 
 class Agent(ObjectBaseModel):
