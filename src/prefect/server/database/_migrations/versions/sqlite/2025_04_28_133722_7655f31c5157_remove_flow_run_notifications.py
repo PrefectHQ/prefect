@@ -197,7 +197,6 @@ def downgrade():
             server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
             nullable=False,
         ),
-        sa.Column("name", sa.String(), nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="1", nullable=False),
         sa.Column(
             "state_names",
@@ -225,13 +224,7 @@ def downgrade():
             ),
             ondelete="cascade",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_flow_run_alert")),
-    )
-    op.create_index(
-        op.f("ix_flow_run_notification_policy__name"),
-        "flow_run_notification_policy",
-        ["name"],
-        unique=False,
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_flow_run_notification_policy")),
     )
     op.create_index(
         op.f("ix_flow_run_notification_policy__updated"),
