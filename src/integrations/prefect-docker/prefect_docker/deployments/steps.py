@@ -240,7 +240,7 @@ def build_docker_image(
 
         if persist_dockerfile:
             logger.info(
-                "Persisting auto-generated Dockerfile to disk. You can use `dockerfile_output_path` to specify the output path."
+                f"Persisting auto-generated Dockerfile to {dockerfile_output_path or 'Dockerfile.generated'}. Please update your 'dockerfile' value to use this Dockerfile for subsequent runs."
             )
             output_path = Path(dockerfile_output_path or "Dockerfile.generated")
             with output_path.open("w") as out_file:
