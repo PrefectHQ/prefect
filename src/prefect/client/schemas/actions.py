@@ -46,7 +46,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -521,10 +521,15 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     @model_validator(mode="before")
     def convert_parameters_to_plain_data(cls, values: dict[str, Any]) -> dict[str, Any]:
         if "parameters" in values:
-            values["parameters"] = {
-                k: (v.model_dump(mode="json") if isinstance(v, BaseModel) else v)
-                for k, v in values["parameters"].items()
-            }
+
+            def convert_value(value: Any) -> Any:
+                if isinstance(value, BaseModel):
+                    return value.model_dump(mode="json")
+                return value
+
+            values["parameters"] = visit_collection(
+                values["parameters"], convert_value, return_data=True
+            )
         return values
 
 
