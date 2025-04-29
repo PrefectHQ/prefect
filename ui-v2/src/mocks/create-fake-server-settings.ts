@@ -157,9 +157,6 @@ export const createFakeServerSettings = (
 					batch_size: 20,
 					flush_interval: 5.0,
 				},
-				flow_run_notifications: {
-					enabled: true,
-				},
 				foreman: {
 					enabled: true,
 					loop_seconds: 15.0,
