@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Union
 from uuid import UUID
 
 from httpx import HTTPStatusError, RequestError
-from pydantic import BaseModel
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
@@ -587,13 +586,6 @@ class DeploymentClient(BaseClient):
         from prefect.states import Scheduled, to_state_create
 
         parameters = parameters or {}
-        # Convert any pydantic models in parameters to plain data before they are
-        # placed in `DeploymentFlowRunCreate`; this avoids them being dropped by
-        # `model_dump(..., exclude_unset=True)` later on.
-        parameters = {
-            k: (v.model_dump(mode="json") if isinstance(v, BaseModel) else v)
-            for k, v in parameters.items()
-        }
         context = context or {}
         state = state or Scheduled()
         tags = tags or []
@@ -1190,14 +1182,6 @@ class DeploymentAsyncClient(BaseAsyncClient):
         from prefect.states import Scheduled, to_state_create
 
         parameters = parameters or {}
-        # Convert any pydantic models in parameters to plain data before they are
-        # placed in `DeploymentFlowRunCreate`; this avoids them being dropped by
-        # `model_dump(..., exclude_unset=True)` later on.
-        parameters = {
-            k: (v.model_dump(mode="json") if isinstance(v, BaseModel) else v)
-            for k, v in parameters.items()
-        }
-
         context = context or {}
         state = state or Scheduled()
         tags = tags or []
