@@ -14,6 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 import prefect
+from prefect.logging.loggers import get_logger
 
 # revision identifiers, used by Alembic.
 revision = "4160a4841eed"
@@ -47,20 +48,15 @@ PLACEHOLDER_MAP = {
 
 def upgrade():
     conn = op.get_bind()
-    batch_size = 500
     with op.get_context().autocommit_block():
-        while True:
-            rows = (
-                conn.execute(
-                    sa.text(
-                        "SELECT id, is_active, state_names, tags, message_template, block_document_id FROM flow_run_notification_policy LIMIT :batch_size"
-                    ),
-                    {"batch_size": batch_size},
-                )
-            ).fetchall()
-            if len(rows) <= 0:
-                break
-
+        rows = (
+            conn.execute(
+                sa.text(
+                    "SELECT id, is_active, state_names, tags, message_template, block_document_id FROM flow_run_notification_policy"
+                ),
+            )
+        ).fetchall()
+        if len(rows) > 0:
             for row in rows:
                 row: sa.Row[tuple[UUID, bool, list[str], list[str], str | None, UUID]]
 
@@ -120,6 +116,10 @@ def upgrade():
                     sa.text("DELETE FROM flow_run_notification_policy WHERE id = :id"),
                     {"id": row[0]},
                 )
+
+            get_logger().info(
+                f"Your {len(rows)} flow run notification policies have been migrated to automations. You can view the created automations in the Prefect UI."
+            )
 
     op.drop_table("flow_run_notification_queue")
     op.drop_table("flow_run_notification_policy")
