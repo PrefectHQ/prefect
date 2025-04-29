@@ -1175,10 +1175,13 @@ async def test_create_flow_run_from_deployment_with_base_model_parameters(
         name="my-deployment",
     )
 
+    param_model_instance = MyBaseModel(x=1, y="hello")
+    param_model_instance.x = 42
+
     flow_run = await prefect_client.create_flow_run_from_deployment(
-        deployment_id, parameters={"param": MyBaseModel(x=1, y="hello")}
+        deployment_id, parameters={"param": param_model_instance}
     )
-    assert flow_run.parameters == {"param": {"x": 1, "y": "hello"}}
+    assert flow_run.parameters == {"param": {"x": 42, "y": "hello"}}
 
 
 async def test_create_flow_run_from_deployment_idempotency(
