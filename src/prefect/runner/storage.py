@@ -349,6 +349,7 @@ class GitRepository:
             cmd += ["--sparse"]
 
         if self._commit_sha:
+            cmd += ["--filter=blob:none"]
             cmd += [str(self.destination)]
 
             try:
