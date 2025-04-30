@@ -50,6 +50,7 @@ async def _pull_git_repository_with_retries(repo: GitRepository):
 async def agit_clone(
     repository: str,
     branch: Optional[str] = None,
+    commit_sha: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
@@ -61,6 +62,7 @@ async def agit_clone(
     Args:
         repository: the URL of the repository to clone
         branch: the branch to clone; if not provided, the default branch will be used
+        commit_sha: the commit SHA to clone; if not provided, the default branch will be used
         include_submodules (bool): whether to include git submodules when cloning the repository
         access_token: an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
@@ -84,6 +86,7 @@ async def agit_clone(
         url=repository,
         credentials=_credentials,
         branch=branch,
+        commit_sha=commit_sha,
         include_submodules=include_submodules,
         directories=directories,
     )
@@ -97,6 +100,7 @@ async def agit_clone(
 def git_clone(
     repository: str,
     branch: Optional[str] = None,
+    commit_sha: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
@@ -108,6 +112,7 @@ def git_clone(
     Args:
         repository: the URL of the repository to clone
         branch: the branch to clone; if not provided, the default branch will be used
+        commit_sha: the commit SHA to clone; if not provided, the default branch will be used
         include_submodules (bool): whether to include git submodules when cloning the repository
         access_token: an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
@@ -191,6 +196,7 @@ def git_clone(
         url=repository,
         credentials=_credentials,
         branch=branch,
+        commit_sha=commit_sha,
         include_submodules=include_submodules,
         directories=directories,
     )
