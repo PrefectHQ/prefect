@@ -763,6 +763,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         # update the state name
                         force=self.state.is_pending(),
                     )
+                    yield
+                    self.call_hooks()
                     return
 
                 # Acquire a concurrency slot for each tag, but only if a limit
@@ -1311,6 +1313,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         # update the state name
                         force=self.state.is_pending(),
                     )
+                    yield
+                    await self.call_hooks()
                     return
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
