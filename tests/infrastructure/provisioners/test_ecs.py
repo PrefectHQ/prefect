@@ -27,7 +27,7 @@ from prefect.infrastructure.provisioners.ecs import (
 
 
 @pytest.fixture(autouse=True)
-def start_mocking_aws(monkeypatch):
+def start_mocking_aws(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(
         "MOTO_IAM_LOAD_MANAGED_POLICIES", "true"
     )  # tell moto to explicitly load managed policies
@@ -577,6 +577,15 @@ def no_default_vpc():
 
     if not default_vpc:
         return
+
+    # Delete all subnets in the default VPC
+    for subnet in default_vpc.subnets.all():
+        subnet.delete()
+
+    # Delete all non-default security groups in the default VPC
+    for sg in default_vpc.security_groups.all():
+        if sg.group_name != "default":
+            sg.delete()
 
     default_vpc.delete()
 

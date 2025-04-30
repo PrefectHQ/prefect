@@ -282,7 +282,12 @@ class TestFunctionToSchema:
                         "title": "a",
                         "type": "array",
                     },
-                    "b": {"position": 1, "title": "b", "type": "object"},
+                    "b": {
+                        "additionalProperties": True,
+                        "position": 1,
+                        "title": "b",
+                        "type": "object",
+                    },
                     "c": {"position": 2, "title": "c"},
                     "d": {
                         "maxItems": 2,
@@ -1278,7 +1283,12 @@ class TestEntrypointToSchema:
                         "title": "a",
                         "type": "array",
                     },
-                    "b": {"position": 1, "title": "b", "type": "object"},
+                    "b": {
+                        "additionalProperties": True,
+                        "position": 1,
+                        "title": "b",
+                        "type": "object",
+                    },
                     "c": {"position": 2, "title": "c"},
                     "d": {
                         "maxItems": 2,
