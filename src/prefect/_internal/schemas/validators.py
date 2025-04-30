@@ -485,25 +485,6 @@ def validate_not_negative(v: Optional[float]) -> Optional[float]:
     return v
 
 
-@overload
-def validate_message_template_variables(v: str) -> str: ...
-
-
-@overload
-def validate_message_template_variables(v: None) -> None: ...
-
-
-def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
-    from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
-
-    if v is not None:
-        try:
-            v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
-        except KeyError as exc:
-            raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
-    return v
-
-
 def validate_default_queue_id_not_none(v: Optional[UUID]) -> UUID:
     if v is None:
         raise ValueError(

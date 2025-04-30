@@ -1712,43 +1712,6 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
-class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
-    """Filter by `FlowRunNotificationPolicy.is_active`."""
-
-    eq_: Optional[bool] = Field(
-        default=None,
-        description=(
-            "Filter notification policies for only those that are or are not active."
-        ),
-    )
-
-    def _get_filter_list(
-        self, db: "PrefectDBInterface"
-    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
-        filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.eq_ is not None:
-            filters.append(db.FlowRunNotificationPolicy.is_active.is_(self.eq_))
-        return filters
-
-
-class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
-    """Filter FlowRunNotificationPolicies."""
-
-    is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
-        default=FlowRunNotificationPolicyFilterIsActive(eq_=False),
-        description="Filter criteria for `FlowRunNotificationPolicy.is_active`. ",
-    )
-
-    def _get_filter_list(
-        self, db: "PrefectDBInterface"
-    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
-        filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.is_active is not None:
-            filters.append(self.is_active.as_sql_filter())
-
-        return filters
-
-
 class WorkQueueFilterId(PrefectFilterBaseModel):
     """Filter by `WorkQueue.id`."""
 

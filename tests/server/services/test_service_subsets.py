@@ -5,7 +5,6 @@ from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveT
 from prefect.server.events.stream import Distributor
 from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.services.cancellation_cleanup import CancellationCleanup
-from prefect.server.services.flow_run_notifications import FlowRunNotifications
 from prefect.server.services.foreman import Foreman
 from prefect.server.services.late_runs import MarkLateRuns
 from prefect.server.services.pause_expirations import FailExpiredPauses
@@ -22,7 +21,6 @@ def test_the_all_service_subset():
         # Orchestration services
         CancellationCleanup,
         FailExpiredPauses,
-        FlowRunNotifications,
         Foreman,
         MarkLateRuns,
         RecentDeploymentsScheduler,

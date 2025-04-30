@@ -1224,31 +1224,6 @@ class Agent(Base):
     __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 
-class FlowRunNotificationPolicy(Base):
-    is_active: Mapped[bool] = mapped_column(server_default="1", default=True)
-    state_names: Mapped[list[str]] = mapped_column(
-        JSON, server_default="[]", default=[]
-    )
-    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=[])
-    message_template: Mapped[Optional[str]]
-
-    block_document_id: Mapped[uuid.UUID] = mapped_column(
-        sa.ForeignKey("block_document.id", ondelete="cascade")
-    )
-
-    block_document: Mapped["BlockDocument"] = relationship(
-        lazy="selectin", foreign_keys=[block_document_id]
-    )
-
-
-class FlowRunNotificationQueue(Base):
-    # these are both foreign keys but there is no need to enforce that constraint
-    # as this is just a queue for service workers; if the keys don't match at the
-    # time work is pulled, the work can be discarded
-    flow_run_notification_policy_id: Mapped[uuid.UUID]
-    flow_run_state_id: Mapped[uuid.UUID]
-
-
 class Variable(Base):
     name: Mapped[str]
     value: Mapped[Optional[Any]] = mapped_column(JSON)
@@ -1507,8 +1482,6 @@ ORMWorkQueue = WorkQueue
 ORMWorkPool = WorkPool
 ORMWorker = Worker
 ORMAgent = Agent
-ORMFlowRunNotificationPolicy = FlowRunNotificationPolicy
-ORMFlowRunNotificationQueue = FlowRunNotificationQueue
 ORMVariable = Variable
 ORMFlowRunInput = FlowRunInput
 ORMCsrfToken = CsrfToken
