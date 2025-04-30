@@ -799,26 +799,6 @@ class BlockDocumentFilter(PrefectBaseModel, OperatorMixin):
     )
 
 
-class FlowRunNotificationPolicyFilterIsActive(PrefectBaseModel):
-    """Filter by `FlowRunNotificationPolicy.is_active`."""
-
-    eq_: Optional[bool] = Field(
-        default=None,
-        description=(
-            "Filter notification policies for only those that are or are not active."
-        ),
-    )
-
-
-class FlowRunNotificationPolicyFilter(PrefectBaseModel):
-    """Filter FlowRunNotificationPolicies."""
-
-    is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
-        default=FlowRunNotificationPolicyFilterIsActive(eq_=False),
-        description="Filter criteria for `FlowRunNotificationPolicy.is_active`. ",
-    )
-
-
 class WorkQueueFilterId(PrefectBaseModel):
     """Filter by `WorkQueue.id`."""
 

@@ -305,16 +305,6 @@
                         ]
                       },
                       {
-                        "group": "Flow Run Notification Policies",
-                        "pages": [
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/create-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/delete-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/update-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policies"
-                        ]
-                      },
-                      {
                         "group": "Deployments",
                         "pages": [
                           "v3/api-ref/rest-api/server/deployments/create-deployment",

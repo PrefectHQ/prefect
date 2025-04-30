@@ -4,7 +4,6 @@ from collections import defaultdict
 from collections.abc import Hashable, Iterable, Sequence
 from functools import cached_property
 from typing import (
-    TYPE_CHECKING,
     Any,
     ClassVar,
     Literal,
@@ -37,22 +36,6 @@ from prefect.server.utilities.database import Timestamp, bindparams_from_clause
 from prefect.types._datetime import DateTime
 
 T = TypeVar("T", infer_variance=True)
-
-
-class FlowRunNotificationsFromQueue(NamedTuple):
-    queue_id: UUID
-    flow_run_notification_policy_id: UUID
-    flow_run_notification_policy_message_template: Optional[str]
-    block_document_id: UUID
-    flow_id: UUID
-    flow_name: str
-    flow_run_id: UUID
-    flow_run_name: str
-    flow_run_parameters: dict[str, Any]
-    flow_run_state_type: StateType
-    flow_run_state_name: str
-    flow_run_state_timestamp: DateTime
-    flow_run_state_message: Optional[str]
 
 
 class FlowRunGraphV2Node(NamedTuple):
@@ -137,66 +120,6 @@ class BaseQueryComponents(ABC):
         inserted_flow_run_ids: Sequence[UUID],
         insert_flow_run_states: Iterable[dict[str, Any]],
     ) -> sa.Update: ...
-
-    @abstractmethod
-    async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, limit: int
-    ) -> Sequence[FlowRunNotificationsFromQueue]:
-        """Database-specific implementation of reading notifications from the queue and deleting them"""
-
-    @db_injector
-    async def queue_flow_run_notifications(
-        self,
-        db: PrefectDBInterface,
-        session: AsyncSession,
-        flow_run: Union[schemas.core.FlowRun, orm_models.FlowRun],
-    ) -> None:
-        """Database-specific implementation of queueing notifications for a flow run"""
-
-        def as_array(elems: Sequence[str]) -> sa.ColumnElement[Sequence[str]]:
-            return sa.cast(postgresql.array(elems), type_=postgresql.ARRAY(sa.String()))
-
-        if TYPE_CHECKING:
-            assert flow_run.state_name is not None
-
-        FlowRunNotificationQueue = db.FlowRunNotificationQueue
-        FlowRunNotificationPolicy = db.FlowRunNotificationPolicy
-
-        # insert a <policy, state> pair into the notification queue
-        stmt = self.insert(FlowRunNotificationQueue).from_select(
-            [
-                FlowRunNotificationQueue.flow_run_notification_policy_id,
-                FlowRunNotificationQueue.flow_run_state_id,
-            ],
-            # ... by selecting from any notification policy that matches the criteria
-            sa.select(
-                FlowRunNotificationPolicy.id,
-                sa.cast(sa.literal(str(flow_run.state_id)), UUIDTypeDecorator),
-            )
-            .select_from(FlowRunNotificationPolicy)
-            .where(
-                sa.and_(
-                    # the policy is active
-                    FlowRunNotificationPolicy.is_active.is_(True),
-                    # the policy state names aren't set or match the current state name
-                    sa.or_(
-                        FlowRunNotificationPolicy.state_names == [],
-                        FlowRunNotificationPolicy.state_names.has_any(
-                            as_array([flow_run.state_name])
-                        ),
-                    ),
-                    # the policy tags aren't set, or the tags match the flow run tags
-                    sa.or_(
-                        FlowRunNotificationPolicy.tags == [],
-                        FlowRunNotificationPolicy.tags.has_any(as_array(flow_run.tags)),
-                    ),
-                )
-            ),
-            # don't send python defaults as part of the insert statement, because they are
-            # evaluated once per statement and create unique constraint violations on each row
-            include_defaults=False,
-        )
-        await session.execute(stmt)
 
     @db_injector
     def get_scheduled_flow_runs_from_work_queues(
@@ -686,73 +609,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         )
         return stmt
 
-    @db_injector
-    async def get_flow_run_notifications_from_queue(
-        self, db: PrefectDBInterface, session: AsyncSession, limit: int
-    ) -> Sequence[FlowRunNotificationsFromQueue]:
-        Flow, FlowRun = db.Flow, db.FlowRun
-        FlowRunNotificationPolicy = db.FlowRunNotificationPolicy
-        FlowRunNotificationQueue = db.FlowRunNotificationQueue
-        FlowRunState = db.FlowRunState
-        # including this as a subquery in the where clause of the
-        # `queued_notifications` statement below, leads to errors where the limit
-        # is not respected if it is 1. pulling this out into a CTE statement
-        # prevents this. see link for more details:
-        # https://www.postgresql.org/message-id/16497.1553640836%40sss.pgh.pa.us
-        queued_notifications_ids = (
-            sa.select(FlowRunNotificationQueue.id)
-            .select_from(FlowRunNotificationQueue)
-            .order_by(FlowRunNotificationQueue.updated)
-            .limit(limit)
-            .with_for_update(skip_locked=True)
-        ).cte("queued_notifications_ids")
-
-        queued_notifications = (
-            sa.delete(FlowRunNotificationQueue)
-            .returning(
-                FlowRunNotificationQueue.id,
-                FlowRunNotificationQueue.flow_run_notification_policy_id,
-                FlowRunNotificationQueue.flow_run_state_id,
-            )
-            .where(FlowRunNotificationQueue.id.in_(sa.select(queued_notifications_ids)))
-            .cte("queued_notifications")
-        )
-
-        notification_details_stmt: sa.Select[FlowRunNotificationsFromQueue] = (
-            sa.select(
-                queued_notifications.c.id.label("queue_id"),
-                FlowRunNotificationPolicy.id.label("flow_run_notification_policy_id"),
-                FlowRunNotificationPolicy.message_template.label(
-                    "flow_run_notification_policy_message_template"
-                ),
-                FlowRunNotificationPolicy.block_document_id,
-                Flow.id.label("flow_id"),
-                Flow.name.label("flow_name"),
-                FlowRun.id.label("flow_run_id"),
-                FlowRun.name.label("flow_run_name"),
-                FlowRun.parameters.label("flow_run_parameters"),
-                FlowRunState.type.label("flow_run_state_type"),
-                FlowRunState.name.label("flow_run_state_name"),
-                FlowRunState.timestamp.label("flow_run_state_timestamp"),
-                FlowRunState.message.label("flow_run_state_message"),
-            )
-            .select_from(queued_notifications)
-            .join(
-                FlowRunNotificationPolicy,
-                queued_notifications.c.flow_run_notification_policy_id
-                == FlowRunNotificationPolicy.id,
-            )
-            .join(
-                FlowRunState,
-                queued_notifications.c.flow_run_state_id == FlowRunState.id,
-            )
-            .join(FlowRun, FlowRunState.flow_run_id == FlowRun.id)
-            .join(Flow, FlowRun.flow_id == Flow.id)
-        )
-
-        result = await session.execute(notification_details_stmt)
-        return result.t.fetchall()
-
     @property
     def _get_scheduled_flow_runs_from_work_pool_template_path(self) -> str:
         """
@@ -1021,70 +877,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .execution_options(synchronize_session=False)
         )
         return stmt
-
-    @db_injector
-    async def get_flow_run_notifications_from_queue(
-        self, db: PrefectDBInterface, session: AsyncSession, limit: int
-    ) -> Sequence[FlowRunNotificationsFromQueue]:
-        """
-        Sqlalchemy has no support for DELETE RETURNING in sqlite (as of May 2022)
-        so instead we issue two queries; one to get queued notifications and a second to delete
-        them. This *could* introduce race conditions if multiple queue workers are
-        running.
-        """
-
-        Flow, FlowRun = db.Flow, db.FlowRun
-        FlowRunNotificationPolicy = db.FlowRunNotificationPolicy
-        FlowRunNotificationQueue = db.FlowRunNotificationQueue
-        FlowRunState = db.FlowRunState
-
-        notification_details_stmt: sa.Select[FlowRunNotificationsFromQueue] = (
-            sa.select(
-                FlowRunNotificationQueue.id.label("queue_id"),
-                FlowRunNotificationPolicy.id.label("flow_run_notification_policy_id"),
-                FlowRunNotificationPolicy.message_template.label(
-                    "flow_run_notification_policy_message_template"
-                ),
-                FlowRunNotificationPolicy.block_document_id,
-                Flow.id.label("flow_id"),
-                Flow.name.label("flow_name"),
-                FlowRun.id.label("flow_run_id"),
-                FlowRun.name.label("flow_run_name"),
-                FlowRun.parameters.label("flow_run_parameters"),
-                FlowRunState.type.label("flow_run_state_type"),
-                FlowRunState.name.label("flow_run_state_name"),
-                FlowRunState.timestamp.label("flow_run_state_timestamp"),
-                FlowRunState.message.label("flow_run_state_message"),
-            )
-            .select_from(FlowRunNotificationQueue)
-            .join(
-                FlowRunNotificationPolicy,
-                FlowRunNotificationQueue.flow_run_notification_policy_id
-                == FlowRunNotificationPolicy.id,
-            )
-            .join(
-                FlowRunState,
-                FlowRunNotificationQueue.flow_run_state_id == FlowRunState.id,
-            )
-            .join(FlowRun, FlowRunState.flow_run_id == FlowRun.id)
-            .join(Flow, FlowRun.flow_id == Flow.id)
-            .order_by(FlowRunNotificationQueue.updated)
-            .limit(limit)
-        )
-
-        result = await session.execute(notification_details_stmt)
-        notifications = result.t.fetchall()
-
-        # delete the notifications
-        delete_stmt = (
-            sa.delete(FlowRunNotificationQueue)
-            .where(FlowRunNotificationQueue.id.in_([n.queue_id for n in notifications]))
-            .execution_options(synchronize_session="fetch")
-        )
-
-        await session.execute(delete_stmt)
-
-        return notifications
 
     @db_injector
     def _get_scheduled_flow_runs_join(

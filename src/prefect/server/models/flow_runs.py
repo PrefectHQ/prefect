@@ -40,7 +40,7 @@ from prefect.server.orchestration.policies import (
 from prefect.server.orchestration.rules import FlowOrchestrationContext
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.graph import Graph
-from prefect.server.schemas.responses import OrchestrationResult, SetStateStatus
+from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.schemas.states import State
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
@@ -587,13 +587,6 @@ async def set_flow_run_state(
         status=context.response_status,
         details=context.response_details,
     )
-
-    # if a new state is being set (either ACCEPTED from user or REJECTED
-    # and set by the server), check for any notification policies
-    if result.status in (SetStateStatus.ACCEPT, SetStateStatus.REJECT):
-        await models.flow_run_notification_policies.queue_flow_run_notifications(
-            session=session, flow_run=run
-        )
 
     return result
 

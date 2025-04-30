@@ -1,4 +1,5 @@
 import json
+import textwrap
 from uuid import uuid4
 
 import alembic.script
@@ -10,6 +11,7 @@ from prefect.server.database.alembic_commands import (
     alembic_downgrade,
     alembic_upgrade,
 )
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
@@ -740,4 +742,197 @@ async def test_migrate_variables_to_json(db):
         async with session:
             await session.execute(sa.text("DELETE FROM variable;"))
             await session.commit()
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterface):
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    # get the proper migration revisions
+    if dialect.name == "postgresql":
+        revisions = ("7a73514ca2d6", "4160a4841eed")
+    else:
+        revisions = ("bbca16f6f218", "7655f31c5157")
+
+    session = await db.session()
+
+    try:
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+
+        async with session:
+            # clear the flow_run_notification_policy table
+            await session.execute(sa.text("DELETE FROM flow_run_notification_policy;"))
+            # clear the automation table
+            await session.execute(sa.text("DELETE FROM automation;"))
+            await session.commit()
+
+            # insert a block type and get the id
+            await session.execute(
+                sa.text(
+                    "INSERT INTO block_type (name, slug) VALUES ('Test Block Type', 'test-block-type');"
+                )
+            )
+            block_type_id = (
+                await session.execute(
+                    sa.text("SELECT id FROM block_type WHERE slug = 'test-block-type';")
+                )
+            ).scalar()
+
+            # insert a block schema and get the id
+            await session.execute(
+                sa.text(
+                    "INSERT INTO block_schema (block_type_id, checksum) VALUES (:block_type_id, 'test-checksum');"
+                ),
+                {"block_type_id": block_type_id},
+            )
+            block_schema_id = (
+                await session.execute(
+                    sa.text(
+                        "SELECT id FROM block_schema WHERE checksum = 'test-checksum';"
+                    )
+                )
+            ).scalar()
+
+            # insert a block document and get the id
+            await session.execute(
+                sa.text(
+                    "INSERT INTO block_document (name, block_schema_id, block_type_id) VALUES ('test-block-document', :block_schema_id, :block_type_id);"
+                ),
+                {"block_schema_id": block_schema_id, "block_type_id": block_type_id},
+            )
+            block_document_id = (
+                await session.execute(
+                    sa.text(
+                        "SELECT id FROM block_document WHERE name = 'test-block-document';"
+                    )
+                )
+            ).scalar()
+
+            # insert a flow run notification policy
+            await session.execute(
+                sa.text(
+                    "INSERT INTO flow_run_notification_policy (is_active, state_names, tags, message_template, block_document_id) VALUES (TRUE, '[]', '[]', null, :block_document_id);"
+                ),
+                {"block_document_id": block_document_id},
+            )
+
+            # insert a flow run notification policy
+            await session.execute(
+                sa.text(
+                    "INSERT INTO flow_run_notification_policy (is_active, state_names, tags, message_template, block_document_id) VALUES (FALSE, '[\"Running\"]', '[\"tag1\", \"tag2\"]', 'Flow {flow_name} is in state {flow_run_state_name}', :block_document_id);"
+                ),
+                {"block_document_id": block_document_id},
+            )
+
+            await session.commit()
+
+        # run the migration
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        async with session:
+            # verify two automations were created
+            automations = (
+                await session.execute(
+                    sa.text(
+                        "SELECT name, description, enabled, trigger, actions FROM automation;"
+                    )
+                )
+            ).fetchall()
+            assert len(automations) == 2
+
+            enabled_automation = next(
+                automation for automation in automations if automation[2]
+            )
+            disabled_automation = next(
+                automation for automation in automations if not automation[2]
+            )
+
+            # check the name
+            assert enabled_automation[0] == "Flow Run State Change Notification"
+            assert disabled_automation[0] == "Flow Run State Change Notification"
+
+            # check the description
+            assert (
+                enabled_automation[1] == "Migrated from a flow run notification policy"
+            )
+            assert (
+                disabled_automation[1] == "Migrated from a flow run notification policy"
+            )
+
+            # check the trigger
+            enabled_trigger = (
+                json.loads(enabled_automation[3])
+                if dialect.name == "sqlite"
+                else enabled_automation[3]
+            )
+            enabled_trigger_id = enabled_trigger["id"]
+            assert enabled_trigger == {
+                "id": enabled_trigger_id,
+                "type": "event",
+                "after": [],
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.*"],
+                "within": 10,
+                "posture": "Reactive",
+                "for_each": ["prefect.resource.id"],
+                "threshold": 1,
+                "match_related": {},
+            }
+            disabled_trigger = (
+                json.loads(disabled_automation[3])
+                if dialect.name == "sqlite"
+                else disabled_automation[3]
+            )
+            disabled_trigger_id = disabled_trigger["id"]
+            assert disabled_trigger == {
+                "id": disabled_trigger_id,
+                "type": "event",
+                "after": [],
+                "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                "expect": ["prefect.flow-run.Running"],
+                "within": 10,
+                "posture": "Reactive",
+                "for_each": ["prefect.resource.id"],
+                "threshold": 1,
+                "match_related": {
+                    "prefect.resource.id": ["prefect.tag.tag1", "prefect.tag.tag2"],
+                    "prefect.resource.role": "tag",
+                },
+            }
+            # check the actions
+
+            enabled_actions = (
+                json.loads(enabled_automation[4])
+                if dialect.name == "sqlite"
+                else enabled_automation[4]
+            )
+            disabled_actions = (
+                json.loads(disabled_automation[4])
+                if dialect.name == "sqlite"
+                else disabled_automation[4]
+            )
+            assert enabled_actions == [
+                {
+                    "body": textwrap.dedent("""
+                        Flow run {{ flow.name }}/{{ flow_run.name }} observed in state `{{ flow_run.state.name }}` at {{ flow_run.state.timestamp }}.
+                        Flow ID: {{ flow_run.flow_id }}
+                        Flow run ID: {{ flow_run.id }}
+                        Flow run URL: {{ flow_run|ui_url }}
+                        State message: {{ flow_run.state.message }}
+                        """),
+                    "type": "send-notification",
+                    "subject": "Prefect flow run notification",
+                    "block_document_id": str(block_document_id),
+                }
+            ]
+            assert disabled_actions == [
+                {
+                    "body": "Flow {{ flow.name }} is in state {{ flow_run.state.name }}",
+                    "type": "send-notification",
+                    "subject": "Prefect flow run notification",
+                    "block_document_id": str(block_document_id),
+                }
+            ]
+    finally:
         await run_sync_in_worker_thread(alembic_upgrade)

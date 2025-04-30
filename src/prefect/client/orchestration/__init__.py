@@ -87,8 +87,6 @@ import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
-    FlowRunNotificationPolicyCreate,
-    FlowRunNotificationPolicyUpdate,
     TaskRunCreate,
     TaskRunUpdate,
     WorkQueueCreate,
@@ -98,14 +96,12 @@ from prefect.client.schemas.filters import (
     DeploymentFilter,
     FlowFilter,
     FlowRunFilter,
-    FlowRunNotificationPolicyFilter,
     TaskRunFilter,
     WorkQueueFilter,
     WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import (
     Constant,
-    FlowRunNotificationPolicy,
     Parameter,
     TaskRunPolicy,
     TaskRunResult,
@@ -959,151 +955,6 @@ class PrefectClient(
             "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
         return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
-            response.json()
-        )
-
-    async def create_flow_run_notification_policy(
-        self,
-        block_document_id: UUID,
-        is_active: bool = True,
-        tags: Optional[list[str]] = None,
-        state_names: Optional[list[str]] = None,
-        message_template: Optional[str] = None,
-    ) -> UUID:
-        """
-        Create a notification policy for flow runs
-
-        Args:
-            block_document_id: The block document UUID
-            is_active: Whether the notification policy is active
-            tags: List of flow tags
-            state_names: List of state names
-            message_template: Notification message template
-        """
-        if tags is None:
-            tags = []
-        if state_names is None:
-            state_names = []
-
-        policy = FlowRunNotificationPolicyCreate(
-            block_document_id=block_document_id,
-            is_active=is_active,
-            tags=tags,
-            state_names=state_names,
-            message_template=message_template,
-        )
-        response = await self._client.post(
-            "/flow_run_notification_policies/",
-            json=policy.model_dump(mode="json"),
-        )
-
-        policy_id = response.json().get("id")
-        if not policy_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        return UUID(policy_id)
-
-    async def delete_flow_run_notification_policy(
-        self,
-        id: UUID,
-    ) -> None:
-        """
-        Delete a flow run notification policy by id.
-
-        Args:
-            id: UUID of the flow run notification policy to delete.
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
-        """
-        try:
-            await self._client.delete(f"/flow_run_notification_policies/{id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def update_flow_run_notification_policy(
-        self,
-        id: UUID,
-        block_document_id: Optional[UUID] = None,
-        is_active: Optional[bool] = None,
-        tags: Optional[list[str]] = None,
-        state_names: Optional[list[str]] = None,
-        message_template: Optional[str] = None,
-    ) -> None:
-        """
-        Update a notification policy for flow runs
-
-        Args:
-            id: UUID of the notification policy
-            block_document_id: The block document UUID
-            is_active: Whether the notification policy is active
-            tags: List of flow tags
-            state_names: List of state names
-            message_template: Notification message template
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
-        """
-        params: dict[str, Any] = {}
-        if block_document_id is not None:
-            params["block_document_id"] = block_document_id
-        if is_active is not None:
-            params["is_active"] = is_active
-        if tags is not None:
-            params["tags"] = tags
-        if state_names is not None:
-            params["state_names"] = state_names
-        if message_template is not None:
-            params["message_template"] = message_template
-
-        policy = FlowRunNotificationPolicyUpdate(**params)
-
-        try:
-            await self._client.patch(
-                f"/flow_run_notification_policies/{id}",
-                json=policy.model_dump(mode="json", exclude_unset=True),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_flow_run_notification_policies(
-        self,
-        flow_run_notification_policy_filter: FlowRunNotificationPolicyFilter,
-        limit: Optional[int] = None,
-        offset: int = 0,
-    ) -> list[FlowRunNotificationPolicy]:
-        """
-        Query the Prefect API for flow run notification policies. Only policies matching all criteria will
-        be returned.
-
-        Args:
-            flow_run_notification_policy_filter: filter criteria for notification policies
-            limit: a limit for the notification policies query
-            offset: an offset for the notification policies query
-
-        Returns:
-            a list of FlowRunNotificationPolicy model representations
-                of the notification policies
-        """
-        body: dict[str, Any] = {
-            "flow_run_notification_policy_filter": (
-                flow_run_notification_policy_filter.model_dump(mode="json")
-                if flow_run_notification_policy_filter
-                else None
-            ),
-            "limit": limit,
-            "offset": offset,
-        }
-        response = await self._client.post(
-            "/flow_run_notification_policies/filter", json=body
-        )
-        return pydantic.TypeAdapter(list[FlowRunNotificationPolicy]).validate_python(
             response.json()
         )
 
