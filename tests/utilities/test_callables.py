@@ -1,4 +1,5 @@
 import datetime
+import sys
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
@@ -283,7 +284,6 @@ class TestFunctionToSchema:
                         "type": "array",
                     },
                     "b": {
-                        "additionalProperties": True,
                         "position": 1,
                         "title": "b",
                         "type": "object",
@@ -309,6 +309,8 @@ class TestFunctionToSchema:
                 },
                 "required": ["a", "b", "c", "d", "e"],
             }
+            if sys.version_info < (3, 9):
+                expected_schema["properties"]["b"]["additionalProperties"] = True
         else:
             # pydantic 1.9.0 adds min and max item counts to the parameter schema
             min_max_items = (
@@ -1284,7 +1286,6 @@ class TestEntrypointToSchema:
                         "type": "array",
                     },
                     "b": {
-                        "additionalProperties": True,
                         "position": 1,
                         "title": "b",
                         "type": "object",
@@ -1310,6 +1311,9 @@ class TestEntrypointToSchema:
                 },
                 "required": ["a", "b", "c", "d", "e"],
             }
+            if sys.version_info < (3, 9):
+                expected_schema["properties"]["b"]["additionalProperties"] = True
+
         else:
             # pydantic 1.9.0 adds min and max item counts to the parameter schema
             min_max_items = (
