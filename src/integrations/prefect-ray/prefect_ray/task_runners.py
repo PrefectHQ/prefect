@@ -90,7 +90,7 @@ from typing_extensions import ParamSpec, Self
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
 from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
-from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.logging.loggers import get_logger
 from prefect.states import State, exception_to_crashed_state
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import TaskRunner
@@ -159,26 +159,6 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
             self._wrapped_future._on_completed(call_with_self)
             return
         fn(self)
-
-    def __del__(self):
-        # If we already have a final state, skip
-        if self._final_state:
-            return
-
-        try:
-            ray.get(self.wrapped_future, timeout=0)
-        except ray.exceptions.GetTimeoutError:
-            pass
-
-        # logging in __del__ can also fail at shutdown
-        try:
-            local_logger = get_run_logger()
-        except Exception:
-            local_logger = logger
-        local_logger.warning(
-            "A future was garbage collected before it resolved."
-            " Please call `.wait()` or `.result()` on futures to ensure they resolve."
-        )
 
 
 class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
