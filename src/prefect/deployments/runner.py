@@ -471,7 +471,7 @@ class RunnerDeployment(BaseModel):
                     self.version  # use the supplied version as the version name
                 )
 
-        if self.version:
+        elif self.version:
             version_info = VersionInfo(type="prefect:simple", version=self.version)
 
         async with get_client() as client:

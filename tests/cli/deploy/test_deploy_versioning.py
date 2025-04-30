@@ -73,7 +73,7 @@ async def test_deploy_with_simple_version(mock_create_deployment: mock.AsyncMock
 @pytest.fixture
 async def mock_get_inferred_version_info():
     with mock.patch(
-        "prefect.cli.deploy.get_inferred_version_info"
+        "prefect.deployments.runner.get_inferred_version_info"
     ) as mock_get_inferred:
         mock_get_inferred.return_value = GitVersionInfo(
             type="vcs:git",
