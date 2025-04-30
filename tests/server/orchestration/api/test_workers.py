@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
 
@@ -11,6 +12,7 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
+from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -80,7 +82,11 @@ def assert_status_events(resource_name: str, events: List[str]):
 class TestCreateWorkPool:
     async def test_create_work_pool(self, session, client):
         response = await client.post(
-            "/work_pools/", json=dict(name="Pool 1", type="test")
+            "/work_pools/",
+            json=dict(
+                name="Pool 1",
+                type="test",
+            ),
         )
         assert response.status_code == status.HTTP_201_CREATED, response.text
         result = parse_obj_as(WorkPool, response.json())
@@ -92,9 +98,57 @@ class TestCreateWorkPool:
         model = await models.workers.read_work_pool(
             session=session, work_pool_id=result.id
         )
+        assert model
         assert model.name == "Pool 1"
+        assert model.storage_configuration == WorkPoolStorageConfiguration()
 
         assert_status_events("Pool 1", ["prefect.work-pool.not-ready"])
+
+    async def test_create_work_pool_with_storage_configuration(self, client):
+        bundle_upload_step = {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        bundle_execution_step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        default_result_storage_block_id = uuid.uuid4()
+        data = schemas.actions.WorkPoolCreate(
+            name="olympic",
+            type="kubernetes",
+            storage_configuration=schemas.core.WorkPoolStorageConfiguration(
+                bundle_upload_step=bundle_upload_step,
+                bundle_execution_step=bundle_execution_step,
+                default_result_storage_block_id=default_result_storage_block_id,
+            ),
+        ).model_dump(mode="json")
+        response = await client.post(
+            "/work_pools/",
+            json=data,
+        )
+        assert response.status_code == 201
+        assert response.json()["storage_configuration"] == {
+            "bundle_upload_step": bundle_upload_step,
+            "bundle_execution_step": bundle_execution_step,
+            "default_result_storage_block_id": str(default_result_storage_block_id),
+        }
+
+    async def test_create_work_pool_with_invalid_storage_configuration_key(
+        self,
+        client,
+    ):
+        response = await client.post(
+            "/work_pools/",
+            json={"storage_configuration": {"invalid_key": "invalid_value"}},
+        )
+        assert response.status_code == 422
 
     async def test_create_work_pool_with_options(self, client):
         response = await client.post(
@@ -379,6 +433,161 @@ class TestUpdateWorkPool:
         assert result.concurrency_limit == 5
 
         assert_status_events(work_pool.name, ["prefect.work-pool.paused"])
+
+    async def test_update_work_pool_storage_configuration(self, client, work_pool):
+        bundle_upload_step = {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        bundle_execution_step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        default_result_storage_block_id = uuid.uuid4()
+        response = await client.get(f"/work_pools/{work_pool.name}")
+        assert response.status_code == 200
+        assert response.json()["storage_configuration"] == {
+            "bundle_upload_step": None,
+            "bundle_execution_step": None,
+            "default_result_storage_block_id": None,
+        }
+
+        new_data = schemas.actions.WorkPoolUpdate(
+            storage_configuration=schemas.core.WorkPoolStorageConfiguration(
+                bundle_upload_step=bundle_upload_step,
+                bundle_execution_step=bundle_execution_step,
+                default_result_storage_block_id=default_result_storage_block_id,
+            ),
+        ).model_dump(mode="json", exclude_unset=True)
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json=new_data,
+        )
+        assert response.status_code == 204
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.json()["storage_configuration"] == {
+            "bundle_upload_step": bundle_upload_step,
+            "bundle_execution_step": bundle_execution_step,
+            "default_result_storage_block_id": str(default_result_storage_block_id),
+        }
+
+    async def test_update_work_pool_storage_configuration_with_invalid_key(
+        self,
+        client,
+        work_pool,
+    ):
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json={"storage_configuration": {"invalid_key": "invalid_value"}},
+        )
+        assert response.status_code == 422
+        work_pool_response = await client.get(f"/work_pools/{work_pool.name}")
+        assert work_pool_response.json()["storage_configuration"] == {
+            "bundle_upload_step": None,
+            "bundle_execution_step": None,
+            "default_result_storage_block_id": None,
+        }
+
+    async def test_clear_work_pool_storage_configuration(
+        self,
+        client,
+    ):
+        bundle_upload_step = {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        bundle_execution_step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        default_result_storage_block_id = uuid.uuid4()
+        create_response = await client.post(
+            "/work_pools/",
+            json={
+                "name": "olympic",
+                "type": "kubernetes",
+                "storage_configuration": {
+                    "bundle_upload_step": bundle_upload_step,
+                    "bundle_execution_step": bundle_execution_step,
+                    "default_result_storage_block_id": str(
+                        default_result_storage_block_id
+                    ),
+                },
+            },
+        )
+        assert create_response.status_code == 201
+        assert create_response.json()["storage_configuration"] == {
+            "bundle_upload_step": bundle_upload_step,
+            "bundle_execution_step": bundle_execution_step,
+            "default_result_storage_block_id": str(default_result_storage_block_id),
+        }
+        response = await client.patch(
+            "/work_pools/olympic",
+            json={"storage_configuration": {}},
+        )
+        assert response.status_code == 204
+        work_pool_response = await client.get("/work_pools/olympic")
+        assert work_pool_response.json()["storage_configuration"] == {
+            "bundle_upload_step": None,
+            "bundle_execution_step": None,
+            "default_result_storage_block_id": None,
+        }
+
+    async def test_work_pool_storage_configuration_not_cleared_on_unrelated_update(
+        self, client
+    ):
+        bundle_upload_step = {
+            "prefect_aws.experimental.bundles.upload": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        bundle_execution_step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": "prefect-aws",
+                "bucket": "MY_BUCKET_NAME",
+                "aws_credentials_block_name": "MY_CREDS_BLOCK_NAME",
+            },
+        }
+        default_result_storage_block_id = uuid.uuid4()
+        await client.post(
+            "/work_pools/",
+            json={
+                "name": "olympic",
+                "type": "kubernetes",
+                "storage_configuration": {
+                    "bundle_upload_step": bundle_upload_step,
+                    "bundle_execution_step": bundle_execution_step,
+                    "default_result_storage_block_id": str(
+                        default_result_storage_block_id
+                    ),
+                },
+            },
+        )
+        response = await client.patch(
+            "/work_pools/olympic",
+            json={"description": "literally the newest"},
+        )
+        assert response.status_code == 204
+        work_pool_response = await client.get("/work_pools/olympic")
+        assert work_pool_response.json()["storage_configuration"] == {
+            "bundle_upload_step": bundle_upload_step,
+            "bundle_execution_step": bundle_execution_step,
+            "default_result_storage_block_id": str(default_result_storage_block_id),
+        }
 
     async def test_update_work_pool_with_no_workers(self, client, work_pool):
         assert work_pool.is_paused is False
