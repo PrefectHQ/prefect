@@ -2634,12 +2634,10 @@ class TestTaskConcurrencyLimits:
             # Read the final states from the API
             task_run_states = await prefect_client.read_task_run_states(task_run_id)
 
-            # NEW EXPECTED SEQUENCE: Pending -> Running -> Crashed
-            # The task enters Running before concurrency acquisition is attempted (and fails).
+            # EXPECTED SEQUENCE: Pending -> Crashed
             # The engine catches the BaseException and transitions to Crashed.
             assert [state.name for state in task_run_states] == [
                 "Pending",
-                "Running",
                 "Crashed",
             ]
 
@@ -2686,7 +2684,6 @@ class TestTaskConcurrencyLimits:
             # Read the final states from the API
             task_run_states = await prefect_client.read_task_run_states(task_run_id)
 
-            # ORIGINAL EXPECTED SEQUENCE (Async behavior unchanged): Pending -> Crashed
             assert [state.name for state in task_run_states] == [
                 "Pending",
                 "Crashed",
