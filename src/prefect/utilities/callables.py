@@ -379,15 +379,16 @@ def generate_parameter_schema(
     model_fields = {}
     aliases = {}
 
-    class ModelConfig:
-        arbitrary_types_allowed = True
-
     if HAS_PYDANTIC_V2 and not has_v1_type_as_param(signature):
         create_schema = create_v2_schema
         process_params = process_v2_params
+        ModelConfig = pydantic.ConfigDict(arbitrary_types_allowed=True)
     else:
         create_schema = create_v1_schema
         process_params = process_v1_params
+
+        class ModelConfig:
+            arbitrary_types_allowed = True
 
     for position, param in enumerate(signature.parameters.values()):
         name, type_, field = process_params(
