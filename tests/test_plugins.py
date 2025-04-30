@@ -83,20 +83,24 @@ def test_load_extra_entrypoints_strips_spaces():
 
 
 @pytest.mark.usefixtures("module_fixture")
-def test_load_extra_entrypoints_unparsable_entrypoint(capsys):
+def test_load_extra_entrypoints_unparsable_entrypoint(
+    capsys: pytest.CaptureFixture[str],
+):
     with temporary_settings({PREFECT_EXTRA_ENTRYPOINTS: "foo$bar"}):
         result = load_extra_entrypoints()
 
     assert set(result.keys()) == {"foo$bar"}
-    assert exceptions_equal(
-        result["foo$bar"], AttributeError("'NoneType' object has no attribute 'group'")
-    )
+
+    # The exception type depends on the version of importlib.metadata or
+    # its backport, importlib_metadata.
+    # Older versions (<4.11.0) raise AttributeError, newer raise ValueError.
+    # See https://github.com/python/importlib_metadata/pull/384
+    actual_exception = result["foo$bar"]
+    assert isinstance(actual_exception, (AttributeError, ValueError))
 
     _, stderr = capsys.readouterr()
-    assert (
-        "Warning! Failed to load extra entrypoint 'foo$bar': "
-        "AttributeError: 'NoneType' object has no attribute 'group'" in stderr
-    )
+    assert "extra entrypoint" in stderr
+    assert f"{type(actual_exception).__name__}:" in stderr
 
 
 @pytest.mark.usefixtures("module_fixture")
@@ -139,7 +143,9 @@ def test_load_extra_entrypoints_callable_given_no_arguments():
 
 
 @pytest.mark.usefixtures("module_fixture")
-def test_load_extra_entrypoints_callable_that_raises(capsys):
+def test_load_extra_entrypoints_callable_that_raises(
+    capsys: pytest.CaptureFixture[str],
+):
     with temporary_settings(
         {PREFECT_EXTRA_ENTRYPOINTS: "test_module_name:raises_value_error"}
     ):
@@ -167,7 +173,7 @@ def test_load_extra_entrypoints_callable_that_raises_base_exception():
 
 
 @pytest.mark.usefixtures("raising_module_fixture")
-def test_load_extra_entrypoints_error_on_import(capsys):
+def test_load_extra_entrypoints_error_on_import(capsys: pytest.CaptureFixture[str]):
     with temporary_settings({PREFECT_EXTRA_ENTRYPOINTS: "raising_module_name"}):
         result = load_extra_entrypoints()
 
@@ -182,7 +188,7 @@ def test_load_extra_entrypoints_error_on_import(capsys):
 
 
 @pytest.mark.usefixtures("module_fixture")
-def test_load_extra_entrypoints_missing_module(capsys):
+def test_load_extra_entrypoints_missing_module(capsys: pytest.CaptureFixture[str]):
     with temporary_settings({PREFECT_EXTRA_ENTRYPOINTS: "nonexistant_module"}):
         result = load_extra_entrypoints()
 
@@ -200,7 +206,7 @@ def test_load_extra_entrypoints_missing_module(capsys):
 
 
 @pytest.mark.usefixtures("module_fixture")
-def test_load_extra_entrypoints_missing_submodule(capsys):
+def test_load_extra_entrypoints_missing_submodule(capsys: pytest.CaptureFixture[str]):
     with temporary_settings(
         {PREFECT_EXTRA_ENTRYPOINTS: "test_module_name.missing_module"}
     ):
@@ -223,7 +229,7 @@ def test_load_extra_entrypoints_missing_submodule(capsys):
 
 
 @pytest.mark.usefixtures("module_fixture")
-def test_load_extra_entrypoints_missing_attribute(capsys):
+def test_load_extra_entrypoints_missing_attribute(capsys: pytest.CaptureFixture[str]):
     with temporary_settings(
         {PREFECT_EXTRA_ENTRYPOINTS: "test_module_name:missing_attr"}
     ):
@@ -242,7 +248,7 @@ def test_load_extra_entrypoints_missing_attribute(capsys):
     )
 
 
-def test_plugin_load_on_prefect_package_init(monkeypatch):
+def test_plugin_load_on_prefect_package_init(monkeypatch: pytest.MonkeyPatch):
     mock_load_prefect_collections = Mock()
     mock_load_extra_entrypoints = Mock()
 

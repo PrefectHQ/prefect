@@ -15,6 +15,8 @@ mock; python_version < '3.8'
 moto >= 5
 mypy >= 1.9.0
 numpy
+pendulum[test] < 3.0; python_version < '3.12'
+pendulum[test] >= 3.0.0, <4; python_version >= '3.12'
 pillow
 pre-commit
 pluggy >= 1.4.0

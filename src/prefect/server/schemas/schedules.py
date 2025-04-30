@@ -391,7 +391,10 @@ class RRuleSchedule(PrefectBaseModel):
         elif isinstance(rrule, dateutil.rrule.rruleset):
             dtstarts = [rr._dtstart for rr in rrule._rrule if rr._dtstart is not None]
             unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
-            unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
+            # Use tzinfo.name (string) instead of tzinfo object for hashing
+            unique_timezones = set(
+                d.tzinfo.name for d in dtstarts if d.tzinfo is not None
+            )
 
             if len(unique_timezones) > 1:
                 raise ValueError(
@@ -402,7 +405,8 @@ class RRuleSchedule(PrefectBaseModel):
                 raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
 
             if unique_dstarts and unique_timezones:
-                timezone = dtstarts[0].tzinfo.name
+                # Get the single timezone name from the set
+                timezone = unique_timezones.pop()
             else:
                 timezone = "UTC"
 
