@@ -452,7 +452,6 @@ class RunnerDeployment(BaseModel):
         self,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
-        version_info: VersionInfo | None = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -463,10 +462,17 @@ class RunnerDeployment(BaseModel):
             image: The registry, name, and tag of the Docker image to
                 use for this deployment. Only used when the deployment is
                 deployed to a work pool.
-            version_info: Version information for the deployment.
         Returns:
             The ID of the created deployment.
         """
+        if version_info := await get_inferred_version_info(self.version_type):
+            if self.version:
+                version_info.version = (
+                    self.version  # use the supplied version as the version name
+                )
+
+        if self.version:
+            version_info = VersionInfo(type="prefect:simple", version=self.version)
 
         async with get_client() as client:
             try:
@@ -1248,23 +1254,11 @@ async def deploy(
         console=console,
         transient=True,
     ):
-        if version_info := await get_inferred_version_info(deployment.version_type):
-            if deployment.version:
-                version_info.version = (
-                    deployment.version  # use the supplied version as the version name
-                )
-
-        if deployment.version:
-            version_info = VersionInfo(
-                type="prefect:simple", version=deployment.version
-            )
-
         try:
             deployment_ids.append(
                 await deployment.apply(
                     image=image_ref,
                     work_pool_name=work_pool_name,
-                    version_info=version_info,
                 )
             )
         except Exception as exc:

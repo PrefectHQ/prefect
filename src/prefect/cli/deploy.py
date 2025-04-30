@@ -23,7 +23,6 @@ from yaml.error import YAMLError
 
 import prefect
 from prefect._experimental.sla.objects import SlaTypes
-from prefect._versioning import get_inferred_version_info
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -46,7 +45,7 @@ from prefect.client.base import ServerType
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
-from prefect.client.schemas.objects import ConcurrencyLimitConfig, VersionInfo
+from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -751,6 +750,7 @@ async def _run_single_deploy(
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         version=deploy_config.get("version"),
+        version_type=deploy_config.get("version_type") or options.get("version_type"),
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         concurrency_options=deploy_config.get("concurrency_options"),
@@ -767,9 +767,7 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    version_info = await _version_info_from_options(options, deploy_config)
-
-    apply_coro = deployment.apply(version_info=version_info)
+    apply_coro = deployment.apply()
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 
@@ -860,23 +858,6 @@ async def _run_single_deploy(
         ),
         style="blue",
     )
-
-
-async def _version_info_from_options(
-    options: dict[str, Any], deploy_config: dict[str, Any]
-) -> VersionInfo | None:
-    version_type = options.get("version_type") or deploy_config.get("version_type")
-    if version_info := await get_inferred_version_info(version_type):
-        if version := options.get("version") or deploy_config.get("version"):
-            version_info.version = (
-                version  # use the supplied version as the version name
-            )
-        return version_info  # otherwise the version name is the first line of the commit message
-
-    if version := options.get("version") or deploy_config.get("version"):
-        return VersionInfo(type="prefect:simple", version=version)
-
-    return None
 
 
 async def _run_multi_deploy(

@@ -26,6 +26,7 @@ import regex as re
 import prefect
 import prefect.exceptions
 from prefect import flow, runtime, tags, task
+from prefect._versioning import VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.objects import (
@@ -4009,6 +4010,7 @@ class TestFlowToDeployment:
                 concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
+                version_type=VersionType.SIMPLE,
                 enforce_parameter_schema=True,
                 triggers=[
                     {
@@ -4031,6 +4033,7 @@ class TestFlowToDeployment:
             assert deployment.concurrency_limit == 42
             assert deployment.description == "This is a test"
             assert deployment.version == "alpha"
+            assert deployment.version_type == VersionType.SIMPLE
             assert deployment.enforce_parameter_schema
             assert deployment.triggers == [
                 DeploymentEventTrigger(
@@ -4176,6 +4179,7 @@ class TestFlowToDeployment:
                 concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
+                version_type=VersionType.SIMPLE,
                 enforce_parameter_schema=True,
                 triggers=[
                     {
@@ -4198,6 +4202,7 @@ class TestFlowToDeployment:
             assert deployment.concurrency_limit == 42
             assert deployment.description == "This is a test"
             assert deployment.version == "alpha"
+            assert deployment.version_type == VersionType.SIMPLE
             assert deployment.enforce_parameter_schema
             assert deployment.triggers == [
                 DeploymentEventTrigger(
@@ -4844,6 +4849,7 @@ class TestFlowDeploy:
             concurrency_limit=42,
             description="This is a test",
             version="alpha",
+            version_type=VersionType.SIMPLE,
             work_pool_name=work_pool.name,
             work_queue_name="line",
             job_variables={"foo": "bar"},
@@ -4862,6 +4868,7 @@ class TestFlowDeploy:
                 concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
+                version_type=VersionType.SIMPLE,
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
@@ -4895,6 +4902,7 @@ class TestFlowDeploy:
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
+            version_type=VersionType.SIMPLE,
             work_pool_name=work_pool.name,
             work_queue_name="line",
             job_variables={"foo": "bar"},
@@ -4916,6 +4924,7 @@ class TestFlowDeploy:
                 parameters={"name": "Arthur"},
                 description="This is a test",
                 version="alpha",
+                version_type=VersionType.SIMPLE,
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
