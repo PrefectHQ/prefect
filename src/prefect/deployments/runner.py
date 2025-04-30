@@ -223,8 +223,8 @@ class RunnerDeployment(BaseModel):
     version_type: Optional[VersionType] = Field(
         default=None,
         description=(
-            "The type of version to use for the created deployment. Used to skip"
-            " version type inference."
+            "The type of version to use for the created deployment. The version type"
+            " will be inferred if not provided."
         ),
     )
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -631,8 +631,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
-            version_type: The type of version to use for the created deployment. Used to skip
-                version type inference.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -883,8 +883,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
-            version_type: The type of version to use for the created deployment. Used to skip
-                version type inference.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -1009,8 +1009,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
-            version_type: The type of version to use for the created deployment. Used to skip
-                version type inference.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -1103,8 +1103,8 @@ async def deploy(
         *deployments: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
             the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
-        version_type: The type of version to use for the created deployment. Used to skip
-            version type inference.
+        version_type: The type of version to use for the created deployment. The version type
+            will be inferred if not provided.
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
