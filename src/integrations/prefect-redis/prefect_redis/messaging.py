@@ -126,7 +126,7 @@ class Publisher(_Publisher):
         topic: str,
         cache: _Cache,
         deduplicate_by: Optional[str] = None,
-        batch_size: int = 5,
+        batch_size: int = 1,
         publish_every: Optional[timedelta] = None,
     ):
         self.stream = topic  # Use topic as stream name
