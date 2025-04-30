@@ -28,7 +28,6 @@ from prefect._internal.schemas.validators import (
     validate_cache_key_length,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
-    validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_not_negative,
     validate_parent_and_ref_diff,
@@ -57,27 +56,11 @@ from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
     flatdict_to_dict,
-    listrepr,
 )
 from prefect.utilities.names import generate_slug, obfuscate
 
 if TYPE_CHECKING:
     from prefect.server.database import orm_models
-
-
-FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
-    "flow_run_notification_policy_id",
-    "flow_id",
-    "flow_name",
-    "flow_run_url",
-    "flow_run_id",
-    "flow_run_name",
-    "flow_run_parameters",
-    "flow_run_state_type",
-    "flow_run_state_name",
-    "flow_run_state_timestamp",
-    "flow_run_state_message",
-]
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 
@@ -1055,41 +1038,6 @@ class WorkQueueStatusDetail(PrefectBaseModel):
             "The policy used to determine whether or not the work queue is healthy."
         ),
     )
-
-
-class FlowRunNotificationPolicy(ORMBaseModel):
-    """An ORM representation of a flow run notification."""
-
-    is_active: bool = Field(
-        default=True, description="Whether the policy is currently active"
-    )
-    state_names: List[str] = Field(
-        default=..., description="The flow run states that trigger notifications"
-    )
-    tags: List[str] = Field(
-        default=...,
-        description="The flow run tags that trigger notifications (set [] to disable)",
-    )
-    block_document_id: UUID = Field(
-        default=..., description="The block document ID used for sending notifications"
-    )
-    message_template: Optional[str] = Field(
-        default=None,
-        description=(
-            "A templatable notification message. Use {braces} to add variables."
-            " Valid variables include:"
-            f" {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
-        ),
-        examples=[
-            "Flow run {flow_run_name} with id {flow_run_id} entered state"
-            " {flow_run_state_name}."
-        ],
-    )
-
-    @field_validator("message_template")
-    @classmethod
-    def validate_message_template_variables(cls, v: str) -> str:
-        return validate_message_template_variables(v)
 
 
 class Agent(ORMBaseModel):
