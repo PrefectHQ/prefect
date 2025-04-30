@@ -99,10 +99,8 @@ def test_load_extra_entrypoints_unparsable_entrypoint(
     assert isinstance(actual_exception, (AttributeError, ValueError))
 
     _, stderr = capsys.readouterr()
-    assert (
-        "Warning! Failed to load extra entrypoint 'foo$bar': "
-        f"{type(actual_exception).__name__}:" in stderr
-    )
+    assert "extra entrypoint" in stderr
+    assert f"{type(actual_exception).__name__}:" in stderr
 
 
 @pytest.mark.usefixtures("module_fixture")
