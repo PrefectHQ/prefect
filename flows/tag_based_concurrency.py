@@ -21,13 +21,11 @@ import time
 
 from prefect import flow, task
 from prefect.client.orchestration import get_client
+from prefect.exceptions import ObjectNotFound
 from prefect.futures import PrefectFuture
 from prefect.task_runners import ThreadPoolTaskRunner
 
-TAG: str = "deadlock-regression"
-LIMIT: int = 2
-WORKERS: int = 2
-N_TASKS: int = 3  # minimal chain that used to lock
+TAG = "deadlock-regression"
 
 
 @task(tags=[TAG])
@@ -37,15 +35,16 @@ def sleeper(i: int) -> int:
 
 
 async def _ensure_limit() -> None:
+    LIMIT = 2
     async with get_client() as client:
         try:
-            await client.read_concurrency_limit_by_tag(TAG)
-            await client.update_concurrency_limit(TAG, LIMIT)
-        except Exception:
-            await client.create_concurrency_limit(TAG, LIMIT)
+            await client.reset_concurrency_limit_by_tag(TAG)
+        except ObjectNotFound:
+            pass
+        await client.create_concurrency_limit(TAG, LIMIT)
 
 
-@flow(task_runner=ThreadPoolTaskRunner(max_workers=WORKERS))
+@flow(task_runner=ThreadPoolTaskRunner(max_workers=2))
 def reverse_chain(n: int) -> list[int]:
     asyncio.run(_ensure_limit())
 
@@ -57,6 +56,7 @@ def reverse_chain(n: int) -> list[int]:
 
 
 if __name__ == "__main__":
+    N_TASKS = 3  # minimal chain that previously dead-locked
     out: list[int] = reverse_chain(N_TASKS)
     assert out == list(range(N_TASKS)), f"unexpected result {out!r}"
     print("reverse-chain flow completed without dead-lock")
