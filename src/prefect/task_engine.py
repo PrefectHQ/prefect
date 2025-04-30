@@ -765,14 +765,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                with concurrency(list(self.task_run.tags), self.task_run.id):
-                    self.begin_run()
-                    try:
-                        yield
-                    finally:
-                        self.call_hooks()
+                self.begin_run()
+                try:
+                    yield
+                finally:
+                    self.call_hooks()
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
@@ -833,7 +830,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            result = call_with_parameters(self.task.fn, parameters)
+            with concurrency(list(self.task_run.tags), self.task_run.id):
+                result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
         return result
 
