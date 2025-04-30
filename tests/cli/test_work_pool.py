@@ -1053,7 +1053,8 @@ class TestStorageConfigure:
                 block_type_slug="s3-bucket",
             )
             assert block_document.data == {
-                "bucket": "test-bucket",
+                "bucket_name": "test-bucket",
+                "bucket_folder": "results",
                 "credentials": aws_credentials.data,
             }
 

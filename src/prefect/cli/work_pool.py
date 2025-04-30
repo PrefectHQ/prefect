@@ -823,6 +823,13 @@ async def s3(
             )
 
         result_storage_block_document_name = f"default-{work_pool_name}-result-storage"
+        block_data = {
+            "bucket_name": bucket,
+            "bucket_folder": "results",
+            "credentials": {
+                "$ref": {"block_document_id": credentials_block_document.id}
+            },
+        }
 
         try:
             existing_block_document = await client.read_block_document_by_name(
@@ -835,12 +842,7 @@ async def s3(
             await client.update_block_document(
                 block_document_id=existing_block_document.id,
                 block_document=BlockDocumentUpdate(
-                    data={
-                        "bucket": bucket,
-                        "credentials": {
-                            "$ref": {"block_document_id": credentials_block_document.id}
-                        },
-                    },
+                    data=block_data,
                 ),
             )
             block_document = existing_block_document
@@ -866,12 +868,7 @@ async def s3(
                     name=result_storage_block_document_name,
                     block_type_id=block_type.id,
                     block_schema_id=block_schema.id,
-                    data={
-                        "bucket": bucket,
-                        "credentials": {
-                            "$ref": {"block_document_id": credentials_block_document.id}
-                        },
-                    },
+                    data=block_data,
                 )
             )
 
