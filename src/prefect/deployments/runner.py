@@ -58,6 +58,7 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
+from prefect._versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
@@ -217,6 +218,13 @@ class RunnerDeployment(BaseModel):
             "Job variables used to override the default values of a work pool"
             " base job template. Only used when the deployment is registered with"
             " a built runner."
+        ),
+    )
+    version_type: Optional[VersionType] = Field(
+        default=None,
+        description=(
+            "The type of version to use for the created deployment. Used to skip"
+            " version type inference."
         ),
     )
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -592,6 +600,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -622,6 +631,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. Used to skip
+                version type inference.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -662,6 +673,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             enforce_parameter_schema=enforce_parameter_schema,
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
@@ -837,6 +849,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -870,6 +883,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. Used to skip
+                version type inference.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -921,6 +936,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
@@ -959,6 +975,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -992,6 +1009,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. Used to skip
+                version type inference.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -1041,6 +1060,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
@@ -1083,6 +1103,8 @@ async def deploy(
         *deployments: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
             the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+        version_type: The type of version to use for the created deployment. Used to skip
+            version type inference.
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
@@ -1226,9 +1248,24 @@ async def deploy(
         console=console,
         transient=True,
     ):
+        if version_info := await get_inferred_version_info(deployment.version_type):
+            if deployment.version:
+                version_info.version = (
+                    deployment.version  # use the supplied version as the version name
+                )
+
+        if deployment.version:
+            version_info = VersionInfo(
+                type="prefect:simple", version=deployment.version
+            )
+
         try:
             deployment_ids.append(
-                await deployment.apply(image=image_ref, work_pool_name=work_pool_name)
+                await deployment.apply(
+                    image=image_ref,
+                    work_pool_name=work_pool_name,
+                    version_info=version_info,
+                )
             )
         except Exception as exc:
             if len(deployments) == 1:
