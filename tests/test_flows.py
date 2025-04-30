@@ -565,8 +565,8 @@ class TestFlowWithOptions:
             def get_multiplier(cls):
                 return 1
 
-            @classmethod
             @flow
+            @classmethod
             def process(cls, x: int):
                 return x * cls.get_multiplier()
 

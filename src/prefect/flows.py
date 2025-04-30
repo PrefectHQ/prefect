@@ -19,7 +19,6 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from pathlib import Path
-from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -522,24 +521,8 @@ class Flow(Generic[P, R]):
         )
         if new_task_runner is None:
             new_task_runner = self.task_runner
-        new_fn = FunctionType(
-            code=self.fn.__code__,
-            globals=self.fn.__globals__,
-            name=self.fn.__name__,
-            argdefs=self.fn.__defaults__,
-            closure=self.fn.__closure__,
-        )
-        new_fn.__annotations__ = copy(self.fn.__annotations__)
-        new_fn.__dict__ = copy(self.fn.__dict__)
-        new_fn.__kwdefaults__ = (
-            copy(self.fn.__kwdefaults__) if self.fn.__kwdefaults__ else None
-        )
-        if hasattr(self.fn, "__prefect_self__"):
-            new_fn.__prefect_self__ = self.fn.__prefect_self__
-        elif hasattr(self.fn, "__prefect_cls__"):
-            new_fn.__prefect_cls__ = self.fn.__prefect_cls__
         new_flow = Flow(
-            fn=new_fn,
+            fn=self.fn,
             name=name or self.name,
             description=description or self.description,
             flow_run_name=flow_run_name or self.flow_run_name,
