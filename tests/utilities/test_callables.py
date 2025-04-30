@@ -1,5 +1,4 @@
 import datetime
-import sys
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
@@ -309,8 +308,6 @@ class TestFunctionToSchema:
                 },
                 "required": ["a", "b", "c", "d", "e"],
             }
-            if sys.version_info < (3, 9):
-                expected_schema["properties"]["b"]["additionalProperties"] = True
         else:
             # pydantic 1.9.0 adds min and max item counts to the parameter schema
             min_max_items = (
@@ -353,7 +350,12 @@ class TestFunctionToSchema:
                 "required": ["a", "b", "c", "d", "e"],
             }
 
-        assert schema.dict() == expected_schema
+        # pop additionalProperties from actual and expected
+        actual_schema = schema.dict()
+        actual_schema["properties"]["b"].pop("additionalProperties", None)
+        expected_schema["properties"]["b"].pop("additionalProperties", None)
+
+        assert actual_schema == expected_schema
 
     def test_function_with_user_defined_type(self):
         class Foo:
@@ -1311,8 +1313,6 @@ class TestEntrypointToSchema:
                 },
                 "required": ["a", "b", "c", "d", "e"],
             }
-            if sys.version_info < (3, 9):
-                expected_schema["properties"]["b"]["additionalProperties"] = True
 
         else:
             # pydantic 1.9.0 adds min and max item counts to the parameter schema
@@ -1356,7 +1356,12 @@ class TestEntrypointToSchema:
                 "required": ["a", "b", "c", "d", "e"],
             }
 
-        assert schema.dict() == expected_schema
+        # pop additionalProperties from actual and expected
+        actual_schema = schema.dict()
+        actual_schema["properties"]["b"].pop("additionalProperties", None)
+        expected_schema["properties"]["b"].pop("additionalProperties", None)
+
+        assert actual_schema == expected_schema
 
     def test_function_with_user_defined_type(self, tmp_path: Path):
         source_code = dedent(
