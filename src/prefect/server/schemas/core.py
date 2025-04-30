@@ -1071,7 +1071,7 @@ class WorkPoolStorageConfiguration(PrefectBaseModel):
         default=None,
         description="The step to use for executing bundles.",
     )
-    default_result_storage_block_id: UUID | None = Field(
+    default_result_storage_block_id: Optional[UUID] = Field(
         default=None,
         description="The block document ID of the default result storage block.",
     )
