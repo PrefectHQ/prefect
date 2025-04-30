@@ -27,7 +27,7 @@ When a function becomes a flow, it gains the following capabilities:
 - Metadata about [flow runs](#flow-runs), such as run time and final state, is automatically tracked.
 - Each [state](/v3/develop/manage-states/) the flow enters is recorded. This
 allows you to observe and [act upon each transition](/v3/develop/manage-states#execute-code-on-state-changes) in the flow's execution.
-- Input arguments can be type validated as workflow [parameters](/#specify-flow-parameters).
+- Input arguments can be type validated as workflow [parameters](#specify-flow-parameters).
 - [Retries](#retries) can be performed on failure, with configurable delay and retry limits.
 - Timeouts can be enforced to prevent unintentional, long-running workflows.
 - A flow can be [deployed](/v3/deploy/infrastructure-examples/docker/), which exposes an API for interacting with it remotely.
@@ -95,7 +95,7 @@ Forks 🍴 : 1245
 ## Specify flow parameters
 
 As with any Python function, you can pass arguments to a flow, including both positional and keyword arguments.
-These arguments defined on your flow function are called [parameters](/v3/develop/write-flows/#parameters).
+These arguments defined on your flow function are called parameters.
 They are stored by the Prefect orchestration engine on the flow run object.
 
 Prefect automatically performs type conversion of inputs using any provided type hints.
