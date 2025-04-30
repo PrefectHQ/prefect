@@ -22,7 +22,12 @@ from prefect.cli._utilities import (
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.actions import (
+    BlockDocumentCreate,
+    BlockDocumentUpdate,
+    WorkPoolCreate,
+    WorkPoolUpdate,
+)
 from prefect.client.schemas.objects import (
     FlowRun,
     WorkPool,
@@ -809,12 +814,65 @@ async def s3(
     # TODO: Allow passing in AWS keys and creating a block for the user.
     async with get_client() as client:
         try:
-            await client.read_block_document_by_name(
+            credentials_block_document = await client.read_block_document_by_name(
                 name=credentials_block_name, block_type_slug="aws-credentials"
             )
         except ObjectNotFound:
             exit_with_error(
                 f"AWS credentials block {credentials_block_name!r} does not exist. Please create one using `prefect block create aws-credentials`."
+            )
+
+        result_storage_block_document_name = f"default-{work_pool_name}-result-storage"
+
+        try:
+            existing_block_document = await client.read_block_document_by_name(
+                name=result_storage_block_document_name, block_type_slug="s3-bucket"
+            )
+        except ObjectNotFound:
+            existing_block_document = None
+
+        if existing_block_document is not None:
+            await client.update_block_document(
+                block_document_id=existing_block_document.id,
+                block_document=BlockDocumentUpdate(
+                    data={
+                        "bucket": bucket,
+                        "credentials": {
+                            "$ref": {"block_document_id": credentials_block_document.id}
+                        },
+                    },
+                ),
+            )
+            block_document = existing_block_document
+        else:
+            MISSING_BLOCK_DEFINITION_ERROR = "S3 bucket block definition does not exist server-side. Please install `prefect-aws` and run `prefect blocks register -m prefect_aws`."
+            try:
+                block_type = await client.read_block_type_by_slug(slug="s3-bucket")
+                block_schema = await client.get_most_recent_block_schema_for_block_type(
+                    block_type_id=block_type.id
+                )
+            except ObjectNotFound:
+                exit_with_error(MISSING_BLOCK_DEFINITION_ERROR)
+            else:
+                if block_schema is None:
+                    exit_with_error(MISSING_BLOCK_DEFINITION_ERROR)
+
+            credentials_block_document = await client.read_block_document_by_name(
+                name=credentials_block_name, block_type_slug="aws-credentials"
+            )
+
+            block_document = await client.create_block_document(
+                block_document=BlockDocumentCreate(
+                    name=result_storage_block_document_name,
+                    block_type_id=block_type.id,
+                    block_schema_id=block_schema.id,
+                    data={
+                        "bucket": bucket,
+                        "credentials": {
+                            "$ref": {"block_document_id": credentials_block_document.id}
+                        },
+                    },
+                )
             )
 
         try:
@@ -836,6 +894,7 @@ async def s3(
                                 "aws_credentials_block_name": credentials_block_name,
                             }
                         },
+                        default_result_storage_block_id=block_document.id,
                     ),
                 ),
             )
