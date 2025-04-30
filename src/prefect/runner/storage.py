@@ -368,7 +368,7 @@ class GitRepository:
             cmd += ["--sparse"]
 
         if self._commit_sha:
-            cmd += ["--filter=blob:none"]
+            cmd += ["--filter=blob:none", "--no-checkout"]
 
         else:
             if self._branch:
@@ -391,6 +391,11 @@ class GitRepository:
             ) from exc_chain
 
         if self._commit_sha:
+            # Fetch the commit
+            await run_process(
+                ["git", "fetch", "origin", self._commit_sha],
+                cwd=self.destination,
+            )
             # Checkout the specific commit
             await run_process(
                 ["git", "checkout", self._commit_sha],

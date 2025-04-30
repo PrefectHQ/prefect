@@ -775,8 +775,13 @@ class TestGitRepository:
                     "clone",
                     "https://github.com/org/repo.git",
                     "--filter=blob:none",
+                    "--no-checkout",
                     str(Path.cwd() / "repo"),
                 ]
+            ),
+            call(
+                ["git", "fetch", "origin", "1234567890"],
+                cwd=Path.cwd() / "repo",
             ),
             call(
                 ["git", "checkout", "1234567890"],
