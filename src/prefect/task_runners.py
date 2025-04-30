@@ -281,6 +281,12 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         if not self._started or self._executor is None:
             raise RuntimeError("Task runner is not started")
 
+        if wait_for and task.tags and (self._max_workers <= len(task.tags)):
+            self.logger.warning(
+                f"Task {task.name} has {len(task.tags)} tags but only {self._max_workers} workers available"
+                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `max_workers`."
+            )
+
         from prefect.context import FlowRunContext
         from prefect.task_engine import run_task_async, run_task_sync
 
