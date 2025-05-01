@@ -466,7 +466,11 @@ class RunnerDeployment(BaseModel):
             The ID of the created deployment.
         """
         if version_info := await get_inferred_version_info(self.version_type):
-            if self.version:
+            if (
+                self.version
+                and hasattr(version_info, "commit_sha")
+                and version_info.version == version_info.commit_sha[:8]
+            ):
                 version_info.version = (
                     self.version  # use the supplied version as the version name
                 )
@@ -582,8 +586,6 @@ class RunnerDeployment(BaseModel):
     def _set_defaults_from_flow(self, flow: "Flow[..., Any]"):
         self._parameter_openapi_schema = parameter_schema(flow)
 
-        if not self.version:
-            self.version = flow.version
         if not self.description:
             self.description = flow.description
 

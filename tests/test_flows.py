@@ -26,7 +26,7 @@ import regex as re
 import prefect
 import prefect.exceptions
 from prefect import flow, runtime, tags, task
-from prefect._versioning import VersionType
+from prefect._versioning import GitVersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.objects import (
@@ -4822,6 +4822,14 @@ class TestFlowDeploy:
         return mock
 
     @pytest.fixture
+    async def mock_create_deployment(self):
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.create_deployment"
+        ) as mock_create:
+            mock_create.return_value = uuid.uuid4()
+            yield mock_create
+
+    @pytest.fixture
     def local_flow(self):
         @flow
         def local_flow_deploy():
@@ -4835,6 +4843,22 @@ class TestFlowDeploy:
             entrypoint="flows.py:test_flow", source=MockStorage()
         )
         return remote_flow
+
+    @pytest.fixture
+    async def mock_get_inferred_version_info(self):
+        with mock.patch(
+            "prefect.deployments.runner.get_inferred_version_info"
+        ) as mock_get_inferred:
+            mock_get_inferred.return_value = GitVersionInfo(
+                type="vcs:git",
+                version="abcdef12",
+                commit_sha="abcdef12",
+                message="Initial commit",
+                branch="main",
+                url="https://github.com/org/repo",
+                repository="org/repo",
+            )
+            yield mock_get_inferred
 
     async def test_calls_deploy_with_expected_args(
         self, mock_deploy, local_flow, work_pool, capsys
@@ -5027,6 +5051,63 @@ class TestFlowDeploy:
             push=True,
             print_next_steps_message=False,
             ignore_warnings=False,
+        )
+
+    async def test_deploy_infers_version_info(
+        self,
+        local_flow,
+        work_pool_with_image_variable,
+        mock_create_deployment,
+        mock_get_inferred_version_info,
+    ):
+        await local_flow.deploy(
+            name="my-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+        )
+
+        mock_get_inferred_version_info.assert_awaited_once()
+        mock_create_deployment.assert_awaited_once()
+
+        passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+        assert passed_version_info == GitVersionInfo(
+            type="vcs:git",
+            version="abcdef12",
+            commit_sha="abcdef12",
+            message="Initial commit",
+            branch="main",
+            url="https://github.com/org/repo",
+            repository="org/repo",
+        )
+
+    async def test_deploy_infers_version_info_with_name(
+        self,
+        local_flow,
+        work_pool_with_image_variable,
+        mock_create_deployment,
+        mock_get_inferred_version_info,
+    ):
+        await local_flow.deploy(
+            name="my-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            version="my-version",
+        )
+
+        mock_get_inferred_version_info.assert_awaited_once()
+        mock_create_deployment.assert_awaited_once()
+
+        passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+        assert passed_version_info == GitVersionInfo(
+            type="vcs:git",
+            version="my-version",
+            commit_sha="abcdef12",
+            message="Initial commit",
+            branch="main",
+            url="https://github.com/org/repo",
+            repository="org/repo",
         )
 
 
