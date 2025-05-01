@@ -1453,8 +1453,6 @@ class Agent(ObjectBaseModel):
 class WorkPoolStorageConfiguration(PrefectBaseModel):
     """A work pool storage configuration"""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
-
     bundle_upload_step: Optional[dict[str, Any]] = Field(
         default=None, description="The bundle upload step for the work pool."
     )
