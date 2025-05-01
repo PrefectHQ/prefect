@@ -32,10 +32,11 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
-if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
+if os.getenv("PREFECT_LOGFIRE_ENABLED"):
     import logfire  # pyright: ignore
 
-    if not (token := os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")):
+    token: str | None = os.getenv("PREFECT_LOGFIRE_WRITE_TOKEN")
+    if token is None:
         raise ValueError(
             "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
         )
