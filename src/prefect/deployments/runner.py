@@ -58,7 +58,11 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
-from prefect._versioning import VersionType, get_inferred_version_info
+from prefect._versioning import (
+    SimpleVersionInfo,
+    VersionType,
+    get_inferred_version_info,
+)
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
@@ -465,18 +469,15 @@ class RunnerDeployment(BaseModel):
         Returns:
             The ID of the created deployment.
         """
-        if version_info := await get_inferred_version_info(self.version_type):
-            if (
-                self.version
-                and hasattr(version_info, "commit_sha")
-                and version_info.version == version_info.commit_sha[:8]
-            ):
-                version_info.version = (
-                    self.version  # use the supplied version as the version name
-                )
+        version_info = await get_inferred_version_info(self.version_type)
 
-        elif self.version:
-            version_info = VersionInfo(type="prefect:simple", version=self.version)
+        if not version_info:
+            version_info = SimpleVersionInfo(
+                type="prefect:simple", version=self.version if self.version else ""
+            )
+
+        if self.version:
+            version_info.version = self.version
 
         async with get_client() as client:
             try:
@@ -585,6 +586,9 @@ class RunnerDeployment(BaseModel):
 
     def _set_defaults_from_flow(self, flow: "Flow[..., Any]"):
         self._parameter_openapi_schema = parameter_schema(flow)
+
+        if not self.version and self.version_type == VersionType.SIMPLE:
+            self.version = flow.version
 
         if not self.description:
             self.description = flow.description

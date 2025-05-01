@@ -26,7 +26,7 @@ import regex as re
 import prefect
 import prefect.exceptions
 from prefect import flow, runtime, tags, task
-from prefect._versioning import GitVersionInfo, VersionType
+from prefect._versioning import GitVersionInfo, SimpleVersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.objects import (
@@ -5108,6 +5108,28 @@ class TestFlowDeploy:
             branch="main",
             url="https://github.com/org/repo",
             repository="org/repo",
+        )
+
+    async def test_deploy_uses_flow_version_as_simple_version(
+        self,
+        local_flow,
+        work_pool_with_image_variable,
+        mock_create_deployment,
+    ):
+        await local_flow.deploy(
+            name="my-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            version_type=VersionType.SIMPLE,
+        )
+
+        mock_create_deployment.assert_awaited_once()
+
+        passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+        assert passed_version_info == SimpleVersionInfo(
+            type="prefect:simple",
+            version=local_flow.version,
         )
 
 
