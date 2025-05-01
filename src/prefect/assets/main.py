@@ -1,14 +1,17 @@
 """Module contains the Asset model and an asset-aware Prefect task decorator."""
 
 from __future__ import annotations
-
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar, TYPE_CHECKING
 from typing_extensions import ParamSpec, Concatenate
 from pydantic import BaseModel
 from prefect import Task  # underlying decorator
 from prefect.events import emit_event
-from prefect.context import TaskRunContext
+from prefect.utilities.events import get_related_resource_from_context
+
+if TYPE_CHECKING:
+    from prefect.transactions import Transaction
+    from prefect.tasks import TaskRun, State, StateHookCallable
 
 P = ParamSpec("P")  # parameters of the user function
 Q = ParamSpec("Q")
@@ -21,11 +24,11 @@ class Asset(BaseModel):
 
     key: str
 
-    def materialize(self, related: list[dict[str, str]] | None = None) -> None:
-        """Emit a message to materialize asset."""
+    def _event(self, event: str, related: list[dict[str, str]] | None = None) -> None:
+        """Emit an event for the asset."""
         related = related or []
         emit_event(
-            event="prefect.asset.materialization",
+            event=f"prefect.asset.{event}",
             resource={
                 "prefect.resource.id": self.key,
                 "prefect.resource.name": self.key,
@@ -34,10 +37,23 @@ class Asset(BaseModel):
             related=related,
         )
 
+    def emit_materialization_event(
+        self, related: list[dict[str, str]] | None = None
+    ) -> None:
+        """Emit an event to materialize asset."""
+        self._event("materialization", related)
+
+    def emit_materialization_failure_event(
+        self, related: list[dict[str, str]] | None = None
+    ) -> None:
+        """Emit an event to materialize asset."""
+        self._event("materialization.failed", related)
+
 
 def with_asset(
     decorator: Callable[Concatenate[Callable[Q, T], P], R],
-    asset_hook: Callable[[Asset | list[Asset]], None],
+    on_commit: Callable[[Asset | list[Asset]], Callable[[Transaction], None]],
+    on_failure: Callable[[Asset | list[Asset]], StateHookCallable],
 ) -> Callable[
     Concatenate[Asset | list[Asset], P],
     Callable[[Callable[Q, T]], R],
@@ -53,30 +69,47 @@ def with_asset(
         def lift(fn: Callable[Q, T]) -> R:
             @wraps(fn)
             def inner(*args: Q.args, **kwargs: Q.kwargs) -> T:
-                asset_hook(asset)
                 return fn(*args, **kwargs)
 
-            # delegate to Prefect’s decorator / Task constructor
-            return decorator(inner, *d_args, **d_kwargs)
+            return decorator(
+                inner,
+                *d_args,
+                **{
+                    **d_kwargs,
+                    "on_commit": [*d_kwargs.get("on_commit", []), on_commit(asset)],  # type: ignore
+                    "on_failure": [*d_kwargs.get("on_failure", []), on_failure(asset)],  # type: ignore
+                },
+            )
 
         return lift
 
     return asset_decorator
 
 
-def materialize_hook(assets: Asset | list[Asset]) -> None:
+def materialize_hook(assets: Asset | list[Asset]) -> Callable[[Transaction], None]:
     """Emit a message to materialize assets."""
-    related: list[dict[str, str]] = []
-    if context := TaskRunContext.get():
-        related.append(
-            {
-                "prefect.resource.id": f"prefect.task-run.{context.task_run.id}",
-                "prefect.resource.name": context.task_run.name,
-                "prefect.resource.role": "task-run",
-            }
-        )
-    for asset in assets if isinstance(assets, list) else [assets]:
-        asset.materialize(related=related)
+
+    def record_materialization(transaction: Transaction) -> None:
+        for asset in assets if isinstance(assets, list) else [assets]:
+            asset.emit_materialization_event(
+                related=get_related_resource_from_context()
+            )
+
+    return record_materialization
 
 
-materialize = with_asset(Task, materialize_hook)
+def materialize_failure_hook(
+    assets: Asset | list[Asset],
+) -> StateHookCallable:
+    def record_materialization_failure(
+        task: Task[..., Any], task_run: "TaskRun", state: "State"
+    ) -> None:
+        for asset in assets if isinstance(assets, list) else [assets]:
+            asset.emit_materialization_failure_event(
+                related=get_related_resource_from_context()
+            )
+
+    return record_materialization_failure
+
+
+materialize = with_asset(Task, materialize_hook, materialize_failure_hook)
