@@ -24411,6 +24411,7 @@
                         "description": "The step to use for executing bundles."
                     }
                 },
+                "additionalProperties": false,
                 "type": "object",
                 "title": "WorkPoolStorageConfiguration",
                 "description": "A representation of a work pool's storage configuration"
