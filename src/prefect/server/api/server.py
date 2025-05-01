@@ -62,10 +62,15 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
-if get_current_settings().experiments.logfire.enabled:
+if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
     import logfire  # pyright: ignore
 
-    logfire.configure(token=get_current_settings().experiments.logfire.write_token)  # pyright: ignore
+    if not (token := os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")):
+        raise ValueError(
+            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+        )
+
+    logfire.configure(token=token)  # pyright: ignore
 else:
     logfire = None
 

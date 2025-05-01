@@ -1,31 +1,11 @@
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-
-
-class _LogfireSettings(PrefectBaseSettings):
-    """
-    Settings for Logfire tracing
-    """
-
-    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("experiments", "logfire")
-    )
-
-    enabled: bool = Field(
-        default=False,
-        description="If `True`, enables Logfire tracing. Set to `False` to disable Logfire tracing.",
-    )
-
-    write_token: Optional[str] = Field(
-        default=None,
-        description="The Logfire write token to use for tracing.",
-    )
 
 
 class ExperimentsSettings(PrefectBaseSettings):
@@ -46,9 +26,4 @@ class ExperimentsSettings(PrefectBaseSettings):
     lineage_events_enabled: bool = Field(
         default=False,
         description="If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
-    )
-
-    logfire: _LogfireSettings = Field(
-        default_factory=_LogfireSettings,
-        description="Settings for Logfire tracing",
     )
