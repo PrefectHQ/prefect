@@ -743,6 +743,9 @@ async def _run_single_deploy(
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     version_type = deploy_config.get("version_type") or options.get("version_type")
+
+    version_type = version_type or VersionType.SIMPLE
+
     if version_type == VersionType.SIMPLE:
         version = deploy_config.get("version") or options.get("version") or flow.version
     else:

@@ -159,6 +159,13 @@ class RunnerDeployment(BaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
+    version_type: Optional[VersionType] = Field(
+        default=None,
+        description=(
+            "The type of version to use for the created deployment. The version type"
+            " will be inferred if not provided."
+        ),
+    )
     tags: ListOfNonEmptyStrings = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
@@ -222,13 +229,6 @@ class RunnerDeployment(BaseModel):
             "Job variables used to override the default values of a work pool"
             " base job template. Only used when the deployment is registered with"
             " a built runner."
-        ),
-    )
-    version_type: Optional[VersionType] = Field(
-        default=None,
-        description=(
-            "The type of version to use for the created deployment. The version type"
-            " will be inferred if not provided."
         ),
     )
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -673,6 +673,8 @@ class RunnerDeployment(BaseModel):
         else:
             concurrency_options = None
 
+        version_type = version_type or VersionType.SIMPLE
+
         deployment = cls(
             name=name,
             flow_name=flow.name,
@@ -756,6 +758,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -815,6 +818,8 @@ class RunnerDeployment(BaseModel):
         else:
             concurrency_options = None
 
+        version_type = version_type or VersionType.SIMPLE
+
         deployment = cls(
             name=Path(name).stem,
             flow_name=flow_name or flow.name,
@@ -827,6 +832,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             work_pool_name=work_pool_name,
@@ -926,6 +932,8 @@ class RunnerDeployment(BaseModel):
             concurrency_options = None
 
         job_variables = job_variables or {}
+
+        version_type = version_type or VersionType.SIMPLE
 
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
@@ -1052,6 +1060,8 @@ class RunnerDeployment(BaseModel):
             concurrency_options = None
 
         job_variables = job_variables or {}
+
+        version_type = version_type or VersionType.SIMPLE
 
         with tempfile.TemporaryDirectory() as tmpdir:
             storage.set_base_path(Path(tmpdir))
