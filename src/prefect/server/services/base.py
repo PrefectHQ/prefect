@@ -38,7 +38,6 @@ def _known_service_modules() -> list[ModuleType]:
     )
     from prefect.server.services import (
         cancellation_cleanup,
-        flow_run_notifications,
         foreman,
         late_runs,
         pause_expirations,
@@ -50,7 +49,6 @@ def _known_service_modules() -> list[ModuleType]:
     return [
         # Orchestration services
         cancellation_cleanup,
-        flow_run_notifications,
         foreman,
         late_runs,
         pause_expirations,

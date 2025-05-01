@@ -119,6 +119,7 @@ class GitRepository:
         credentials: Union[GitCredentials, Block, dict[str, Any], None] = None,
         name: str | None = None,
         branch: str | None = None,
+        commit_sha: str | None = None,
         include_submodules: bool = False,
         pull_interval: int | None = 60,
         directories: list[str] | None = None,
@@ -135,8 +136,15 @@ class GitRepository:
                 "If a username is provided, an access token or password must also be"
                 " provided."
             )
+
+        if branch and commit_sha:
+            raise ValueError(
+                "Cannot provide both a branch and a commit SHA. Please provide only one."
+            )
+
         self._url = url
         self._branch = branch
+        self._commit_sha = commit_sha
         self._credentials = credentials
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
@@ -214,12 +222,39 @@ class GitRepository:
         """
         Check if existing repo is sparsely checked out
         """
-
         try:
             result = await run_process(
                 ["git", "config", "--get", "core.sparseCheckout"], cwd=self.destination
             )
             return result.stdout.decode().strip().lower() == "true"
+        except Exception:
+            return False
+
+    async def is_shallow_clone(self) -> bool:
+        """
+        Check if the repository is a shallow clone
+        """
+        try:
+            result = await run_process(
+                ["git", "rev-parse", "--is-shallow-repository"],
+                cwd=self.destination,
+            )
+            return result.stdout.decode().strip().lower() == "true"
+        except Exception:
+            return False
+
+    async def is_current_commit(self) -> bool:
+        """
+        Check if the current commit is the same as the commit SHA
+        """
+        if not self._commit_sha:
+            raise ValueError("No commit SHA provided")
+        try:
+            result = await run_process(
+                ["git", "rev-parse", self._commit_sha],
+                cwd=self.destination,
+            )
+            return result.stdout.decode().strip() == self._commit_sha
         except Exception:
             return False
 
@@ -262,22 +297,52 @@ class GitRepository:
             cmd = ["git"]
             # Add the git configuration, must be given after `git` and before the command
             cmd += self._git_config
-            # Add the pull command and parameters
-            cmd += ["pull", "origin"]
-            if self._branch:
-                cmd += [self._branch]
-            if self._include_submodules:
-                cmd += ["--recurse-submodules"]
-            cmd += ["--depth", "1"]
-            try:
-                await run_process(cmd, cwd=self.destination)
-                self._logger.debug("Successfully pulled latest changes")
-            except subprocess.CalledProcessError as exc:
-                self._logger.error(
-                    f"Failed to pull latest changes with exit code {exc}"
+
+            # If the commit is already checked out, skip the pull
+            if self._commit_sha and await self.is_current_commit():
+                return
+
+            # If checking out a specific commit, fetch the latest changes and unshallow the repository if necessary
+            elif self._commit_sha:
+                if await self.is_shallow_clone():
+                    cmd += ["fetch", "origin", "--unshallow"]
+                else:
+                    cmd += ["fetch", "origin", self._commit_sha]
+                try:
+                    await run_process(cmd, cwd=self.destination)
+                    self._logger.debug("Successfully fetched latest changes")
+                except subprocess.CalledProcessError as exc:
+                    self._logger.error(
+                        f"Failed to fetch latest changes with exit code {exc}"
+                    )
+                    shutil.rmtree(self.destination)
+                    await self._clone_repo()
+
+                await run_process(
+                    ["git", "checkout", self._commit_sha],
+                    cwd=self.destination,
                 )
-                shutil.rmtree(self.destination)
-                await self._clone_repo()
+                self._logger.debug(
+                    f"Successfully checked out commit {self._commit_sha}"
+                )
+
+            # Otherwise, pull the latest changes from the branch
+            else:
+                cmd += ["pull", "origin"]
+                if self._branch:
+                    cmd += [self._branch]
+                if self._include_submodules:
+                    cmd += ["--recurse-submodules"]
+                cmd += ["--depth", "1"]
+                try:
+                    await run_process(cmd, cwd=self.destination)
+                    self._logger.debug("Successfully pulled latest changes")
+                except subprocess.CalledProcessError as exc:
+                    self._logger.error(
+                        f"Failed to pull latest changes with exit code {exc}"
+                    )
+                    shutil.rmtree(self.destination)
+                    await self._clone_repo()
 
         else:
             await self._clone_repo()
@@ -295,8 +360,6 @@ class GitRepository:
         # Add the clone command and its parameters
         cmd += ["clone", repository_url]
 
-        if self._branch:
-            cmd += ["--branch", self._branch]
         if self._include_submodules:
             cmd += ["--recurse-submodules"]
 
@@ -304,8 +367,18 @@ class GitRepository:
         if self._directories:
             cmd += ["--sparse"]
 
-        # Limit git history and set path to clone to
-        cmd += ["--depth", "1", str(self.destination)]
+        if self._commit_sha:
+            cmd += ["--filter=blob:none", "--no-checkout"]
+
+        else:
+            if self._branch:
+                cmd += ["--branch", self._branch]
+
+            # Limit git history
+            cmd += ["--depth", "1"]
+
+        # Set path to clone to
+        cmd += [str(self.destination)]
 
         try:
             await run_process(cmd)
@@ -316,6 +389,19 @@ class GitRepository:
                 f"Failed to clone repository {self._url!r} with exit code"
                 f" {exc.returncode}."
             ) from exc_chain
+
+        if self._commit_sha:
+            # Fetch the commit
+            await run_process(
+                ["git", "fetch", "origin", self._commit_sha],
+                cwd=self.destination,
+            )
+            # Checkout the specific commit
+            await run_process(
+                ["git", "checkout", self._commit_sha],
+                cwd=self.destination,
+            )
+            self._logger.debug(f"Successfully checked out commit {self._commit_sha}")
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
         if self._directories:
@@ -350,6 +436,10 @@ class GitRepository:
         if self._include_submodules:
             pull_step["prefect.deployments.steps.git_clone"]["include_submodules"] = (
                 self._include_submodules
+            )
+        if self._commit_sha:
+            pull_step["prefect.deployments.steps.git_clone"]["commit_sha"] = (
+                self._commit_sha
             )
         if isinstance(self._credentials, Block):
             pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (

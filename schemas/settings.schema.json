@@ -1482,23 +1482,6 @@
             "title": "ServerServicesEventPersisterSettings",
             "type": "object"
         },
-        "ServerServicesFlowRunNotificationsSettings": {
-            "description": "Settings for controlling the flow run notifications service",
-            "properties": {
-                "enabled": {
-                    "default": true,
-                    "description": "Whether or not to start the flow run notifications service in the server application.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED",
-                        "PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED"
-                    ],
-                    "title": "Enabled",
-                    "type": "boolean"
-                }
-            },
-            "title": "ServerServicesFlowRunNotificationsSettings",
-            "type": "object"
-        },
         "ServerServicesForemanSettings": {
             "description": "Settings for controlling the foreman service",
             "properties": {
@@ -1742,10 +1725,6 @@
                 },
                 "event_logger": {
                     "$ref": "#/$defs/ServerServicesEventLoggerSettings",
-                    "supported_environment_variables": []
-                },
-                "flow_run_notifications": {
-                    "$ref": "#/$defs/ServerServicesFlowRunNotificationsSettings",
                     "supported_environment_variables": []
                 },
                 "foreman": {

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -15,7 +15,6 @@ from prefect._internal.schemas.validators import (
     validate_artifact_key,
     validate_block_document_name,
     validate_block_type_slug,
-    validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
     validate_variable_name,
@@ -46,7 +45,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -518,6 +517,20 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     job_variables: Optional[dict[str, Any]] = Field(default=None)
     labels: KeyValueLabelsField = Field(default_factory=dict)
 
+    @model_validator(mode="before")
+    def convert_parameters_to_plain_data(cls, values: dict[str, Any]) -> dict[str, Any]:
+        if "parameters" in values:
+
+            def convert_value(value: Any) -> Any:
+                if isinstance(value, BaseModel):
+                    return value.model_dump(mode="json")
+                return value
+
+            values["parameters"] = visit_collection(
+                values["parameters"], convert_value, return_data=True
+            )
+        return values
+
 
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
@@ -796,51 +809,6 @@ class WorkQueueUpdate(ActionBaseModel):
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
-
-
-class FlowRunNotificationPolicyCreate(ActionBaseModel):
-    """Data used by the Prefect REST API to create a flow run notification policy."""
-
-    is_active: bool = Field(
-        default=True, description="Whether the policy is currently active"
-    )
-    state_names: list[str] = Field(
-        default=..., description="The flow run states that trigger notifications"
-    )
-    tags: list[str] = Field(
-        default=...,
-        description="The flow run tags that trigger notifications (set [] to disable)",
-    )
-    block_document_id: UUID = Field(
-        default=..., description="The block document ID used for sending notifications"
-    )
-    message_template: Optional[str] = Field(
-        default=None,
-        description=(
-            "A templatable notification message. Use {braces} to add variables."
-            " Valid variables include:"
-            f" {listrepr(sorted(objects.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
-        ),
-        examples=[
-            "Flow run {flow_run_name} with id {flow_run_id} entered state"
-            " {flow_run_state_name}."
-        ],
-    )
-
-    @field_validator("message_template")
-    @classmethod
-    def validate_message_template_variables(cls, v: Optional[str]) -> Optional[str]:
-        return validate_message_template_variables(v)
-
-
-class FlowRunNotificationPolicyUpdate(ActionBaseModel):
-    """Data used by the Prefect REST API to update a flow run notification policy."""
-
-    is_active: Optional[bool] = Field(default=None)
-    state_names: Optional[list[str]] = Field(default=None)
-    tags: Optional[list[str]] = Field(default=None)
-    block_document_id: Optional[UUID] = Field(default=None)
-    message_template: Optional[str] = Field(default=None)
 
 
 class ArtifactCreate(ActionBaseModel):

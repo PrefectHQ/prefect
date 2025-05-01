@@ -267,16 +267,6 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return orm_models.BlockDocumentReference
 
     @property
-    def FlowRunNotificationPolicy(self) -> type[orm_models.FlowRunNotificationPolicy]:
-        """A flow run notification policy model"""
-        return orm_models.FlowRunNotificationPolicy
-
-    @property
-    def FlowRunNotificationQueue(self) -> type[orm_models.FlowRunNotificationQueue]:
-        """A flow run notification queue model"""
-        return orm_models.FlowRunNotificationQueue
-
-    @property
     def Configuration(self) -> type[orm_models.Configuration]:
         """An configuration model"""
         return orm_models.Configuration

@@ -15,7 +15,6 @@
     <p-context-nav-item :title="localization.info.variables" :to="routes.variables()" />
     <p-context-nav-item title="Automations" :to="routes.automations()" />
     <p-context-nav-item title="Event Feed" :to="routes.events()" />
-    <p-context-nav-item title="Notifications" :to="routes.notifications()" />
     <p-context-nav-item title="Concurrency" :to="routes.concurrencyLimits()" />
 
     <template #footer>
@@ -41,13 +40,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { PContextSidebar, PContextNavItem } from '@prefecthq/prefect-design'
-  import { localization, useShowModal } from '@prefecthq/prefect-ui-library'
-  import { useStorage } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
   import JoinTheCommunityModal from '@/components/JoinTheCommunityModal.vue'
   import { useCan } from '@/compositions/useCan'
   import { routes } from '@/router'
+  import { PContextNavItem, PContextSidebar } from '@prefecthq/prefect-design'
+  import { localization, useShowModal } from '@prefecthq/prefect-ui-library'
+  import { useStorage } from '@prefecthq/vue-compositions'
+  import { computed } from 'vue'
 
   const can = useCan()
   const canSeeWorkPools = computed(() => can.read.work_pool)
