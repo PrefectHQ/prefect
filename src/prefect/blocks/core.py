@@ -374,15 +374,15 @@ class Block(BaseModel, ABC):
                     for field_name in type(self).model_fields
                 }
             )
-        if extra_fields := {
+        extra_fields = {
             "block_type_slug": self.get_block_type_slug(),
             "_block_document_id": self._block_document_id,
             "_block_document_name": self._block_document_name,
             "_is_anonymous": self._is_anonymous,
-        }:
-            jsonable_self |= {
-                key: value for key, value in extra_fields.items() if value is not None
-            }
+        }
+        jsonable_self |= {
+            key: value for key, value in extra_fields.items() if value is not None
+        }
         return jsonable_self
 
     @classmethod
