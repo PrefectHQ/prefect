@@ -66,7 +66,7 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
-from prefect._versioning import get_inferred_version_info
+from prefect._versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
@@ -251,10 +251,11 @@ class RunnerDeployment(BaseModel):
     def full_name(self) -> str:
         return f"{self.flow_name}/{self.name}"
 
-    @property
-    def deployment_version_info(self) -> VersionInfo:
-        if inferred_version := run_coro_as_sync(get_inferred_version_info()):
-            self.version = inferred_version.version
+    def _get_deployment_version_info(self, version_type: VersionType) -> VersionInfo:
+        if inferred_version := run_coro_as_sync(
+            get_inferred_version_info(version_type)
+        ):
+            self.version = inferred_version.version  # TODO: maybe reconsider
             return inferred_version
 
         assert self.version, "No version provided and no version info could be inferred"
@@ -460,7 +461,10 @@ class RunnerDeployment(BaseModel):
 
     @sync_compatible
     async def apply(
-        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
+        self,
+        work_pool_name: Optional[str] = None,
+        image: Optional[str] = None,
+        version_type: VersionType = VersionType.SIMPLE,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -476,7 +480,7 @@ class RunnerDeployment(BaseModel):
             The ID of the created deployment.
         """
 
-        version_info = self.deployment_version_info
+        version_info = self._get_deployment_version_info(version_type)
 
         async with get_client() as client:
             try:
