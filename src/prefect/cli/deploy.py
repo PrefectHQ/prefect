@@ -23,6 +23,7 @@ from yaml.error import YAMLError
 
 import prefect
 from prefect._experimental.sla.objects import SlaTypes
+from prefect._versioning import VersionType
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -741,6 +742,12 @@ async def _run_single_deploy(
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
+    version_type = deploy_config.get("version_type") or options.get("version_type")
+    if version_type == VersionType.SIMPLE:
+        version = deploy_config.get("version") or options.get("version") or flow.version
+    else:
+        version = deploy_config.get("version") or options.get("version")
+
     deployment = RunnerDeployment(
         name=deploy_config["name"],
         flow_name=deploy_config.get("flow_name"),
@@ -749,8 +756,8 @@ async def _run_single_deploy(
         work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
-        version=deploy_config.get("version"),
-        version_type=deploy_config.get("version_type") or options.get("version_type"),
+        version=version,
+        version_type=version_type,
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         concurrency_options=deploy_config.get("concurrency_options"),

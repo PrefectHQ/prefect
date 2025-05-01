@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 import prefect
-from prefect._versioning import GitVersionInfo
+from prefect._versioning import GitVersionInfo, SimpleVersionInfo
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import VersionInfo
@@ -16,6 +16,7 @@ from prefect.deployments.base import initialize_project
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.hashing import file_hash
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -64,9 +65,40 @@ async def test_deploy_with_simple_version(mock_create_deployment: mock.AsyncMock
     passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
 
     assert passed_version == "1.2.3"
-    assert passed_version_info == VersionInfo(
+    assert passed_version_info == SimpleVersionInfo(
         type="prefect:simple",
         version="1.2.3",
+    )
+
+
+async def test_deploy_with_simple_type_and_no_version_uses_flow_version(
+    mock_create_deployment: mock.AsyncMock,
+    project_dir: Path,
+):
+    # Calculate the expected version hash
+    flow_file = project_dir / "flows" / "hello.py"
+    expected_version = file_hash(str(flow_file))
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=(
+            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            "--version-type prefect:simple"
+        ),
+        expected_code=0,
+        expected_output_contains=[
+            "An important name/test-name",
+            "prefect worker start --pool 'test-pool'",
+        ],
+    )
+
+    mock_create_deployment.assert_awaited_once()
+
+    passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+
+    assert passed_version_info == SimpleVersionInfo(
+        type="prefect:simple",
+        version=expected_version,
     )
 
 
