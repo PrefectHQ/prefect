@@ -35,7 +35,15 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 from pydantic import (
@@ -58,6 +66,7 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
+from prefect._versioning import get_inferred_version_info
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
@@ -219,6 +228,7 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = PrivateAttr(
         default=None,
@@ -240,6 +250,15 @@ class RunnerDeployment(BaseModel):
     @property
     def full_name(self) -> str:
         return f"{self.flow_name}/{self.name}"
+
+    @property
+    def deployment_version_info(self) -> VersionInfo:
+        if inferred_version := run_coro_as_sync(get_inferred_version_info()):
+            self.version = inferred_version.version
+            return inferred_version
+
+        assert self.version, "No version provided and no version info could be inferred"
+        return VersionInfo(version=self.version, type="prefect:simple")
 
     @field_validator("name", mode="before")
     @classmethod
@@ -441,10 +460,7 @@ class RunnerDeployment(BaseModel):
 
     @sync_compatible
     async def apply(
-        self,
-        work_pool_name: Optional[str] = None,
-        image: Optional[str] = None,
-        version_info: VersionInfo | None = None,
+        self, work_pool_name: Optional[str] = None, image: Optional[str] = None
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -459,6 +475,8 @@ class RunnerDeployment(BaseModel):
         Returns:
             The ID of the created deployment.
         """
+
+        version_info = self.deployment_version_info
 
         async with get_client() as client:
             try:
