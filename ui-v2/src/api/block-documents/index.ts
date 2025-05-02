@@ -5,6 +5,7 @@ export {
 	buildCountAllBlockDocumentsQuery,
 	buildCountFilterBlockDocumentsQuery,
 	buildGetBlockDocumentQuery,
+	useCreateBlockDocument,
 	useDeleteBlockDocument,
 	useUpdateBlockDocument,
 } from "./block-documents";
