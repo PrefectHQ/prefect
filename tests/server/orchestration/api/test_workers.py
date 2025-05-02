@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 import pytest
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -390,6 +391,24 @@ class TestCreateWorkPool:
             json=dict(name="Pool 1", base_job_template=missing_block_doc_ref_template),
         )
         assert response.status_code == 201, response.text
+
+    async def test_create_work_pool_with_3_3_7_client_version_does_not_include_default_result_storage_block_id(
+        self,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/work_pools/",
+            headers={"User-Agent": "prefect/3.3.7 (API 0.8.4)"},
+            json=schemas.actions.WorkPoolCreate(
+                name="test",
+                type="kubernetes",
+            ).model_dump(mode="json"),
+        )
+        assert response.status_code == 201
+        assert response.json()["storage_configuration"] == {
+            "bundle_upload_step": None,
+            "bundle_execution_step": None,
+        }
 
 
 class TestDeleteWorkPool:
@@ -917,6 +936,19 @@ class TestReadWorkPool:
         assert response.json()["id"] == str(invalid_work_pool.id)
         assert response.json()["name"] == "wp-1"
 
+    async def test_read_work_pool_with_3_3_7_client_version_does_not_include_default_result_storage_block_id(
+        self, client: AsyncClient, work_pool: WorkPool
+    ):
+        response = await client.get(
+            f"/work_pools/{work_pool.name}",
+            headers={"User-Agent": "prefect/3.3.7 (API 0.8.4)"},
+        )
+        assert response.status_code == 200
+        assert response.json()["storage_configuration"] == {
+            "bundle_upload_step": None,
+            "bundle_execution_step": None,
+        }
+
 
 class TestReadWorkPools:
     @pytest.fixture(autouse=True)
@@ -950,6 +982,21 @@ class TestReadWorkPools:
         response = await client.post("/work_pools/filter")
         assert response.status_code == 200, response.text
         assert len(response.json()) == 4
+
+    async def test_read_work_pool_with_3_3_7_client_version_does_not_include_default_result_storage_block_id(
+        self,
+        client: AsyncClient,
+    ):
+        response = await client.post(
+            "/work_pools/filter",
+            headers={"User-Agent": "prefect/3.3.7 (API 0.8.4)"},
+        )
+        assert response.status_code == 200
+        for work_pool in response.json():
+            assert work_pool["storage_configuration"] == {
+                "bundle_upload_step": None,
+                "bundle_execution_step": None,
+            }
 
 
 class TestCountWorkPools:
