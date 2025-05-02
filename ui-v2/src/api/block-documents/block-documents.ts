@@ -152,6 +152,47 @@ export const useDeleteBlockDocument = () => {
 	return { deleteBlockDocument, ...rest };
 };
 
+/**
+ * Hook for creating a block document
+ *
+ * @returns Mutation object for creating a block document with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createBlockDocument } = useCreateBlockDocument();
+ *
+ * // Update a block document by id
+ * createBlockDocument(newBlockDocument, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *     console.log('Block document created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create block document:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useCreateBlockDocument = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: createBlockDocument, ...rest } = useMutation({
+		mutationFn: (body: components["schemas"]["BlockDocumentCreate"]) =>
+			getQueryService().POST("/block_documents/", { body }),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.counts(),
+			});
+		},
+	});
+
+	return { createBlockDocument, ...rest };
+};
+
 type UseUpdateBlockDocument = {
 	id: string;
 } & components["schemas"]["BlockDocumentUpdate"];
