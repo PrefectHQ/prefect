@@ -1151,7 +1151,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 if self._limiter:
                     self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
-                self._logger.info(
+                self._logger.debug(
                     f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs"
                     " in progress."
                 )

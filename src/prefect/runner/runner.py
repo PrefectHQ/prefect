@@ -1301,7 +1301,7 @@ class Runner:
         except anyio.WouldBlock:
             if TYPE_CHECKING:
                 assert self._limiter is not None
-            self._logger.info(
+            self._logger.debug(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
                 " in progress. You can control this limit by adjusting the "
                 "PREFECT_RUNNER_PROCESS_LIMIT setting."
