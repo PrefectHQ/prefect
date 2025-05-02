@@ -3,7 +3,7 @@ title: Building forms for workflow inputs
 description: Learn how to craft validated and user-friendly input forms for workflows.
 ---
 
-Parameterizing workflows is a critical part of orchestration. It allows you create contracts between modular workflows in your organization and empower less-technical users to interact with your workflows intuitively.
+Parameterizing workflows is a critical part of orchestration. It allows you to create contracts between modular workflows in your organization and empower less-technical users to interact with your workflows intuitively.
 
 [Pydantic](https://docs.pydantic.dev/) is a powerful library for data validation using Python type annotations, which is used by Prefect to build a parameter schema for your workflow.
 
@@ -46,7 +46,7 @@ When you deploy this flow, Prefect will automatically inspect your function sign
 
 ![initial form](/v3/img/tutorials/parameters/0.png)
 
-This is good enough for many cases, but consider the additional practical constraints:
+This is good enough for many cases, but consider these additional constraints that could arise from business needs or tech stack restrictions:
 
 
 - there are only a few valid values for `mailing_lists`
@@ -70,7 +70,7 @@ def send_marketing_email(...):
 ```
 
 but there are several downsides to this:
-- you have spin up the infrastructure associated with your flow in order to check the constraints, which is wasteful if it turns out that bad parameters were provided
+- you have to spin up the infrastructure associated with your flow in order to check the constraints, which is wasteful if it turns out that bad parameters were provided
 - this might get duplicative, especially if you have similarly constrained parameters for different workflows
 
 To improve on this, we will use `pydantic` to build a convenient, self-documenting, and reusable flow signature that the Prefect UI can build a better form from.
@@ -188,6 +188,37 @@ if __name__ == "__main__":
 
 
 </Accordion>
+
+### Using `json_schema_extra` to order fields in the form
+
+By default, your flow parameters are rendered in the following order:
+- parameters with a `default` value are rendered first, alphabetically
+- parameters without a `default` value are rendered next, alphabetically
+
+You can control the order of the parameters in the form by passing `json_schema_extra` to the `Field` constructor with a `position` key.
+
+Taking our `EmailContent` model from the previous example, let's enforce that `subject` should be `first`, then `body`, then `attachments`.
+
+{/* pmd-metadata: notest */}
+```python
+class EmailContent(BaseModel):
+    subject: str = Field(
+        max_length=30,
+        description="The subject of the email",
+        json_schema_extra=dict(position=0),
+    )
+    body: str = Field(default=..., json_schema_extra=dict(position=1))
+    attachments: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        json_schema_extra=dict(position=2),
+    )
+```
+
+The resulting form looks like this:
+
+![custom form layout](/v3/img/tutorials/parameters/5.png)
+
 
 
 ### Recap
