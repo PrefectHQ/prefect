@@ -131,6 +131,10 @@ jobs:
 
           ./scripts/wait-for-server.py
 
+      - name: Verify the CLI isn't available in the active environment
+        run: |
+          prefect server start && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
+
       - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
