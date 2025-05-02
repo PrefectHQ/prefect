@@ -60,6 +60,10 @@ jobs:
         run: uv pip install dist/*.tar.gz
         working-directory: ${{ env.TMPDIR }}
 
+      - name: Verify the CLI isn't available in the active environment
+        run: |
+          prefect --help && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
+
       - name: Get the version of built `prefect-client`
         run: |
           prefect_client_version=$(python -c "import prefect; print(prefect.__version__)")
