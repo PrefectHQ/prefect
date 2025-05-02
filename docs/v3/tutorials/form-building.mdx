@@ -1,0 +1,226 @@
+---
+title: Building forms for workflow inputs
+description: Learn how to craft validated and user-friendly input forms for workflows.
+---
+
+Parameterizing workflows is a critical part of orchestration. It allows you create contracts between modular workflows in your organization and empower less-technical users to interact with your workflows intuitively.
+
+[Pydantic](https://docs.pydantic.dev/) is a powerful library for data validation using Python type annotations, which is used by Prefect to build a parameter schema for your workflow.
+
+This allows you to:
+- check runtime parameter values against the schema (from the UI or the SDK)
+- build a user-friendly form in the Prefect UI
+- easily reuse parameter types in similar workflows
+
+In this tutorial, we'll craft a workflow signature that the Prefect UI will render as a self-documenting form.
+
+
+## Motivation
+
+Let's say you have a workflow that triggers a marketing email blast which looks like:
+
+```python
+@flow
+def send_marketing_email(
+    mailing_lists: list[str],
+    subject: str,
+    body: str,
+    test_mode: bool = False,
+    attachments: list[str] | None = None
+):
+    """
+    Send a marketing email blast to the given lists.
+
+    Args:
+        mailing_lists: A list of lists to email.
+        subject: The subject of the email.
+        body: The body of the email.
+        test_mode: Whether to send a test email.
+        attachments: A list of attachments to include in the email.
+    """
+    ...
+```
+
+When you deploy this flow, Prefect will automatically inspect your function signature and generate a form for you:
+
+![initial form](/v3/img/tutorials/parameters/0.png)
+
+This is good enough for many cases, but consider the additional practical constraints:
+
+
+- there are only a few valid values for `mailing_lists`
+- the `subject` must not exceed 30 characters
+- no more than 5 `attachments` are allowed
+
+You _can_ simply check these constraints in the body of your flow function:
+
+```python
+@flow
+def send_marketing_email(...):
+    if len(subject) > 30:
+        raise ValueError("Subject must be less than 30 characters")
+    if mailing_lists not in ["newsletter", "customers", "beta-testers"]:
+        raise ValueError("Invalid list to email")
+    if len(attachments) > 5:
+        raise ValueError("Too many attachments")
+    
+    # etc...
+```
+
+but there are several downsides to this:
+- you have spin up the infrastructure associated with your flow in order to check the constraints, which is wasteful if it turns out that bad parameters were provided
+- this might get duplicative, especially if you have similarly constrained parameters for different workflows
+
+To improve on this, we will use `pydantic` to build a convenient, self-documenting, and reusable schema that the Prefect UI can build a form from.
+
+## Building a convenient flow signature
+
+Let's address the constraints on `mailing_lists`, `subject`, and `attachments`.
+
+
+### Using `Literal` to restrict valid values
+> there are only a few valid values for `mailing_lists`
+
+Say our valid mailing lists are: `["newsletter", "customers", "beta-testers"]`
+
+We can define a `Literal` to specify the valid values for the `mailing_lists` parameter.
+
+```python
+from typing import Literal
+
+MailingList = Literal["newsletter", "customers", "beta-testers"]
+```
+
+### Using a `BaseModel` subclass to group and constrain parameters
+Both the `subject` and `attachments` parameters have constraints that we want to enforce.
+
+> the `subject` must not exceed 30 characters
+
+> the `attachments` must not exceed 5 items
+
+Additionally, the `subject`, `body`, and `attachments` parameters are all related to the same thing: the content of the email.
+
+We can define a `BaseModel` subclass to group these parameters together and apply these constraints.
+
+```python
+from pydantic import BaseModel, Field
+
+class EmailContent(BaseModel):
+    subject: str = Field(max_length=30)
+    body: str = Field(default=...)
+    attachments: list[str] = Field(default_factory=list, max_length=5)
+```
+
+<Tip>
+`pydantic.Field` accepts a `description` kwarg that is displayed in the form above the field input.
+
+```python
+subject: str = Field(description="The subject of the email", max_length=30)
+```
+
+![field description](/v3/img/tutorials/parameters/4.png)
+
+</Tip>
+
+### Rewriting the flow signature
+
+Now that we have defined the `MailingList` and `EmailContent` types, we can use them in our flow signature:
+
+```python
+@flow
+def send_marketing_email(
+    mailing_lists: list[MailingList],
+    content: EmailContent,
+    test_mode: bool = False,
+):
+    ...
+```
+
+The resulting form looks like this:
+
+![improved form](/v3/img/tutorials/parameters/1.png)
+
+
+where the `mailing_lists` parameter renders as a multi-select dropdown that only allows the `Literal` values from our `MailingList` type.
+
+![multi-select](/v3/img/tutorials/parameters/2.png)
+
+
+and any constraints you've defined on the `EmailContent` fields will be enforced before the run is submitted.
+
+![early validation failure toast](/v3/img/tutorials/parameters/3.png)
+
+<Accordion title="Full example code so far">
+
+```python
+from typing import Literal
+
+from prefect import flow
+from pydantic import BaseModel, Field
+
+MailingList = Literal["newsletter", "customers", "beta-testers"]
+
+
+class EmailContent(BaseModel):
+    subject: str = Field(max_length=30)
+    body: str = Field(default=...)
+    attachments: list[str] = Field(default_factory=list, max_length=5)
+
+
+@flow
+def send_marketing_email(
+    mailing_list: list[MailingList],
+    content: EmailContent,
+    test_mode: bool = False,
+):
+    pass
+
+
+if __name__ == "__main__":
+    send_marketing_email.serve()
+```
+
+
+</Accordion>
+
+
+### Recap
+
+We have now embedded the constraints on our parameters in the types that describe our flow signature, which means:
+- the UI can enforce these constraints before the run is submitted - **less wasted infra cycles**
+- workflow inputs are **self-documenting**, both in the UI and in the code defining your workflow
+- the types used in this signature can be **easily reused** for other similar workflows
+
+
+## Debugging and related resources
+
+As you craft a schema for your flow signature, you may want to inspect the raw OpenAPI schema that `pydantic` generates, as it is what the Prefect UI uses to build the form.
+
+Call `model_json_schema()` on your `BaseModel` subclass to inspect the raw schema.
+
+```python
+from rich import print as pprint
+from pydantic import BaseModel, Field
+
+class EmailContent(BaseModel):
+    subject: str = Field(max_length=30)
+    body: str = Field(default=...)
+    attachments: list[str] = Field(default_factory=list, max_length=5)
+
+pprint(EmailContent.model_json_schema())
+```
+```
+{
+    'properties': {
+        'subject': {'maxLength': 30, 'title': 'Subject', 'type': 'string'},
+        'body': {'title': 'Body', 'type': 'string'},
+        'attachments': {'items': {'type': 'string'}, 'maxItems': 5, 'title': 'Attachments', 'type': 'array'}
+    },
+    'required': ['subject', 'body'],
+    'title': 'EmailContent',
+    'type': 'object'
+}
+```
+
+
+For more on constrained types and validation features available in `pydantic`, see their documentation on [models](https://docs.pydantic.dev/latest/concepts/models/) and [types](https://docs.pydantic.dev/latest/concepts/types/).
