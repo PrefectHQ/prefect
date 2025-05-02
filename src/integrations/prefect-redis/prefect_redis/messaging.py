@@ -450,14 +450,20 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
         logger.debug(f"No consumer groups found for stream {stream_name}")
         return
 
-    # Find the lowest last-delivered-id across all groups
-    # The last-delivered-id is stored as 'last-delivered-id' in group info
-    lowest_id = min(
+    group_ids = [
         group["last-delivered-id"]
         for group in groups
         if group["last-delivered-id"]
         != "0-0"  # Skip groups that haven't consumed anything
-    )
+    ]
+
+    if not group_ids:
+        logger.debug(f"No messages have been delivered in stream {stream_name}")
+        return
+
+    # Find the lowest last-delivered-id across all groups
+    # The last-delivered-id is stored as 'last-delivered-id' in group info
+    lowest_id = min(group_ids)
 
     if lowest_id == "0-0":
         logger.debug(f"No messages have been delivered in stream {stream_name}")
