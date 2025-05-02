@@ -24409,6 +24409,19 @@
                         ],
                         "title": "Bundle Execution Step",
                         "description": "The step to use for executing bundles."
+                    },
+                    "default_result_storage_block_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Default Result Storage Block Id",
+                        "description": "The block document ID of the default result storage block."
                     }
                 },
                 "additionalProperties": false,

@@ -9508,6 +9508,11 @@ export interface components {
             bundle_execution_step?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Default Result Storage Block Id
+             * @description The block document ID of the default result storage block.
+             */
+            default_result_storage_block_id?: string | null;
         };
         /**
          * WorkPoolUpdate
