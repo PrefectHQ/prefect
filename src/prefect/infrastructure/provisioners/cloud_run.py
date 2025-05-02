@@ -133,6 +133,7 @@ class CloudRunPushProvisioner:
             await self._run_command(
                 f"gcloud iam service-accounts create {self._service_account_name}"
                 ' --display-name "Prefect Cloud Run Service Account"'
+                f" --project={self._project}"
             )
         except subprocess.CalledProcessError as e:
             if "already exists" not in e.output.decode("utf-8"):
