@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import traceback
 from abc import ABC, abstractmethod
@@ -30,6 +31,19 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
+
+if os.getenv("PREFECT_LOGFIRE_ENABLED"):
+    import logfire  # pyright: ignore
+
+    token: str | None = os.getenv("PREFECT_LOGFIRE_WRITE_TOKEN")
+    if token is None:
+        raise ValueError(
+            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+        )
+
+    logfire.configure(token=token)  # pyright: ignore
+else:
+    logfire = None
 
 SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
@@ -265,6 +279,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 **kwargs,
             )
 
+            if logfire:
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
+
             if TRACKER.active:
                 TRACKER.track_pool(engine.pool)
 
@@ -388,6 +405,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
             sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
             sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
+
+            if logfire:
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
 
             if TRACKER.active:
                 TRACKER.track_pool(engine.pool)
