@@ -52,7 +52,7 @@ export const BlockDocumentEditPage = ({
 						});
 					},
 					onError: (err) => {
-						const message = "Unknown error while updating schema.";
+						const message = "Unknown error while updating block.";
 						toast.error(message);
 						console.error(message, err);
 					},
