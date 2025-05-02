@@ -3689,7 +3689,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-logging", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-test-utils", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "orjson", specifier = ">=3.7,<4.0" },
-    { name = "packaging", specifier = ">=21.3,<24.3" },
+    { name = "packaging", specifier = ">=21.3,<25.1" },
     { name = "pathspec", specifier = ">=0.8.0" },
     { name = "pendulum", marker = "python_full_version < '3.13'", specifier = ">=3.0.0,<4" },
     { name = "prefect-aws", marker = "extra == 'aws'", directory = "src/integrations/prefect-aws" },
