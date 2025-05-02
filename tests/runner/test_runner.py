@@ -28,6 +28,7 @@ import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect._experimental.bundles import create_bundle_for_flow_run
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._versioning import VersionType
 from prefect.cli.deploy import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -1833,6 +1834,7 @@ class TestRunnerDeployment:
             __file__,
             tags=["test"],
             version="alpha",
+            version_type=VersionType.SIMPLE,
             description="Deployment descriptions",
             enforce_parameter_schema=True,
             concurrency_limit=42,
@@ -1843,6 +1845,7 @@ class TestRunnerDeployment:
         assert deployment.entrypoint == f"{relative_file_path}:dummy_flow_1"
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.tags == ["test"]
         assert deployment.paused is False
         assert deployment.enforce_parameter_schema
@@ -2006,6 +2009,7 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__)
 
         assert deployment.version == "test"
+        assert deployment._version_from_flow is True
         assert deployment.description == "I'm just here for tests"
 
     def test_from_flow_raises_on_interactively_defined_flow(self):
@@ -2209,7 +2213,9 @@ class TestRunnerDeployment:
         assert deployment.description == "I'm just here for tests"
 
     async def test_apply(self, prefect_client: PrefectClient):
-        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
 
         deployment_id = await deployment.apply()
 
@@ -2387,6 +2393,7 @@ class TestRunnerDeployment:
             description="Test Deployment Description",
             tags=["tag1", "tag2"],
             version="1.0.0",
+            version_type=VersionType.SIMPLE,
             enforce_parameter_schema=True,
             concurrency_limit=concurrency_limit_config,
         )
@@ -2401,6 +2408,7 @@ class TestRunnerDeployment:
         )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
         assert deployment.concurrency_limit == concurrency_limit_config.limit
@@ -2427,6 +2435,7 @@ class TestRunnerDeployment:
             description="Test Deployment Description",
             tags=["tag1", "tag2"],
             version="1.0.0",
+            version_type=VersionType.SIMPLE,
             enforce_parameter_schema=True,
             concurrency_limit=concurrency_limit_config,
         )
@@ -2440,6 +2449,7 @@ class TestRunnerDeployment:
         )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
         assert deployment.concurrency_limit == concurrency_limit_config.limit
