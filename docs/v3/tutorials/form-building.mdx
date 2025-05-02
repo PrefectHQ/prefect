@@ -19,6 +19,7 @@ In this tutorial, we'll craft a workflow signature that the Prefect UI will rend
 
 Let's say you have a workflow that triggers a marketing email blast which looks like:
 
+{/* pmd-metadata: notest */}
 ```python
 @flow
 def send_marketing_email(
@@ -54,6 +55,7 @@ This is good enough for many cases, but consider the additional practical constr
 
 You _can_ simply check these constraints in the body of your flow function:
 
+{/* pmd-metadata: notest */}
 ```python
 @flow
 def send_marketing_email(...):
@@ -102,6 +104,7 @@ Additionally, the `subject`, `body`, and `attachments` parameters are all relate
 
 We can define a `BaseModel` subclass to group these parameters together and apply these constraints.
 
+{/* pmd-metadata: notest */}
 ```python
 from pydantic import BaseModel, Field
 
@@ -126,6 +129,7 @@ subject: str = Field(description="The subject of the email", max_length=30)
 
 Now that we have defined the `MailingList` and `EmailContent` types, we can use them in our flow signature:
 
+{/* pmd-metadata: notest */}
 ```python
 @flow
 def send_marketing_email(
@@ -152,6 +156,7 @@ and any constraints you've defined on the `EmailContent` fields will be enforced
 
 <Accordion title="Full example code so far">
 
+{/* pmd-metadata: notest */}
 ```python
 from typing import Literal
 
@@ -198,6 +203,7 @@ As you craft a schema for your flow signature, you may want to inspect the raw O
 
 Call `model_json_schema()` on your `BaseModel` subclass to inspect the raw schema.
 
+{/* pmd-metadata: notest */}
 ```python
 from rich import print as pprint
 from pydantic import BaseModel, Field
