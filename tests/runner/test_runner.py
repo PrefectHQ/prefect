@@ -2210,9 +2210,11 @@ class TestRunnerDeployment:
         assert deployment.description == "I'm just here for tests"
 
     async def test_apply(self, prefect_client: PrefectClient):
-        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
 
-        deployment_id = await deployment.apply(version_type=VersionType.SIMPLE)
+        deployment_id = await deployment.apply()
 
         deployment = await prefect_client.read_deployment(deployment_id)
 

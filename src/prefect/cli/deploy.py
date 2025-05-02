@@ -751,6 +751,7 @@ async def _run_single_deploy(
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
         version=deploy_config.get("version") or options.get("version"),
+        version_type=deploy_config.get("version_type") or options.get("version_type"),
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         concurrency_options=deploy_config.get("concurrency_options"),
@@ -769,9 +770,7 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    version_type = await _version_type_from_options(options, deploy_config)
-
-    apply_coro = deployment.apply(version_type=version_type)
+    apply_coro = deployment.apply()
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 

@@ -163,6 +163,13 @@ class RunnerDeployment(BaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
+    version_type: Optional[VersionType] = Field(
+        default=None,
+        description=(
+            "The type of version information to use for the deployment. The version type"
+            " will be inferred if not provided."
+        ),
+    )
     tags: ListOfNonEmptyStrings = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
@@ -471,7 +478,6 @@ class RunnerDeployment(BaseModel):
         self,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
-        version_type: Optional[VersionType] = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -482,12 +488,11 @@ class RunnerDeployment(BaseModel):
             image: The registry, name, and tag of the Docker image to
                 use for this deployment. Only used when the deployment is
                 deployed to a work pool.
-            version_type: The type of version information to use for the deployment.
         Returns:
             The ID of the created deployment.
         """
 
-        version_info = self._get_deployment_version_info(version_type)
+        version_info = self._get_deployment_version_info(self.version_type)
 
         async with get_client() as client:
             try:
@@ -622,6 +627,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -652,6 +658,7 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version information to use for the deployment.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -692,6 +699,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             enforce_parameter_schema=enforce_parameter_schema,
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
@@ -867,6 +875,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -900,6 +909,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version information to use for the deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -951,6 +962,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
@@ -989,6 +1001,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1022,6 +1035,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version information to use for the deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -1071,6 +1086,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
