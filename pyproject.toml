@@ -81,7 +81,7 @@ dependencies = [
     "ujson>=5.8.0,<6.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=13.0,<16.0",
-    "whenever>=0.7.3,<0.8.0; python_version>='3.13'",
+    "whenever>=0.7.3,<0.9.0; python_version>='3.13'",
     "uv>=0.6.0",
 ]
 [project.urls]
