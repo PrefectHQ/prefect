@@ -55,6 +55,7 @@ from prefect.exceptions import (
     Abort,
     ObjectNotFound,
 )
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
 from prefect.logging.loggers import (
     PrefectLogAdapter,
@@ -722,15 +723,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         if self._runs_task_group is None:
             raise RuntimeError("Worker not properly initialized")
 
-        from prefect.results import get_result_store
-
-        current_result_store = get_result_store()
-        if current_result_store.result_storage is None and flow.result_storage is None:
-            self._logger.warning(
-                f"Flow {flow.name!r} has no result storage configured. Please configure "
-                "result storage for the flow if you want to retrieve the result for the flow run."
-            )
-
         flow_run = await self._runs_task_group.start(
             partial(
                 self._submit_adhoc_run,
@@ -766,6 +758,32 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 "work-pool storage configure`."
             )
 
+        from prefect.results import aresolve_result_storage, get_result_store
+
+        current_result_store = get_result_store()
+        # Check result storage and use the work pool default if needed
+        if (
+            current_result_store.result_storage is None
+            or isinstance(current_result_store.result_storage, LocalFileSystem)
+            and flow.result_storage is None
+        ):
+            if (
+                self.work_pool.storage_configuration.default_result_storage_block_id
+                is None
+            ):
+                self._logger.warning(
+                    f"Flow {flow.name!r} has no result storage configured. Please configure "
+                    "result storage for the flow if you want to retrieve the result for the flow run."
+                )
+            else:
+                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
+                flow = flow.with_options(
+                    result_storage=await aresolve_result_storage(
+                        self.work_pool.storage_configuration.default_result_storage_block_id
+                    ),
+                    persist_result=True,
+                )
+
         bundle_key = str(uuid.uuid4())
         upload_command = convert_step_to_command(
             self.work_pool.storage_configuration.bundle_upload_step,
@@ -778,8 +796,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
         parameters = parameters or {}
-        parent_task_run = None
 
+        # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
+        parent_task_run = None
         if flow_run_ctx := FlowRunContext.get():
             parent_task = Task[Any, Any](
                 name=flow.name,
@@ -821,6 +840,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
+        # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
+        # via the upload command
         with tempfile.TemporaryDirectory() as temp_dir:
             await (
                 anyio.Path(temp_dir)
@@ -843,6 +864,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         logger.debug("Successfully uploaded execution bundle")
 
         try:
+            # Call the implementation-specific run method with the constructed configuration. This is where the
+            # rubber meets the road.
             result = await self.run(flow_run, configuration)
 
             if result.status_code != 0:

@@ -14,6 +14,7 @@ from fastapi import (
     Path,
     status,
 )
+from packaging.version import Version
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
@@ -157,6 +158,9 @@ class WorkerLookups:
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
+    prefect_client_version: Optional[str] = Depends(
+        dependencies.get_prefect_client_version
+    ),
 ) -> schemas.core.WorkPool:
     """
     Creates a new work pool. If a work pool with the same
@@ -186,7 +190,14 @@ async def create_work_pool(
                 work_pool=model,
             )
 
-            return schemas.core.WorkPool.model_validate(model, from_attributes=True)
+            ret = schemas.core.WorkPool.model_validate(model, from_attributes=True)
+            if prefect_client_version and Version(prefect_client_version) <= Version(
+                "3.3.7"
+            ):
+                # Client versions 3.3.7 and below do not support the default_result_storage_block_id field and will error
+                # when receiving it.
+                del ret.storage_configuration.default_result_storage_block_id
+            return ret
 
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -200,6 +211,9 @@ async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    prefect_client_version: Optional[str] = Depends(
+        dependencies.get_prefect_client_version
+    ),
 ) -> schemas.core.WorkPool:
     """
     Read a work pool by name
@@ -212,7 +226,18 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
-        return schemas.core.WorkPool.model_validate(orm_work_pool, from_attributes=True)
+        work_pool = schemas.core.WorkPool.model_validate(
+            orm_work_pool, from_attributes=True
+        )
+
+        if prefect_client_version and Version(prefect_client_version) <= Version(
+            "3.3.7"
+        ):
+            # Client versions 3.3.7 and below do not support the default_result_storage_block_id field and will error
+            # when receiving it.
+            del work_pool.storage_configuration.default_result_storage_block_id
+
+        return work_pool
 
 
 @router.post("/filter")
@@ -220,8 +245,10 @@ async def read_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
+    prefect_client_version: Optional[str] = Depends(
+        dependencies.get_prefect_client_version
+    ),
 ) -> List[schemas.core.WorkPool]:
     """
     Read multiple work pools
@@ -233,10 +260,18 @@ async def read_work_pools(
             offset=offset,
             limit=limit,
         )
-        return [
+        ret = [
             schemas.core.WorkPool.model_validate(w, from_attributes=True)
             for w in orm_work_pools
         ]
+        if prefect_client_version and Version(prefect_client_version) <= Version(
+            "3.3.7"
+        ):
+            # Client versions 3.3.7 and below do not support the default_result_storage_block_id field and will error
+            # when receiving it.
+            for work_pool in ret:
+                del work_pool.storage_configuration.default_result_storage_block_id
+        return ret
 
 
 @router.post("/count")

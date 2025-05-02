@@ -48,7 +48,6 @@ Before submitting workflows to specific infrastructure, you'll need:
 
 1. A work pool for each infrastructure type you want to use
 2. Object storage to associate with your work pool(s)
-3. A storage block to use for result storage
 
 ## Setting up work pools and storage
 
@@ -64,7 +63,7 @@ For detailed information on creating and configuring work pools, refer to the [w
 
 ### Configuring work pool storage
 
-To enable Prefect to run workflows in remote infrastructure, work pools need an associated storage location to store serialized versions of submitted workflows.
+To enable Prefect to run workflows in remote infrastructure, work pools need an associated storage location to store serialized versions of submitted workflows and results from workflow runs.
 
 Configure storage for your work pools using one of the supported storage types:
 
@@ -97,14 +96,6 @@ You can inspect your storage configuration using:
 ```bash
 prefect work-pool storage inspect WORK_POOL_NAME
 ```
-
-### Configuring result storage
-
-To retrieve the return value from an infrastructure-bound workflow, you'll need to [configure result storage](/v3/develop/results) for your workflow.
-
-The result storage location must be accessible by the workflow submitter and the remote infrastructure, so most of the time you'll want to use an object storage location like S3, GCS, or Azure Blob storage.
-
-Return values for submitted workflows must be serializable for storage and retrieval.
 
 <Note>
 **Local storage for `@docker`**
