@@ -59,7 +59,7 @@ export const BlockDocumentEditPage = ({
 				},
 			);
 		} catch (err) {
-			const message = "Unknown error while validating schema.";
+			const message = "Unknown error while validating block data.";
 			toast.error(message);
 			console.error(message, err);
 		}
