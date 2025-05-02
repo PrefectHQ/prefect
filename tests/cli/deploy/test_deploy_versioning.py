@@ -16,6 +16,7 @@ from prefect.deployments.base import initialize_project
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.hashing import file_hash
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -150,4 +151,35 @@ async def test_deploy_with_inferred_version_and_version_name(
         branch="main",
         url="https://github.com/org/repo",
         repository="org/repo",
+    )
+
+
+async def test_deploy_with_simple_type_and_no_version_uses_flow_version(
+    mock_create_deployment: mock.AsyncMock,
+    project_dir: Path,
+):
+    # Calculate the expected version hash
+    flow_file = project_dir / "flows" / "hello.py"
+    expected_version = file_hash(str(flow_file))
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=(
+            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            "--version-type prefect:simple"
+        ),
+        expected_code=0,
+        expected_output_contains=[
+            "An important name/test-name",
+            "prefect worker start --pool 'test-pool'",
+        ],
+    )
+
+    mock_create_deployment.assert_awaited_once()
+
+    passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+
+    assert passed_version_info == VersionInfo(
+        type="prefect:simple",
+        version=expected_version,
     )
