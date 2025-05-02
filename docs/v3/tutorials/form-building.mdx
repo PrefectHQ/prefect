@@ -124,6 +124,10 @@ subject: str = Field(description="The subject of the email", max_length=30)
 
 ![field description](/v3/img/tutorials/parameters/4.png)
 
+Similarly, you can:
+- pass `title` to `Field` to override the field name in the form
+- define a docstring for `EmailContent` to add a description to this group of parameters in the form
+
 </Tip>
 
 ### Rewriting the flow signature
