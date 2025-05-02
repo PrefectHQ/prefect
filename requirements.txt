@@ -13,7 +13,7 @@ jinja2 >= 3.0.0, < 4.0.0
 jinja2-humanize-extension >= 0.4.0
 humanize >= 4.9.0, < 5.0.0
 kubernetes >= 24.2.0, < 32.0.0
-pytz >= 2021.1, < 2025
+pytz >= 2021.1, < 2026
 readchar >= 4.0.0, < 5.0.0
 sqlalchemy[asyncio] >= 1.4.22, != 1.4.33, < 2.0.36
 typer >= 0.12.0, != 0.12.2, < 0.16.0
