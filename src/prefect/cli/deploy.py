@@ -23,7 +23,6 @@ from yaml.error import YAMLError
 
 import prefect
 from prefect._experimental.sla.objects import SlaTypes
-from prefect._versioning import VersionType
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -860,16 +859,6 @@ async def _run_single_deploy(
             f" '{deploy_config['flow_name']}/{deploy_config['name']}'\n"
         ),
         style="blue",
-    )
-
-
-async def _version_type_from_options(
-    options: dict[str, Any], deploy_config: dict[str, Any]
-) -> VersionType:
-    return (
-        options.get("version_type")
-        or deploy_config.get("version_type")
-        or VersionType.SIMPLE
     )
 
 
