@@ -73,7 +73,7 @@ but there are several downsides to this:
 - you have spin up the infrastructure associated with your flow in order to check the constraints, which is wasteful if it turns out that bad parameters were provided
 - this might get duplicative, especially if you have similarly constrained parameters for different workflows
 
-To improve on this, we will use `pydantic` to build a convenient, self-documenting, and reusable schema that the Prefect UI can build a form from.
+To improve on this, we will use `pydantic` to build a convenient, self-documenting, and reusable flow signature that the Prefect UI can build a better form from.
 
 ## Building a convenient flow signature
 
