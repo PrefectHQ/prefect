@@ -753,6 +753,7 @@ async def _run_single_deploy(
         version=deploy_config.get("version") or options.get("version"),
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
+        concurrency_options=deploy_config.get("concurrency_options"),
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
         storage=_PullStepStorage(pull_steps),

@@ -28,6 +28,7 @@ import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect._experimental.bundles import create_bundle_for_flow_run
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._versioning import VersionType
 from prefect.cli.deploy import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -2211,7 +2212,7 @@ class TestRunnerDeployment:
     async def test_apply(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
 
-        deployment_id = await deployment.apply()
+        deployment_id = await deployment.apply(version_type=VersionType.SIMPLE)
 
         deployment = await prefect_client.read_deployment(deployment_id)
 

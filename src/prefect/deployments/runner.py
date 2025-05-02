@@ -254,7 +254,9 @@ class RunnerDeployment(BaseModel):
     def full_name(self) -> str:
         return f"{self.flow_name}/{self.name}"
 
-    def _get_deployment_version_info(self, version_type: VersionType) -> VersionInfo:
+    def _get_deployment_version_info(
+        self, version_type: Optional[VersionType] = None
+    ) -> VersionInfo:
         if inferred_version := run_coro_as_sync(
             get_inferred_version_info(version_type)
         ):
@@ -469,7 +471,7 @@ class RunnerDeployment(BaseModel):
         self,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
-        version_type: VersionType = VersionType.SIMPLE,
+        version_type: Optional[VersionType] = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -480,7 +482,7 @@ class RunnerDeployment(BaseModel):
             image: The registry, name, and tag of the Docker image to
                 use for this deployment. Only used when the deployment is
                 deployed to a work pool.
-            version_info: Version information for the deployment.
+            version_type: The type of version information to use for the deployment.
         Returns:
             The ID of the created deployment.
         """

@@ -422,7 +422,9 @@ async def get_inferred_version_info(
         get_git_version_info,
     ]
 
-    if version_type and version_type is not VersionType.SIMPLE:
+    if version_type is VersionType.SIMPLE:
+        return None
+    if version_type:
         if version_type not in type_to_getter:
             raise ValueError(f"Unknown version type: {version_type}")
         getters = [type_to_getter[version_type]]
