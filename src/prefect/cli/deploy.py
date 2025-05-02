@@ -750,7 +750,7 @@ async def _run_single_deploy(
         work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
         parameters=deploy_config.get("parameters"),
         description=deploy_config.get("description"),
-        version=deploy_config.get("version"),
+        version=deploy_config.get("version") or options.get("version"),
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         schedules=deploy_config.get("schedules"),
@@ -758,6 +758,8 @@ async def _run_single_deploy(
         storage=_PullStepStorage(pull_steps),
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
     )
+
+    deployment._set_defaults_from_flow(flow)
 
     deployment._parameter_openapi_schema = deploy_config["parameter_openapi_schema"]
 

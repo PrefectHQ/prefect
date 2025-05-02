@@ -242,6 +242,9 @@ class RunnerDeployment(BaseModel):
     _parameter_openapi_schema: ParameterSchema = PrivateAttr(
         default_factory=ParameterSchema,
     )
+    _version_from_flow: bool = PrivateAttr(
+        default=False,
+    )
 
     @property
     def entrypoint_type(self) -> EntrypointType:
@@ -255,7 +258,10 @@ class RunnerDeployment(BaseModel):
         if inferred_version := run_coro_as_sync(
             get_inferred_version_info(version_type)
         ):
-            self.version = inferred_version.version  # TODO: maybe reconsider
+            if not self.version or self._version_from_flow:
+                self.version = inferred_version.version  # TODO: maybe reconsider
+
+            inferred_version.version = self.version
             return inferred_version
 
         return VersionInfo(version=self.version or "", type="prefect:simple")
@@ -591,6 +597,7 @@ class RunnerDeployment(BaseModel):
 
         if not self.version:
             self.version = flow.version
+            self._version_from_flow = True
         if not self.description:
             self.description = flow.description
 
