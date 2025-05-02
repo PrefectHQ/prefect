@@ -127,8 +127,7 @@ jobs:
           cat pyproject.toml
           uv build
           uv pip install dist/*.tar.gz
-        env:
-          TMPDIR: ${{ env.TMPDIR }}
+        working-directory: ${{ env.TMPDIR }}
 
       - name: Verify the CLI isn't available in the active environment
         run: |
