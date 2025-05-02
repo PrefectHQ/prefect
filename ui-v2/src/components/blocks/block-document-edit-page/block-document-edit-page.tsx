@@ -52,14 +52,14 @@ export const BlockDocumentEditPage = ({
 						});
 					},
 					onError: (err) => {
-						const message = "Unknown error while updating validating schema.";
+						const message = "Unknown error while updating block.";
 						toast.error(message);
 						console.error(message, err);
 					},
 				},
 			);
 		} catch (err) {
-			const message = "Unknown error while updating validating schema.";
+			const message = "Unknown error while validating block data.";
 			toast.error(message);
 			console.error(message, err);
 		}
