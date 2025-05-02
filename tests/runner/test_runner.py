@@ -2007,6 +2007,7 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__)
 
         assert deployment.version == "test"
+        assert deployment._version_from_flow is True
         assert deployment.description == "I'm just here for tests"
 
     def test_from_flow_raises_on_interactively_defined_flow(self):
