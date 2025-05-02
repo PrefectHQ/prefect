@@ -258,8 +258,7 @@ class RunnerDeployment(BaseModel):
             self.version = inferred_version.version  # TODO: maybe reconsider
             return inferred_version
 
-        assert self.version, "No version provided and no version info could be inferred"
-        return VersionInfo(version=self.version, type="prefect:simple")
+        return VersionInfo(version=self.version or "", type="prefect:simple")
 
     @field_validator("name", mode="before")
     @classmethod
