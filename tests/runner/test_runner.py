@@ -1834,6 +1834,7 @@ class TestRunnerDeployment:
             __file__,
             tags=["test"],
             version="alpha",
+            version_type=VersionType.SIMPLE,
             description="Deployment descriptions",
             enforce_parameter_schema=True,
             concurrency_limit=42,
@@ -1844,6 +1845,7 @@ class TestRunnerDeployment:
         assert deployment.entrypoint == f"{relative_file_path}:dummy_flow_1"
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.tags == ["test"]
         assert deployment.paused is False
         assert deployment.enforce_parameter_schema
@@ -2391,6 +2393,7 @@ class TestRunnerDeployment:
             description="Test Deployment Description",
             tags=["tag1", "tag2"],
             version="1.0.0",
+            version_type=VersionType.SIMPLE,
             enforce_parameter_schema=True,
             concurrency_limit=concurrency_limit_config,
         )
@@ -2405,6 +2408,7 @@ class TestRunnerDeployment:
         )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
         assert deployment.concurrency_limit == concurrency_limit_config.limit
@@ -2431,6 +2435,7 @@ class TestRunnerDeployment:
             description="Test Deployment Description",
             tags=["tag1", "tag2"],
             version="1.0.0",
+            version_type=VersionType.SIMPLE,
             enforce_parameter_schema=True,
             concurrency_limit=concurrency_limit_config,
         )
@@ -2444,6 +2449,7 @@ class TestRunnerDeployment:
         )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
         assert deployment.concurrency_limit == concurrency_limit_config.limit
