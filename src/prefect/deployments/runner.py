@@ -35,7 +35,15 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 from pydantic import (
@@ -58,6 +66,7 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
+from prefect._versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
@@ -154,6 +163,13 @@ class RunnerDeployment(BaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
+    version_type: Optional[VersionType] = Field(
+        default=None,
+        description=(
+            "The type of version information to use for the deployment. The version type"
+            " will be inferred if not provided."
+        ),
+    )
     tags: ListOfNonEmptyStrings = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
@@ -219,6 +235,7 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = PrivateAttr(
         default=None,
@@ -232,6 +249,9 @@ class RunnerDeployment(BaseModel):
     _parameter_openapi_schema: ParameterSchema = PrivateAttr(
         default_factory=ParameterSchema,
     )
+    _version_from_flow: bool = PrivateAttr(
+        default=False,
+    )
 
     @property
     def entrypoint_type(self) -> EntrypointType:
@@ -240,6 +260,20 @@ class RunnerDeployment(BaseModel):
     @property
     def full_name(self) -> str:
         return f"{self.flow_name}/{self.name}"
+
+    def _get_deployment_version_info(
+        self, version_type: Optional[VersionType] = None
+    ) -> VersionInfo:
+        if inferred_version := run_coro_as_sync(
+            get_inferred_version_info(version_type)
+        ):
+            if not self.version or self._version_from_flow:
+                self.version = inferred_version.version  # TODO: maybe reconsider
+
+            inferred_version.version = self.version
+            return inferred_version
+
+        return VersionInfo(version=self.version or "", type="prefect:simple")
 
     @field_validator("name", mode="before")
     @classmethod
@@ -387,7 +421,7 @@ class RunnerDeployment(BaseModel):
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers"},
+            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
         )
 
         if self.storage:
@@ -444,7 +478,7 @@ class RunnerDeployment(BaseModel):
         self,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
-        version_info: VersionInfo | None = None,
+        version_info: Optional[VersionInfo] = None,
     ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
@@ -455,10 +489,14 @@ class RunnerDeployment(BaseModel):
             image: The registry, name, and tag of the Docker image to
                 use for this deployment. Only used when the deployment is
                 deployed to a work pool.
-            version_info: Version information for the deployment.
+            version_info: The version information to use for the deployment.
         Returns:
             The ID of the created deployment.
         """
+
+        version_info = version_info or self._get_deployment_version_info(
+            self.version_type
+        )
 
         async with get_client() as client:
             try:
@@ -570,6 +608,7 @@ class RunnerDeployment(BaseModel):
 
         if not self.version:
             self.version = flow.version
+            self._version_from_flow = True
         if not self.description:
             self.description = flow.description
 
@@ -592,6 +631,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -622,6 +662,7 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version information to use for the deployment.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -662,6 +703,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             enforce_parameter_schema=enforce_parameter_schema,
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
@@ -837,6 +879,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -870,6 +913,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version information to use for the deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -921,6 +966,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
@@ -959,6 +1005,7 @@ class RunnerDeployment(BaseModel):
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -992,6 +1039,8 @@ class RunnerDeployment(BaseModel):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version information to use for the deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for this deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -1041,6 +1090,7 @@ class RunnerDeployment(BaseModel):
             parameters=parameters or {},
             description=description,
             version=version,
+            version_type=version_type,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
