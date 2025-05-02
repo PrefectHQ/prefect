@@ -103,6 +103,16 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+          
+      - name: Create a temp dir to stage our build
+        run: |
+          echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
+
+      - name: Prepare files for prefect-client build (omit the local build)
+        run: sh client/build_client.sh
+        env:
+          TMPDIR: ${{ env.TMPDIR }}
+        
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
@@ -110,18 +120,19 @@ jobs:
           python-version: "3.10"
           cache-dependency-glob: "pyproject.toml"
           activate-environment: true
-
-      - name: Create a temp dir to stage our build
-        run: |
-          echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
+          working-directory: ${{ env.TMPDIR }}
 
       - name: Install `prefect-client`
         run: |
-          sh client/build_client.sh
+          cat pyproject.toml
           uv build
           uv pip install dist/*.tar.gz
         env:
           TMPDIR: ${{ env.TMPDIR }}
+
+      - name: Verify the CLI isn't available in the active environment
+        run: |
+          prefect --help && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
       - name: Start server
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
@@ -133,7 +144,7 @@ jobs:
 
       - name: Verify the CLI isn't available in the active environment
         run: |
-          prefect server start && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
+          prefect --help && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
 
       - name: Run integration flows
         env:
