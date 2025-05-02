@@ -705,6 +705,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -734,6 +735,8 @@ class Flow(Generic[P, R]):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -788,6 +791,7 @@ class Flow(Generic[P, R]):
                 parameters=parameters or {},
                 description=description,
                 version=version,
+                version_type=version_type,
                 enforce_parameter_schema=enforce_parameter_schema,
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
@@ -810,6 +814,7 @@ class Flow(Generic[P, R]):
                 parameters=parameters or {},
                 description=description,
                 version=version,
+                version_type=version_type,
                 enforce_parameter_schema=enforce_parameter_schema,
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
