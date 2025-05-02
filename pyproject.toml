@@ -177,6 +177,8 @@ dev = [
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
 
+perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
+
 markdown-docs = [
     "pytest-markdown-docs>=0.6.0",
     "prefect[aws]",
