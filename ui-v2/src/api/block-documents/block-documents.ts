@@ -178,8 +178,15 @@ export const useCreateBlockDocument = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: createBlockDocument, ...rest } = useMutation({
-		mutationFn: (body: components["schemas"]["BlockDocumentCreate"]) =>
-			getQueryService().POST("/block_documents/", { body }),
+		mutationFn: async (body: components["schemas"]["BlockDocumentCreate"]) => {
+			const res = await getQueryService().POST("/block_documents/", { body });
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+
+			return res.data;
+		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.lists(),
