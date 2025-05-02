@@ -2045,6 +2045,7 @@ class TestWorkPools:
         sample_bundle_upload_step: dict[str, Any],
         sample_bundle_execution_step: dict[str, Any],
     ):
+        default_result_storage_block_id = uuid4()
         work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate.model_validate(
                 {
@@ -2052,6 +2053,7 @@ class TestWorkPools:
                     "storage_configuration": {
                         "bundle_upload_step": sample_bundle_upload_step,
                         "bundle_execution_step": sample_bundle_execution_step,
+                        "default_result_storage_block_id": default_result_storage_block_id,
                     },
                 }
             ),
@@ -2059,6 +2061,7 @@ class TestWorkPools:
         assert work_pool.storage_configuration == WorkPoolStorageConfiguration(
             bundle_upload_step=sample_bundle_upload_step,
             bundle_execution_step=sample_bundle_execution_step,
+            default_result_storage_block_id=default_result_storage_block_id,
         )
 
     async def test_update_work_pool_with_storage_configuration(
