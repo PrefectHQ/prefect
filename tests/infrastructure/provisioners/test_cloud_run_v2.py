@@ -281,7 +281,7 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
         ),
         (
             "gcloud iam service-accounts create prefect-cloud-run --display-name"
-            " 'Prefect Cloud Run Service Account'"
+            " 'Prefect Cloud Run Service Account' --project=test-project"
         ),
         (
             "gcloud projects add-iam-policy-binding test-project"
