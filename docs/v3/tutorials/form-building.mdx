@@ -195,11 +195,13 @@ if __name__ == "__main__":
 
 ### Using `json_schema_extra` to order fields in the form
 
-By default, your flow parameters are rendered in the following order:
+By default, your flow parameters are rendered in the order defined by your `@flow` function signature.
+
+Within a given `BaseModel` subclass, parameters are rendered in the following order:
 - parameters with a `default` value are rendered first, alphabetically
 - parameters without a `default` value are rendered next, alphabetically
 
-You can control the order of the parameters in the form by passing `json_schema_extra` to the `Field` constructor with a `position` key.
+You can control the order of the parameters within a `BaseModel` subclass by passing `json_schema_extra` to the `Field` constructor with a `position` key.
 
 Taking our `EmailContent` model from the previous example, let's enforce that `subject` should be `first`, then `body`, then `attachments`.
 
