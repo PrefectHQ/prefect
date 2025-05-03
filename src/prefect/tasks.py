@@ -1551,7 +1551,7 @@ class Task(Generic[P, R]):
             validated_state=task_run.state,
         )
 
-        if task_run_url := url_for(task_run):
+        if get_current_settings().ui_url and (task_run_url := url_for(task_run)):
             logger.info(
                 f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"
             )

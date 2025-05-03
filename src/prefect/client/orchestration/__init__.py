@@ -322,12 +322,16 @@ class PrefectClient(
         if api_version is None:
             api_version = SERVER_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
-        if api_key:
-            httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
-
+        # Prioritize auth_string if provided, otherwise use api_key
         if auth_string:
             token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
-            httpx_settings["headers"].setdefault("Authorization", f"Basic {token}")
+            httpx_settings["headers"]["Authorization"] = (
+                f"Basic {token}"  # Overwrite if exists
+            )
+        elif api_key:
+            httpx_settings["headers"]["Authorization"] = (
+                f"Bearer {api_key}"  # Set if auth_string is not present
+            )
 
         # Context management
         self._context_stack: int = 0
@@ -1189,12 +1193,16 @@ class SyncPrefectClient(
         if api_version is None:
             api_version = SERVER_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
-        if api_key:
-            httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
-
+        # Prioritize auth_string if provided, otherwise use api_key
         if auth_string:
             token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
-            httpx_settings["headers"].setdefault("Authorization", f"Basic {token}")
+            httpx_settings["headers"]["Authorization"] = (
+                f"Basic {token}"  # Overwrite if exists
+            )
+        elif api_key:
+            httpx_settings["headers"]["Authorization"] = (
+                f"Bearer {api_key}"  # Set if auth_string is not present
+            )
 
         # Context management
         self._context_stack: int = 0
