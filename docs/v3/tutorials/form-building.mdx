@@ -93,6 +93,22 @@ from typing import Literal
 MailingList = Literal["newsletter", "customers", "beta-testers"]
 ```
 
+<Tip>
+You can use an `Enum` to achieve the same effect.
+
+```python
+from enum import Enum
+
+class MailingList(Enum):
+    NEWSLETTER = "newsletter"
+    CUSTOMERS = "customers"
+    BETA_TESTERS = "beta-testers"
+```
+
+</Tip>
+
+
+
 ### Using a `BaseModel` subclass to group and constrain parameters
 Both the `subject` and `attachments` parameters have constraints that we want to enforce.
 
