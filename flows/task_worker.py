@@ -1,8 +1,5 @@
 """
-Integration test verifying that a task served via `task.serve()`
-can connect to an ephemeral Prefect server that requires
-PREFECT_SERVER_API_AUTH_STRING authentication, especially when
-PREFECT_API_KEY is also (incorrectly) set on the client side.
+Simple use of a task worker when PREFECT_API_AUTH_STRING is set.
 """
 
 from contextlib import asynccontextmanager
