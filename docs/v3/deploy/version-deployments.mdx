@@ -12,7 +12,8 @@ When a previous deployment version is live, a newer deployment version can be ma
 When a new version of a deployment is created, it is automatically set as the live version.
 </Warning>
 
-While the majority of deployment properties are included in a deployment's version, some properties cannot be versioned to prevent unexpected execution behavior when rolling back or promoting versions.
+While the majority of deployment properties are included in a deployment's version, some properties cannot be versioned.
+Persisting these properties across all versions helps prevent unexpected execution behavior when rolling back or promoting versions.
 
 <AccordionGroup>
 <Accordion title="Versioned deployment properties" icon="check" iconType="solid">
