@@ -25,10 +25,18 @@ class FlowRunCancellingObserver:
                 "Events subscriber not initialized. Please use `async with` to initialize the observer."
             )
         async for event in self._events_subscriber:
-            flow_run_id = uuid.UUID(
-                event.resource["prefect.resource.id"].replace("prefect.flow-run.", "")
-            )
-            self.on_cancelling(flow_run_id)
+            try:
+                flow_run_id = uuid.UUID(
+                    event.resource["prefect.resource.id"].replace(
+                        "prefect.flow-run.", ""
+                    )
+                )
+                self.on_cancelling(flow_run_id)
+            except ValueError:
+                self.logger.debug(
+                    "Received event with invalid flow run ID: %s",
+                    event.resource["prefect.resource.id"],
+                )
 
     async def __aenter__(self):
         self._events_subscriber = await self._exit_stack.enter_async_context(
