@@ -3,17 +3,21 @@ import signal
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
 from pydantic import BaseModel
 
-from prefect import flow, task
+from prefect import Task, flow, task
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
+    PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_SERVER_API_AUTH_STRING,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -904,3 +908,73 @@ class TestTaskWorkerLimit:
 
         assert updated_task_run_1.state.is_completed()
         assert updated_task_run_2.state.is_scheduled()
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+class TestTaskWorkerAuth:
+    @pytest.fixture
+    def auth_task(self):
+        @task
+        def my_auth_task() -> Any:
+            return "ok"
+
+        return my_auth_task
+
+    @pytest.mark.parametrize(
+        ("client_auth_string", "client_api_key", "expected_reason"),
+        [
+            (None, None, "Auth required but no token provided"),
+            ("wrong-secret", None, "Invalid token"),
+            (None, "some-api-key", "Invalid token"),
+        ],
+        ids=["no_creds", "wrong_auth_string", "only_api_key"],
+    )
+    async def test_fails_with_mismatched_or_missing_creds(
+        self,
+        auth_task: Task[[], Any],
+        client_auth_string: Optional[str],
+        client_api_key: Optional[str],
+        expected_reason: str,
+    ):
+        """
+        Tests that the TaskWorker fails to connect when the server requires
+        an auth string but the client provides invalid or no credentials.
+        """
+        server_secret = "test-server-secret"
+
+        with temporary_settings(
+            updates={
+                PREFECT_SERVER_API_AUTH_STRING: server_secret,
+                PREFECT_API_AUTH_STRING: client_auth_string,
+                PREFECT_API_KEY: client_api_key,
+            }
+        ):
+            task_worker = TaskWorker(auth_task)
+            with pytest.raises(
+                Exception, match=f"Unable to authenticate|{expected_reason}"
+            ):
+                with anyio.move_on_after(5):
+                    await task_worker._subscribe_to_task_scheduling()
+
+    async def test_connects_with_auth_string_and_api_key_set(
+        self, auth_task: Task[[], Any]
+    ):
+        """
+        Tests that the TaskWorker connects successfully when the server requires
+        an auth string and the client provides both the correct auth string
+        and an API key (auth string should be prioritized).
+        """
+        server_secret = "test-server-secret"
+        client_secret = server_secret
+
+        with temporary_settings(
+            updates={
+                PREFECT_SERVER_API_AUTH_STRING: server_secret,
+                PREFECT_API_AUTH_STRING: client_secret,
+                PREFECT_API_KEY: "some-irrelevant-api-key",  # Should be ignored
+            }
+        ):
+            with anyio.move_on_after(5):
+                task_worker = TaskWorker(auth_task)
+                async with task_worker:
+                    pass
