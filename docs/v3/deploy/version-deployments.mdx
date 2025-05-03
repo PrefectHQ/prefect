@@ -50,9 +50,16 @@ These properties persist across version rollbacks and promotions.
 </Accordion>
 </AccordionGroup>
 
-Additionally, Prefect automatically collects your **repository name**, **repository URL**, your currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment if you're deploying from a supported version control platform or from inside a git repository.
-This information is used to help create a link between deployment versions and code versions.
+Additionally, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment if you're deploying from a supported version control platform or from inside a Git repository.
+This information is used to help create a record of which code versions produced which deployment versions.
 
 <Note>
-Prefect's automatic version information collection currently supports Github Actions, Gitlab CI, Bitbucket Pipelines, and Azure Pipelines on Azure DevOps.
+Prefect's automatic version information collection currently supports Github Actions, Gitlab CI, Bitbucket Pipelines, and Azure Pipelines.
 </Note>
+
+## Tying code versions to deployment versions
+
+The presence of version information on a deployment does not override Prefect's deployment execution mechanics.
+Depending on your chosen code storage location, you must explicitly include information about your code version in either the pull steps or job variables of your deployment to keep code and deployment versions synchronized.
+
+### Pulling from Git
