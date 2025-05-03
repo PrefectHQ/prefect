@@ -1,0 +1,57 @@
+---
+title: Version deployments
+description: Track changes to your deployments and roll back to previous versions
+---
+
+In Prefect Cloud, deployments have a version history.
+The **live** deployment version is the runnable version of a deployment.
+A previous deployment version can be made live by **rolling back** to it.
+When a previous deployment version is live, a newer deployment version can be made live by **promoting** it.
+
+<Warning>
+When a new version of a deployment is created, it is automatically set as the live version.
+</Warning>
+
+While the majority of deployment properties are included in a deployment's version, some properties cannot be versioned to prevent unexpected execution behavior when rolling back or promoting versions.
+
+<AccordionGroup>
+<Accordion title="Versioned deployment properties" icon="check" iconType="solid">
+These properties are pinned to each deployment version.
+
+| Deployment Property        | Versioned                                                          |
+| -------------------------- | ------------------------------------------------------------------ |
+| `description`              | <Icon icon="check" iconType="solid" />                             |
+| `tags`                     | <Icon icon="check" iconType="solid" />                             |
+| `labels`                   | <Icon icon="check" iconType="solid" />                             |
+| `entrypoint`               | <Icon icon="check" iconType="solid" />                             |
+| `pull_steps`               | <Icon icon="check" iconType="solid" />                             |
+| `parameters`               | <Icon icon="check" iconType="solid" />                             |
+| `parameter_openapi_schema` | <Icon icon="check" iconType="solid" />                             |
+| `enforce_parameter_schema` | <Icon icon="check" iconType="solid" />                             |
+| `work_queue_id`            | <Icon icon="check" iconType="solid" />                             |
+| `work_pool_name`           | <Icon icon="check" iconType="solid" />                             |
+| `job_variables`            | <Icon icon="check" iconType="solid" />                             |
+| `created_by`               | <Icon icon="check" iconType="solid" />                             |
+| `updated_by`               | <Icon icon="check" iconType="solid" />                             |
+</Accordion>
+<Accordion title="Unversioned deployment properties" icon="xmark" description="">
+These properties persist across version rollbacks and promotions.
+
+| Deployment Property        | Versioned                                                          |
+| -------------------------- | ------------------------------------------------------------------ |
+| `name`                     | <Icon icon="xmark" iconType="solid" color="#FF0000" /> (immutable) |
+| `schedules`                | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `is_schedule_active`       | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `paused`                   | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `disabled`                 | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `concurrency_limit`        | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `concurrency_options`      | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+</Accordion>
+</AccordionGroup>
+
+Additionally, Prefect automatically collects your **repository name**, **repository URL**, your currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment if you're deploying from a supported version control platform or from inside a git repository.
+This information is used to help create a link between deployment versions and code versions.
+
+<Note>
+Prefect's automatic version information collection currently supports Github Actions, Gitlab CI, Bitbucket Pipelines, and Azure Pipelines on Azure DevOps.
+</Note>

@@ -106,6 +106,7 @@
             "pages": [
               "v3/deploy/index",
               "v3/deploy/run-flows-in-local-processes",
+              "v3/deploy/version-deployments",
               {
                 "group": "Run flows on dynamic infrastructure",
                 "pages": [
