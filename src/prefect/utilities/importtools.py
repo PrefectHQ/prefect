@@ -145,8 +145,9 @@ def import_object(import_path: str) -> Any:
     - module.object
     - module:object
     - /path/to/script.py:object
-    - module:Object.method
-    - /path/to/script.py:Object.method
+    # Next 2 formats are for flows as staticmethod and classmethod:
+    - module:object.method
+    - /path/to/script.py:object.method
 
     This function is not thread safe as it modifies the 'sys' module during execution.
     """
