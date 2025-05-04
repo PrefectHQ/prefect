@@ -154,6 +154,18 @@ def test_import_object_from_script_with_relative_imports(
 
 
 @pytest.mark.parametrize(
+    "script_path",
+    [
+        (TEST_PROJECTS_DIR / "flows" / "classmethod.py"),
+        (TEST_PROJECTS_DIR / "flows" / "staticmethod.py"),
+    ],
+)
+def test_import_flow_as_classmethod_and_staticmethod(script_path: Path):
+    foobar = import_object(f"{script_path}:Foo.bar")
+    assert foobar() == "foobar"
+
+
+@pytest.mark.parametrize(
     "working_directory,script_path",
     [
         # Explicit relative imports cannot go up levels with script-based imports
