@@ -5980,7 +5980,7 @@ class TestSafeLoadFlowFromEntrypoint:
                 """,
                 "flow_function",
             ),
-            (
+            pytest.param(
                 """
                 from prefect import flow
 
@@ -5993,6 +5993,10 @@ class TestSafeLoadFlowFromEntrypoint:
                         return name, age
                 """,
                 "ClassName.flow_method",
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 12),
+                    reason="static methods from __dict__ are only callable directly on Python 3.12+",
+                ),
             ),
         ],
     )
