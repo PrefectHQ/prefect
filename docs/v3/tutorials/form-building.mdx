@@ -219,7 +219,7 @@ Within a given `BaseModel` subclass, parameters are rendered in the following or
 
 You can control the order of the parameters within a `BaseModel` subclass by passing `json_schema_extra` to the `Field` constructor with a `position` key.
 
-Taking our `EmailContent` model from the previous example, let's enforce that `subject` should be `first`, then `body`, then `attachments`.
+Taking our `EmailContent` model from the previous example, let's enforce that `subject` should be displayed first, then `body`, then `attachments`.
 
 {/* pmd-metadata: notest */}
 ```python
