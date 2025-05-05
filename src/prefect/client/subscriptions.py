@@ -13,7 +13,7 @@ from typing_extensions import Self
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect.events.clients import websocket_connect
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY
+from prefect.settings import get_current_settings
 
 logger: Logger = get_logger(__name__)
 
@@ -76,10 +76,17 @@ class Subscription(Generic[S]):
         websocket = await self._connect.__aenter__()
 
         try:
+            settings = get_current_settings()
+            auth_token = (
+                settings.api.auth_string.get_secret_value()
+                if settings.api.auth_string
+                else None
+            )
+            api_key = settings.api.key.get_secret_value() if settings.api.key else None
+            token = auth_token or api_key  # Prioritize auth_token
+
             await websocket.send(
-                orjson.dumps(
-                    {"type": "auth", "token": PREFECT_API_KEY.value()}
-                ).decode()
+                orjson.dumps({"type": "auth", "token": token}).decode()
             )
 
             auth: dict[str, Any] = orjson.loads(await websocket.recv())
@@ -107,11 +114,13 @@ class Subscription(Generic[S]):
                 reason = None
 
             if reason:
-                raise Exception(
-                    "Unable to authenticate to the subscription. Please "
-                    "ensure the provided `PREFECT_API_KEY` you are using is "
-                    f"valid for this environment. Reason: {reason}"
-                ) from e
+                error_message = (
+                    "Unable to authenticate to the subscription. Please ensure the provided "
+                    "`PREFECT_API_AUTH_STRING` (for self-hosted with auth string) or "
+                    "`PREFECT_API_KEY` (for Cloud or self-hosted with API key) "
+                    f"you are using is valid for this environment. Reason: {reason}"
+                )
+                raise Exception(error_message) from e
             raise
         else:
             self._websocket = websocket
