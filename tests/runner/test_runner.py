@@ -49,7 +49,9 @@ from prefect.deployments.runner import (
     deploy,
 )
 from prefect.docker.docker_image import DockerImage
-from prefect.events.clients import AssertingEventsClient
+from prefect.events.clients import (
+    AssertingEventsClient,
+)
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.schemas.events import Event
@@ -159,6 +161,18 @@ def patch_run_process(monkeypatch: pytest.MonkeyPatch):
         return mock_run_process
 
     return patch_run_process
+
+
+@pytest.fixture
+def mock_events_client(monkeypatch: pytest.MonkeyPatch):
+    mock_events_client = AssertingEventsClient()
+    monkeypatch.setattr(
+        "prefect.runner.runner.get_events_client",
+        lambda *args, **kwargs: mock_events_client,
+    )
+    yield mock_events_client
+
+    AssertingEventsClient.reset()
 
 
 class MockStorage:
@@ -1117,7 +1131,10 @@ class TestRunner:
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_can_execute_a_single_flow_run(
-        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30, limit=None)
 
@@ -1132,12 +1149,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 1
