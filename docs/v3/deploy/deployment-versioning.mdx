@@ -53,9 +53,50 @@ These properties persist across version rollbacks and promotions.
 Additionally, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment if you're deploying from a supported version control platform or from inside a Git repository.
 This information is used to help create a record of which code versions produced which deployment versions.
 
+### Supported source code management platforms
+
+Prefect searches for environment variables in each supported platform's CI environment in order to collect information about the current state of the repository from which deployment versions are created.
+It may be useful to access these environment variables in other stages of your deployment process for constructing version identifiers.
+
 <Note>
 Prefect's automatic version information collection currently supports Github Actions, Gitlab CI, Bitbucket Pipelines, and Azure Pipelines.
+If deploying from a Git repository not on one of these platforms, Prefect will use `git` CLI commands as a best effort to discover these values.
 </Note>
+
+<Tabs>
+<Tab Title="Github Actions">
+| Environment Variable | Value |
+| - | - |
+| `GITHUB_SHA`| Commit SHA |
+| `GITHUB_REF_NAME` | Branch name |
+| `GITHUB_REPOSITORY` | Repository name |
+| `GITHUB_SERVER_URL`| Github account or organization URL |
+</Tab>
+<Tab title="Gitlab CI">
+| Environment Variable | Value |
+| - | - |
+| `CI_COMMIT_SHA`| Commit SHA |
+| `CI_COMMIT_REF_NAME` | Branch name |
+| `CI_PROJECT_NAME` | Repository name |
+| `CI_PROJECT_URL`| Repository URL |
+</Tab>
+<Tab title="Bitbucket Pipelines">
+| Environment Variable | Value |
+| - | - |
+| `BITBUCKET_COMMIT`| Commit SHA |
+| `BITBUCKET_BRANCH` | Branch name |
+| `BITBUCKET_REPO_SLUG` | Repository name |
+| `BITBUCKET_GIT_HTTP_ORIGIN`| Bitbucket account or organization URL |
+</Tab>
+<Tab title="Azure Pipelines">
+| Environment Variable | Value |
+| - | - |
+| `BUILD_SOURCEVERSION`| Commit SHA |
+| `BUILD_SOURCEBRANCHNAME` | Branch name |
+| `BUILD_REPOSITORY_NAME` | Repository name |
+| `BUILD_REPOSITORY_URI`| Repository URL |
+</Tab>
+</Tabs>
 
 ## Executing specific code versions
 
@@ -137,7 +178,7 @@ First, build your image in your CI job and pass the image digest as an environme
 
     - name: Prefect deploy
       env:
-        IMAGE_DIGEST: ${{build-and-push.outputs.digest}}
+        IMAGE_DIGEST: ${{ build-and-push.outputs.digest }}
         PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
         PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
       ...
@@ -175,9 +216,8 @@ if __name__ == "__main__":
         version="0.0.1",
         work_pool_name="my-work-pool",
         image=f"my-registry/my-image@{os.getenv('IMAGE_DIGEST')}",
+        build=False,
     )
 ```
 
 </CodeGroup>
-
-### Supported source code management platforms
