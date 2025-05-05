@@ -402,3 +402,41 @@ def test_snowflake_connect_params(credentials_params, snowflake_connect_mock):
     _ = snowflake_credentials.get_client(autocommit=False)
 
     assert snowflake_connect_mock.call_args_list[0][1]["autocommit"] is False
+
+
+# Dummy encrypted key from issue #17883
+DUMMY_ENCRYPTED_KEY = """
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,ABCDEF304983345
+
+eeiuf9ehfiuehf989879heifhaiefa78fheahfe8a7hf8e7hf8ea7hf8ea7
+ef9hea9afhe98y395874938749q38ya9r8h3f938hf938hf93qhf93ahhhh
+30ru83q9r83q98r3q98rh39h8r3h838383rh39rh398qh938rh3q9hrjjjj
+-----END RSA PRIVATE KEY-----
+"""
+DUMMY_PASSPHRASE = "test-passphrase"
+
+
+def test_snowflake_credentials_encrypted_private_key_parses_correctly():
+    """
+    Tests that _compose_pem correctly handles the structure of
+    an encrypted private key, even though decryption will fail
+    with dummy data. Regression test for #17883.
+    """
+    creds = SnowflakeCredentials(
+        account="test_account_enc",
+        user="test_user_enc",
+        private_key=DUMMY_ENCRYPTED_KEY,
+        private_key_passphrase=DUMMY_PASSPHRASE,
+        database="test_db_enc",
+        schema="test_schema_enc",
+        warehouse="test_wh_enc",
+    )
+
+    # resolve_private_key calls _compose_pem internally.
+    # We expect _compose_pem to succeed (no InvalidPemFormat),
+    # but load_pem_private_key to fail because the key/passphrase
+    # are dummies.
+    with pytest.raises(ValueError, match="Could not deserialize key data"):
+        creds.resolve_private_key()
