@@ -129,6 +129,7 @@ First, build your image in your CI job and pass the image digest as an environme
       uses: docker/setup-buildx-action@v3
 
     - name: Build and push
+      id: build-and-push
       uses: docker/build-push-action@v6
       with:
         push: true
@@ -136,7 +137,7 @@ First, build your image in your CI job and pass the image digest as an environme
 
     - name: Prefect deploy
       env:
-        IMAGE_DIGEST: ${{build and push.outputs.digest}}
+        IMAGE_DIGEST: ${{build-and-push.outputs.digest}}
       ...
         
 ```
@@ -176,3 +177,5 @@ if __name__ == "__main__":
 ```
 
 </CodeGroup>
+
+### Supported source code management platforms
