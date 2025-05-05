@@ -138,6 +138,8 @@ First, build your image in your CI job and pass the image digest as an environme
     - name: Prefect deploy
       env:
         IMAGE_DIGEST: ${{build-and-push.outputs.digest}}
+        PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+        PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
       ...
         
 ```
