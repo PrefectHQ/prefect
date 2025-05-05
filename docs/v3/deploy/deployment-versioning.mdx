@@ -153,7 +153,7 @@ deployments:
   work_pool:
     name: my-work-pool
     job_variables:
-      image: "my-image@{{ $IMAGE_DIGEST }}"
+      image: "my-registry/my-image@{{ $IMAGE_DIGEST }}"
 ```
 
 ```python With .deploy()
@@ -171,7 +171,7 @@ if __name__ == "__main__":
         name="my-deployment",
         version="0.0.1",
         work_pool_name="my-work-pool",
-        image=f"my-image@{os.getenv('IMAGE_DIGEST')",
+        image=f"my-registry/my-image@{os.getenv('IMAGE_DIGEST')}",
     )
 ```
 
