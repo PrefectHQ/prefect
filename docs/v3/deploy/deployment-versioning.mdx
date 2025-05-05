@@ -1,5 +1,5 @@
 ---
-title: Version deployments
+title: Deployment versioning
 description: Track changes to your deployments and roll back to previous versions
 ---
 
@@ -67,7 +67,7 @@ The required strategy differs depending on your chosen code storage type.
 
 The `git_clone` deployment pull step and `GitRepository` deployment storage class offer a `commit_sha` field.
 When deploying from a Git repository, provide the commit SHA from your environment to your deployment.
-Both approaches demonstrated below will result in a deployment pull step that clones your repository and checks out a specific commit.
+Both approaches below will result in a deployment pull step that clones your repository and checks out a specific commit.
 
 <CodeGroup>
 
