@@ -516,9 +516,9 @@ def parse_image_tag(name: str) -> tuple[str, Optional[str]]:
     # - Example: simplename:latest or simplename@sha256:abc123
     if len(name_parts) == 1:
         if "@" in name_parts[0]:
-            image_name, tag = name_parts[0].split("@", 1)
+            image_name, tag = name_parts[0].split("@")
         elif ":" in name_parts[0]:
-            image_name, tag = name_parts[0].split(":", 1)
+            image_name, tag = name_parts[0].split(":")
 
         else:
             image_name = name_parts[0]
@@ -530,9 +530,9 @@ def parse_image_tag(name: str) -> tuple[str, Optional[str]]:
         image_path = "/".join(name_parts[1:])
 
         if "@" in image_path:
-            image_path, tag = image_path.split("@", 1)
+            image_path, tag = image_path.split("@")
         elif ":" in image_path:
-            image_path, tag = image_path.split(":", 1)
+            image_path, tag = image_path.split(":")
 
         image_name = f"{index_name}/{image_path}"
 
