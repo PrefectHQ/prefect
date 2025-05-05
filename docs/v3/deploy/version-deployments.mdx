@@ -57,9 +57,122 @@ This information is used to help create a record of which code versions produced
 Prefect's automatic version information collection currently supports Github Actions, Gitlab CI, Bitbucket Pipelines, and Azure Pipelines.
 </Note>
 
-## Tying code versions to deployment versions
+## Executing specific code versions
 
 The presence of version information on a deployment does not override Prefect's deployment execution mechanics.
-Depending on your chosen code storage location, you must explicitly include information about your code version in either the pull steps or job variables of your deployment to keep code and deployment versions synchronized.
+You must explicitly include information about your code version in either the **pull steps** or **job variables** of your deployment to keep code and deployment versions synchronized.
+The required strategy differs depending on your chosen code storage type.
 
 ### Pulling from Git
+
+The `git_clone` deployment pull step and `GitRepository` deployment storage class offer a `commit_sha` field.
+When deploying from a Git repository, provide the commit SHA from your environment to your deployment.
+Both approaches demonstrated below will result in a deployment pull step that clones your repository and checks out a specific commit.
+
+<CodeGroup>
+
+```yaml With prefect.yaml
+pull:
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/<your-org>/<your-repo>.git
+    commit_sha: "{{ $GITHUB_SHA }}"
+
+deployments:
+- name: my-deployment
+  version: 0.0.1
+  entrypoint: example.py:my_flow
+  work_pool:
+    name: my-work-pool
+```
+
+```python With .deploy()
+import os
+
+from prefect import flow
+from prefect.runner.storage import GitRepository
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello world!")
+
+if __name__ == "__main__":
+    my_flow.from_source(
+        source=GitRepository(
+            repo_url="https://github.com/<your-org>/<your-repo>.git",
+            commit_sha=os.getenv("GITHUB_SHA"),
+        )
+    ).deploy(
+        name="my-deployment",
+        version="0.0.1",
+        work_pool_name="my-work-pool",
+    )
+```
+
+</CodeGroup>
+
+
+### Pulling Docker images
+
+When baking code into Docker images, use the image digest to pin exact code versions to deployment versions.
+An image digest uniquely and immutably identifies a container image.
+
+First, build your image in your CI job and pass the image digest as an environment variable to the Prefect deploy step.
+
+```bash Github Actions
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ vars.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        push: true
+        tags: user/app:latest
+
+    - name: Prefect deploy
+      env:
+        IMAGE_DIGEST: ${{build and push.outputs.digest}}
+      ...
+        
+```
+
+Then, refer to that digest in the image name you provide to this deployment version's job variables.
+
+<CodeGroup>
+
+```yaml With prefect.yaml
+deployments:
+- name: my-deployment
+  version: 0.0.1
+  entrypoint: example.py:my_flow
+  work_pool:
+    name: my-work-pool
+    job_variables:
+      image: "my-image@{{ $IMAGE_DIGEST }}"
+```
+
+```python With .deploy()
+import os
+
+from prefect import flow
+from prefect.runner.storage import GitRepository
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello world!")
+
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="my-deployment",
+        version="0.0.1",
+        work_pool_name="my-work-pool",
+        image=f"my-image@{os.getenv('IMAGE_DIGEST')",
+    )
+```
+
+</CodeGroup>
