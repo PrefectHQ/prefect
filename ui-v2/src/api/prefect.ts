@@ -9209,7 +9209,7 @@ export interface components {
         VariableCreate: {
             /**
              * Name
-             * @description Variable name
+             * @description The name of the variable
              */
             name: string;
             /**

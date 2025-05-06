@@ -118,7 +118,7 @@ VariableName = Annotated[
     ),
     Field(
         max_length=MAX_VARIABLE_NAME_LENGTH,
-        description="Variable name",
+        description="The name of the variable",
         examples=["my_variable"],
     ),
 ]

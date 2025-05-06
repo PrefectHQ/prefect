@@ -23750,7 +23750,7 @@
                         "type": "string",
                         "maxLength": 255,
                         "title": "Name",
-                        "description": "Variable name",
+                        "description": "The name of the variable",
                         "examples": [
                             "my_variable"
                         ]
@@ -23983,7 +23983,7 @@
                             {
                                 "type": "string",
                                 "maxLength": 255,
-                                "description": "Variable name",
+                                "description": "The name of the variable",
                                 "examples": [
                                     "my_variable"
                                 ]
