@@ -145,17 +145,19 @@ def import_object(import_path: str) -> Any:
     - module.object
     - module:object
     - /path/to/script.py:object
+    - module:object.method
+    - /path/to/script.py:object.method
 
     This function is not thread safe as it modifies the 'sys' module during execution.
     """
     if ".py:" in import_path:
-        script_path, object_name = import_path.rsplit(":", 1)
+        script_path, object_path = import_path.rsplit(":", 1)
         module = load_script_as_module(script_path)
     else:
         if ":" in import_path:
-            module_name, object_name = import_path.rsplit(":", 1)
+            module_name, object_path = import_path.rsplit(":", 1)
         elif "." in import_path:
-            module_name, object_name = import_path.rsplit(".", 1)
+            module_name, object_path = import_path.rsplit(".", 1)
         else:
             raise ValueError(
                 f"Invalid format for object import. Received {import_path!r}."
@@ -163,7 +165,13 @@ def import_object(import_path: str) -> Any:
 
         module = load_module(module_name)
 
-    return getattr(module, object_name)
+    # Handle nested object/method access
+    parts = object_path.split(".")
+    obj = module
+    for part in parts:
+        obj = getattr(obj, part)
+
+    return obj
 
 
 class DelayedImportErrorModule(ModuleType):
