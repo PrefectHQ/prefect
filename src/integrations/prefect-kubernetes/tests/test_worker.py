@@ -1425,6 +1425,29 @@ class TestKubernetesWorker:
                 expected_manifest,
             )
 
+    async def test_initiate_run_does_not_wait_for_job_completion(
+        self,
+        default_configuration: KubernetesWorkerJobConfiguration,
+        flow_run,
+        mock_batch_client,
+        mock_core_client,
+    ):
+        """
+        This test excludes the watch mock to ensure that the job is not watched.
+        """
+        default_configuration.prepare_for_flow_run(flow_run)
+        expected_manifest = default_configuration.job_manifest
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.initiate_run(
+                flow_run=flow_run, configuration=default_configuration
+            )
+            mock_core_client.return_value.list_namespaced_pod.assert_not_called()
+
+            mock_batch_client.return_value.create_namespaced_job.assert_called_with(
+                "default",
+                expected_manifest,
+            )
+
     async def test_task_status_receives_job_pid(
         self,
         default_configuration: KubernetesWorkerJobConfiguration,
