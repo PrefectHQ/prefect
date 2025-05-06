@@ -33,7 +33,7 @@ from prefect.blocks.abstract import CredentialsBlock
 #           not a hyphen followed by another string of hyphens
 # group 2: "body" capture everything upto the next hyphen
 # group 3: "footer" duplicates group 1
-_SIMPLE_PEM_CERTIFICATE_REGEX = "^(-+[^-]+-+)([^-]+)(-+[^-]+-+)"
+_SIMPLE_PEM_CERTIFICATE_REGEX = r"^(-+[^-]+-+)([\s\S]+?)(--+[^-]+-+)"
 
 
 class InvalidPemFormat(Exception):
@@ -272,13 +272,24 @@ class SnowflakeCredentials(CredentialsBlock):
         Raises:
             InvalidPemFormat: if private key is an invalid format.
         """
-        pem_parts = re.match(_SIMPLE_PEM_CERTIFICATE_REGEX, private_key.decode())
+        try:
+            decoded_key = private_key.decode()
+        except UnicodeDecodeError as e:
+            raise InvalidPemFormat("Key could not be decoded.") from e
+
+        # Strip leading/trailing whitespace from decoded key before matching
+        pem_parts = re.match(_SIMPLE_PEM_CERTIFICATE_REGEX, decoded_key.strip())
+
         if pem_parts is None:
             raise InvalidPemFormat()
 
-        body = "\n".join(re.split(r"\s+", pem_parts[2].strip()))
-        # reassemble header+body+footer
-        return f"{pem_parts[1]}\n{body}\n{pem_parts[3]}".encode()
+        try:
+            # Simplify body handling: Just strip leading/trailing whitespace
+            body = pem_parts[2].strip()
+            result = f"{pem_parts[1]}\n{body}\n{pem_parts[3]}".encode()
+            return result
+        except Exception:
+            raise
 
     def get_client(
         self, **connect_kwargs: Any
