@@ -89,9 +89,9 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
+from prefect.events.clients import EventsClient, get_events_client
 from prefect.events.related import tags_as_related_resources
-from prefect.events.schemas.events import RelatedResource
-from prefect.events.utilities import emit_event
+from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
@@ -224,6 +224,7 @@ class Runner:
         if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
             raise ValueError("Heartbeat must be 30 seconds or greater.")
         self._heartbeat_task: asyncio.Task[None] | None = None
+        self._events_client: EventsClient = get_events_client(checkpoint_every=1)
 
         self._exit_stack = AsyncExitStack()
         self._limiter: anyio.CapacityLimiter | None = None
@@ -1005,7 +1006,7 @@ class Runner:
             )
 
             flow, deployment = await self._get_flow_and_deployment(flow_run)
-            self._emit_flow_run_cancelled_event(
+            await self._emit_flow_run_cancelled_event(
                 flow_run=flow_run, flow=flow, deployment=deployment
             )
             run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
@@ -1064,14 +1065,18 @@ class Runner:
         related = [RelatedResource.model_validate(r) for r in related]
         related += tags_as_related_resources(set(tags))
 
-        emit_event(
-            event="prefect.flow-run.heartbeat",
-            resource={
-                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-                "prefect.resource.name": flow_run.name,
-                "prefect.version": __version__,
-            },
-            related=related,
+        await self._events_client.emit(
+            Event(
+                event="prefect.flow-run.heartbeat",
+                resource=Resource(
+                    {
+                        "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                        "prefect.resource.name": flow_run.name,
+                        "prefect.version": __version__,
+                    }
+                ),
+                related=related,
+            )
         )
 
     def _event_resource(self):
@@ -1083,7 +1088,7 @@ class Runner:
             "prefect.version": __version__,
         }
 
-    def _emit_flow_run_cancelled_event(
+    async def _emit_flow_run_cancelled_event(
         self,
         flow_run: "FlowRun",
         flow: "Optional[APIFlow]",
@@ -1118,10 +1123,12 @@ class Runner:
         related = [RelatedResource.model_validate(r) for r in related]
         related += tags_as_related_resources(set(tags))
 
-        emit_event(
-            event="prefect.runner.cancelled-flow-run",
-            resource=self._event_resource(),
-            related=related,
+        await self._events_client.emit(
+            Event(
+                event="prefect.runner.cancelled-flow-run",
+                resource=Resource(self._event_resource()),
+                related=related,
+            )
         )
         self._logger.debug(f"Emitted flow run heartbeat event for {flow_run.id}")
 
@@ -1502,6 +1509,7 @@ class Runner:
             )
         )
         await self._exit_stack.enter_async_context(self._client)
+        await self._exit_stack.enter_async_context(self._events_client)
 
         if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
