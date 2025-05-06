@@ -10983,7 +10983,8 @@
                     "name": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "string",
+                                "pattern": "^[^/%&><]+$"
                             },
                             {
                                 "type": "null"
@@ -25287,8 +25288,15 @@
                         "description": "The work pool with which the queue is associated."
                     },
                     "last_heartbeat_time": {
-                        "type": "string",
-                        "format": "date-time",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Last Heartbeat Time",
                         "description": "The last time the worker process sent a heartbeat."
                     },

@@ -8,6 +8,13 @@ import pydantic
 
 
 from ._datetime import DateTime, Date
+from .names import (
+    Name,
+    NameOrEmpty,
+    NonEmptyishName,
+    BANNED_CHARACTERS,
+    WITHOUT_BANNED_CHARACTERS,
+)
 from pydantic import (
     BeforeValidator,
     Field,
@@ -36,29 +43,6 @@ TimeZone = Annotated[
             [z for z in sorted(available_timezones()) if "localtime" not in z]
         ),
     ),
-]
-
-
-BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
-
-WITHOUT_BANNED_CHARACTERS = r"^[^" + "".join(BANNED_CHARACTERS) + "]+$"
-Name = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS)]
-
-WITHOUT_BANNED_CHARACTERS_EMPTY_OK = r"^[^" + "".join(BANNED_CHARACTERS) + "]*$"
-NameOrEmpty = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS_EMPTY_OK)]
-
-
-def non_emptyish(value: str) -> str:
-    if not value.strip("' \""):
-        raise ValueError("name cannot be an empty string")
-
-    return value
-
-
-NonEmptyishName = Annotated[
-    str,
-    Field(pattern=WITHOUT_BANNED_CHARACTERS),
-    BeforeValidator(non_emptyish),
 ]
 
 
