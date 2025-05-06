@@ -2702,14 +2702,19 @@ def load_placeholder_flow(entrypoint: str, raises: Exception) -> Flow[P, Any]:
 
 def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow[P, Any]]:
     """
-    Load a flow from an entrypoint and return None if an exception is raised.
+    Safely load a Prefect flow from an entrypoint string. Returns None if loading fails.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
-          or `<path_to_script>:<class_name>.<flow_method_name>`
-          or a module path to a flow function
+        entrypoint (str): A string identifying the flow to load. Can be in one of the following formats:
+            - `<path_to_script>:<flow_func_name>`
+            - `<path_to_script>:<class_name>.<flow_method_name>`
+            - `<module_path>.<flow_func_name>`
+
+    Returns:
+        Optional[Flow]: The loaded Prefect flow object, or None if loading fails due to errors
+        (e.g. unresolved dependencies, syntax errors, or missing objects).
     """
-    func_def, source_code, parts = _entrypoint_definition_and_source(entrypoint)
+    func_or_cls_def, source_code, parts = _entrypoint_definition_and_source(entrypoint)
 
     path = entrypoint.rsplit(":", maxsplit=1)[0] if ":" in entrypoint else None
     namespace = safe_load_namespace(source_code, filepath=path)
@@ -2718,18 +2723,18 @@ def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow[P, Any]]:
         # If the object is not in the namespace, it may be due to missing dependencies
         # in annotations or default values. We will attempt to sanitize them by removing
         # anything that cannot be compiled, and then recompile the function or class.
-        if isinstance(func_def, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            return _sanitize_and_load_flow(func_def, namespace)
+        if isinstance(func_or_cls_def, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return _sanitize_and_load_flow(func_or_cls_def, namespace)
         elif (
-            isinstance(func_def, ast.ClassDef)
+            isinstance(func_or_cls_def, ast.ClassDef)
             and len(parts) >= 2
-            and func_def.name == parts[0]
+            and func_or_cls_def.name == parts[0]
         ):
             method_name = parts[1]
             method_def = next(
                 (
                     stmt
-                    for stmt in func_def.body
+                    for stmt in func_or_cls_def.body
                     if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef))
                     and stmt.name == method_name
                 ),
@@ -2963,6 +2968,23 @@ def is_entrypoint_async(entrypoint: str) -> bool:
 def _entrypoint_definition_and_source(
     entrypoint: str,
 ) -> Tuple[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef], str, List[str]]:
+    """
+    Resolves and parses the source definition of a given entrypoint.
+
+    The entrypoint can be provided in one of the following formats:
+        - '<path_to_script>:<flow_func_name>'
+        - '<path_to_script>:<class_name>.<flow_method_name>'
+        - '<module_path.to.flow_function>'
+
+    Returns:
+        A tuple containing:
+        - The AST node (FunctionDef, AsyncFunctionDef, or ClassDef) of the base object.
+        - The full source code of the file or module as a string.
+        - A list of attribute access parts from the object path (e.g., ['MyFlowClass', 'run']).
+
+    Raises:
+        ValueError: If the module or target object cannot be found.
+    """
     if ":" in entrypoint:
         path, object_path = entrypoint.rsplit(":", maxsplit=1)
         source_code = Path(path).read_text()

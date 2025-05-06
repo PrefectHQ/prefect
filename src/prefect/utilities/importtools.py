@@ -145,7 +145,6 @@ def import_object(import_path: str) -> Any:
     - module.object
     - module:object
     - /path/to/script.py:object
-    # Next 2 formats are for flows as staticmethod and classmethod:
     - module:object.method
     - /path/to/script.py:object.method
 

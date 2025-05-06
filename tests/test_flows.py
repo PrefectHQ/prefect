@@ -13,7 +13,7 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 from zoneinfo import ZoneInfo
@@ -2634,28 +2634,54 @@ class TestLoadFlowFromEntrypoint:
                 """,
                 lambda fpath: f"{str(fpath.resolve())}:dog",
             ),
-            # Static method using relative path
+            # Staticmethod using relative path
             (
                 """
                 from prefect import flow
 
                 class Dog:
-                    @staticmethod
                     @flow
+                    @staticmethod
                     def dog():
                         return "woof!"
                 """,
                 lambda fpath: f"{fpath}:Dog.dog",
             ),
-            # Static method using absolute path
+            # Staticmethod using absolute path
             (
                 """
                 from prefect import flow
 
                 class Dog:
-                    @staticmethod
                     @flow
+                    @staticmethod
                     def dog():
+                        return "woof!"
+                """,
+                lambda fpath: f"{str(fpath.resolve())}:Dog.dog",
+            ),
+            # Classmethod using relative path
+            (
+                """
+                from prefect import flow
+
+                class Dog:
+                    @flow
+                    @classmethod
+                    def dog(cls):
+                        return "woof!"
+                """,
+                lambda fpath: f"{fpath}:Dog.dog",
+            ),
+            # Classmethod using absolute path
+            (
+                """
+                from prefect import flow
+
+                class Dog:
+                    @flow
+                    @classmethod
+                    def dog(cls):
                         return "woof!"
                 """,
                 lambda fpath: f"{str(fpath.resolve())}:Dog.dog",
@@ -2671,7 +2697,7 @@ class TestLoadFlowFromEntrypoint:
         entrypoint = entrypoint_getter(fpath)
 
         flow = load_flow_from_entrypoint(entrypoint)
-        assert flow.fn() == "woof!"
+        assert flow() == "woof!"
 
     def test_load_flow_from_entrypoint_with_module_path(self, monkeypatch):
         @flow
@@ -2708,9 +2734,22 @@ class TestLoadFlowFromEntrypoint:
                 from prefect import flow
 
                 class Dog:
-                    @staticmethod
                     @flow(description="Says woof!")
+                    @staticmethod
                     def dog():
+                        return "woof!"
+                """,
+                "Dog.dog",
+            ),
+            (
+                """
+                from not_a_module import not_a_function
+                from prefect import flow
+
+                class Dog:
+                    @flow(description="Says woof!")
+                    @classmethod
+                    def dog(cls):
                         return "woof!"
                 """,
                 "Dog.dog",
@@ -5681,9 +5720,27 @@ class TestSafeLoadFlowFromEntrypoint:
                 from prefect import flow
 
                 class ClassName:               
-                    @staticmethod
                     @flow(name="My custom name")
+                    @staticmethod
                     def flow_method(name: str) -> str:
+                        """
+                        My docstring
+
+                        Args:
+                            name (str): A name
+                        """
+                        return name
+                ''',
+                "ClassName.flow_method",
+            ),
+            (
+                '''
+                from prefect import flow
+
+                class ClassName:               
+                    @flow(name="My custom name")
+                    @classmethod
+                    def flow_method(cls, name: str) -> str:
                         """
                         My docstring
 
@@ -5715,7 +5772,7 @@ class TestSafeLoadFlowFromEntrypoint:
         assert "name (str): A name" in result.__doc__
 
     @pytest.mark.parametrize(
-        "source_code, entrypoint_without_filename",
+        "source_code, entrypoint_without_filename, expected_parameter_schema",
         [
             (
                 """
@@ -5726,23 +5783,67 @@ class TestSafeLoadFlowFromEntrypoint:
                     return name
                 """,
                 "flow_function",
+                {
+                    "definitions": {},
+                    "properties": {
+                        "name": {"position": 0, "title": "name", "type": "string"}
+                    },
+                    "required": ["name"],
+                    "title": "Parameters",
+                    "type": "object",
+                },
             ),
             (
                 """
                 from prefect import flow
 
                 class ClassName:               
-                    @staticmethod
                     @flow
+                    @staticmethod
                     def flow_method(name: str) -> str:
                         return name
                 """,
                 "ClassName.flow_method",
+                {
+                    "definitions": {},
+                    "properties": {
+                        "name": {"position": 0, "title": "name", "type": "string"}
+                    },
+                    "required": ["name"],
+                    "title": "Parameters",
+                    "type": "object",
+                },
+            ),
+            (
+                """
+                from prefect import flow
+
+                class ClassName:               
+                    @flow
+                    @classmethod
+                    def flow_method(cls, name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                {
+                    "definitions": {},
+                    "properties": {
+                        "cls": {"position": 0, "title": "cls"},
+                        "name": {"position": 1, "title": "name", "type": "string"},
+                    },
+                    "required": ["cls", "name"],
+                    "title": "Parameters",
+                    "type": "object",
+                },
             ),
         ],
     )
     def test_get_parameter_schema_from_safe_loaded_flow(
-        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+        self,
+        tmp_path: Path,
+        source_code: str,
+        entrypoint_without_filename: str,
+        expected_parameter_schema: Dict[str, Any],
     ):
         tmp_path.joinpath("flow.py").write_text(dedent(source_code))
 
@@ -5751,13 +5852,7 @@ class TestSafeLoadFlowFromEntrypoint:
         result = safe_load_flow_from_entrypoint(entrypoint)
 
         assert result is not None
-        assert parameter_schema(result).model_dump() == {
-            "definitions": {},
-            "properties": {"name": {"position": 0, "title": "name", "type": "string"}},
-            "required": ["name"],
-            "title": "Parameters",
-            "type": "object",
-        }
+        assert parameter_schema(result).model_dump() == expected_parameter_schema
 
     @pytest.mark.parametrize(
         "source_code, entrypoint_without_filename, expected_name",
@@ -5785,9 +5880,25 @@ class TestSafeLoadFlowFromEntrypoint:
                     return "from-a-function"
 
                 class ClassName:
-                    @staticmethod    
                     @flow(name=get_name())
+                    @staticmethod 
                     def flow_method(name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                "from-a-function",
+            ),
+            (
+                """
+                from prefect import flow
+
+                def get_name():
+                    return "from-a-function"
+
+                class ClassName:
+                    @flow(name=get_name())
+                    @classmethod 
+                    def flow_method(cls, name: str) -> str:
                         return name
                 """,
                 "ClassName.flow_method",
@@ -5813,9 +5924,23 @@ class TestSafeLoadFlowFromEntrypoint:
 
                 version = "1.0"
                 class ClassName:
-                    @staticmethod  
                     @flow(name=f"flow-function-{version}")
+                    @staticmethod  
                     def flow_method(name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                "flow-function-1.0",
+            ),
+            (
+                """
+                from prefect import flow
+
+                version = "1.0"
+                class ClassName:
+                    @flow(name=f"flow-function-{version}")
+                    @classmethod  
+                    def flow_method(cls, name: str) -> str:
                         return name
                 """,
                 "ClassName.flow_method",
@@ -5861,8 +5986,8 @@ class TestSafeLoadFlowFromEntrypoint:
                 from non_existent import get_name
 
                 class ClassName:
-                    @staticmethod
                     @flow(name=get_name())
+                    @staticmethod
                     def flow_method(name: str) -> str:
                         return name
                 """,
@@ -5910,9 +6035,29 @@ class TestSafeLoadFlowFromEntrypoint:
                 from zoneinfo import ZoneInfo
 
                 class ClassName:            
-                    @staticmethod
                     @flow
+                    @staticmethod
                     def flow_method(
+                        x: datetime.datetime,
+                        y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
+                        z: datetime.timedelta = datetime.timedelta(seconds=5),
+                    ):
+                        return x, y, z
+                """,
+                "ClassName.flow_method",
+            ),
+            (
+                """
+                import datetime
+                from prefect import flow
+                from prefect.types import DateTime
+                from zoneinfo import ZoneInfo
+
+                class ClassName:            
+                    @flow
+                    @classmethod
+                    def flow_method(
+                        cls,
                         x: datetime.datetime,
                         y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
                         z: datetime.timedelta = datetime.timedelta(seconds=5),
@@ -5987,8 +6132,8 @@ class TestSafeLoadFlowFromEntrypoint:
                 from non_existent import DEFAULT_NAME, DEFAULT_AGE
 
                 class ClassName:
-                    @staticmethod
                     @flow
+                    @staticmethod
                     def flow_method(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
                         return name, age
                 """,
@@ -6041,9 +6186,27 @@ class TestSafeLoadFlowFromEntrypoint:
                     BLUE = "BLUE"
                 
                 class ClassName:
-                    @staticmethod
                     @flow
+                    @staticmethod
                     def flow_method(x: Color = Color.RED):
+                        return x
+                """,
+                "ClassName.flow_method",
+            ),
+            (
+                """
+                from enum import Enum
+                from prefect import flow
+
+                class Color(Enum):
+                    RED = "RED"
+                    GREEN = "GREEN"
+                    BLUE = "BLUE"
+                
+                class ClassName:
+                    @flow
+                    @classmethod
+                    def flow_method(cls, x: Color = Color.RED):
                         return x
                 """,
                 "ClassName.flow_method",
@@ -6125,9 +6288,22 @@ class TestSafeLoadFlowFromEntrypoint:
 
                 from prefect import flow
                 class Dog:
-                    @staticmethod
                     @flow(description="Says woof!")
+                    @staticmethod
                     def dog():
+                        return not_a_function('dog')
+                """,
+                "Dog.dog",
+            ),
+            (
+                """
+                from not_a_module import not_a_function
+
+                from prefect import flow
+                class Dog:
+                    @flow(description="Says woof!")
+                    @classmethod
+                    def dog(cls):
                         return not_a_function('dog')
                 """,
                 "Dog.dog",
