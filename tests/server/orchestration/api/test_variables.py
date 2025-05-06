@@ -109,9 +109,7 @@ class TestCreateVariable:
 
         assert res["value"] == value
 
-    @pytest.mark.parametrize(
-        "variable_name", ["MY_VARIABLE", "my variable", "my-variable", "!@#$%"]
-    )
+    @pytest.mark.parametrize("variable_name", ["MY_VARIABLE", "my variable", "!@#$%"])
     async def test_name_constraints(
         self,
         client: AsyncClient,
@@ -124,7 +122,7 @@ class TestCreateVariable:
         assert res
         assert res.status_code == 422
         assert (
-            "Variable name must only contain lowercase letters, numbers, and underscores"
+            "Variable name must only contain lowercase letters, numbers, dashes, and underscores"
             in res.json()["exception_detail"][0]["msg"]
         )
 

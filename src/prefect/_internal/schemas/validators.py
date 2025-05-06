@@ -38,6 +38,7 @@ MM = TypeVar("MM", bound=MutableMapping[str, Any])
 
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
+SLUG_REGEX = "^[a-z0-9]+([_-]+[a-z0-9]+)*$"
 
 
 @overload
@@ -647,7 +648,10 @@ def validate_variable_name(value: None) -> None: ...
 
 def validate_variable_name(value: Optional[str]) -> Optional[str]:
     if value is not None:
-        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
+        if not bool(re.match(SLUG_REGEX, value)):
+            raise ValueError(
+                "Variable name must only contain lowercase letters, numbers, dashes, and underscores"
+            )
     return value
 
 
