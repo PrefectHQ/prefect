@@ -15,7 +15,6 @@ import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     raise_on_name_alphanumeric_dashes_only,
-    raise_on_name_alphanumeric_underscores_only,
     remove_old_deployment_fields,
     validate_cache_key_length,
     validate_max_metadata_length,
@@ -24,6 +23,7 @@ from prefect._internal.schemas.validators import (
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
+    validate_variable_name,
 )
 from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
@@ -58,11 +58,6 @@ def validate_block_document_name(value: str | None) -> str | None:
 def validate_artifact_key(value: str | None) -> str | None:
     if value is not None:
         raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
-    return value
-
-
-def validate_variable_name(value: str) -> str:
-    raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
     return value
 
 
