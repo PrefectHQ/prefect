@@ -8,6 +8,7 @@ from pydantic import AfterValidator, BeforeValidator, Field
 
 LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
+LOWERCASE_LETTERS_NUMBERS_AND_DASHES_OR_UNDERSCORES_REGEX = "^[a-z0-9-_]*$"
 
 
 @overload
@@ -55,6 +56,17 @@ def raise_on_name_alphanumeric_underscores_only(
         raise ValueError(
             f"{field_name} must only contain lowercase letters, numbers, and"
             " underscores."
+        )
+    return value
+
+
+def raise_on_name_alphanumeric_dashes_underscores_only(
+    value: str, field_name: str = "value"
+) -> str:
+    if not re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_OR_UNDERSCORES_REGEX, value):
+        raise ValueError(
+            f"{field_name} must only contain lowercase letters, numbers, and"
+            " dashes or underscores."
         )
     return value
 
@@ -114,7 +126,10 @@ MAX_VARIABLE_NAME_LENGTH = 255
 VariableName = Annotated[
     str,
     AfterValidator(
-        partial(raise_on_name_alphanumeric_underscores_only, field_name="Variable name")
+        partial(
+            raise_on_name_alphanumeric_dashes_underscores_only,
+            field_name="Variable name",
+        )
     ),
     Field(
         max_length=MAX_VARIABLE_NAME_LENGTH,
