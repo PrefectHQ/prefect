@@ -24,6 +24,10 @@ from prefect.utilities.dockerutils import (
             "hostname.io:5050/dir/subdir:latest",
             ("hostname.io:5050/dir/subdir", "latest"),
         ),
+        (
+            "prefecthq/prefect@sha256:abcdef1234567890",
+            ("prefecthq/prefect", "sha256:abcdef1234567890"),
+        ),
     ],
 )
 def test_parse_image_tag(value, expected):
