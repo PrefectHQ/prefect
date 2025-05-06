@@ -30,7 +30,7 @@ def _get_uv_path() -> str:
         import uv
 
         uv_path = uv.find_uv_bin()
-    except (ImportError, ModuleNotFoundError):
+    except (ImportError, ModuleNotFoundError, FileNotFoundError):
         uv_path = "uv"
 
     return uv_path
