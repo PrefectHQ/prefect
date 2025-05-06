@@ -108,9 +108,17 @@ ArtifactKey = Annotated[
     ),
 ]
 
+MAX_VARIABLE_NAME_LENGTH = 255
+
+
 VariableName = Annotated[
     str,
     AfterValidator(
         partial(raise_on_name_alphanumeric_underscores_only, field_name="Variable name")
+    ),
+    Field(
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+        description="Variable name",
+        examples=["my_variable"],
     ),
 ]

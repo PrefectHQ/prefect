@@ -9209,7 +9209,7 @@ export interface components {
         VariableCreate: {
             /**
              * Name
-             * @description The name of the variable
+             * @description Variable name
              */
             name: string;
             /**
@@ -9301,10 +9301,7 @@ export interface components {
          * @description Data used by the Prefect REST API to update a Variable.
          */
         VariableUpdate: {
-            /**
-             * Name
-             * @description The name of the variable
-             */
+            /** Name */
             name?: string | null;
             /**
              * Value

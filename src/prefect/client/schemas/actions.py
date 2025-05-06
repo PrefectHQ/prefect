@@ -30,7 +30,6 @@ from prefect.client.schemas.schedules import (
 from prefect.schedules import Schedule
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
-    MAX_VARIABLE_NAME_LENGTH,
     DateTime,
     KeyValueLabelsField,
     Name,
@@ -831,12 +830,7 @@ class ArtifactUpdate(ActionBaseModel):
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: VariableName = Field(
-        default=...,
-        description="The name of the variable",
-        examples=["my_variable"],
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
+    name: VariableName = Field(default=...)
     value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
@@ -848,12 +842,7 @@ class VariableCreate(ActionBaseModel):
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
 
-    name: Optional[VariableName] = Field(
-        default=None,
-        description="The name of the variable",
-        examples=["my_variable"],
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
+    name: Optional[VariableName] = Field(default=None)
     value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",

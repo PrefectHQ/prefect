@@ -14,6 +14,7 @@ from .names import (
     NonEmptyishName,
     BANNED_CHARACTERS,
     WITHOUT_BANNED_CHARACTERS,
+    MAX_VARIABLE_NAME_LENGTH,
 )
 from pydantic import (
     BeforeValidator,
@@ -28,7 +29,6 @@ from zoneinfo import available_timezones
 
 T = TypeVar("T")
 
-MAX_VARIABLE_NAME_LENGTH = 255
 MAX_VARIABLE_VALUE_LENGTH = 5000
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]

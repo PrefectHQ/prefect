@@ -33,7 +33,6 @@ from prefect.server.utilities.schemas import get_class_fields_only
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
-    MAX_VARIABLE_NAME_LENGTH,
     DateTime,
     KeyValueLabels,
     Name,
@@ -1038,22 +1037,15 @@ class ArtifactUpdate(ActionBaseModel):
 
     data: Optional[Union[Dict[str, Any], Any]] = Field(None)
     description: Optional[str] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
-
-    _validate_metadata_length = field_validator("metadata_")(
-        validate_max_metadata_length
-    )
+    metadata_: Optional[
+        Annotated[dict[str, str], AfterValidator(validate_max_metadata_length)]
+    ] = Field(None)
 
 
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: VariableName = Field(
-        default=...,
-        description="The name of the variable",
-        examples=["my-variable"],
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
+    name: VariableName = Field(default=...)
     value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
@@ -1069,12 +1061,7 @@ class VariableCreate(ActionBaseModel):
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
 
-    name: Optional[VariableName] = Field(
-        default=None,
-        description="The name of the variable",
-        examples=["my-variable"],
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
+    name: Optional[VariableName] = Field(default=None)
     value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",

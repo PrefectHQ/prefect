@@ -23750,9 +23750,9 @@
                         "type": "string",
                         "maxLength": 255,
                         "title": "Name",
-                        "description": "The name of the variable",
+                        "description": "Variable name",
                         "examples": [
-                            "my-variable"
+                            "my_variable"
                         ]
                     },
                     "value": {
@@ -23982,17 +23982,17 @@
                         "anyOf": [
                             {
                                 "type": "string",
-                                "maxLength": 255
+                                "maxLength": 255,
+                                "description": "Variable name",
+                                "examples": [
+                                    "my_variable"
+                                ]
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Name",
-                        "description": "The name of the variable",
-                        "examples": [
-                            "my-variable"
-                        ]
+                        "title": "Name"
                     },
                     "value": {
                         "anyOf": [
