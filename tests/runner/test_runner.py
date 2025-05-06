@@ -55,7 +55,6 @@ from prefect.events.clients import (
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.schemas.events import Event
-from prefect.events.worker import EventsWorker
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -700,7 +699,7 @@ class TestRunner:
     async def test_runner_does_not_emit_heartbeats_if_not_set(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner()
 
@@ -724,12 +723,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 0
@@ -738,7 +735,7 @@ class TestRunner:
     async def test_runner_executes_flow_runs(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30)
 
@@ -762,12 +759,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 1
@@ -791,7 +786,7 @@ class TestRunner:
     async def test_runner_does_not_duplicate_heartbeats(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         """
         Regression test for issue where multiple invocations of `execute_flow_run`
@@ -819,12 +814,10 @@ class TestRunner:
         assert flow_run_2.state
         assert flow_run_2.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 2
@@ -836,7 +829,7 @@ class TestRunner:
     async def test_runner_sends_heartbeats_on_a_cadence(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner()
         # Ain't I a stinker?
@@ -857,12 +850,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
 
@@ -872,7 +863,7 @@ class TestRunner:
     async def test_runner_heartbeats_include_deployment_version(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30)
 
@@ -900,12 +891,10 @@ class TestRunner:
             )
             await runner.start(run_once=True)
 
-            await asserting_events_worker.drain()
-
         heartbeat_events: list[Event] = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 1
@@ -1104,7 +1093,7 @@ class TestRunner:
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_does_not_emit_heartbeats_for_single_flow_run_if_not_set(
-        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+        self, prefect_client: PrefectClient, mock_events_client: AssertingEventsClient
     ):
         runner = Runner()
 
@@ -1119,12 +1108,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 0
@@ -1133,7 +1120,6 @@ class TestRunner:
     async def test_runner_can_execute_a_single_flow_run(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
         mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30, limit=None)
@@ -1693,7 +1679,9 @@ class TestRunner:
             assert "This flow crashed!" in caplog.text
 
         async def test_heartbeats_for_bundle_execution(
-            self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+            self,
+            prefect_client: PrefectClient,
+            mock_events_client: AssertingEventsClient,
         ):
             runner = Runner(heartbeat_seconds=30)
 
@@ -1710,12 +1698,10 @@ class TestRunner:
             assert flow_run.state
             assert flow_run.state.is_completed()
 
-            await asserting_events_worker.drain()
-
             heartbeat_events = list(
                 filter(
                     lambda e: e.event == "prefect.flow-run.heartbeat",
-                    asserting_events_worker._client.events,
+                    mock_events_client.events,
                 )
             )
             assert len(heartbeat_events) == 1
@@ -1734,7 +1720,7 @@ class TestRunner:
 
 @pytest.mark.usefixtures("use_hosted_api_server")
 async def test_runner_emits_cancelled_event(
-    asserting_events_worker: EventsWorker,
+    mock_events_client: AssertingEventsClient,
     reset_worker_events,
     prefect_client: PrefectClient,
     temp_storage: MockStorage,
@@ -1787,14 +1773,10 @@ async def test_runner_emits_cancelled_event(
         )
         await execute_task
 
-    await asserting_events_worker.drain()
-
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     cancelled_events = list(
         filter(
             lambda e: e.event == "prefect.runner.cancelled-flow-run",
-            asserting_events_worker._client.events,
+            mock_events_client.events,
         )
     )
     assert len(cancelled_events) == 1
