@@ -697,6 +697,15 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             "Workers must implement a method for running submitted flow runs"
         )
 
+    async def initiate_run(
+        self,
+        flow_run: "FlowRun",
+        configuration: C,
+    ) -> None:
+        raise NotImplementedError(
+            "This worker has not implemented `initiate_run`. Please use `run` instead."
+        )
+
     async def submit(
         self,
         flow: "Flow[..., FR]",
@@ -866,16 +875,19 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         try:
             # Call the implementation-specific run method with the constructed configuration. This is where the
             # rubber meets the road.
-            result = await self.run(flow_run, configuration)
+            try:
+                await self.initiate_run(flow_run, configuration)
+            except NotImplementedError:
+                result = await self.run(flow_run, configuration)
 
-            if result.status_code != 0:
-                await self._propose_crashed_state(
-                    flow_run,
-                    (
-                        "Flow run infrastructure exited with non-zero status code"
-                        f" {result.status_code}."
-                    ),
-                )
+                if result.status_code != 0:
+                    await self._propose_crashed_state(
+                        flow_run,
+                        (
+                            "Flow run infrastructure exited with non-zero status code"
+                            f" {result.status_code}."
+                        ),
+                    )
         except Exception as exc:
             # This flow run was being submitted and did not start successfully
             logger.exception(
