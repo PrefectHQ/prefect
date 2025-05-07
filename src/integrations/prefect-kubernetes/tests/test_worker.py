@@ -1503,6 +1503,29 @@ class TestKubernetesWorker:
                 expected_manifest,
             )
 
+    async def test_initiate_run_does_not_wait_for_job_completion(
+        self,
+        default_configuration: KubernetesWorkerJobConfiguration,
+        flow_run,
+        mock_batch_client,
+        mock_core_client,
+    ):
+        """
+        This test excludes the watch mock to ensure that the job is not watched.
+        """
+        default_configuration.prepare_for_flow_run(flow_run)
+        expected_manifest = default_configuration.job_manifest
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker._initiate_run(
+                flow_run=flow_run, configuration=default_configuration
+            )
+            mock_core_client.return_value.list_namespaced_pod.assert_not_called()
+
+            mock_batch_client.return_value.create_namespaced_job.assert_called_with(
+                "default",
+                expected_manifest,
+            )
+
     async def test_task_status_receives_job_pid(
         self,
         default_configuration: KubernetesWorkerJobConfiguration,
@@ -2591,20 +2614,14 @@ class TestKubernetesWorker:
             self,
             mock_batch_client,
             mock_core_client,
-            mock_watch,
-            mock_pods_stream_that_returns_completed_pod,
             default_configuration,
             test_flow,
             mock_run_process: AsyncMock,
-            caplog: pytest.LogCaptureFixture,
             work_pool: WorkPool,
             monkeypatch: pytest.MonkeyPatch,
         ):
             frozen_uuid = uuid.uuid4()
             monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
-            mock_watch.return_value.stream = mock.Mock(
-                side_effect=mock_pods_stream_that_returns_completed_pod
-            )
             python_version_info = sys.version_info
             async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
                 future = await k8s_worker.submit(test_flow)
@@ -2659,12 +2676,9 @@ class TestKubernetesWorker:
             self,
             mock_batch_client,
             mock_core_client,
-            mock_watch,
-            mock_pods_stream_that_returns_completed_pod,
             default_configuration,
             test_flow,
             mock_run_process: AsyncMock,
-            caplog: pytest.LogCaptureFixture,
             work_pool: WorkPool,
         ):
             response = MagicMock()
@@ -2683,10 +2697,7 @@ class TestKubernetesWorker:
             async with prefect.get_client() as client:
                 flow_run = await client.read_flow_run(future.flow_run_id)
                 assert flow_run.state.is_crashed()
-
-        @pytest.mark.skip(
-            "Changing how crashes are detected. Update this when observer is finished."
-        )
+                
         async def test_submit_adhoc_run_non_zero_exit_code(
             self,
             mock_batch_client,

@@ -681,6 +681,27 @@ class KubernetesWorker(
             tuple[str, str], KubernetesWorkerJobConfiguration
         ] = {}
 
+    async def _initiate_run(
+        self,
+        flow_run: "FlowRun",
+        configuration: KubernetesWorkerJobConfiguration,
+    ) -> None:
+        """
+        Creates a Kubernetes job to start flow run execution. This method does not
+        wait for the job to complete.
+
+        Args:
+            flow_run: The flow run to execute
+            configuration: The configuration to use when executing the flow run
+            task_status: The task status object for the current flow run. If provided,
+                the task will be marked as started.
+        """
+        logger = self.get_flow_run_logger(flow_run)
+        async with self._get_configured_kubernetes_client(configuration) as client:
+            logger.info("Creating Kubernetes job...")
+
+            await self._create_job(configuration, client)
+
     async def run(
         self,
         flow_run: "FlowRun",
