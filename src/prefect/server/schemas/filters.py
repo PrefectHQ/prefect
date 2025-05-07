@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
+from sqlalchemy.sql.functions import coalesce
 
 import prefect.server.schemas as schemas
 from prefect.server.utilities.database import db_injector
@@ -461,9 +462,15 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
-            filters.append(db.FlowRun.start_time <= self.before_)
+            filters.append(
+                coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
+                <= self.before_
+            )
         if self.after_ is not None:
-            filters.append(db.FlowRun.start_time >= self.after_)
+            filters.append(
+                coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
+                >= self.after_
+            )
         if self.is_null_ is not None:
             filters.append(
                 db.FlowRun.start_time.is_(None)
