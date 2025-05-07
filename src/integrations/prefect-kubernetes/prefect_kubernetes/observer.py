@@ -332,13 +332,21 @@ def _observer_thread_entry():
     if namespaces:
         asyncio.run(
             kopf.operator(
-                namespaces=namespaces, stop_flag=_stop_flag, ready_flag=_ready_flag
+                namespaces=namespaces,
+                stop_flag=_stop_flag,
+                ready_flag=_ready_flag,
+                standalone=True,
+                identity=uuid.uuid4().hex,
             )
         )
     else:
         asyncio.run(
             kopf.operator(
-                clusterwide=True, stop_flag=_stop_flag, ready_flag=_ready_flag
+                clusterwide=True,
+                stop_flag=_stop_flag,
+                ready_flag=_ready_flag,
+                standalone=True,
+                identity=uuid.uuid4().hex,
             )
         )
 
