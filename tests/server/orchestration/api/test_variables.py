@@ -109,6 +109,28 @@ class TestCreateVariable:
 
         assert res["value"] == value
 
+    @pytest.mark.parametrize("variable_name", ["my-variable", "my_variable"])
+    async def test_variable_name_may_contain_dashes_or_underscores(
+        self,
+        client: AsyncClient,
+        variable_name: str,
+    ):
+        response = await client.post(
+            "/variables/",
+            json={"name": variable_name, "value": "my-value"},
+        )
+        assert response
+        assert response.status_code == 201
+
+        res = response.json()
+        assert res["id"]
+        assert res["created"]
+        assert res["updated"]
+
+        assert res["name"] == variable_name
+        assert res["value"] == "my-value"
+        assert res["tags"] == []
+
     @pytest.mark.parametrize("variable_name", ["MY_VARIABLE", "my variable", "!@#$%"])
     async def test_name_constraints(
         self,
@@ -122,7 +144,7 @@ class TestCreateVariable:
         assert res
         assert res.status_code == 422
         assert (
-            "Variable name must only contain lowercase letters, numbers, dashes, and underscores"
+            "Variable name must only contain lowercase letters, numbers, and dashes or underscores."
             in res.json()["exception_detail"][0]["msg"]
         )
 
@@ -556,7 +578,7 @@ class TestUpdateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "Value should have at most" in res.json()["exception_detail"][0]["msg"]
 
     async def test_value_max_length(
         self,
@@ -687,7 +709,7 @@ class TestUpdateVariableByName:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "Value should have at most" in res.json()["exception_detail"][0]["msg"]
 
     async def test_value_max_length(
         self,

@@ -9301,10 +9301,7 @@ export interface components {
          * @description Data used by the Prefect REST API to update a Variable.
          */
         VariableUpdate: {
-            /**
-             * Name
-             * @description The name of the variable
-             */
+            /** Name */
             name?: string | null;
             /**
              * Value
@@ -9887,10 +9884,9 @@ export interface components {
             work_pool_id: string;
             /**
              * Last Heartbeat Time
-             * Format: date-time
              * @description The last time the worker process sent a heartbeat.
              */
-            last_heartbeat_time?: string;
+            last_heartbeat_time?: string | null;
             /**
              * Heartbeat Interval Seconds
              * @description The number of seconds to expect between heartbeats sent by the worker.
