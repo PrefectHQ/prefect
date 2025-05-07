@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         VolcanoWorkerJobConfiguration,
     )
 
+
 def _get_default_volcano_job_manifest_template() -> Dict[str, Any]:
     """Returns the default Volcano Job manifest template used by VolcanoWorker."""
     return {
