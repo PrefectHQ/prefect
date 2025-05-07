@@ -416,7 +416,7 @@ class VertexAIWorker(
     _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"  # noqa
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
 
-    async def initiate_run(
+    async def _initiate_run(
         self,
         flow_run: "FlowRun",
         configuration: VertexAIWorkerJobConfiguration,

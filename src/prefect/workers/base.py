@@ -697,13 +697,23 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             "Workers must implement a method for running submitted flow runs"
         )
 
-    async def initiate_run(
+    async def _initiate_run(
         self,
         flow_run: "FlowRun",
         configuration: C,
     ) -> None:
+        """
+        This method is called by the worker to initiate a flow run and should return as
+        soon as possible.
+
+        This method is used in `.submit` to allow non-blocking submission of flows. For
+        workers that wait for completion in their `run` method, this method should be
+        implemented to return immediately.
+
+        If this method is not implemented, `.submit` will fall back to the `.run` method.
+        """
         raise NotImplementedError(
-            "This worker has not implemented `initiate_run`. Please use `run` instead."
+            "This worker has not implemented `_initiate_run`. Please use `run` instead."
         )
 
     async def submit(
@@ -876,7 +886,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             # Call the implementation-specific run method with the constructed configuration. This is where the
             # rubber meets the road.
             try:
-                await self.initiate_run(flow_run, configuration)
+                await self._initiate_run(flow_run, configuration)
             except NotImplementedError:
                 result = await self.run(flow_run, configuration)
 

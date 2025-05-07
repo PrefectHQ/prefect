@@ -676,7 +676,7 @@ class KubernetesWorker(
             tuple[str, str], KubernetesWorkerJobConfiguration
         ] = {}
 
-    async def initiate_run(
+    async def _initiate_run(
         self,
         flow_run: "FlowRun",
         configuration: KubernetesWorkerJobConfiguration,

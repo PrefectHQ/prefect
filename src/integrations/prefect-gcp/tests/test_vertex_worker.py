@@ -168,7 +168,7 @@ class TestVertexAIWorker:
     ):
         async with VertexAIWorker("test-pool") as worker:
             job_config.prepare_for_flow_run(flow_run, None, None)
-            await worker.initiate_run(flow_run=flow_run, configuration=job_config)
+            await worker._initiate_run(flow_run=flow_run, configuration=job_config)
 
             job_config.credentials.job_service_async_client.create_custom_job.assert_called_once()
             # The worker doesn't wait for the job to complete, so the get_custom_job call should not have been made

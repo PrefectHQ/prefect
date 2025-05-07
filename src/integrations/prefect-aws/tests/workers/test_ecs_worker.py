@@ -434,7 +434,7 @@ async def test_initiate_run_does_not_wait_for_task_completion(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
     """
-    This test ensures that `initiate_run` does not wait for the task to complete.
+    This test ensures that `_initiate_run` does not wait for the task to complete.
     """
     configuration = await construct_configuration(
         aws_credentials=aws_credentials, command="echo test"
@@ -444,7 +444,7 @@ async def test_initiate_run_does_not_wait_for_task_completion(
     ecs_client = session.client("ecs")
 
     async with ECSWorker(work_pool_name="test") as worker:
-        await worker.initiate_run(flow_run=flow_run, configuration=configuration)
+        await worker._initiate_run(flow_run=flow_run, configuration=configuration)
 
     clusters = ecs_client.list_clusters()["clusterArns"]
     assert len(clusters) == 1

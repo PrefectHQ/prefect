@@ -119,7 +119,7 @@ async def test_initiate_run_does_not_wait_for_container_completion(
 ):
     default_docker_worker_job_configuration.prepare_for_flow_run(flow_run)
     async with DockerWorker(work_pool_name="test") as worker:
-        await worker.initiate_run(
+        await worker._initiate_run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
         mock_docker_client.containers.create.assert_called_once()

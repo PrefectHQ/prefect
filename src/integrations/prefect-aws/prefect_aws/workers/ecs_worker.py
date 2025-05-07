@@ -657,7 +657,7 @@ class ECSWorker(BaseWorker):
     _documentation_url = "https://docs.prefect.io/integrations/prefect-aws/"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
 
-    async def initiate_run(
+    async def _initiate_run(
         self,
         flow_run: "FlowRun",
         configuration: ECSJobConfiguration,

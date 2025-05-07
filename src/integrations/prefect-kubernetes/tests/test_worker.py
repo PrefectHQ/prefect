@@ -1438,7 +1438,7 @@ class TestKubernetesWorker:
         default_configuration.prepare_for_flow_run(flow_run)
         expected_manifest = default_configuration.job_manifest
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            await k8s_worker.initiate_run(
+            await k8s_worker._initiate_run(
                 flow_run=flow_run, configuration=default_configuration
             )
             mock_core_client.return_value.list_namespaced_pod.assert_not_called()

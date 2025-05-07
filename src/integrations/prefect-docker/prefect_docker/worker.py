@@ -432,7 +432,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         return await super().setup()
 
-    async def initiate_run(
+    async def _initiate_run(
         self,
         flow_run: "FlowRun",
         configuration: DockerWorkerJobConfiguration,
