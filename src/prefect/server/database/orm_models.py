@@ -1377,6 +1377,12 @@ class AutomationEventFollower(Base):
             "follower_event_id",
             unique=True,
         ),
+        # allows lookup on (scope, leader_event_id) to use an index-only instead of full table scan
+        sa.Index(
+            "ix_ae_follower_scope_leader",
+            "scope",
+            "leader_event_id",
+        ),
     )
     scope: Mapped[str] = mapped_column(default="", index=True)
     leader_event_id: Mapped[uuid.UUID] = mapped_column(index=True)
