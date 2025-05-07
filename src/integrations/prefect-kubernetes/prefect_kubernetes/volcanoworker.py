@@ -52,6 +52,55 @@ if TYPE_CHECKING:
         VolcanoWorkerJobConfiguration,
     )
 
+def _get_default_volcano_job_manifest_template() -> Dict[str, Any]:
+    """Returns the default Volcano Job manifest template used by VolcanoWorker."""
+    return {
+        "apiVersion": "batch.volcano.sh/v1alpha1",
+        "kind": "Job",
+        "metadata": {
+            "labels": "{{ labels }}",
+            "namespace": "{{ namespace }}",
+            "generateName": "{{ name }}-",
+        },
+        "spec": {
+            "schedulerName": "volcano",
+            "queue": "{{ queue }}",
+            "maxRetry": 3,
+            "minAvailable": 1,
+            "tasks": [
+                {
+                    "name": "volcano-task",
+                    "replicas": 1,
+                    "policies": [
+                        {"event": "TaskCompleted", "action": "CompleteJob"},
+                    ],
+                    "template": {
+                        "metadata": {
+                            "labels": {
+                                "job-name": "{{ name }}",
+                                "volcano.sh/job-name": "{{ name }}",
+                            }
+                        },
+                        "spec": {
+                            "restartPolicy": "Never",
+                            "serviceAccountName": "{{ service_account_name }}",
+                            "containers": [
+                                {
+                                    "name": "volcano-job",
+                                    "env": "{{ env }}",
+                                    "image": "{{ image }}",
+                                    "imagePullPolicy": "{{ image_pull_policy }}",
+                                    "args": "{{ command }}",
+                                }
+                            ],
+                        },
+                    },
+                }
+            ],
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Job configuration ----------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -62,19 +111,18 @@ class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
 
     # optional helper variable (queue) that can be templated in Volcano manifests
     queue: Optional[str] = Field(default=None)
-
+    job_manifest: Dict[str, Any] = Field(
+        json_schema_extra=dict(template=_get_default_volcano_job_manifest_template())
+    )
     # ---------------------------------------------------------------------
     # Validation override
     # ---------------------------------------------------------------------
 
     @model_validator(mode="after")
     def _validate_job_manifest(cls, self):
-        api_version = self.job_manifest.get("apiVersion", "batch/v1")
-        if api_version == "batch.volcano.sh/v1alpha1":
-            if "tasks" not in self.job_manifest.get("spec", {}):
-                raise ValueError("Volcano job must contain spec.tasks")
-            return self
-        return super()._validate_job_manifest()
+        if "tasks" not in self.job_manifest.get("spec", {}):
+            raise ValueError("Volcano job must contain spec.tasks")
+        return self
 
     # ------------------------------------------------------------------
     # Helpers – locate the main container regardless of job kind
