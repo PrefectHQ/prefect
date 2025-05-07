@@ -65,3 +65,23 @@ class TestFlowRunFilters:
         flow_run_filter = FlowRunFilter(end_time={"is_null_": True})
         sql_filter = flow_run_filter.as_sql_filter()
         assert sql_filter.compare(sa.and_(db.FlowRun.end_time.is_(None)))
+
+    def test_coalesces_start_time_and_expected_start_time_after_(self, db):
+        flow_run_filter = FlowRunFilter(start_time={"after_": NOW})
+        sql_filter = flow_run_filter.as_sql_filter()
+        assert sql_filter.compare(
+            sa.and_(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
+                >= NOW
+            )
+        )
+
+    def test_coalesces_start_time_and_expected_start_time_before_(self, db):
+        flow_run_filter = FlowRunFilter(start_time={"before_": NOW})
+        sql_filter = flow_run_filter.as_sql_filter()
+        assert sql_filter.compare(
+            sa.and_(
+                sa.func.coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
+                <= NOW
+            )
+        )

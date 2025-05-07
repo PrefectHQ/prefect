@@ -634,7 +634,7 @@ class TestReadFlowRuns:
                 start_time=now_dt - datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
-                    name="My Completed State",
+                    name="My Completed State 1",
                 ),
             ),
         )
@@ -645,7 +645,7 @@ class TestReadFlowRuns:
                 start_time=now_dt,
                 state=schemas.states.State(
                     type="COMPLETED",
-                    name="My Completed State",
+                    name="My Completed State 2",
                 ),
             ),
         )
@@ -656,7 +656,7 @@ class TestReadFlowRuns:
                 start_time=now_dt + datetime.timedelta(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
-                    name="My Completed State",
+                    name="My Completed State 3",
                 ),
             ),
         )
@@ -666,7 +666,7 @@ class TestReadFlowRuns:
                 flow_id=flow.id,
                 state=schemas.states.State(
                     type="COMPLETED",
-                    name="My Completed State",
+                    name="My Completed State 4",
                 ),
             ),
         )
@@ -689,7 +689,11 @@ class TestReadFlowRuns:
                 start_time=schemas.filters.FlowRunFilterStartTime(after_=now_dt)
             ),
         )
-        assert {res.id for res in result} == {flow_run_2.id, flow_run_3.id}
+        assert {res.id for res in result} == {
+            flow_run_2.id,
+            flow_run_3.id,
+            flow_run_4.id,
+        }
 
         # before_ AND after_
         result = await models.flow_runs.read_flow_runs(
