@@ -20,13 +20,22 @@ from prefect.exceptions import ObjectNotFound
 from prefect.states import Crashed
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
+from prefect_kubernetes.settings import KubernetesSettings
 
 _last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
 
 logging.getLogger("kopf.objects").setLevel(logging.INFO)
 
+settings = KubernetesSettings()
 
-@kopf.on.event("pods", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # type: ignore
+
+@kopf.on.event(
+    "pods",
+    labels={
+        "prefect.io/flow-run-id": kopf.PRESENT,
+        **settings.observer.additional_label_filters,
+    },
+)  # type: ignore
 async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     uid: str,
@@ -147,7 +156,13 @@ async def _get_k8s_jobs(
         await client.close()  # type: ignore
 
 
-@kopf.on.event("jobs", labels={"prefect.io/flow-run-id": kopf.PRESENT})  # type: ignore
+@kopf.on.event(
+    "jobs",
+    labels={
+        "prefect.io/flow-run-id": kopf.PRESENT,
+        **settings.observer.additional_label_filters,
+    },
+)  # type: ignore
 async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     name: str,
@@ -312,9 +327,20 @@ def _observer_thread_entry():
     _stop_flag = threading.Event()
     _ready_flag = threading.Event()
 
-    asyncio.run(
-        kopf.operator(clusterwide=True, stop_flag=_stop_flag, ready_flag=_ready_flag)
-    )
+    namespaces = settings.observer.namespaces
+
+    if namespaces:
+        asyncio.run(
+            kopf.operator(
+                namespaces=namespaces, stop_flag=_stop_flag, ready_flag=_ready_flag
+            )
+        )
+    else:
+        asyncio.run(
+            kopf.operator(
+                clusterwide=True, stop_flag=_stop_flag, ready_flag=_ready_flag
+            )
+        )
 
 
 def start_observer():
