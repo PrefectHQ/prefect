@@ -657,6 +657,28 @@ class ECSWorker(BaseWorker):
     _documentation_url = "https://docs.prefect.io/integrations/prefect-aws/"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
 
+    async def _initiate_run(
+        self,
+        flow_run: "FlowRun",
+        configuration: ECSJobConfiguration,
+    ):
+        """
+        Initiates a flow run on AWS ECS. This method does not wait for the flow run to complete.
+        """
+        ecs_client = await run_sync_in_worker_thread(
+            self._get_client, configuration, "ecs"
+        )
+
+        logger = self.get_flow_run_logger(flow_run)
+
+        await run_sync_in_worker_thread(
+            self._create_task_and_wait_for_start,
+            logger,
+            ecs_client,
+            configuration,
+            flow_run,
+        )
+
     async def run(
         self,
         flow_run: "FlowRun",

@@ -432,6 +432,16 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         return await super().setup()
 
+    async def _initiate_run(
+        self,
+        flow_run: "FlowRun",
+        configuration: DockerWorkerJobConfiguration,
+    ):
+        """
+        Initiates a flow run within a Docker container. This method does not wait for the flow run to complete.
+        """
+        await run_sync_in_worker_thread(self._create_and_start_container, configuration)
+
     async def run(
         self,
         flow_run: "FlowRun",
@@ -697,7 +707,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             self._pull_image(docker_client, configuration)
 
         try:
+            self._logger.info(
+                f"Creating Docker container {container_settings['name']!r}..."
+            )
             container = self._create_container(docker_client, **container_settings)
+            self._logger.info(
+                f"Docker container {container.name!r} created successfully."
+            )
         except Exception as exc:
             self._emit_container_creation_failed_event(configuration)
             raise exc
