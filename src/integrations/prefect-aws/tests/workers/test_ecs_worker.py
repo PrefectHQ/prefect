@@ -430,6 +430,48 @@ async def test_default(aws_credentials: AwsCredentials, flow_run: FlowRun):
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_initiate_run_does_not_wait_for_task_completion(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """
+    This test ensures that `_initiate_run` does not wait for the task to complete.
+    """
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        await worker._initiate_run(flow_run=flow_run, configuration=configuration)
+
+    clusters = ecs_client.list_clusters()["clusterArns"]
+    assert len(clusters) == 1
+
+    tasks = ecs_client.list_tasks(cluster=clusters[0])["taskArns"]
+    assert len(tasks) == 1
+
+    task = describe_task(ecs_client, tasks[0])
+    assert task["lastStatus"] == "RUNNING"
+
+    task_definition = describe_task_definition(ecs_client, task)
+    assert task_definition["containerDefinitions"] == [
+        {
+            "name": ECS_DEFAULT_CONTAINER_NAME,
+            "image": get_prefect_image_name(),
+            "cpu": 0,
+            "memory": 0,
+            "portMappings": [],
+            "essential": True,
+            "environment": [],
+            "mountPoints": [],
+            "volumesFrom": [],
+        }
+    ]
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_image(aws_credentials: AwsCredentials, flow_run: FlowRun):
     configuration = await construct_configuration(
         aws_credentials=aws_credentials, image="prefecthq/prefect-dev:main-python3.9"
