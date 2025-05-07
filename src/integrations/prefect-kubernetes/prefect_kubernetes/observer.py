@@ -5,6 +5,7 @@ import json
 import logging
 import threading
 import uuid
+from datetime import timedelta
 from typing import Any
 
 import anyio
@@ -14,19 +15,43 @@ from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, V1Job
 
 from prefect import __version__, get_client
-from prefect.events import Event, RelatedResource, emit_event
+from prefect.client.orchestration import PrefectClient
+from prefect.events import Event, RelatedResource
+from prefect.events.clients import EventsClient, get_events_client
 from prefect.events.filters import EventFilter, EventNameFilter, EventResourceFilter
+from prefect.events.schemas.events import Resource
 from prefect.exceptions import ObjectNotFound
 from prefect.states import Crashed
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_kubernetes.settings import KubernetesSettings
 
-_last_event_cache: LRUCache[str, Event] = LRUCache(maxsize=1000)
+_last_event_cache: LRUCache[uuid.UUID, Event] = LRUCache(maxsize=1000)
 
 logging.getLogger("kopf.objects").setLevel(logging.INFO)
 
 settings = KubernetesSettings()
+
+events_client: EventsClient
+orchestration_client: PrefectClient
+
+
+@kopf.on.startup()
+async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
+    logger.info("Initializing clients")
+    global events_client
+    global orchestration_client
+    orchestration_client = await get_client().__aenter__()
+    events_client = await get_events_client().__aenter__()
+    logger.info("Clients successfully initialized")
+
+
+@kopf.on.cleanup()
+async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
+    logger.info("Cleaning up clients")
+    await events_client.__aexit__(None, None, None)
+    await orchestration_client.__aexit__(None, None, None)
+    logger.info("Clients successfully cleaned up")
 
 
 @kopf.on.event(
@@ -52,6 +77,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     This handler is resilient to restarts of the observer and allows
     multiple instances of the observer to coexist without duplicate events.
     """
+    global events_client
+    global orchestration_client
     event_type = event["type"]
     phase = status["phase"]
 
@@ -76,22 +103,19 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # This handles the case where the observer is restarted and we don't want to emit duplicate events
     # and the case where you're moving from an older version of the worker without the observer to a newer version with the observer.
     if event_type is None:
-        async with get_client() as client:
-            response = await client.request(
-                "POST",
-                "/events/filter",
-                json=EventFilter(
-                    event=EventNameFilter(
-                        name=[f"prefect.kubernetes.pod.{phase.lower()}"]
-                    ),
-                    resource=EventResourceFilter(
-                        id=[f"prefect.kubernetes.pod.{uid}"],
-                    ),
-                ).model_dump(exclude_unset=True),
-            )
-            # If the event already exists, we don't need to emit a new one.
-            if response.json()["events"]:
-                return
+        response = await orchestration_client.request(
+            "POST",
+            "/events/filter",
+            json=EventFilter(
+                event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
+                resource=EventResourceFilter(
+                    id=[f"prefect.kubernetes.pod.{uid}"],
+                ),
+            ).model_dump(exclude_unset=True),
+        )
+        # If the event already exists, we don't need to emit a new one.
+        if response.json()["events"]:
+            return
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
@@ -108,15 +132,21 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 resource["kubernetes.reason"] = reason
                 break
 
-    emitted_event = emit_event(
+    prefect_event = Event(
         event=f"prefect.kubernetes.pod.{phase.lower()}",
-        resource=resource,
+        resource=Resource(resource),
         id=event_id,
         related=_related_resources_from_labels(labels),
-        follows=_last_event_cache.get(uid),
     )
-    if emitted_event is not None:
-        _last_event_cache[uid] = emitted_event
+    if (prev_event := _last_event_cache.get(event_id)) is not None:
+        if (
+            -timedelta(minutes=5)
+            < (prefect_event.occurred - prev_event.occurred)
+            < timedelta(minutes=5)
+        ):
+            prefect_event.follows = prev_event.id
+    await events_client.emit(prefect_event)
+    _last_event_cache[event_id] = prefect_event
 
 
 async def _get_kubernetes_client() -> ApiClient:
@@ -175,6 +205,7 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     """
     Marks a flow run as crashed if the corresponding job has failed and no other active jobs exist.
     """
+    global orchestration_client
     if not (flow_run_id := labels.get("prefect.io/flow-run-id")):
         return
 
@@ -192,70 +223,69 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         return
 
     # Get the flow run to check its state
-    async with get_client() as client:
-        try:
-            flow_run = await client.read_flow_run(flow_run_id=uuid.UUID(flow_run_id))
-        except ObjectNotFound:
-            logger.debug(f"Flow run {flow_run_id} not found, skipping")
-            return
+    try:
+        flow_run = await orchestration_client.read_flow_run(
+            flow_run_id=uuid.UUID(flow_run_id)
+        )
+    except ObjectNotFound:
+        logger.debug(f"Flow run {flow_run_id} not found, skipping")
+        return
 
-        assert flow_run.state is not None, "Expected flow run state to be set"
+    assert flow_run.state is not None, "Expected flow run state to be set"
 
-        # Exit early for terminal/final/scheduled states
-        if flow_run.state.is_final() or flow_run.state.is_scheduled():
+    # Exit early for terminal/final/scheduled states
+    if flow_run.state.is_final() or flow_run.state.is_scheduled():
+        logger.debug(f"Flow run {flow_run_id} is in final or scheduled state, skipping")
+        return
+
+    # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
+    # rescheduling was successful. If this is the case, we want to find the other active job so that we don't mark
+    # the flow run as crashed.
+    #
+    # If the flow run is PENDING, it's possible that the job hasn't been created yet, so we'll wait and query new state
+    # to make a determination.
+    has_other_active_job = False
+    with anyio.move_on_after(30):
+        while True:
+            # Check if there are any other jobs with this flow run label
+            k8s_jobs = await _get_k8s_jobs(
+                flow_run_id, namespace=kwargs["namespace"], logger=logger
+            )
+
+            # Filter out the current job from the list
+            other_jobs = [job for job in k8s_jobs if job.metadata.name != name]  # type: ignore
+
+            # Check if any other job is completed or running
+            has_other_active_job = any(
+                (job.status and job.status.succeeded)  # type: ignore
+                or (job.status and job.status.active and job.status.active > 0)  # type: ignore
+                for job in other_jobs
+            )
             logger.debug(
-                f"Flow run {flow_run_id} is in final or scheduled state, skipping"
+                f"Other jobs status - count: {len(other_jobs)}, has_active: {has_other_active_job}"
             )
-            return
 
-        # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
-        # rescheduling was successful. If this is the case, we want to find the other active job so that we don't mark
-        # the flow run as crashed.
-        #
-        # If the flow run is PENDING, it's possible that the job hasn't been created yet, so we'll wait and query new state
-        # to make a determination.
-        has_other_active_job = False
-        with anyio.move_on_after(30):
-            while True:
-                # Check if there are any other jobs with this flow run label
-                k8s_jobs = await _get_k8s_jobs(
-                    flow_run_id, namespace=kwargs["namespace"], logger=logger
-                )
-
-                # Filter out the current job from the list
-                other_jobs = [job for job in k8s_jobs if job.metadata.name != name]  # type: ignore
-
-                # Check if any other job is completed or running
-                has_other_active_job = any(
-                    (job.status and job.status.succeeded)  # type: ignore
-                    or (job.status and job.status.active and job.status.active > 0)  # type: ignore
-                    for job in other_jobs
-                )
-                logger.debug(
-                    f"Other jobs status - count: {len(other_jobs)}, has_active: {has_other_active_job}"
-                )
-
-                flow_run = await client.read_flow_run(
-                    flow_run_id=uuid.UUID(flow_run_id)
-                )
-                assert flow_run.state is not None, "Expected flow run state to be set"
-                if not flow_run.state.is_pending() or has_other_active_job:
-                    break
-
-                logger.info(
-                    f"Flow run {flow_run_id} in state {flow_run.state!r} with no other active jobs, waiting for 5 seconds before checking again"
-                )
-                await anyio.sleep(5)
-
-        if not has_other_active_job:
-            logger.warning(
-                f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
+            flow_run = await orchestration_client.read_flow_run(
+                flow_run_id=uuid.UUID(flow_run_id)
             )
-            await propose_state(
-                client=client,
-                state=Crashed(message="No active or succeeded pods found for any job"),
-                flow_run_id=uuid.UUID(flow_run_id),
+            assert flow_run.state is not None, "Expected flow run state to be set"
+            if not flow_run.state.is_pending() or has_other_active_job:
+                break
+
+            logger.info(
+                f"Flow run {flow_run_id} in state {flow_run.state!r} with no other active jobs, waiting for 5 seconds before checking again"
             )
+            await anyio.sleep(5)
+
+    if not has_other_active_job:
+        logger.warning(
+            f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
+        )
+        await propose_state(
+            client=orchestration_client,
+            state=Crashed(message="No active or succeeded pods found for any job"),
+            flow_run_id=uuid.UUID(flow_run_id),
+        )
 
 
 def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]:
