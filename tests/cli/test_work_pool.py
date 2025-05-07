@@ -1178,14 +1178,14 @@ class TestStorageConfigure:
                 "prefect_gcp.experimental.bundles.upload": {
                     "requires": "prefect-gcp",
                     "bucket": "test-bucket",
-                    "credentials_block_name": gcs_credentials.name,
+                    "gcp_credentials_block_name": gcs_credentials.name,
                 }
             }
             assert client_res.storage_configuration.bundle_execution_step == {
                 "prefect_gcp.experimental.bundles.execute": {
                     "requires": "prefect-gcp",
                     "bucket": "test-bucket",
-                    "credentials_block_name": gcs_credentials.name,
+                    "gcp_credentials_block_name": gcs_credentials.name,
                 }
             }
             block_document = await prefect_client.read_block_document_by_name(
