@@ -10983,7 +10983,8 @@
                     "name": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "string",
+                                "pattern": "^[^/%&><]+$"
                             },
                             {
                                 "type": "null"
@@ -23751,7 +23752,7 @@
                         "title": "Name",
                         "description": "The name of the variable",
                         "examples": [
-                            "my-variable"
+                            "my_variable"
                         ]
                     },
                     "value": {
@@ -23981,17 +23982,17 @@
                         "anyOf": [
                             {
                                 "type": "string",
-                                "maxLength": 255
+                                "maxLength": 255,
+                                "description": "The name of the variable",
+                                "examples": [
+                                    "my_variable"
+                                ]
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Name",
-                        "description": "The name of the variable",
-                        "examples": [
-                            "my-variable"
-                        ]
+                        "title": "Name"
                     },
                     "value": {
                         "anyOf": [
@@ -25287,8 +25288,15 @@
                         "description": "The work pool with which the queue is associated."
                     },
                     "last_heartbeat_time": {
-                        "type": "string",
-                        "format": "date-time",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Last Heartbeat Time",
                         "description": "The last time the worker process sent a heartbeat."
                     },
