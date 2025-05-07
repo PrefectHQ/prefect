@@ -19,6 +19,7 @@ from uuid import UUID, uuid4
 
 import orjson
 from pydantic import (
+    AfterValidator,
     ConfigDict,
     Discriminator,
     Field,
@@ -40,9 +41,7 @@ from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
-    raise_on_name_alphanumeric_dashes_only,
     set_run_policy_deprecated_fields,
-    validate_block_document_name,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
     validate_name_present_on_nonanonymous_blocks,
@@ -61,6 +60,10 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.types._datetime import DateTime, now
+from prefect.types.names import (
+    BlockDocumentName,
+    raise_on_name_alphanumeric_dashes_only,
+)
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum, visit_collection
 from prefect.utilities.names import generate_slug
@@ -1000,7 +1003,7 @@ class BlockSchema(ObjectBaseModel):
 class BlockDocument(ObjectBaseModel):
     """An ORM representation of a block document."""
 
-    name: Optional[Name] = Field(
+    name: Optional[BlockDocumentName] = Field(
         default=None,
         description=(
             "The block document's name. Not required for anonymous block documents."
@@ -1028,8 +1031,6 @@ class BlockDocument(ObjectBaseModel):
             " Prefect automatically)"
         ),
     )
-
-    _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
     @classmethod
@@ -1133,7 +1134,8 @@ class Deployment(ObjectBaseModel):
         default=None, description="The concurrency limit for the deployment."
     )
     schedules: list[DeploymentSchedule] = Field(
-        default_factory=list, description="A list of schedules for the deployment."
+        default_factory=lambda: [],
+        description="A list of schedules for the deployment.",
     )
     job_variables: dict[str, Any] = Field(
         default_factory=dict,
@@ -1219,7 +1221,7 @@ class ConcurrencyLimit(ObjectBaseModel):
     )
     concurrency_limit: int = Field(default=..., description="The concurrency limit.")
     active_slots: list[UUID] = Field(
-        default_factory=list,
+        default_factory=lambda: [],
         description="A list of active run ids using a concurrency slot",
     )
 
@@ -1300,7 +1302,8 @@ class SavedSearch(ObjectBaseModel):
 
     name: str = Field(default=..., description="The name of the saved search.")
     filters: list[SavedSearchFilter] = Field(
-        default_factory=list, description="The filter set for the saved search."
+        default_factory=lambda: [],
+        description="The filter set for the saved search.",
     )
 
 
@@ -1644,7 +1647,9 @@ class Variable(ObjectBaseModel):
 
 class FlowRunInput(ObjectBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
-    key: str = Field(description="The key of the input.")
+    key: Annotated[str, AfterValidator(raise_on_name_alphanumeric_dashes_only)] = Field(
+        description="The key of the input."
+    )
     value: str = Field(description="The value of the input.")
     sender: Optional[str] = Field(default=None, description="The sender of the input.")
 
@@ -1657,12 +1662,6 @@ class FlowRunInput(ObjectBaseModel):
             Any: the decoded value
         """
         return orjson.loads(self.value)
-
-    @field_validator("key", check_fields=False)
-    @classmethod
-    def validate_name_characters(cls, v: str) -> str:
-        raise_on_name_alphanumeric_dashes_only(v)
-        return v
 
 
 class GlobalConcurrencyLimit(ObjectBaseModel):
