@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from contextlib import AsyncExitStack, contextmanager
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 import anyio
 from anyio.abc import Process
@@ -238,7 +238,7 @@ class ShellOperation(JobBlock[list[str]]):
         title="Environment Variables",
         description="Environment variables to use for the subprocess.",
     )
-    working_dir: DirectoryPath | None = Field(
+    working_dir: Optional[DirectoryPath] = Field(
         default=None,
         title="Working Directory",
         description=(
