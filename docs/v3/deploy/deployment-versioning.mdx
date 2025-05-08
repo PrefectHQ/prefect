@@ -12,7 +12,7 @@ When a previous deployment version is live, a newer deployment version can be ma
 When a new version of a deployment is created, it is automatically set as the live version.
 </Warning>
 
-# What's included in a deployment version
+## What's included in a deployment version
 
 Deployment versions are a history of changes to a deployment's configuration.
 
@@ -55,14 +55,14 @@ These properties persist across version rollbacks and promotions.
 </Accordion>
 </AccordionGroup>
 
-# How to create and manage versions
+## How to create and manage versions
 
 A new deployment version is created every time a deployment is updated, whether from the CLI, from Python, or from the UI.
 
 If you're deploying from a supported source code management platform or from inside a Git repository, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment.
 This information is used to help create a record of which code versions produced which deployment versions, and does not affect deployment execution.
 
-## Supported source code management platforms
+### Supported source code management platforms
 
 Prefect searches for environment variables in each supported platform's CI environment in order to collect information about the current state of the repository from which deployment versions are created.
 It may be useful to access these environment variables in other stages of your deployment process for constructing version identifiers.
@@ -107,14 +107,14 @@ If deploying from a Git repository not on one of these platforms, Prefect will u
 </Tab>
 </Tabs>
 
-## Using the `version` deployment property
+### Using the `version` deployment property
 
 Supplying a `version` to your deployment is not required, but using human-readable version names helps give meaning to each change you make.
 It's also valuable for quickly finding or communicating the version you want to roll back to or promote.
 
 For additional details on how Prefect handles the value of `version`, see [deployment metadata for bookkeeping](/v3/deploy#metadata-for-bookkeeping).
 
-## Executing specific code versions
+### Executing specific code versions
 
 It's possible to synchronize code changes to deployment versions so each deployment version executes the exact commit that was checked out when it was created.
 Since `pull_steps` and `job_variables` define what repository or image to pull when a flow runs, updating their contents with each code change keeps deployment versions in step with your codebase.
@@ -123,7 +123,7 @@ Which of these configurations to use depends on whether you are pulling code fro
 The examples in this section use GitHub as their source control management and CI platform, so be sure to replace URLs, environment variables, and CI workflows with the ones relevant to your platform.
 You can check out complete example repositories on GitHub for executing specific code versions when [pulling from Git](https://github.com/kevingrismore/version-testing) and [pulling Docker images](https://github.com/kevingrismore/version-testing-docker/tree/main).
 
-### Pulling from Git
+#### Pulling from Git
 
 The `git_clone` deployment pull step and `GitRepository` deployment storage class offer a `commit_sha` field.
 When deploying from a Git repository, provide the commit SHA from your environment to your deployment.
@@ -171,7 +171,7 @@ if __name__ == "__main__":
 </CodeGroup>
 
 
-### Pulling Docker images
+#### Pulling Docker images
 
 When baking code into Docker images, use the image digest to pin exact code versions to deployment versions.
 An image digest uniquely and immutably identifies a container image.
