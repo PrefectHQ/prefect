@@ -12,6 +12,10 @@ When a previous deployment version is live, a newer deployment version can be ma
 When a new version of a deployment is created, it is automatically set as the live version.
 </Warning>
 
+## What's included in a deployment version
+
+Deployment versions are a history of changes to a deployment's configuration.
+
 While the majority of deployment properties are included in a deployment's version, some properties cannot be versioned.
 Persisting these properties across all versions helps prevent unexpected execution behavior when rolling back or promoting versions.
 
@@ -51,15 +55,10 @@ These properties persist across version rollbacks and promotions.
 </Accordion>
 </AccordionGroup>
 
+## How to create and manage versions
+
 If you're deploying from a supported source code management platform or from inside a Git repository, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment.
-This information is used to help create a record of which code versions produced which deployment versions.
-
-### Using the `version` deployment property
-
-Supplying a `version` to your deployment is not required, but using human-readable version names helps give meaning to each change you make.
-It's also valuable for quickly finding or communicating the version you want to roll back to or promote.
-
-For additional details on how Prefect handles the value of `version`, see [deployment metadata for bookkeeping](/v3/deploy#metadata-for-bookkeeping).
+This information is used to help create a record of which code versions produced which deployment versions, and does not affect deployment execution.
 
 ### Supported source code management platforms
 
@@ -106,11 +105,17 @@ If deploying from a Git repository not on one of these platforms, Prefect will u
 </Tab>
 </Tabs>
 
+### Using the `version` deployment property
+
+Supplying a `version` to your deployment is not required, but using human-readable version names helps give meaning to each change you make.
+It's also valuable for quickly finding or communicating the version you want to roll back to or promote.
+
+For additional details on how Prefect handles the value of `version`, see [deployment metadata for bookkeeping](/v3/deploy#metadata-for-bookkeeping).
+
 ## Executing specific code versions
 
-The presence of version information on a deployment does not override Prefect's deployment execution mechanics.
-You must explicitly include information about your code version in either the **pull steps** or **job variables** of your deployment to keep code and deployment versions synchronized.
-The required strategy differs depending on your chosen code storage type.
+Since `pull_steps` and `job_variables` are included in each deployment version, it's possible to synchronize code versions to deployment versions.
+Which of these configurations to use depends on whether you are pulling code from Git or storing code in Docker images.
 
 The examples in this section use GitHub as their source control management and CI platform, so be sure to replace URLs, environment variables, and CI workflows with the ones relevant to your platform.
 You can check out complete example repositories on GitHub for executing specific code versions when [pulling from Git](https://github.com/kevingrismore/version-testing) and [pulling Docker images](https://github.com/kevingrismore/version-testing-docker/tree/main).
