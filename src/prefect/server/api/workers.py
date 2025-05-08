@@ -3,7 +3,7 @@ Routes for interacting with work queue objects.
 """
 
 from typing import TYPE_CHECKING, List, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import (
@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.uuid7 import uuid7
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
@@ -184,7 +185,7 @@ async def create_work_pool(
             )
 
             await emit_work_pool_status_event(
-                event_id=uuid4(),
+                event_id=uuid7(),
                 occurred=now("UTC"),
                 pre_update_work_pool=None,
                 work_pool=model,

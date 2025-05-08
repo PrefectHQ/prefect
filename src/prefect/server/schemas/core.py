@@ -48,6 +48,7 @@ from prefect.server.schemas.statuses import WorkPoolStatus
 from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
+    TimeSeriesBaseModel,
 )
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
@@ -175,7 +176,7 @@ class ConcurrencyOptions(BaseModel):
     collision_strategy: ConcurrencyLimitStrategy
 
 
-class FlowRun(ORMBaseModel):
+class FlowRun(TimeSeriesBaseModel, ORMBaseModel):
     """An ORM representation of flow run data."""
 
     name: str = Field(
@@ -414,7 +415,7 @@ class Constant(TaskRunInput):
     type: str
 
 
-class TaskRun(ORMBaseModel):
+class TaskRun(TimeSeriesBaseModel, ORMBaseModel):
     """An ORM representation of task run data."""
 
     name: str = Field(
@@ -931,7 +932,7 @@ class SavedSearch(ORMBaseModel):
     )
 
 
-class Log(ORMBaseModel):
+class Log(TimeSeriesBaseModel, ORMBaseModel):
     """An ORM representation of log data."""
 
     name: str = Field(default=..., description="The logger name.")
