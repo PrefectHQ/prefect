@@ -7,8 +7,8 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 from typing_extensions import Self
-from uuid_extensions import uuid7
 
+from prefect.types import uuid7
 from prefect.types._datetime import DateTime, human_friendly_diff
 
 if TYPE_CHECKING:

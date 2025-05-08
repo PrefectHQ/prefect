@@ -4,7 +4,6 @@ from uuid import UUID
 
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid_extensions import uuid7
 
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import (
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.events import Event
 from prefect.server.models import deployments
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL
+from prefect.types import uuid7
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.text import truncated_to
 

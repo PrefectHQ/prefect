@@ -33,7 +33,6 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import Literal, Self, TypeVar
-from uuid_extensions import uuid7
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.migration import getattr_migration
@@ -63,6 +62,7 @@ from prefect.types import (
     NonNegativeInteger,
     PositiveInteger,
     StrictVariableValue,
+    uuid7,
 )
 from prefect.types._datetime import DateTime, now
 from prefect.types.names import (

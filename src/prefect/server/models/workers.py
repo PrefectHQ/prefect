@@ -18,7 +18,6 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid_extensions import uuid7
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
@@ -27,6 +26,7 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
+from prefect.types import uuid7
 from prefect.types._datetime import DateTime, now
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"

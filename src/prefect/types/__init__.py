@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, Any, Optional, TypeVar, Union
+from typing import Annotated, Any, Optional, TypeVar, Union, cast
+from uuid import UUID
 from typing_extensions import Literal
 import orjson
 import pydantic
-
+from uuid_extensions import uuid7 as _uuid7  # pyright: ignore[reportMissingTypeStubs]
 
 from ._datetime import DateTime, Date
 from .names import (
@@ -153,6 +154,10 @@ KeyValueLabelsField = Annotated[
 ]
 
 
+def uuid7() -> UUID:
+    return cast(UUID, _uuid7())
+
+
 __all__ = [
     "BANNED_CHARACTERS",
     "WITHOUT_BANNED_CHARACTERS",
@@ -173,4 +178,5 @@ __all__ = [
     "SecretDict",
     "StatusCode",
     "StrictVariableValue",
+    "uuid7",
 ]

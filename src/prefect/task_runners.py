@@ -20,7 +20,6 @@ from typing import (
 )
 
 from typing_extensions import ParamSpec, Self, TypeVar
-from uuid_extensions import uuid7
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
@@ -32,6 +31,7 @@ from prefect.futures import (
 )
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings import PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS
+from prefect.types import uuid7
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
     collapse_variadic_parameters,

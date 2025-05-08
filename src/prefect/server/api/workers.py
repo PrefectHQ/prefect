@@ -16,7 +16,6 @@ from fastapi import (
 )
 from packaging.version import Version
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid_extensions import uuid7
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -31,7 +30,7 @@ from prefect.server.models.work_queues import (
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
-from prefect.types import DateTime
+from prefect.types import DateTime, uuid7
 from prefect.types._datetime import now
 
 if TYPE_CHECKING:

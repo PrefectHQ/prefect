@@ -23,7 +23,6 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import Annotated, Self
-from uuid_extensions import uuid7
 
 import prefect.types._datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -31,6 +30,7 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
 )
+from prefect.types import uuid7
 
 from .labelling import Labelled
 

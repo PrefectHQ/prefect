@@ -42,7 +42,6 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import Self, TypeAlias
-from uuid_extensions import uuid7
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
@@ -81,7 +80,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import StrictVariableValue
+from prefect.types import StrictVariableValue, uuid7
 from prefect.types._datetime import DateTime, now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
