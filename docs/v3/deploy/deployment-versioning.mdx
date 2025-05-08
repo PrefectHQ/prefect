@@ -111,6 +111,7 @@ If deploying from a Git repository not on one of these platforms, Prefect will u
 The presence of version information on a deployment does not override Prefect's deployment execution mechanics.
 You must explicitly include information about your code version in either the **pull steps** or **job variables** of your deployment to keep code and deployment versions synchronized.
 The required strategy differs depending on your chosen code storage type.
+
 The examples in this section use GitHub as their source control management and CI platform, so be sure to replace URLs, environment variables, and CI workflows with the ones relevant to your platform.
 You can check out complete example repositories on GitHub for executing specific code versions when [pulling from Git](https://github.com/kevingrismore/version-testing) and [pulling Docker images](https://github.com/kevingrismore/version-testing-docker/tree/main).
 
