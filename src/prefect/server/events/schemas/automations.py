@@ -28,6 +28,7 @@ from pydantic import (
 )
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.schemas.events import (
@@ -153,7 +154,7 @@ class CompositeTrigger(Trigger, abc.ABC):
                     else None
                 ),
             },
-            id=uuid4(),
+            id=uuid7(),
         )
 
     def _set_parent(self, value: "Union[Trigger , Automation]"):
@@ -236,7 +237,7 @@ class ResourceTrigger(Trigger, abc.ABC):
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
-    match_related: ResourceSpecification = Field(
+    match_related: Union[ResourceSpecification, list[ResourceSpecification]] = Field(
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )
@@ -247,7 +248,11 @@ class ResourceTrigger(Trigger, abc.ABC):
         if not self.match.includes([resource]):
             return False
 
-        if not self.match_related.includes(related):
+        match_related = self.match_related
+        if not isinstance(match_related, list):
+            match_related = [match_related]
+
+        if not all(match.includes(related) for match in match_related):
             return False
 
         return True
@@ -458,7 +463,7 @@ class EventTrigger(ResourceTrigger):
                     else None
                 ),
             },
-            id=uuid4(),
+            id=uuid7(),
         )
 
 
@@ -571,17 +576,24 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
                 # with additional filters, it's less likely.
                 if self.trigger.match.matches_every_resource_of_kind(
                     "prefect.flow-run"
-                ) and self.trigger.match_related.matches_every_resource_of_kind(
-                    "prefect.flow-run"
                 ):
-                    raise ValueError(
-                        "Running a selected deployment from a flow run state change "
-                        "event may lead to an infinite loop of flow runs.  Please "
-                        "include additional filtering labels on either match or "
-                        "match_related to narrow down which flow runs will trigger "
-                        "this automation to exclude flow runs from the deployment "
-                        "you've selected."
+                    relateds = (
+                        self.trigger.match_related
+                        if isinstance(self.trigger.match_related, list)
+                        else [self.trigger.match_related]
                     )
+                    if any(
+                        related.matches_every_resource_of_kind("prefect.flow-run")
+                        for related in relateds
+                    ):
+                        raise ValueError(
+                            "Running a selected deployment from a flow run state "
+                            "change event may lead to an infinite loop of flow runs.  "
+                            "Please include additional filtering labels on either "
+                            "match or match_related to narrow down which flow runs "
+                            "will trigger this automation to exclude flow runs from "
+                            "the deployment you've selected."
+                        )
 
         return self
 
@@ -633,7 +645,7 @@ class AutomationSort(AutoEnum):
 class Firing(PrefectBaseModel):
     """Represents one instance of a trigger firing"""
 
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID = Field(default_factory=uuid7)
 
     trigger: ServerTriggerTypes = Field(
         default=..., description="The trigger that is firing"
@@ -710,7 +722,7 @@ class TriggeredAction(PrefectBaseModel):
     )
 
     id: UUID = Field(
-        default_factory=uuid4,
+        default_factory=uuid7,
         description="A unique key representing a single triggering of an action",
     )
 

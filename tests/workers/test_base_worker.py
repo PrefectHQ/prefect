@@ -2508,6 +2508,75 @@ class TestSubmit:
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
         assert future.result() == "Here you go chief!"
 
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_calls_initiate_run_if_implemented(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        @flow
+        def a_garden_variety_flow():
+            pass
+
+        run_spy = AsyncMock()
+        initiate_run_spy = AsyncMock()
+
+        class WorkerThatImplementsInitiateRun(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "worker-that-implements-initiate-run"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                run_spy()
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+            async def _initiate_run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+            ):
+                initiate_run_spy(
+                    flow_run=flow_run,
+                    configuration=configuration,
+                )
+
+        async with WorkerThatImplementsInitiateRun(
+            work_pool_name=work_pool.name, name="test-worker"
+        ) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(a_garden_variety_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+        assert run_spy.call_count == 0
+
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.work_pool_name == work_pool.name
+
+        expected_configuration = await BaseJobConfiguration.from_template_and_values(
+            work_pool.base_job_template,
+            flow_run.job_variables or {},
+        )
+
+        expected_configuration.prepare_for_flow_run(
+            flow_run=flow_run,
+            flow=Flow(id=flow_run.flow_id, name=a_garden_variety_flow.name, labels={}),
+            work_pool=work_pool,
+            worker_name="test-worker",
+        )
+
+        initiate_run_spy.assert_called_once_with(
+            flow_run=flow_run,
+            configuration=expected_configuration,
+        )
+
+        assert initiate_run_spy.call_count == 1
+
 
 class TestBackwardsCompatibility:
     async def test_backwards_compatibility_with_old_prepare_for_flow_run(
