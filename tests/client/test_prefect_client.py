@@ -33,7 +33,6 @@ from prefect.client.orchestration import (
 )
 from prefect.client.schemas.actions import (
     ArtifactCreate,
-    BlockDocumentCreate,
     DeploymentScheduleCreate,
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
@@ -50,16 +49,13 @@ from prefect.client.schemas.filters import (
     FlowFilter,
     FlowRunFilter,
     FlowRunFilterTags,
-    FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
     TaskRunFilter,
     TaskRunFilterFlowRunId,
 )
 from prefect.client.schemas.objects import (
-    BlockDocument,
     Flow,
-    FlowRunNotificationPolicy,
     FlowRunPolicy,
     Integration,
     StateType,
@@ -1394,108 +1390,6 @@ async def test_create_then_read_autonomous_task_runs(prefect_client: PrefectClie
     }
 
 
-async def test_create_then_read_flow_run_notification_policy(
-    prefect_client: PrefectClient, block_document: BlockDocument
-):
-    message_template = "Test message template!"
-    state_names = ["COMPLETED"]
-
-    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
-        block_document_id=block_document.id,
-        is_active=True,
-        tags=[],
-        state_names=state_names,
-        message_template=message_template,
-    )
-
-    response: List[
-        FlowRunNotificationPolicy
-    ] = await prefect_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-    )
-
-    assert len(response) == 1
-    assert response[0].id == notification_policy_id
-    assert response[0].block_document_id == block_document.id
-    assert response[0].message_template == message_template
-    assert response[0].is_active
-    assert response[0].tags == []
-    assert response[0].state_names == state_names
-
-
-async def test_create_then_update_flow_run_notification_policy(
-    prefect_client, block_document
-):
-    message_template = "Updated test message template!"
-    state_names = ["FAILED"]
-    tags = ["1.0"]
-
-    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
-        block_document_id=block_document.id,
-        is_active=True,
-        tags=[],
-        state_names=["COMPLETED"],
-        message_template="Test message template!",
-    )
-
-    new_block_document = await prefect_client.create_block_document(
-        block_document=BlockDocumentCreate(
-            data={"url": "http://127.0.0.1"},
-            block_schema_id=block_document.block_schema_id,
-            block_type_id=block_document.block_type_id,
-            is_anonymous=True,
-        )
-    )
-
-    await prefect_client.update_flow_run_notification_policy(
-        id=notification_policy_id,
-        block_document_id=new_block_document.id,
-        is_active=False,
-        tags=tags,
-        state_names=state_names,
-        message_template=message_template,
-    )
-
-    response: List[
-        FlowRunNotificationPolicy
-    ] = await prefect_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active={"eq_": False})
-    )
-
-    assert len(response) == 1
-    assert response[0].id == notification_policy_id
-    assert response[0].block_document_id == new_block_document.id
-    assert response[0].message_template == message_template
-    assert not response[0].is_active
-    assert response[0].tags == tags
-    assert response[0].state_names == state_names
-
-
-async def test_create_then_delete_flow_run_notification_policy(
-    prefect_client, block_document
-):
-    message_template = "Test message template!"
-    state_names = ["COMPLETED"]
-
-    notification_policy_id = await prefect_client.create_flow_run_notification_policy(
-        block_document_id=block_document.id,
-        is_active=True,
-        tags=[],
-        state_names=state_names,
-        message_template=message_template,
-    )
-
-    await prefect_client.delete_flow_run_notification_policy(notification_policy_id)
-
-    response: List[
-        FlowRunNotificationPolicy
-    ] = await prefect_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
-    )
-
-    assert len(response) == 0
-
-
 async def test_read_filtered_logs(session, prefect_client, deployment):
     flow_runs = [uuid4() for i in range(5)]
     logs = [
@@ -2151,6 +2045,7 @@ class TestWorkPools:
         sample_bundle_upload_step: dict[str, Any],
         sample_bundle_execution_step: dict[str, Any],
     ):
+        default_result_storage_block_id = uuid4()
         work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate.model_validate(
                 {
@@ -2158,6 +2053,7 @@ class TestWorkPools:
                     "storage_configuration": {
                         "bundle_upload_step": sample_bundle_upload_step,
                         "bundle_execution_step": sample_bundle_execution_step,
+                        "default_result_storage_block_id": default_result_storage_block_id,
                     },
                 }
             ),
@@ -2165,6 +2061,7 @@ class TestWorkPools:
         assert work_pool.storage_configuration == WorkPoolStorageConfiguration(
             bundle_upload_step=sample_bundle_upload_step,
             bundle_execution_step=sample_bundle_execution_step,
+            default_result_storage_block_id=default_result_storage_block_id,
         )
 
     async def test_update_work_pool_with_storage_configuration(

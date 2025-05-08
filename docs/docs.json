@@ -28,6 +28,7 @@
                 "group": "For data engineers",
                 "pages": [
                   "v3/tutorials/schedule",
+                  "v3/tutorials/form-building",
                   "v3/tutorials/pipelines",
                   "v3/tutorials/scraping",
                   "v3/tutorials/ml",
@@ -302,16 +303,6 @@
                         "pages": [
                           "v3/api-ref/rest-api/server/task-run-states/read-task-run-state",
                           "v3/api-ref/rest-api/server/task-run-states/read-task-run-states"
-                        ]
-                      },
-                      {
-                        "group": "Flow Run Notification Policies",
-                        "pages": [
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/create-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/delete-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/update-flow-run-notification-policy",
-                          "v3/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policies"
                         ]
                       },
                       {

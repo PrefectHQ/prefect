@@ -114,6 +114,18 @@ async def registry_credentials():
     return block
 
 
+async def test_initiate_run_does_not_wait_for_container_completion(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.prepare_for_flow_run(flow_run)
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker._initiate_run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        mock_docker_client.containers.get.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "requested_name,container_name",
     [

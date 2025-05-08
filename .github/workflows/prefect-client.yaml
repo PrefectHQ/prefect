@@ -37,11 +37,12 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           python-version: "3.9"
           cache-dependency-glob: "pyproject.toml"
+          activate-environment: true
 
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
@@ -58,6 +59,10 @@ jobs:
       - name: Install the built client from the locally built package
         run: uv pip install dist/*.tar.gz
         working-directory: ${{ env.TMPDIR }}
+
+      - name: Verify the CLI isn't available in the active environment
+        run: |
+          prefect --help && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
 
       - name: Get the version of built `prefect-client`
         run: |

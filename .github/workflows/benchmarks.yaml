@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
           enable-cache: true
@@ -62,7 +62,7 @@ jobs:
       - name: Start server
         run: |
           PREFECT_HOME=$(pwd) uv run prefect server start&
-          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+          PREFECT_API_URL="http://127.0.0.1:4200/api" uv run ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command
           #       https://github.com/PrefectHQ/prefect/issues/6990

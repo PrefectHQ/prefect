@@ -13,7 +13,7 @@ from functools import partial
 from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 from zoneinfo import ZoneInfo
@@ -26,6 +26,7 @@ import regex as re
 import prefect
 import prefect.exceptions
 from prefect import flow, runtime, tags, task
+from prefect._versioning import GitVersionInfo, VersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.objects import (
@@ -558,6 +559,28 @@ class TestFlowWithOptions:
             flow_run_name="hi",
         )
         assert f.name == name
+
+    def test_with_options_preserves_classmethod_context(self):
+        class BaseProcessor:
+            @classmethod
+            def get_multiplier(cls):
+                return 1
+
+            @flow
+            @classmethod
+            def process(cls, x: int):
+                return x * cls.get_multiplier()
+
+        class ChildProcessor(BaseProcessor):
+            @classmethod
+            def get_multiplier(cls):
+                return 2
+
+        assert BaseProcessor.process(5) == 5
+        assert ChildProcessor.process(5) == 10
+
+        new_flow = ChildProcessor.process.with_options()
+        assert new_flow(5) == 10
 
 
 class TestFlowCall:
@@ -2608,38 +2631,95 @@ class TestFlowRetries:
 
 
 class TestLoadFlowFromEntrypoint:
-    def test_load_flow_from_entrypoint(self, tmp_path):
-        flow_code = """
-        from prefect import flow
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_getter",
+        [
+            # Simple flow function using relative path
+            (
+                """
+                from prefect import flow
 
-        @flow
-        def dog():
-            return "woof!"
-        """
+                @flow
+                def dog():
+                    return "woof!"
+                """,
+                lambda fpath: f"{fpath}:dog",
+            ),
+            # Simple flow function using absolute path
+            (
+                """
+                from prefect import flow
+
+                @flow
+                def dog():
+                    return "woof!"
+                """,
+                lambda fpath: f"{str(fpath.resolve())}:dog",
+            ),
+            # Staticmethod using relative path
+            (
+                """
+                from prefect import flow
+
+                class Dog:
+                    @flow
+                    @staticmethod
+                    def dog():
+                        return "woof!"
+                """,
+                lambda fpath: f"{fpath}:Dog.dog",
+            ),
+            # Staticmethod using absolute path
+            (
+                """
+                from prefect import flow
+
+                class Dog:
+                    @flow
+                    @staticmethod
+                    def dog():
+                        return "woof!"
+                """,
+                lambda fpath: f"{str(fpath.resolve())}:Dog.dog",
+            ),
+            # Classmethod using relative path
+            (
+                """
+                from prefect import flow
+
+                class Dog:
+                    @flow
+                    @classmethod
+                    def dog(cls):
+                        return "woof!"
+                """,
+                lambda fpath: f"{fpath}:Dog.dog",
+            ),
+            # Classmethod using absolute path
+            (
+                """
+                from prefect import flow
+
+                class Dog:
+                    @flow
+                    @classmethod
+                    def dog(cls):
+                        return "woof!"
+                """,
+                lambda fpath: f"{str(fpath.resolve())}:Dog.dog",
+            ),
+        ],
+    )
+    def test_load_flow_from_entrypoint_variants(
+        self, tmp_path: Path, source_code: str, entrypoint_getter: str
+    ):
         fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
+        fpath.write_text(dedent(source_code))
 
-        flow = load_flow_from_entrypoint(f"{fpath}:dog")
-        assert flow.fn() == "woof!"
+        entrypoint = entrypoint_getter(fpath)
 
-    def test_load_flow_from_entrypoint_with_absolute_path(self, tmp_path):
-        # test absolute paths to ensure compatibility for all operating systems
-
-        flow_code = """
-        from prefect import flow
-
-        @flow
-        def dog():
-            return "woof!"
-        """
-        fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
-
-        # convert the fpath into an absolute path
-        absolute_fpath = str(fpath.resolve())
-
-        flow = load_flow_from_entrypoint(f"{absolute_fpath}:dog")
-        assert flow.fn() == "woof!"
+        flow = load_flow_from_entrypoint(entrypoint)
+        assert flow() == "woof!"
 
     def test_load_flow_from_entrypoint_with_module_path(self, monkeypatch):
         @flow
@@ -2656,28 +2736,72 @@ class TestLoadFlowFromEntrypoint:
         assert result == pretend_flow
         import_object_mock.assert_called_with("my.module.pretend_flow")
 
-    def test_load_flow_from_entrypoint_script_error_loads_placeholder(self, tmp_path):
-        flow_code = """
-        from not_a_module import not_a_function
-        from prefect import flow
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                """
+                from not_a_module import not_a_function
+                from prefect import flow
 
-        @flow(description="Says woof!")
-        def dog():
-            return "woof!"
-        """
+                @flow(description="Says woof!")
+                def dog():
+                    return "woof!"
+                """,
+                "dog",
+            ),
+            (
+                """
+                from not_a_module import not_a_function
+                from prefect import flow
+
+                class Dog:
+                    @flow(description="Says woof!")
+                    @staticmethod
+                    def dog():
+                        return "woof!"
+                """,
+                "Dog.dog",
+            ),
+            (
+                """
+                from not_a_module import not_a_function
+                from prefect import flow
+
+                class Dog:
+                    @flow(description="Says woof!")
+                    @classmethod
+                    def dog(cls):
+                        return "woof!"
+                """,
+                "Dog.dog",
+            ),
+        ],
+    )
+    def test_load_flow_from_entrypoint_with_and_without_use_placeholder_flow(
+        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+    ):
         fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
+        fpath.write_text(dedent(source_code))
 
-        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        # Test with use_placeholder_flow=True (default behavior)
+        flow = load_flow_from_entrypoint(f"{fpath}:{entrypoint_without_filename}")
 
         # Since `not_a_module` isn't a real module, loading the flow as python
         # should fail, and `load_flow_from_entrypoint` should fallback to
         # returning a placeholder flow with the correct name, description, etc.
+        assert isinstance(flow, Flow)
         assert flow.name == "dog"
         assert flow.description == "Says woof!"
 
         # Should still be callable
         assert flow() == "woof!"
+
+        # Test with use_placeholder_flow=False
+        with pytest.raises(ScriptError):
+            load_flow_from_entrypoint(
+                f"{fpath}:{entrypoint_without_filename}", use_placeholder_flow=False
+            )
 
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_handling_script_with_unprotected_call_in_flow_script(
@@ -2713,27 +2837,6 @@ class TestLoadFlowFromEntrypoint:
         assert res == "woof!"
         flow_runs = await prefect_client.read_flows()
         assert len(flow_runs) == 1
-
-    def test_load_flow_from_entrypoint_with_use_placeholder_flow(self, tmp_path):
-        flow_code = """
-        from not_a_module import not_a_function
-        from prefect import flow
-
-        @flow(description="Says woof!")
-        def dog():
-            return "woof!"
-        """
-        fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
-
-        # Test with use_placeholder_flow=True (default behavior)
-        flow = load_flow_from_entrypoint(f"{fpath}:dog")
-        assert isinstance(flow, Flow)
-        assert flow() == "woof!"
-
-        # Test with use_placeholder_flow=False
-        with pytest.raises(ScriptError):
-            load_flow_from_entrypoint(f"{fpath}:dog", use_placeholder_flow=False)
 
 
 class TestLoadFunctionAndConvertToFlow:
@@ -4831,6 +4934,30 @@ class TestFlowDeploy:
         )
         return remote_flow
 
+    @pytest.fixture
+    async def mock_create_deployment(self):
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.create_deployment"
+        ) as mock_create:
+            mock_create.return_value = uuid.uuid4()
+            yield mock_create
+
+    @pytest.fixture
+    async def mock_get_inferred_version_info(self):
+        with mock.patch(
+            "prefect.deployments.runner.get_inferred_version_info"
+        ) as mock_get_inferred:
+            mock_get_inferred.return_value = GitVersionInfo(
+                type="vcs:git",
+                version="abcdef12",
+                commit_sha="abcdef12",
+                message="Initial commit",
+                branch="main",
+                url="https://github.com/org/repo",
+                repository="org/repo",
+            )
+            yield mock_get_inferred
+
     async def test_calls_deploy_with_expected_args(
         self, mock_deploy, local_flow, work_pool, capsys
     ):
@@ -4844,6 +4971,7 @@ class TestFlowDeploy:
             concurrency_limit=42,
             description="This is a test",
             version="alpha",
+            version_type=VersionType.SIMPLE,
             work_pool_name=work_pool.name,
             work_queue_name="line",
             job_variables={"foo": "bar"},
@@ -4862,6 +4990,7 @@ class TestFlowDeploy:
                 concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
+                version_type=VersionType.SIMPLE,
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
@@ -4895,6 +5024,7 @@ class TestFlowDeploy:
             parameters={"name": "Arthur"},
             description="This is a test",
             version="alpha",
+            version_type=VersionType.SIMPLE,
             work_pool_name=work_pool.name,
             work_queue_name="line",
             job_variables={"foo": "bar"},
@@ -4916,6 +5046,7 @@ class TestFlowDeploy:
                 parameters={"name": "Arthur"},
                 description="This is a test",
                 version="alpha",
+                version_type=VersionType.SIMPLE,
                 work_queue_name="line",
                 job_variables={"foo": "bar"},
                 enforce_parameter_schema=True,
@@ -5018,6 +5149,85 @@ class TestFlowDeploy:
             push=True,
             print_next_steps_message=False,
             ignore_warnings=False,
+        )
+
+    async def test_deploy_infers_version_info(
+        self,
+        local_flow,
+        work_pool_with_image_variable,
+        mock_create_deployment,
+        mock_get_inferred_version_info,
+    ):
+        await local_flow.deploy(
+            name="my-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+        )
+
+        mock_get_inferred_version_info.assert_awaited_once()
+        mock_create_deployment.assert_awaited_once()
+
+        passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+        assert passed_version_info == GitVersionInfo(
+            type="vcs:git",
+            version="abcdef12",
+            commit_sha="abcdef12",
+            message="Initial commit",
+            branch="main",
+            url="https://github.com/org/repo",
+            repository="org/repo",
+        )
+
+    async def test_deploy_infers_version_info_with_name(
+        self,
+        local_flow,
+        work_pool_with_image_variable,
+        mock_create_deployment,
+        mock_get_inferred_version_info,
+    ):
+        await local_flow.deploy(
+            name="my-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            version="my-version",
+        )
+
+        mock_get_inferred_version_info.assert_awaited_once()
+        mock_create_deployment.assert_awaited_once()
+
+        passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+        assert passed_version_info == GitVersionInfo(
+            type="vcs:git",
+            version="my-version",
+            commit_sha="abcdef12",
+            message="Initial commit",
+            branch="main",
+            url="https://github.com/org/repo",
+            repository="org/repo",
+        )
+
+    async def test_deploy_uses_flow_version_as_simple_version(
+        self,
+        local_flow,
+        work_pool_with_image_variable,
+        mock_create_deployment,
+    ):
+        await local_flow.deploy(
+            name="my-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            version_type=VersionType.SIMPLE,
+        )
+
+        mock_create_deployment.assert_awaited_once()
+
+        passed_version_info = mock_create_deployment.call_args.kwargs["version_info"]
+        assert passed_version_info == VersionInfo(
+            type="prefect:simple",
+            version=local_flow.version,
         )
 
 
@@ -5488,7 +5698,7 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
 
-        with pytest.raises(ValueError, match="Could not find flow"):
+        with pytest.raises(ValueError, match="Could not find object"):
             load_flow_arguments_from_entrypoint(entrypoint)
 
 
@@ -5508,27 +5718,69 @@ class TestSafeLoadFlowFromEntrypoint:
         with pytest.raises(ValueError):
             safe_load_flow_from_entrypoint(f"{tmp_path}/test.py:g")
 
-    def test_basic_operation(self, tmp_path: Path):
-        flow_source = dedent(
-            '''
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                '''
+                from prefect import flow
 
-        from prefect import flow
+                @flow(name="My custom name")
+                def flow_function(name: str) -> str:
+                    """
+                    My docstring
 
-        @flow(name="My custom name")
-        def flow_function(name: str) -> str:
-            """
-            My docstring
+                    Args:
+                        name (str): A name
+                    """
+                    return name
+                ''',
+                "flow_function",
+            ),
+            (
+                '''
+                from prefect import flow
 
-            Args:
-                name (str): A name
-            """
-            return name
-        '''
-        )
+                class ClassName:               
+                    @flow(name="My custom name")
+                    @staticmethod
+                    def flow_method(name: str) -> str:
+                        """
+                        My docstring
 
-        tmp_path.joinpath("flow.py").write_text(flow_source)
+                        Args:
+                            name (str): A name
+                        """
+                        return name
+                ''',
+                "ClassName.flow_method",
+            ),
+            (
+                '''
+                from prefect import flow
 
-        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+                class ClassName:               
+                    @flow(name="My custom name")
+                    @classmethod
+                    def flow_method(cls, name: str) -> str:
+                        """
+                        My docstring
+
+                        Args:
+                            name (str): A name
+                        """
+                        return name
+                ''',
+                "ClassName.flow_method",
+            ),
+        ],
+    )
+    def test_basic_operation(
+        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+    ):
+        tmp_path.joinpath("flow.py").write_text(dedent(source_code))
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:{entrypoint_without_filename}"
 
         result = safe_load_flow_from_entrypoint(entrypoint)
 
@@ -5541,121 +5793,310 @@ class TestSafeLoadFlowFromEntrypoint:
         assert "Args:" in result.__doc__
         assert "name (str): A name" in result.__doc__
 
-    def test_get_parameter_schema_from_safe_loaded_flow(self, tmp_path: Path):
-        flow_source = dedent(
-            """
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename, expected_parameter_schema",
+        [
+            (
+                """
+                from prefect import flow
 
-        from prefect import flow
+                @flow
+                def flow_function(name: str) -> str:
+                    return name
+                """,
+                "flow_function",
+                {
+                    "definitions": {},
+                    "properties": {
+                        "name": {"position": 0, "title": "name", "type": "string"}
+                    },
+                    "required": ["name"],
+                    "title": "Parameters",
+                    "type": "object",
+                },
+            ),
+            (
+                """
+                from prefect import flow
 
-        @flow
-        def flow_function(name: str) -> str:
-            return name
-        """
-        )
+                class ClassName:               
+                    @flow
+                    @staticmethod
+                    def flow_method(name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                {
+                    "definitions": {},
+                    "properties": {
+                        "name": {"position": 0, "title": "name", "type": "string"}
+                    },
+                    "required": ["name"],
+                    "title": "Parameters",
+                    "type": "object",
+                },
+            ),
+            (
+                """
+                from prefect import flow
 
-        tmp_path.joinpath("flow.py").write_text(flow_source)
+                class ClassName:               
+                    @flow
+                    @classmethod
+                    def flow_method(cls, name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                {
+                    "definitions": {},
+                    "properties": {
+                        "cls": {"position": 0, "title": "cls"},
+                        "name": {"position": 1, "title": "name", "type": "string"},
+                    },
+                    "required": ["cls", "name"],
+                    "title": "Parameters",
+                    "type": "object",
+                },
+            ),
+        ],
+    )
+    def test_get_parameter_schema_from_safe_loaded_flow(
+        self,
+        tmp_path: Path,
+        source_code: str,
+        entrypoint_without_filename: str,
+        expected_parameter_schema: Dict[str, Any],
+    ):
+        tmp_path.joinpath("flow.py").write_text(dedent(source_code))
 
-        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:{entrypoint_without_filename}"
 
         result = safe_load_flow_from_entrypoint(entrypoint)
 
         assert result is not None
-        assert parameter_schema(result).model_dump() == {
-            "definitions": {},
-            "properties": {"name": {"position": 0, "title": "name", "type": "string"}},
-            "required": ["name"],
-            "title": "Parameters",
-            "type": "object",
-        }
+        assert parameter_schema(result).model_dump() == expected_parameter_schema
 
-    def test_dynamic_name_fstring(self, tmp_path: Path):
-        flow_source = dedent(
-            """
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename, expected_name",
+        [
+            # from function
+            (
+                """
+                from prefect import flow
 
-        from prefect import flow
+                def get_name():
+                    return "from-a-function"
 
-        version = "1.0"
+                @flow(name=get_name())
+                def flow_function(name: str) -> str:
+                    return name
+                """,
+                "flow_function",
+                "from-a-function",
+            ),
+            (
+                """
+                from prefect import flow
 
-        @flow(name=f"flow-function-{version}")
-        def flow_function(name: str) -> str:
-            return name
-        """
-        )
+                def get_name():
+                    return "from-a-function"
 
-        tmp_path.joinpath("flow.py").write_text(flow_source)
+                class ClassName:
+                    @flow(name=get_name())
+                    @staticmethod 
+                    def flow_method(name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                "from-a-function",
+            ),
+            (
+                """
+                from prefect import flow
 
-        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+                def get_name():
+                    return "from-a-function"
+
+                class ClassName:
+                    @flow(name=get_name())
+                    @classmethod 
+                    def flow_method(cls, name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                "from-a-function",
+            ),
+            # fstring
+            (
+                """
+                from prefect import flow
+
+                version = "1.0"
+
+                @flow(name=f"flow-function-{version}")
+                def flow_function(name: str) -> str:
+                    return name
+                """,
+                "flow_function",
+                "flow-function-1.0",
+            ),
+            (
+                """
+                from prefect import flow
+
+                version = "1.0"
+                class ClassName:
+                    @flow(name=f"flow-function-{version}")
+                    @staticmethod  
+                    def flow_method(name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                "flow-function-1.0",
+            ),
+            (
+                """
+                from prefect import flow
+
+                version = "1.0"
+                class ClassName:
+                    @flow(name=f"flow-function-{version}")
+                    @classmethod  
+                    def flow_method(cls, name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+                "flow-function-1.0",
+            ),
+        ],
+    )
+    def test_dynamic_name(
+        self,
+        tmp_path: Path,
+        source_code: str,
+        entrypoint_without_filename: str,
+        expected_name: str,
+    ):
+        tmp_path.joinpath("flow.py").write_text(dedent(source_code))
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:{entrypoint_without_filename}"
 
         result = safe_load_flow_from_entrypoint(entrypoint)
 
         assert result is not None
-        assert result.name == "flow-function-1.0"
+        assert result.name == expected_name
 
-    def test_dynamic_name_function(self, tmp_path: Path):
-        flow_source = dedent(
-            """
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                """
+                from prefect import flow
 
-        from prefect import flow
+                from non_existent import get_name
 
-        def get_name():
-            return "from-a-function"
+                @flow(name=get_name())
+                def flow_function(name: str) -> str:
+                    return name
+                """,
+                "flow_function",
+            ),
+            (
+                """
+                from prefect import flow
 
-        @flow(name=get_name())
-        def flow_function(name: str) -> str:
-            return name
-        """
-        )
+                from non_existent import get_name
 
-        tmp_path.joinpath("flow.py").write_text(flow_source)
+                class ClassName:
+                    @flow(name=get_name())
+                    @staticmethod
+                    def flow_method(name: str) -> str:
+                        return name
+                """,
+                "ClassName.flow_method",
+            ),
+        ],
+    )
+    def test_dynamic_name_depends_on_missing_import(
+        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+    ):
+        tmp_path.joinpath("flow.py").write_text(dedent(source_code))
 
-        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
-
-        result = safe_load_flow_from_entrypoint(entrypoint)
-
-        assert result is not None
-
-    def test_dynamic_name_depends_on_missing_import(self, tmp_path: Path):
-        flow_source = dedent(
-            """
-
-        from prefect import flow
-
-        from non_existent import get_name
-
-        @flow(name=get_name())
-        def flow_function(name: str) -> str:
-            return name
-        """
-        )
-
-        tmp_path.joinpath("flow.py").write_text(flow_source)
-
-        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:{entrypoint_without_filename}"
 
         result = safe_load_flow_from_entrypoint(entrypoint)
 
         # We expect this to be None because the flow function cannot be loaded
         assert result is None
 
-    def test_annotations_and_defaults_rely_on_imports(self, tmp_path: Path):
-        source_code = dedent(
-            """
-        import datetime
-        from prefect import flow
-        from prefect.types import DateTime
-        from zoneinfo import ZoneInfo
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                """
+                import datetime
+                from prefect import flow
+                from prefect.types import DateTime
+                from zoneinfo import ZoneInfo
 
-        @flow
-        def f(
-            x: datetime.datetime,
-            y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
-            z: datetime.timedelta = datetime.timedelta(seconds=5),
-        ):
-            return x, y, z
-        """
+                @flow
+                def flow_function(
+                    x: datetime.datetime,
+                    y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
+                    z: datetime.timedelta = datetime.timedelta(seconds=5),
+                ):
+                    return x, y, z
+                """,
+                "flow_function",
+            ),
+            (
+                """
+                import datetime
+                from prefect import flow
+                from prefect.types import DateTime
+                from zoneinfo import ZoneInfo
+
+                class ClassName:            
+                    @flow
+                    @staticmethod
+                    def flow_method(
+                        x: datetime.datetime,
+                        y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
+                        z: datetime.timedelta = datetime.timedelta(seconds=5),
+                    ):
+                        return x, y, z
+                """,
+                "ClassName.flow_method",
+            ),
+            (
+                """
+                import datetime
+                from prefect import flow
+                from prefect.types import DateTime
+                from zoneinfo import ZoneInfo
+
+                class ClassName:            
+                    @flow
+                    @classmethod
+                    def flow_method(
+                        cls,
+                        x: datetime.datetime,
+                        y: DateTime = DateTime(2025, 1, 1, tzinfo=ZoneInfo("UTC")),
+                        z: datetime.timedelta = datetime.timedelta(seconds=5),
+                    ):
+                        return x, y, z
+                """,
+                "ClassName.flow_method",
+            ),
+        ],
+    )
+    def test_annotations_and_defaults_rely_on_imports(
+        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+    ):
+        tmp_path.joinpath("test.py").write_text(dedent(source_code))
+        result = safe_load_flow_from_entrypoint(
+            f"{tmp_path}/test.py:{entrypoint_without_filename}"
         )
-        tmp_path.joinpath("test.py").write_text(source_code)
-        result = safe_load_flow_from_entrypoint(f"{tmp_path}/test.py:f")
         assert result is not None
         assert result(datetime.datetime(2025, 1, 1)) == (
             datetime.datetime(2025, 1, 1),
@@ -5691,53 +6132,120 @@ class TestSafeLoadFlowFromEntrypoint:
         assert result is not None
         assert result(1, 2, 4, z=3, a=5) == (1, 2, 3, (4,), {"a": 5})
 
-    def test_defaults_rely_on_missing_import(self, tmp_path: Path):
-        flow_source = dedent(
-            """
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                """
+                from prefect import flow
 
-        from prefect import flow
+                from non_existent import DEFAULT_NAME, DEFAULT_AGE
 
-        from non_existent import DEFAULT_NAME, DEFAULT_AGE
+                @flow
+                def flow_function(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
+                    return name, age
+                """,
+                "flow_function",
+            ),
+            pytest.param(
+                """
+                from prefect import flow
 
-        @flow
-        def flow_function(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
-            return name, age
-        """
-        )
+                from non_existent import DEFAULT_NAME, DEFAULT_AGE
 
-        tmp_path.joinpath("flow.py").write_text(flow_source)
+                class ClassName:
+                    @flow
+                    @staticmethod
+                    def flow_method(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
+                        return name, age
+                """,
+                "ClassName.flow_method",
+                marks=pytest.mark.skipif(
+                    sys.version_info < (3, 12),
+                    reason="static methods from __dict__ are only callable directly on Python 3.12+",
+                ),
+            ),
+        ],
+    )
+    def test_defaults_rely_on_missing_import(
+        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+    ):
+        tmp_path.joinpath("flow.py").write_text(dedent(source_code))
 
-        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:{entrypoint_without_filename}"
 
         result = safe_load_flow_from_entrypoint(entrypoint)
         assert result is not None
         assert result() == (None, None)
 
-    def test_function_with_enum_argument(self, tmp_path: Path):
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                """
+                from enum import Enum
+                from prefect import flow
+
+                class Color(Enum):
+                    RED = "RED"
+                    GREEN = "GREEN"
+                    BLUE = "BLUE"
+
+                @flow
+                def flow_function(x: Color = Color.RED):
+                    return x
+                """,
+                "flow_function",
+            ),
+            (
+                """
+                from enum import Enum
+                from prefect import flow
+
+                class Color(Enum):
+                    RED = "RED"
+                    GREEN = "GREEN"
+                    BLUE = "BLUE"
+                
+                class ClassName:
+                    @flow
+                    @staticmethod
+                    def flow_method(x: Color = Color.RED):
+                        return x
+                """,
+                "ClassName.flow_method",
+            ),
+            (
+                """
+                from enum import Enum
+                from prefect import flow
+
+                class Color(Enum):
+                    RED = "RED"
+                    GREEN = "GREEN"
+                    BLUE = "BLUE"
+                
+                class ClassName:
+                    @flow
+                    @classmethod
+                    def flow_method(cls, x: Color = Color.RED):
+                        return x
+                """,
+                "ClassName.flow_method",
+            ),
+        ],
+    )
+    def test_function_with_enum_argument(
+        self, tmp_path: Path, source_code: str, entrypoint_without_filename: str
+    ):
         class Color(enum.Enum):
             RED = "RED"
             GREEN = "GREEN"
             BLUE = "BLUE"
 
-        source_code = dedent(
-            """
-        from enum import Enum
+        tmp_path.joinpath("test.py").write_text(dedent(source_code))
 
-        from prefect import flow
-
-        class Color(Enum):
-            RED = "RED"
-            GREEN = "GREEN"
-            BLUE = "BLUE"
-
-        @flow
-        def f(x: Color = Color.RED):
-            return x
-        """
-        )
-        tmp_path.joinpath("test.py").write_text(source_code)
-
-        entrypoint = f"{tmp_path.joinpath('test.py')}:f"
+        entrypoint = f"{tmp_path.joinpath('test.py')}:{entrypoint_without_filename}"
 
         result = safe_load_flow_from_entrypoint(entrypoint)
         assert result is not None
@@ -5781,21 +6289,54 @@ class TestSafeLoadFlowFromEntrypoint:
         assert result is not None
         assert result().param == 1
 
-    def test_raises_name_error_when_loaded_flow_cannot_run(self, tmp_path):
-        source_code = dedent(
-            """
-        from not_a_module import not_a_function
+    @pytest.mark.parametrize(
+        "source_code, entrypoint_without_filename",
+        [
+            (
+                """
+                from not_a_module import not_a_function
 
-        from prefect import flow
+                from prefect import flow
 
-        @flow(description="Says woof!")
-        def dog():
-            return not_a_function('dog')
-            """
-        )
+                @flow(description="Says woof!")
+                def dog():
+                    return not_a_function('dog')
+                    """,
+                "dog",
+            ),
+            (
+                """
+                from not_a_module import not_a_function
 
-        tmp_path.joinpath("test.py").write_text(source_code)
-        entrypoint = f"{tmp_path.joinpath('test.py')}:dog"
+                from prefect import flow
+                class Dog:
+                    @flow(description="Says woof!")
+                    @staticmethod
+                    def dog():
+                        return not_a_function('dog')
+                """,
+                "Dog.dog",
+            ),
+            (
+                """
+                from not_a_module import not_a_function
+
+                from prefect import flow
+                class Dog:
+                    @flow(description="Says woof!")
+                    @classmethod
+                    def dog(cls):
+                        return not_a_function('dog')
+                """,
+                "Dog.dog",
+            ),
+        ],
+    )
+    def test_raises_name_error_when_loaded_flow_cannot_run(
+        self, tmp_path, source_code: str, entrypoint_without_filename: str
+    ):
+        tmp_path.joinpath("test.py").write_text(dedent(source_code))
+        entrypoint = f"{tmp_path.joinpath('test.py')}:{entrypoint_without_filename}"
 
         with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
             safe_load_flow_from_entrypoint(entrypoint)()

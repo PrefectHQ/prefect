@@ -28,6 +28,7 @@ import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect._experimental.bundles import create_bundle_for_flow_run
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._versioning import VersionType
 from prefect.cli.deploy import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -48,11 +49,12 @@ from prefect.deployments.runner import (
     deploy,
 )
 from prefect.docker.docker_image import DockerImage
-from prefect.events.clients import AssertingEventsClient
+from prefect.events.clients import (
+    AssertingEventsClient,
+)
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.schemas.events import Event
-from prefect.events.worker import EventsWorker
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -158,6 +160,18 @@ def patch_run_process(monkeypatch: pytest.MonkeyPatch):
         return mock_run_process
 
     return patch_run_process
+
+
+@pytest.fixture
+def mock_events_client(monkeypatch: pytest.MonkeyPatch):
+    mock_events_client = AssertingEventsClient()
+    monkeypatch.setattr(
+        "prefect.runner.runner.get_events_client",
+        lambda *args, **kwargs: mock_events_client,
+    )
+    yield mock_events_client
+
+    AssertingEventsClient.reset()
 
 
 class MockStorage:
@@ -685,7 +699,7 @@ class TestRunner:
     async def test_runner_does_not_emit_heartbeats_if_not_set(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner()
 
@@ -709,12 +723,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 0
@@ -723,7 +735,7 @@ class TestRunner:
     async def test_runner_executes_flow_runs(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30)
 
@@ -747,12 +759,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 1
@@ -776,7 +786,7 @@ class TestRunner:
     async def test_runner_does_not_duplicate_heartbeats(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         """
         Regression test for issue where multiple invocations of `execute_flow_run`
@@ -804,12 +814,10 @@ class TestRunner:
         assert flow_run_2.state
         assert flow_run_2.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 2
@@ -821,7 +829,7 @@ class TestRunner:
     async def test_runner_sends_heartbeats_on_a_cadence(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner()
         # Ain't I a stinker?
@@ -842,12 +850,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
 
@@ -857,7 +863,7 @@ class TestRunner:
     async def test_runner_heartbeats_include_deployment_version(
         self,
         prefect_client: PrefectClient,
-        asserting_events_worker: EventsWorker,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30)
 
@@ -885,12 +891,10 @@ class TestRunner:
             )
             await runner.start(run_once=True)
 
-            await asserting_events_worker.drain()
-
         heartbeat_events: list[Event] = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 1
@@ -1089,7 +1093,7 @@ class TestRunner:
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_does_not_emit_heartbeats_for_single_flow_run_if_not_set(
-        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+        self, prefect_client: PrefectClient, mock_events_client: AssertingEventsClient
     ):
         runner = Runner()
 
@@ -1104,19 +1108,19 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 0
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_can_execute_a_single_flow_run(
-        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+        self,
+        prefect_client: PrefectClient,
+        mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30, limit=None)
 
@@ -1131,12 +1135,10 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
-        await asserting_events_worker.drain()
-
         heartbeat_events = list(
             filter(
                 lambda e: e.event == "prefect.flow-run.heartbeat",
-                asserting_events_worker._client.events,
+                mock_events_client.events,
             )
         )
         assert len(heartbeat_events) == 1
@@ -1677,7 +1679,9 @@ class TestRunner:
             assert "This flow crashed!" in caplog.text
 
         async def test_heartbeats_for_bundle_execution(
-            self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+            self,
+            prefect_client: PrefectClient,
+            mock_events_client: AssertingEventsClient,
         ):
             runner = Runner(heartbeat_seconds=30)
 
@@ -1694,12 +1698,10 @@ class TestRunner:
             assert flow_run.state
             assert flow_run.state.is_completed()
 
-            await asserting_events_worker.drain()
-
             heartbeat_events = list(
                 filter(
                     lambda e: e.event == "prefect.flow-run.heartbeat",
-                    asserting_events_worker._client.events,
+                    mock_events_client.events,
                 )
             )
             assert len(heartbeat_events) == 1
@@ -1718,7 +1720,7 @@ class TestRunner:
 
 @pytest.mark.usefixtures("use_hosted_api_server")
 async def test_runner_emits_cancelled_event(
-    asserting_events_worker: EventsWorker,
+    mock_events_client: AssertingEventsClient,
     reset_worker_events,
     prefect_client: PrefectClient,
     temp_storage: MockStorage,
@@ -1771,14 +1773,10 @@ async def test_runner_emits_cancelled_event(
         )
         await execute_task
 
-    await asserting_events_worker.drain()
-
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     cancelled_events = list(
         filter(
             lambda e: e.event == "prefect.runner.cancelled-flow-run",
-            asserting_events_worker._client.events,
+            mock_events_client.events,
         )
     )
     assert len(cancelled_events) == 1
@@ -1833,6 +1831,7 @@ class TestRunnerDeployment:
             __file__,
             tags=["test"],
             version="alpha",
+            version_type=VersionType.SIMPLE,
             description="Deployment descriptions",
             enforce_parameter_schema=True,
             concurrency_limit=42,
@@ -1843,6 +1842,7 @@ class TestRunnerDeployment:
         assert deployment.entrypoint == f"{relative_file_path}:dummy_flow_1"
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.tags == ["test"]
         assert deployment.paused is False
         assert deployment.enforce_parameter_schema
@@ -2006,6 +2006,7 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__)
 
         assert deployment.version == "test"
+        assert deployment._version_from_flow is True
         assert deployment.description == "I'm just here for tests"
 
     def test_from_flow_raises_on_interactively_defined_flow(self):
@@ -2209,7 +2210,9 @@ class TestRunnerDeployment:
         assert deployment.description == "I'm just here for tests"
 
     async def test_apply(self, prefect_client: PrefectClient):
-        deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, interval=3600)
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
 
         deployment_id = await deployment.apply()
 
@@ -2387,6 +2390,7 @@ class TestRunnerDeployment:
             description="Test Deployment Description",
             tags=["tag1", "tag2"],
             version="1.0.0",
+            version_type=VersionType.SIMPLE,
             enforce_parameter_schema=True,
             concurrency_limit=concurrency_limit_config,
         )
@@ -2401,6 +2405,7 @@ class TestRunnerDeployment:
         )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
         assert deployment.concurrency_limit == concurrency_limit_config.limit
@@ -2427,6 +2432,7 @@ class TestRunnerDeployment:
             description="Test Deployment Description",
             tags=["tag1", "tag2"],
             version="1.0.0",
+            version_type=VersionType.SIMPLE,
             enforce_parameter_schema=True,
             concurrency_limit=concurrency_limit_config,
         )
@@ -2440,6 +2446,7 @@ class TestRunnerDeployment:
         )
         assert deployment.tags == ["tag1", "tag2"]
         assert deployment.version == "1.0.0"
+        assert deployment.version_type == VersionType.SIMPLE
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
         assert deployment.concurrency_limit == concurrency_limit_config.limit

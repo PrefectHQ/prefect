@@ -95,6 +95,12 @@ class InvalidBlockRegistration(Exception):
     """
 
 
+class UnknownBlockType(Exception):
+    """
+    Raised when a block type is not found in the registry.
+    """
+
+
 def _collect_nested_reference_strings(
     obj: dict[str, Any] | list[Any],
 ) -> list[dict[str, Any]]:
@@ -374,15 +380,15 @@ class Block(BaseModel, ABC):
                     for field_name in type(self).model_fields
                 }
             )
-        if extra_fields := {
+        extra_fields = {
             "block_type_slug": self.get_block_type_slug(),
             "_block_document_id": self._block_document_id,
             "_block_document_name": self._block_document_name,
             "_is_anonymous": self._is_anonymous,
-        }:
-            jsonable_self |= {
-                key: value for key, value in extra_fields.items() if value is not None
-            }
+        }
+        jsonable_self |= {
+            key: value for key, value in extra_fields.items() if value is not None
+        }
         return jsonable_self
 
     @classmethod
@@ -786,7 +792,20 @@ class Block(BaseModel, ABC):
         # before looking up the block class, but only do this once
         load_prefect_collections()
 
-        return lookup_type(cls, key)
+        try:
+            return lookup_type(cls, key)
+        except KeyError:
+            message = f"No block class found for slug {key!r}."
+            # Handle common blocks types used for storage, which is the primary use case for looking up blocks by key
+            if key == "s3-bucket":
+                message += " Please ensure that `prefect-aws` is installed."
+            elif key == "gcs-bucket":
+                message += " Please ensure that `prefect-gcp` is installed."
+            elif key == "azure-blob-storage-container":
+                message += " Please ensure that `prefect-azure` is installed."
+            else:
+                message += " Please ensure that the block class is available in the current environment."
+            raise UnknownBlockType(message)
 
     def _define_metadata_on_nested_blocks(
         self, block_document_references: dict[str, dict[str, Any]]

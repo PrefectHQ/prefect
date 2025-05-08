@@ -924,6 +924,23 @@ async def aws_credentials(prefect_client: PrefectClient) -> BlockDocument:
 
 
 @pytest.fixture
+async def s3_bucket_block_definition(prefect_client: PrefectClient):
+    s3_bucket_block_definition_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="S3 Bucket",
+            slug="s3-bucket",
+        )
+    )
+
+    await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=s3_bucket_block_definition_type.id,
+            fields={"properties": {"bucket": {"type": "string"}}},
+        )
+    )
+
+
+@pytest.fixture
 async def gcs_credentials(prefect_client: PrefectClient) -> BlockDocument:
     gcs_credentials_type = await prefect_client.create_block_type(
         block_type=BlockTypeCreate(
@@ -959,6 +976,23 @@ async def gcs_credentials(prefect_client: PrefectClient) -> BlockDocument:
 
 
 @pytest.fixture
+async def gcs_bucket_block_definition(prefect_client: PrefectClient):
+    gcs_bucket_block_definition_type = await prefect_client.create_block_type(
+        block_type=BlockTypeCreate(
+            name="GCS Bucket",
+            slug="gcs-bucket",
+        )
+    )
+
+    await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=gcs_bucket_block_definition_type.id,
+            fields={},
+        )
+    )
+
+
+@pytest.fixture
 async def azure_blob_storage_credentials(
     prefect_client: PrefectClient,
 ) -> BlockDocument:
@@ -986,8 +1020,30 @@ async def azure_blob_storage_credentials(
     )
 
 
+@pytest.fixture
+async def azure_blob_storage_container_block_definition(
+    prefect_client: PrefectClient,
+):
+    azure_blob_storage_container_block_definition_type = (
+        await prefect_client.create_block_type(
+            block_type=BlockTypeCreate(
+                name="Azure Blob Storage Container",
+                slug="azure-blob-storage-container",
+            )
+        )
+    )
+
+    await prefect_client.create_block_schema(
+        block_schema=BlockSchemaCreate(
+            block_type_id=azure_blob_storage_container_block_definition_type.id,
+            fields={"properties": {"container_name": {"type": "string"}}},
+        )
+    )
+
+
 class TestStorageConfigure:
     class TestS3:
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
         async def test_storage_configure(
             self,
             prefect_client: PrefectClient,
@@ -1030,7 +1086,17 @@ class TestStorageConfigure:
                     "aws_credentials_block_name": aws_credentials.name,
                 }
             }
+            block_document = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="s3-bucket",
+            )
+            assert block_document.data == {
+                "bucket_name": "test-bucket",
+                "bucket_folder": "results",
+                "credentials": aws_credentials.data,
+            }
 
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
         async def test_storage_configure_nonexistent_pool(
             self, aws_credentials: BlockDocument
         ):
@@ -1079,6 +1145,7 @@ class TestStorageConfigure:
             assert res.exit_code == 1
 
     class TestGCS:
+        @pytest.mark.usefixtures("gcs_bucket_block_definition")
         async def test_storage_configure(
             self,
             work_pool: WorkPool,
@@ -1111,17 +1178,27 @@ class TestStorageConfigure:
                 "prefect_gcp.experimental.bundles.upload": {
                     "requires": "prefect-gcp",
                     "bucket": "test-bucket",
-                    "credentials_block_name": gcs_credentials.name,
+                    "gcp_credentials_block_name": gcs_credentials.name,
                 }
             }
             assert client_res.storage_configuration.bundle_execution_step == {
                 "prefect_gcp.experimental.bundles.execute": {
                     "requires": "prefect-gcp",
                     "bucket": "test-bucket",
-                    "credentials_block_name": gcs_credentials.name,
+                    "gcp_credentials_block_name": gcs_credentials.name,
                 }
             }
+            block_document = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="gcs-bucket",
+            )
+            assert block_document.data == {
+                "bucket_name": "test-bucket",
+                "bucket_folder": "results",
+                "credentials": gcs_credentials.data,
+            }
 
+        @pytest.mark.usefixtures("gcs_bucket_block_definition")
         async def test_storage_configure_nonexistent_pool(
             self, gcs_credentials: BlockDocument
         ):
@@ -1169,6 +1246,7 @@ class TestStorageConfigure:
             )
 
     class TestAzureBlobStorage:
+        @pytest.mark.usefixtures("azure_blob_storage_container_block_definition")
         async def test_storage_configure(
             self,
             work_pool: WorkPool,
@@ -1211,7 +1289,16 @@ class TestStorageConfigure:
                     "azure_blob_storage_credentials_block_name": azure_blob_storage_credentials.name,
                 }
             }
+            block_document = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="azure-blob-storage-container",
+            )
+            assert block_document.data == {
+                "container_name": "test-container",
+                "credentials": azure_blob_storage_credentials.data,
+            }
 
+        @pytest.mark.usefixtures("azure_blob_storage_container_block_definition")
         async def test_storage_configure_nonexistent_pool(
             self, azure_blob_storage_credentials: BlockDocument
         ):

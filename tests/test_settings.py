@@ -126,10 +126,6 @@ SUPPORTED_SETTINGS = {
         "test_value": 10.0,
         "legacy": True,
     },
-    "PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED": {
-        "test_value": True,
-        "legacy": True,
-    },
     "PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS": {
         "test_value": 10,
         "legacy": True,
@@ -373,7 +369,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE": {"test_value": 20},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
-    "PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS": {
         "test_value": 10
     },

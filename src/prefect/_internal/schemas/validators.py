@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import datetime
 import os
-import re
 import urllib.parse
 import warnings
 from collections.abc import Iterable, Mapping, MutableMapping
@@ -34,59 +33,6 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 M = TypeVar("M", bound=Mapping[str, Any])
 MM = TypeVar("MM", bound=MutableMapping[str, Any])
-
-
-LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
-LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
-
-
-@overload
-def raise_on_name_alphanumeric_dashes_only(
-    value: str, field_name: str = ...
-) -> str: ...
-
-
-@overload
-def raise_on_name_alphanumeric_dashes_only(
-    value: None, field_name: str = ...
-) -> None: ...
-
-
-def raise_on_name_alphanumeric_dashes_only(
-    value: Optional[str], field_name: str = "value"
-) -> Optional[str]:
-    if value is not None and not bool(
-        re.match(LOWERCASE_LETTERS_NUMBERS_AND_DASHES_ONLY_REGEX, value)
-    ):
-        raise ValueError(
-            f"{field_name} must only contain lowercase letters, numbers, and dashes."
-        )
-    return value
-
-
-@overload
-def raise_on_name_alphanumeric_underscores_only(
-    value: str, field_name: str = ...
-) -> str: ...
-
-
-@overload
-def raise_on_name_alphanumeric_underscores_only(
-    value: None, field_name: str = ...
-) -> None: ...
-
-
-def raise_on_name_alphanumeric_underscores_only(
-    value: Optional[str], field_name: str = "value"
-) -> Optional[str]:
-    if value is not None and not re.match(
-        LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX, value
-    ):
-        raise ValueError(
-            f"{field_name} must only contain lowercase letters, numbers, and"
-            " underscores."
-        )
-    return value
 
 
 def validate_values_conform_to_schema(
@@ -485,25 +431,6 @@ def validate_not_negative(v: Optional[float]) -> Optional[float]:
     return v
 
 
-@overload
-def validate_message_template_variables(v: str) -> str: ...
-
-
-@overload
-def validate_message_template_variables(v: None) -> None: ...
-
-
-def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
-    from prefect.client.schemas.objects import FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
-
-    if v is not None:
-        try:
-            v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
-        except KeyError as exc:
-            raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
-    return v
-
-
 def validate_default_queue_id_not_none(v: Optional[UUID]) -> UUID:
     if v is None:
         raise ValueError(
@@ -629,47 +556,3 @@ def validate_working_dir(v: Optional[Path | str]) -> Optional[Path]:
     if isinstance(v, str):
         return relative_path_to_current_platform(v)
     return v
-
-
-### UNCATEGORIZED VALIDATORS ###
-
-# the above categories seem to be getting a bit unwieldy, so this is a temporary
-# catch-all for validators until we organize these into files
-
-
-@overload
-def validate_block_document_name(value: str) -> str: ...
-
-
-@overload
-def validate_block_document_name(value: None) -> None: ...
-
-
-def validate_block_document_name(value: Optional[str]) -> Optional[str]:
-    if value is not None:
-        raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
-    return value
-
-
-def validate_artifact_key(value: str) -> str:
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
-    return value
-
-
-@overload
-def validate_variable_name(value: str) -> str: ...
-
-
-@overload
-def validate_variable_name(value: None) -> None: ...
-
-
-def validate_variable_name(value: Optional[str]) -> Optional[str]:
-    if value is not None:
-        raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
-    return value
-
-
-def validate_block_type_slug(value: str):
-    raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
-    return value

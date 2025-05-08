@@ -744,76 +744,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_run_notification_policies/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Flow Run Notification Policy
-         * @description Creates a new flow run notification policy.
-         *
-         *     For more information, see https://docs.prefect.io/v3/automate/events/automations-triggers#sending-notifications-with-automations.
-         */
-        post: operations["create_flow_run_notification_policy_flow_run_notification_policies__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/flow_run_notification_policies/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Flow Run Notification Policy
-         * @description Get a flow run notification policy by id.
-         */
-        get: operations["read_flow_run_notification_policy_flow_run_notification_policies__id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Flow Run Notification Policy
-         * @description Delete a flow run notification policy by id.
-         */
-        delete: operations["delete_flow_run_notification_policy_flow_run_notification_policies__id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Flow Run Notification Policy
-         * @description Updates an existing flow run notification policy.
-         */
-        patch: operations["update_flow_run_notification_policy_flow_run_notification_policies__id__patch"];
-        trace?: never;
-    };
-    "/flow_run_notification_policies/filter": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Read Flow Run Notification Policies
-         * @description Query for flow run notification policies.
-         */
-        post: operations["read_flow_run_notification_policies_flow_run_notification_policies_filter_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/deployments/": {
         parameters: {
             query?: never;
@@ -4546,20 +4476,6 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             work_pools?: components["schemas"]["WorkPoolFilter"];
         };
-        /** Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post */
-        Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post: {
-            flow_run_notification_policy_filter?: components["schemas"]["FlowRunNotificationPolicyFilter"];
-            /**
-             * Offset
-             * @default 0
-             */
-            offset: number;
-            /**
-             * Limit
-             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
-             */
-            limit?: number;
-        };
         /** Body_read_flow_runs_flow_runs_filter_post */
         Body_read_flow_runs_flow_runs_filter_post: {
             /** @default ID_DESC */
@@ -6115,12 +6031,18 @@ export interface components {
             occurred?: components["schemas"]["EventOccurredFilter"];
             /** @description Filter criteria for the event name */
             event?: components["schemas"]["EventNameFilter"] | null;
-            /** @description Filter criteria for any resource involved in the event */
-            any_resource?: components["schemas"]["EventAnyResourceFilter"] | null;
             /** @description Filter criteria for the resource of the event */
             resource?: components["schemas"]["EventResourceFilter"] | null;
-            /** @description Filter criteria for the related resources of the event */
-            related?: components["schemas"]["EventRelatedFilter"] | null;
+            /**
+             * Related
+             * @description Filter criteria for the related resources of the event
+             */
+            related?: components["schemas"]["EventRelatedFilter"] | components["schemas"]["EventRelatedFilter"][] | null;
+            /**
+             * Any Resource
+             * @description Filter criteria for any resource involved in the event
+             */
+            any_resource?: components["schemas"]["EventAnyResourceFilter"] | components["schemas"]["EventAnyResourceFilter"][] | null;
             /** @description Filter criteria for the events' ID */
             id?: components["schemas"]["EventIDFilter"];
             /**
@@ -6266,8 +6188,11 @@ export interface components {
             id?: string;
             /** @description Labels for resources which this trigger will match. */
             match?: components["schemas"]["ResourceSpecification"];
-            /** @description Labels for related resources which this trigger will match. */
-            match_related?: components["schemas"]["ResourceSpecification"];
+            /**
+             * Match Related
+             * @description Labels for related resources which this trigger will match.
+             */
+            match_related?: components["schemas"]["ResourceSpecification"] | components["schemas"]["ResourceSpecification"][];
             /**
              * After
              * @description The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`
@@ -7061,121 +6986,6 @@ export interface components {
              * @description The sender of the input.
              */
             sender?: string | null;
-        };
-        /**
-         * FlowRunNotificationPolicy
-         * @description An ORM representation of a flow run notification.
-         */
-        FlowRunNotificationPolicy: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Created */
-            created: string | null;
-            /** Updated */
-            updated: string | null;
-            /**
-             * Is Active
-             * @description Whether the policy is currently active
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * State Names
-             * @description The flow run states that trigger notifications
-             */
-            state_names: string[];
-            /**
-             * Tags
-             * @description The flow run tags that trigger notifications (set [] to disable)
-             */
-            tags: string[];
-            /**
-             * Block Document Id
-             * Format: uuid
-             * @description The block document ID used for sending notifications
-             */
-            block_document_id: string;
-            /**
-             * Message Template
-             * @description A templatable notification message. Use {braces} to add variables. Valid variables include: 'flow_id', 'flow_name', 'flow_run_id', 'flow_run_name', 'flow_run_notification_policy_id', 'flow_run_parameters', 'flow_run_state_message', 'flow_run_state_name', 'flow_run_state_timestamp', 'flow_run_state_type', 'flow_run_url'
-             */
-            message_template?: string | null;
-        };
-        /**
-         * FlowRunNotificationPolicyCreate
-         * @description Data used by the Prefect REST API to create a flow run notification policy.
-         */
-        FlowRunNotificationPolicyCreate: {
-            /**
-             * Is Active
-             * @description Whether the policy is currently active
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * State Names
-             * @description The flow run states that trigger notifications
-             */
-            state_names: string[];
-            /**
-             * Tags
-             * @description The flow run tags that trigger notifications (set [] to disable)
-             */
-            tags: string[];
-            /**
-             * Block Document Id
-             * Format: uuid
-             * @description The block document ID used for sending notifications
-             */
-            block_document_id: string;
-            /**
-             * Message Template
-             * @description A templatable notification message. Use {braces} to add variables. Valid variables include: 'flow_id', 'flow_name', 'flow_run_id', 'flow_run_name', 'flow_run_notification_policy_id', 'flow_run_parameters', 'flow_run_state_message', 'flow_run_state_name', 'flow_run_state_timestamp', 'flow_run_state_type', 'flow_run_url'
-             */
-            message_template?: string | null;
-        };
-        /**
-         * FlowRunNotificationPolicyFilter
-         * @description Filter FlowRunNotificationPolicies.
-         */
-        FlowRunNotificationPolicyFilter: {
-            /**
-             * @description Filter criteria for `FlowRunNotificationPolicy.is_active`.
-             * @default {
-             *       "eq_": false
-             *     }
-             */
-            is_active: components["schemas"]["FlowRunNotificationPolicyFilterIsActive"] | null;
-        };
-        /**
-         * FlowRunNotificationPolicyFilterIsActive
-         * @description Filter by `FlowRunNotificationPolicy.is_active`.
-         */
-        FlowRunNotificationPolicyFilterIsActive: {
-            /**
-             * Eq
-             * @description Filter notification policies for only those that are or are not active.
-             */
-            eq_?: boolean | null;
-        };
-        /**
-         * FlowRunNotificationPolicyUpdate
-         * @description Data used by the Prefect REST API to update a flow run notification policy.
-         */
-        FlowRunNotificationPolicyUpdate: {
-            /** Is Active */
-            is_active?: boolean | null;
-            /** State Names */
-            state_names?: string[] | null;
-            /** Tags */
-            tags?: string[] | null;
-            /** Block Document Id */
-            block_document_id?: string | null;
-            /** Message Template */
-            message_template?: string | null;
         };
         /** FlowRunPaginationResponse */
         FlowRunPaginationResponse: {
@@ -9500,10 +9310,7 @@ export interface components {
          * @description Data used by the Prefect REST API to update a Variable.
          */
         VariableUpdate: {
-            /**
-             * Name
-             * @description The name of the variable
-             */
+            /** Name */
             name?: string | null;
             /**
              * Value
@@ -9707,6 +9514,11 @@ export interface components {
             bundle_execution_step?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Default Result Storage Block Id
+             * @description The block document ID of the default result storage block.
+             */
+            default_result_storage_block_id?: string | null;
         };
         /**
          * WorkPoolUpdate
@@ -10081,10 +9893,9 @@ export interface components {
             work_pool_id: string;
             /**
              * Last Heartbeat Time
-             * Format: date-time
              * @description The last time the worker process sent a heartbeat.
              */
-            last_heartbeat_time?: string;
+            last_heartbeat_time?: string | null;
             /**
              * Heartbeat Interval Seconds
              * @description The number of seconds to expect between heartbeats sent by the worker.
@@ -11540,178 +11351,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["State"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_flow_run_notification_policy_flow_run_notification_policies__post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FlowRunNotificationPolicyCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlowRunNotificationPolicy"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_flow_run_notification_policy_flow_run_notification_policies__id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path: {
-                /** @description The flow run notification policy id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlowRunNotificationPolicy"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_flow_run_notification_policy_flow_run_notification_policies__id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path: {
-                /** @description The flow run notification policy id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_flow_run_notification_policy_flow_run_notification_policies__id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path: {
-                /** @description The flow run notification policy id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FlowRunNotificationPolicyUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_flow_run_notification_policies_flow_run_notification_policies_filter_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_read_flow_run_notification_policies_flow_run_notification_policies_filter_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlowRunNotificationPolicy"][];
                 };
             };
             /** @description Validation Error */
