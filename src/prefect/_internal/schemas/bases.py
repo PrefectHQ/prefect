@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from rich.repr import RichReprResult
 from typing_extensions import Self
 
+from prefect._internal.uuid7 import uuid7
 from prefect.types._datetime import (
     DateTime,
     human_friendly_diff,
@@ -100,13 +101,22 @@ class PrefectBaseModel(BaseModel):
 
 class IDBaseModel(PrefectBaseModel):
     """
-    A PrefectBaseModel with an auto-generated UUID ID value.
+    A PrefectBaseModel with a randomly-generated UUID ID value.
 
     The ID is reset on copy() and not included in equality comparisons.
     """
 
     _reset_fields: ClassVar[set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
+
+
+class TimeSeriesBaseModel(IDBaseModel):
+    """
+    A PrefectBaseModel with a time-oriented UUIDv7 ID value.  Used for models that
+    operate like timeseries, such as runs, states, and logs.
+    """
+
+    id: UUID = Field(default_factory=uuid7)
 
 
 class ObjectBaseModel(IDBaseModel):

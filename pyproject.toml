@@ -83,6 +83,7 @@ dependencies = [
     "websockets>=13.0,<16.0",
     "whenever>=0.7.3,<0.9.0; python_version>='3.13'",
     "uv>=0.6.0",
+    "uuid7>=0.1.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, Any, Optional, TypeVar, Union
+from typing import Annotated, Any, Optional, TypeVar, Union, cast
+from uuid import UUID
 from typing_extensions import Literal
 import orjson
 import pydantic
-
 
 from ._datetime import DateTime, Date
 from .names import (

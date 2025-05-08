@@ -4,6 +4,7 @@ from .bases import (
     ORMBaseModel,
     PrefectBaseModel,
     PrefectDescriptorBase,
+    TimeSeriesBaseModel,
     get_class_fields_only,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "ORMBaseModel",
     "PrefectBaseModel",
     "PrefectDescriptorBase",
+    "TimeSeriesBaseModel",
     "get_class_fields_only",
 ]

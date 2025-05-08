@@ -14,13 +14,17 @@ from typing import (
     Union,
     overload,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
+from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas import objects
-from prefect.server.utilities.schemas.bases import IDBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import (
+    PrefectBaseModel,
+    TimeSeriesBaseModel,
+)
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.collections import AutoEnum
 
@@ -96,7 +100,7 @@ class StateDetails(PrefectBaseModel):
     traceparent: Optional[str] = None
 
 
-class StateBaseModel(IDBaseModel):
+class StateBaseModel(TimeSeriesBaseModel):
     def orm_dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """
         This method is used as a convenience method for constructing fixtues by first
@@ -212,7 +216,7 @@ class State(StateBaseModel):
         """
         return self.model_copy(
             update={
-                "id": uuid4(),
+                "id": uuid7(),
                 "created": now("UTC"),
                 "updated": now("UTC"),
                 "timestamp": now("UTC"),

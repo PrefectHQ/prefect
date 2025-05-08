@@ -28,7 +28,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import jinja2
 import orjson
@@ -43,6 +43,7 @@ from pydantic import (
 )
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.uuid7 import uuid7
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
@@ -80,8 +81,8 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import StrictVariableValue
-from prefect.types._datetime import DateTime, now, parse_datetime
+from prefect.types import DateTime, StrictVariableValue
+from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -155,7 +156,7 @@ class Action(PrefectBaseModel, abc.ABC):
         )
 
         async with PrefectServerEventsClient() as events:
-            triggered_event_id = uuid4()
+            triggered_event_id = uuid7()
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -178,7 +179,7 @@ class Action(PrefectBaseModel, abc.ABC):
                         **self._result_details,
                     },
                     follows=triggered_event_id,
-                    id=uuid4(),
+                    id=uuid7(),
                 )
             )
 
@@ -207,7 +208,7 @@ class Action(PrefectBaseModel, abc.ABC):
             resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
-            triggered_event_id = uuid4()
+            triggered_event_id = uuid7()
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -240,7 +241,7 @@ class Action(PrefectBaseModel, abc.ABC):
                         **action_details,
                         **self._result_details,
                     },
-                    id=uuid4(),
+                    id=uuid7(),
                     follows=triggered_event_id,
                 )
             )

@@ -9,7 +9,7 @@ import datetime
 import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
@@ -752,7 +753,7 @@ async def _generate_scheduled_flow_runs(
         for date in dates:
             runs.append(
                 {
-                    "id": uuid4(),
+                    "id": uuid7(),
                     "flow_id": deployment.flow_id,
                     "deployment_id": deployment_id,
                     "deployment_version": deployment.version,
@@ -825,7 +826,7 @@ async def _insert_scheduled_flow_runs(
 
     # insert flow run states that correspond to the newly-insert rows
     insert_flow_run_states: list[dict[str, Any]] = [
-        {"id": uuid4(), "flow_run_id": r["id"], **r["state"]}
+        {"id": uuid7(), "flow_run_id": r["id"], **r["state"]}
         for r in runs
         if r["id"] in inserted_flow_run_ids
     ]
