@@ -124,7 +124,7 @@ Both approaches below will result in a deployment pull step that clones your rep
 pull:
 - prefect.deployments.steps.git_clone:
     repository: https://github.com/<your-org>/<your-repo>.git
-    commit_sha: "{{ $GITHUB_SHA }}"
+    commit_sha: "{{ $GITHUB_SHA }}" # replace with the relevant env var from the table above
 
 deployments:
 - name: my-deployment
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     my_flow.from_source(
         source=GitRepository(
             repo_url="https://github.com/<your-org>/<your-repo>.git",
-            commit_sha=os.getenv("GITHUB_SHA"),
+            commit_sha=os.getenv("GITHUB_SHA"), # replace with the relevant env var from the table above
         )
     ).deploy(
         name="my-deployment",
