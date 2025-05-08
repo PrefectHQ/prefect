@@ -28,7 +28,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import jinja2
 import orjson
@@ -42,6 +42,7 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import Self, TypeAlias
+from uuid_extensions import uuid7
 
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
@@ -155,7 +156,7 @@ class Action(PrefectBaseModel, abc.ABC):
         )
 
         async with PrefectServerEventsClient() as events:
-            triggered_event_id = uuid4()
+            triggered_event_id = uuid7()
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -178,7 +179,7 @@ class Action(PrefectBaseModel, abc.ABC):
                         **self._result_details,
                     },
                     follows=triggered_event_id,
-                    id=uuid4(),
+                    id=uuid7(),
                 )
             )
 
@@ -207,7 +208,7 @@ class Action(PrefectBaseModel, abc.ABC):
             resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
-            triggered_event_id = uuid4()
+            triggered_event_id = uuid7()
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -240,7 +241,7 @@ class Action(PrefectBaseModel, abc.ABC):
                         **action_details,
                         **self._result_details,
                     },
-                    id=uuid4(),
+                    id=uuid7(),
                     follows=triggered_event_id,
                 )
             )

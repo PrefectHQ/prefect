@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, MutableMapping, Optional, Set, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid_extensions import uuid7
 
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import (
@@ -356,7 +357,7 @@ async def deployment_status_event(
             "prefect.resource.name": f"{deployment.name}",
         },
         related=related_work_queue_and_pool_info,
-        id=uuid4(),
+        id=uuid7(),
     )
 
 
@@ -392,7 +393,7 @@ async def work_queue_status_event(
             "prefect.resource.role": "work-queue",
         },
         related=related_work_pool_info,
-        id=uuid4(),
+        id=uuid7(),
     )
 
 

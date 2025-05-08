@@ -20,6 +20,7 @@ from typing import (
 )
 
 from typing_extensions import ParamSpec, Self, TypeVar
+from uuid_extensions import uuid7
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
@@ -290,7 +291,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         from prefect.context import FlowRunContext
         from prefect.task_engine import run_task_async, run_task_sync
 
-        task_run_id = uuid.uuid4()
+        task_run_id = uuid7()
         cancel_event = threading.Event()
         self._cancel_events[task_run_id] = cancel_event
         context = copy_context()

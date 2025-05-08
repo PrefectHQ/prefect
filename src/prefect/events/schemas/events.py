@@ -13,7 +13,7 @@ from typing import (
     Tuple,
     Union,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import (
     AfterValidator,
@@ -23,6 +23,7 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import Annotated, Self
+from uuid_extensions import uuid7
 
 import prefect.types._datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -135,7 +136,7 @@ class Event(PrefectBaseModel):
         description="An open-ended set of data describing what happened",
     )
     id: UUID = Field(
-        default_factory=uuid4,
+        default_factory=uuid7,
         description="The client-provided identifier of this event",
     )
     follows: Optional[UUID] = Field(

@@ -13,11 +13,12 @@ from typing import (
     Sequence,
     Union,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid_extensions import uuid7
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
@@ -239,7 +240,7 @@ async def update_work_pool(
                 update_data["status"] = schemas.statuses.WorkPoolStatus.NOT_READY
 
     if "status" in update_data:
-        update_data["last_status_event_id"] = uuid4()
+        update_data["last_status_event_id"] = uuid7()
         update_data["last_transitioned_status_at"] = now("UTC")
 
     update_stmt = (

@@ -27,6 +27,7 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import Self, TypeAlias
+from uuid_extensions import uuid7
 
 from prefect.logging import get_logger
 from prefect.server.events.actions import ServerActionTypes
@@ -153,7 +154,7 @@ class CompositeTrigger(Trigger, abc.ABC):
                     else None
                 ),
             },
-            id=uuid4(),
+            id=uuid7(),
         )
 
     def _set_parent(self, value: "Union[Trigger , Automation]"):
@@ -462,7 +463,7 @@ class EventTrigger(ResourceTrigger):
                     else None
                 ),
             },
-            id=uuid4(),
+            id=uuid7(),
         )
 
 
@@ -644,7 +645,7 @@ class AutomationSort(AutoEnum):
 class Firing(PrefectBaseModel):
     """Represents one instance of a trigger firing"""
 
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID = Field(default_factory=uuid7)
 
     trigger: ServerTriggerTypes = Field(
         default=..., description="The trigger that is firing"
@@ -721,7 +722,7 @@ class TriggeredAction(PrefectBaseModel):
     )
 
     id: UUID = Field(
-        default_factory=uuid4,
+        default_factory=uuid7,
         description="A unique key representing a single triggering of an action",
     )
 

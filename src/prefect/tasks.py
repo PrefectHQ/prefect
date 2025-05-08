@@ -30,6 +30,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
+from uuid_extensions import uuid7
 
 import prefect.states
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
@@ -953,7 +954,7 @@ class Task(Generic[P, R]):
                 if flow_run_context and flow_run_context.flow_run
                 else None
             )
-            task_run_id = id or uuid4()
+            task_run_id = id or uuid7()
             state = prefect.states.Pending(
                 state_details=StateDetails(
                     task_run_id=task_run_id,
