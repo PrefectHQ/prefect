@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.uuid7 import uuid7
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
@@ -30,7 +31,7 @@ from prefect.server.models.work_queues import (
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
-from prefect.types import DateTime, uuid7
+from prefect.types import DateTime
 from prefect.types._datetime import now
 
 if TYPE_CHECKING:

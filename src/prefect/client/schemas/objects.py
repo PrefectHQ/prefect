@@ -52,6 +52,7 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect._internal.uuid7 import uuid7
 from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
@@ -62,7 +63,6 @@ from prefect.types import (
     NonNegativeInteger,
     PositiveInteger,
     StrictVariableValue,
-    uuid7,
 )
 from prefect.types._datetime import DateTime, now
 from prefect.types.names import (

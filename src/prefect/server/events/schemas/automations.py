@@ -28,6 +28,7 @@ from pydantic import (
 )
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.schemas.events import (
@@ -39,7 +40,7 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.types import DateTime, uuid7
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:

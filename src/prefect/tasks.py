@@ -32,6 +32,7 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
+from prefect._internal.uuid7 import uuid7
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -57,7 +58,6 @@ from prefect.results import (
 )
 from prefect.settings.context import get_current_settings
 from prefect.states import Pending, Scheduled, State
-from prefect.types import uuid7
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import (

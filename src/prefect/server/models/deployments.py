@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
@@ -30,7 +31,6 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
-from prefect.types import uuid7
 from prefect.types._datetime import DateTime, now
 
 T = TypeVar("T", bound=tuple[Any, ...])

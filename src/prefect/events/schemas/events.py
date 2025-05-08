@@ -26,11 +26,11 @@ from typing_extensions import Annotated, Self
 
 import prefect.types._datetime
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
 )
-from prefect.types import uuid7
 
 from .labelling import Labelled
 

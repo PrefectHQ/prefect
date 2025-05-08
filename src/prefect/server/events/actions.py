@@ -43,6 +43,7 @@ from pydantic import (
 )
 from typing_extensions import Self, TypeAlias
 
+from prefect._internal.uuid7 import uuid7
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
@@ -80,8 +81,8 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import StrictVariableValue, uuid7
-from prefect.types._datetime import DateTime, now, parse_datetime
+from prefect.types import DateTime, StrictVariableValue
+from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,

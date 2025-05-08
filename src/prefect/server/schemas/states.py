@@ -19,12 +19,12 @@ from uuid import UUID
 from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
+from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas import objects
 from prefect.server.utilities.schemas.bases import (
     PrefectBaseModel,
     TimeSeriesBaseModel,
 )
-from prefect.types import uuid7
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.collections import AutoEnum
 
