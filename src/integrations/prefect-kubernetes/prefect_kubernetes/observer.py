@@ -32,8 +32,8 @@ logging.getLogger("kopf.objects").setLevel(logging.INFO)
 
 settings = KubernetesSettings()
 
-events_client: EventsClient
-orchestration_client: PrefectClient
+events_client: EventsClient | None = None
+orchestration_client: PrefectClient | None = None
 
 
 @kopf.on.startup()
@@ -103,6 +103,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # This handles the case where the observer is restarted and we don't want to emit duplicate events
     # and the case where you're moving from an older version of the worker without the observer to a newer version with the observer.
     if event_type is None:
+        if orchestration_client is None:
+            raise RuntimeError("Orchestration client not initialized")
         response = await orchestration_client.request(
             "POST",
             "/events/filter",
@@ -145,7 +147,9 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             < timedelta(minutes=5)
         ):
             prefect_event.follows = prev_event.id
-    await events_client.emit(prefect_event)
+    if events_client is None:
+        raise RuntimeError("Events client not initialized")
+    await events_client.emit(event=prefect_event)
     _last_event_cache[event_id] = prefect_event
 
 
@@ -224,6 +228,8 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     # Get the flow run to check its state
     try:
+        if orchestration_client is None:
+            raise RuntimeError("Orchestration client not initialized")
         flow_run = await orchestration_client.read_flow_run(
             flow_run_id=uuid.UUID(flow_run_id)
         )

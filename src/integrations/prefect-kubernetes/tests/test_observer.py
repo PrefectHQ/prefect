@@ -1,7 +1,7 @@
 import uuid
 from contextlib import asynccontextmanager
 from time import sleep
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from prefect_kubernetes.observer import (
@@ -10,17 +10,53 @@ from prefect_kubernetes.observer import (
     stop_observer,
 )
 
-from prefect.events.schemas.events import RelatedResource
+from prefect.events.schemas.events import RelatedResource, Resource
+
+
+@pytest.fixture
+def mock_events_client(monkeypatch: pytest.MonkeyPatch):
+    events_client = AsyncMock()
+
+    @asynccontextmanager
+    async def mock_get_events_client():
+        try:
+            yield events_client
+        finally:
+            pass
+
+    monkeypatch.setattr(
+        "prefect_kubernetes.observer.get_events_client", mock_get_events_client
+    )
+    monkeypatch.setattr("prefect_kubernetes.observer.events_client", events_client)
+    return events_client
+
+
+@pytest.fixture
+def mock_orchestration_client(monkeypatch: pytest.MonkeyPatch):
+    orchestration_client = AsyncMock()
+    json_response = MagicMock()
+    json_response.json.return_value = {"events": [{"id": "existing-event"}]}
+    orchestration_client.request.return_value = json_response
+
+    @asynccontextmanager
+    async def mock_get_orchestration_client():
+        try:
+            yield orchestration_client
+        finally:
+            pass
+
+    monkeypatch.setattr(
+        "prefect_kubernetes.observer.get_client",
+        mock_get_orchestration_client,
+    )
+    monkeypatch.setattr(
+        "prefect_kubernetes.observer.orchestration_client", orchestration_client
+    )
+    return orchestration_client
 
 
 class TestReplicatePodEvent:
-    @pytest.fixture
-    def mock_emit_event(self, monkeypatch: pytest.MonkeyPatch):
-        mock = MagicMock()
-        monkeypatch.setattr("prefect_kubernetes.observer.emit_event", mock)
-        return mock
-
-    async def test_minimal(self, mock_emit_event: MagicMock):
+    async def test_minimal(self, mock_events_client: AsyncMock):
         flow_run_id = uuid.uuid4()
         pod_id = uuid.uuid4()
 
@@ -37,27 +73,26 @@ class TestReplicatePodEvent:
             logger=MagicMock(),
         )
 
-        mock_emit_event.assert_called_once_with(
-            event="prefect.kubernetes.pod.running",
-            resource={
+        emitted_event = mock_events_client.emit.call_args[1]["event"]
+        assert emitted_event.event == "prefect.kubernetes.pod.running"
+        assert emitted_event.resource == Resource(
+            {
                 "prefect.resource.id": f"prefect.kubernetes.pod.{pod_id}",
                 "prefect.resource.name": "test",
                 "kubernetes.namespace": "test",
-            },
-            id=ANY,
-            related=[
-                RelatedResource.model_validate(
-                    {
-                        "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
-                        "prefect.resource.role": "flow-run",
-                        "prefect.resource.name": "test",
-                    }
-                )
-            ],
-            follows=None,
+            }
         )
+        assert emitted_event.related == [
+            RelatedResource.model_validate(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "flow-run",
+                    "prefect.resource.name": "test",
+                }
+            )
+        ]
 
-    async def test_deterministic_event_id(self, mock_emit_event: MagicMock):
+    async def test_deterministic_event_id(self, mock_events_client: AsyncMock):
         """Test that the event ID is deterministic"""
         pod_id = uuid.uuid4()
         await _replicate_pod_event(
@@ -73,8 +108,8 @@ class TestReplicatePodEvent:
             logger=MagicMock(),
         )
 
-        first_event_id = mock_emit_event.call_args[1]["id"]
-        mock_emit_event.reset_mock()
+        first_event_id = mock_events_client.emit.call_args[1]["event"].id
+        mock_events_client.emit.reset_mock()
 
         # Call the function again
         await _replicate_pod_event(
@@ -90,10 +125,10 @@ class TestReplicatePodEvent:
             logger=MagicMock(),
         )
 
-        second_event_id = mock_emit_event.call_args[1]["id"]
+        second_event_id = mock_events_client.emit.call_args[1]["event"].id
         assert first_event_id == second_event_id
 
-    async def test_evicted_pod(self, mock_emit_event: MagicMock):
+    async def test_evicted_pod(self, mock_events_client: AsyncMock):
         """Test handling of evicted pods"""
         pod_id = uuid.uuid4()
 
@@ -115,20 +150,18 @@ class TestReplicatePodEvent:
             logger=MagicMock(),
         )
 
-        mock_emit_event.assert_called_once_with(
-            event="prefect.kubernetes.pod.evicted",
-            resource={
+        emitted_event = mock_events_client.emit.call_args[1]["event"]
+        assert emitted_event.event == "prefect.kubernetes.pod.evicted"
+        assert emitted_event.resource == Resource(
+            {
                 "prefect.resource.id": f"prefect.kubernetes.pod.{pod_id}",
                 "prefect.resource.name": "test",
                 "kubernetes.namespace": "test",
                 "kubernetes.reason": "OOMKilled",
             },
-            id=ANY,
-            related=ANY,
-            follows=None,
         )
 
-    async def test_all_related_resources(self, mock_emit_event: MagicMock):
+    async def test_all_related_resources(self, mock_events_client: AsyncMock):
         """Test that all possible related resources are included"""
         flow_run_id = uuid.uuid4()
         deployment_id = uuid.uuid4()
@@ -156,9 +189,9 @@ class TestReplicatePodEvent:
             logger=MagicMock(),
         )
 
-        mock_emit_event.assert_called_once()
-        call_args = mock_emit_event.call_args[1]
-        related_resources = call_args["related"]
+        mock_events_client.emit.assert_called_once()
+        emitted_event = mock_events_client.emit.call_args[1]["event"]
+        related_resources = emitted_event.related
 
         # Verify all related resources are present
         resource_ids = {
@@ -183,24 +216,9 @@ class TestReplicatePodEvent:
             "test-worker",
         }
 
-    async def test_event_deduplication(
-        self, monkeypatch: pytest.MonkeyPatch, mock_emit_event: MagicMock
-    ):
+    @pytest.mark.usefixtures("mock_orchestration_client")
+    async def test_event_deduplication(self, mock_events_client: AsyncMock):
         """Test that checks from existing events when receiving events on startup"""
-        mock_client = AsyncMock()
-        mock_client.request.return_value = MagicMock(
-            json=lambda: {"events": [{"id": "existing-event"}]}
-        )
-
-        @asynccontextmanager
-        async def mock_get_client():
-            try:
-                yield mock_client
-            finally:
-                pass
-
-        monkeypatch.setattr("prefect_kubernetes.observer.get_client", mock_get_client)
-
         pod_id = uuid.uuid4()
         await _replicate_pod_event(
             # Event types with None are received when reading current cluster state
@@ -214,15 +232,15 @@ class TestReplicatePodEvent:
         )
 
         # Verify no event was emitted since one already existed
-        mock_emit_event.assert_not_called()
+        mock_events_client.emit.assert_not_called()
 
     @pytest.mark.parametrize("phase", ["Pending", "Running", "Succeeded", "Failed"])
-    async def test_different_phases(self, mock_emit_event: MagicMock, phase: str):
+    async def test_different_phases(self, mock_events_client: AsyncMock, phase: str):
         """Test handling of different pod phases"""
         pod_id = uuid.uuid4()
         flow_run_id = uuid.uuid4()
 
-        mock_emit_event.reset_mock()
+        mock_events_client.emit.reset_mock()
         await _replicate_pod_event(
             event={"type": "ADDED"},
             uid=str(pod_id),
@@ -236,33 +254,19 @@ class TestReplicatePodEvent:
             logger=MagicMock(),
         )
 
-        mock_emit_event.assert_called_once()
-        call_args = mock_emit_event.call_args[1]
-        assert call_args["event"] == f"prefect.kubernetes.pod.{phase.lower()}"
+        mock_events_client.emit.assert_called_once()
+        emitted_event = mock_events_client.emit.call_args[1]["event"]
+        assert emitted_event.event == f"prefect.kubernetes.pod.{phase.lower()}"
 
 
 class TestStartAndStopObserver:
     @pytest.mark.timeout(10)
+    @pytest.mark.usefixtures("mock_events_client", "mock_orchestration_client")
     def test_start_and_stop(self, monkeypatch: pytest.MonkeyPatch):
         """
         Test that the observer can be started and stopped without errors
         and without hanging.
         """
-        # Set up a mock to check check for existing pod events
-        mock_client = AsyncMock()
-        mock_client.request.return_value.json.return_value = {
-            "events": [{"id": "existing-event"}]
-        }
-
-        @asynccontextmanager
-        async def mock_get_client():
-            try:
-                yield mock_client
-            finally:
-                pass
-
-        monkeypatch.setattr("prefect_kubernetes.observer.get_client", mock_get_client)
-
         start_observer()
         sleep(1)
         stop_observer()
