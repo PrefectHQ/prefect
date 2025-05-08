@@ -67,12 +67,12 @@ Prefect searches for environment variables in each supported platform's CI envir
 It may be useful to access these environment variables in other stages of your deployment process for constructing version identifiers.
 
 <Note>
-Prefect's automatic version information collection currently supports Github Actions, Gitlab CI, Bitbucket Pipelines, and Azure Pipelines.
+Prefect's automatic version information collection currently supports GitHub Actions, GitLab CI, Bitbucket Pipelines, and Azure Pipelines.
 If deploying from a Git repository not on one of these platforms, Prefect will use `git` CLI commands as a best effort to discover these values.
 </Note>
 
 <Tabs>
-<Tab title="Github Actions">
+<Tab title="GitHub Actions">
 | Environment Variable | Value |
 | - | - |
 | `GITHUB_SHA`| Commit SHA |
@@ -80,7 +80,7 @@ If deploying from a Git repository not on one of these platforms, Prefect will u
 | `GITHUB_REPOSITORY` | Repository name |
 | `GITHUB_SERVER_URL`| Github account or organization URL |
 </Tab>
-<Tab title="Gitlab CI">
+<Tab title="GitLab CI">
 | Environment Variable | Value |
 | - | - |
 | `CI_COMMIT_SHA`| Commit SHA |
@@ -111,6 +111,7 @@ If deploying from a Git repository not on one of these platforms, Prefect will u
 The presence of version information on a deployment does not override Prefect's deployment execution mechanics.
 You must explicitly include information about your code version in either the **pull steps** or **job variables** of your deployment to keep code and deployment versions synchronized.
 The required strategy differs depending on your chosen code storage type.
+The examples in this section use GitHub as their source control management platform, so be sure to replace URLs and environment variables with the ones relevant to your platform.
 
 ### Pulling from Git
 
@@ -124,7 +125,7 @@ Both approaches below will result in a deployment pull step that clones your rep
 pull:
 - prefect.deployments.steps.git_clone:
     repository: https://github.com/<your-org>/<your-repo>.git
-    commit_sha: "{{ $GITHUB_SHA }}" # replace with the relevant env var from the table above
+    commit_sha: "{{ $GITHUB_SHA }}"
 
 deployments:
 - name: my-deployment
@@ -148,7 +149,7 @@ if __name__ == "__main__":
     my_flow.from_source(
         source=GitRepository(
             repo_url="https://github.com/<your-org>/<your-repo>.git",
-            commit_sha=os.getenv("GITHUB_SHA"), # replace with the relevant env var from the table above
+            commit_sha=os.getenv("GITHUB_SHA"),
         )
     ).deploy(
         name="my-deployment",
