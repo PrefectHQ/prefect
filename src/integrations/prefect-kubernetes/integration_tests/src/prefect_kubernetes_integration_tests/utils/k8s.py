@@ -2,6 +2,7 @@ import subprocess
 import time
 
 from kubernetes import client, config
+from kubernetes.client.models.v1_job import V1Job
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -68,8 +69,8 @@ def ensure_evict_plugin() -> None:
         )
 
 
-def get_job_name(flow_run_name: str, timeout: int = 60) -> str:
-    """Get the full job name for a flow run."""
+def get_job_for_flow_run(flow_run_name: str, timeout: int = 60) -> V1Job:
+    """Get the job for a flow run."""
     batch_v1 = client.BatchV1Api()
     start_time = time.time()
 
@@ -80,7 +81,7 @@ def get_job_name(flow_run_name: str, timeout: int = 60) -> str:
                 for job in jobs.items:
                     if job.metadata.name.startswith(flow_run_name):
                         console.log(f"[green]Found job: {job.metadata.name}")
-                        return job.metadata.name
+                        return job
             except client.ApiException as e:
                 console.log(f"[yellow]Error checking jobs: {e}")
 
@@ -91,8 +92,14 @@ def get_job_name(flow_run_name: str, timeout: int = 60) -> str:
     )
 
 
-def wait_for_pod(job_name: str, timeout: int = 60) -> str:
-    """Wait for a pod matching the job name to be running."""
+def get_job_name(flow_run_name: str, timeout: int = 60) -> str:
+    """Get the full job name for a flow run."""
+    job = get_job_for_flow_run(flow_run_name, timeout)
+    return job.metadata.name
+
+
+def wait_for_pod(job_name: str, phase: str = "Running", timeout: int = 60) -> str:
+    """Wait for a pod matching the job name to be in a given phase."""
     v1 = init_k8s_client()
     start_time = time.time()
 
@@ -112,8 +119,8 @@ def wait_for_pod(job_name: str, timeout: int = 60) -> str:
                 )
 
                 for pod in sorted_pods:
-                    if pod.status.phase == "Running":
-                        console.log(f"[green]Found running pod: {pod.metadata.name}")
+                    if pod.status.phase == phase:
+                        console.log(f"[green]Found pod: {pod.metadata.name}")
                         return pod.metadata.name
 
             except client.ApiException as e:
@@ -164,3 +171,9 @@ def evict_pod(pod_name: str) -> None:
     except (client.ApiException, subprocess.CalledProcessError) as e:
         console.print(f"[bold red]Failed to evict pod: {e}")
         raise
+
+
+def delete_pods() -> None:
+    """Delete all pods in the default namespace."""
+    v1 = init_k8s_client()
+    v1.delete_collection_namespaced_pod(K8S_NAMESPACE)

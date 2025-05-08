@@ -1,3 +1,4 @@
+import subprocess
 from typing import Generator
 
 import pytest
@@ -15,11 +16,40 @@ def kind_cluster(request: pytest.FixtureRequest) -> Generator[str, None, None]:
 
 
 @pytest.fixture(scope="session")
-def work_pool_name(request: pytest.FixtureRequest) -> str:
+def work_pool_name(
+    request: pytest.FixtureRequest, worker_id: str
+) -> Generator[str, None, None]:
     """Get the work pool name to use for tests."""
-    work_pool_name = request.config.getoption("--work-pool-name", default="k8s-test")
-    assert isinstance(work_pool_name, str)
-    return work_pool_name
+    default_work_pool_name = (
+        f"k8s-test-{worker_id}" if worker_id != "master" else "k8s-test"
+    )
+    work_pool_name = request.config.getoption("--work-pool-name")
+    if not isinstance(work_pool_name, str):
+        work_pool_name = default_work_pool_name
+
+    subprocess.check_call(
+        [
+            "prefect",
+            "work-pool",
+            "create",
+            work_pool_name,
+            "--type",
+            "kubernetes",
+            "--overwrite",
+        ]
+    )
+
+    yield work_pool_name
+
+    subprocess.check_call(
+        [
+            "prefect",
+            "--no-prompt",
+            "work-pool",
+            "delete",
+            work_pool_name,
+        ]
+    )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -33,12 +63,18 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--work-pool-name",
         action="store",
-        default="k8s-test",
         help="Name of the work pool to use",
     )
 
 
-@pytest.fixture(autouse=True)
-def _check_k8s_deps():
+@pytest.fixture(autouse=True, scope="session")
+def _check_k8s_deps():  # pyright: ignore[reportUnusedFunction]
     """Ensure required kubernetes tools are available."""
     k8s.ensure_evict_plugin()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def clean_up_pods() -> Generator[None, None, None]:
+    """Clean up pods after tests."""
+    yield
+    k8s.delete_pods()
