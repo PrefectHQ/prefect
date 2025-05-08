@@ -148,7 +148,6 @@ class TestWebhook:
         assert insecure_webhook.method == "GET"
         assert insecure_webhook.headers.get_secret_value() == {"foo": "bar"}
 
-    @pytest.mark.asyncio
     async def test_webhook_sends_string_payload(self, monkeypatch):
         send_mock = AsyncMock()
         monkeypatch.setattr("httpx.AsyncClient.request", send_mock)
@@ -157,7 +156,7 @@ class TestWebhook:
 
         webhook = Webhook(
             method="POST",
-            url="http://example.com",
+            url="http://google.com",
             headers={"Content-Type": "application/json"},
         )
 
@@ -165,7 +164,7 @@ class TestWebhook:
 
         send_mock.assert_called_with(
             method="POST",
-            url="http://example.com",
+            url="http://google.com",
             headers={"Content-Type": "application/json"},
             content=rendered_payload,
         )
