@@ -453,3 +453,32 @@ class TestPull:
 
         expected_file = tmp_path / "sample_file.txt"
         assert expected_file.exists()
+
+    @pytest.mark.usefixtures("mock_azure_blob_storage")
+    def test_pull_from_azure_blob_storage_skip_folders(
+        self, tmp_path, container_client_mock
+    ):
+        container = "test-container"
+        folder = "test-folder"
+        credentials = {"connection_string": "fake_connection_string"}
+
+        os.chdir(tmp_path)
+
+        folder_mock = MagicMock()
+        folder_mock.name = f"{folder}/"
+        file_mock = MagicMock()
+        file_mock.name = f"{folder}/sample_file.txt"
+
+        mock_context_client = (
+            container_client_mock.from_connection_string.return_value.__enter__.return_value  # noqa
+        )
+        mock_context_client.list_blobs.return_value = [file_mock]
+
+        pull_from_azure_blob_storage(container, folder, credentials)
+
+        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.download_blob.assert_called_once_with(file_mock)
+
+        expected_file = tmp_path / "sample_file.txt"
+        assert expected_file.exists()
+        assert not expected_file.is_dir()
