@@ -31,7 +31,6 @@
                       :end-date="flowRunsFilterRef.flowRuns?.expectedStartTimeBefore"
                       class="runs__scatter-plot"
                     />
-                    <!-- <p-pager v-model:page="flowRunsHistoryPage" :pages="flowRunsHistoryPages" /> -->
                   </p-card>
                 </template>
 
