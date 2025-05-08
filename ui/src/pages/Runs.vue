@@ -54,9 +54,10 @@
                   </template>
                 </p-list-header>
 
+                <p-pager v-model:limit="limit" v-model:page="flowRunsPage" :pages="flowRunPages" />
+
                 <template v-if="flowRunCount > 0">
                   <FlowRunList v-model:selected="selectedFlowRuns" :selectable="flowRunsAreSelectable" :flow-runs />
-                  <p-pager v-model:limit="limit" v-model:page="flowRunsPage" :pages="flowRunPages" />
                 </template>
 
                 <template v-else-if="!flowRunsSubscription.executed && flowRunsSubscription.loading">
@@ -103,8 +104,8 @@
                 </p-list-header>
 
                 <template v-if="taskRunCount > 0">
-                  <TaskRunList v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" />
                   <p-pager v-model:limit="limit" v-model:page="taskRunsPage" :pages="taskRunsPages" />
+                  <TaskRunList v-model:selected="selectedTaskRuns" :selectable="taskRunsAreSelectable" :task-runs="taskRuns" />
                 </template>
 
                 <template v-else-if="!taskRunsSubscriptions.executed && taskRunsSubscriptions.loading">
@@ -199,7 +200,7 @@
   const taskRunsSort = useRouteQueryParam('task-runs-sort', TaskRunSortValuesSortParam, 'EXPECTED_START_TIME_DESC')
   const flowRunsPage = useRouteQueryParam('flow-runs-page', NumberRouteParam, 1)
 
-  const { value: limit } = useLocalStorage('workspace-runs-list-limit', 10)
+  const { value: limit } = useLocalStorage('workspace-runs-list-limit', 100)
 
   const flowRunsFilter: Getter<FlowRunsPaginationFilter> = () => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
@@ -246,7 +247,7 @@
       },
       sort: flowRunsSort.value,
       limit: limit.value,
-      page: flowRunsPage.value,
+      offset: (flowRunsPage.value - 1) * limit.value,
     })
   }
 
