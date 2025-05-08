@@ -15,6 +15,8 @@ In addition to manually triggering and managing flow runs, deploying a flow expo
 - remotely configure [schedules](/v3/automate/add-schedules) and [automation rules](/v3/automate/events/automations-triggers)
 - dynamically provision infrastructure with [work pools](/v3/deploy/infrastructure-concepts/work-pools) - optionally with templated guardrails for other users
 
+In Prefect Cloud, deployment configuration is versioned, and a new [deployment version](/v3/deploy/deployment-versioning) is created each time a deployment is updated.
+
 ## Create a deployment 
 
 ### Create a deployment with `serve`
@@ -244,6 +246,7 @@ class Deployment:
 
     # metadata for bookkeeping
     version: Optional[str] = None
+    version_type: Optional[VersionType] = None
     description: Optional[str] = None
     tags: Optional[list] = None
 
@@ -396,9 +399,17 @@ my_flow.serve(
 Important information for the versions, descriptions, and tags fields:
 
 - **`version`**: versions are always set by the client and can be any arbitrary string.
-We recommend tightly coupling this field on your deployments to your software development lifecycle.
-For example if you leverage `git` to manage code changes, use either a tag or commit hash in this field.
-If you don't set a value for the version, Prefect will compute a hash.
+We recommend tightly coupling this field on your deployments to your software development lifecycle and choosing human-readable version strings.
+If left unset, the version field will be automatically populated in one of two ways:
+    - If deploying from a directory inside a Git repository or from a CI environment on a supported version control provider, `version` will be the first eight characters of your commit hash.
+    - In all other circumstances, `version` will be your flow's version, which if not assigned in the flow decorator (`@flow(version="my-version")`) will be a hash of the file the flow is defined in.
+- **`version_type`**: When a deployment is created or updated, Prefect will attempt to infer version information from your environment.
+Providing a `version_type` instructs Prefect to only attempt version information collection from an environment of that type.
+The following version types are available: `vcs:github`, `vcs:gitlab`, `vcs:bitbucket`, `vcs:azuredevops`, `vcs:git`, or `prefect:simple`.
+`vcs:git` offers similar versioning detail to officially supported version control platforms, but does not support direct linking to commits from the Prefect Cloud UI.
+It is meant as a fallback option in case your version control platform is not supported.
+`prefect:simple` is for any deployment version created where no Git context is available.
+If left unset, Prefect will automatically select the appropriate `version_type` based on the detected environment.
 - **`description`**: provide reference material such as intended use and parameter documentation.
 Markdown is accepted. The docstring of your flow function is the default value.
 - **`tags`**: group related work together across a diverse set of objects.

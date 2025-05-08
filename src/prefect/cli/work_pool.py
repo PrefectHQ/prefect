@@ -980,14 +980,14 @@ async def gcs(
                             "prefect_gcp.experimental.bundles.upload": {
                                 "requires": "prefect-gcp",
                                 "bucket": bucket,
-                                "credentials_block_name": credentials_block_name,
+                                "gcp_credentials_block_name": credentials_block_name,
                             }
                         },
                         bundle_execution_step={
                             "prefect_gcp.experimental.bundles.execute": {
                                 "requires": "prefect-gcp",
                                 "bucket": bucket,
-                                "credentials_block_name": credentials_block_name,
+                                "gcp_credentials_block_name": credentials_block_name,
                             }
                         },
                         default_result_storage_block_id=block_document.id,

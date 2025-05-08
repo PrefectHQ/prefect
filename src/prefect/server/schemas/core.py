@@ -5,10 +5,21 @@ Full schemas of Prefect REST API objects.
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Type,
+    Union,
+)
 from uuid import UUID
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -23,7 +34,6 @@ from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    raise_on_name_alphanumeric_dashes_only,
     set_run_policy_deprecated_fields,
     validate_cache_key_length,
     validate_default_queue_id_not_none,
@@ -38,6 +48,7 @@ from prefect.server.schemas.statuses import WorkPoolStatus
 from prefect.server.utilities.schemas.bases import (
     ORMBaseModel,
     PrefectBaseModel,
+    TimeSeriesBaseModel,
 )
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
@@ -52,6 +63,7 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.types._datetime import now
+from prefect.types.names import raise_on_name_alphanumeric_dashes_only
 from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
@@ -164,7 +176,7 @@ class ConcurrencyOptions(BaseModel):
     collision_strategy: ConcurrencyLimitStrategy
 
 
-class FlowRun(ORMBaseModel):
+class FlowRun(TimeSeriesBaseModel, ORMBaseModel):
     """An ORM representation of flow run data."""
 
     name: str = Field(
@@ -403,7 +415,7 @@ class Constant(TaskRunInput):
     type: str
 
 
-class TaskRun(ORMBaseModel):
+class TaskRun(TimeSeriesBaseModel, ORMBaseModel):
     """An ORM representation of task run data."""
 
     name: str = Field(
@@ -579,8 +591,9 @@ class Deployment(ORMBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentSchedule] = Field(
-        default_factory=list, description="A list of schedules for the deployment."
+    schedules: list[DeploymentSchedule] = Field(
+        default_factory=lambda: [],
+        description="A list of schedules for the deployment.",
     )
     concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None, description="The concurrency limit for the deployment."
@@ -679,8 +692,8 @@ class ConcurrencyLimit(ORMBaseModel):
         default=..., description="A tag the concurrency limit is applied to."
     )
     concurrency_limit: int = Field(default=..., description="The concurrency limit.")
-    active_slots: List[UUID] = Field(
-        default_factory=list,
+    active_slots: list[UUID] = Field(
+        default_factory=lambda: [],
         description="A list of active run ids using a concurrency slot",
     )
 
@@ -879,7 +892,9 @@ class BlockDocumentReference(ORMBaseModel):
     )
 
     @model_validator(mode="before")
-    def validate_parent_and_ref_are_different(cls, values):
+    def validate_parent_and_ref_are_different(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_parent_and_ref_diff(values)
 
 
@@ -911,12 +926,13 @@ class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(default=..., description="The name of the saved search.")
-    filters: List[SavedSearchFilter] = Field(
-        default_factory=list, description="The filter set for the saved search."
+    filters: list[SavedSearchFilter] = Field(
+        default_factory=lambda: [],
+        description="The filter set for the saved search.",
     )
 
 
-class Log(ORMBaseModel):
+class Log(TimeSeriesBaseModel, ORMBaseModel):
     """An ORM representation of log data."""
 
     name: str = Field(default=..., description="The logger name.")
@@ -934,11 +950,11 @@ class Log(ORMBaseModel):
 class QueueFilter(PrefectBaseModel):
     """Filter criteria definition for a work queue."""
 
-    tags: Optional[List[str]] = Field(
+    tags: Optional[list[str]] = Field(
         default=None,
         description="Only include flow runs with these tags in the work queue.",
     )
-    deployment_ids: Optional[List[UUID]] = Field(
+    deployment_ids: Optional[list[UUID]] = Field(
         default=None,
         description="Only include flow runs from these deployments in the work queue.",
     )
@@ -1141,7 +1157,7 @@ class Worker(ORMBaseModel):
     work_pool_id: UUID = Field(
         description="The work pool with which the queue is associated."
     )
-    last_heartbeat_time: datetime.datetime = Field(
+    last_heartbeat_time: Optional[datetime.datetime] = Field(
         None, description="The last time the worker process sent a heartbeat."
     )
     heartbeat_interval_seconds: Optional[int] = Field(
@@ -1274,15 +1290,11 @@ class Variable(ORMBaseModel):
 
 class FlowRunInput(ORMBaseModel):
     flow_run_id: UUID = Field(description="The flow run ID associated with the input.")
-    key: str = Field(description="The key of the input.")
+    key: Annotated[str, AfterValidator(raise_on_name_alphanumeric_dashes_only)] = Field(
+        description="The key of the input."
+    )
     value: str = Field(description="The value of the input.")
     sender: Optional[str] = Field(default=None, description="The sender of the input.")
-
-    @field_validator("key", check_fields=False)
-    @classmethod
-    def validate_name_characters(cls, v: str) -> str:
-        raise_on_name_alphanumeric_dashes_only(v)
-        return v
 
 
 class CsrfToken(ORMBaseModel):

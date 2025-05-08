@@ -10983,7 +10983,8 @@
                     "name": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "string",
+                                "pattern": "^[^/%&><]+$"
                             },
                             {
                                 "type": "null"
@@ -16731,17 +16732,6 @@
                         ],
                         "description": "Filter criteria for the event name"
                     },
-                    "any_resource": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/EventAnyResourceFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "Filter criteria for any resource involved in the event"
-                    },
                     "resource": {
                         "anyOf": [
                             {
@@ -16759,10 +16749,35 @@
                                 "$ref": "#/components/schemas/EventRelatedFilter"
                             },
                             {
+                                "items": {
+                                    "$ref": "#/components/schemas/EventRelatedFilter"
+                                },
+                                "type": "array"
+                            },
+                            {
                                 "type": "null"
                             }
                         ],
+                        "title": "Related",
                         "description": "Filter criteria for the related resources of the event"
+                    },
+                    "any_resource": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EventAnyResourceFilter"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/EventAnyResourceFilter"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any Resource",
+                        "description": "Filter criteria for any resource involved in the event"
                     },
                     "id": {
                         "$ref": "#/components/schemas/EventIDFilter",
@@ -17080,7 +17095,18 @@
                         "description": "Labels for resources which this trigger will match."
                     },
                     "match_related": {
-                        "$ref": "#/components/schemas/ResourceSpecification",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/ResourceSpecification"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "title": "Match Related",
                         "description": "Labels for related resources which this trigger will match."
                     },
                     "after": {
@@ -23751,7 +23777,7 @@
                         "title": "Name",
                         "description": "The name of the variable",
                         "examples": [
-                            "my-variable"
+                            "my_variable"
                         ]
                     },
                     "value": {
@@ -23981,17 +24007,17 @@
                         "anyOf": [
                             {
                                 "type": "string",
-                                "maxLength": 255
+                                "maxLength": 255,
+                                "description": "The name of the variable",
+                                "examples": [
+                                    "my_variable"
+                                ]
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Name",
-                        "description": "The name of the variable",
-                        "examples": [
-                            "my-variable"
-                        ]
+                        "title": "Name"
                     },
                     "value": {
                         "anyOf": [
@@ -25287,8 +25313,15 @@
                         "description": "The work pool with which the queue is associated."
                     },
                     "last_heartbeat_time": {
-                        "type": "string",
-                        "format": "date-time",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Last Heartbeat Time",
                         "description": "The last time the worker process sent a heartbeat."
                     },

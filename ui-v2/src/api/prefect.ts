@@ -6031,12 +6031,18 @@ export interface components {
             occurred?: components["schemas"]["EventOccurredFilter"];
             /** @description Filter criteria for the event name */
             event?: components["schemas"]["EventNameFilter"] | null;
-            /** @description Filter criteria for any resource involved in the event */
-            any_resource?: components["schemas"]["EventAnyResourceFilter"] | null;
             /** @description Filter criteria for the resource of the event */
             resource?: components["schemas"]["EventResourceFilter"] | null;
-            /** @description Filter criteria for the related resources of the event */
-            related?: components["schemas"]["EventRelatedFilter"] | null;
+            /**
+             * Related
+             * @description Filter criteria for the related resources of the event
+             */
+            related?: components["schemas"]["EventRelatedFilter"] | components["schemas"]["EventRelatedFilter"][] | null;
+            /**
+             * Any Resource
+             * @description Filter criteria for any resource involved in the event
+             */
+            any_resource?: components["schemas"]["EventAnyResourceFilter"] | components["schemas"]["EventAnyResourceFilter"][] | null;
             /** @description Filter criteria for the events' ID */
             id?: components["schemas"]["EventIDFilter"];
             /**
@@ -6182,8 +6188,11 @@ export interface components {
             id?: string;
             /** @description Labels for resources which this trigger will match. */
             match?: components["schemas"]["ResourceSpecification"];
-            /** @description Labels for related resources which this trigger will match. */
-            match_related?: components["schemas"]["ResourceSpecification"];
+            /**
+             * Match Related
+             * @description Labels for related resources which this trigger will match.
+             */
+            match_related?: components["schemas"]["ResourceSpecification"] | components["schemas"]["ResourceSpecification"][];
             /**
              * After
              * @description The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`
@@ -9301,10 +9310,7 @@ export interface components {
          * @description Data used by the Prefect REST API to update a Variable.
          */
         VariableUpdate: {
-            /**
-             * Name
-             * @description The name of the variable
-             */
+            /** Name */
             name?: string | null;
             /**
              * Value
@@ -9887,10 +9893,9 @@ export interface components {
             work_pool_id: string;
             /**
              * Last Heartbeat Time
-             * Format: date-time
              * @description The last time the worker process sent a heartbeat.
              */
-            last_heartbeat_time?: string;
+            last_heartbeat_time?: string | null;
             /**
              * Heartbeat Interval Seconds
              * @description The number of seconds to expect between heartbeats sent by the worker.

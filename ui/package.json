@@ -10,8 +10,8 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "2.14.24",
-    "@prefecthq/prefect-ui-library": "3.12.11",
+    "@prefecthq/prefect-design": "2.14.25",
+    "@prefecthq/prefect-ui-library": "3.12.12",
     "@prefecthq/vue-charts": "2.0.6",
     "@prefecthq/vue-compositions": "1.11.5",
     "@types/lodash.debounce": "4.0.9",

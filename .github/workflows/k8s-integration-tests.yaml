@@ -17,35 +17,31 @@ jobs:
     name: Run Kubernetes Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-      
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           python-version: "3.12"
           cache-dependency-glob: "src/integrations/prefect-kubernetes/integration_tests/pyproject.toml"
-      
 
-      - name: Install dependencies
-        run: cd src/integrations/prefect-kubernetes/integration_tests && uv sync --active
-      
       - name: Set up Kind cluster
         uses: helm/kind-action@v1.12.0
         with:
           cluster_name: prefect-test
-      
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'latest'
-      
+          version: "latest"
+
       - name: Install krew
         run: |
           (
@@ -68,18 +64,16 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: |
-          prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
-          python ./scripts/wait-for-server.py
+          uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
+          uv run -s ./scripts/wait-for-server.py
 
-      
       - name: Run integration tests
         run: |
-          cd src/integrations/prefect-kubernetes/integration_tests
           uv run pytest -s
+        working-directory: src/integrations/prefect-kubernetes/integration_tests
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
 
-      
       - name: Delete Kind cluster
         if: always()
         run: |
