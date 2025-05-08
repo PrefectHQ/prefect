@@ -34,6 +34,7 @@ These properties are pinned to each deployment version.
 | `job_variables`            | <Icon icon="check" iconType="solid" />                             |
 | `created_by`               | <Icon icon="check" iconType="solid" />                             |
 | `updated_by`               | <Icon icon="check" iconType="solid" />                             |
+| `version_info`             | <Icon icon="check" iconType="solid" />                             |
 </Accordion>
 <Accordion title="Unversioned deployment properties" icon="xmark" description="">
 These properties persist across version rollbacks and promotions.
@@ -50,7 +51,7 @@ These properties persist across version rollbacks and promotions.
 </Accordion>
 </AccordionGroup>
 
-Additionally, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment if you're deploying from a supported version control platform or from inside a Git repository.
+If you're deploying from a supported version control platform or from inside a Git repository, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment.
 This information is used to help create a record of which code versions produced which deployment versions.
 
 ### Supported source code management platforms
