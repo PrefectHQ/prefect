@@ -111,7 +111,8 @@ If deploying from a Git repository not on one of these platforms, Prefect will u
 The presence of version information on a deployment does not override Prefect's deployment execution mechanics.
 You must explicitly include information about your code version in either the **pull steps** or **job variables** of your deployment to keep code and deployment versions synchronized.
 The required strategy differs depending on your chosen code storage type.
-The examples in this section use GitHub as their source control management platform, so be sure to replace URLs and environment variables with the ones relevant to your platform.
+The examples in this section use GitHub as their source control management and CI platform, so be sure to replace URLs, environment variables, and CI workflows with the ones relevant to your platform.
+You can check out complete example repositories on GitHub for executing specific code versions when [pulling from Git](https://github.com/kevingrismore/version-testing) and [pulling Docker images](https://github.com/kevingrismore/version-testing-docker/tree/main).
 
 ### Pulling from Git
 
@@ -124,7 +125,7 @@ Both approaches below will result in a deployment pull step that clones your rep
 ```yaml With prefect.yaml
 pull:
 - prefect.deployments.steps.git_clone:
-    repository: https://github.com/<your-org>/<your-repo>.git
+    repository: https://github.com/my-org/my-repo.git
     commit_sha: "{{ $GITHUB_SHA }}"
 
 deployments:
@@ -148,7 +149,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow.from_source(
         source=GitRepository(
-            repo_url="https://github.com/<your-org>/<your-repo>.git",
+            repo_url="https://github.com/my-org/my-repo.git",
             commit_sha=os.getenv("GITHUB_SHA"),
         )
     ).deploy(
@@ -169,29 +170,33 @@ An image digest uniquely and immutably identifies a container image.
 First, build your image in your CI job and pass the image digest as an environment variable to the Prefect deploy step.
 
 ```bash Github Actions
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ vars.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build and push
-      id: build-and-push
-      uses: docker/build-push-action@v6
-      with:
-        push: true
-        tags: user/app:latest
-
-    - name: Prefect deploy
-      env:
-        IMAGE_DIGEST: ${{ build-and-push.outputs.digest }}
-        PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
-        PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
       ...
-        
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        id: build-docker-image
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: my-registry/my-example-image:my-tag
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy a Prefect flow
+        env:
+          IMAGE_DIGEST: ${{ steps.build-docker-image.outputs.digest }}
+          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+          PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
+        ... # your deployment action here
 ```
 
 Then, refer to that digest in the image name you provide to this deployment version's job variables.
