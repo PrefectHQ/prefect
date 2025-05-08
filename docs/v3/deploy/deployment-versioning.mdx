@@ -51,8 +51,15 @@ These properties persist across version rollbacks and promotions.
 </Accordion>
 </AccordionGroup>
 
-If you're deploying from a supported version control platform or from inside a Git repository, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment.
+If you're deploying from a supported source code management platform or from inside a Git repository, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment.
 This information is used to help create a record of which code versions produced which deployment versions.
+
+### Using the `version` deployment property
+
+Supplying a `version` to your deployment is not required, but using human-readable version names helps give meaning to each change you make.
+It's also valuable for quickly finding or communicating the version you want to roll back to or promote.
+
+For additional details on how Prefect handles the value of `version`, see [deployment metadata for bookkeeping](/v3/deploy#metadata-for-bookkeeping).
 
 ### Supported source code management platforms
 
