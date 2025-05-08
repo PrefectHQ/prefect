@@ -780,6 +780,40 @@ async def test_querying_by_any_multiple_resource_labels(
     assert matched_on_mars > 0
 
 
+async def test_querying_by_multiple_any_resource_filters(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+) -> None:
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            any_resource=[
+                EventAnyResourceFilter(labels={"prefect.resource.id": "foo.3"}),
+                EventAnyResourceFilter(labels={"prefect.resource.id": "related.5"}),
+            ],
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        print([event.resource.id, *[r.id for r in event.related]])
+        assert (
+            event.resource.get("prefect.resource.id") == "foo.3"
+            or any(
+                related.get("prefect.resource.id") == "foo.3"
+                for related in event.related
+            )
+        ) and (
+            event.resource.get("prefect.resource.id") == "related.5"
+            or any(
+                related.get("prefect.resource.id") == "related.5"
+                for related in event.related
+            )
+        )
+
+
 async def test_querying_by_resource_id(
     events_query_session: AsyncSession,
     full_occurred_range: EventOccurredFilter,
@@ -1303,6 +1337,51 @@ async def test_querying_by_related_resource_wildcards_even_for_ids(
     assert_events_ordered_descending(events)
     for event in events:
         assert any(related.id.startswith("foo.") for related in event.related)
+
+
+async def test_querying_by_multiple_related_resources(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+) -> None:
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            related=[
+                EventRelatedFilter(labels={"prefect.resource.id": ["foo.3"]}),
+                EventRelatedFilter(labels={"prefect.resource.id": ["related.5"]}),
+            ],
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        assert any(related.id == "foo.3" for related in event.related) and any(
+            related.id == "related.5" for related in event.related
+        )
+
+    # now do it in the reverse order to make sure we aren't depending on order and that
+    # we really are filtering on both
+
+    events, _, _ = await query_events(
+        session=events_query_session,
+        filter=EventFilter(
+            occurred=full_occurred_range,
+            related=[
+                EventRelatedFilter(labels={"prefect.resource.id": ["related.5"]}),
+                EventRelatedFilter(labels={"prefect.resource.id": ["foo.3"]}),
+            ],
+        ),
+    )
+
+    assert events
+    assert_events_ordered_descending(events)
+    for event in events:
+        print([event.resource.id, *[r.id for r in event.related]])
+        assert any(related.id == "foo.3" for related in event.related) and any(
+            related.id == "related.5" for related in event.related
+        )
 
 
 async def test_querying_by_ids(

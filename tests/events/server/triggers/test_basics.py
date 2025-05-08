@@ -15,7 +15,11 @@ from prefect.server.events.schemas.automations import (
     Posture,
     TriggerState,
 )
-from prefect.server.events.schemas.events import ReceivedEvent, matches
+from prefect.server.events.schemas.events import (
+    ReceivedEvent,
+    ResourceSpecification,
+    matches,
+)
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
 from prefect.types import DateTime
 
@@ -76,6 +80,51 @@ def test_triggers_are_wired_to_their_root_automations_and_parents(
 ):
     assert arachnophobia.trigger.automation is arachnophobia
     assert arachnophobia.trigger.parent is arachnophobia
+
+
+def test_trigger_covers_multiple_related_resources_positive(
+    my_poor_lilies_trigger: EventTrigger,
+    woodchonk_nibbled: ReceivedEvent,
+):
+    # only trigger if that pesky 'chonk ate both my lilies AND my tulips
+    my_poor_lilies_trigger.match_related = [
+        ResourceSpecification(
+            {
+                "prefect.resource.role": "meal",
+                "genus": "Hemerocallis",
+            }
+        ),
+        ResourceSpecification(
+            {
+                "prefect.resource.role": "meal",
+                "genus": "Tulipa",
+            }
+        ),
+    ]
+    assert my_poor_lilies_trigger.covers(woodchonk_nibbled)
+
+
+def test_trigger_covers_multiple_related_resources_negative(
+    my_poor_lilies_trigger: EventTrigger,
+    woodchonk_nibbled: ReceivedEvent,
+):
+    # only trigger if that pesky 'chonk ate both my lilies AND my daffodils
+    my_poor_lilies_trigger.match_related = [
+        ResourceSpecification(
+            {
+                "prefect.resource.role": "meal",
+                "genus": "Hemerocallis",
+            }
+        ),
+        ResourceSpecification(
+            {
+                "prefect.resource.role": "meal",
+                "genus": "Narcissus",
+            }
+        ),
+    ]
+    # Nope, the 'chonk only ate my lilies and my tulips, not my daffodils
+    assert not my_poor_lilies_trigger.covers(woodchonk_nibbled)
 
 
 @pytest.fixture
