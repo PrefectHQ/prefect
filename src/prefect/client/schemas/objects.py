@@ -15,7 +15,7 @@ from typing import (
     Union,
     overload,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import orjson
 from pydantic import (
@@ -36,7 +36,11 @@ from typing_extensions import Literal, Self, TypeVar
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.migration import getattr_migration
-from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
+from prefect._internal.schemas.bases import (
+    ObjectBaseModel,
+    PrefectBaseModel,
+    TimeSeriesBaseModel,
+)
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
@@ -48,6 +52,7 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect._internal.uuid7 import uuid7
 from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
@@ -184,7 +189,7 @@ def data_discriminator(x: Any) -> str:
     return "Any"
 
 
-class State(ObjectBaseModel, Generic[R]):
+class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
     """
     The state of a run.
     """
@@ -415,7 +420,7 @@ class State(ObjectBaseModel, Generic[R]):
         """
         return self.model_copy(
             update={
-                "id": uuid4(),
+                "id": uuid7(),
                 "created": now("UTC"),
                 "updated": now("UTC"),
                 "timestamp": now("UTC"),
@@ -511,7 +516,7 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-class FlowRun(ObjectBaseModel):
+class FlowRun(TimeSeriesBaseModel, ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
         description=(
@@ -767,7 +772,7 @@ class Constant(TaskRunInput):
     type: str
 
 
-class TaskRun(ObjectBaseModel):
+class TaskRun(TimeSeriesBaseModel, ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2), examples=["my-task-run"]
     )
@@ -1307,7 +1312,7 @@ class SavedSearch(ObjectBaseModel):
     )
 
 
-class Log(ObjectBaseModel):
+class Log(TimeSeriesBaseModel, ObjectBaseModel):
     """An ORM representation of log data."""
 
     name: str = Field(default=..., description="The logger name.")
