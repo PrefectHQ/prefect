@@ -200,7 +200,7 @@
   const taskRunsSort = useRouteQueryParam('task-runs-sort', TaskRunSortValuesSortParam, 'EXPECTED_START_TIME_DESC')
   const flowRunsPage = useRouteQueryParam('flow-runs-page', NumberRouteParam, 1)
 
-  const { value: limit } = useLocalStorage('workspace-runs-list-limit', 10)
+  const { value: limit } = useLocalStorage('workspace-runs-list-limit', 100)
 
   const flowRunsFilter: Getter<FlowRunsPaginationFilter> = () => {
     const filter = mapper.map('SavedSearchFilter', dashboardFilter, 'FlowRunsFilter')
