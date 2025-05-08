@@ -117,31 +117,6 @@ export const readEventsEventsFilterPostBody = zod.object({
 				.or(zod.null())
 				.optional()
 				.describe("Filter criteria for the event name"),
-			any_resource: zod
-				.object({
-					id: zod
-						.array(zod.string())
-						.or(zod.null())
-						.optional()
-						.describe("Only include events for resources with these IDs"),
-					id_prefix: zod
-						.array(zod.string())
-						.or(zod.null())
-						.optional()
-						.describe(
-							"Only include events for resources with IDs starting with these prefixes",
-						),
-					labels: zod
-						.record(zod.string(), zod.string().or(zod.array(zod.string())))
-						.or(zod.null())
-						.optional()
-						.describe(
-							"Only include events for related resources with these labels",
-						),
-				})
-				.or(zod.null())
-				.optional()
-				.describe("Filter criteria for any resource involved in the event"),
 			resource: zod
 				.object({
 					id: zod
@@ -200,9 +175,93 @@ export const readEventsEventsFilterPostBody = zod.object({
 							"Only include events for related resources with these labels",
 						),
 				})
+				.or(
+					zod.array(
+						zod.object({
+							id: zod
+								.array(zod.string())
+								.or(zod.null())
+								.optional()
+								.describe(
+									"Only include events for related resources with these IDs",
+								),
+							role: zod
+								.array(zod.string())
+								.or(zod.null())
+								.optional()
+								.describe(
+									"Only include events for related resources in these roles",
+								),
+							resources_in_roles: zod
+								.array(zod.tuple([zod.string(), zod.string()]))
+								.or(zod.null())
+								.optional()
+								.describe(
+									"Only include events with specific related resources in specific roles",
+								),
+							labels: zod
+								.record(zod.string(), zod.string().or(zod.array(zod.string())))
+								.or(zod.null())
+								.optional()
+								.describe(
+									"Only include events for related resources with these labels",
+								),
+						}),
+					),
+				)
 				.or(zod.null())
 				.optional()
 				.describe("Filter criteria for the related resources of the event"),
+			any_resource: zod
+				.object({
+					id: zod
+						.array(zod.string())
+						.or(zod.null())
+						.optional()
+						.describe("Only include events for resources with these IDs"),
+					id_prefix: zod
+						.array(zod.string())
+						.or(zod.null())
+						.optional()
+						.describe(
+							"Only include events for resources with IDs starting with these prefixes",
+						),
+					labels: zod
+						.record(zod.string(), zod.string().or(zod.array(zod.string())))
+						.or(zod.null())
+						.optional()
+						.describe(
+							"Only include events for related resources with these labels",
+						),
+				})
+				.or(
+					zod.array(
+						zod.object({
+							id: zod
+								.array(zod.string())
+								.or(zod.null())
+								.optional()
+								.describe("Only include events for resources with these IDs"),
+							id_prefix: zod
+								.array(zod.string())
+								.or(zod.null())
+								.optional()
+								.describe(
+									"Only include events for resources with IDs starting with these prefixes",
+								),
+							labels: zod
+								.record(zod.string(), zod.string().or(zod.array(zod.string())))
+								.or(zod.null())
+								.optional()
+								.describe(
+									"Only include events for related resources with these labels",
+								),
+						}),
+					),
+				)
+				.or(zod.null())
+				.optional()
+				.describe("Filter criteria for any resource involved in the event"),
 			id: zod
 				.object({
 					id: zod
@@ -434,31 +493,6 @@ export const countAccountEventsEventsCountByCountablePostBody = zod.object({
 			.or(zod.null())
 			.optional()
 			.describe("Filter criteria for the event name"),
-		any_resource: zod
-			.object({
-				id: zod
-					.array(zod.string())
-					.or(zod.null())
-					.optional()
-					.describe("Only include events for resources with these IDs"),
-				id_prefix: zod
-					.array(zod.string())
-					.or(zod.null())
-					.optional()
-					.describe(
-						"Only include events for resources with IDs starting with these prefixes",
-					),
-				labels: zod
-					.record(zod.string(), zod.string().or(zod.array(zod.string())))
-					.or(zod.null())
-					.optional()
-					.describe(
-						"Only include events for related resources with these labels",
-					),
-			})
-			.or(zod.null())
-			.optional()
-			.describe("Filter criteria for any resource involved in the event"),
 		resource: zod
 			.object({
 				id: zod
@@ -513,9 +547,93 @@ export const countAccountEventsEventsCountByCountablePostBody = zod.object({
 						"Only include events for related resources with these labels",
 					),
 			})
+			.or(
+				zod.array(
+					zod.object({
+						id: zod
+							.array(zod.string())
+							.or(zod.null())
+							.optional()
+							.describe(
+								"Only include events for related resources with these IDs",
+							),
+						role: zod
+							.array(zod.string())
+							.or(zod.null())
+							.optional()
+							.describe(
+								"Only include events for related resources in these roles",
+							),
+						resources_in_roles: zod
+							.array(zod.tuple([zod.string(), zod.string()]))
+							.or(zod.null())
+							.optional()
+							.describe(
+								"Only include events with specific related resources in specific roles",
+							),
+						labels: zod
+							.record(zod.string(), zod.string().or(zod.array(zod.string())))
+							.or(zod.null())
+							.optional()
+							.describe(
+								"Only include events for related resources with these labels",
+							),
+					}),
+				),
+			)
 			.or(zod.null())
 			.optional()
 			.describe("Filter criteria for the related resources of the event"),
+		any_resource: zod
+			.object({
+				id: zod
+					.array(zod.string())
+					.or(zod.null())
+					.optional()
+					.describe("Only include events for resources with these IDs"),
+				id_prefix: zod
+					.array(zod.string())
+					.or(zod.null())
+					.optional()
+					.describe(
+						"Only include events for resources with IDs starting with these prefixes",
+					),
+				labels: zod
+					.record(zod.string(), zod.string().or(zod.array(zod.string())))
+					.or(zod.null())
+					.optional()
+					.describe(
+						"Only include events for related resources with these labels",
+					),
+			})
+			.or(
+				zod.array(
+					zod.object({
+						id: zod
+							.array(zod.string())
+							.or(zod.null())
+							.optional()
+							.describe("Only include events for resources with these IDs"),
+						id_prefix: zod
+							.array(zod.string())
+							.or(zod.null())
+							.optional()
+							.describe(
+								"Only include events for resources with IDs starting with these prefixes",
+							),
+						labels: zod
+							.record(zod.string(), zod.string().or(zod.array(zod.string())))
+							.or(zod.null())
+							.optional()
+							.describe(
+								"Only include events for related resources with these labels",
+							),
+					}),
+				),
+			)
+			.or(zod.null())
+			.optional()
+			.describe("Filter criteria for any resource involved in the event"),
 		id: zod
 			.object({
 				id: zod

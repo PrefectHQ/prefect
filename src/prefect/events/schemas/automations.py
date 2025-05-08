@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import textwrap
 from datetime import timedelta
@@ -103,7 +105,7 @@ class ResourceTrigger(Trigger, abc.ABC):
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
-    match_related: ResourceSpecification = Field(
+    match_related: Union[ResourceSpecification, list[ResourceSpecification]] = Field(
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )

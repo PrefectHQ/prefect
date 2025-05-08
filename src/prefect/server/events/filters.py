@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -45,7 +47,7 @@ class AutomationFilterCreated(PrefectFilterBaseModel):
 class AutomationFilterName(PrefectFilterBaseModel):
     """Filter by `Automation.created`."""
 
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         description="Only include automations with names that match any of these strings",
     )
@@ -80,16 +82,25 @@ class AutomationFilter(PrefectOperatorFilterBaseModel):
 class EventDataFilter(PrefectBaseModel, extra="forbid"):
     """A base class for filtering event data."""
 
-    _top_level_filter: Optional[sa.Select[tuple[UUID]]] = PrivateAttr(None)
+    _top_level_filter: Optional[Select[tuple[UUID]]] = PrivateAttr(None)
 
-    def get_filters(self) -> List["EventDataFilter"]:
-        filters: List[EventDataFilter] = [
-            filter
-            for filter in [getattr(self, name) for name in type(self).model_fields]
-            if isinstance(filter, EventDataFilter)
-        ]
-        for filter in filters:
-            filter._top_level_filter = self._top_level_filter
+    def get_filters(self) -> list["EventDataFilter"]:
+        filters: list[EventDataFilter] = []
+        for filter in [
+            getattr(self, name) for name in self.__class__.model_fields.keys()
+        ]:
+            # Any embedded list of filters are flattened and thus ANDed together
+            subfilters: list[EventDataFilter] = (
+                filter if isinstance(filter, list) else [filter]
+            )
+
+            for subfilter in subfilters:
+                if not isinstance(subfilter, EventDataFilter):
+                    continue
+
+                subfilter._top_level_filter = self._top_level_filter
+                filters.append(subfilter)
+
         return filters
 
     def includes(self, event: Event) -> bool:
@@ -102,7 +113,7 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
     def build_where_clauses(self) -> Sequence["ColumnExpressionArgument[bool]"]:
         """Convert the criteria to a WHERE clause."""
-        clauses: List["ColumnExpressionArgument[bool]"] = []
+        clauses: list["ColumnExpressionArgument[bool]"] = []
         for filter in self.get_filters():
             clauses.extend(filter.build_where_clauses())
         return clauses
@@ -180,7 +191,7 @@ class EventNameFilter(EventDataFilter):
     def build_where_clauses(
         self, db: PrefectDBInterface
     ) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.prefix:
             filters.append(
@@ -204,13 +215,13 @@ class EventNameFilter(EventDataFilter):
 
 @dataclass
 class LabelSet:
-    simple: List[str] = field(default_factory=list)
-    prefixes: List[str] = field(default_factory=list)
+    simple: list[str] = field(default_factory=list)
+    prefixes: list[str] = field(default_factory=list)
 
 
 @dataclass
 class LabelOperations:
-    values: List[str]
+    values: list[str]
     positive: LabelSet = field(default_factory=LabelSet)
     negative: LabelSet = field(default_factory=LabelSet)
 
@@ -228,10 +239,10 @@ class LabelOperations:
 
 
 class EventResourceFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         default=None, description="Only include events for resources with these IDs"
     )
-    id_prefix: Optional[List[str]] = Field(
+    id_prefix: Optional[list[str]] = Field(
         default=None,
         description=(
             "Only include events for resources with IDs starting with these prefixes."
@@ -266,7 +277,7 @@ class EventResourceFilter(EventDataFilter):
     def build_where_clauses(
         self, db: PrefectDBInterface
     ) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         # If we're doing an exact or prefix search on resource_id, this is efficient
         # enough to do on the events table without going to the event_resources table
@@ -335,13 +346,13 @@ class EventResourceFilter(EventDataFilter):
 
 
 class EventRelatedFilter(EventDataFilter):
-    id: Optional[List[str]] = Field(
+    id: Optional[list[str]] = Field(
         None, description="Only include events for related resources with these IDs"
     )
-    role: Optional[List[str]] = Field(
+    role: Optional[list[str]] = Field(
         None, description="Only include events for related resources in these roles"
     )
-    resources_in_roles: Optional[List[Tuple[str, str]]] = Field(
+    resources_in_roles: Optional[list[tuple[str, str]]] = Field(
         None,
         description=(
             "Only include events with specific related resources in specific roles"
@@ -355,7 +366,7 @@ class EventRelatedFilter(EventDataFilter):
     def build_where_clauses(
         self, db: PrefectDBInterface
     ) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(db.EventResource.resource_id.in_(self.id))
@@ -377,7 +388,7 @@ class EventRelatedFilter(EventDataFilter):
             )
 
         if self.labels:
-            label_filters: List[ColumnElement[bool]] = []
+            label_filters: list[ColumnElement[bool]] = []
             labels = self.labels.deepcopy()
 
             # On the event_resources table, resource_id and resource_role are unpacked
@@ -473,7 +484,7 @@ class EventAnyResourceFilter(EventDataFilter):
     def build_where_clauses(
         self, db: PrefectDBInterface
     ) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(db.EventResource.resource_id.in_(self.id))
@@ -489,7 +500,7 @@ class EventAnyResourceFilter(EventDataFilter):
             )
 
         if self.labels:
-            label_filters: List[ColumnElement[bool]] = []
+            label_filters: list[ColumnElement[bool]] = []
             labels = self.labels.deepcopy()
 
             # On the event_resources table, resource_id and resource_role are unpacked
@@ -539,7 +550,7 @@ class EventAnyResourceFilter(EventDataFilter):
 
 
 class EventIDFilter(EventDataFilter):
-    id: Optional[List[UUID]] = Field(
+    id: Optional[list[UUID]] = Field(
         default=None, description="Only include events with one of these IDs"
     )
 
@@ -554,7 +565,7 @@ class EventIDFilter(EventDataFilter):
     def build_where_clauses(
         self, db: PrefectDBInterface
     ) -> Sequence["ColumnExpressionArgument[bool]"]:
-        filters: List["ColumnExpressionArgument[bool]"] = []
+        filters: list["ColumnExpressionArgument[bool]"] = []
 
         if self.id:
             filters.append(db.Event.id.in_(self.id))
@@ -576,16 +587,18 @@ class EventFilter(EventDataFilter):
         default=None,
         description="Filter criteria for the event name",
     )
-    any_resource: Optional[EventAnyResourceFilter] = Field(
-        default=None,
-        description="Filter criteria for any resource involved in the event",
-    )
     resource: Optional[EventResourceFilter] = Field(
         default=None, description="Filter criteria for the resource of the event"
     )
-    related: Optional[EventRelatedFilter] = Field(
+    related: Optional[Union[EventRelatedFilter, list[EventRelatedFilter]]] = Field(
         default=None,
         description="Filter criteria for the related resources of the event",
+    )
+    any_resource: Optional[
+        Union[EventAnyResourceFilter, list[EventAnyResourceFilter]]
+    ] = Field(
+        default=None,
+        description="Filter criteria for any resource involved in the event",
     )
     id: EventIDFilter = Field(
         default_factory=lambda: EventIDFilter(),

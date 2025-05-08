@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import datetime
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 
 from pydantic import Field
@@ -43,11 +45,21 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
     """A base class for filtering event data."""
 
     def get_filters(self) -> list["EventDataFilter"]:
-        filters: list["EventDataFilter"] = [
-            filter
-            for filter in [getattr(self, name) for name in type(self).model_fields]
-            if isinstance(filter, EventDataFilter)
-        ]
+        filters: list[EventDataFilter] = []
+        for filter in [
+            getattr(self, name) for name in self.__class__.model_fields.keys()
+        ]:
+            # Any embedded list of filters are flattened and thus ANDed together
+            subfilters: list[EventDataFilter] = (
+                filter if isinstance(filter, list) else [filter]
+            )
+
+            for subfilter in subfilters:
+                if not isinstance(subfilter, EventDataFilter):
+                    continue
+
+                filters.append(subfilter)
+
         return filters
 
     def includes(self, event: Event) -> bool:
@@ -233,17 +245,19 @@ class EventFilter(EventDataFilter):
         default=None,
         description="Filter criteria for the event name",
     )
-    any_resource: Optional[EventAnyResourceFilter] = Field(
-        default=None,
-        description="Filter criteria for any resource involved in the event",
-    )
     resource: Optional[EventResourceFilter] = Field(
         default=None,
         description="Filter criteria for the resource of the event",
     )
-    related: Optional[EventRelatedFilter] = Field(
+    related: Optional[Union[EventRelatedFilter, list[EventRelatedFilter]]] = Field(
         default=None,
         description="Filter criteria for the related resources of the event",
+    )
+    any_resource: Optional[
+        Union[EventAnyResourceFilter, list[EventAnyResourceFilter]]
+    ] = Field(
+        default=None,
+        description="Filter criteria for any resource involved in the event",
     )
     id: EventIDFilter = Field(
         default_factory=lambda: EventIDFilter(id=[]),
