@@ -4,7 +4,7 @@ from typing import Any, Union
 from prefect.filesystems import NullFileSystem, WritableFileSystem
 
 
-async def _call_explicitly_async_block_method(
+async def _call_explicitly_async_block_method(  # pyright: ignore[reportUnusedFunction]
     block: Union[WritableFileSystem, NullFileSystem],
     method: str,
     args: tuple[Any, ...],
