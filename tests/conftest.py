@@ -141,6 +141,7 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_flows.py",
     "tests/server/orchestration/api/ui/test_task_runs.py",
     "tests/test_transactions.py",
+    "src/prefect/retries.py",
 ]
 
 
