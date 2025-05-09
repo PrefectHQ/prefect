@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import os
 import socket
 import threading
 import uuid
+from datetime import datetime
 from functools import partial
 from operator import methodcaller
 from pathlib import Path
@@ -34,6 +34,8 @@ from typing_extensions import ParamSpec, Self
 import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.blocks import _call_explicitly_async_block_method
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
@@ -283,29 +285,6 @@ def _format_user_supplied_storage_key(key: str) -> str:
     # yet; we'll need to split logic in the future or have two separate functions
     runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
-
-
-async def _call_explicitly_async_block_method(
-    block: WritableFileSystem | NullFileSystem,
-    method: str,
-    args: tuple[Any, ...],
-    kwargs: dict[str, Any],
-) -> Any:
-    """
-    TODO: remove this once we have explicit async methods on all storage blocks
-
-    see https://github.com/PrefectHQ/prefect/issues/15008
-    """
-    if hasattr(block, f"a{method}"):  # explicit async method
-        return await getattr(block, f"a{method}")(*args, **kwargs)
-    elif hasattr(getattr(block, method, None), "aio"):  # sync_compatible
-        return await getattr(block, method).aio(block, *args, **kwargs)
-    else:  # should not happen in prefect, but users can override impls
-        maybe_coro = getattr(block, method)(*args, **kwargs)
-        if inspect.isawaitable(maybe_coro):
-            return await maybe_coro
-        else:
-            return maybe_coro
 
 
 T = TypeVar("T")
@@ -998,6 +977,11 @@ class ResultStore(BaseModel):
 
     # TODO: These two methods need to find a new home
 
+    @deprecated_callable(
+        start_date=datetime(2025, 5, 10),
+        end_date=datetime(2025, 11, 10),
+        help="Use `store_parameters` from `prefect.task_worker` instead.",
+    )
     @sync_compatible
     async def store_parameters(self, identifier: UUID, parameters: dict[str, Any]):
         record = ResultRecord(
@@ -1014,13 +998,18 @@ class ResultStore(BaseModel):
             {"content": record.serialize()},
         )
 
+    @deprecated_callable(
+        start_date=datetime(2025, 5, 10),
+        end_date=datetime(2025, 11, 10),
+        help="Use `read_parameters` from `prefect.task_worker` instead.",
+    )
     @sync_compatible
     async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
         if self.result_storage is None:
             raise ValueError(
                 "Result store is not configured - must have a result storage block to read parameters"
             )
-        record: ResultRecord[Any] = ResultRecord.deserialize(
+        record: ResultRecord[Any] = ResultRecord[Any].deserialize(
             await _call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
