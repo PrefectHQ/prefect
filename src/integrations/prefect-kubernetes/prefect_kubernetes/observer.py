@@ -37,6 +37,11 @@ orchestration_client: PrefectClient | None = None
 
 
 @kopf.on.startup()
+def configure(settings: kopf.OperatorSettings, **_):
+    settings.scanning.disabled = True
+
+
+@kopf.on.startup()
 async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
     logger.info("Initializing clients")
     global events_client
