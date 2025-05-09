@@ -10,6 +10,7 @@ from contextvars import ContextVar
 from functools import partial
 from typing import Any, Optional
 
+import orjson
 import sqlalchemy as sa
 from sqlalchemy import AdaptedConnection, event
 from sqlalchemy.dialects.sqlite import aiosqlite
@@ -300,6 +301,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 # that a given connection pulled from the pool will be
                 # usable.
                 pool_use_lifo=True,
+                json_serializer=lambda obj: orjson.dumps(
+                    obj, option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_NAIVE_UTC
+                ).decode(),
+                json_deserializer=orjson.loads,
                 **kwargs,
             )
 
