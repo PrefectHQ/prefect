@@ -61,6 +61,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import State
+from prefect.task_worker import read_parameters
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import (
@@ -76,23 +77,23 @@ from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
 
 
-def comparable_inputs(d):
+def comparable_inputs(d: dict[str, Any]) -> dict[str, Any]:
     return {k: set(v) for k, v in d.items()}
 
 
 @pytest.fixture
-def timeout_test_flow():
+def timeout_test_flow() -> Any:
     @task(timeout_seconds=0.1)
-    def times_out(x):
+    def times_out(x: int) -> int:
         time.sleep(2)
         return x
 
     @task
-    def depends(x):
+    def depends(x: int) -> int:
         return x
 
     @task
-    def independent():
+    def independent() -> int:
         return 42
 
     @flow
@@ -105,11 +106,13 @@ def timeout_test_flow():
     return test_flow
 
 
-async def get_background_task_run_parameters(task, parameters_id):
+async def get_background_task_run_parameters(
+    task: Task[..., Any], parameters_id: UUID
+) -> Any:
     store = await ResultStore(
         result_storage=await get_or_create_default_task_scheduling_storage()
     ).update_for_task(task)
-    return await store.read_parameters(parameters_id)
+    return await read_parameters(store, parameters_id)
 
 
 class TestTaskName:
@@ -167,7 +170,7 @@ class TestTaskRunName:
 
     def test_invalid_run_name(self):
         class InvalidTaskRunNameArg:
-            def format(*args, **kwargs):
+            def format(*args: Any, **kwargs: Any) -> Any:
                 pass
 
         with pytest.raises(
@@ -184,7 +187,7 @@ class TestTaskRunName:
 
     def test_invalid_runtime_run_name(self):
         class InvalidTaskRunNameArg:
-            def format(*args, **kwargs):
+            def format(*args: Any, **kwargs: Any) -> Any:
                 pass
 
         @task
