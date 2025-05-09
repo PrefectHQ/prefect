@@ -521,7 +521,7 @@ async def serve(
 
 async def store_parameters(
     result_store: ResultStore, identifier: UUID, parameters: dict[str, Any]
-):
+) -> None:
     """Store parameters for a task run in the result store.
 
     Args:

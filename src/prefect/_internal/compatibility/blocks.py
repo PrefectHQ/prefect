@@ -1,11 +1,11 @@
 import inspect
-from typing import Any
+from typing import Any, Union
 
 from prefect.filesystems import NullFileSystem, WritableFileSystem
 
 
 async def _call_explicitly_async_block_method(
-    block: WritableFileSystem | NullFileSystem,
+    block: Union[WritableFileSystem, NullFileSystem],
     method: str,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
