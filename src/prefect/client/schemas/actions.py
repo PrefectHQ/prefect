@@ -5,20 +5,15 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
     remove_old_deployment_fields,
-    validate_artifact_key,
-    validate_block_document_name,
-    validate_block_type_slug,
-    validate_message_template_variables,
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
-    validate_variable_name,
 )
 from prefect.client.schemas.objects import (
     StateDetails,
@@ -35,7 +30,6 @@ from prefect.client.schemas.schedules import (
 from prefect.schedules import Schedule
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
-    MAX_VARIABLE_NAME_LENGTH,
     DateTime,
     KeyValueLabelsField,
     Name,
@@ -46,7 +40,13 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.collections import listrepr
+from prefect.types.names import (
+    ArtifactKey,
+    BlockDocumentName,
+    BlockTypeSlug,
+    VariableName,
+)
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
@@ -217,7 +217,7 @@ class DeploymentCreate(ActionBaseModel):
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
     paused: Optional[bool] = Field(default=None)
     schedules: list[DeploymentScheduleCreate] = Field(
-        default_factory=list,
+        default_factory=lambda: [],
         description="A list of schedules for the deployment.",
     )
     concurrency_limit: Optional[int] = Field(
@@ -518,13 +518,27 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     job_variables: Optional[dict[str, Any]] = Field(default=None)
     labels: KeyValueLabelsField = Field(default_factory=dict)
 
+    @model_validator(mode="before")
+    def convert_parameters_to_plain_data(cls, values: dict[str, Any]) -> dict[str, Any]:
+        if "parameters" in values:
+
+            def convert_value(value: Any) -> Any:
+                if isinstance(value, BaseModel):
+                    return value.model_dump(mode="json")
+                return value
+
+            values["parameters"] = visit_collection(
+                values["parameters"], convert_value, return_data=True
+            )
+        return values
+
 
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
     name: str = Field(default=..., description="The name of the saved search.")
     filters: list[objects.SavedSearchFilter] = Field(
-        default_factory=list, description="The filter set for the saved search."
+        default_factory=lambda: [], description="The filter set for the saved search."
     )
 
 
@@ -572,7 +586,7 @@ class BlockTypeCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block type."""
 
     name: str = Field(default=..., description="A block type's name")
-    slug: str = Field(default=..., description="A block type's slug")
+    slug: BlockTypeSlug = Field(default=..., description="A block type's slug")
     logo_url: Optional[objects.HttpUrl] = Field(
         default=None, description="Web URL for the block type's logo"
     )
@@ -587,9 +601,6 @@ class BlockTypeCreate(ActionBaseModel):
         default=None,
         description="A code snippet demonstrating use of the corresponding block",
     )
-
-    # validators
-    _validate_slug_format = field_validator("slug")(validate_block_type_slug)
 
 
 class BlockTypeUpdate(ActionBaseModel):
@@ -625,7 +636,7 @@ class BlockSchemaCreate(ActionBaseModel):
 class BlockDocumentCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block document."""
 
-    name: Optional[Name] = Field(
+    name: Optional[BlockDocumentName] = Field(
         default=None, description="The name of the block document"
     )
     data: dict[str, Any] = Field(
@@ -644,8 +655,6 @@ class BlockDocumentCreate(ActionBaseModel):
             " Prefect automatically)"
         ),
     )
-
-    _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
     def validate_name_is_present_if_not_anonymous(
@@ -798,63 +807,16 @@ class WorkQueueUpdate(ActionBaseModel):
     )
 
 
-class FlowRunNotificationPolicyCreate(ActionBaseModel):
-    """Data used by the Prefect REST API to create a flow run notification policy."""
-
-    is_active: bool = Field(
-        default=True, description="Whether the policy is currently active"
-    )
-    state_names: list[str] = Field(
-        default=..., description="The flow run states that trigger notifications"
-    )
-    tags: list[str] = Field(
-        default=...,
-        description="The flow run tags that trigger notifications (set [] to disable)",
-    )
-    block_document_id: UUID = Field(
-        default=..., description="The block document ID used for sending notifications"
-    )
-    message_template: Optional[str] = Field(
-        default=None,
-        description=(
-            "A templatable notification message. Use {braces} to add variables."
-            " Valid variables include:"
-            f" {listrepr(sorted(objects.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
-        ),
-        examples=[
-            "Flow run {flow_run_name} with id {flow_run_id} entered state"
-            " {flow_run_state_name}."
-        ],
-    )
-
-    @field_validator("message_template")
-    @classmethod
-    def validate_message_template_variables(cls, v: Optional[str]) -> Optional[str]:
-        return validate_message_template_variables(v)
-
-
-class FlowRunNotificationPolicyUpdate(ActionBaseModel):
-    """Data used by the Prefect REST API to update a flow run notification policy."""
-
-    is_active: Optional[bool] = Field(default=None)
-    state_names: Optional[list[str]] = Field(default=None)
-    tags: Optional[list[str]] = Field(default=None)
-    block_document_id: Optional[UUID] = Field(default=None)
-    message_template: Optional[str] = Field(default=None)
-
-
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = Field(default=None)
+    key: Optional[ArtifactKey] = Field(default=None)
     type: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     data: Optional[Union[dict[str, Any], Any]] = Field(default=None)
     metadata_: Optional[dict[str, str]] = Field(default=None)
     flow_run_id: Optional[UUID] = Field(default=None)
     task_run_id: Optional[UUID] = Field(default=None)
-
-    _validate_artifact_format = field_validator("key")(validate_artifact_key)
 
 
 class ArtifactUpdate(ActionBaseModel):
@@ -868,41 +830,25 @@ class ArtifactUpdate(ActionBaseModel):
 class VariableCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a Variable."""
 
-    name: str = Field(
-        default=...,
-        description="The name of the variable",
-        examples=["my_variable"],
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
+    name: VariableName = Field(default=...)
     value: StrictVariableValue = Field(
         default=...,
         description="The value of the variable",
         examples=["my-value"],
     )
     tags: Optional[list[str]] = Field(default=None)
-
-    # validators
-    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class VariableUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a Variable."""
 
-    name: Optional[str] = Field(
-        default=None,
-        description="The name of the variable",
-        examples=["my_variable"],
-        max_length=MAX_VARIABLE_NAME_LENGTH,
-    )
+    name: Optional[VariableName] = Field(default=None)
     value: StrictVariableValue = Field(
         default=None,
         description="The value of the variable",
         examples=["my-value"],
     )
     tags: Optional[list[str]] = Field(default=None)
-
-    # validators
-    _validate_name_format = field_validator("name")(validate_variable_name)
 
 
 class GlobalConcurrencyLimitCreate(ActionBaseModel):

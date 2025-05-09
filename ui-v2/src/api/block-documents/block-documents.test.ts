@@ -12,6 +12,7 @@ import {
 	buildGetBlockDocumentQuery,
 	buildListFilterBlockDocumentsQuery,
 	queryKeyFactory,
+	useCreateBlockDocument,
 	useDeleteBlockDocument,
 	useUpdateBlockDocument,
 } from "./block-documents";
@@ -88,11 +89,63 @@ describe("block documents queries", () => {
 		expect(result.current.data).toEqual(1);
 	});
 
+	describe("useCreateDeployment", () => {
+		const mockCreateBlockDocumentAPI = (blockDocument: BlockDocument) => {
+			server.use(
+				http.post(buildApiUrl("/block_documents/"), () => {
+					return HttpResponse.json(blockDocument);
+				}),
+			);
+		};
+
+		it("invalidates cache and fetches updated value", async () => {
+			const mockBlockDocument = createFakeBlockDocument();
+			const newBlockDocumentBody = {
+				block_schema_id: mockBlockDocument.block_schema_id,
+				block_type_id: mockBlockDocument.block_type_id,
+				is_anonymous: false,
+			};
+			mockCreateBlockDocumentAPI(mockBlockDocument);
+			mockFilterListBlocksAPI([mockBlockDocument]);
+			const queryClient = new QueryClient();
+			const FILTER = {
+				offset: 0,
+				sort: "NAME_ASC" as const,
+				include_secrets: false,
+			};
+			queryClient.setQueryData(queryKeyFactory.listFilter(FILTER), []);
+
+			const { result: useListBlockDocumentsResult } = renderHook(
+				() => useSuspenseQuery(buildListFilterBlockDocumentsQuery(FILTER)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			const { result: useCreateBlockDocumentResult } = renderHook(
+				useCreateBlockDocument,
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			act(() =>
+				useCreateBlockDocumentResult.current.createBlockDocument(
+					newBlockDocumentBody,
+				),
+			);
+
+			await waitFor(() =>
+				expect(useCreateBlockDocumentResult.current.isSuccess).toBe(true),
+			);
+			expect(useListBlockDocumentsResult.current.data?.length).toEqual(1);
+			const newBlockDocument = useListBlockDocumentsResult.current.data?.find(
+				(blockDocument) => blockDocument.id === mockBlockDocument.id,
+			);
+			expect(newBlockDocument).toEqual(mockBlockDocument);
+		});
+	});
+
 	describe("useDeleteBlockDocument", () => {
 		it("invalidates cache and fetches updated value", async () => {
 			const mockBlockDocument = createFakeBlockDocument();
 			mockFilterListBlocksAPI([]);
-
 			const queryClient = new QueryClient();
 			const FILTER = {
 				offset: 0,

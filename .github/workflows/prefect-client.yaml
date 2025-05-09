@@ -37,11 +37,12 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           python-version: "3.9"
           cache-dependency-glob: "pyproject.toml"
+          activate-environment: true
 
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
@@ -59,6 +60,10 @@ jobs:
         run: uv pip install dist/*.tar.gz
         working-directory: ${{ env.TMPDIR }}
 
+      - name: Verify the CLI isn't available in the active environment
+        run: |
+          prefect --help && { echo "Prefect CLI should not be available in the active environment"; exit 1; } || echo "Prefect CLI is not available in the active environment"
+
       - name: Get the version of built `prefect-client`
         run: |
           prefect_client_version=$(python -c "import prefect; print(prefect.__version__)")
@@ -72,6 +77,14 @@ jobs:
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
           PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+
+      - name: Run deploy and execute smoke test using the built client
+        run: python client/client_deploy.py
+        working-directory: ${{ env.TMPDIR }}
+        env:
+          PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
+          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+
 
       - name: Install prefect from source
         run: uv pip install .

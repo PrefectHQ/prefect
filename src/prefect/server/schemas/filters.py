@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
+from sqlalchemy.sql.functions import coalesce
 
 import prefect.server.schemas as schemas
 from prefect.server.utilities.database import db_injector
@@ -461,9 +462,15 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
-            filters.append(db.FlowRun.start_time <= self.before_)
+            filters.append(
+                coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
+                <= self.before_
+            )
         if self.after_ is not None:
-            filters.append(db.FlowRun.start_time >= self.after_)
+            filters.append(
+                coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
+                >= self.after_
+            )
         if self.is_null_ is not None:
             filters.append(
                 db.FlowRun.start_time.is_(None)
@@ -1709,43 +1716,6 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.block_type_id.as_sql_filter())
         if self.name is not None:
             filters.append(self.name.as_sql_filter())
-        return filters
-
-
-class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
-    """Filter by `FlowRunNotificationPolicy.is_active`."""
-
-    eq_: Optional[bool] = Field(
-        default=None,
-        description=(
-            "Filter notification policies for only those that are or are not active."
-        ),
-    )
-
-    def _get_filter_list(
-        self, db: "PrefectDBInterface"
-    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
-        filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.eq_ is not None:
-            filters.append(db.FlowRunNotificationPolicy.is_active.is_(self.eq_))
-        return filters
-
-
-class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
-    """Filter FlowRunNotificationPolicies."""
-
-    is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
-        default=FlowRunNotificationPolicyFilterIsActive(eq_=False),
-        description="Filter criteria for `FlowRunNotificationPolicy.is_active`. ",
-    )
-
-    def _get_filter_list(
-        self, db: "PrefectDBInterface"
-    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
-        filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.is_active is not None:
-            filters.append(self.is_active.as_sql_filter())
-
         return filters
 
 

@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
+from typing import Annotated, Any, Optional, TypeVar, Union, cast
+from uuid import UUID
 from typing_extensions import Literal
 import orjson
 import pydantic
 
-
 from ._datetime import DateTime, Date
+from .names import (
+    Name,
+    NameOrEmpty,
+    NonEmptyishName,
+    BANNED_CHARACTERS,
+    WITHOUT_BANNED_CHARACTERS,
+    MAX_VARIABLE_NAME_LENGTH,
+)
 from pydantic import (
     BeforeValidator,
     Field,
@@ -21,7 +29,6 @@ from zoneinfo import available_timezones
 
 T = TypeVar("T")
 
-MAX_VARIABLE_NAME_LENGTH = 255
 MAX_VARIABLE_VALUE_LENGTH = 5000
 
 NonNegativeInteger = Annotated[int, Field(ge=0)]
@@ -39,37 +46,14 @@ TimeZone = Annotated[
 ]
 
 
-BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
-
-WITHOUT_BANNED_CHARACTERS = r"^[^" + "".join(BANNED_CHARACTERS) + "]+$"
-Name = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS)]
-
-WITHOUT_BANNED_CHARACTERS_EMPTY_OK = r"^[^" + "".join(BANNED_CHARACTERS) + "]*$"
-NameOrEmpty = Annotated[str, Field(pattern=WITHOUT_BANNED_CHARACTERS_EMPTY_OK)]
-
-
-def non_emptyish(value: str) -> str:
-    if not value.strip("' \""):
-        raise ValueError("name cannot be an empty string")
-
-    return value
-
-
-NonEmptyishName = Annotated[
-    str,
-    Field(pattern=WITHOUT_BANNED_CHARACTERS),
-    BeforeValidator(non_emptyish),
-]
-
-
 VariableValue = Union[
     StrictStr,
     StrictInt,
     StrictBool,
     StrictFloat,
     None,
-    Dict[str, Any],
-    List[Any],
+    dict[str, Any],
+    list[Any],
 ]
 
 
@@ -100,24 +84,24 @@ def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
 
 
 KeyValueLabels = Annotated[
-    Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
     BeforeValidator(cast_none_to_empty_dict),
 ]
 
 
 ListOfNonEmptyStrings = Annotated[
-    List[str],
+    list[str],
     BeforeValidator(lambda x: [str(s) for s in x if str(s).strip()]),
 ]
 
 
-class SecretDict(pydantic.Secret[Dict[str, Any]]):
+class SecretDict(pydantic.Secret[dict[str, Any]]):
     pass
 
 
 def validate_set_T_from_delim_string(
-    value: Union[str, T, Set[T], None], type_: type[T], delim: str | None = None
-) -> Set[T]:
+    value: Union[str, T, set[T], None], type_: Any, delim: str | None = None
+) -> set[T]:
     """
     "no-info" before validator useful in scooping env vars
 
@@ -131,20 +115,20 @@ def validate_set_T_from_delim_string(
     delim = delim or ","
     if isinstance(value, str):
         return {T_adapter.validate_strings(s.strip()) for s in value.split(delim)}
-    errors = []
+    errors: list[pydantic.ValidationError] = []
     try:
         return {T_adapter.validate_python(value)}
     except pydantic.ValidationError as e:
         errors.append(e)
     try:
-        return TypeAdapter(Set[type_]).validate_python(value)
+        return TypeAdapter(set[type_]).validate_python(value)
     except pydantic.ValidationError as e:
         errors.append(e)
     raise ValueError(f"Invalid set[{type_}]: {errors}")
 
 
 ClientRetryExtraCodes = Annotated[
-    Union[str, StatusCode, Set[StatusCode], None],
+    Union[str, StatusCode, set[StatusCode], None],
     BeforeValidator(partial(validate_set_T_from_delim_string, type_=StatusCode)),
 ]
 
@@ -170,11 +154,15 @@ KeyValueLabelsField = Annotated[
 
 
 __all__ = [
+    "BANNED_CHARACTERS",
+    "WITHOUT_BANNED_CHARACTERS",
     "ClientRetryExtraCodes",
     "Date",
     "DateTime",
     "LogLevel",
     "KeyValueLabelsField",
+    "MAX_VARIABLE_NAME_LENGTH",
+    "MAX_VARIABLE_VALUE_LENGTH",
     "NonNegativeInteger",
     "PositiveInteger",
     "ListOfNonEmptyStrings",

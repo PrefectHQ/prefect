@@ -21,6 +21,7 @@ from typing import (
 
 from typing_extensions import ParamSpec, Self, TypeVar
 
+from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
 from prefect.futures import (
@@ -281,10 +282,16 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         if not self._started or self._executor is None:
             raise RuntimeError("Task runner is not started")
 
+        if wait_for and task.tags and (self._max_workers <= len(task.tags)):
+            self.logger.warning(
+                f"Task {task.name} has {len(task.tags)} tags but only {self._max_workers} workers available"
+                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `max_workers`."
+            )
+
         from prefect.context import FlowRunContext
         from prefect.task_engine import run_task_async, run_task_sync
 
-        task_run_id = uuid.uuid4()
+        task_run_id = uuid7()
         cancel_event = threading.Event()
         self._cancel_events[task_run_id] = cancel_event
         context = copy_context()

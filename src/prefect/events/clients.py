@@ -251,8 +251,8 @@ class EventsClient(abc.ABC):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[Exception]],
-        exc_val: Optional[Exception],
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
         del self._in_context
@@ -360,8 +360,8 @@ class PrefectEventsClient(EventsClient):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[Exception]],
-        exc_val: Optional[Exception],
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
@@ -684,8 +684,8 @@ class PrefectEventSubscriber:
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[Exception]],
-        exc_val: Optional[Exception],
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None

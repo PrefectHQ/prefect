@@ -9,6 +9,8 @@ dependencies = [
     "kubernetes",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-xdist",
+    "pytest-timeout>=2.3.1",
 ]
 
 [build-system]
@@ -22,6 +24,7 @@ prefect-kubernetes = { workspace = true }
 run-integration-tests = "prefect_kubernetes_integration_tests.scenarios.run:main"
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["src/prefect_kubernetes_integration_tests"]
 python_files = ["test_*.py"]
 addopts = "-v -ra"

@@ -27,6 +27,7 @@ from typing import (
     Coroutine,
     Generic,
     Iterable,
+    List,
     NoReturn,
     Optional,
     Protocol,
@@ -49,6 +50,7 @@ from typing_extensions import Literal, ParamSpec
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._versioning import VersionType
 from prefect.blocks.core import Block
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
@@ -704,6 +706,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -733,6 +736,8 @@ class Flow(Generic[P, R]):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -787,6 +792,7 @@ class Flow(Generic[P, R]):
                 parameters=parameters or {},
                 description=description,
                 version=version,
+                version_type=version_type,
                 enforce_parameter_schema=enforce_parameter_schema,
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
@@ -809,6 +815,7 @@ class Flow(Generic[P, R]):
                 parameters=parameters or {},
                 description=description,
                 version=version,
+                version_type=version_type,
                 enforce_parameter_schema=enforce_parameter_schema,
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
@@ -840,6 +847,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -869,6 +877,8 @@ class Flow(Generic[P, R]):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
             work_pool_name: The name of the work pool to use for this deployment.
@@ -925,6 +935,7 @@ class Flow(Generic[P, R]):
                     parameters=parameters or {},
                     description=description,
                     version=version,
+                    version_type=version_type,
                     enforce_parameter_schema=enforce_parameter_schema,
                     work_pool_name=work_pool_name,
                     work_queue_name=work_queue_name,
@@ -949,6 +960,7 @@ class Flow(Generic[P, R]):
                 parameters=parameters or {},
                 description=description,
                 version=version,
+                version_type=version_type,
                 enforce_parameter_schema=enforce_parameter_schema,
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
@@ -1375,6 +1387,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,
         version: Optional[str] = None,
+        version_type: Optional[VersionType] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
@@ -1426,6 +1439,8 @@ class Flow(Generic[P, R]):
             tags: A list of tags to associate with the created deployment for organizational
                 purposes.
             version: A version for the created deployment. Defaults to the flow's version.
+            version_type: The type of version to use for the created deployment. The version type
+                will be inferred if not provided.
             enforce_parameter_schema: Whether or not the Prefect API should enforce the
                 parameter schema for the created deployment.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
@@ -1510,6 +1525,7 @@ class Flow(Generic[P, R]):
             description=description,
             tags=tags,
             version=version,
+            version_type=version_type,
             enforce_parameter_schema=enforce_parameter_schema,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
@@ -2294,8 +2310,9 @@ def load_flow_from_entrypoint(
     Extract a flow object from a script at an entrypoint by running all of the code in the file.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>` or a module path
-            to a flow function
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+            or a string in the format `<path_to_script>:<class_name>.<flow_method_name>`
+            or a module path to a flow function
         use_placeholder_flow: if True, use a placeholder Flow object if the actual flow object
             cannot be loaded from the entrypoint (e.g. dependencies are missing)
 
@@ -2685,26 +2702,55 @@ def load_placeholder_flow(entrypoint: str, raises: Exception) -> Flow[P, Any]:
 
 def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow[P, Any]]:
     """
-    Load a flow from an entrypoint and return None if an exception is raised.
+    Safely load a Prefect flow from an entrypoint string. Returns None if loading fails.
 
     Args:
-        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
-          or a module path to a flow function
-    """
-    func_def, source_code = _entrypoint_definition_and_source(entrypoint)
-    path = None
-    if ":" in entrypoint:
-        path = entrypoint.rsplit(":")[0]
-    namespace = safe_load_namespace(source_code, filepath=path)
-    if func_def.name in namespace:
-        return namespace[func_def.name]
-    else:
-        # If the function is not in the namespace, if may be due to missing dependencies
-        # for the function. We will attempt to compile each annotation and default value
-        # and remove them from the function definition to see if the function can be
-        # compiled without them.
+        entrypoint (str): A string identifying the flow to load. Can be in one of the following formats:
+            - `<path_to_script>:<flow_func_name>`
+            - `<path_to_script>:<class_name>.<flow_method_name>`
+            - `<module_path>.<flow_func_name>`
 
-        return _sanitize_and_load_flow(func_def, namespace)
+    Returns:
+        Optional[Flow]: The loaded Prefect flow object, or None if loading fails due to errors
+        (e.g. unresolved dependencies, syntax errors, or missing objects).
+    """
+    func_or_cls_def, source_code, parts = _entrypoint_definition_and_source(entrypoint)
+
+    path = entrypoint.rsplit(":", maxsplit=1)[0] if ":" in entrypoint else None
+    namespace = safe_load_namespace(source_code, filepath=path)
+
+    if parts[0] not in namespace:
+        # If the object is not in the namespace, it may be due to missing dependencies
+        # in annotations or default values. We will attempt to sanitize them by removing
+        # anything that cannot be compiled, and then recompile the function or class.
+        if isinstance(func_or_cls_def, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return _sanitize_and_load_flow(func_or_cls_def, namespace)
+        elif (
+            isinstance(func_or_cls_def, ast.ClassDef)
+            and len(parts) >= 2
+            and func_or_cls_def.name == parts[0]
+        ):
+            method_name = parts[1]
+            method_def = next(
+                (
+                    stmt
+                    for stmt in func_or_cls_def.body
+                    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and stmt.name == method_name
+                ),
+                None,
+            )
+            if method_def is not None:
+                return _sanitize_and_load_flow(method_def, namespace)
+        else:
+            return None
+
+    obj = namespace.get(parts[0])
+    for part in parts[1:]:
+        obj = getattr(obj, part, None)
+        if obj is None:
+            return None
+    return obj
 
 
 def _sanitize_and_load_flow(
@@ -2838,7 +2884,7 @@ def load_flow_arguments_from_entrypoint(
           or a module path to a flow function
     """
 
-    func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    func_def, source_code, _ = _entrypoint_definition_and_source(entrypoint)
     path = None
     if ":" in entrypoint:
         path = entrypoint.rsplit(":")[0]
@@ -2915,26 +2961,45 @@ def is_entrypoint_async(entrypoint: str) -> bool:
     Returns:
         True if the function is asynchronous, False otherwise.
     """
-    func_def, _ = _entrypoint_definition_and_source(entrypoint)
+    func_def, _, _ = _entrypoint_definition_and_source(entrypoint)
     return isinstance(func_def, ast.AsyncFunctionDef)
 
 
 def _entrypoint_definition_and_source(
     entrypoint: str,
-) -> Tuple[Union[ast.FunctionDef, ast.AsyncFunctionDef], str]:
+) -> Tuple[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef], str, List[str]]:
+    """
+    Resolves and parses the source definition of a given entrypoint.
+
+    The entrypoint can be provided in one of the following formats:
+        - '<path_to_script>:<flow_func_name>'
+        - '<path_to_script>:<class_name>.<flow_method_name>'
+        - '<module_path.to.flow_function>'
+
+    Returns:
+        A tuple containing:
+        - The AST node (FunctionDef, AsyncFunctionDef, or ClassDef) of the base object.
+        - The full source code of the file or module as a string.
+        - A list of attribute access parts from the object path (e.g., ['MyFlowClass', 'run']).
+
+    Raises:
+        ValueError: If the module or target object cannot be found.
+    """
     if ":" in entrypoint:
-        # Split by the last colon once to handle Windows paths with drive letters i.e C:\path\to\file.py:do_stuff
-        path, func_name = entrypoint.rsplit(":", maxsplit=1)
+        path, object_path = entrypoint.rsplit(":", maxsplit=1)
         source_code = Path(path).read_text()
     else:
-        path, func_name = entrypoint.rsplit(".", maxsplit=1)
+        path, object_path = entrypoint.rsplit(".", maxsplit=1)
         spec = importlib.util.find_spec(path)
         if not spec or not spec.origin:
             raise ValueError(f"Could not find module {path!r}")
         source_code = Path(spec.origin).read_text()
 
     parsed_code = ast.parse(source_code)
-    func_def = next(
+    parts = object_path.split(".")
+    base_name = parts[0]
+
+    base_def = next(
         (
             node
             for node in ast.walk(parsed_code)
@@ -2943,14 +3008,15 @@ def _entrypoint_definition_and_source(
                 (
                     ast.FunctionDef,
                     ast.AsyncFunctionDef,
+                    ast.ClassDef,  # flow can be staticmethod/classmethod
                 ),
             )
-            and node.name == func_name
+            and node.name == base_name
         ),
         None,
     )
 
-    if not func_def:
-        raise ValueError(f"Could not find flow {func_name!r} in {path!r}")
+    if not base_def:
+        raise ValueError(f"Could not find object {base_name!r} in {path!r}")
 
-    return func_def, source_code
+    return base_def, source_code, parts

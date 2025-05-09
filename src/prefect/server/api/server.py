@@ -62,6 +62,19 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
+if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
+    import logfire  # pyright: ignore
+
+    token: str | None = os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")
+    if token is None:
+        raise ValueError(
+            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+        )
+
+    logfire.configure(token=token)  # pyright: ignore
+else:
+    logfire = None
+
 if TYPE_CHECKING:
     import logging
 
@@ -89,7 +102,6 @@ API_ROUTERS = (
     api.task_runs.router,
     api.flow_run_states.router,
     api.task_run_states.router,
-    api.flow_run_notification_policies.router,
     api.deployments.router,
     api.saved_searches.router,
     api.logs.router,
@@ -251,7 +263,7 @@ def copy_directory(directory: str, path: str) -> None:
                 shutil.rmtree(destination)
             shutil.copytree(source, destination, symlinks=True)
             # ensure copied files are writeable
-            for root, dirs, files in os.walk(destination):
+            for root, _, files in os.walk(destination):
                 for f in files:
                     os.chmod(os.path.join(root, f), 0o700)
         else:
@@ -330,6 +342,10 @@ def create_api_app(
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+
+    if logfire:
+        logfire.instrument_fastapi(api_app)  # pyright: ignore
+
     api_app.add_middleware(GZipMiddleware)
 
     @api_app.get(health_check_path, tags=["Root"])
