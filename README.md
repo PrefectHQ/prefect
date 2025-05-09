@@ -1,18 +1,27 @@
 <p align="center"><img src="https://github.com/PrefectHQ/prefect/assets/3407835/c654cbc6-63e8-4ada-a92a-efd2f8f24b85" width=1000></p>
 
 <p align="center">
-    <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422"></a>
+    <a href="https://pypi.org/project/prefect/" alt="PyPI version">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422" />
+    </a>
+    <a href="https://pypi.org/project/prefect/" alt="PyPI downloads/month">
+        <img alt="Downloads" src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" />
+    </a>
     <a href="https://github.com/prefecthq/prefect/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" />
+    </a>
     <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
-        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" />
+    </a>
     <br>
     <a href="https://prefect.io/slack" alt="Slack">
-        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
+        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" />
+    </a>
     <a href="https://www.youtube.com/c/PrefectIO/" alt="YouTube">
-        <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" /></a>
+        <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" />
+    </a>
 </p>
+
 
 <p align="center">
     <a href="https://docs.prefect.io/v3/get-started/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
