@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-async def result_store_from_task(task: Task[..., Any]) -> ResultStore:
+async def result_store_from_task(task: Task[Any, Any]) -> ResultStore:
     return await ResultStore(
         result_storage=await get_or_create_default_task_scheduling_storage()
     ).update_for_task(task)
@@ -53,7 +53,7 @@ async def clear_cached_filesystems():
 
 
 @pytest.fixture
-def foo_task() -> Task[..., int]:
+def foo_task() -> Task[Any, int]:
     @task
     def foo(x: int) -> int:
         print(x)
@@ -63,7 +63,7 @@ def foo_task() -> Task[..., int]:
 
 
 @pytest.fixture
-def async_foo_task() -> Task[..., int]:
+def async_foo_task() -> Task[Any, int]:
     @task
     async def async_foo(x: int) -> int:
         print(x)
@@ -74,20 +74,20 @@ def async_foo_task() -> Task[..., int]:
 
 @pytest.fixture
 def foo_task_with_result_storage(
-    foo_task: Task[..., int], local_filesystem: LocalFileSystem
-) -> Task[..., int]:
+    foo_task: Task[Any, int], local_filesystem: LocalFileSystem
+) -> Task[Any, int]:
     return foo_task.with_options(result_storage=local_filesystem)
 
 
 @pytest.fixture
 def async_foo_task_with_result_storage(
-    async_foo_task: Task[..., int], local_filesystem: LocalFileSystem
-) -> Task[..., int]:
+    async_foo_task: Task[Any, int], local_filesystem: LocalFileSystem
+) -> Task[Any, int]:
     return async_foo_task.with_options(result_storage=local_filesystem)
 
 
 async def test_task_submission_with_parameters_uses_default_storage(
-    foo_task: Task[..., int], prefect_client: "PrefectClient"
+    foo_task: Task[Any, int], prefect_client: "PrefectClient"
 ):
     foo_task_without_result_storage = foo_task.with_options(result_storage=None)
     task_run_future = foo_task_without_result_storage.apply_async((42,))
@@ -101,7 +101,7 @@ async def test_task_submission_with_parameters_uses_default_storage(
 
 
 async def test_task_submission_with_parameters_reuses_default_storage_block(
-    foo_task: Task[..., int], tmp_path: Path, prefect_client: "PrefectClient"
+    foo_task: Task[Any, int], tmp_path: Path, prefect_client: "PrefectClient"
 ):
     with temporary_settings(
         {
@@ -136,7 +136,7 @@ async def test_task_submission_with_parameters_reuses_default_storage_block(
 
 
 async def test_task_submission_creates_a_scheduled_task_run(
-    foo_task_with_result_storage: Task[..., int], prefect_client: "PrefectClient"
+    foo_task_with_result_storage: Task[Any, int], prefect_client: "PrefectClient"
 ):
     task_run_future = foo_task_with_result_storage.apply_async((42,))
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
@@ -154,7 +154,7 @@ async def test_task_submission_creates_a_scheduled_task_run(
 
 
 async def test_sync_task_not_awaitable_in_async_context(
-    foo_task: Task[..., int], prefect_client: "PrefectClient"
+    foo_task: Task[Any, int], prefect_client: "PrefectClient"
 ):
     task_run_future = foo_task.apply_async((42,))
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
@@ -170,7 +170,8 @@ async def test_sync_task_not_awaitable_in_async_context(
 
 
 async def test_async_task_submission_creates_a_scheduled_task_run(
-    async_foo_task_with_result_storage: Task[..., int], prefect_client: "PrefectClient"
+    async_foo_task_with_result_storage: Task[Any, int],
+    prefect_client: "PrefectClient",
 ):
     task_run_future = async_foo_task_with_result_storage.apply_async((42,))
     task_run = await prefect_client.read_task_run(task_run_future.task_run_id)
@@ -186,7 +187,7 @@ async def test_async_task_submission_creates_a_scheduled_task_run(
 
 
 async def test_scheduled_tasks_are_enqueued_server_side(
-    foo_task_with_result_storage: Task[..., int],
+    foo_task_with_result_storage: Task[Any, int],
     in_memory_prefect_client: "PrefectClient",
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -226,7 +227,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
 
 
 async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
-    foo_task: Task[..., int],
+    foo_task: Task[Any, int],
 ):
     # Regression test for https://github.com/PrefectHQ/prefect/issues/13674
     # where executing a task would cause it to be enqueue server-side
@@ -244,12 +245,12 @@ async def prefect_client() -> AsyncGenerator["PrefectClient", None]:
 
 
 class TestCall:
-    async def test_call(self, async_foo_task: Task[..., int]):
+    async def test_call(self, async_foo_task: Task[Any, int]):
         result = await async_foo_task(42)
 
         assert result == 42
 
-    async def test_call_with_return_state(self, async_foo_task: Task[..., int]):
+    async def test_call_with_return_state(self, async_foo_task: Task[Any, int]):
         state = await async_foo_task(42, return_state=True)
 
         assert state.is_completed()
@@ -258,7 +259,7 @@ class TestCall:
 
 
 class TestMap:
-    async def test_map(self, async_foo_task: Task[..., int]):
+    async def test_map(self, async_foo_task: Task[Any, int]):
         task_runs = async_foo_task.map([1, 2, 3], deferred=True)
 
         assert len(task_runs) == 3

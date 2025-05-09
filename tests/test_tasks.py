@@ -107,7 +107,7 @@ def timeout_test_flow() -> Any:
 
 
 async def get_background_task_run_parameters(
-    task: Task[..., Any], parameters_id: UUID
+    task: Task[Any, Any], parameters_id: UUID
 ) -> Any:
     store = await ResultStore(
         result_storage=await get_or_create_default_task_scheduling_storage()
