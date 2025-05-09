@@ -1,3 +1,7 @@
+default_install_hook_types: 
+  - pre-commit
+  - pre-push
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.5
@@ -53,6 +57,8 @@ repos:
               scripts/generate_settings_ref.py|
               scripts/run_precommit_generation_scripts.py
           )$
+        stages:
+          - pre-push
       - id: check-ui-v2
         name: Check UI v2
         language: system
@@ -88,3 +94,5 @@ repos:
               ui-v2/package.json
           )$
         pass_filenames: false
+        stages:
+          - pre-push
