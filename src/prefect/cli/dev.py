@@ -2,7 +2,6 @@
 Command line interface for working with Prefect Server
 """
 
-import json
 import os
 import platform
 import shutil
@@ -11,19 +10,15 @@ import sys
 import textwrap
 import time
 from functools import partial
-from typing import Optional
 
 import anyio
 import typer
 
 import prefect
-from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.settings import (
-    PREFECT_SERVER_API_HOST,
-    PREFECT_SERVER_API_PORT,
-)
+from prefect.settings import get_current_settings
 from prefect.utilities.dockerutils import get_prefect_image_name, python_version_minor
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
@@ -53,30 +48,6 @@ def exit_with_error_if_not_editable_install() -> None:
         )
 
 
-@dev_app.command()
-def build_docs(schema_path: Optional[str] = None):
-    """
-    Builds REST API reference documentation for static display.
-    """
-    exit_with_error_if_not_editable_install()
-
-    from prefect.server.api.server import create_app
-
-    schema = create_app(ephemeral=True).openapi()
-
-    if not schema_path:
-        path_to_schema = (
-            prefect.__development_base_path__ / "docs" / "api-ref" / "schema.json"
-        ).absolute()
-    else:
-        path_to_schema = os.path.abspath(schema_path)
-    # overwrite info for display purposes
-    schema["info"] = {}
-    with open(path_to_schema, "w") as f:
-        json.dump(schema, f)
-    app.console.print(f"OpenAPI schema written to {path_to_schema}")
-
-
 BUILD_UI_HELP = """
 Installs dependencies and builds UI locally. Requires npm.
 """
@@ -87,7 +58,7 @@ def build_ui(
     no_install: bool = False,
 ):
     exit_with_error_if_not_editable_install()
-    with tmpchdir(prefect.__development_base_path__ / "ui"):
+    with tmpchdir(str(prefect.__development_base_path__ / "ui")):
         if not no_install:
             app.console.print("Installing npm packages...")
             try:
@@ -103,7 +74,7 @@ def build_ui(
                 ["npm", "run", "build"], env=env, shell=sys.platform == "win32"
             )
 
-    with tmpchdir(prefect.__development_base_path__):
+    with tmpchdir(str(prefect.__development_base_path__)):
         if os.path.exists(prefect.__ui_static_path__):
             app.console.print("Removing existing build files...")
             shutil.rmtree(prefect.__ui_static_path__)
@@ -120,7 +91,7 @@ async def ui():
     Starts a hot-reloading development UI.
     """
     exit_with_error_if_not_editable_install()
-    with tmpchdir(prefect.__development_base_path__ / "ui"):
+    with tmpchdir(str(prefect.__development_base_path__ / "ui")):
         app.console.print("Installing npm packages...")
         await run_process(["npm", "install"], stream_output=True)
 
@@ -130,10 +101,10 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
-    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
-    log_level: str = "DEBUG",
+    host: str = get_current_settings().server.api.host,
+    port: int = get_current_settings().server.api.port,
     services: bool = True,
+    log_level: str = "WARNING",
 ):
     """
     Starts a hot-reloading development API.
@@ -144,6 +115,7 @@ async def api(
     server_env["PREFECT_API_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_API_SERVICES_UI"] = "False"
     server_env["PREFECT_UI_API_URL"] = f"http://{host}:{port}/api"
+    server_env["PREFECT_SERVER_LOGGING_LEVEL"] = log_level
 
     command = [
         sys.executable,
@@ -155,11 +127,10 @@ async def api(
         str(host),
         "--port",
         str(port),
-        "--log-level",
-        log_level.lower(),
     ]
 
-    app.console.print(f"Running: {' '.join(command)}")
+    app.console.print("[bold green]\n🚀 Starting Prefect Server (hot reload)\n[/]")
+    app.console.print(f"[bold blue]Running:[/] [dim]{' '.join(command)}[/]")
     import signal
 
     stop_event = anyio.Event()
@@ -170,14 +141,12 @@ async def api(
     async with anyio.create_task_group() as tg:
         try:
             server_pid = await tg.start(start_command)
-            async for _ in watchfiles.awatch(
+            async for _ in watchfiles.awatch(  # type: ignore
                 prefect.__module_path__,
-                stop_event=stop_event,  # type: ignore
+                stop_event=stop_event,
             ):
-                # when any watched files change, restart the server
-                app.console.print("Restarting Prefect Server...")
+                app.console.print("[yellow]\n🔄 Restarting Prefect Server...\n[/]")
                 os.kill(server_pid, signal.SIGTERM)  # type: ignore
-                # start a new server
                 server_pid = await tg.start(start_command)
         except RuntimeError as err:
             # a bug in watchfiles causes an 'Already borrowed' error from Rust when
@@ -215,8 +184,8 @@ async def start(
                     # task group is async, so we need use the wrapped function
                     # directly
                     api.aio,
-                    host=PREFECT_SERVER_API_HOST.value(),
-                    port=PREFECT_SERVER_API_PORT.value(),
+                    host=get_current_settings().server.api.host,
+                    port=get_current_settings().server.api.port,
                 )
             )
         if not exclude_ui:
@@ -294,7 +263,10 @@ def build_image(
 
 @dev_app.command()
 def container(
-    bg: bool = False, name="prefect-dev", api: bool = True, tag: Optional[str] = None
+    bg: bool = False,
+    name: str = "prefect-dev",
+    api: bool = True,
+    tag: str | None = None,
 ):
     """
     Run a docker container with local code mounted and installed.

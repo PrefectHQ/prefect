@@ -1,3 +1,6 @@
+from typing import Any
+
+import pytest
 import watchfiles
 
 import prefect
@@ -5,7 +8,7 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock, MagicMock
 
 
-def test_dev_start_runs_all_services(monkeypatch):
+def test_dev_start_runs_all_services(monkeypatch: pytest.MonkeyPatch):
     """
     Test that `prefect dev start` runs all services. This test mocks out the
     `run_process` function along with the `watchfiles.arun_process` function
@@ -18,7 +21,7 @@ def test_dev_start_runs_all_services(monkeypatch):
 
     # Call task_status.started() if run_process was triggered by an
     # anyio task group `start` call.
-    def mock_run_process_call(*args, **kwargs):
+    def mock_run_process_call(*args: Any, **kwargs: Any):
         if "task_status" in kwargs:
             kwargs["task_status"].started()
 

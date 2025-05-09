@@ -2,6 +2,7 @@
 Defines the Prefect REST API FastAPI app.
 """
 
+# Test hot reloading - this comment should trigger a server restart
 from __future__ import annotations
 
 import asyncio
