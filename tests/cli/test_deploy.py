@@ -550,7 +550,8 @@ class TestProjectDeploy:
             ),
             user_input=(
                 # don't save the deployment configuration
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_does_not_contain=[
@@ -1066,12 +1067,30 @@ class TestProjectDeploy:
                 }
             ]
 
+        @pytest.mark.parametrize(
+            "persist_dockerfile,dockerfile_output_path",
+            [
+                pytest.param(None, None, id="not-persistent"),
+                pytest.param(
+                    True,
+                    None,
+                    id="persistent-default-path",
+                ),
+                pytest.param(
+                    True,
+                    "Dockerfile.test",
+                    id="persistent-custom-path",
+                ),
+            ],
+        )
         @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
         async def test_build_docker_image_step_auto_build_dockerfile(
             self,
             work_pool: WorkPool,
             prefect_client: PrefectClient,
             monkeypatch: pytest.MonkeyPatch,
+            persist_dockerfile: Optional[bool],
+            dockerfile_output_path: Optional[str],
         ):
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
@@ -1090,6 +1109,8 @@ class TestProjectDeploy:
                             "image_name": "repo-name/image-name",
                             "tag": "dev",
                             "dockerfile": "auto",
+                            "persist_dockerfile": persist_dockerfile,
+                            "dockerfile_output_path": dockerfile_output_path,
                         }
                     }
                 ]
@@ -1108,7 +1129,8 @@ class TestProjectDeploy:
                 expected_code=0,
                 user_input=(
                     # Decline pulling from remote storage
-                    "n" + readchar.key.ENTER
+                    "n"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "prefect deployment run 'An important name/test-name'"
@@ -1130,7 +1152,13 @@ class TestProjectDeploy:
                 image_name="repo-name/image-name",
                 tag="dev",
                 dockerfile="auto",
+                persist_dockerfile=persist_dockerfile,
+                dockerfile_output_path=dockerfile_output_path,
             )
+
+            if persist_dockerfile:
+                assert Path(dockerfile_output_path or "Dockerfile.generated").exists()
+
             # check to make sure prefect-docker is not installed
             with pytest.raises(ImportError):
                 import prefect_docker  # noqa
@@ -2632,9 +2660,9 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["schedule"]["rrule"] = (
-            "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
-        )
+        deploy_config["deployments"][0]["schedule"][
+            "rrule"
+        ] = "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
@@ -5490,7 +5518,8 @@ class TestDeployDockerBuildSteps:
             ),
             user_input=(
                 # Reject build custom docker image
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
@@ -5510,7 +5539,8 @@ class TestDeployDockerBuildSteps:
             ),
             user_input=(
                 # Reject build custom docker image
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=["Would you like to build a custom Docker image"],
         )
