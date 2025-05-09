@@ -246,14 +246,14 @@ class ShellOperation(JobBlock[list[str]]):
             "the command will be executed within."
         ),
     )
-    shell: str | None = Field(
+    shell: Optional[str] = Field(
         default=None,
         description=(
             "The shell to run the command with; if unset, "
             "defaults to `powershell` on Windows and `bash` on other platforms."
         ),
     )
-    extension: str | None = Field(
+    extension: Optional[str] = Field(
         default=None,
         description=(
             "The extension to use for the temporary file; if unset, "
