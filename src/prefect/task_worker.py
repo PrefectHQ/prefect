@@ -292,7 +292,7 @@ class TaskWorker:
         task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
-            if get_current_settings().task_scheduling.delete_failed_submissions:
+            if get_current_settings().tasks.scheduling.delete_failed_submissions:
                 logger.warning(
                     f"Task {task_run.name!r} not found in task worker registry."
                 )
@@ -308,12 +308,18 @@ class TaskWorker:
         run_context = None
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
+            if parameters_id is None:
+                logger.warning(
+                    f"Task run {task_run.id!r} has no parameters ID. Skipping parameter retrieval."
+                )
+                return
+
             task.persist_result = True
             store = await ResultStore(
                 result_storage=await get_or_create_default_task_scheduling_storage()
             ).update_for_task(task)
             try:
-                run_data: dict[str, Any] = await store.read_parameters(parameters_id)
+                run_data: dict[str, Any] = await read_parameters(store, parameters_id)
                 parameters = run_data.get("parameters", {})
                 wait_for = run_data.get("wait_for", [])
                 run_context = run_data.get("context", None)
@@ -322,7 +328,7 @@ class TaskWorker:
                     f"Failed to read parameters for task run {task_run.id!r}",
                     exc_info=exc,
                 )
-                if get_current_settings().task_scheduling.delete_failed_submissions:
+                if get_current_settings().tasks.scheduling.delete_failed_submissions:
                     logger.info(
                         f"Deleting task run {task_run.id!r} because it failed to submit"
                     )
