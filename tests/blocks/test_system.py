@@ -35,8 +35,8 @@ def test_secret_block(value: Any):
     "value",
     [
         SecretStr("test"),
-        PydanticSecret[dict]({"key": "value"}),
-        PydanticSecret[list](["test"]),
+        PydanticSecret[dict[str, str]]({"key": "value"}),
+        PydanticSecret[list[str]](["test"]),
     ],
     ids=["secret_string", "secret_dict", "secret_list"],
 )
