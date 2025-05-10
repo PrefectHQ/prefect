@@ -83,7 +83,6 @@ class RedisLockManager(LockManager):
 
     # ------------------------------------
 
-    # internal
     def _ensure_clients(self) -> None:
         if self.client is None:
             self.client = Redis(
@@ -144,15 +143,14 @@ class RedisLockManager(LockManager):
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
 
-        if lock is not None and isinstance(
-            lock, AsyncLock
-        ):  # Still need to check if it *is* an AsyncLock to call await .owned()
+        if lock is not None and isinstance(lock, AsyncLock):
             if await lock.owned() and lock.local.token == holder.encode():
                 return True
             else:
                 lock = None
 
         if lock is None:
+            assert self.async_client is not None, "Async client should be initialized"
             new_lock = AsyncLock(
                 self.async_client, lock_name, timeout=hold_timeout, thread_local=False
             )
@@ -219,6 +217,7 @@ class RedisLockManager(LockManager):
     async def await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         self._ensure_clients()
         lock_name = self._lock_name_for_key(key)
+        assert self.async_client is not None, "Async client should be initialized"
         lock = AsyncLock(
             self.async_client, lock_name
         )  # Create a temporary lock for waiting
