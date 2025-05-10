@@ -1,3 +1,4 @@
+import pickle
 import queue
 import threading
 import time
@@ -254,3 +255,81 @@ class TestRedisLockManager:
         # 4b. Now simulate the "release after rollback" case - SHOULD NOT raise
         # This is what our fix specifically addresses
         store.release_lock(key, holder="transaction1")
+
+    async def test_pickle_unpickle_and_use_lock_manager(
+        self, lock_manager: RedisLockManager
+    ):
+        """
+        Tests that RedisLockManager can be pickled, unpickled, and then used successfully,
+        ensuring lazy client initialization works.
+        """
+        # Initial state checks for the provided fixture instance
+        # (clients should be None due to our __init__ and __setstate__ if it were unpickled,
+        # or because _ensure_clients hasn't been called on a fresh instance)
+        assert lock_manager.client is None, "Initial client should be None"
+        assert lock_manager.async_client is None, "Initial async_client should be None"
+
+        # Pickle and unpickle
+        pickled_manager = pickle.dumps(lock_manager)
+        unpickled_manager: RedisLockManager = pickle.loads(pickled_manager)
+
+        # Verify state after unpickling (clients should be None due to __setstate__)
+        assert unpickled_manager.client is None, (
+            "Client should be None after unpickling"
+        )
+        assert unpickled_manager.async_client is None, (
+            "Async client should be None after unpickling"
+        )
+        # Accessing _locks directly is for testing internals.
+        assert (
+            hasattr(unpickled_manager, "_locks")
+            and isinstance(getattr(unpickled_manager, "_locks"), dict)
+            and not getattr(unpickled_manager, "_locks")
+        ), "_locks should be an empty dict after unpickling"
+
+        # Test synchronous operations (should trigger _ensure_clients)
+        sync_key = "test_sync_pickle_key"
+        sync_holder = "sync_pickle_holder"
+
+        acquired_sync = unpickled_manager.acquire_lock(
+            sync_key, holder=sync_holder, acquire_timeout=1, hold_timeout=5
+        )
+        assert acquired_sync, "Should acquire sync lock after unpickling"
+        assert unpickled_manager.client is not None, (
+            "Sync client should be initialized after use"
+        )
+        assert unpickled_manager.is_lock_holder(sync_key, sync_holder), (
+            "Should be sync lock holder"
+        )
+        unpickled_manager.release_lock(sync_key, sync_holder)
+        assert not unpickled_manager.is_locked(sync_key), "Sync lock should be released"
+
+        # Test asynchronous operations (should trigger _ensure_clients for async_client)
+        async_key = "test_async_pickle_key"
+        async_holder = "async_pickle_holder"
+
+        acquired_async = await unpickled_manager.aacquire_lock(
+            async_key, holder=async_holder, acquire_timeout=1, hold_timeout=5
+        )
+        assert acquired_async, "Should acquire async lock after unpickling"
+        assert unpickled_manager.async_client is not None, (
+            "Async client should be initialized after async use"
+        )
+
+        # Verify holder by re-acquiring (should succeed) and then releasing.
+        assert await unpickled_manager.aacquire_lock(
+            async_key, holder=async_holder, acquire_timeout=1, hold_timeout=5
+        ), "Re-acquiring same async lock should succeed"
+
+        await unpickled_manager.arelease_lock(async_key, async_holder)
+
+        # Verify it's released by trying to acquire with a different holder.
+        new_async_holder = "new_async_pickle_holder"
+        acquired_by_new = await unpickled_manager.aacquire_lock(
+            async_key, holder=new_async_holder, acquire_timeout=1, hold_timeout=5
+        )
+        assert acquired_by_new, (
+            "Should acquire async lock with new holder after release"
+        )
+        if acquired_by_new:  # Cleanup if acquired
+            await unpickled_manager.arelease_lock(async_key, new_async_holder)
