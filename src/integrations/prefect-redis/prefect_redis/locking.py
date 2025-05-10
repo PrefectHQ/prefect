@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
@@ -19,8 +19,7 @@ class RedisLockManager(LockManager):
         username: The username to use when connecting to the Redis server
         password: The password to use when connecting to the Redis server
         ssl: Whether to use SSL when connecting to the Redis server
-        client: The Redis client used to communicate with the Redis server
-        async_client: The asynchronous Redis client used to communicate with the Redis server
+        # client and async_client are initialized lazily
 
     Example:
         Use with a cache policy:
@@ -65,12 +64,34 @@ class RedisLockManager(LockManager):
         self.username = username
         self.password = password
         self.ssl = ssl
+        # Clients are initialized by _init_clients
+        self.client: Redis
+        self.async_client: AsyncRedis
+        self._init_clients()  # Initialize clients here
+        self._locks: dict[str, Lock | AsyncLock] = {}
+
+    # ---------- pickling ----------
+    def __getstate__(self) -> dict[str, Any]:
+        return {
+            k: getattr(self, k)
+            for k in ("host", "port", "db", "username", "password", "ssl")
+        }
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._init_clients()  # Re-initialize clients here
+        self._locks = {}
+
+    # ------------------------------------
+
+    def _init_clients(self) -> None:
         self.client = Redis(
             host=self.host,
             port=self.port,
             db=self.db,
             username=self.username,
             password=self.password,
+            ssl=self.ssl,
         )
         self.async_client = AsyncRedis(
             host=self.host,
@@ -78,8 +99,8 @@ class RedisLockManager(LockManager):
             db=self.db,
             username=self.username,
             password=self.password,
+            ssl=self.ssl,
         )
-        self._locks: dict[str, Lock | AsyncLock] = {}
 
     @staticmethod
     def _lock_name_for_key(key: str) -> str:
@@ -94,6 +115,7 @@ class RedisLockManager(LockManager):
     ) -> bool:
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
+
         if lock is not None and self.is_lock_holder(key, holder):
             return True
         else:
@@ -114,52 +136,61 @@ class RedisLockManager(LockManager):
     ) -> bool:
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
-        if lock is not None and self.is_lock_holder(key, holder):
-            return True
-        else:
-            lock = AsyncLock(
+
+        if lock is not None and isinstance(lock, AsyncLock):
+            if await lock.owned() and lock.local.token == holder.encode():
+                return True
+            else:
+                lock = None
+
+        if lock is None:
+            new_lock = AsyncLock(
                 self.async_client, lock_name, timeout=hold_timeout, thread_local=False
             )
-        lock_acquired = await lock.acquire(
-            token=holder, blocking_timeout=acquire_timeout
-        )
-        if lock_acquired:
-            self._locks[lock_name] = lock
-        return lock_acquired
+            lock_acquired = await new_lock.acquire(
+                token=holder, blocking_timeout=acquire_timeout
+            )
+            if lock_acquired:
+                self._locks[lock_name] = new_lock
+            return lock_acquired
+
+        return False
 
     def release_lock(self, key: str, holder: str) -> None:
-        """
-        Releases the lock on the corresponding transaction record.
-
-        Handles the case where a lock might have been released during a task retry
-        If the lock doesn't exist in Redis at all, this method will succeed even if
-        the holder ID doesn't match the original holder.
-
-        Args:
-            key: Unique identifier for the transaction record.
-            holder: Unique identifier for the holder of the lock. Must match the
-                holder provided when acquiring the lock.
-
-        Raises:
-            ValueError: If the lock is held by a different holder.
-        """
+        # No _ensure_clients() call needed
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
 
-        # If we have a lock object and we're the holder, release it
         if lock is not None and self.is_lock_holder(key, holder):
             lock.release()
             del self._locks[lock_name]
             return
 
-        # If the lock doesn't exist in Redis at all, it's already been released
         if not self.is_locked(key):
             if lock_name in self._locks:
                 del self._locks[lock_name]
             return
 
-        # We have a real conflict - lock exists in Redis but with a different holder
         raise ValueError(f"No lock held by {holder} for transaction with key {key}")
+
+    async def arelease_lock(self, key: str, holder: str) -> None:
+        lock_name = self._lock_name_for_key(key)
+        lock = self._locks.get(lock_name)
+
+        if lock is not None and isinstance(lock, AsyncLock):
+            if await lock.owned() and lock.local.token == holder.encode():
+                await lock.release()
+                del self._locks[lock_name]
+                return
+
+        if not AsyncLock(self.async_client, lock_name).locked():
+            if lock_name in self._locks:
+                del self._locks[lock_name]
+            return
+
+        raise ValueError(
+            f"No lock held by {holder} for transaction with key {key} (async)"
+        )
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
         lock_name = self._lock_name_for_key(key)
