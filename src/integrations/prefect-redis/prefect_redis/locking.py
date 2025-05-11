@@ -127,24 +127,16 @@ class RedisLockManager(LockManager):
             True if the lock was acquired, False otherwise.
         """
         lock_name = self._lock_name_for_key(key)
-        cached_lock = self._locks.get(lock_name)
-
-        if cached_lock is not None and isinstance(cached_lock, Lock):
-            # Check if this specific cached_lock instance currently owns the lock in Redis
-            # AND its locally stored token matches the current holder.
-            if cached_lock.owned() and cached_lock.local.token == holder.encode():
-                return True
-
-        # If no valid, owned, cached lock exists for the current holder (or no cached lock at all):
-        # Attempt to acquire a new lock from Redis.
-        new_lock_instance = Lock(
-            self.client, lock_name, timeout=hold_timeout, thread_local=False
-        )
-        lock_acquired = new_lock_instance.acquire(
-            token=holder, blocking_timeout=acquire_timeout
-        )
+        lock = self._locks.get(lock_name)
+        if lock is not None and self.is_lock_holder(key, holder):
+            return True
+        else:
+            lock = Lock(
+                self.client, lock_name, timeout=hold_timeout, thread_local=False
+            )
+        lock_acquired = lock.acquire(token=holder, blocking_timeout=acquire_timeout)
         if lock_acquired:
-            self._locks[lock_name] = new_lock_instance
+            self._locks[lock_name] = lock
         return lock_acquired
 
     async def aacquire_lock(
@@ -169,28 +161,18 @@ class RedisLockManager(LockManager):
         """
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
-
-        if lock is not None and isinstance(lock, AsyncLock):
-            if await lock.owned() and lock.local.token == holder.encode():
-                return True
-            else:
-                lock = None
-
-        # Handles the case where a lock might have been released during a task retry
-        # If the lock doesn't exist in Redis at all, this method will succeed even if
-        # the holder ID doesn't match the original holder.
-        if lock is None:
-            new_lock = AsyncLock(
+        if lock is not None and self.is_lock_holder(key, holder):
+            return True
+        else:
+            lock = AsyncLock(
                 self.async_client, lock_name, timeout=hold_timeout, thread_local=False
             )
-            lock_acquired = await new_lock.acquire(
-                token=holder, blocking_timeout=acquire_timeout
-            )
-            if lock_acquired:
-                self._locks[lock_name] = new_lock
-            return lock_acquired
-
-        return False
+        lock_acquired = await lock.acquire(
+            token=holder, blocking_timeout=acquire_timeout
+        )
+        if lock_acquired:
+            self._locks[lock_name] = lock
+        return lock_acquired
 
     def release_lock(self, key: str, holder: str) -> None:
         """

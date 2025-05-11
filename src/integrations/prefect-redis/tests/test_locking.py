@@ -314,7 +314,7 @@ class TestRedisLockManager:
         unpickled_manager.release_lock(sync_key, sync_holder)
         assert not unpickled_manager.is_locked(sync_key), "Sync lock should be released"
 
-        # Test asynchronous operations (should trigger _ensure_clients for async_client)
+        # Test asynchronous operations (async_client is already initialized after unpickling)
         async_key = "test_async_pickle_key"
         async_holder = "async_pickle_holder"
         hold_timeout_seconds = 0.2  # Use a short hold timeout for testing expiration
