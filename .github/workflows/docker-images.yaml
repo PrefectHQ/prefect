@@ -35,11 +35,20 @@ jobs:
         - ""
         - "-conda"
         - "-kubernetes"
+        - "aws"
+        - "azure"
+        - "gcp"
         exclude:
         - image: "prefecthq/prefect-client"
           flavor: "-conda"
         - image: "prefecthq/prefect-client"
           flavor: "-kubernetes"
+        - image: "prefecthq/prefect-client"
+          flavor: "-aws"
+        - image: "prefecthq/prefect-client"
+          flavor: "-azure"
+        - image: "prefecthq/prefect-client"
+          flavor: "-gcp"
 
     steps:
       - name: Validate Prerelease Tag
@@ -127,6 +136,9 @@ jobs:
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
             ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[redis,kubernetes]' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'aws') && 'PREFECT_EXTRAS=[aws]' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'azure') && 'PREFECT_EXTRAS=[azure]' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'gcp') && 'PREFECT_EXTRAS=[gcp]' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true
