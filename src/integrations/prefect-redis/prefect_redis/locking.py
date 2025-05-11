@@ -127,17 +127,24 @@ class RedisLockManager(LockManager):
             True if the lock was acquired, False otherwise.
         """
         lock_name = self._lock_name_for_key(key)
-        lock = self._locks.get(lock_name)
+        cached_lock = self._locks.get(lock_name)
 
-        if lock is not None and self.is_lock_holder(key, holder):
-            return True
-        else:
-            lock = Lock(
-                self.client, lock_name, timeout=hold_timeout, thread_local=False
-            )
-        lock_acquired = lock.acquire(token=holder, blocking_timeout=acquire_timeout)
+        if cached_lock is not None and isinstance(cached_lock, Lock):
+            # Check if this specific cached_lock instance currently owns the lock in Redis
+            # AND its locally stored token matches the current holder.
+            if cached_lock.owned() and cached_lock.local.token == holder.encode():
+                return True
+
+        # If no valid, owned, cached lock exists for the current holder (or no cached lock at all):
+        # Attempt to acquire a new lock from Redis.
+        new_lock_instance = Lock(
+            self.client, lock_name, timeout=hold_timeout, thread_local=False
+        )
+        lock_acquired = new_lock_instance.acquire(
+            token=holder, blocking_timeout=acquire_timeout
+        )
         if lock_acquired:
-            self._locks[lock_name] = lock
+            self._locks[lock_name] = new_lock_instance
         return lock_acquired
 
     async def aacquire_lock(
