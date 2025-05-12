@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
@@ -65,12 +65,34 @@ class RedisLockManager(LockManager):
         self.username = username
         self.password = password
         self.ssl = ssl
+        # Clients are initialized by _init_clients
+        self.client: Redis
+        self.async_client: AsyncRedis
+        self._init_clients()  # Initialize clients here
+        self._locks: dict[str, Lock | AsyncLock] = {}
+
+    # ---------- pickling ----------
+    def __getstate__(self) -> dict[str, Any]:
+        return {
+            k: getattr(self, k)
+            for k in ("host", "port", "db", "username", "password", "ssl")
+        }
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._init_clients()  # Re-initialize clients here
+        self._locks = {}
+
+    # ------------------------------------
+
+    def _init_clients(self) -> None:
         self.client = Redis(
             host=self.host,
             port=self.port,
             db=self.db,
             username=self.username,
             password=self.password,
+            ssl=self.ssl,
         )
         self.async_client = AsyncRedis(
             host=self.host,
@@ -78,8 +100,8 @@ class RedisLockManager(LockManager):
             db=self.db,
             username=self.username,
             password=self.password,
+            ssl=self.ssl,
         )
-        self._locks: dict[str, Lock | AsyncLock] = {}
 
     @staticmethod
     def _lock_name_for_key(key: str) -> str:
@@ -92,6 +114,18 @@ class RedisLockManager(LockManager):
         acquire_timeout: Optional[float] = None,
         hold_timeout: Optional[float] = None,
     ) -> bool:
+        """
+        Acquires a lock synchronously.
+
+        Args:
+            key: Unique identifier for the transaction record.
+            holder: Unique identifier for the holder of the lock.
+            acquire_timeout: Maximum time to wait for the lock to be acquired.
+            hold_timeout: Maximum time to hold the lock.
+
+        Returns:
+            True if the lock was acquired, False otherwise.
+        """
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
         if lock is not None and self.is_lock_holder(key, holder):
@@ -112,6 +146,19 @@ class RedisLockManager(LockManager):
         acquire_timeout: Optional[float] = None,
         hold_timeout: Optional[float] = None,
     ) -> bool:
+        """
+        Acquires a lock asynchronously.
+
+        Args:
+            key: Unique identifier for the transaction record.
+            holder: Unique identifier for the holder of the lock. Must match the
+                holder provided when acquiring the lock.
+            acquire_timeout: Maximum time to wait for the lock to be acquired.
+            hold_timeout: Maximum time to hold the lock.
+
+        Returns:
+            True if the lock was acquired, False otherwise.
+        """
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
         if lock is not None and self.is_lock_holder(key, holder):
@@ -146,7 +193,6 @@ class RedisLockManager(LockManager):
         lock_name = self._lock_name_for_key(key)
         lock = self._locks.get(lock_name)
 
-        # If we have a lock object and we're the holder, release it
         if lock is not None and self.is_lock_holder(key, holder):
             lock.release()
             del self._locks[lock_name]
