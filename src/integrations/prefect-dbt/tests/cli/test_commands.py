@@ -563,7 +563,7 @@ class TestDbtCoreOperation:
         mock_write = mock_named_temporary_file.return_value.write
         assert (
             mock_write.call_args_list[0][0][0]
-            == f"dbt debug --profiles-dir {tmp_path} --project-dir {tmp_path}".encode()
+            == f'dbt debug --profiles-dir "{tmp_path}" --project-dir "{tmp_path}'.encode()
         )
 
 
