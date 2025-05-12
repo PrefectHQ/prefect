@@ -942,6 +942,28 @@ class TestSettingAccess:
         assert default_api_url.startswith("http://localhost")
         assert default_api_url.endswith("/api")
 
+    def test_ui_api_url_defaults_to_relative_when_unset(self):
+        """
+        Tests that PREFECT_UI_API_URL defaults to '/api' when neither
+        it nor PREFECT_API_URL are set.
+        """
+        # Explicitly unset both relevant settings
+        with temporary_settings(
+            updates={
+                PREFECT_API_URL: None,
+                PREFECT_UI_API_URL: None,
+            },
+            restore_defaults=[
+                PREFECT_API_URL,
+                PREFECT_UI_API_URL,
+            ],  # Ensure they are truly unset
+        ):
+            # Instantiate settings to trigger the post_hoc_settings logic
+            settings = Settings()
+
+            # Check the resulting server.ui.api_url defaults to relative path
+            assert settings.server.ui.api_url == "/api"
+
     @pytest.mark.parametrize(
         "extra_codes,expected",
         [

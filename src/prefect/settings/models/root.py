@@ -189,9 +189,8 @@ class Settings(PrefectBaseSettings):
                 self.server.ui.api_url = self.api.url
                 self.server.ui.__pydantic_fields_set__.remove("api_url")
             else:
-                self.server.ui.api_url = (
-                    f"http://{self.server.api.host}:{self.server.api.port}/api"
-                )
+                # Default to a relative path if PREFECT_API_URL is also not set
+                self.server.ui.api_url = "/api"
                 self.server.ui.__pydantic_fields_set__.remove("api_url")
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
             self.profiles_path = Path(f"{self.home}/profiles.toml")
