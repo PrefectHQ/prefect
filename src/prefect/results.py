@@ -34,7 +34,7 @@ from typing_extensions import ParamSpec, Self
 import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._internal.compatibility.blocks import _call_explicitly_async_block_method
+from prefect._internal.compatibility.blocks import call_explicitly_async_block_method
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
@@ -484,7 +484,7 @@ class ResultStore(BaseModel):
             # TODO: Add an `exists` method to commonly used storage blocks
             # so the entire payload doesn't need to be read
             try:
-                metadata_content = await _call_explicitly_async_block_method(
+                metadata_content = await call_explicitly_async_block_method(
                     self.metadata_storage, "read_path", (key,), {}
                 )
                 if metadata_content is None:
@@ -495,7 +495,7 @@ class ResultStore(BaseModel):
                 return False
         else:
             try:
-                content = await _call_explicitly_async_block_method(
+                content = await call_explicitly_async_block_method(
                     self.result_storage, "read_path", (key,), {}
                 )
                 if content is None:
@@ -580,7 +580,7 @@ class ResultStore(BaseModel):
             self.result_storage = await aget_default_result_storage()
 
         if self.metadata_storage is not None:
-            metadata_content = await _call_explicitly_async_block_method(
+            metadata_content = await call_explicitly_async_block_method(
                 self.metadata_storage,
                 "read_path",
                 (key,),
@@ -590,7 +590,7 @@ class ResultStore(BaseModel):
             assert metadata.storage_key is not None, (
                 "Did not find storage key in metadata"
             )
-            result_content = await _call_explicitly_async_block_method(
+            result_content = await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (metadata.storage_key,),
@@ -603,7 +603,7 @@ class ResultStore(BaseModel):
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
-            content = await _call_explicitly_async_block_method(
+            content = await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (key,),
@@ -785,13 +785,13 @@ class ResultStore(BaseModel):
 
         # If metadata storage is configured, write result and metadata separately
         if self.metadata_storage is not None:
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
                 {"content": result_record.serialize_result()},
             )
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.metadata_storage,
                 "write_path",
                 (base_key,),
@@ -800,7 +800,7 @@ class ResultStore(BaseModel):
             await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
@@ -991,7 +991,7 @@ class ResultStore(BaseModel):
             ),
         )
 
-        await _call_explicitly_async_block_method(
+        await call_explicitly_async_block_method(
             self.result_storage,
             "write_path",
             (f"parameters/{identifier}",),
@@ -1010,7 +1010,7 @@ class ResultStore(BaseModel):
                 "Result store is not configured - must have a result storage block to read parameters"
             )
         record: ResultRecord[Any] = ResultRecord[Any].deserialize(
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (f"parameters/{identifier}",),

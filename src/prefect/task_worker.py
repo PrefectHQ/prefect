@@ -22,7 +22,7 @@ from websockets.exceptions import InvalidStatus
 
 import prefect.types._datetime
 from prefect import Task
-from prefect._internal.compatibility.blocks import _call_explicitly_async_block_method
+from prefect._internal.compatibility.blocks import call_explicitly_async_block_method
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NO_CACHE
 from prefect.client.orchestration import get_client
@@ -540,7 +540,7 @@ async def store_parameters(
         ),
     )
 
-    await _call_explicitly_async_block_method(
+    await call_explicitly_async_block_method(
         result_store.result_storage,
         "write_path",
         (f"parameters/{identifier}",),
@@ -565,7 +565,7 @@ async def read_parameters(
             "Result store is not configured - must have a result storage block to read parameters"
         )
     record: ResultRecord[Any] = ResultRecord[Any].deserialize(
-        await _call_explicitly_async_block_method(
+        await call_explicitly_async_block_method(
             result_store.result_storage,
             "read_path",
             (f"parameters/{identifier}",),
