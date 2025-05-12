@@ -25,6 +25,7 @@ from ._defaults import (
     calculate_default_database_connection_url,
     calculate_default_profiles_path,
     calculate_default_ui_url,
+    substitute_home_template,
 )
 from .api import APISettings
 from .cli import CLISettings
@@ -57,9 +58,12 @@ class Settings(PrefectBaseSettings):
         description="The path to the Prefect home directory. Defaults to ~/.prefect",
     )
 
-    profiles_path: Path = Field(
+    profiles_path: Annotated[Path, BeforeValidator(substitute_home_template)] = Field(
         default_factory=calculate_default_profiles_path,
-        description="The path to a profiles configuration file. Defaults to <home>/profiles.toml.",
+        description=(
+            "The path to a profiles configuration file. Supports $PREFECT_HOME templating."
+            " Defaults to <home>/profiles.toml."
+        ),
     )
 
     debug_mode: bool = Field(
@@ -233,6 +237,7 @@ class Settings(PrefectBaseSettings):
             )
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
+
         return self
 
     @model_validator(mode="after")
