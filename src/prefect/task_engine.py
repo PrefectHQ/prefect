@@ -315,7 +315,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    def can_retry(self, exc: Exception) -> bool:
+    def _should_retry(self, exc: Exception) -> bool:
         retry_condition: Optional[
             Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
         ] = self.task.retry_condition_fn
@@ -511,7 +511,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._telemetry.end_span_on_success()
         return result
 
-    def handle_retry(
+    def _update_state_before_retry_wait(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
     ):
         """Handle any task run retries.
@@ -531,23 +531,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.logger.info(
             "Task run failed with exception: %r - Retry %s/%s will start %s",
             exc,
-            self.retries + 1,
-            self.task.retries,
+            attempt + 1,
+            max_attempts,
             str(wait_time) + " second(s) from now" if wait_time else "immediately",
         )
 
         self.set_state(new_state, force=True)
-        self.retries: int = self.retries + 1
-        # return True
-        # elif self.retries >= self.task.retries:
-        #     self.logger.error(
-        #         "Task run failed with exception: %r - Retries are exhausted",
-        #         exc,
-        #         exc_info=True,
-        #     )
-        #     return False
-
-        # return False
 
     def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
@@ -818,25 +807,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             except Exception as exc:
                 self.handle_exception(exc)
 
-    def after_wait(
-        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ):
-        if wait_time > 0:
-            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
-            self.set_state(
-                new_state,
-                force=True,
-            )
-
-    def on_attempts_exhausted(
-        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ):
-        self.logger.error(
-            "Task run failed with exception: %r - Retries are exhausted",
-            exc,
-            exc_info=True,
-        )
-
     def call_task_fn(
         self, transaction: Transaction
     ) -> Union[R, Coroutine[Any, Any, R]]:
@@ -848,16 +818,44 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
+
+            def _log_attempts_exhausted(
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ):
+                self.logger.error(
+                    "Task run failed with exception: %r - Retries are exhausted",
+                    exc,
+                    exc_info=True,
+                )
+
+            def _update_ctx_start_time(attempt: int, max_attempts: int):
+                task_run_context = TaskRunContext.get()
+                if task_run_context:
+                    task_run_context.start_time = prefect.types._datetime.now("UTC")
+
+            def _set_state_after_retry_wait(
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ):
+                if wait_time > 0:
+                    new_state = (
+                        Retrying() if self.state.name == "AwaitingRetry" else Running()
+                    )
+                    self.set_state(
+                        new_state,
+                        force=True,
+                    )
+
             for attempt in RetryBlock(
                 attempts=self.task.retries + 1,
                 wait=wait_with_jitter(
                     self.task.retry_delay_seconds or 0.0,
                     jitter=self.task.retry_jitter_factor or 0.0,
                 ),
-                should_retry=self.can_retry,
-                before_wait=self.handle_retry,
-                after_wait=self.after_wait,
-                on_attempts_exhausted=self.on_attempts_exhausted,
+                before_attempt=_update_ctx_start_time,
+                should_retry=self._should_retry,
+                before_wait=self._update_state_before_retry_wait,
+                after_wait=_set_state_after_retry_wait,
+                on_attempts_exhausted=_log_attempts_exhausted,
             ):
                 with attempt:
                     result = call_with_parameters(self.task.fn, parameters)

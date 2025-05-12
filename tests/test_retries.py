@@ -134,12 +134,13 @@ class TestSync:
         def test_before_attempt_callback(self):
             attempts: list[int] = []
 
-            def before_attempt(attempt: int, max_attempts: int) -> None:
-                attempts.append(attempt)
-
-            @retry(attempts=3, before_attempt=before_attempt)
+            @retry(attempts=3)
             def failing_function():
                 raise ValueError("Failure")
+
+            @failing_function.before_attempt
+            def before_attempt(attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+                attempts.append(attempt)
 
             with pytest.raises(ValueError):
                 failing_function()
@@ -148,14 +149,13 @@ class TestSync:
         def test_after_failure_callback(self):
             failures: list[tuple[int, str]] = []
 
-            def after_failure(
-                e: Exception, attempt: int, max_attempts: int, wait_time: float
-            ) -> None:
-                failures.append((attempt, str(e)))
-
-            @retry(attempts=3, on_failure=after_failure)
+            @retry(attempts=3)
             def failing_function():
                 raise ValueError("Test failure")
+
+            @failing_function.on_failure
+            def after_failure(exc: Exception, attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+                failures.append((attempt, str(exc)))
 
             with pytest.raises(ValueError):
                 failing_function()
@@ -207,8 +207,8 @@ class TestSync:
         def test_retry_with_custom_should_retry(self):
             attempts = 0
 
-            def should_retry(e: Exception) -> bool:
-                return isinstance(e, RuntimeError)
+            def should_retry(exc: Exception) -> bool:
+                return isinstance(exc, RuntimeError)
 
             @retry(attempts=3, should_retry=should_retry)
             def function_with_custom_retry():
@@ -350,12 +350,13 @@ class TestAsync:
         async def test_before_attempt_callback(self):
             attempts: list[int] = []
 
-            def before_attempt(attempt: int, max_attempts: int) -> None:
-                attempts.append(attempt)
-
-            @retry(attempts=3, before_attempt=before_attempt)
+            @retry(attempts=3)
             async def failing_function():
                 raise ValueError("Failure")
+
+            @failing_function.before_attempt
+            def before_attempt(attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+                attempts.append(attempt)
 
             with pytest.raises(ValueError):
                 await failing_function()
@@ -364,14 +365,13 @@ class TestAsync:
         async def test_after_failure_callback(self):
             failures: list[tuple[int, str]] = []
 
-            def after_failure(
-                e: Exception, attempt: int, max_attempts: int, wait_time: float
-            ) -> None:
-                failures.append((attempt, str(e)))
-
-            @retry(attempts=3, on_failure=after_failure)
+            @retry(attempts=3)
             async def failing_function():
                 raise ValueError("Test failure")
+
+            @failing_function.on_failure
+            def after_failure(exc: Exception, attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+                failures.append((attempt, str(exc)))
 
             with pytest.raises(ValueError):
                 await failing_function()
@@ -423,8 +423,8 @@ class TestAsync:
         async def test_retry_with_custom_should_retry(self):
             attempts = 0
 
-            def should_retry(e: Exception) -> bool:
-                return isinstance(e, RuntimeError)
+            def should_retry(exc: Exception) -> bool:
+                return isinstance(exc, RuntimeError)
 
             @retry(attempts=3, should_retry=should_retry)
             async def function_with_custom_retry():

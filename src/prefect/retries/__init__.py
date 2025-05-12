@@ -95,12 +95,12 @@ class RetryBlock(Generic[P, R]):
         attempts: int = 3,
         wait: "float | WaitCalculator | WaitSequence" = 0.0,
         should_retry: "ShouldRetryCallback | bool" = True,
-        before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
-        on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
-        on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
-        before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
-        after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
-        on_attempts_exhausted: "OnAttemptsExhaustedCallback" = NO_OP_CALLBACK,
+        before_attempt: "Sequence[BeforeAttemptCallback]" = tuple(),
+        on_success: "Sequence[OnSuccessCallback]" = tuple(),
+        on_failure: "Sequence[OnFailureCallback]" = tuple(),
+        before_wait: "Sequence[BeforeWaitCallback]" = tuple(),
+        after_wait: "Sequence[AfterWaitCallback]" = tuple(),
+        on_attempts_exhausted: "Sequence[OnAttemptsExhaustedCallback]" = tuple(),
     ):
         if attempts < 1:
             raise ValueError("attempts must be a positive integer")
@@ -118,7 +118,9 @@ class RetryBlock(Generic[P, R]):
         self._last_exception: Exception | None = None
 
     def _handle_success(self, attempt: Attempt) -> None:
-        self.on_success(attempt.attempt, self.attempts)
+        for callback in self.on_success:
+            if inspect.iscoroutinefunction(callback):
+                callback(attempt.attempt, self.attempts)
         self._last_exception = None
 
     def _handle_exception(
@@ -127,7 +129,8 @@ class RetryBlock(Generic[P, R]):
         exc_value: Exception,
     ) -> None:
         self._last_exception = exc_value
-        self.on_failure(exc_value, attempt.attempt, self.attempts, 0)
+        for callback in self.on_failure:
+            callback(exc_value, attempt.attempt, self.attempts)
 
     def __iter__(self) -> Iterator[Attempt]:
         return self
@@ -136,7 +139,8 @@ class RetryBlock(Generic[P, R]):
         attempt = next(self._attempt_iter)
 
         if attempt == 0:
-            self.before_attempt(attempt, self.attempts)
+            for callback in self.before_attempt:
+                callback(attempt, self.attempts)
             return Attempt(
                 attempt=attempt,
                 on_success=self._handle_success,
@@ -165,18 +169,22 @@ class RetryBlock(Generic[P, R]):
                 wait_time = self.wait
             if TYPE_CHECKING:
                 assert self._last_exception is not None
-            self.before_wait(self._last_exception, attempt, self.attempts, wait_time)
+            for callback in self.before_wait:
+                callback(self._last_exception, attempt, self.attempts, wait_time)
             time.sleep(wait_time)
-            self.after_wait(self._last_exception, attempt, self.attempts, wait_time)
+            for callback in self.after_wait:
+                callback(self._last_exception, attempt, self.attempts, wait_time)
 
-            self.before_attempt(attempt, self.attempts)
+            for callback in self.before_attempt:
+                callback(attempt, self.attempts)
             return Attempt(
                 attempt=attempt,
                 on_success=self._handle_success,
                 on_exception=self._handle_exception,
             )
         elif self._last_exception:
-            self.on_attempts_exhausted(self._last_exception, attempt, self.attempts, 0)
+            for callback in self.on_attempts_exhausted:
+                callback(self._last_exception, attempt, self.attempts, 0)
             raise self._last_exception
         else:
             raise StopIteration
@@ -224,14 +232,16 @@ class AsyncRetryBlock(Generic[P, R]):
         attempts: int = 3,
         wait: float | WaitCalculator | WaitSequence = 0.0,
         should_retry: ShouldRetryCallback | bool = True,
-        before_attempt: BeforeAttemptCallback
-        | AsyncBeforeAttemptCallback = NO_OP_CALLBACK,
-        on_success: OnSuccessCallback | AsyncOnSuccessCallback = NO_OP_CALLBACK,
-        on_failure: OnFailureCallback | AsyncOnFailureCallback = NO_OP_CALLBACK,
-        before_wait: BeforeWaitCallback | AsyncBeforeWaitCallback = NO_OP_CALLBACK,
-        after_wait: AfterWaitCallback | AsyncAfterWaitCallback = NO_OP_CALLBACK,
-        on_attempts_exhausted: OnAttemptsExhaustedCallback
-        | AsyncOnAttemptsExhaustedCallback = NO_OP_CALLBACK,
+        before_attempt: Sequence[
+            BeforeAttemptCallback | AsyncBeforeAttemptCallback
+        ] = tuple(),
+        on_success: Sequence[OnSuccessCallback | AsyncOnSuccessCallback] = tuple(),
+        on_failure: Sequence[OnFailureCallback | AsyncOnFailureCallback] = tuple(),
+        before_wait: Sequence[BeforeWaitCallback | AsyncBeforeWaitCallback] = tuple(),
+        after_wait: Sequence[AfterWaitCallback | AsyncAfterWaitCallback] = tuple(),
+        on_attempts_exhausted: Sequence[
+            OnAttemptsExhaustedCallback | AsyncOnAttemptsExhaustedCallback
+        ] = tuple(),
     ):
         self.attempts = attempts
         self.wait = wait
@@ -246,10 +256,11 @@ class AsyncRetryBlock(Generic[P, R]):
 
     async def _handle_success(self, attempt: AsyncAttempt) -> None:
         self._last_exception = None
-        if inspect.iscoroutinefunction(self.on_success):
-            await self.on_success(attempt.attempt, self.attempts)
-        else:
-            self.on_success(attempt.attempt, self.attempts)
+        for callback in self.on_success:
+            if inspect.iscoroutinefunction(callback):
+                await callback(attempt.attempt, self.attempts)
+            else:
+                callback(attempt.attempt, self.attempts)
 
     async def _handle_exception(
         self,
@@ -257,10 +268,11 @@ class AsyncRetryBlock(Generic[P, R]):
         exc_value: Exception,
     ) -> None:
         self._last_exception = exc_value
-        if inspect.iscoroutinefunction(self.on_failure):
-            await self.on_failure(exc_value, attempt.attempt, self.attempts, 0)
-        else:
-            self.on_failure(exc_value, attempt.attempt, self.attempts, 0)
+        for callback in self.on_failure:
+            if inspect.iscoroutinefunction(callback):
+                await callback(exc_value, attempt.attempt, self.attempts)
+            else:
+                callback(exc_value, attempt.attempt, self.attempts)
 
     def __aiter__(self) -> AsyncIterator[AsyncAttempt]:
         return self
@@ -272,10 +284,12 @@ class AsyncRetryBlock(Generic[P, R]):
             raise StopAsyncIteration
 
         if attempt == 0:
-            if inspect.iscoroutinefunction(self.before_attempt):
-                await self.before_attempt(attempt, self.attempts)
-            else:
-                self.before_attempt(attempt, self.attempts)
+            for callback in self.before_attempt:
+                if inspect.iscoroutinefunction(callback):
+                    await callback(attempt, self.attempts)
+                else:
+                    callback(attempt, self.attempts)
+
             return AsyncAttempt(
                 attempt=attempt,
                 on_success=self._handle_success,
@@ -309,9 +323,15 @@ class AsyncRetryBlock(Generic[P, R]):
                     self._last_exception, attempt, self.attempts, wait_time
                 )
             else:
-                self.before_wait(
-                    self._last_exception, attempt, self.attempts, wait_time
-                )
+                for callback in self.before_wait:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(
+                            self._last_exception, attempt, self.attempts, wait_time
+                        )
+                    else:
+                        callback(
+                            self._last_exception, attempt, self.attempts, wait_time
+                        )
             await asyncio.sleep(wait_time)
             if TYPE_CHECKING:
                 assert self._last_exception is not None
@@ -321,12 +341,24 @@ class AsyncRetryBlock(Generic[P, R]):
                     self._last_exception, attempt, self.attempts, wait_time
                 )
             else:
-                self.after_wait(self._last_exception, attempt, self.attempts, wait_time)
+                for callback in self.after_wait:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(
+                            self._last_exception, attempt, self.attempts, wait_time
+                        )
+                    else:
+                        callback(
+                            self._last_exception, attempt, self.attempts, wait_time
+                        )
 
             if inspect.iscoroutinefunction(self.before_attempt):
                 await self.before_attempt(attempt, self.attempts)
             else:
-                self.before_attempt(attempt, self.attempts)
+                for callback in self.before_attempt:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(attempt, self.attempts)
+                    else:
+                        callback(attempt, self.attempts)
             return AsyncAttempt(
                 attempt=attempt,
                 on_success=self._handle_success,
@@ -338,9 +370,11 @@ class AsyncRetryBlock(Generic[P, R]):
                     self._last_exception, attempt, self.attempts, 0
                 )
             else:
-                self.on_attempts_exhausted(
-                    self._last_exception, attempt, self.attempts, 0
-                )
+                for callback in self.on_attempts_exhausted:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(self._last_exception, attempt, self.attempts, 0)
+                    else:
+                        callback(self._last_exception, attempt, self.attempts, 0)
             raise self._last_exception
         else:
             raise StopAsyncIteration
@@ -390,12 +424,6 @@ class Retriable(Generic[P, R]):
         attempts: int = 3,
         wait: "float | WaitCalculator | WaitSequence" = 0.0,
         should_retry: "ShouldRetryCallback | bool" = True,
-        before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
-        on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
-        on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
-        before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
-        after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
-        on_attempts_exhausted: "OnAttemptsExhaustedCallback" = NO_OP_CALLBACK,
     ):
         self.__fn = __fn
         update_wrapper(self, __fn)
@@ -403,11 +431,12 @@ class Retriable(Generic[P, R]):
         self.attempts = attempts
         self.wait = wait
         self.should_retry = should_retry
-        self.before_attempt = before_attempt
-        self.on_success = on_success
-        self.on_failure = on_failure
-        self.before_wait = before_wait
-        self.after_wait = after_wait
+        self.before_attempt_callbacks: "list[BeforeAttemptCallback]" = []
+        self.on_success_callbacks: "list[OnSuccessCallback]" = []
+        self.on_failure_callbacks: "list[OnFailureCallback]" = []
+        self.before_wait_callbacks: "list[BeforeWaitCallback]" = []
+        self.after_wait_callbacks: "list[AfterWaitCallback]" = []
+        self.on_attempts_exhausted_callbacks: "list[OnAttemptsExhaustedCallback]" = []
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         if inspect.iscoroutinefunction(self.__fn):
@@ -417,11 +446,12 @@ class Retriable(Generic[P, R]):
                 self.attempts,
                 self.wait,
                 self.should_retry,
-                self.before_attempt,
-                self.on_success,
-                self.on_failure,
-                self.before_wait,
-                self.after_wait,
+                self.before_attempt_callbacks,
+                self.on_success_callbacks,
+                self.on_failure_callbacks,
+                self.before_wait_callbacks,
+                self.after_wait_callbacks,
+                self.on_attempts_exhausted_callbacks,
             ):
                 with attempt:
                     return self.__fn(*args, **kwargs)
@@ -433,16 +463,41 @@ class Retriable(Generic[P, R]):
             self.attempts,
             self.wait,
             self.should_retry,
-            self.before_attempt,
-            self.on_success,
-            self.on_failure,
-            self.before_wait,
-            self.after_wait,
+            self.before_attempt_callbacks,
+            self.on_success_callbacks,
+            self.on_failure_callbacks,
+            self.before_wait_callbacks,
+            self.after_wait_callbacks,
+            self.on_attempts_exhausted_callbacks,
         ):
             async with attempt:
                 return await self.__fn(*args, **kwargs)
 
         raise RuntimeError("Attempts exhausted")
+
+    def before_attempt(self, fn: BeforeAttemptCallback):
+        self.before_attempt_callbacks.append(fn)
+        return self
+
+    def on_success(self, fn: OnSuccessCallback):
+        self.on_success_callbacks.append(fn)
+        return self
+
+    def on_failure(self, fn: OnFailureCallback):
+        self.on_failure_callbacks.append(fn)
+        return self
+
+    def before_wait(self, fn: BeforeWaitCallback):
+        self.before_wait_callbacks.append(fn)
+        return self
+
+    def after_wait(self, fn: AfterWaitCallback):
+        self.after_wait_callbacks.append(fn)
+        return self
+
+    def on_attempts_exhausted(self, fn: OnAttemptsExhaustedCallback):
+        self.on_attempts_exhausted_callbacks.append(fn)
+        return self
 
 
 @overload
@@ -458,11 +513,6 @@ def retry(
     attempts: int = 3,
     wait: "float | WaitCalculator | WaitSequence" = 0.0,
     should_retry: "ShouldRetryCallback | bool" = True,
-    before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
-    on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
-    on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
-    before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
-    after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
 ) -> Callable[[Callable[P, R]], Retriable[P, R]]: ...
 
 
@@ -472,11 +522,6 @@ def retry(
     attempts: int = 3,
     wait: "float | WaitCalculator | WaitSequence" = 0.0,
     should_retry: "ShouldRetryCallback | bool" = True,
-    before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
-    on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
-    on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
-    before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
-    after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
 ):
     if __fn is None:
         return cast(
@@ -486,11 +531,6 @@ def retry(
                 attempts=attempts,
                 wait=wait,
                 should_retry=should_retry,
-                before_attempt=before_attempt,
-                on_success=on_success,
-                on_failure=on_failure,
-                before_wait=before_wait,
-                after_wait=after_wait,
             ),
         )
 
@@ -499,9 +539,4 @@ def retry(
         attempts=attempts,
         wait=wait,
         should_retry=should_retry,
-        before_attempt=before_attempt,
-        on_success=on_success,
-        on_failure=on_failure,
-        before_wait=before_wait,
-        after_wait=after_wait,
     )

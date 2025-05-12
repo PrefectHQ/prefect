@@ -28,15 +28,11 @@ class AsyncOnSuccessCallback(Protocol):
 
 
 class OnFailureCallback(Protocol):
-    def __call__(
-        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    def __call__(self, exc: Exception, attempt: int, max_attempts: int): ...
 
 
 class AsyncOnFailureCallback(Protocol):
-    async def __call__(
-        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    async def __call__(self, exc: Exception, attempt: int, max_attempts: int): ...
 
 
 class BeforeWaitCallback(Protocol):
