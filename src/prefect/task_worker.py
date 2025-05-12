@@ -22,17 +22,20 @@ from websockets.exceptions import InvalidStatus
 
 import prefect.types._datetime
 from prefect import Task
+from prefect._internal.compatibility.blocks import call_explicitly_async_block_method
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NO_CACHE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
-from prefect.settings import (
-    PREFECT_API_URL,
-    PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
+from prefect.results import (
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+    get_or_create_default_task_scheduling_storage,
 )
+from prefect.settings import get_current_settings
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.types import DateTime
@@ -43,6 +46,7 @@ from prefect.utilities.processutils import (
     _register_signal,  # pyright: ignore[reportPrivateUsage]
 )
 from prefect.utilities.services import start_client_metrics_server
+from prefect.utilities.timeout import timeout_async
 from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
@@ -170,9 +174,13 @@ class TaskWorker:
         sys.exit(0)
 
     @sync_compatible
-    async def start(self) -> None:
+    async def start(self, timeout: Optional[float] = None) -> None:
         """
         Starts a task worker, which runs the tasks provided in the constructor.
+
+        Args:
+            timeout: If provided, the task worker will exit after the given number of
+                seconds. Defaults to None, meaning the task worker will run indefinitely.
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
@@ -181,14 +189,16 @@ class TaskWorker:
         async with asyncnullcontext() if self.started else self:
             logger.info("Starting task worker...")
             try:
-                await self._subscribe_to_task_scheduling()
+                with timeout_async(timeout):
+                    await self._subscribe_to_task_scheduling()
             except InvalidStatus as exc:
                 if exc.response.status_code == 403:
                     logger.error(
                         "403: Could not establish a connection to the `/task_runs/subscriptions/scheduled`"
-                        f" endpoint found at:\n\n {PREFECT_API_URL.value()}"
-                        "\n\nPlease double-check the values of your"
-                        " `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables."
+                        f" endpoint found at:\n\n {get_current_settings().api.url}"
+                        "\n\nPlease double-check the values of"
+                        " `PREFECT_API_AUTH_STRING` and `PREFECT_SERVER_API_AUTH_STRING` if running a Prefect server "
+                        "or `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables if using Prefect Cloud."
                     )
                 else:
                     raise
@@ -228,7 +238,7 @@ class TaskWorker:
         return True
 
     async def _subscribe_to_task_scheduling(self):
-        base_url = PREFECT_API_URL.value()
+        base_url = get_current_settings().api.url
         if base_url is None:
             raise ValueError(
                 "`PREFECT_API_URL` must be set to use the task worker. "
@@ -282,7 +292,7 @@ class TaskWorker:
         task = next((t for t in self.tasks if t.task_key == task_run.task_key), None)
 
         if not task:
-            if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS:
+            if get_current_settings().tasks.scheduling.delete_failed_submissions:
                 logger.warning(
                     f"Task {task_run.name!r} not found in task worker registry."
                 )
@@ -298,12 +308,18 @@ class TaskWorker:
         run_context = None
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
+            if parameters_id is None:
+                logger.warning(
+                    f"Task run {task_run.id!r} has no parameters ID. Skipping parameter retrieval."
+                )
+                return
+
             task.persist_result = True
             store = await ResultStore(
                 result_storage=await get_or_create_default_task_scheduling_storage()
             ).update_for_task(task)
             try:
-                run_data: dict[str, Any] = await store.read_parameters(parameters_id)
+                run_data: dict[str, Any] = await read_parameters(store, parameters_id)
                 parameters = run_data.get("parameters", {})
                 wait_for = run_data.get("wait_for", [])
                 run_context = run_data.get("context", None)
@@ -312,7 +328,7 @@ class TaskWorker:
                     f"Failed to read parameters for task run {task_run.id!r}",
                     exc_info=exc,
                 )
-                if PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS.value():
+                if get_current_settings().tasks.scheduling.delete_failed_submissions:
                     logger.info(
                         f"Deleting task run {task_run.id!r} because it failed to submit"
                     )
@@ -421,6 +437,7 @@ async def serve(
     *tasks: Task[P, R],
     limit: Optional[int] = 10,
     status_server_port: Optional[int] = None,
+    timeout: Optional[float] = None,
 ):
     """Serve the provided tasks so that their runs may be submitted to
     and executed in the engine. Tasks do not need to be within a flow run context to be
@@ -434,6 +451,8 @@ async def serve(
         - status_server_port: An optional port on which to start an HTTP server
             exposing status information about the task worker. If not provided, no
             status server will run.
+        - timeout: If provided, the task worker will exit after the given number of
+            seconds. Defaults to None, meaning the task worker will run indefinitely.
 
     Example:
         ```python
@@ -469,7 +488,13 @@ async def serve(
         status_server_task = loop.create_task(server.serve())
 
     try:
-        await task_worker.start()
+        await task_worker.start(timeout=timeout)
+
+    except TimeoutError:
+        if timeout is not None:
+            logger.info(f"Task worker timed out after {timeout} seconds. Exiting...")
+        else:
+            raise
 
     except BaseExceptionGroup as exc:  # novermin
         exceptions = exc.exceptions
@@ -492,3 +517,59 @@ async def serve(
                 await status_server_task
             except asyncio.CancelledError:
                 pass
+
+
+async def store_parameters(
+    result_store: ResultStore, identifier: UUID, parameters: dict[str, Any]
+) -> None:
+    """Store parameters for a task run in the result store.
+
+    Args:
+        result_store: The result store to store the parameters in.
+        identifier: The identifier of the task run.
+        parameters: The parameters to store.
+    """
+    if result_store.result_storage is None:
+        raise ValueError(
+            "Result store is not configured - must have a result storage block to store parameters"
+        )
+    record = ResultRecord(
+        result=parameters,
+        metadata=ResultRecordMetadata(
+            serializer=result_store.serializer, storage_key=str(identifier)
+        ),
+    )
+
+    await call_explicitly_async_block_method(
+        result_store.result_storage,
+        "write_path",
+        (f"parameters/{identifier}",),
+        {"content": record.serialize()},
+    )
+
+
+async def read_parameters(
+    result_store: ResultStore, identifier: UUID
+) -> dict[str, Any]:
+    """Read parameters for a task run from the result store.
+
+    Args:
+        result_store: The result store to read the parameters from.
+        identifier: The identifier of the task run.
+
+    Returns:
+        The parameters for the task run.
+    """
+    if result_store.result_storage is None:
+        raise ValueError(
+            "Result store is not configured - must have a result storage block to read parameters"
+        )
+    record: ResultRecord[Any] = ResultRecord[Any].deserialize(
+        await call_explicitly_async_block_method(
+            result_store.result_storage,
+            "read_path",
+            (f"parameters/{identifier}",),
+            {},
+        )
+    )
+    return record.result
