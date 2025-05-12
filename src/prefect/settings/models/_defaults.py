@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationInfo
 
 if TYPE_CHECKING:
     from prefect.settings.models.root import Settings
@@ -11,11 +11,42 @@ if TYPE_CHECKING:
 
 def calculate_default_profiles_path(values: dict[str, Any]) -> Path:
     """Calculate default profiles_path based on home directory."""
-    home = values.get("home")
+    home = values.get("home", Path("~/.prefect").expanduser())
     if not isinstance(home, Path):
-        # Fallback if home isn't a Path (should be validated earlier)
         home = Path("~/.prefect").expanduser()
     return home / "profiles.toml"
+
+
+def substitute_home_template(v: Any, info: ValidationInfo) -> Any:
+    """Validator that substitutes $PREFECT_HOME in a path string if present."""
+    home_path = info.data.get("home")
+
+    path_str: str | None = None
+    if isinstance(v, Path):
+        return v
+    elif isinstance(v, str):
+        path_str = v
+    elif v is None:
+        return None
+    else:
+        return v
+
+    if path_str and "$PREFECT_HOME" in path_str:
+        if home_path and isinstance(home_path, Path):
+            resolved_str = path_str.replace("$PREFECT_HOME", str(home_path))
+            try:
+                return Path(resolved_str)
+            except Exception as e:
+                raise ValueError(
+                    f"Error creating path after substituting $PREFECT_HOME: {e}"
+                ) from e
+        else:
+            raise ValueError(
+                f'Cannot resolve $PREFECT_HOME in "{path_str}" because '
+                f"PREFECT_HOME setting ({home_path!r}) is not a valid resolved path."
+            )
+
+    return path_str
 
 
 def calculate_default_local_storage_path(values: dict[str, Any]) -> Path:
