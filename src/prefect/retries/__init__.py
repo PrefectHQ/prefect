@@ -37,6 +37,10 @@ if TYPE_CHECKING:
         WaitCalculator,
         AfterWaitCallback,
         WaitSequence,
+        BeforeWaitCallback,
+        AsyncBeforeWaitCallback,
+        OnAttemptsExhaustedCallback,
+        AsyncOnAttemptsExhaustedCallback,
     )
 
 P = ParamSpec("P")
@@ -56,6 +60,27 @@ def exponential_backoff(
     return wait
 
 
+def wait_with_jitter(
+    wait: int | float | WaitSequence, jitter: float = 0.0
+) -> WaitCalculator:
+    def wait_calculator(attempt: int) -> float:
+        nonlocal wait
+        if isinstance(wait, Sequence):
+            if len(wait) <= attempt - 1:
+                base_wait = wait[-1]
+            else:
+                base_wait = wait[attempt - 1]
+        else:
+            base_wait = wait
+
+        if jitter > 0:
+            return clamped_poisson_interval(base_wait, clamping_factor=jitter)
+        else:
+            return base_wait
+
+    return wait_calculator
+
+
 def NO_OP_CALLBACK(*args: Any, **kwargs: Any):
     pass  # pragma: no cover
 
@@ -73,7 +98,9 @@ class RetryBlock(Generic[P, R]):
         before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
         on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
         on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
+        before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
         after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
+        on_attempts_exhausted: "OnAttemptsExhaustedCallback" = NO_OP_CALLBACK,
     ):
         if attempts < 1:
             raise ValueError("attempts must be a positive integer")
@@ -84,7 +111,9 @@ class RetryBlock(Generic[P, R]):
         self.before_attempt = before_attempt
         self.on_success = on_success
         self.on_failure = on_failure
+        self.before_wait = before_wait
         self.after_wait = after_wait
+        self.on_attempts_exhausted = on_attempts_exhausted
         self._attempt_iter = iter(range(attempts + 1))
         self._last_exception: Exception | None = None
 
@@ -134,9 +163,10 @@ class RetryBlock(Generic[P, R]):
                     wait_time = self.wait[attempt - 1]
             else:
                 wait_time = self.wait
-            time.sleep(wait_time)
             if TYPE_CHECKING:
                 assert self._last_exception is not None
+            self.before_wait(self._last_exception, attempt, self.attempts, wait_time)
+            time.sleep(wait_time)
             self.after_wait(self._last_exception, attempt, self.attempts, wait_time)
 
             self.before_attempt(attempt, self.attempts)
@@ -146,6 +176,7 @@ class RetryBlock(Generic[P, R]):
                 on_exception=self._handle_exception,
             )
         elif self._last_exception:
+            self.on_attempts_exhausted(self._last_exception, attempt, self.attempts, 0)
             raise self._last_exception
         else:
             raise StopIteration
@@ -197,7 +228,10 @@ class AsyncRetryBlock(Generic[P, R]):
         | AsyncBeforeAttemptCallback = NO_OP_CALLBACK,
         on_success: OnSuccessCallback | AsyncOnSuccessCallback = NO_OP_CALLBACK,
         on_failure: OnFailureCallback | AsyncOnFailureCallback = NO_OP_CALLBACK,
+        before_wait: BeforeWaitCallback | AsyncBeforeWaitCallback = NO_OP_CALLBACK,
         after_wait: AfterWaitCallback | AsyncAfterWaitCallback = NO_OP_CALLBACK,
+        on_attempts_exhausted: OnAttemptsExhaustedCallback
+        | AsyncOnAttemptsExhaustedCallback = NO_OP_CALLBACK,
     ):
         self.attempts = attempts
         self.wait = wait
@@ -205,7 +239,9 @@ class AsyncRetryBlock(Generic[P, R]):
         self.before_attempt = before_attempt
         self.on_success = on_success
         self.on_failure = on_failure
+        self.before_wait = before_wait
         self.after_wait = after_wait
+        self.on_attempts_exhausted = on_attempts_exhausted
         self._attempt_iter = iter(range(attempts + 1))
 
     async def _handle_success(self, attempt: AsyncAttempt) -> None:
@@ -236,7 +272,10 @@ class AsyncRetryBlock(Generic[P, R]):
             raise StopAsyncIteration
 
         if attempt == 0:
-            self.before_attempt(attempt, self.attempts)
+            if inspect.iscoroutinefunction(self.before_attempt):
+                await self.before_attempt(attempt, self.attempts)
+            else:
+                self.before_attempt(attempt, self.attempts)
             return AsyncAttempt(
                 attempt=attempt,
                 on_success=self._handle_success,
@@ -263,18 +302,45 @@ class AsyncRetryBlock(Generic[P, R]):
                     wait_time = self.wait[attempt]
             else:
                 wait_time = self.wait
+            if TYPE_CHECKING:
+                assert self._last_exception is not None
+            if inspect.iscoroutinefunction(self.before_wait):
+                await self.before_wait(
+                    self._last_exception, attempt, self.attempts, wait_time
+                )
+            else:
+                self.before_wait(
+                    self._last_exception, attempt, self.attempts, wait_time
+                )
             await asyncio.sleep(wait_time)
             if TYPE_CHECKING:
                 assert self._last_exception is not None
-            self.after_wait(self._last_exception, attempt, self.attempts, wait_time)
 
-            self.before_attempt(attempt, self.attempts)
+            if inspect.iscoroutinefunction(self.after_wait):
+                await self.after_wait(
+                    self._last_exception, attempt, self.attempts, wait_time
+                )
+            else:
+                self.after_wait(self._last_exception, attempt, self.attempts, wait_time)
+
+            if inspect.iscoroutinefunction(self.before_attempt):
+                await self.before_attempt(attempt, self.attempts)
+            else:
+                self.before_attempt(attempt, self.attempts)
             return AsyncAttempt(
                 attempt=attempt,
                 on_success=self._handle_success,
                 on_exception=self._handle_exception,
             )
         elif self._last_exception:
+            if inspect.iscoroutinefunction(self.on_attempts_exhausted):
+                await self.on_attempts_exhausted(
+                    self._last_exception, attempt, self.attempts, 0
+                )
+            else:
+                self.on_attempts_exhausted(
+                    self._last_exception, attempt, self.attempts, 0
+                )
             raise self._last_exception
         else:
             raise StopAsyncIteration
@@ -327,7 +393,9 @@ class Retriable(Generic[P, R]):
         before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
         on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
         on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
+        before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
         after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
+        on_attempts_exhausted: "OnAttemptsExhaustedCallback" = NO_OP_CALLBACK,
     ):
         self.__fn = __fn
         update_wrapper(self, __fn)
@@ -338,6 +406,7 @@ class Retriable(Generic[P, R]):
         self.before_attempt = before_attempt
         self.on_success = on_success
         self.on_failure = on_failure
+        self.before_wait = before_wait
         self.after_wait = after_wait
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
@@ -351,6 +420,7 @@ class Retriable(Generic[P, R]):
                 self.before_attempt,
                 self.on_success,
                 self.on_failure,
+                self.before_wait,
                 self.after_wait,
             ):
                 with attempt:
@@ -366,6 +436,7 @@ class Retriable(Generic[P, R]):
             self.before_attempt,
             self.on_success,
             self.on_failure,
+            self.before_wait,
             self.after_wait,
         ):
             async with attempt:
@@ -390,6 +461,7 @@ def retry(
     before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
     on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
     on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
+    before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
     after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
 ) -> Callable[[Callable[P, R]], Retriable[P, R]]: ...
 
@@ -403,6 +475,7 @@ def retry(
     before_attempt: "BeforeAttemptCallback" = NO_OP_CALLBACK,
     on_success: "OnSuccessCallback" = NO_OP_CALLBACK,
     on_failure: "OnFailureCallback" = NO_OP_CALLBACK,
+    before_wait: "BeforeWaitCallback" = NO_OP_CALLBACK,
     after_wait: "AfterWaitCallback" = NO_OP_CALLBACK,
 ):
     if __fn is None:
@@ -416,6 +489,7 @@ def retry(
                 before_attempt=before_attempt,
                 on_success=on_success,
                 on_failure=on_failure,
+                before_wait=before_wait,
                 after_wait=after_wait,
             ),
         )
@@ -428,5 +502,6 @@ def retry(
         before_attempt=before_attempt,
         on_success=on_success,
         on_failure=on_failure,
+        before_wait=before_wait,
         after_wait=after_wait,
     )

@@ -64,6 +64,7 @@ from prefect.results import (
     get_result_store,
     should_persist_result,
 )
+from prefect.retries import RetryBlock, wait_with_jitter
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -510,84 +511,77 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._telemetry.end_span_on_success()
         return result
 
-    def handle_retry(self, exc: Exception) -> bool:
+    def handle_retry(
+        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
+    ):
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
         - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
         """
-        if self.retries < self.task.retries and self.can_retry(exc):
-            if self.task.retry_delay_seconds:
-                delay = (
-                    self.task.retry_delay_seconds[
-                        min(self.retries, len(self.task.retry_delay_seconds) - 1)
-                    ]  # repeat final delay value if attempts exceed specified delays
-                    if isinstance(self.task.retry_delay_seconds, Sequence)
-                    else self.task.retry_delay_seconds
-                )
-                new_state = AwaitingRetry(
-                    scheduled_time=prefect.types._datetime.now("UTC")
-                    + timedelta(seconds=delay)
-                )
-            else:
-                delay = None
-                new_state = Retrying()
-
-            self.logger.info(
-                "Task run failed with exception: %r - Retry %s/%s will start %s",
-                exc,
-                self.retries + 1,
-                self.task.retries,
-                str(delay) + " second(s) from now" if delay else "immediately",
+        if wait_time:
+            new_state = AwaitingRetry(
+                scheduled_time=prefect.types._datetime.now("UTC")
+                + timedelta(seconds=wait_time)
             )
+        else:
+            new_state = Retrying()
 
-            self.set_state(new_state, force=True)
-            self.retries: int = self.retries + 1
-            return True
-        elif self.retries >= self.task.retries:
-            self.logger.error(
-                "Task run failed with exception: %r - Retries are exhausted",
-                exc,
-                exc_info=True,
-            )
-            return False
+        self.logger.info(
+            "Task run failed with exception: %r - Retry %s/%s will start %s",
+            exc,
+            self.retries + 1,
+            self.task.retries,
+            str(wait_time) + " second(s) from now" if wait_time else "immediately",
+        )
 
-        return False
+        self.set_state(new_state, force=True)
+        self.retries: int = self.retries + 1
+        # return True
+        # elif self.retries >= self.task.retries:
+        #     self.logger.error(
+        #         "Task run failed with exception: %r - Retries are exhausted",
+        #         exc,
+        #         exc_info=True,
+        #     )
+        #     return False
+
+        # return False
 
     def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
         self._telemetry.record_exception(exc)
-        if not self.handle_retry(exc):
-            # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            state = run_coro_as_sync(
-                exception_to_failed_state(
-                    exc,
-                    message="Task run encountered an exception",
-                    result_store=get_result_store(),
-                    write_result=True,
-                )
+        # If the task has no retries left, or the retry condition is not met, set the task to failed.
+        state = run_coro_as_sync(
+            exception_to_failed_state(
+                exc,
+                message="Task run encountered an exception",
+                result_store=get_result_store(),
+                write_result=True,
             )
-            self.record_terminal_state_timing(state)
-            self.set_state(state)
-            self._raised = exc
-            self._telemetry.end_span_on_failure(state.message if state else None)
+        )
+        self.record_terminal_state_timing(state)
+        self.set_state(state)
+        self._raised = exc
+        self._telemetry.end_span_on_failure(state.message if state else None)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
-        if not self.handle_retry(exc):
-            if isinstance(exc, TaskRunTimeoutError):
-                message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
-            else:
-                message = f"Task run failed due to timeout: {exc!r}"
-            self.logger.error(message)
-            state = Failed(
-                data=exc,
-                message=message,
-                name="TimedOut",
+        if isinstance(exc, TaskRunTimeoutError):
+            message = (
+                f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
             )
-            self.record_terminal_state_timing(state)
-            self.set_state(state)
-            self._raised = exc
+        else:
+            message = f"Task run failed due to timeout: {exc!r}"
+        self.logger.error(message)
+        state = Failed(
+            data=exc,
+            message=message,
+            name="TimedOut",
+        )
+        self.record_terminal_state_timing(state)
+        self.set_state(state)
+        self._raised = exc
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
@@ -824,6 +818,25 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             except Exception as exc:
                 self.handle_exception(exc)
 
+    def after_wait(
+        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
+    ):
+        if wait_time > 0:
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
+            self.set_state(
+                new_state,
+                force=True,
+            )
+
+    def on_attempts_exhausted(
+        self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
+    ):
+        self.logger.error(
+            "Task run failed with exception: %r - Retries are exhausted",
+            exc,
+            exc_info=True,
+        )
+
     def call_task_fn(
         self, transaction: Transaction
     ) -> Union[R, Coroutine[Any, Any, R]]:
@@ -835,7 +848,19 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            result = call_with_parameters(self.task.fn, parameters)
+            for attempt in RetryBlock(
+                attempts=self.task.retries + 1,
+                wait=wait_with_jitter(
+                    self.task.retry_delay_seconds or 0.0,
+                    jitter=self.task.retry_jitter_factor or 0.0,
+                ),
+                should_retry=self.can_retry,
+                before_wait=self.handle_retry,
+                after_wait=self.after_wait,
+                on_attempts_exhausted=self.on_attempts_exhausted,
+            ):
+                with attempt:
+                    result = call_with_parameters(self.task.fn, parameters)
         self.handle_success(result, transaction=transaction)
         return result
 
@@ -1476,23 +1501,35 @@ def run_generator_task_sync(
                     call_args, call_kwargs = parameters_to_args_kwargs(
                         task.fn, engine.parameters or {}
                     )
-                    gen = task.fn(*call_args, **call_kwargs)
-                    try:
-                        while True:
-                            gen_result = next(gen)
-                            # link the current state to the result for dependency tracking
-                            #
-                            # TODO: this could grow the task_run_result
-                            # dictionary in an unbounded way, so finding a
-                            # way to periodically clean it up (using
-                            # weakrefs or similar) would be good
-                            link_state_to_result(engine.state, gen_result)
-                            yield gen_result
-                    except StopIteration as exc:
-                        engine.handle_success(exc.value, transaction=txn)
-                    except GeneratorExit as exc:
-                        engine.handle_success(None, transaction=txn)
-                        gen.throw(exc)
+                    for attempt in RetryBlock(
+                        attempts=task.retries + 1,
+                        wait=wait_with_jitter(
+                            task.retry_delay_seconds or 0.0,
+                            jitter=task.retry_jitter_factor or 0.0,
+                        ),
+                        should_retry=engine.can_retry,
+                        before_wait=engine.handle_retry,
+                        after_wait=engine.after_wait,
+                        on_attempts_exhausted=engine.on_attempts_exhausted,
+                    ):
+                        with attempt:
+                            gen = task.fn(*call_args, **call_kwargs)
+                            try:
+                                while True:
+                                    gen_result = next(gen)
+                                    # link the current state to the result for dependency tracking
+                                    #
+                                    # TODO: this could grow the task_run_result
+                                    # dictionary in an unbounded way, so finding a
+                                    # way to periodically clean it up (using
+                                    # weakrefs or similar) would be good
+                                    link_state_to_result(engine.state, gen_result)
+                                    yield gen_result
+                            except StopIteration as exc:
+                                engine.handle_success(exc.value, transaction=txn)
+                            except GeneratorExit as exc:
+                                engine.handle_success(None, transaction=txn)
+                                gen.throw(exc)
 
     return engine.result()
 

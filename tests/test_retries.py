@@ -186,6 +186,23 @@ class TestSync:
 
             assert attempts == 3
 
+        def test_retriable_block_with_generator(self):
+            attempts = 0
+
+            def generator():
+                yield 1
+                yield 2
+                raise ValueError("Permanent failure")
+
+            with pytest.raises(ValueError):
+                for attempt in RetryBlock(attempts=3):
+                    with attempt:
+                        attempts += 1
+                        for _ in generator():
+                            pass
+
+            assert attempts == 3
+
     class TestShouldRetry:
         def test_retry_with_custom_should_retry(self):
             attempts = 0
@@ -382,6 +399,23 @@ class TestAsync:
                     async with attempt:
                         attempts += 1
                         raise ValueError("Permanent failure")
+
+            assert attempts == 3
+
+        async def test_retriable_block_with_generator(self):
+            attempts = 0
+
+            async def generator():
+                yield 1
+                yield 2
+                raise ValueError("Permanent failure")
+
+            with pytest.raises(ValueError):
+                async for attempt in AsyncRetryBlock(attempts=3):
+                    async with attempt:
+                        attempts += 1
+                        async for _ in generator():
+                            pass
 
             assert attempts == 3
 

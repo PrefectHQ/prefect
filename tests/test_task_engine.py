@@ -1295,8 +1295,8 @@ class TestTaskRetries:
         events_pipeline,
         monkeypatch,
     ):
-        mock_sleep = AsyncMock()
-        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+        mock_sleep = MagicMock()
+        monkeypatch.setattr(time, "sleep", mock_sleep)
 
         @task(retries=3, retry_delay_seconds=retry_delay_seconds)
         def flaky_function():
