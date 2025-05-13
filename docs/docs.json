@@ -34,14 +34,6 @@
                   "v3/tutorials/s3-motherduck",
                   "v3/tutorials/resilience-and-deployment"
                 ]
-              },
-              {
-                "group": "For platform engineers",
-                "pages": [
-                  "v3/tutorials/platform",
-                  "v3/tutorials/debug",
-                  "v3/tutorials/alerts"
-                ]
               }
             ]
           },
