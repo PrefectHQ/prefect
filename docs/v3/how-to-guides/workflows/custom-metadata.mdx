@@ -1,7 +1,6 @@
 ---
 title: How to customize a workflow's metadata
 sidebarTitle: Customize workflow metadata
-description: The simplest way to give your workflow some personality
 ---
 
 Give your workflow a name with the `name` parameter:
@@ -61,4 +60,8 @@ def my_workflow(name: str):
     return f"Hello, {name}!"
 ```
 
+<Info>
+**Custom flow run names are applied at runtime**
 
+When a flow run is created via a schedule or the API, the `flow_run_name` defined on the flow is not immediately applied. The name is updated when the flow begins running.
+</Info>

@@ -1,7 +1,6 @@
 ---
-title: How to rerun your workflow when it fails
-sidebarTitle: Rerun a workflow when it fails
-description: If at first you don't succeed...
+title: How to automatically rerun your workflow when it fails
+sidebarTitle: Automatically rerun a workflow when it fails
 ---
 
 To rerun your workflow when an exception is raised, set the `retries` parameter to an integer.
@@ -25,4 +24,6 @@ from prefect import flow
 def troublesome_workflow():
     raise Exception("oopsie daisy")
 ```
+
+
 
