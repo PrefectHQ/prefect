@@ -28,7 +28,6 @@
                 "group": "For data engineers",
                 "pages": [
                   "v3/tutorials/schedule",
-                  "v3/tutorials/form-building",
                   "v3/tutorials/pipelines",
                   "v3/tutorials/scraping",
                   "v3/tutorials/ml",
@@ -218,7 +217,9 @@
               "v3/how-to-guides/workflows/retries",
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
-              "v3/how-to-guides/workflows/access-runtime-info"
+              "v3/how-to-guides/workflows/access-runtime-info",
+              "v3/how-to-guides/workflows/form-building"
+
             ]
           }
         ]
@@ -1454,6 +1455,10 @@
     {
       "source": "/v3/tutorials/server-and-worker",
       "destination": "/v3/manage/server/examples/helm"
+    },
+    {
+      "source": "/v3/tutorials/form-building",
+      "destination": "v3/how-to-guides/workflows/form-building"
     },
     {
       "source": "/latest/api-ref/prefect/:slug*",
