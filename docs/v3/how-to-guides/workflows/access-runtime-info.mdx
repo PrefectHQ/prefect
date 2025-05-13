@@ -1,0 +1,19 @@
+---
+title: How to access runtime information
+sidebarTitle: Access runtime information
+description: Keep your workflows in the know
+---
+
+Use the `prefect.runtime` module to access runtime information from within a workflow.
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run
+
+
+@flow
+def moody_workflow(name: str):
+    return f"I wish my parents had named me {name} instead of {flow_run.name}."
+```
+
+See the `prefect.runtime` module [reference](/v3/api-ref/python) for all available attributes.
