@@ -3,7 +3,7 @@ title: How to emit and use custom events
 description: Learn how to define specific trigger conditions based on custom event grammar.
 ---
 
-### Trigger a deployment when a customer completes an order
+## Motivating custom events
 Imagine you are running an e-commerce platform and you want to trigger a deployment when a customer completes an order.
 
 There might be a number of events that occur during an order on your platform, for example:
@@ -28,7 +28,11 @@ In this case, we want to trigger a deployment when a user completes an order, so
 - evaluate these conditions `for_each` user id
 
 
-Finally, it should pass the `user_id` as a parameter to the deployment. Here's how this looks in code:
+Finally, it should pass the `user_id` as a parameter to the deployment.
+
+### Define the trigger
+
+Here's how this looks in code:
 
 ```python post_order_deployment.py
 from prefect import flow
@@ -59,6 +63,8 @@ The `expect` and `after` fields accept a `set` of event names, so you can specif
 Similarly, the `for_each` field accepts a `set` of resource ids.
 </Tip>
 
+
+### Simulate events
 To simulate users causing order status events, run the following in a Python shell or script:
 
 ```python simulate_events.py
