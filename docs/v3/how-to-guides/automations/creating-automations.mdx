@@ -17,7 +17,7 @@ import { automations } from "/snippets/resource-management/vars.mdx"
 <COMBINED name="automations" hrefTF={automations.tf} hrefAPI={automations.api} hrefCLI={automations.cli} />
 
 
-### Create automations In Python code
+### Create automations with the Python SDK
 
 You can create and access any automation with the Python SDK's `Automation` class and its methods.
 ```python
@@ -53,10 +53,14 @@ print(automation)
 ```
 
 
-## Create an automation with deployment triggers
+## Creating deployment triggers
 
-To enable the simple configuration of event-driven deployments, Prefect provides deployment triggers—a shorthand for
+To enable the simple configuration of event-driven deployments, Prefect provides **deployment triggers**—a shorthand for
 creating automations that are linked to specific deployments to run them based on the presence or absence of events.
+
+<Info>
+Deployment triggers are a special case of automations where the configured action is always running a deployment.
+</Info>
 
 Trigger definitions for deployments are supported in `prefect.yaml`, `.serve`, and `.deploy`. At deployment time,
 specified trigger definitions create linked automations triggered by events matching your chosen
