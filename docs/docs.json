@@ -218,7 +218,6 @@
               "v3/how-to-guides/workflows/retries",
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
-              "v3/how-to-guides/workflows/organize-workflows",
               "v3/how-to-guides/workflows/access-runtime-info"
             ]
           }

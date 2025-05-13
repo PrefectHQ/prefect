@@ -21,7 +21,7 @@ Run the workflow by calling it like a normal Python function:
 my_workflow()
 ```
 
-Workflows can be defined as methods on a class:
+You can create a workflow from a method on a class:
 
 ```python
 from prefect import flow
@@ -51,7 +51,7 @@ MyClass.my_class_method()
 MyClass.my_static_method()
 ```
 
-Workflows can also be defined as generators:
+or from a generator function:
 
 ```python
 from prefect import flow
@@ -68,4 +68,31 @@ for val in generator():
 ```
 
 You can view all workflow runs in the Prefect UI.
+
+You can create tasks and child flows to organize your workflow logic.
+
+```python
+from prefect import flow, task
+
+
+@task
+def generate_a_number():
+    return random.randint(0, 100)
+
+
+@flow
+def is_number_even(number: int):
+    return number % 2 == 0
+
+
+@flow
+def even_or_odd():
+    number = generate_a_number()
+    if is_number_even(number):
+        print("The number is even")
+    else:
+        print("The number is odd")
+```
+
+Each task and child flow is a separate unit of work and is displayed in the Prefect UI.
 
