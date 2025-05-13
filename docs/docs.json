@@ -146,9 +146,7 @@
               "v3/automate/index",
               "v3/automate/add-schedules",
               "v3/automate/events/events",
-              "v3/automate/events/automations-triggers",
               "v3/automate/events/custom-triggers",
-              "v3/automate/events/webhook-triggers",
               "v3/automate/events/slas"
             ]
           },
@@ -224,6 +222,16 @@
 >>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
               "v3/how-to-guides/workflows/access-runtime-info"
             ]
+          },
+          {
+            "group": "Automations",
+            "pages": [
+              "v3/how-to-guides/automations/creating-automations",
+              "v3/how-to-guides/automations/detect-zombie-flows",
+              "v3/how-to-guides/automations/use-custom-event-grammar",
+              "v3/how-to-guides/automations/chaining-deployments-with-events",
+              "v3/how-to-guides/automations/receive-external-events"
+            ]
           }
         ]
       },
@@ -235,7 +243,9 @@
        "tab": "Concepts",
        "pages": [
         "v3/concepts/index",
-        "v3/concepts/flows"
+        "v3/concepts/flows",
+        "v3/concepts/automations",
+        "v3/concepts/webhooks"
        ]
       },
       {
@@ -965,11 +975,11 @@
     },
     {
       "source": "/latest/guides/webhooks",
-      "destination": "/v3/automate/events/webhook-triggers"
+      "destination": "/v3/how-to-guides/automations/receive-external-events"
     },
     {
       "source": "/latest/cloud/webhooks",
-      "destination": "/v3/automate/events/webhook-triggers"
+      "destination": "/v3/how-to-guides/automations/receive-external-events"
     },
     {
       "source": "/latest/concepts/artifacts",
@@ -1498,6 +1508,14 @@
     {
       "source": "/v3/develop/write-flows",
       "destination": "/v3/how-to-guides/workflows/write-and-run"
+    },
+    {
+      "source": "/v3/automate/events/automations-triggers",
+      "destination": "/v3/concepts/automations"
+    },
+    {
+      "source": "/v3/automate/events/webhook-triggers",
+      "destination": "/v3/concepts/webhooks"
     }
   ]
 }
