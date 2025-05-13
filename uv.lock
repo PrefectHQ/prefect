@@ -3839,7 +3839,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6,<4.0.0" },
     { name = "jinja2-humanize-extension", specifier = ">=0.4.0" },
     { name = "jsonpatch", specifier = ">=1.32,<2.0" },
-    { name = "jsonschema", specifier = ">=4.0.0,<5.0.0" },
+    { name = "jsonschema", specifier = ">=4.18.0,<5.0.0" },
     { name = "opentelemetry-api", specifier = ">=1.27.0,<2.0.0" },
     { name = "opentelemetry-distro", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.27.0,<2.0.0" },
