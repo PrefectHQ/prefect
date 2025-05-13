@@ -223,10 +223,10 @@
             "group": "Automations",
             "pages": [
               "v3/how-to-guides/automations/creating-automations",
-              "v3/how-to-guides/automations/detect-zombie-flows",
-              "v3/how-to-guides/automations/use-custom-event-grammar",
               "v3/how-to-guides/automations/chaining-deployments-with-events",
-              "v3/how-to-guides/automations/create-a-webhook"
+              "v3/how-to-guides/automations/create-a-webhook",
+              "v3/how-to-guides/automations/use-custom-event-grammar",
+              "v3/how-to-guides/automations/detect-zombie-flows"
             ]
           }
         ]
