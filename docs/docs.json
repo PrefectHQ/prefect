@@ -971,11 +971,11 @@
     },
     {
       "source": "/latest/guides/webhooks",
-      "destination": "/v3/how-to-guides/automations/receive-external-events"
+      "destination": "/v3/concepts/webhooks"
     },
     {
       "source": "/latest/cloud/webhooks",
-      "destination": "/v3/how-to-guides/automations/receive-external-events"
+      "destination": "/v3/concepts/webhooks"
     },
     {
       "source": "/latest/concepts/artifacts",
