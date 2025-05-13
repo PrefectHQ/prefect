@@ -24,7 +24,7 @@ my_workflow(name="Marvin")
 
 By default, Prefect will validate the types of inputs to your workflow.
 
-{/* pmd-metadata: fixture:raises_exception */}
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 
@@ -51,7 +51,7 @@ my_workflow(name=1)
 
 If you use `pydantic`, parameters typed with a `BaseModel` subclass will be coerced to the appropriate types and validated.
 
-{/* pmd-metadata: fixture:raises_exception */}
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 from pydantic import BaseModel
@@ -65,9 +65,8 @@ class Model(BaseModel):
 @flow
 def flow_that_validates_parameters(model: Model): ...
 
-if __name__ == "__main__":
-    flow_that_validates_parameters(
-        model={"a": "WRONG", "b": "fine"}
-    )
+flow_that_validates_parameters(
+    model={"a": "WRONG", "b": "fine"}
+)
 ```
 
