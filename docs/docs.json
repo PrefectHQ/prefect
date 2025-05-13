@@ -22,22 +22,6 @@
             ]
           },
           {
-            "group": "Tutorials",
-            "pages": [
-              {
-                "group": "For data engineers",
-                "pages": [
-                  "v3/tutorials/schedule",
-                  "v3/tutorials/pipelines",
-                  "v3/tutorials/scraping",
-                  "v3/tutorials/ml",
-                  "v3/tutorials/s3-motherduck",
-                  "v3/tutorials/resilience-and-deployment"
-                ]
-              }
-            ]
-          },
-          {
             "group": "Develop",
             "pages": [
               "v3/develop/index",
