@@ -5,11 +5,9 @@ description: Learn how to detect and respond to zombie flows.
 
 ### Detect and respond to zombie flows
 
-If the infrastructure a flow is running on suddenly fails (for example, the machine crashes or a container is evicted),
-Prefect's orchestration engine will be unable to report state changes and the flow run will get stuck in the running state.
+Sudden infrastructure failures (like machine crashes or container evictions) can cause flow runs to become unresponsive and appear stuck in a `Running` state.
 
-Fortunately, flow runs triggered via deployment can emit heartbeats as they are running, and a Prefect automation can update
-a flow run's state to crashed if the server stops receiving heartbeats for that flow run.
+To mitigate this, flow runs triggered by deployments can emit heartbeats to enable Automations that detect and respond to these "zombie" flow runs, ensuring they are marked as `Crashed` if they stop reporting heartbeats.
 
 <Note>
 **Enable flow run heartbeat events**
@@ -58,8 +56,8 @@ if __name__ == "__main__":
     my_automation.create()
 ```
 
-The trigger definition says after each heartbeat event for a flow run we expect to see another heartbeat event or a
-terminal state event for that same flow run within 90 seconds of a heartbeat event.
+The trigger definition says that `after` each heartbeat event for a flow run we `expect` to see another heartbeat event or a
+terminal state event for that same flow run `within` 90 seconds of a heartbeat event.
 
 If `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed.
 You can adjust `within` in the trigger definition and `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` to change how quickly the automation

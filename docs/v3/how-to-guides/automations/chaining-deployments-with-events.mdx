@@ -1,12 +1,12 @@
 ---
-title: Chaining deployments with events
+title: How to chain workflow runs with events
 description: Learn how to establish event-based dependencies between individual workflows.
 ---
 
-### Trigger a downstream deployment with an event
+This example shows how to use a trigger to schedule a run of downstream deployment when a run of an upstream deployment completes.
 
-This example shows how to use a trigger to schedule a downstream deployment when an upstream deployment completes.
 
+# Define an upstream and downstream deployment
 ```python event_driven_deployments.py
 from prefect import flow, serve
 from prefect.events import DeploymentEventTrigger
@@ -36,6 +36,8 @@ if __name__ == "__main__":
 
     serve(upstream_deployment, downstream_deployment)
 ```
+
+# Test it out
 
 First, start the `serve` process to listen for scheduled deployments runs:
 

@@ -3,11 +3,8 @@ title: Setup a webhook in the UI
 description: Learn how to setup a webhook in the UI to trigger automations from external events.
 ---
 
-Prefect Cloud webhooks allow you to trigger Prefect automations from any external system capable of sending an HTTP request. When an external system invokes your webhook's unique URL, Prefect transforms the incoming request into a Prefect [event](/v3/automate/events/) using a configurable template. This event can then trigger [automations](/v3/automate/events/automations-triggers/) to run deployments, send notifications, or perform other actions.
-
-For a detailed explanation of webhooks, including advanced template configuration, authentication, and how Prefect processes incoming requests, please see the [Webhooks Concepts](/v3/concepts/webhooks) page.
-
 This page shows you how to quickly set up a webhook using the Prefect Cloud UI, invoke it, and create an automation based on the received event.
+
 
 ## Trigger an Automation from an External Event
 
@@ -77,3 +74,7 @@ If you've invoked your webhook but don't see the expected event in Prefect Cloud
 *   **Review your template**: Ensure your Jinja2 template correctly accesses the parts of the HTTP request you intend to use (e.g., `body.field_name`, `headers['Header-Name']`).
 
 For more in-depth troubleshooting of webhook configuration and template rendering, see [Troubleshooting Webhook Configuration in the Concepts documentation](/v3/concepts/webhooks#troubleshooting-webhook-configuration).
+
+## Further reading
+
+For more on webhooks, see the [Webhooks Concepts](/v3/concepts/webhooks) page.
