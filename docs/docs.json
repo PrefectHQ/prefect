@@ -53,7 +53,6 @@
               {
                 "group": "Write and run workflows",
                 "pages": [
-                  "v3/develop/write-tasks",
                   "v3/develop/deferred-tasks",
                   "v3/develop/visualize-flow-structure",
                   "v3/develop/big-data",
@@ -1493,6 +1492,10 @@
     },
     {
       "source": "/v3/develop/write-flows",
+      "destination": "/v3/how-to-guides/workflows/write-and-run"
+    },
+    {
+      "source": "/v3/develop/write-tasks",
       "destination": "/v3/how-to-guides/workflows/write-and-run"
     }
   ]
