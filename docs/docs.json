@@ -120,7 +120,6 @@
             "pages": [
               "v3/automate/index",
               "v3/automate/add-schedules",
-              "v3/automate/events/events",
               "v3/automate/events/custom-triggers",
               "v3/automate/events/slas"
             ]
@@ -218,6 +217,7 @@
        "pages": [
         "v3/concepts/index",
         "v3/concepts/flows",
+        "v3/concepts/events",
         "v3/concepts/automations",
         "v3/concepts/webhooks"
        ]
@@ -1494,6 +1494,10 @@
     {
       "source": "/v3/automate/events/webhook-triggers",
       "destination": "/v3/concepts/webhooks"
+    },
+    {
+      "source": "/v3/automate/events/events",
+      "destination": "/v3/concepts/events"
     }
   ]
 }
