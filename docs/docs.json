@@ -216,10 +216,6 @@
               "v3/how-to-guides/workflows/retries",
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
-<<<<<<< HEAD
-=======
-              "v3/how-to-guides/workflows/organize-workflows",
->>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
               "v3/how-to-guides/workflows/access-runtime-info"
             ]
           },

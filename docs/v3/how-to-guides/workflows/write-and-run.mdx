@@ -1,7 +1,6 @@
 ---
 title: How to write and run a workflow
 sidebarTitle: Write and run a workflow
-description: Turn a Python script into an executable workflow
 ---
 
 Make a Python function a workflow by adding the `@flow` decorator to it:
@@ -21,7 +20,7 @@ Run the workflow by calling it like a normal Python function:
 my_workflow()
 ```
 
-Workflows can be defined as methods on a class:
+You can create a workflow from a method on a class:
 
 ```python
 from prefect import flow
@@ -51,7 +50,7 @@ MyClass.my_class_method()
 MyClass.my_static_method()
 ```
 
-Workflows can also be defined as generators:
+or from a generator function:
 
 ```python
 from prefect import flow
