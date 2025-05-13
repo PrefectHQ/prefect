@@ -1,6 +1,10 @@
 ---
 title: How to write and run a workflow
 sidebarTitle: Write and run a workflow
+<<<<<<< HEAD
+=======
+description: Turn a Python script into an executable workflow
+>>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
 ---
 
 Make a Python function a workflow by adding the `@flow` decorator to it:
@@ -16,12 +20,19 @@ def my_workflow() -> str:
 
 Run the workflow by calling it like a normal Python function:
 
+<<<<<<< HEAD
 {/* pmd-metadata: continuation */}
+=======
+>>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
 ```python
 my_workflow()
 ```
 
+<<<<<<< HEAD
 You can create a workflow from a method on a class:
+=======
+Workflows can be defined as methods on a class:
+>>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
 
 ```python
 from prefect import flow
@@ -51,7 +62,11 @@ MyClass.my_class_method()
 MyClass.my_static_method()
 ```
 
+<<<<<<< HEAD
 or from a generator function:
+=======
+Workflows can also be defined as generators:
+>>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
 
 ```python
 from prefect import flow
@@ -69,6 +84,7 @@ for val in generator():
 
 You can view all workflow runs in the Prefect UI.
 
+<<<<<<< HEAD
 You can create tasks and child flows to organize your workflow logic.
 
 ```python
@@ -96,3 +112,5 @@ def even_or_odd():
 
 Each task and child flow is a separate unit of work and is displayed in the Prefect UI.
 
+=======
+>>>>>>> a50ae67a9d (Move "Write flows" context to "How-to Guides" and "Concepts")
