@@ -1,0 +1,98 @@
+---
+title: How to write and run a workflow
+sidebarTitle: Write and run a workflow
+---
+
+Make a Python function a workflow by adding the `@flow` decorator to it:
+
+```python
+from prefect import flow
+
+
+@flow
+def my_workflow() -> str:
+    return "Hello, world!"
+```
+
+Run the workflow by calling it like a normal Python function:
+
+{/* pmd-metadata: continuation */}
+```python
+my_workflow()
+```
+
+You can create a workflow from a method on a class:
+
+```python
+from prefect import flow
+
+
+class MyClass:
+
+    @flow
+    def my_instance_method(self):
+        return "Hello, from an instance method!"
+
+
+    @flow
+    @classmethod
+    def my_class_method(cls):
+        return "Hello, from a class method!"
+
+
+    @flow
+    @staticmethod
+    def my_static_method():
+        return "Hello, from a static method!"
+
+
+MyClass().my_instance_method()
+MyClass.my_class_method()
+MyClass.my_static_method()
+```
+
+or from a generator function:
+
+```python
+from prefect import flow
+
+
+@flow
+def generator():
+    for i in range(10):
+        yield i
+
+
+for val in generator():
+    print(val)
+```
+
+You can view all workflow runs in the Prefect UI.
+
+You can create tasks and child flows to organize your workflow logic.
+
+```python
+from prefect import flow, task
+
+
+@task
+def generate_a_number():
+    return random.randint(0, 100)
+
+
+@flow
+def is_number_even(number: int):
+    return number % 2 == 0
+
+
+@flow
+def even_or_odd():
+    number = generate_a_number()
+    if is_number_even(number):
+        print("The number is even")
+    else:
+        print("The number is odd")
+```
+
+Each task and child flow is a separate unit of work and is displayed in the Prefect UI.
+

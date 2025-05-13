@@ -53,7 +53,6 @@
               {
                 "group": "Write and run workflows",
                 "pages": [
-                  "v3/develop/write-flows",
                   "v3/develop/write-tasks",
                   "v3/develop/deferred-tasks",
                   "v3/develop/visualize-flow-structure",
@@ -210,8 +209,19 @@
         ]
       },
       {
-       "tab": "How-to Guides",
-       "groups": []
+        "tab": "How-to Guides",
+        "groups": [
+          {
+            "group": "Workflows",
+            "pages": [
+              "v3/how-to-guides/workflows/write-and-run",
+              "v3/how-to-guides/workflows/retries",
+              "v3/how-to-guides/workflows/custom-metadata",
+              "v3/how-to-guides/workflows/pass-inputs",
+              "v3/how-to-guides/workflows/access-runtime-info"
+            ]
+          }
+        ]
       },
       {
        "tab": "Advanced",
@@ -219,7 +229,10 @@
       },
       {
        "tab": "Concepts",
-       "groups": []
+       "pages": [
+        "v3/concepts/index",
+        "v3/concepts/flows"
+       ]
       },
       {
         "tab": "API Reference",
@@ -1477,6 +1490,10 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/store-flow-code#cloud-provider-storage",
       "destination": "/v3/deploy/infrastructure-concepts/store-flow-code#blob-storage"
+    },
+    {
+      "source": "/v3/develop/write-flows",
+      "destination": "/v3/how-to-guides/workflows/write-and-run"
     }
   ]
 }

@@ -1,0 +1,29 @@
+---
+title: How to automatically rerun your workflow when it fails
+sidebarTitle: Automatically rerun a workflow when it fails
+---
+
+To rerun your workflow when an exception is raised, set the `retries` parameter to an integer.
+
+```python
+from prefect import flow
+
+
+@flow(retries=3)
+def troublesome_workflow():
+    raise Exception("oopsie daisy")
+```
+
+To add a wait between retries, pass a value to the `retry_delay_seconds` parameter.
+
+```python
+from prefect import flow
+
+
+@flow(retries=3, retry_delay_seconds=2.7182)
+def troublesome_workflow():
+    raise Exception("oopsie daisy")
+```
+
+
+
