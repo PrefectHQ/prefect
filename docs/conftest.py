@@ -104,3 +104,13 @@ def mock_post_200(monkeypatch):
 
     monkeypatch.setattr("requests.post", mock_post)
     return mock_response
+
+
+@pytest.fixture
+def raises_exception():
+    try:
+        yield
+    except Exception:
+        pass
+    else:
+        raise Exception("This test is expected to raise an exception")
