@@ -62,14 +62,14 @@ def my_workflow():
 
 ### Retry with exponential backoff
 
-Tasks retries delays can also be defined as a list of integers for different delays between retries.
+A task's retries delay can also be defined as a list of integers for different delays between retries.
 
 ```python
 from prefect import task
 
 
 @task(retries=4, retry_delay_seconds=[1, 2, 4, 8])
-def melancholic_task() -> dict:
+def melancholic_task():
     raise Exception("We used to see each other so much more often")
 ```
 
@@ -81,7 +81,7 @@ from prefect.tasks import exponential_backoff
 
 
 @task(retries=4, retry_delay_seconds=exponential_backoff(backoff_factor=2))
-def melancholic_task() -> dict:
+def melancholic_task():
     raise Exception("We used to see each other so much more often")
 ```
 
@@ -158,5 +158,5 @@ The default values can be overridden on a per-task basis via the `retries` and `
 
 ```
 prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
-prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
+prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS="1,10,100"
 ```
