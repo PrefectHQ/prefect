@@ -29,7 +29,7 @@ class BeforeAttemptCallback(Protocol):
     A function that is called before an attempt is made.
     """
 
-    def __call__(self, attempt: int, max_attempts: int): ...
+    def __call__(self, attempt: int, max_attempts: int) -> None: ...
 
 
 class AsyncBeforeAttemptCallback(Protocol):
@@ -37,7 +37,7 @@ class AsyncBeforeAttemptCallback(Protocol):
     An async function that is called before an attempt is made.
     """
 
-    async def __call__(self, attempt: int, max_attempts: int): ...
+    async def __call__(self, attempt: int, max_attempts: int) -> None: ...
 
 
 class OnSuccessCallback(Protocol):
@@ -45,7 +45,7 @@ class OnSuccessCallback(Protocol):
     A function that is called when an attempt is successful.
     """
 
-    def __call__(self, attempt: int, max_attempts: int): ...
+    def __call__(self, attempt: int, max_attempts: int) -> None: ...
 
 
 class AsyncOnSuccessCallback(Protocol):
@@ -53,7 +53,7 @@ class AsyncOnSuccessCallback(Protocol):
     An async function that is called when an attempt is successful.
     """
 
-    async def __call__(self, attempt: int, max_attempts: int): ...
+    async def __call__(self, attempt: int, max_attempts: int) -> None: ...
 
 
 class OnFailureCallback(Protocol):
@@ -61,7 +61,7 @@ class OnFailureCallback(Protocol):
     A function that is called when an attempt fails.
     """
 
-    def __call__(self, exc: Exception, attempt: int, max_attempts: int): ...
+    def __call__(self, exc: Exception, attempt: int, max_attempts: int) -> None: ...
 
 
 class AsyncOnFailureCallback(Protocol):
@@ -69,7 +69,9 @@ class AsyncOnFailureCallback(Protocol):
     An async function that is called when an attempt fails.
     """
 
-    async def __call__(self, exc: Exception, attempt: int, max_attempts: int): ...
+    async def __call__(
+        self, exc: Exception, attempt: int, max_attempts: int
+    ) -> None: ...
 
 
 class BeforeWaitCallback(Protocol):
@@ -79,7 +81,7 @@ class BeforeWaitCallback(Protocol):
 
     def __call__(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    ) -> None: ...
 
 
 class AsyncBeforeWaitCallback(Protocol):
@@ -89,7 +91,7 @@ class AsyncBeforeWaitCallback(Protocol):
 
     async def __call__(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    ) -> None: ...
 
 
 class AfterWaitCallback(Protocol):
@@ -99,7 +101,7 @@ class AfterWaitCallback(Protocol):
 
     def __call__(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    ) -> None: ...
 
 
 class AsyncAfterWaitCallback(Protocol):
@@ -109,7 +111,7 @@ class AsyncAfterWaitCallback(Protocol):
 
     async def __call__(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    ) -> None: ...
 
 
 class OnAttemptsExhaustedCallback(Protocol):
@@ -120,7 +122,7 @@ class OnAttemptsExhaustedCallback(Protocol):
 
     def __call__(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    ) -> None: ...
 
 
 class AsyncOnAttemptsExhaustedCallback(Protocol):
@@ -131,4 +133,4 @@ class AsyncOnAttemptsExhaustedCallback(Protocol):
 
     async def __call__(
         self, exc: Exception, attempt: int, max_attempts: int, wait_time: float
-    ): ...
+    ) -> None: ...

@@ -13,6 +13,7 @@ from typing import (
     Generic,
     Iterator,
     Protocol,
+    Self,
     Sequence,
     TypeVar,
     cast,
@@ -104,12 +105,12 @@ def wait_with_jitter(
     return wait_calculator
 
 
-def NO_OP_CALLBACK(*args: Any, **kwargs: Any):
-    pass  # pragma: no cover
+def NO_OP_CALLBACK(*args: Any, **kwargs: Any) -> None:
+    pass
 
 
 async def NO_OP_ASYNC_CALLBACK(*args: Any, **kwargs: Any) -> None:
-    pass  # pragma: no cover
+    pass
 
 
 class RetryBlock(Generic[P, R]):
@@ -604,7 +605,7 @@ class Retriable(Generic[P, R]):
 
         raise RuntimeError("Attempts exhausted")
 
-    def before_attempt(self, fn: BeforeAttemptCallback):
+    def before_attempt(self, fn: BeforeAttemptCallback) -> Self:
         """
         Register a function to be called before an attempt is made.
 
@@ -624,7 +625,7 @@ class Retriable(Generic[P, R]):
         self.before_attempt_callbacks.append(fn)
         return self
 
-    def on_success(self, fn: OnSuccessCallback):
+    def on_success(self, fn: OnSuccessCallback) -> Self:
         """
         Register a function to be called when an attempt is successful.
 
@@ -644,7 +645,7 @@ class Retriable(Generic[P, R]):
         self.on_success_callbacks.append(fn)
         return self
 
-    def on_failure(self, fn: OnFailureCallback):
+    def on_failure(self, fn: OnFailureCallback) -> Self:
         """
         Register a function to be called when an attempt fails.
 
@@ -664,7 +665,7 @@ class Retriable(Generic[P, R]):
         self.on_failure_callbacks.append(fn)
         return self
 
-    def before_wait(self, fn: BeforeWaitCallback):
+    def before_wait(self, fn: BeforeWaitCallback) -> Self:
         """
         Register a function to be called before a wait is made between attempts.
 
@@ -684,7 +685,7 @@ class Retriable(Generic[P, R]):
         self.before_wait_callbacks.append(fn)
         return self
 
-    def after_wait(self, fn: AfterWaitCallback):
+    def after_wait(self, fn: AfterWaitCallback) -> Self:
         """
         Register a function to be called after a wait is made between attempts.
 
@@ -704,7 +705,7 @@ class Retriable(Generic[P, R]):
         self.after_wait_callbacks.append(fn)
         return self
 
-    def on_attempts_exhausted(self, fn: OnAttemptsExhaustedCallback):
+    def on_attempts_exhausted(self, fn: OnAttemptsExhaustedCallback) -> Self:
         """
         Register a function to be called when all attempts have been made and the function
             has not been successful.
