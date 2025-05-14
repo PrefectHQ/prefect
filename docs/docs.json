@@ -177,8 +177,8 @@
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
-              "v3/how-to-guides/workflows/form-building"
-
+              "v3/how-to-guides/workflows/form-building",
+              "v3/how-to-guides/workflows/run-background-tasks"
             ]
           },
           {
@@ -1543,7 +1543,7 @@
     },
     {
       "source": "v3/develop/deferred-tasks",
-      "destination": "/v3/how-to-guides/background-tasks/run-background-tasks"
+      "destination": "/v3/how-to-guides/workflows/run-background-tasks"
     }
   ]
 }
