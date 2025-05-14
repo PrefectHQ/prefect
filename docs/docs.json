@@ -131,7 +131,6 @@
                 "group": "Prefect Cloud",
                 "pages": [
                   "v3/manage/cloud/index",
-                  "v3/manage/cloud/connect-to-cloud",
                   "v3/manage/cloud/workspaces",
                   {
                     "group": "Manage accounts",
@@ -204,6 +203,12 @@
               "v3/how-to-guides/automations/create-a-webhook",
               "v3/how-to-guides/automations/use-custom-event-grammar",
               "v3/how-to-guides/automations/detect-zombie-flows"
+            ]
+          },
+          {
+            "group": "Prefect Cloud",
+            "pages": [
+              "v3/how-to-guides/cloud/connect-to-cloud"
             ]
           }
         ]
@@ -1502,6 +1507,10 @@
     {
       "source": "/v3/automate/events/events",
       "destination": "/v3/concepts/events"
+    },
+    {
+      "source": "v3/manage/cloud/connect-to-cloud",
+      "destination": "/v3/how-to-guides/cloud/connect-to-cloud"
     }
   ]
 }
