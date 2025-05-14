@@ -22,31 +22,6 @@
             ]
           },
           {
-            "group": "Tutorials",
-            "pages": [
-              {
-                "group": "For data engineers",
-                "pages": [
-                  "v3/tutorials/schedule",
-                  "v3/tutorials/form-building",
-                  "v3/tutorials/pipelines",
-                  "v3/tutorials/scraping",
-                  "v3/tutorials/ml",
-                  "v3/tutorials/s3-motherduck",
-                  "v3/tutorials/resilience-and-deployment"
-                ]
-              },
-              {
-                "group": "For platform engineers",
-                "pages": [
-                  "v3/tutorials/platform",
-                  "v3/tutorials/debug",
-                  "v3/tutorials/alerts"
-                ]
-              }
-            ]
-          },
-          {
             "group": "Develop",
             "pages": [
               "v3/develop/index",
@@ -144,10 +119,7 @@
             "pages": [
               "v3/automate/index",
               "v3/automate/add-schedules",
-              "v3/automate/events/events",
-              "v3/automate/events/automations-triggers",
               "v3/automate/events/custom-triggers",
-              "v3/automate/events/webhook-triggers",
               "v3/automate/events/slas"
             ]
           },
@@ -218,7 +190,20 @@
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/access-runtime-info",
-              "v3/how-to-guides/workflows/run-work-concurrently"
+              "v3/how-to-guides/workflows/run-work-concurrently",
+              "v3/how-to-guides/workflows/form-building"
+
+            ]
+          },
+          {
+            "group": "Automations",
+            "pages": [
+              "v3/how-to-guides/automations/creating-automations",
+              "v3/how-to-guides/automations/creating-deployment-triggers",
+              "v3/how-to-guides/automations/chaining-deployments-with-events",
+              "v3/how-to-guides/automations/create-a-webhook",
+              "v3/how-to-guides/automations/use-custom-event-grammar",
+              "v3/how-to-guides/automations/detect-zombie-flows"
             ]
           }
         ]
@@ -231,7 +216,10 @@
        "tab": "Concepts",
        "pages": [
         "v3/concepts/index",
-        "v3/concepts/flows-and-tasks"
+        "v3/concepts/flows-and-tasks",
+        "v3/concepts/events",
+        "v3/concepts/automations",
+        "v3/concepts/webhooks"
        ]
       },
       {
@@ -961,11 +949,11 @@
     },
     {
       "source": "/latest/guides/webhooks",
-      "destination": "/v3/automate/events/webhook-triggers"
+      "destination": "/v3/concepts/webhooks"
     },
     {
       "source": "/latest/cloud/webhooks",
-      "destination": "/v3/automate/events/webhook-triggers"
+      "destination": "/v3/concepts/webhooks"
     },
     {
       "source": "/latest/concepts/artifacts",
@@ -1456,6 +1444,10 @@
       "destination": "/v3/manage/server/examples/helm"
     },
     {
+      "source": "/v3/tutorials/form-building",
+      "destination": "v3/how-to-guides/workflows/form-building"
+    },
+    {
       "source": "/latest/api-ref/prefect/:slug*",
       "destination": "/v3/api-ref/python"
     },
@@ -1498,6 +1490,17 @@
     {
       "source": "/v3/develop/write-tasks",
       "destination": "/v3/how-to-guides/workflows/write-and-run"
+    },
+      "source": "/v3/automate/events/automations-triggers",
+      "destination": "/v3/concepts/automations"
+    },
+    {
+      "source": "/v3/automate/events/webhook-triggers",
+      "destination": "/v3/concepts/webhooks"
+    },
+    {
+      "source": "/v3/automate/events/events",
+      "destination": "/v3/concepts/events"
     }
   ]
 }
