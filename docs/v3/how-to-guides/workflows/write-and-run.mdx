@@ -3,6 +3,8 @@ title: How to write and run a workflow
 sidebarTitle: Write and run a workflow
 ---
 
+### Define a workflow
+
 Make a Python function a workflow by adding the `@flow` decorator to it:
 
 ```python
@@ -68,6 +70,8 @@ for val in generator():
 ```
 
 You can view all workflow runs in the Prefect UI.
+
+### Create tasks and child flows
 
 You can create tasks and child flows to organize your workflow logic.
 

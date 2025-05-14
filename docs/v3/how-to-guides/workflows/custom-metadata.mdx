@@ -3,6 +3,8 @@ title: How to customize a workflow's metadata
 sidebarTitle: Customize workflow metadata
 ---
 
+###  Customize a workflow's name
+
 Give your workflow a name with the `name` parameter:
 
 ```python
@@ -16,6 +18,8 @@ def my_workflow() -> str:
 
 If you don't provide a name, Prefect uses the flow function name.
 
+###  Customize a workflow's description
+
 Give your workflow a description with the `description` parameter:
 
 ```python
@@ -28,6 +32,8 @@ def my_workflow() -> str:
 ```
 
 If no description is provided, a flow function's docstring is used as the description.
+
+### Customize run names
 
 Give a custom name to each flow run for a flow with the `flow_run_name` parameter:
 
