@@ -30,10 +30,9 @@ This is useful to keep the schedule configuration but temporarily stop the sched
 
 ### Cron
 
-You can specify a schedule with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern.
-You may also provide a timezone to enforce daylight saving time (DST) behaviors.
+A `Cron` schedule uses a standard [`cron`](https://en.wikipedia.org/wiki/Cron) string to define when flow runs should occur. This is ideal for schedules tied to specific clock times and dates (e.g., "every Monday at 9:00 AM"). You may also provide a timezone to enforce daylight saving time (DST) behaviors.
 
-Prefect uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
+Prefect's cron scheduling is based on the `croniter` library, allowing it to interpret familiar cron expressions. For example, the expression `0 9 * * MON-FRI` means "at 9:00 AM on every Monday through Friday".
 
 <Tip>
 **Supported `croniter` features**
@@ -92,7 +91,7 @@ Longer schedules, such as one that fires at 9 AM every morning, adjust for DST a
 
 ### Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`.
+As the name suggests, an `Interval` schedule is best for deployments that need to run at a consistent cadence not strictly tied to absolute clock time (e.g., "every 10 minutes" or "every 3 hours"). It creates new flow runs on a regular interval, measured in seconds, which can be anchored to a specific `anchor_date`.
 
 ```yaml
 schedule:
@@ -127,11 +126,9 @@ This means that a daily schedule that always fires at 9 AM will observe DST and 
 
 ### RRule
 
-An `RRule` scheduling supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)
-(RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from
-yearly down to every minute.
+For complex scheduling needs that go beyond simple cron expressions or fixed intervals, `RRule` (Recurrence Rule) is the most powerful option. It's ideal for deployments that rely on calendar-based logic, such as "the last weekday of each month," "every other Tuesday," or schedules with specific exclusions.
 
-`RRule` uses the [dateutil rrule](https://dateutil.readthedocs.io/en/stable/rrule.html) module to specify iCal recurrence rules.
+`RRule` scheduling supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html), providing a rich syntax for defining a wide array of repetitive schedules, from yearly down to every minute.
 
 RRules are appropriate for any kind of calendar-date manipulation, including simple repetition, irregular intervals, exclusions,
 week day or day-of-month adjustments, and more. RRules can represent complex logic like:
@@ -213,3 +210,7 @@ If you change a schedule, previously scheduled flow runs that have not started a
 created to reflect the new schedule.
 
 To remove all scheduled runs for a flow deployment, you can remove the schedule.
+
+## Further reading
+
+- [How to create schedules](/v3/how-to-guides/automations/create-schedules/)
