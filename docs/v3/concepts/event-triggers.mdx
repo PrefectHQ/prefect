@@ -1,5 +1,6 @@
 ---
-title: Define custom event triggers
+title: Define event triggers
+sidebarTitle: Event triggers
 description: Define a custom trigger to react to many kinds of events and metrics.
 ---
 
@@ -21,18 +22,18 @@ import { events } from "/snippets/resource-management/vars.mdx"
 Event triggers are the most common type of trigger. They are intended to react to the presence or absence of an event.
 Event triggers are indicated with `{"type": "event"}`.
 
-![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](/v3/img/ui/automations-custom.png)
+![Viewing a custom trigger for automations in the UI](/v3/img/ui/automations-custom.png)
 
 This is the schema that defines an event trigger:
 
 | Name              | Type             | Supports trailing wildcards | Description                                                                                                                                                                                                                                                                                                                                          |
 | ----------------- | ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **match**         | object           | :material-check:            | Labels for resources which this Automation will match.                                                                                                                                                                                                                                                                                               |
-| **match_related** | object           | :material-check:            | Labels for related resources which this Automation will match.                                                                                                                                                                                                                                                                                       |
+| **match**         | object           | ✅            | Labels for resources which this Automation will match.                                                                                                                                                                                                                                                                                               |
+| **match_related** | object           | ✅            | Labels for related resources which this Automation will match.                                                                                                                                                                                                                                                                                       |
 | **posture**       | string enum      | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events.                                                                                                                                      |
-| **after**         | array of strings | :material-check:            | Event(s), one of which must have first been seen to start this automation.                                                                                                                                                                                                                                                                           |
-| **expect**        | array of strings | :material-check:            | The event(s) this automation expects to see. If empty, this automation will evaluate any matched event.                                                                                                                                                                                                                                         |
-| **for_each**      | array of strings | :material-close:            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
+| **after**         | array of strings | ✅            | Event(s), one of which must have first been seen to start this automation.                                                                                                                                                                                                                                                                           |
+| **expect**        | array of strings | ✅            | The event(s) this automation expects to see. If empty, this automation will evaluate any matched event.                                                                                                                                                                                                                                         |
+| **for_each**      | array of strings | ❌            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
 | **threshold**     | integer          | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations)                                                                                                                                                                                                |
 | **within**        | number           | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers.                                                                                                                                                                                     |
 
@@ -275,8 +276,8 @@ This is the schema of a metric trigger:
 
 | Name              | Type                 | Supports trailing wildcards | Description                                                    |
 | ----------------- | -------------------- | --------------------------- | -------------------------------------------------------------- |
-| **match**         | object               | :material-check:            | Labels for resources which this Automation will match.         |
-| **match_related** | object               | :material-check:            | Labels for related resources which this Automation will match. |
+| **match**         | object               | ✅            | Labels for resources which this Automation will match.         |
+| **match_related** | object               | ✅            | Labels for related resources which this Automation will match. |
 | **metric**        | `MetricTriggerQuery` | N/A                         | The definition of the metric query to run.                      |
 
 And the `MetricTriggerQuery` query is defined as:
