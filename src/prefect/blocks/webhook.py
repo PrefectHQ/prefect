@@ -83,4 +83,3 @@ class Webhook(Block):
                     headers=self.headers.get_secret_value(),
                     json=payload,
                 )
-
