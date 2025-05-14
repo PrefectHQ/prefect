@@ -149,6 +149,7 @@ class TestWebhook:
         assert insecure_webhook.headers.get_secret_value() == {"foo": "bar"}
 
     async def test_webhook_sends_string_payload(self, monkeypatch):
+        # Test for call method
         send_mock = AsyncMock()
         monkeypatch.setattr("httpx.AsyncClient.request", send_mock)
 
