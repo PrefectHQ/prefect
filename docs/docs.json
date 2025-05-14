@@ -145,7 +145,6 @@
                       "v3/manage/cloud/manage-users/secure-access-by-private-link"
                     ]
                   },
-                  "v3/manage/cloud/rate-limits",
                   "v3/manage/cloud/troubleshoot-cloud"
                 ]
               },
@@ -224,7 +223,8 @@
         "v3/concepts/events",
         "v3/concepts/automations",
         "v3/concepts/event-triggers",
-        "v3/concepts/webhooks"
+        "v3/concepts/webhooks",
+        "v3/concepts/rate-limits"
        ]
       },
       {
@@ -1515,6 +1515,10 @@
     {
       "source": "v3/manage/cloud/connect-to-cloud",
       "destination": "/v3/how-to-guides/cloud/connect-to-cloud"
+    },
+    {
+      "source": "v3/manage/cloud/rate-limits",
+      "destination": "/v3/concepts/rate-limits"
     },
     {
       "source": "/v3/automate/events/custom-triggers",
