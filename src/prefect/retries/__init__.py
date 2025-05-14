@@ -13,14 +13,13 @@ from typing import (
     Generic,
     Iterator,
     Protocol,
-    Self,
     Sequence,
     TypeVar,
     cast,
     overload,
 )
 
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Self
 
 
 from prefect.utilities.math import clamped_poisson_interval
