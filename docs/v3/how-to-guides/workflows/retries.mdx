@@ -60,9 +60,9 @@ def my_workflow():
     mercurial_task()
 ```
 
-### Retry with exponential backoff
+### Retry with configurable delay
 
-A task's retries delay can also be defined as a list of integers for different delays between retries.
+A task's retry delays can also be defined as a list of integers for different delays between retries.
 
 ```python
 from prefect import task
@@ -149,7 +149,7 @@ def some_task_with_exponential_backoff_retries():
     return "That's enough failure"
 ```
 
-Adding jitter to the retry delays avoids multiple tasks introducing load to external systems by failing and retrying at the same cadence.
+Adding jitter to the retry delays avoids multiple tasks introducing load to external systems by failing and retrying at the exact same cadence.
 
 ### Configure task retry behavior globally
 
