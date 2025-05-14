@@ -173,7 +173,7 @@ def parse_retry_delay_input(value: Any) -> Any:
 
 
 TaskRetryDelaySeconds = Annotated[
-    Union[int, float, list[float], None],
+    Union[str, int, float, list[float], None],
     BeforeValidator(parse_retry_delay_input),
 ]
 
