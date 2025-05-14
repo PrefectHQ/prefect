@@ -851,11 +851,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.task.retry_delay_seconds or 0.0,
                     jitter=self.task.retry_jitter_factor or 0.0,
                 ),
-                before_attempt=_update_ctx_start_time,
                 should_retry=self._should_retry,
-                before_wait=self._update_state_before_retry_wait,
-                after_wait=_set_state_after_retry_wait,
-                on_attempts_exhausted=_log_attempts_exhausted,
+                before_attempt=[_update_ctx_start_time],
+                before_wait=[self._update_state_before_retry_wait],
+                after_wait=[_set_state_after_retry_wait],
+                on_attempts_exhausted=[_log_attempts_exhausted],
             ):
                 with attempt:
                     result = call_with_parameters(self.task.fn, parameters)
