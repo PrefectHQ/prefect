@@ -1491,6 +1491,7 @@
       "source": "/v3/develop/write-tasks",
       "destination": "/v3/how-to-guides/workflows/write-and-run"
     },
+    {
       "source": "/v3/automate/events/automations-triggers",
       "destination": "/v3/concepts/automations"
     },
