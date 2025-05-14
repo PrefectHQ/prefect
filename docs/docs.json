@@ -119,7 +119,6 @@
             "pages": [
               "v3/automate/index",
               "v3/automate/add-schedules",
-              "v3/automate/events/custom-triggers",
               "v3/automate/events/slas"
             ]
           },
@@ -224,6 +223,7 @@
         "v3/concepts/flows-and-tasks",
         "v3/concepts/events",
         "v3/concepts/automations",
+        "v3/concepts/event-triggers",
         "v3/concepts/webhooks"
        ]
       },
@@ -1515,6 +1515,10 @@
     {
       "source": "v3/manage/cloud/connect-to-cloud",
       "destination": "/v3/how-to-guides/cloud/connect-to-cloud"
+    },
+    {
+      "source": "/v3/automate/events/custom-triggers",
+      "destination": "/v3/concepts/event-triggers"
     }
   ]
 }
