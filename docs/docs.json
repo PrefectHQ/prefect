@@ -115,13 +115,6 @@
             ]
           },
           {
-            "group": "Automate",
-            "pages": [
-              "v3/automate/index",
-              "v3/automate/add-schedules"
-            ]
-          },
-          {
             "group": "Operate",
             "pages": [
               "v3/manage/index",
@@ -193,6 +186,7 @@
           {
             "group": "Automations",
             "pages": [
+              "v3/how-to-guides/automations/create-schedules",
               "v3/how-to-guides/automations/creating-automations",
               "v3/how-to-guides/automations/creating-deployment-triggers",
               "v3/how-to-guides/automations/chaining-deployments-with-events",
@@ -223,7 +217,8 @@
         "v3/concepts/automations",
         "v3/concepts/event-triggers",
         "v3/concepts/webhooks",
-        "v3/concepts/rate-limits"
+        "v3/concepts/rate-limits",
+        "v3/concepts/schedules"
        ]
       },
       {
@@ -1526,6 +1521,10 @@
     {
       "source": "/v3/automate/events/slas",
       "destination": "/v3/concepts/slas"
+    },
+    {
+      "source": "/v3/automate/add-schedules",
+      "destination": "/v3/concepts/schedules"
     }
   ]
 }
