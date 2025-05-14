@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, Any, Optional, TypeVar, Union, cast
-from uuid import UUID
+from typing import Annotated, Any, Optional, TypeVar, Union
 from typing_extensions import Literal
 import orjson
 import pydantic
@@ -132,6 +131,52 @@ ClientRetryExtraCodes = Annotated[
     BeforeValidator(partial(validate_set_T_from_delim_string, type_=StatusCode)),
 ]
 
+
+def parse_retry_delay_input(value: Any) -> Any:
+    """
+    Parses various inputs (string, int, float, list) into a format suitable
+    for TaskRetryDelaySeconds (int, float, list[float], or None).
+    Handles comma-separated strings for lists of delays.
+    """
+    if isinstance(value, str):
+        stripped_value = value.strip()
+        if not stripped_value:
+            return None  # Treat empty or whitespace-only string as None
+
+        delim = ","
+        # Split and filter empty strings that result from multiple commas (e.g., "10,,20")
+        parts = [s.strip() for s in stripped_value.split(delim) if s.strip()]
+
+        if not parts:  # e.g., value was just "," or " , "
+            return None
+
+        def _parse_num_part(part_str: str) -> Union[float, int]:
+            try:
+                # Prefer float to align with list[float] in TaskRetryDelaySeconds
+                return TypeAdapter(float).validate_strings(part_str)
+            except pydantic.ValidationError:
+                try:
+                    return TypeAdapter(int).validate_strings(part_str)
+                except pydantic.ValidationError as e_int:
+                    raise ValueError(
+                        f"Invalid number format '{part_str}' for retry delay."
+                    ) from e_int
+
+        if len(parts) == 1:
+            return _parse_num_part(parts[0])
+        else:
+            return [_parse_num_part(p) for p in parts]
+
+    # For non-string inputs (int, float, list, None, etc.), pass them through.
+    # Pydantic will then validate them against Union[int, float, list[float], None].
+    return value
+
+
+TaskRetryDelaySeconds = Annotated[
+    Union[str, int, float, list[float], None],
+    BeforeValidator(parse_retry_delay_input),
+]
+
 LogLevel = Annotated[
     Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     BeforeValidator(lambda x: x.upper()),
@@ -173,4 +218,5 @@ __all__ = [
     "SecretDict",
     "StatusCode",
     "StrictVariableValue",
+    "TaskRetryDelaySeconds",
 ]
