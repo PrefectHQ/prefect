@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import time
 import uuid
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 
 def _time_ms() -> int:
@@ -12,9 +12,8 @@ def _time_ms() -> int:
 
 def uuid7(
     ms: Optional[int] = None,
-    as_type: Optional[str] = None,
     time_func: Callable[[], int] = _time_ms,
-) -> Union[uuid.UUID, str, int, bytes]:
+) -> uuid.UUID:
     """
     UUID v7, following the proposed extension to RFC4122 described in
     https://www.ietf.org/id/draft-peabody-dispatch-new-uuid-format-02.html.
@@ -92,23 +91,12 @@ def uuid7(
     else:
         ms = int(ms)  # Fail fast if not an int
 
-    rand_a = int.from_bytes(os.urandom(2))
-    rand_b = int.from_bytes(os.urandom(8))
+    rand_a = int.from_bytes(bytes=os.urandom(2), byteorder="big")
+    rand_b = int.from_bytes(bytes=os.urandom(8), byteorder="big")
     uuid_bytes = uuidfromvalues(ms, rand_a, rand_b)
 
-    uuid_int = int.from_bytes(uuid_bytes)
-    if as_type == "int":
-        return int.from_bytes(uuid_bytes)
-    elif as_type == "bin":
-        return bin(int.from_bytes(uuid_bytes))
-    elif as_type == "hex":
-        return f"{uuid_int:>032x}"
-    elif as_type == "bytes":
-        return uuid_int.to_bytes(16, "big")
-    elif as_type == "str":
-        return format_byte_array_as_uuid(uuid_bytes)
-    else:
-        return uuid.UUID(int=uuid_int)
+    uuid_int = int.from_bytes(bytes=uuid_bytes, byteorder="big")
+    return uuid.UUID(int=uuid_int)
 
 
 def uuidfromvalues(unix_ts_ms: int, rand_a: int, rand_b: int):

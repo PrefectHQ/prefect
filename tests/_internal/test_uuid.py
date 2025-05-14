@@ -10,7 +10,7 @@ def test_uuid7():
     # Note the sequence value increments by 1 between each of these uuid7(...) calls
     ms = time.time_ns() // 1_000_000
     out1 = str(uuid7(ms))
-    out2: str = uuid7(ms, as_type="str")  # type: ignore
+    out2 = str(uuid7(ms))
 
     assert out1[:13] == out2[:13]
 
