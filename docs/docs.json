@@ -131,7 +131,6 @@
                 "group": "Prefect Cloud",
                 "pages": [
                   "v3/manage/cloud/index",
-                  "v3/manage/cloud/workspaces",
                   {
                     "group": "Manage accounts",
                     "pages": [
@@ -208,7 +207,8 @@
           {
             "group": "Prefect Cloud",
             "pages": [
-              "v3/how-to-guides/cloud/connect-to-cloud"
+              "v3/how-to-guides/cloud/connect-to-cloud",
+              "v3/how-to-guides/cloud/workspaces"
             ]
           }
         ]
@@ -1106,7 +1106,11 @@
     },
     {
       "source": "/latest/cloud/workspaces",
-      "destination": "/v3/manage/cloud/workspaces"
+      "destination": "/v3/how-to-guides/cloud/workspaces"
+    },
+    {
+      "source": "/v3/manage/cloud/workspaces",
+      "destination": "/v3/how-to-guides/cloud/workspaces"
     },
     {
       "source": "/latest/integrations/prefect-aws/ecs_guide",
