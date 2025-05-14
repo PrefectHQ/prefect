@@ -118,8 +118,7 @@
             "group": "Automate",
             "pages": [
               "v3/automate/index",
-              "v3/automate/add-schedules",
-              "v3/automate/events/slas"
+              "v3/automate/add-schedules"
             ]
           },
           {
@@ -1523,6 +1522,10 @@
     {
       "source": "/v3/automate/events/custom-triggers",
       "destination": "/v3/concepts/event-triggers"
+    },
+    {
+      "source": "/v3/automate/events/slas",
+      "destination": "/v3/concepts/slas"
     }
   ]
 }
