@@ -588,6 +588,8 @@ class Retriable(Generic[P, R]):
             raise RuntimeError("Attempts exhausted")
 
     async def _async_call(self, *args: P.args, **kwargs: P.kwargs) -> R:
+        if TYPE_CHECKING:
+            assert inspect.iscoroutinefunction(self.__fn)
         async for attempt in AsyncRetryBlock(
             self.attempts,
             self.wait,
