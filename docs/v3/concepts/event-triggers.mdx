@@ -10,6 +10,8 @@ Each automation has a single trigger that, when fired, causes all of its associa
 trigger may be a reactive or proactive event trigger, a trigger monitoring the value of a metric, or a composite trigger
 that combines several underlying triggers.
 
+
+
 import { TF } from "/snippets/resource-management/terraform.mdx"
 import { API } from "/snippets/resource-management/api.mdx"
 import { events } from "/snippets/resource-management/vars.mdx"
@@ -36,6 +38,9 @@ This is the schema that defines an event trigger:
 | **for_each**      | array of strings | ❌            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
 | **threshold**     | integer          | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations)                                                                                                                                                                                                |
 | **within**        | number           | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers.                                                                                                                                                                                     |
+
+
+
 
 ### Resource matching
 
@@ -516,3 +521,17 @@ Sequence triggers are defined as:
 | ------------ | ----------------------- | ----------------------------------------------------------------------- |
 | **within**   | time, in seconds        | How close in time the child triggers must fire for this trigger to fire |
 | **triggers** | array of other triggers |                                                                         |
+
+### Support for event trigger types
+
+| Feature                                  | Prefect Open Source | Prefect Cloud |
+| ---------------------------------------- | ------------------- | ------------- |
+| Event Triggers                           | ✅                  | ✅            |
+| Composite Triggers (Compound & Sequence) | ✅                  | ✅            |
+| Metric Triggers                          | ❌                  | ✅            |
+
+
+### Further reading
+
+- [How to create automations](/v3/how-to-guides/automations/creating-automations/)
+- [How to create webhooks](/v3/how-to-guides/cloud/create-a-webhook/)
