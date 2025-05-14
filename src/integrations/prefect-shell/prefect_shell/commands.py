@@ -1,5 +1,7 @@
 """Tasks for interacting with shell commands"""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -7,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from contextlib import AsyncExitStack, contextmanager
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Generator, Optional
 
 import anyio
 from anyio.abc import Process
@@ -24,14 +26,14 @@ from prefect.utilities.processutils import open_process
 @task
 async def shell_run_command(
     command: str,
-    env: Optional[dict] = None,
-    helper_command: Optional[str] = None,
-    shell: Optional[str] = None,
-    extension: Optional[str] = None,
+    env: dict[str, str] | None = None,
+    helper_command: str | None = None,
+    shell: str | None = None,
+    extension: str | None = None,
     return_all: bool = False,
     stream_level: int = logging.INFO,
-    cwd: Union[str, bytes, os.PathLike, None] = None,
-) -> Union[List, str]:
+    cwd: str | bytes | os.PathLike[str] | None = None,
+) -> list[str] | str:
     """
     Runs arbitrary shell commands.
 
@@ -94,7 +96,7 @@ async def shell_run_command(
 
         shell_command = [shell, tmp.name]
 
-        lines = []
+        lines: list[str] = []
         async with await anyio.open_process(
             shell_command, env=current_env, cwd=cwd
         ) as process:
@@ -119,7 +121,7 @@ async def shell_run_command(
     return lines if return_all else line
 
 
-class ShellProcess(JobRun):
+class ShellProcess(JobRun[list[str]]):
     """
     A class representing a shell process.
     """
@@ -127,7 +129,7 @@ class ShellProcess(JobRun):
     def __init__(self, shell_operation: "ShellOperation", process: Process):
         self._shell_operation = shell_operation
         self._process = process
-        self._output = []
+        self._output: list[str] = []
 
     @property
     def pid(self) -> int:
@@ -140,7 +142,7 @@ class ShellProcess(JobRun):
         return self._process.pid
 
     @property
-    def return_code(self) -> Optional[int]:
+    def return_code(self) -> int | None:
         """
         The return code of the process.
 
@@ -149,7 +151,7 @@ class ShellProcess(JobRun):
         """
         return self._process.returncode
 
-    async def _capture_output(self, source):
+    async def _capture_output(self, source: Any):
         """
         Capture output from source.
         """
@@ -181,7 +183,7 @@ class ShellProcess(JobRun):
         )
 
     @sync_compatible
-    async def fetch_result(self) -> List[str]:
+    async def fetch_result(self) -> list[str]:
         """
         Retrieve the output of the shell operation.
 
@@ -193,7 +195,7 @@ class ShellProcess(JobRun):
         return self._output
 
 
-class ShellOperation(JobBlock):
+class ShellOperation(JobBlock[list[str]]):
     """
     A block representing a shell operation, containing multiple commands.
 
@@ -227,11 +229,11 @@ class ShellOperation(JobBlock):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/0b47a017e1b40381de770c17647c49cdf6388d1c-250x250.png"  # noqa: E501
     _documentation_url = "https://docs.prefect.io/integrations/prefect-shell"  # noqa
 
-    commands: List[str] = Field(
+    commands: list[str] = Field(
         default=..., description="A list of commands to execute sequentially."
     )
     stream_output: bool = Field(default=True, description="Whether to stream output.")
-    env: Dict[str, str] = Field(
+    env: dict[str, str] = Field(
         default_factory=dict,
         title="Environment Variables",
         description="Environment variables to use for the subprocess.",
@@ -264,12 +266,13 @@ class ShellOperation(JobBlock):
     )
 
     @contextmanager
-    def _prep_trigger_command(self) -> Generator[str, None, None]:
+    def _prep_trigger_command(self) -> Generator[list[str], None, None]:
         """
         Write the commands to a temporary file, handling all the details of
         creating the file and cleaning it up afterwards. Then, return the command
         to run the temporary file.
         """
+        temp_file = None
         try:
             extension = self.extension or (".ps1" if sys.platform == "win32" else ".sh")
             temp_file = tempfile.NamedTemporaryFile(
@@ -300,10 +303,10 @@ class ShellOperation(JobBlock):
             trigger_command = [shell, temp_file.name]
             yield trigger_command
         finally:
-            if os.path.exists(temp_file.name):
+            if temp_file is not None and os.path.exists(temp_file.name):
                 os.remove(temp_file.name)
 
-    def _compile_kwargs(self, **open_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _compile_kwargs(self, **open_kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Helper method to compile the kwargs for `open_process` so it's not repeated
         across the run and trigger methods.
@@ -322,7 +325,7 @@ class ShellOperation(JobBlock):
         return input_open_kwargs
 
     @sync_compatible
-    async def trigger(self, **open_kwargs: Dict[str, Any]) -> ShellProcess:
+    async def trigger(self, **open_kwargs: dict[str, Any]) -> ShellProcess:
         """
         Triggers a shell command and returns the shell command run object
         to track the execution of the run. This method is ideal for long-lasting
@@ -360,7 +363,7 @@ class ShellOperation(JobBlock):
         return ShellProcess(shell_operation=self, process=process)
 
     @sync_compatible
-    async def run(self, **open_kwargs: Dict[str, Any]) -> List[str]:
+    async def run(self, **open_kwargs: dict[str, Any]) -> list[str]:
         """
         Runs a shell command, but unlike the trigger method,
         additionally waits and fetches the result directly, automatically managing
@@ -417,7 +420,7 @@ class ShellOperation(JobBlock):
         """
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any):
         """
         Asynchronous version of the exit method.
         """
@@ -429,7 +432,7 @@ class ShellOperation(JobBlock):
         """
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info: Any):
         """
         Exit the context of the job block.
         """

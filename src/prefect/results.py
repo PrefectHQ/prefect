@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import os
 import socket
 import threading
 import uuid
+from datetime import datetime
 from functools import partial
 from operator import methodcaller
 from pathlib import Path
@@ -34,6 +34,8 @@ from typing_extensions import ParamSpec, Self
 import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.blocks import call_explicitly_async_block_method
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
@@ -285,29 +287,6 @@ def _format_user_supplied_storage_key(key: str) -> str:
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
-async def _call_explicitly_async_block_method(
-    block: WritableFileSystem | NullFileSystem,
-    method: str,
-    args: tuple[Any, ...],
-    kwargs: dict[str, Any],
-) -> Any:
-    """
-    TODO: remove this once we have explicit async methods on all storage blocks
-
-    see https://github.com/PrefectHQ/prefect/issues/15008
-    """
-    if hasattr(block, f"a{method}"):  # explicit async method
-        return await getattr(block, f"a{method}")(*args, **kwargs)
-    elif hasattr(getattr(block, method, None), "aio"):  # sync_compatible
-        return await getattr(block, method).aio(block, *args, **kwargs)
-    else:  # should not happen in prefect, but users can override impls
-        maybe_coro = getattr(block, method)(*args, **kwargs)
-        if inspect.isawaitable(maybe_coro):
-            return await maybe_coro
-        else:
-            return maybe_coro
-
-
 T = TypeVar("T")
 
 
@@ -505,7 +484,7 @@ class ResultStore(BaseModel):
             # TODO: Add an `exists` method to commonly used storage blocks
             # so the entire payload doesn't need to be read
             try:
-                metadata_content = await _call_explicitly_async_block_method(
+                metadata_content = await call_explicitly_async_block_method(
                     self.metadata_storage, "read_path", (key,), {}
                 )
                 if metadata_content is None:
@@ -516,7 +495,7 @@ class ResultStore(BaseModel):
                 return False
         else:
             try:
-                content = await _call_explicitly_async_block_method(
+                content = await call_explicitly_async_block_method(
                     self.result_storage, "read_path", (key,), {}
                 )
                 if content is None:
@@ -601,7 +580,7 @@ class ResultStore(BaseModel):
             self.result_storage = await aget_default_result_storage()
 
         if self.metadata_storage is not None:
-            metadata_content = await _call_explicitly_async_block_method(
+            metadata_content = await call_explicitly_async_block_method(
                 self.metadata_storage,
                 "read_path",
                 (key,),
@@ -611,7 +590,7 @@ class ResultStore(BaseModel):
             assert metadata.storage_key is not None, (
                 "Did not find storage key in metadata"
             )
-            result_content = await _call_explicitly_async_block_method(
+            result_content = await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (metadata.storage_key,),
@@ -624,7 +603,7 @@ class ResultStore(BaseModel):
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
-            content = await _call_explicitly_async_block_method(
+            content = await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (key,),
@@ -806,13 +785,13 @@ class ResultStore(BaseModel):
 
         # If metadata storage is configured, write result and metadata separately
         if self.metadata_storage is not None:
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
                 {"content": result_record.serialize_result()},
             )
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.metadata_storage,
                 "write_path",
                 (base_key,),
@@ -821,7 +800,7 @@ class ResultStore(BaseModel):
             await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
-            await _call_explicitly_async_block_method(
+            await call_explicitly_async_block_method(
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
@@ -998,6 +977,11 @@ class ResultStore(BaseModel):
 
     # TODO: These two methods need to find a new home
 
+    @deprecated_callable(
+        start_date=datetime(2025, 5, 10),
+        end_date=datetime(2025, 11, 10),
+        help="Use `store_parameters` from `prefect.task_worker` instead.",
+    )
     @sync_compatible
     async def store_parameters(self, identifier: UUID, parameters: dict[str, Any]):
         record = ResultRecord(
@@ -1007,21 +991,26 @@ class ResultStore(BaseModel):
             ),
         )
 
-        await _call_explicitly_async_block_method(
+        await call_explicitly_async_block_method(
             self.result_storage,
             "write_path",
             (f"parameters/{identifier}",),
             {"content": record.serialize()},
         )
 
+    @deprecated_callable(
+        start_date=datetime(2025, 5, 10),
+        end_date=datetime(2025, 11, 10),
+        help="Use `read_parameters` from `prefect.task_worker` instead.",
+    )
     @sync_compatible
     async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
         if self.result_storage is None:
             raise ValueError(
                 "Result store is not configured - must have a result storage block to read parameters"
             )
-        record: ResultRecord[Any] = ResultRecord.deserialize(
-            await _call_explicitly_async_block_method(
+        record: ResultRecord[Any] = ResultRecord[Any].deserialize(
+            await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (f"parameters/{identifier}",),
