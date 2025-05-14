@@ -564,6 +564,9 @@ See all possible options in the [Python SDK docs](https://reference.prefect.io/p
 For example, provide optional `name` and `description` arguments to a task:
 
 ```python 
+from prefect import task
+
+
 @task(name="hello-task", description="This task says hello.")
 def my_task():
     print("Hello, I'm a task")
@@ -633,6 +636,9 @@ Tags are useful to:
 You may specify tags as a keyword argument on the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.task).
 
 ```python 
+from prefect import task
+
+
 @task(name="hello-task", tags=["test"])
 def my_task():
     print("Hello, I'm a task")

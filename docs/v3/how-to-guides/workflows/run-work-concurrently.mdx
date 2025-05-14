@@ -42,7 +42,7 @@ import time
 
 from prefect import flow, task
 from prefect.futures import wait
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def stop_at_floor(floor: int):
@@ -164,6 +164,8 @@ If you have tasks are defined as async functions, you can use `asyncio` from the
 
 ```python
 import asyncio
+
+from prefect import flow, task
 
 @task
 async def stop_at_floor(floor: int):

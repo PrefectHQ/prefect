@@ -65,7 +65,7 @@ def my_workflow():
 Tasks retries delays can also be defined as a list of integers for different delays between retries.
 
 ```python
-from prefect import 
+from prefect import task
 
 
 @task(retries=4, retry_delay_seconds=[1, 2, 4, 8])
