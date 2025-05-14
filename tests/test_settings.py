@@ -40,6 +40,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_DATABASE_CONNECTION_URL,
     PREFECT_SERVER_LOGGING_LEVEL,
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
     PREFECT_UI_API_URL,
@@ -971,6 +972,22 @@ class TestSettingAccess:
         with pytest.raises(ValueError):
             with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
+
+    def test_default_task_retry_delay_seconds(self):
+        sample_values_and_expected = (
+            (None, None),
+            ("", None),
+            ("10", 10.0),
+            ("10,20,30", [10.0, 20.0, 30.0]),
+            ("10.0", 10.0),
+            (10, 10.0),
+            ([10, 20, 30], [10.0, 20.0, 30.0]),
+        )
+        for retry_delay_plaintext_value, expected in sample_values_and_expected:
+            with temporary_settings(
+                {PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: retry_delay_plaintext_value}
+            ):
+                assert PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value() == expected
 
     def test_deprecated_ENV_VAR_attribute_access(self):
         settings = Settings()
