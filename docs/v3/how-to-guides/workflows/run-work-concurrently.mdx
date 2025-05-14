@@ -1,0 +1,184 @@
+---
+title: How to run work concurrently
+sidebarTitle: Run work concurrently
+---
+
+## Using `.submit`
+
+Tasks in your workflows can be run concurrently using the `.submit()` method. 
+
+```python
+import time
+
+from prefect import flow, task
+from prefect.futures import wait
+
+@task
+def stop_at_floor(floor: int):
+    print(f"elevator moving to floor {floor}")
+    time.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+@flow
+def elevator():
+    floors = []
+    for floor in range(10, 0, -1):
+        floors.append(stop_at_floor.submit(floor))
+    wait(floors)
+```
+
+By default, tasks are submitted via the `ThreadPoolTaskRunner`, which runs tasks concurrently in a thread pool.
+
+### Using a different task runner
+
+To run tasks concurrently with a different task runner, you can pass a `task_runner` argument to the `@flow` decorator.
+
+<Note>
+To run this example, you'll need to install the `prefect[dask]` extra
+</Note>
+
+```python
+import time
+
+from prefect import flow, task
+from prefect.futures import wait
+from prefect_dask.task_runners import DaskTaskRunner
+
+@task
+def stop_at_floor(floor: int):
+    print(f"elevator moving to floor {floor}")
+    time.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+@flow(task_runner=DaskTaskRunner())
+def elevator():
+    floors = []
+    for floor in range(10, 0, -1):
+        floors.append(stop_at_floor.submit(floor))
+    wait(floors)
+```
+
+### Handling futures
+
+When you submit a task, you'll receive a `PrefectFuture` object back which you can use to track the task's execution. Use the `.result()` method to get the result of the task.
+
+```python
+from prefect import task, flow
+
+@task
+def cool_task():
+    return "sup"
+    
+@flow
+def my_workflow():
+    future = cool_task.submit()
+    result = future.result()
+    print(result)
+```
+
+If you don't need to the result of the task, you can use the `.wait()` method to wait for execution to complete.
+
+```python
+from prefect import task, flow
+
+@task
+def cool_task():
+    return "sup"
+    
+@flow
+def my_workflow():
+    future = cool_task.submit()
+    future.wait()
+```
+
+To wait for multiple futures to complete, use the `wait()` utility.
+
+```python
+from prefect import task, flow
+from prefect.futures import wait
+
+
+@task
+def cool_task():
+    return "sup"
+    
+    
+@flow
+def my_workflow():
+    futures = [cool_task.submit() for _ in range(10)]
+    wait(futures)
+```
+
+<Tip>
+**Passing futures between tasks**
+
+If you pass `PrefectFuture` objects between tasks or flows, the task or flow receiving the future will wait for the future to complete before starting execution.
+
+```python
+from prefect import task, flow
+
+@task
+def cool_task():
+    return "sup"
+
+
+@task
+def what_did_cool_task_say(what_it_said: str):
+    return f"cool task said {what_it_said}"
+
+@flow
+def my_workflow():
+    future = cool_task.submit()
+    print(what_did_cool_task_say(future))
+```
+</Tip>
+
+## Using `.map`
+
+For a convenient way to iteratively submit tasks, use the `.map()` method.
+
+```python
+import time
+
+from prefect import flow, task
+from prefect.futures import wait
+
+@task
+def stop_at_floor(floor: int):
+    print(f"elevator moving to floor {floor}")
+    time.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+@flow
+def elevator():
+    floors = list(range(10, 0, -1))
+    floors = stop_at_floor.map(floors)
+    wait(floors)
+```
+
+Like `.submit`, `.map` uses the task runner configured on the parent flow. Changing the task runner will change where mapped tasks are executed.
+
+## Using `asyncio`
+
+If you have tasks are defined as async functions, you can use `asyncio` from the Python standard library to run them concurrently.
+
+```python
+import asyncio
+
+from prefect import flow, task
+
+@task
+async def stop_at_floor(floor: int):
+    print(f"elevator moving to floor {floor}")
+    await asyncio.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+@flow
+async def elevator():
+    floors = list(range(10, 0, -1))
+    await asyncio.gather(*[stop_at_floor(floor) for floor in floors])
+
+
+if __name__ == "__main__":
+    asyncio.run(elevator())
+```

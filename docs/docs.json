@@ -28,7 +28,6 @@
               {
                 "group": "Write and run workflows",
                 "pages": [
-                  "v3/develop/write-tasks",
                   "v3/develop/deferred-tasks",
                   "v3/develop/visualize-flow-structure",
                   "v3/develop/big-data",
@@ -191,6 +190,7 @@
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/access-runtime-info",
+              "v3/how-to-guides/workflows/run-work-concurrently",
               "v3/how-to-guides/workflows/form-building"
 
             ]
@@ -216,7 +216,7 @@
        "tab": "Concepts",
        "pages": [
         "v3/concepts/index",
-        "v3/concepts/flows",
+        "v3/concepts/flows-and-tasks",
         "v3/concepts/events",
         "v3/concepts/automations",
         "v3/concepts/webhooks"
@@ -1488,6 +1488,9 @@
       "destination": "/v3/how-to-guides/workflows/write-and-run"
     },
     {
+      "source": "/v3/develop/write-tasks",
+      "destination": "/v3/how-to-guides/workflows/write-and-run"
+    },
       "source": "/v3/automate/events/automations-triggers",
       "destination": "/v3/concepts/automations"
     },
