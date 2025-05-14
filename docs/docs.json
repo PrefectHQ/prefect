@@ -223,8 +223,7 @@
         "v3/concepts/events",
         "v3/concepts/automations",
         "v3/concepts/event-triggers",
-        "v3/concepts/webhooks",
-        "v3/concepts/slas"
+        "v3/concepts/webhooks"
        ]
       },
       {
