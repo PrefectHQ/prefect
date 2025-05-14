@@ -50,6 +50,18 @@ R = TypeVar("R")
 def exponential_backoff(
     base: float = 0.0, max_wait: float = 10.0, jitter: float = 0.0
 ) -> WaitCalculator:
+    """
+    A function that returns a wait calculator that produces exponentially increasing wait times.
+
+    Args:
+        base: The base wait time.
+        max_wait: The maximum wait time.
+        jitter: The jitter to apply to the wait time.
+
+    Returns:
+        A wait calculator that returns a wait time in seconds based on the attempt number.
+    """
+
     def wait(attempt: int) -> float:
         average_interval = min(base * (2**attempt), max_wait)
         if jitter > 0:
@@ -63,6 +75,17 @@ def exponential_backoff(
 def wait_with_jitter(
     wait: int | float | WaitSequence, jitter: float = 0.0
 ) -> WaitCalculator:
+    """
+    A function that returns a wait calculator that applies jitter to the provided wait time.
+
+    Args:
+        wait: The wait time to apply jitter to.
+        jitter: The jitter to apply to the wait time.
+
+    Returns:
+        A wait calculator that returns a wait time in seconds based on the attempt number.
+    """
+
     def wait_calculator(attempt: int) -> float:
         nonlocal wait
         if isinstance(wait, Sequence):
@@ -90,6 +113,39 @@ async def NO_OP_ASYNC_CALLBACK(*args: Any, **kwargs: Any) -> None:
 
 
 class RetryBlock(Generic[P, R]):
+    """
+    A generator that can be used to retry a block of code.
+
+    Args:
+        attempts: The number of attempts to retry the block of code.
+        wait: The wait time between attempts.
+        should_retry: A function that determines whether the block of code should
+            be retried.
+        before_attempt: A function that is called before an attempt is made.
+        on_success: A function that is called when an attempt is successful.
+        on_failure: A function that is called when an attempt fails.
+        before_wait: A function that is called before a wait is made between attempts.
+        after_wait: A function that is called after a wait is made between attempts.
+        on_attempts_exhausted: A function that is called when all attempts have been
+            made and the block of code has not been successful.
+
+    Yields:
+        An attempt context that captures and handles exceptions for the wrapped
+            code block.
+
+    Example:
+        ```python
+        from prefect.retries import RetryBlock
+
+        for attempt in RetryBlock(attempts=3):
+            with attempt:
+                if attempt.attempt < 2:
+                    raise Exception("This is a test exception")
+                else:
+                    print("Success!")
+        ```
+    """
+
     def __init__(
         self,
         attempts: int = 3,
@@ -117,31 +173,30 @@ class RetryBlock(Generic[P, R]):
         self._attempt_iter = iter(range(attempts + 1))
         self._last_exception: Exception | None = None
 
-    def _handle_success(self, attempt: Attempt) -> None:
+    def _handle_success(self, attempt: AttemptContext) -> None:
         for callback in self.on_success:
-            if inspect.iscoroutinefunction(callback):
-                callback(attempt.attempt, self.attempts)
+            callback(attempt.attempt, self.attempts)
         self._last_exception = None
 
     def _handle_exception(
         self,
-        attempt: Attempt,
+        attempt: AttemptContext,
         exc_value: Exception,
     ) -> None:
         self._last_exception = exc_value
         for callback in self.on_failure:
             callback(exc_value, attempt.attempt, self.attempts)
 
-    def __iter__(self) -> Iterator[Attempt]:
+    def __iter__(self) -> Iterator[AttemptContext]:
         return self
 
-    def __next__(self) -> Attempt:
+    def __next__(self) -> AttemptContext:
         attempt = next(self._attempt_iter)
 
         if attempt == 0:
             for callback in self.before_attempt:
                 callback(attempt, self.attempts)
-            return Attempt(
+            return AttemptContext(
                 attempt=attempt,
                 on_success=self._handle_success,
                 on_exception=self._handle_exception,
@@ -177,7 +232,7 @@ class RetryBlock(Generic[P, R]):
 
             for callback in self.before_attempt:
                 callback(attempt, self.attempts)
-            return Attempt(
+            return AttemptContext(
                 attempt=attempt,
                 on_success=self._handle_success,
                 on_exception=self._handle_exception,
@@ -190,20 +245,37 @@ class RetryBlock(Generic[P, R]):
             raise StopIteration
 
 
-class AttemptOnSuccessCallback(Protocol):
-    def __call__(self, attempt: Attempt) -> None: ...
+class AttemptContextOnSuccessCallback(Protocol):
+    """
+    A function provided to an `AttemptContext` that is called when an attempt is successful.
+    """
+
+    def __call__(self, attempt: AttemptContext) -> None: ...
 
 
-class AttemptOnExceptionCallback(Protocol):
-    def __call__(self, attempt: Attempt, exc_value: Exception) -> None: ...
+class AttemptContextOnExceptionCallback(Protocol):
+    """
+    A function provided to an `AttemptContext` that is called when an attempt fails.
+    """
+
+    def __call__(self, attempt: AttemptContext, exc_value: Exception) -> None: ...
 
 
-class Attempt:
+class AttemptContext:
+    """
+    A context manager that captures and handles exceptions for a block of code.
+
+    Args:
+        attempt: The attempt number.
+        on_success: A function that is called when an attempt is successful.
+        on_exception: A function that is called when an attempt fails.
+    """
+
     def __init__(
         self,
         attempt: int,
-        on_success: AttemptOnSuccessCallback = NO_OP_CALLBACK,
-        on_exception: AttemptOnExceptionCallback = NO_OP_CALLBACK,
+        on_success: AttemptContextOnSuccessCallback = NO_OP_CALLBACK,
+        on_exception: AttemptContextOnExceptionCallback = NO_OP_CALLBACK,
     ):
         self.attempt = attempt
         self.on_success = on_success
@@ -227,6 +299,39 @@ class Attempt:
 
 
 class AsyncRetryBlock(Generic[P, R]):
+    """
+    A generator that can be used to retry a block of code.
+
+    Args:
+        attempts: The number of attempts to retry the block of code.
+        wait: The wait time between attempts.
+        should_retry: A function that determines whether the block of code should
+            be retried.
+        before_attempt: A function that is called before an attempt is made.
+        on_success: A function that is called when an attempt is successful.
+        on_failure: A function that is called when an attempt fails.
+        before_wait: A function that is called before a wait is made between attempts.
+        after_wait: A function that is called after a wait is made between attempts.
+        on_attempts_exhausted: A function that is called when all attempts have been
+            made and the block of code has not been successful.
+
+    Yields:
+        An attempt context that captures and handles exceptions for the wrapped
+            code block.
+
+    Example:
+        ```python
+        from prefect.retries import AsyncRetryBlock
+
+        async for attempt in AsyncRetryBlock(attempts=3):
+            with attempt:
+                if attempt.attempt < 2:
+                    raise Exception("This is a test exception")
+                else:
+                    print("Success!")
+        ```
+    """
+
     def __init__(
         self,
         attempts: int = 3,
@@ -254,7 +359,7 @@ class AsyncRetryBlock(Generic[P, R]):
         self.on_attempts_exhausted = on_attempts_exhausted
         self._attempt_iter = iter(range(attempts + 1))
 
-    async def _handle_success(self, attempt: AsyncAttempt) -> None:
+    async def _handle_success(self, attempt: AsyncAttemptContext) -> None:
         self._last_exception = None
         for callback in self.on_success:
             if inspect.iscoroutinefunction(callback):
@@ -264,7 +369,7 @@ class AsyncRetryBlock(Generic[P, R]):
 
     async def _handle_exception(
         self,
-        attempt: AsyncAttempt,
+        attempt: AsyncAttemptContext,
         exc_value: Exception,
     ) -> None:
         self._last_exception = exc_value
@@ -274,14 +379,11 @@ class AsyncRetryBlock(Generic[P, R]):
             else:
                 callback(exc_value, attempt.attempt, self.attempts)
 
-    def __aiter__(self) -> AsyncIterator[AsyncAttempt]:
+    def __aiter__(self) -> AsyncIterator[AsyncAttemptContext]:
         return self
 
-    async def __anext__(self) -> AsyncAttempt:
-        try:
-            attempt = next(self._attempt_iter)
-        except StopIteration:
-            raise StopAsyncIteration
+    async def __anext__(self) -> AsyncAttemptContext:
+        attempt = next(self._attempt_iter)
 
         if attempt == 0:
             for callback in self.before_attempt:
@@ -290,7 +392,7 @@ class AsyncRetryBlock(Generic[P, R]):
                 else:
                     callback(attempt, self.attempts)
 
-            return AsyncAttempt(
+            return AsyncAttemptContext(
                 attempt=attempt,
                 on_success=self._handle_success,
                 on_exception=self._handle_exception,
@@ -359,7 +461,7 @@ class AsyncRetryBlock(Generic[P, R]):
                         await callback(attempt, self.attempts)
                     else:
                         callback(attempt, self.attempts)
-            return AsyncAttempt(
+            return AsyncAttemptContext(
                 attempt=attempt,
                 on_success=self._handle_success,
                 on_exception=self._handle_exception,
@@ -381,14 +483,33 @@ class AsyncRetryBlock(Generic[P, R]):
 
 
 class AsyncAttemptOnSuccessCallback(Protocol):
-    async def __call__(self, attempt: AsyncAttempt) -> None: ...
+    """
+    A function provided to an `AsyncAttemptContext` that is called when an attempt is successful.
+    """
+
+    async def __call__(self, attempt: AsyncAttemptContext) -> None: ...
 
 
 class AsyncAttemptOnExceptionCallback(Protocol):
-    async def __call__(self, attempt: AsyncAttempt, exc_value: Exception) -> None: ...
+    """
+    A function provided to an `AsyncAttemptContext` that is called when an attempt fails.
+    """
+
+    async def __call__(
+        self, attempt: AsyncAttemptContext, exc_value: Exception
+    ) -> None: ...
 
 
-class AsyncAttempt:
+class AsyncAttemptContext:
+    """
+    A context manager that captures and handles exceptions for a block of code.
+
+    Args:
+        attempt: The attempt number.
+        on_success: A function that is called when an attempt is successful.
+        on_exception: A function that is called when an attempt fails.
+    """
+
     def __init__(
         self,
         attempt: int,
@@ -417,6 +538,14 @@ class AsyncAttempt:
 
 
 class Retriable(Generic[P, R]):
+    """
+    A callable that will attempt to run without an exception for a specified
+    number of attempts.
+
+    You can easily create a Retriable instance by decorating a function with
+        the `@retry` decorator.
+    """
+
     def __init__(
         self,
         __fn: Callable[P, R],
@@ -476,26 +605,123 @@ class Retriable(Generic[P, R]):
         raise RuntimeError("Attempts exhausted")
 
     def before_attempt(self, fn: BeforeAttemptCallback):
+        """
+        Register a function to be called before an attempt is made.
+
+        Example:
+            ```python
+            from prefect.retries import retry
+
+            @retry(attempts=3)
+            def my_function(x: int) -> int:
+                return x + 1
+
+            @my_function.before_attempt
+            def before_attempt(attempt: int, attempts: int):
+                print(f"Attempt {attempt} of {attempts}")
+            ```
+        """
         self.before_attempt_callbacks.append(fn)
         return self
 
     def on_success(self, fn: OnSuccessCallback):
+        """
+        Register a function to be called when an attempt is successful.
+
+        Example:
+            ```python
+            from prefect.retries import retry
+
+            @retry(attempts=3)
+            def my_function(x: int) -> int:
+                return x + 1
+
+            @my_function.on_success
+            def on_success(attempt: int, attempts: int):
+                print(f"Attempt {attempt} of {attempts} successful")
+            ```
+        """
         self.on_success_callbacks.append(fn)
         return self
 
     def on_failure(self, fn: OnFailureCallback):
+        """
+        Register a function to be called when an attempt fails.
+
+        Example:
+            ```python
+            from prefect.retries import retry
+
+            @retry(attempts=3)
+            def my_function(x: int) -> int:
+                raise Exception("This is a test exception")
+
+            @my_function.on_failure
+            def on_failure(exc: Exception, attempt: int, attempts: int):
+                print(f"Attempt {attempt} of {attempts} failed with exception {exc}")
+            ```
+        """
         self.on_failure_callbacks.append(fn)
         return self
 
     def before_wait(self, fn: BeforeWaitCallback):
+        """
+        Register a function to be called before a wait is made between attempts.
+
+        Example:
+            ```python
+            from prefect.retries import retry
+
+            @retry(attempts=3)
+            def my_function(x: int) -> int:
+                raise Exception("This is a test exception")
+
+            @my_function.before_wait
+            def before_wait(exc: Exception, attempt: int, attempts: int, wait_time: float):
+                print(f"Waiting {wait_time} seconds before attempt {attempt} of {attempts}")
+            ```
+        """
         self.before_wait_callbacks.append(fn)
         return self
 
     def after_wait(self, fn: AfterWaitCallback):
+        """
+        Register a function to be called after a wait is made between attempts.
+
+        Example:
+            ```python
+            from prefect.retries import retry
+
+            @retry(attempts=3)
+            def my_function(x: int) -> int:
+                raise Exception("This is a test exception")
+
+            @my_function.after_wait
+            def after_wait(exc: Exception, attempt: int, attempts: int, wait_time: float):
+                print(f"Waited {wait_time} seconds after attempt {attempt} of {attempts}")
+            ```
+        """
         self.after_wait_callbacks.append(fn)
         return self
 
     def on_attempts_exhausted(self, fn: OnAttemptsExhaustedCallback):
+        """
+        Register a function to be called when all attempts have been made and the function
+            has not been successful.
+
+        Example:
+            ```python
+            from prefect.retries import retry
+
+            @retry(attempts=3)
+            def my_function(x: int) -> int:
+                raise Exception("This is a test exception")
+
+            @my_function.on_attempts_exhausted
+            def on_attempts_exhausted(exc: Exception, attempt: int, attempts: int, wait_time: float):
+                print(f"All attempts exhausted with exception {exc}")
+            ```
+        """
         self.on_attempts_exhausted_callbacks.append(fn)
         return self
 
@@ -523,6 +749,27 @@ def retry(
     wait: "float | WaitCalculator | WaitSequence" = 0.0,
     should_retry: "ShouldRetryCallback | bool" = True,
 ):
+    """
+    A decorator that will retry the wrapped function when it raises an exception.
+
+    Example:
+        ```python
+        from prefect.retries import retry
+
+        attempts = 0
+
+        @retry(attempts=3)
+        def my_function(x: int) -> int:
+            global attempts
+            attempts += 1
+            if attempts < 3:
+                raise Exception("This is a test exception")
+            else:
+                return x + 1
+
+        my_function(1)
+        ```
+    """
     if __fn is None:
         return cast(
             Callable[[Callable[P, R]], Retriable[P, R]],

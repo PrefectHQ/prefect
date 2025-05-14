@@ -146,7 +146,7 @@ class TestSync:
                 failing_function()
             assert attempts == [0, 1, 2]
 
-        def test_after_failure_callback(self):
+        def test_on_failure_callback(self):
             failures: list[tuple[int, str]] = []
 
             @retry(attempts=3)
@@ -154,7 +154,7 @@ class TestSync:
                 raise ValueError("Test failure")
 
             @failing_function.on_failure
-            def after_failure(exc: Exception, attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+            def on_failure(exc: Exception, attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
                 failures.append((attempt, str(exc)))
 
             with pytest.raises(ValueError):
@@ -162,6 +162,74 @@ class TestSync:
             assert len(failures) == 3
             assert all(attempt == i for i, (attempt, _) in enumerate(failures))
             assert all("Test failure" in msg for _, msg in failures)
+
+        def test_on_success_callback(self):
+            successes: list[tuple[int, int]] = []
+
+            @retry(attempts=3)
+            def successful_function():
+                return "success"
+
+            @successful_function.on_success
+            def on_success(attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+                successes.append((attempt, max_attempts))
+
+            successful_function()
+            assert successes == [(0, 3)]
+
+        @pytest.mark.usefixtures("mock_sleep")
+        def test_before_wait_callback(self):
+            wait_times: list[float] = []
+
+            @retry(attempts=3, wait=1.0)
+            def function_with_before_wait_callback():
+                if len(wait_times) < 2:
+                    raise ValueError("Temporary failure")
+                return "success"
+
+            @function_with_before_wait_callback.before_wait
+            def before_wait(  # pyright: ignore[reportUnusedFunction]
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ) -> None:
+                wait_times.append(wait_time)
+
+            function_with_before_wait_callback()
+            assert wait_times == [1.0, 1.0]
+
+        def test_after_wait_callback(self, mock_sleep: MagicMock):
+            wait_times: list[float] = []
+
+            @retry(attempts=3, wait=1.0)
+            def function_with_after_wait_callback():
+                if len(wait_times) < 2:
+                    raise ValueError("Temporary failure")
+                return "success"
+
+            @function_with_after_wait_callback.after_wait
+            def after_wait(
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ) -> None:  # pyright: ignore[reportUnusedFunction]
+                wait_times.append(wait_time)
+
+            function_with_after_wait_callback()
+            assert wait_times == [1.0, 1.0]
+
+        def test_on_attempts_exhausted_callback(self):
+            attempts: list[int] = []
+
+            @retry(attempts=3)
+            def function_with_on_attempts_exhausted_callback():
+                raise ValueError("Permanent failure")
+
+            @function_with_on_attempts_exhausted_callback.on_attempts_exhausted
+            def on_attempts_exhausted(  # pyright: ignore[reportUnusedFunction]
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ) -> None:
+                attempts.append(attempt)
+
+            with pytest.raises(ValueError):
+                function_with_on_attempts_exhausted_callback()
+            assert attempts == [3]
 
     class TestRetryBlock:
         def test_retriable_block_success(self):
@@ -362,7 +430,7 @@ class TestAsync:
                 await failing_function()
             assert attempts == [0, 1, 2]
 
-        async def test_after_failure_callback(self):
+        async def test_on_failure_callback(self):
             failures: list[tuple[int, str]] = []
 
             @retry(attempts=3)
@@ -370,7 +438,7 @@ class TestAsync:
                 raise ValueError("Test failure")
 
             @failing_function.on_failure
-            def after_failure(exc: Exception, attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+            def on_failure(exc: Exception, attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
                 failures.append((attempt, str(exc)))
 
             with pytest.raises(ValueError):
@@ -378,6 +446,74 @@ class TestAsync:
             assert len(failures) == 3
             assert all(attempt == i for i, (attempt, _) in enumerate(failures))
             assert all("Test failure" in msg for _, msg in failures)
+
+        async def test_on_success_callback(self):
+            successes: list[tuple[int, int]] = []
+
+            @retry(attempts=3)
+            async def successful_function():
+                return "success"
+
+            @successful_function.on_success
+            def on_success(attempt: int, max_attempts: int) -> None:  # pyright: ignore[reportUnusedFunction]
+                successes.append((attempt, max_attempts))
+
+            await successful_function()
+            assert successes == [(0, 3)]
+
+        @pytest.mark.usefixtures("mock_sleep")
+        def test_before_wait_callback(self):
+            wait_times: list[float] = []
+
+            @retry(attempts=3, wait=1.0)
+            def function_with_before_wait_callback():
+                if len(wait_times) < 2:
+                    raise ValueError("Temporary failure")
+                return "success"
+
+            @function_with_before_wait_callback.before_wait
+            def before_wait(  # pyright: ignore[reportUnusedFunction]
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ) -> None:
+                wait_times.append(wait_time)
+
+            function_with_before_wait_callback()
+            assert wait_times == [1.0, 1.0]
+
+        def test_after_wait_callback(self, mock_sleep: MagicMock):
+            wait_times: list[float] = []
+
+            @retry(attempts=3, wait=1.0)
+            def function_with_after_wait_callback():
+                if len(wait_times) < 2:
+                    raise ValueError("Temporary failure")
+                return "success"
+
+            @function_with_after_wait_callback.after_wait
+            def after_wait(
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ) -> None:  # pyright: ignore[reportUnusedFunction]
+                wait_times.append(wait_time)
+
+            function_with_after_wait_callback()
+            assert wait_times == [1.0, 1.0]
+
+        def test_on_attempts_exhausted_callback(self):
+            attempts: list[int] = []
+
+            @retry(attempts=3)
+            def function_with_on_attempts_exhausted_callback():
+                raise ValueError("Permanent failure")
+
+            @function_with_on_attempts_exhausted_callback.on_attempts_exhausted
+            def on_attempts_exhausted(  # pyright: ignore[reportUnusedFunction]
+                exc: Exception, attempt: int, max_attempts: int, wait_time: float
+            ) -> None:
+                attempts.append(attempt)
+
+            with pytest.raises(ValueError):
+                function_with_on_attempts_exhausted_callback()
+            assert attempts == [3]
 
     class TestRetryBlock:
         async def test_retriable_block_success(self):
