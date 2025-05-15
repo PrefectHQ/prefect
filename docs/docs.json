@@ -178,7 +178,8 @@
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
-              "v3/how-to-guides/workflows/form-building"
+              "v3/how-to-guides/workflows/form-building",
+              "v3/how-to-guides/workflows/visualize-workflow-structure"
 
             ]
           },
@@ -1534,6 +1535,10 @@
     {
       "source": "/v3/deploy/run-flows-in-local-processes",
       "destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
+    },
+    {
+      "source": "/v3/develop/visualize-workflow-structure",
+      "destination": "/v3/how-to-guides/workflows/visualize-flow-structure"
     }
   ]
 }

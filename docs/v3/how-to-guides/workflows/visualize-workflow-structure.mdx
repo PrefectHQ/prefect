@@ -1,24 +1,14 @@
 ---
-title: Visualize flow structure
-description: Learn how to view the overall structure of your flow.
+title: How to visualize workflow structure
+sidebarTitle: Visualize workflow structure
 ---
 
-Quickly view the structure of your flow using its `visualize()` method. 
-Calling this method attempts to produce a schematic diagram of your flow and tasks without 
-actually running your flow code.
-
-<Warning>
-Functions and code outside of flows or tasks will still be run when calling 
-`visualize()`. This may have unintended consequences. Place your code into tasks to 
-avoid unintended 
-execution.
-</Warning>
-
-To use the `visualize()` method, you must havae Graphviz installed and on your PATH. 
-Please install Graphviz from [http://www.graphviz.org/download/](http://www.graphviz.org/download/). 
+You can visualize the structure of your flow using the `visualize()` method.
 
 <Note>
-Just installing the `graphviz` python package is not sufficient.
+**Install Graphviz**
+
+To use the `visualize()` method, you must have Graphviz installed. Please follow the [Graphviz installation instructions](https://graphviz.org/download/) for your platform.
 </Note>
 
 ```python
@@ -47,9 +37,14 @@ if __name__ == "__main__":
 
 ![A simple flow visualized with the .visualize() method](/v3/img/orchestration/hello-flow-viz.png)
 
-Prefect cannot automatically produce a schematic for dynamic workflows, such as those with loops or 
-if/else control flow.
-In this case, you can provide tasks with mock return values for use in the `visualize()` call.
+<Warning>
+**Calling `visualize()` will execute code outside of tasks**
+
+Code outside of tasks will run when calling `visualize()`. To avoid inadvertent execution, place code you don't want to run in tasks.
+</Warning>
+
+
+For workflows with dynamic structure using loops and/or if/else statements, you can provide tasks with mock return values for use in the `visualize()` call to choose which code paths to visualize.
 
 ```python
 from prefect import flow, task
