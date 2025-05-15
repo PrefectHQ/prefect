@@ -118,14 +118,6 @@
             "pages": [
               "v3/manage/index",
               {
-                "group": "Prefect Cloud",
-                "pages": [
-                  "v3/manage/cloud/index",
-
-                  "v3/manage/cloud/troubleshoot-cloud"
-                ]
-              },
-              {
                 "group": "Prefect server",
                 "pages": [
                   "v3/manage/server/index",
@@ -188,6 +180,7 @@
           {
             "group": "Prefect Cloud",
             "pages": [
+              "v3/how-to-guides/cloud/connect-to-cloud",
               {
                 "group": "Manage accounts",
                 "pages": [
@@ -203,9 +196,9 @@
                   "v3/how-to-guides/cloud/manage-users/secure-access-by-private-link"
                 ]
               },
-              "v3/how-to-guides/cloud/connect-to-cloud",
               "v3/how-to-guides/cloud/workspaces",
-              "v3/how-to-guides/cloud/create-a-webhook"
+              "v3/how-to-guides/cloud/create-a-webhook",
+              "v3/how-to-guides/cloud/troubleshoot-cloud"
             ]
           }
         ]
