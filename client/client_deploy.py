@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 
 from prefect import Flow, get_client
 from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.exceptions import ObjectNotFound
 from prefect.runner.runner import Runner
-from prefect.server.exceptions import ObjectNotFoundError
 
 
 async def main():
@@ -19,7 +19,7 @@ async def main():
         # Check if the smoke-test work pool exists
         try:
             await client.read_work_pool("smoke-test")
-        except ObjectNotFoundError:
+        except ObjectNotFound:
             # Create the work pool if it doesn't exist
             await client.create_work_pool(
                 WorkPoolCreate(name="smoke-test", type="process")
