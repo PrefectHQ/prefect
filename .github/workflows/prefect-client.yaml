@@ -71,19 +71,27 @@ jobs:
         working-directory: ${{ env.TMPDIR }}
         id: prefect_client_version
 
+      - name: Start server
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_SERVER_LOGGING_LEVEL: DEBUG
+        run: >
+          uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
+
+          ./scripts/wait-for-server.py
+
+
       - name: Run the smoke test flow using the built client
         run: python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
-          PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
-          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+          PREFECT_API_URL: "http://127.0.0.1:4200/api"
 
       - name: Run deploy and execute smoke test using the built client
         run: python client/client_deploy.py
         working-directory: ${{ env.TMPDIR }}
         env:
-          PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
-          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+          PREFECT_API_URL: "http://127.0.0.1:4200/api"
 
 
       - name: Install prefect from source
@@ -106,8 +114,7 @@ jobs:
         run: uv run python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
-          PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
-          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+          PREFECT_API_URL: "http://127.0.0.1:4200/api"
 
       - name: Publish build artifacts
         if: ${{ inputs.upload-artifacts }}
