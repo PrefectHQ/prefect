@@ -1,5 +1,6 @@
 ---
-title: Daemonize worker processes
+title: How to daemonize worker processes
+sidebarTitle: Daemonize Worker Processes
 description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution with workers.
 ---
 
@@ -28,7 +29,7 @@ AWS Linux image, you can install Python and pip with `sudo yum install -y python
 A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
 You will use systemd and learn how to automatically start a
 [Prefect worker](/v3/deploy/infrastructure-concepts/workers/) or
-long-lived [`serve` process](/v3/develop/write-flows/#serving-a-flow) when Linux starts.
+long-lived [`serve` process](/v3/how-to-guides/workflows/run-flows-in-local-processes) when Linux starts.
 This approach provides resilience by automatically restarting the process if it crashes.
 
 ### Step 1: Add a user

@@ -97,8 +97,7 @@
                   "v3/deploy/static-infrastructure-examples/docker",
                   "v3/deploy/static-infrastructure-examples/background-tasks"
                 ]
-              },
-              "v3/deploy/daemonize-processes"
+              }
             ]
           },
           {
@@ -170,7 +169,8 @@
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/versioning",
-              "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+              "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
+              "v3/how-to-guides/deployments/daemonize-processes"
             ]
           },
           {
@@ -1568,6 +1568,10 @@
     {
       "source": "/v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
       "destination": "/v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+    },
+    {
+      "source": "/v3/deploy/daemonize-processes",
+      "destination": "/v3/how-to-guides/deployments/daemonize-processes"
     }
   ]
 }
