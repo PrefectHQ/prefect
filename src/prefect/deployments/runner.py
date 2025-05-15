@@ -743,7 +743,9 @@ class RunnerDeployment(BaseModel):
                 entry_path = (
                     Path(flow_file).absolute().relative_to(Path.cwd().absolute())
                 )
-                deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+                deployment.entrypoint = (
+                    f"{entry_path}:{getattr(flow.fn, '__qualname__', flow.fn.__name__)}"
+                )
 
         if entrypoint_type == EntrypointType.FILE_PATH and not deployment._path:
             deployment._path = "."

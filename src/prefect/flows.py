@@ -404,7 +404,7 @@ class Flow(Generic[P, R]):
             module_name = inspect.getfile(fn)
             module = module_name if module_name != "__main__" else module
 
-        self._entrypoint = f"{module}:{fn.__name__}"
+        self._entrypoint = f"{module}:{getattr(fn, '__qualname__', fn.__name__)}"
 
     @property
     def ismethod(self) -> bool:
