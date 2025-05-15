@@ -161,7 +161,7 @@ jobs:
           --disable-docker-image-builds \
           --exclude-service kubernetes \
           --exclude-service docker \
-          --durations 26 \
+          --durations 26
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
