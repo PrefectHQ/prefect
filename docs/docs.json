@@ -78,7 +78,6 @@
             "group": "Deploy",
             "pages": [
               "v3/deploy/index",
-              "v3/deploy/deployment-versioning",
               {
                 "group": "Run flows on dynamic infrastructure",
                 "pages": [
@@ -174,7 +173,8 @@
             "group": "Deployments",
             "pages": [
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
-              "v3/how-to-guides/deployments/manage-work-pools"
+              "v3/how-to-guides/deployments/manage-work-pools",
+              "v3/how-to-guides/deployments/versioning"
             ]
           },
           {
@@ -1556,6 +1556,10 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/work-pools",
       "destination": "/v3/concepts/work-pools"
+    },
+    {
+      "source": "/v3/deploy/deployment-versioning",
+      "destination": "/v3/how-to-guides/deployments/versioning"
     }
   ]
 }
