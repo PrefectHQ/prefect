@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import sys
@@ -133,7 +135,7 @@ async def test_shell_run_command_override_shell(
     monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
-    async def test_flow():
+    async def test_flow() -> list[str] | str:
         return await shell_run_command(
             command="echo 'testing'",
             shell=shell,
