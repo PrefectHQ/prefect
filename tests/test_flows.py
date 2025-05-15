@@ -5850,10 +5850,9 @@ class TestSafeLoadFlowFromEntrypoint:
                 {
                     "definitions": {},
                     "properties": {
-                        "cls": {"position": 0, "title": "cls"},
                         "name": {"position": 1, "title": "name", "type": "string"},
                     },
-                    "required": ["cls", "name"],
+                    "required": ["name"],
                     "title": "Parameters",
                     "type": "object",
                 },
