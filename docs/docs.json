@@ -28,7 +28,6 @@
               {
                 "group": "Write and run workflows",
                 "pages": [
-                  "v3/develop/deferred-tasks",
                   "v3/develop/visualize-flow-structure",
                   "v3/develop/big-data",
                   "v3/develop/cli-shell",
@@ -118,28 +117,6 @@
             "pages": [
               "v3/manage/index",
               {
-                "group": "Prefect Cloud",
-                "pages": [
-                  "v3/manage/cloud/index",
-                  {
-                    "group": "Manage accounts",
-                    "pages": [
-                      "v3/manage/cloud/manage-users/index",
-                      "v3/manage/cloud/manage-users/service-accounts",
-                      "v3/manage/cloud/manage-users/manage-teams",
-                      "v3/manage/cloud/manage-users/manage-roles",
-                      "v3/manage/cloud/manage-users/api-keys",
-                      "v3/manage/cloud/manage-users/configure-sso",
-                      "v3/manage/cloud/manage-users/audit-logs",
-                      "v3/manage/cloud/manage-users/object-access-control-lists",
-                      "v3/manage/cloud/manage-users/secure-access-by-ip-address",
-                      "v3/manage/cloud/manage-users/secure-access-by-private-link"
-                    ]
-                  },
-                  "v3/manage/cloud/troubleshoot-cloud"
-                ]
-              },
-              {
                 "group": "Prefect server",
                 "pages": [
                   "v3/manage/server/index",
@@ -179,8 +156,8 @@
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
               "v3/how-to-guides/workflows/form-building",
-              "v3/how-to-guides/workflows/visualize-workflow-structure"
-
+              "v3/how-to-guides/workflows/visualize-workflow-structure",
+              "v3/how-to-guides/workflows/run-background-tasks"
             ]
           },
           {
@@ -204,8 +181,24 @@
             "group": "Prefect Cloud",
             "pages": [
               "v3/how-to-guides/cloud/connect-to-cloud",
+              {
+                "group": "Manage accounts",
+                "pages": [
+                  "v3/how-to-guides/cloud/manage-users/index",
+                  "v3/how-to-guides/cloud/manage-users/service-accounts",
+                  "v3/how-to-guides/cloud/manage-users/manage-teams",
+                  "v3/how-to-guides/cloud/manage-users/manage-roles",
+                  "v3/how-to-guides/cloud/manage-users/api-keys",
+                  "v3/how-to-guides/cloud/manage-users/configure-sso",
+                  "v3/how-to-guides/cloud/manage-users/audit-logs",
+                  "v3/how-to-guides/cloud/manage-users/object-access-control-lists",
+                  "v3/how-to-guides/cloud/manage-users/secure-access-by-ip-address",
+                  "v3/how-to-guides/cloud/manage-users/secure-access-by-private-link"
+                ]
+              },
               "v3/how-to-guides/cloud/workspaces",
-              "v3/how-to-guides/cloud/create-a-webhook"
+              "v3/how-to-guides/cloud/create-a-webhook",
+              "v3/how-to-guides/cloud/troubleshoot-cloud"
             ]
           }
         ]
@@ -1539,6 +1532,14 @@
     {
       "source": "/v3/develop/visualize-workflow-structure",
       "destination": "/v3/how-to-guides/workflows/visualize-flow-structure"
+    },
+    {
+      "source": "v3/develop/deferred-tasks",
+      "destination": "/v3/how-to-guides/workflows/run-background-tasks"
+    },
+    {
+      "source": "/v3/manage/cloud/manage-users/:slug*",
+      "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
     }
   ]
 }
