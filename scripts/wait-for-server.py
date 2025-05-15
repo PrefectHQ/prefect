@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "anyio",
+#   "prefect",
+# ]
+# ///
 """
 Wait until the Prefect server returns a healthy response.
 
