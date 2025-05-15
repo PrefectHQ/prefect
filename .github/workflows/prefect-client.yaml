@@ -51,7 +51,7 @@ jobs:
         run: >
           uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
 
-          uv run ./scripts/wait-for-server.py
+          uv run --isolated ./scripts/wait-for-server.py
   
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
