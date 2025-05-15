@@ -115,7 +115,6 @@
           {
             "group": "Operate",
             "pages": [
-              "v3/manage/index",
               {
                 "group": "Prefect server",
                 "pages": [
@@ -129,8 +128,7 @@
                     ]
                   }
                 ]
-              },
-              "v3/manage/infrastructure-as-code"
+              }
             ]
           },
           {
@@ -207,7 +205,10 @@
       },
       {
        "tab": "Advanced",
-       "groups": []
+       "pages": [
+        "v3/advanced/index",
+        "v3/advanced/infrastructure-as-code"
+       ]
       },
       {
        "tab": "Concepts",
@@ -1547,6 +1548,10 @@
     {
       "source": "/v3/manage/cloud/manage-users/:slug*",
       "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
+    },
+    {
+      "source": "/v3/manage/infrastructure-as-code",
+      "destination": "/v3/advanced/infrastructure-as-code"
     },
     {
       "source": "/v3/deploy/infrastructure-concepts/work-pools",
