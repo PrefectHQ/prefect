@@ -182,13 +182,6 @@
             ]
           },
           {
-            "group": "Background tasks",
-            "pages": [
-              "v3/how-to-guides/background-tasks/run-background-tasks",
-              "v3/how-to-guides/background-tasks/run-background-tasks-with-fastapi"
-            ]
-          },
-          {
             "group": "Automations",
             "pages": [
               "v3/how-to-guides/automations/create-schedules",
