@@ -26,15 +26,6 @@
             "pages": [
               "v3/develop/index",
               {
-                "group": "Write and run workflows",
-                "pages": [
-                  "v3/develop/visualize-flow-structure",
-                  "v3/develop/big-data",
-                  "v3/develop/cli-shell",
-                  "v3/develop/secrets"
-                ]
-              },
-              {
                 "group": "Configure runtime behavior",
                 "pages": [
                   "v3/develop/logging",
@@ -81,7 +72,6 @@
               {
                 "group": "Run flows on dynamic infrastructure",
                 "pages": [
-                  "v3/deploy/infrastructure-concepts/work-pools",
                   "v3/deploy/infrastructure-concepts/workers",
                   "v3/deploy/infrastructure-concepts/store-flow-code",
                   "v3/deploy/infrastructure-concepts/deploy-via-python",
@@ -156,6 +146,11 @@
               "v3/how-to-guides/workflows/turn-a-command-into-workflow",
               "v3/how-to-guides/workflows/visualize-workflow-structure",
               "v3/how-to-guides/workflows/run-background-tasks"
+            ]
+          },
+          { "group": "Configuration",
+            "pages": [
+              "v3/how-to-guides/configuration/store-secrets"
             ]
           },
           {
@@ -1556,6 +1551,14 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/work-pools",
       "destination": "/v3/concepts/work-pools"
+    },
+    {
+      "source": "/v3/develop/big-data",
+      "destination": "/v3/concepts/flows-and-tasks"
+    },
+    {
+      "source": "/v3/develop/secrets",
+      "destination": "/v3/how-to-guides/configuration/store-secrets"
     },
     {
       "source": "/v3/deploy/deployment-versioning",

@@ -741,3 +741,53 @@ For example, imagine a web application that needs to trigger an agentic `while` 
 Task workers are push-based consumers that subscribe to some set of tasks' runs. They can subscribe to many tasks, and be safely scaled horizontally (e.g. `replicas: 4`).
 
 They generally do not need to be interacted with by Prefect users. Instead, they are started and stopped implicitly when you call `.serve()` or `serve()`.
+
+### Turn task off input introspection
+
+When a task is called from a flow, each argument is introspected by Prefect, by default.
+To speed up your flow runs, disable this behavior for a task by wrapping the argument using
+[`quote`](https://docs.prefect.io/latest/api-ref/prefect/utilities/annotations/#prefect.utilities.annotations.quote).
+
+Here's a basic example that extracts and transforms some New York taxi data:
+
+{/* pmd-metadata: notest */}
+```python et_quote.py
+from prefect import task, flow
+from prefect.utilities.annotations import quote
+import pandas as pd
+
+
+@task
+def extract(url: str):
+    """Extract data"""
+    df_raw = pd.read_parquet(url)
+    print(df_raw.info())
+    return df_raw
+
+
+@task
+def transform(df: pd.DataFrame):
+    """Basic transformation"""
+    df["tip_fraction"] = df["tip_amount"] / df["total_amount"]
+    print(df.info())
+    return df
+
+
+@flow(log_prints=True)
+def et(url: str):
+    """ET pipeline"""
+    df_raw = extract(url)
+    df = transform(quote(df_raw))
+
+
+if __name__ == "__main__":
+    url = "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2023-09.parquet"
+    et(url)
+```
+
+Introspection can take significant time when the object being passed is a large collection,
+such as dictionary or DataFrame, where each element needs to be visited.
+
+Using `quote` reduces execution time at the expense of disabling task dependency
+tracking for the wrapped object.
+
