@@ -169,8 +169,7 @@
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/versioning",
-              "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
-              "v3/how-to-guides/deployments/daemonize-processes"
+              "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
             ]
           },
           {
@@ -203,7 +202,8 @@
        "tab": "Advanced",
        "pages": [
         "v3/advanced/index",
-        "v3/advanced/infrastructure-as-code"
+        "v3/advanced/infrastructure-as-code",
+        "v3/advanced/daemonize-processes"
        ]
       },
       {
@@ -1039,7 +1039,7 @@
     },
     {
       "source": "/latest/guides/deployment/daemonize",
-      "destination": "/v3/deploy/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     },
     {
       "source": "/latest/cloud/users/api-keys",
@@ -1427,7 +1427,7 @@
     },
     {
       "source": "/v3/resources/daemonize-processes",
-      "destination": "/v3/deploy/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     },
     {
       "source": "/v3/resources/interact-with-api",
@@ -1571,7 +1571,7 @@
     },
     {
       "source": "/v3/deploy/daemonize-processes",
-      "destination": "/v3/how-to-guides/deployments/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     }
   ]
 }
