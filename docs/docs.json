@@ -80,7 +80,6 @@
             "pages": [
               "v3/deploy/index",
               "v3/deploy/deployment-versioning",
-              "v3/deploy/run-flows-in-local-processes",
               {
                 "group": "Run flows on dynamic infrastructure",
                 "pages": [
@@ -192,6 +191,12 @@
               "v3/how-to-guides/automations/chaining-deployments-with-events",
               "v3/how-to-guides/automations/use-custom-event-grammar",
               "v3/how-to-guides/automations/detect-zombie-flows"
+            ]
+          },
+          {
+            "group": "Deployments",
+            "pages": [
+              "v3/how-to-guides/deployments/run-flows-in-local-processes"
             ]
           },
           {
@@ -1525,6 +1530,10 @@
     {
       "source": "/v3/automate/add-schedules",
       "destination": "/v3/concepts/schedules"
+    },
+    {
+      "source": "/v3/deploy/run-flows-in-local-processes",
+      "destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
     }
   ]
 }

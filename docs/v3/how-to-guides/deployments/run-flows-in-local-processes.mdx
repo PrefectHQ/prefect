@@ -235,22 +235,7 @@ When you serve a flow loaded from remote storage, the serving process periodical
 This pattern allows you to update your flow code without restarting the serving process.
 Note that if you change metadata associated with your flow's deployment such as parameters, you _will_ need to restart the serve process.
 
+## Further reading
 
-## Containerize your serve process
-
-A simple deployment strategy is to define a `serve` process as the `ENTRYPOINT` of a container image.
-
-See [Serve flows in a long-lived Docker container](/v3/deploy/static-infrastructure-examples/docker) for a guide.
-
-## If you need dynamic infrastructure
-
-For more configuration, you can create a deployment that uses a work pool. 
-Reasons to create a work-pool based deployment include:
-
-- Wanting to run your flow on dynamically provisioned infrastructure
-- Needing more control over the execution environment on a per-flow run basis
-- Creating an infrastructure template to use across deployments
-
-Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization.
-
-Learn more about work-pool based deployments on the [Configure dynamic infrastructure with work pools page](/v3/deploy/infrastructure-concepts/work-pools)
+- [Serve flows in a long-lived Docker container](/v3/deploy/static-infrastructure-examples/docker)
+- [Work pools and deployments with dynamic infrastructure](/v3/deploy/infrastructure-concepts/work-pools)

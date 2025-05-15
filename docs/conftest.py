@@ -8,7 +8,7 @@ from prefect.server.database.orm_models import Mapped, Run, mapped_column, sa
 
 SKIP_FILES = {
     "docs/v3/deploy/index.mdx": "Needs database fixtures",
-    "docs/v3/deploy/run-flows-in-local-processes.mdx": "Needs blocks setup",
+    "docs/v3/how-to-guides/deployments/run-flows-in-local-processes.mdx": "Needs blocks setup",
     "docs/v3/develop/blocks.mdx": "Block subclasses defined in docs cannot be properly registered due to test environment limitations",
     "docs/v3/develop/manage-states.mdx": "Needs some extra import help",
     "docs/v3/develop/results.mdx": "Needs block cleanup handling",
