@@ -173,7 +173,8 @@
           {
             "group": "Deployments",
             "pages": [
-              "v3/how-to-guides/deployments/run-flows-in-local-processes"
+              "v3/how-to-guides/deployments/run-flows-in-local-processes",
+              "v3/how-to-guides/deployments/manage-work-pools"
             ]
           },
           {
@@ -216,7 +217,8 @@
         "v3/concepts/event-triggers",
         "v3/concepts/webhooks",
         "v3/concepts/rate-limits",
-        "v3/concepts/schedules"
+        "v3/concepts/schedules",
+        "v3/concepts/work-pools"
        ]
       },
       {
@@ -1535,6 +1537,10 @@
     {
       "source": "/v3/manage/cloud/manage-users/:slug*",
       "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/work-pools",
+      "destination": "/v3/concepts/work-pools"
     }
   ]
 }
