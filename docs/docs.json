@@ -1535,6 +1535,10 @@
     {
       "source": "/v3/deploy/run-flows-in-local-processes",
       "destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
+    },
+    {
+      "source": "/v3/manage/cloud/manage-users/:slug*",
+      "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
     }
   ]
 }
