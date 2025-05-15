@@ -28,7 +28,6 @@
               {
                 "group": "Write and run workflows",
                 "pages": [
-                  "v3/develop/deferred-tasks",
                   "v3/develop/visualize-flow-structure",
                   "v3/develop/big-data",
                   "v3/develop/cli-shell",
@@ -180,6 +179,13 @@
               "v3/how-to-guides/workflows/run-work-concurrently",
               "v3/how-to-guides/workflows/form-building"
 
+            ]
+          },
+          {
+            "group": "Background tasks",
+            "pages": [
+              "v3/how-to-guides/background-tasks/run-background-tasks",
+              "v3/how-to-guides/background-tasks/run-background-tasks-with-fastapi"
             ]
           },
           {
@@ -1534,6 +1540,10 @@
     {
       "source": "/v3/deploy/run-flows-in-local-processes",
       "destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
+    },
+    {
+      "source": "v3/develop/deferred-tasks",
+      "destination": "/v3/how-to-guides/background-tasks/run-background-tasks"
     }
   ]
 }
