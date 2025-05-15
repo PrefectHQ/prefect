@@ -721,3 +721,23 @@ Jitter is a random amount of time added to retry periods that helps prevent "thu
 The `retry_jitter_factor` option can be used to add variance to the base delay. 
 For example, a retry delay of 10 seconds with a `retry_jitter_factor` of 0.5 will allow a delay up to 15 seconds. 
 Large values of `retry_jitter_factor` provide more protection against "thundering herds," while keeping the average retry delay time constant. 
+
+### Background tasks
+
+Sometimes your parent workflow doesn't need to resolve a task's result, it just needs the task to produce some side effect or save a result. In this case, the caller doesn't need to waste time blocking on the task's completion - instead, it can "background" that task run _somewhere else_.
+
+Background tasks are built for this use case. They allow you to defer a task's execution to a [task worker](#task-workers) running in a separate process.
+
+<Note>
+Prefect background tasks can be used in place of tools like [Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html) and [RabbitMQ](https://www.rabbitmq.com/).
+</Note>
+
+Background tasks are useful for dispatching heavy and/or blocking work from your application or workflow to task workers on static infrastructure that you can scale or manage independently.
+
+For example, imagine a web application that needs to trigger an agentic `while` loop for each request, which we encapsulate as a `@task`-decorated function named `run_agent_loop`. The task will likely run longer than an acceptable request-response cycle. You can `delay()` the expensive task from your endpoint to any task workers subscribed to `run_agent_loop`'s runs.
+
+#### Task workers
+
+Task workers are push-based consumers that subscribe to some set of tasks' runs. They can subscribe to many tasks, and be safely scaled horizontally (e.g. `replicas: 4`).
+
+They generally do not need to be interacted with by Prefect users. Instead, they are started and stopped implicitly when you call `.serve()` or `serve()`.

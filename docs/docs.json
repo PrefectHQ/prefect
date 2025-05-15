@@ -28,7 +28,6 @@
               {
                 "group": "Write and run workflows",
                 "pages": [
-                  "v3/develop/deferred-tasks",
                   "v3/develop/visualize-flow-structure",
                   "v3/develop/big-data",
                   "v3/develop/cli-shell",
@@ -154,8 +153,10 @@
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
-              "v3/how-to-guides/workflows/form-building"
-
+              "v3/how-to-guides/workflows/form-building",
+              "v3/how-to-guides/workflows/turn-a-command-into-workflow",
+              "v3/how-to-guides/workflows/visualize-workflow-structure",
+              "v3/how-to-guides/workflows/run-background-tasks"
             ]
           },
           {
@@ -172,7 +173,8 @@
           {
             "group": "Deployments",
             "pages": [
-              "v3/how-to-guides/deployments/run-flows-in-local-processes"
+              "v3/how-to-guides/deployments/run-flows-in-local-processes",
+              "v3/how-to-guides/deployments/manage-work-pools"
             ]
           },
           {
@@ -218,7 +220,8 @@
         "v3/concepts/event-triggers",
         "v3/concepts/webhooks",
         "v3/concepts/rate-limits",
-        "v3/concepts/schedules"
+        "v3/concepts/schedules",
+        "v3/concepts/work-pools"
        ]
       },
       {
@@ -1531,12 +1534,28 @@
       "destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
     },
     {
+      "source": "/v3/develop/cli-shell",
+      "destination": "/v3/how-to-guides/workflows/turn-a-command-into-workflow"
+    },
+    {
+      "source": "/v3/develop/visualize-workflow-structure",
+      "destination": "/v3/how-to-guides/workflows/visualize-flow-structure"
+    },
+    {
+      "source": "v3/develop/deferred-tasks",
+      "destination": "/v3/how-to-guides/workflows/run-background-tasks"
+    },
+    {
       "source": "/v3/manage/cloud/manage-users/:slug*",
       "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
     },
     {
       "source": "/v3/manage/infrastructure-as-code",
       "destination": "/v3/advanced/infrastructure-as-code"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/work-pools",
+      "destination": "/v3/concepts/work-pools"
     }
   ]
 }
