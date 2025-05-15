@@ -1,6 +1,7 @@
 ---
-title: Submit flows directly to dynamic infrastructure
-description: Learn how to submit flows directly to different infrastructure types without a deployment
+title: How to submit flows directly to dynamic infrastructure
+sidebarTitle: Submit Flows Directly to Dynamic Infrastructure
+description: Submit flows directly to different infrastructure types without a deployment
 ---
 
 <Warning>
@@ -184,4 +185,9 @@ def custom_namespace_flow():
     pass
 ```
 
-Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](v3/deploy/infrastructure-concepts/work-pools#base-job-template) for the specified work pool.
+Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](/v3/how-to-guides/deployments/manage-work-pools#base-job-template) for the specified work pool.
+
+
+## Further reading
+
+- [Work pools](/v3/concepts/work-pools) concept page
