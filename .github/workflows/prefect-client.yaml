@@ -29,6 +29,7 @@ on:
 jobs:
   prefect-client-smoke-test:
     name: Build and run prefect-client
+    if: ${{ !(github.event.pull_request.head.repo.fork) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
