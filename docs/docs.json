@@ -97,8 +97,7 @@
                   "v3/deploy/static-infrastructure-examples/docker",
                   "v3/deploy/static-infrastructure-examples/background-tasks"
                 ]
-              },
-              "v3/deploy/daemonize-processes"
+              }
             ]
           },
           {
@@ -203,7 +202,8 @@
        "tab": "Advanced",
        "pages": [
         "v3/advanced/index",
-        "v3/advanced/infrastructure-as-code"
+        "v3/advanced/infrastructure-as-code",
+        "v3/advanced/daemonize-processes"
        ]
       },
       {
@@ -1039,7 +1039,7 @@
     },
     {
       "source": "/latest/guides/deployment/daemonize",
-      "destination": "/v3/deploy/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     },
     {
       "source": "/latest/cloud/users/api-keys",
@@ -1427,7 +1427,7 @@
     },
     {
       "source": "/v3/resources/daemonize-processes",
-      "destination": "/v3/deploy/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     },
     {
       "source": "/v3/resources/interact-with-api",
@@ -1568,6 +1568,10 @@
     {
       "source": "/v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
       "destination": "/v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+    },
+    {
+      "source": "/v3/deploy/daemonize-processes",
+      "destination": "/v3/advanced/daemonize-processes"
     }
   ]
 }
