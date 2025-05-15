@@ -44,6 +44,15 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
           activate-environment: true
 
+      - name: Start server
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_SERVER_LOGGING_LEVEL: DEBUG
+        run: >
+          uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
+
+          ./scripts/wait-for-server.py
+  
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
 
@@ -70,16 +79,6 @@ jobs:
           echo "prefect_client_version=$prefect_client_version" >> $GITHUB_OUTPUT
         working-directory: ${{ env.TMPDIR }}
         id: prefect_client_version
-
-      - name: Start server
-        env:
-          PREFECT_API_URL: http://127.0.0.1:4200/api
-          PREFECT_SERVER_LOGGING_LEVEL: DEBUG
-        run: >
-          uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
-
-          ./scripts/wait-for-server.py
-
 
       - name: Run the smoke test flow using the built client
         run: python client/client_flow.py
