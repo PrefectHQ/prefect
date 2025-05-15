@@ -156,6 +156,7 @@
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
               "v3/how-to-guides/workflows/form-building",
+              "v3/how-to-guides/workflows/turn-a-command-into-workflow",
               "v3/how-to-guides/workflows/visualize-workflow-structure",
               "v3/how-to-guides/workflows/run-background-tasks"
             ]
@@ -1530,6 +1531,10 @@
     {
       "source": "/v3/deploy/run-flows-in-local-processes",
       "destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
+    },
+    {
+      "source": "/v3/develop/cli-shell",
+      "destination": "/v3/how-to-guides/workflows/turn-a-command-into-workflow"
     },
     {
       "source": "/v3/develop/visualize-workflow-structure",
