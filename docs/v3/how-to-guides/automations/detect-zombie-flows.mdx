@@ -4,8 +4,6 @@ sidebarTitle: Detect Zombie Flows
 description: Learn how to detect and respond to zombie flows.
 ---
 
-## Detect and respond to zombie flows
-
 Sudden infrastructure failures (like machine crashes or container evictions) can cause flow runs to become unresponsive and appear stuck in a `Running` state.
 
 To mitigate this, flow runs triggered by deployments can emit heartbeats to drive Automations that detect and respond to these "zombie" flow runs, ensuring they are marked as `Crashed` if they stop reporting heartbeats.
