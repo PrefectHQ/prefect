@@ -28,10 +28,8 @@
               {
                 "group": "Configure runtime behavior",
                 "pages": [
-                  "v3/develop/transactions",
                   "v3/develop/pause-resume",
                   "v3/develop/cancel",
-                  "v3/develop/inputs",
                   "v3/develop/runtime-context"
                 ]
               },
@@ -204,7 +202,9 @@
         "v3/advanced/infrastructure-as-code",
         "v3/advanced/daemonize-processes",
         "v3/advanced/caching",
-        "v3/advanced/logging-customization"
+        "v3/advanced/logging-customization",
+        "v3/advanced/transactions",
+        "v3/advanced/interactive"
        ]
       },
       {
@@ -1587,6 +1587,14 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/workers",
       "destination": "/v3/concepts/workers"
+    },
+    {
+      "source": "/v3/develop/transactions",
+      "destination": "/v3/advanced/transactions"
+    },
+    {
+      "source": "/v3/develop/inputs",
+      "destination": "/v3/advanced/interactive"
     }
   ]
 }
