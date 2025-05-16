@@ -26,10 +26,6 @@
 						"pages": [
 							"v3/develop/index",
 							{
-								"group": "Configure runtime behavior",
-								"pages": ["v3/develop/cancel"]
-							},
-							{
 								"group": "Manage state and configuration",
 								"pages": [
 									"v3/develop/manage-states",
