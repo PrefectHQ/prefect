@@ -1,6 +1,6 @@
 ---
-title: Learn about workers
-description: Prefect workers poll work pools for new runs to execute.
+title: Workers
+description: Workers poll work pools for new runs to execute.
 ---
 
 Workers are lightweight polling services that retrieve scheduled runs from a work pool and execute them.
@@ -93,7 +93,7 @@ execute a flow run.
 <Tip>
 **`PREFECT_API_URL` and `PREFECT_API_KEY`settings for workers**
 
-    `PREFECT_API_URL` must be set for the environment where your worker is running. You must also have a user or service account 
+    `PREFECT_API_URL` must be set for the environment where your worker is running. When using Prefect Cloud, you must also have a user or service account 
     with the `Worker` role, which you can configure by setting the `PREFECT_API_KEY`.
 </Tip>
 
@@ -161,6 +161,11 @@ For example, to limit a worker to five concurrent flow runs:
 prefect worker start --pool "my-pool" --limit 5
 ```
 
+import { HELM } from "/snippets/resource-management/helm.mdx"
+import { workers } from "/snippets/resource-management/vars.mdx"
+
+<HELM name="workers" href={workers.helm} />
+
 ### Configure prefetch
 
 By default, the worker submits flow runs 10 seconds before they are scheduled to run. 
@@ -191,15 +196,11 @@ with the `--install-policy` option. The following are valid install policies:
 | `prompt` | Prompt the user to choose whether to install the required package. This is the default install policy. 
 If `prefect worker start` is run non-interactively, the `prompt` install policy behaves the same as `never`. |
 
-### Additional resources
+### Further reading
 
-See how to [daemonize a Prefect worker](/v3/deploy/daemonize-processes/).
+- See how to [daemonize a Prefect worker](/v3/advanced/daemonize-processes/).
 
-See more information on [overriding a work pool's job variables](/v3/deploy/infrastructure-concepts/customize).
+- See more information on [overriding a work pool's job variables](/v3/deploy/infrastructure-concepts/customize).
 
-import { HELM } from "/snippets/resource-management/helm.mdx"
-import { workers } from "/snippets/resource-management/vars.mdx"
-
-<HELM name="workers" href={workers.helm} />
 
 ---------

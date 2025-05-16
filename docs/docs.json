@@ -71,7 +71,6 @@
               {
                 "group": "Run flows on dynamic infrastructure",
                 "pages": [
-                  "v3/deploy/infrastructure-concepts/workers",
                   "v3/deploy/infrastructure-concepts/store-flow-code",
                   "v3/deploy/infrastructure-concepts/deploy-via-python",
                   "v3/deploy/infrastructure-concepts/prefect-yaml",
@@ -218,7 +217,8 @@
         "v3/concepts/webhooks",
         "v3/concepts/rate-limits",
         "v3/concepts/schedules",
-        "v3/concepts/work-pools"
+        "v3/concepts/work-pools",
+        "v3/concepts/workers"
        ]
       },
       {
@@ -1577,6 +1577,10 @@
     {
       "source": "/v3/develop/logging",
       "destination": "/v3/how-to-guides/workflows/add-logging"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/workers",
+      "destination": "/v3/concepts/workers"
     }
   ]
 }
