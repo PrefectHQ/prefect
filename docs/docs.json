@@ -106,6 +106,7 @@
             "group": "Deploy",
             "pages": [
               "v3/deploy/index",
+              "v3/deploy/deployment-versioning",
               "v3/deploy/run-flows-in-local-processes",
               {
                 "group": "Run flows on dynamic infrastructure",
@@ -762,6 +763,11 @@
   "integrations": {
     "ga4": {
       "measurementId": "G-8GR5P04T5Y"
+    }
+  },
+  "seo": {
+    "metatags": {
+      "google-site-verification": "GXcfBp1IgL4xhd20xtt9Hrgm9ImU6U2XJhcJf3eMyfk"
     }
   },
   "redirects": [

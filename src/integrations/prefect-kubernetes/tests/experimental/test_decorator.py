@@ -12,6 +12,11 @@ from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguratio
 from prefect.futures import PrefectFuture
 
 
+@pytest.fixture(autouse=True)
+def mock_start_observer(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("prefect_kubernetes.worker.start_observer", MagicMock())
+
+
 @pytest.fixture
 def mock_submit(monkeypatch: pytest.MonkeyPatch) -> Generator[AsyncMock, None, None]:
     """Create a mock for the KubernetesWorker.submit method"""

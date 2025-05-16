@@ -32,6 +32,7 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
+from prefect._internal.uuid7 import uuid7
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -809,6 +810,8 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
+                from prefect.task_worker import store_parameters
+
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -824,7 +827,7 @@ class Task(Generic[P, R]):
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await store.store_parameters(parameters_id, data)
+                await store_parameters(store, parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -910,6 +913,8 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
+                from prefect.task_worker import store_parameters
+
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -925,7 +930,7 @@ class Task(Generic[P, R]):
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await store.store_parameters(parameters_id, data)
+                await store_parameters(store, parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -953,7 +958,7 @@ class Task(Generic[P, R]):
                 if flow_run_context and flow_run_context.flow_run
                 else None
             )
-            task_run_id = id or uuid4()
+            task_run_id = id or uuid7()
             state = prefect.states.Pending(
                 state_details=StateDetails(
                     task_run_id=task_run_id,
