@@ -1,0 +1,107 @@
+---
+title: How to pause a workflow
+sidebarTitle: Pause a workflow
+---
+
+### Pause a workflow run
+
+To pause a flow run, use the `pause_flow_run` function.
+
+```python
+from prefect import task, flow, pause_flow_run, resume_flow_run
+
+@task
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+
+
+@task
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+
+
+@flow
+async def inspiring_joke():
+    await marvin_setup()
+    await pause_flow_run(timeout=600)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+Running this workflow will block execution until the workflow is resumed.
+
+<Note>
+**Timeouts**
+
+Paused flow runs time out after one hour by default.
+After the timeout, the flow run fails with a message saying it paused and never resumed.
+Specify a different timeout period in seconds using the `timeout` parameter.
+</Note>
+
+### Resume a paused workflow run
+
+Resume paused workflows by clicking **Resume** in the Prefect UI or calling the `resume_flow_run` utility through client code.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import resume_flow_run
+
+resume_flow_run(FLOW_RUN_ID)
+```
+
+### Suspend a workflow run
+
+You can suspend a flow run to pause execution and tear down the execution environment while waiting for the workflow to be resumed.
+
+To suspend a flow run, use the `suspend_flow_run` function.
+
+```python
+from prefect import flow, suspend_flow_run, task
+
+@task(persist_result=True)
+def foo():
+    return 42
+
+@flow(persist_result=True)
+def noblock_pausing():
+    x = foo.submit()
+    suspend_flow_run(timeout=30)
+    y = foo.submit()
+    z = foo(wait_for=[x])
+    alpha = foo(wait_for=[y])
+    omega = foo(wait_for=[x, y])
+```
+
+<Warning>
+**Suspended flow runs start from the beginning when resumed**
+
+When the flow run resumes, it re-runs from the beginning of the flow. We recommend using [tasks](/v3/develop/write-tasks/) and [task caching](/v3/develop/task-caching) to avoid recomputing expensive operations when resuming a suspended flow run.
+</Warning>
+
+The flow run is marked as `Suspended` and will not resume until resumed via the UI or `resume_flow_run` is called.
+
+<Note>
+**Timeouts**
+
+Suspended flow runs time out after one hour by default.
+After the timeout, the flow run fails with a message saying it suspended and never resumed.
+You can specify a different timeout period in seconds using the `timeout` parameter or pass `timeout=None` for no timeout.
+</Note>
+
+### Suspend a workflow run outside of the workflow
+
+You can suspend flow runs out-of-process by calling `suspend_flow_run(flow_run_id=<ID>)` in another process or
+selecting the **Suspend** button in the Prefect UI or Prefect Cloud.
+
+<Note>
+
+**You can't suspend subflows independently of their parent run**
+
+If you use a flow to schedule a flow run with `run_deployment`, the
+scheduled flow run is linked to the calling flow as a nested flow run by
+default. This means you can't suspend the scheduled flow run
+independently of the calling flow.
+
+Call `run_deployment` with
+`as_subflow=False` to disable this linking if you need to suspend
+the scheduled flow run independently of the calling flow.
+</Note>

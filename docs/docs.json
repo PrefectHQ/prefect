@@ -28,7 +28,6 @@
               {
                 "group": "Configure runtime behavior",
                 "pages": [
-                  "v3/develop/pause-resume",
                   "v3/develop/cancel"
                 ]
               },
@@ -134,6 +133,7 @@
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/add-logging",
+              "v3/how-to-guides/workflows/pause-workflows",
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
               "v3/how-to-guides/workflows/cache-workflow-steps",
@@ -1599,6 +1599,10 @@
     {
       "source": "/v3/develop/runtime-context",
       "destination": "/v3/concepts/workflows/runtime-context"
+    },
+    {
+      "source": "/v3/develop/pause-resume",
+      "destination": "/v3/how-to-guides/workflows/pause-workflows"
     }
   ]
 }
