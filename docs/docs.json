@@ -73,8 +73,7 @@
                   "v3/deploy/infrastructure-concepts/store-flow-code",
                   "v3/deploy/infrastructure-concepts/deploy-via-python",
                   "v3/deploy/infrastructure-concepts/prefect-yaml",
-                  "v3/deploy/infrastructure-concepts/deploy-ci-cd",
-                  "v3/deploy/infrastructure-concepts/customize"
+                  "v3/deploy/infrastructure-concepts/deploy-ci-cd"
                 ]
               },
 
@@ -168,7 +167,8 @@
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/versioning",
-              "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+              "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
+              "v3/how-to-guides/deployments/customize-job-variables"
             ]
           },
           {
@@ -1587,6 +1587,10 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/workers",
       "destination": "/v3/concepts/workers"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/customize",
+      "destination": "/v3/how-to-guides/deployments/customize-job-variables"
     }
   ]
 }
