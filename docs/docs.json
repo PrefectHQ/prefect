@@ -28,8 +28,7 @@
               {
                 "group": "Configure runtime behavior",
                 "pages": [
-                  "v3/develop/pause-resume",
-                  "v3/develop/cancel"
+                  "v3/develop/pause-resume"
                 ]
               },
               {
