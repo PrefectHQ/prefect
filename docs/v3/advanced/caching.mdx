@@ -38,7 +38,7 @@ s3_bucket = S3Bucket(
     bucket_name="my-bucket",
 )
 # save the block to ensure it is available across machines
-s3_bucket.save("my-cache-bucket")
+s3_bucket.save("my-cache-records-bucket")
 
 cache_policy = (TASK_SOURCE + INPUTS).configure(key_storage=s3_bucket)
 
