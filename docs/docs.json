@@ -28,7 +28,6 @@
               {
                 "group": "Configure runtime behavior",
                 "pages": [
-                  "v3/develop/logging",
                   "v3/develop/task-caching",
                   "v3/develop/transactions",
                   "v3/develop/pause-resume",
@@ -139,6 +138,7 @@
               "v3/how-to-guides/workflows/retries",
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
+              "v3/how-to-guides/workflows/add-logging",
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
               "v3/how-to-guides/workflows/form-building",
@@ -203,7 +203,8 @@
        "pages": [
         "v3/advanced/index",
         "v3/advanced/infrastructure-as-code",
-        "v3/advanced/daemonize-processes"
+        "v3/advanced/daemonize-processes",
+        "v3/advanced/logging-customization"
        ]
       },
       {
@@ -1572,6 +1573,10 @@
     {
       "source": "/v3/deploy/daemonize-processes",
       "destination": "/v3/advanced/daemonize-processes"
+    },
+    {
+      "source": "/v3/develop/logging",
+      "destination": "/v3/how-to-guides/workflows/add-logging"
     }
   ]
 }
