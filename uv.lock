@@ -3798,7 +3798,7 @@ dev = [
     { name = "whenever" },
 ]
 markdown-docs = [
-    { name = "prefect", extra = ["aws", "azure", "bitbucket", "dask", "databricks", "email", "gcp", "github", "gitlab", "kubernetes", "ray", "shell", "slack", "snowflake", "sqlalchemy"] },
+    { name = "prefect", extra = ["aws", "azure", "bitbucket", "dask", "databricks", "email", "gcp", "github", "gitlab", "kubernetes", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"] },
     { name = "pytest-markdown-docs" },
 ]
 perf = [
@@ -3958,6 +3958,7 @@ markdown-docs = [
     { name = "prefect", extras = ["gitlab"] },
     { name = "prefect", extras = ["kubernetes"] },
     { name = "prefect", extras = ["ray"] },
+    { name = "prefect", extras = ["redis"] },
     { name = "prefect", extras = ["shell"] },
     { name = "prefect", extras = ["slack"] },
     { name = "prefect", extras = ["snowflake"] },

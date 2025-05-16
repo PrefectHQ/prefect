@@ -28,7 +28,6 @@
               {
                 "group": "Configure runtime behavior",
                 "pages": [
-                  "v3/develop/task-caching",
                   "v3/develop/transactions",
                   "v3/develop/pause-resume",
                   "v3/develop/cancel",
@@ -140,6 +139,7 @@
               "v3/how-to-guides/workflows/add-logging",
               "v3/how-to-guides/workflows/access-runtime-info",
               "v3/how-to-guides/workflows/run-work-concurrently",
+              "v3/how-to-guides/workflows/cache-workflow-steps",
               "v3/how-to-guides/workflows/form-building",
               "v3/how-to-guides/workflows/turn-a-command-into-workflow",
               "v3/how-to-guides/workflows/visualize-workflow-structure",
@@ -203,6 +203,7 @@
         "v3/advanced/index",
         "v3/advanced/infrastructure-as-code",
         "v3/advanced/daemonize-processes",
+        "v3/advanced/caching",
         "v3/advanced/logging-customization"
        ]
       },
@@ -211,6 +212,7 @@
        "pages": [
         "v3/concepts/index",
         "v3/concepts/flows-and-tasks",
+        "v3/concepts/caching",
         "v3/concepts/events",
         "v3/concepts/automations",
         "v3/concepts/event-triggers",
@@ -1573,6 +1575,10 @@
     {
       "source": "/v3/deploy/daemonize-processes",
       "destination": "/v3/advanced/daemonize-processes"
+    },
+    {
+      "source": "/v3/develop/task-caching",
+      "destination": "/v3/how-to-guides/workflows/cache-workflow-results"
     },
     {
       "source": "/v3/develop/logging",
