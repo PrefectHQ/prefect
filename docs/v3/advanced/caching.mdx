@@ -28,7 +28,7 @@ To store cache records in a remote object store such as S3, pass a storage block
 from prefect import task
 from prefect.cache_policies import TASK_SOURCE, INPUTS
 
-from prefect_aws import S3Bucket
+from prefect_aws import S3Bucket, AwsCredentials
 
 s3_bucket = S3Bucket(
     credentials=AwsCredentials(

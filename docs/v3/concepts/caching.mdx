@@ -144,6 +144,9 @@ the [task decorator](https://reference.prefect.io/prefect/tasks/#prefect.tasks.t
 For example:
 
 ```python
+from prefect import task
+
+
 def static_cache_key(context, parameters):
     # return a constant
     return "static cache key"
