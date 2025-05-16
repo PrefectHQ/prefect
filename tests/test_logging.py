@@ -190,6 +190,19 @@ def test_setup_logging_uses_env_var_overrides(
     env["PREFECT_LOGGING_ROOT_LEVEL"] = "ROOT_LEVEL_VAL"
     expected_config["root"]["level"] = "ROOT_LEVEL_VAL"
 
+    # Test setting a single list value
+    env["PREFECT_LOGGING_ROOT_HANDLERS"] = "ROOT_HANDLERS_SINGLE_VAL"
+    expected_config["root"]["handlers"] = ["ROOT_HANDLERS_SINGLE_VAL"]
+
+    # Test setting a multi list value
+    env["PREFECT_LOGGING_ROOT_HANDLERS"] = (
+        "ROOT_HANDLERS_FIRST_VAL,ROOT_HANDLERS_SECOND_VAL"
+    )
+    expected_config["root"]["handlers"] = [
+        "ROOT_HANDLERS_FIRST_VAL",
+        "ROOT_HANDLERS_SECOND_VAL",
+    ]
+
     # Test setting a value where the a key contains underscores
     env["PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT"] = "UNDERSCORE_KEY_VAL"
     expected_config["formatters"]["standard"]["flow_run_fmt"] = "UNDERSCORE_KEY_VAL"
