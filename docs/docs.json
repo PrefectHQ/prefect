@@ -29,8 +29,7 @@
                 "group": "Configure runtime behavior",
                 "pages": [
                   "v3/develop/pause-resume",
-                  "v3/develop/cancel",
-                  "v3/develop/runtime-context"
+                  "v3/develop/cancel"
                 ]
               },
               {
@@ -220,7 +219,8 @@
         "v3/concepts/rate-limits",
         "v3/concepts/schedules",
         "v3/concepts/work-pools",
-        "v3/concepts/workers"
+        "v3/concepts/workers",
+        "v3/concepts/runtime-context"
        ]
       },
       {
@@ -1595,6 +1595,10 @@
     {
       "source": "/v3/develop/inputs",
       "destination": "/v3/advanced/interactive"
+    },
+    {
+      "source": "/v3/develop/runtime-context",
+      "destination": "/v3/concepts/workflows/runtime-context"
     }
   ]
 }
