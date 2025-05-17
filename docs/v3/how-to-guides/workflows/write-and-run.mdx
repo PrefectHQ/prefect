@@ -71,7 +71,7 @@ for val in generator():
 
 You can view all workflow runs in the Prefect UI.
 
-### Create tasks and child flows
+### Create tasks and child workflows
 
 You can create tasks and child flows to organize your workflow logic.
 
@@ -99,4 +99,19 @@ def even_or_odd():
 ```
 
 Each task and child flow is a separate unit of work and is displayed in the Prefect UI.
+
+### Cancel a workflow if it runs for too long
+
+To apply a timeout to a flow or task to prevent it from running for too long, use the `timeout_seconds` keyword argument.
+
+```python
+from prefect import flow
+import time
+
+@flow(timeout_seconds=1, log_prints=True)
+def show_timeouts():
+    print("I will execute")
+    time.sleep(5)
+    print("I will not execute")
+```
 

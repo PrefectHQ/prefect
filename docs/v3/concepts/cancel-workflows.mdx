@@ -1,6 +1,5 @@
 ---
-title: Cancel flow runs
-description: Learn the different ways to cancel a flow run.
+title: Workflow cancellation
 ---
 
 You can cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client.
@@ -81,22 +80,3 @@ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 Navigate to the flow run's detail page and click `Cancel` in the upper right corner.
 
 ![Prefect UI](/v3/img/ui/flow-run-cancellation-ui.png)
-
-## Timeouts
-
-Flow timeouts prevent unintentional long-running flows. When the duration of execution for a flow 
-exceeds the duration specified in the timeout, a timeout exception is raised and the flow is marked as failed. 
-In the UI, the flow is visibly designated as `TimedOut`.
-
-Timeout durations are specified using the `timeout_seconds` keyword argument.
-
-```python
-from prefect import flow
-import time
-
-@flow(timeout_seconds=1, log_prints=True)
-def show_timeouts():
-    print("I will execute")
-    time.sleep(5)
-    print("I will not execute")
-```
