@@ -226,3 +226,43 @@ export const useDeleteWorkPool = () => {
 
 	return { deleteWorkPool, ...rest };
 };
+
+export const useCreateWorkPool = () => {
+  const queryClient = useQueryClient();
+
+  const { mutate: createWorkPool, ...rest } = useMutation({
+    mutationFn: async (body: components["schemas"]["WorkPoolCreate"]) => {
+      const res = await getQueryService().POST("/work_pools/", { body });
+      if (!res.data) {
+        throw new Error("'data' expected");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
+      void queryClient.invalidateQueries({ queryKey: queryKeyFactory.counts() });
+    },
+  });
+
+  return { createWorkPool, ...rest };
+};
+
+type UpdateWorkPoolWithName = components["schemas"]["WorkPoolUpdate"] & { name: string };
+
+export const useUpdateWorkPool = () => {
+  const queryClient = useQueryClient();
+
+  const { mutate: updateWorkPool, ...rest } = useMutation({
+    mutationFn: ({ name, ...body }: UpdateWorkPoolWithName) =>
+      getQueryService().PATCH("/work_pools/{name}", {
+        params: { path: { name } },
+        body,
+      }),
+    onSuccess: (_, { name }) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(name) });
+      void queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
+    },
+  });
+
+  return { updateWorkPool, ...rest };
+};
