@@ -2153,9 +2153,6 @@
                 "default_retry_delay_seconds": {
                     "anyOf": [
                         {
-                            "type": "string"
-                        },
-                        {
                             "type": "integer"
                         },
                         {
@@ -2166,9 +2163,6 @@
                                 "type": "number"
                             },
                             "type": "array"
-                        },
-                        {
-                            "type": "null"
                         }
                     ],
                     "default": 0,
