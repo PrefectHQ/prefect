@@ -128,7 +128,7 @@ def build_docker_image(
     additional_tags: list[str] | None = None,
     ignore_cache: bool = False,
     persist_dockerfile: bool = False,
-    dockerfile_output_path: str | None = None,
+    dockerfile_output_path: str = "Dockerfile.generated",
     **build_kwargs: Any,
 ) -> BuildDockerImageResult:
     """
