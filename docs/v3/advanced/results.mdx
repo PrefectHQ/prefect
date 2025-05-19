@@ -88,13 +88,12 @@ For example, a common distributed filesystem for result storage is AWS S3.
 
 Additionally, you can control the default persistence behavior for task results using the `default_persist_result` setting. This setting allows you to specify whether results should be persisted by default for all tasks. You can set this to `True` to enable persistence by default, or `False` to disable it. This setting can be overridden at the individual task or flow level.
 
-{/* pmd-metadata: fixture:cleanup_s3_bucket_block */}
 ```python
 from prefect import flow, task
 from prefect_aws.s3 import S3Bucket
 
 test_block = S3Bucket(bucket_name='test-bucket')
-test_block.save('test-block')
+test_block.save('test-block', overwrite=True)
 
 # define three tasks
 # with different result persistence configuration
