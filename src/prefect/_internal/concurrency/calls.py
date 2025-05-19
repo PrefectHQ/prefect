@@ -250,7 +250,7 @@ class Call(Generic[T]):
         except AttributeError:
             # If args/kwargs are missing on self or other (and self is not other),
             # they are considered not equal. This ensures that a Call with deleted
-            # args/kwargs compares as different from one that still has them (for asgiref).
+            # args/kwargs compares as different from one that still has them
             return False
 
         # If all args/kwargs were accessible on both, proceed with full field comparison.
@@ -265,7 +265,7 @@ class Call(Generic[T]):
             and (self.runner == other.runner)
         )
 
-    __hash__ = None  # Standard practice when defining a custom __eq__
+    __hash__ = None  # type: ignore
 
     @classmethod
     def new(
