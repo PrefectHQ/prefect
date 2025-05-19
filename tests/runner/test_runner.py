@@ -1139,14 +1139,23 @@ class TestRunner:
         assert len(heartbeat_events) == 0
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.parametrize(
+        "dummy_flow",
+        [
+            dummy_flow_1,
+            ClassNameClassmethod.dummy_flow_classmethod,
+            ClassNameStaticmethod.dummy_flow_staticmethod,
+        ],
+    )
     async def test_runner_can_execute_a_single_flow_run(
         self,
+        dummy_flow: Flow,
         prefect_client: PrefectClient,
         mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30, limit=None)
 
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        deployment_id = await (await dummy_flow.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -1177,7 +1186,7 @@ class TestRunner:
             {
                 "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
                 "prefect.resource.role": "flow",
-                "prefect.resource.name": dummy_flow_1.name,
+                "prefect.resource.name": dummy_flow.name,
             },
         ]
 
