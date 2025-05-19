@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from prefect.blocks.webhook import Webhook
@@ -145,3 +147,28 @@ class TestWebhook:
         assert insecure_webhook.url.get_secret_value() == "http://google.com"
         assert insecure_webhook.method == "GET"
         assert insecure_webhook.headers.get_secret_value() == {"foo": "bar"}
+
+    async def test_webhook_sends_string_payload(self, monkeypatch):
+        # Test for call method
+        # Test Prefect client
+        send_mock = AsyncMock()
+        monkeypatch.setattr("httpx.AsyncClient.request", send_mock)
+
+        rendered_payload = json.dumps({"json": "data"})
+
+        webhook = Webhook(
+            method="POST",
+            url="http://example.com",
+            headers={"Content-Type": "application/json"},
+        )
+
+        response = await webhook.call(payload=rendered_payload)
+
+        send_mock.assert_called_with(
+            method="POST",
+            url="http://example.com",
+            headers={"Content-Type": "application/json"},
+            content=rendered_payload,
+        )
+
+        assert response is send_mock.return_value
