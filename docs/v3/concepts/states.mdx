@@ -1,5 +1,5 @@
 ---
-title: Manage states
+title: States
 description: Prefect states contain information about the status of a flow or task run.
 ---
 
@@ -245,6 +245,10 @@ specific state transitions in a workflow.
 State hooks have the following signature:
 
 ```python
+from prefect import Task, Flow
+from prefect.states import State
+from prefect.client.schemas.objects import TaskRun, FlowRun
+
 def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
     ...
 
@@ -252,59 +256,10 @@ def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
     ...
 ```
 
-Both task and flow run hooks can be specified through a keyword argument or through decorator syntax:
-
-```python
-from prefect import task, flow
-
-# for type hints only
-from prefect import Task
-from prefect.client.schemas.objects import TaskRun
-from prefect.states import State
-
-
-def first_task_hook(tsk: Task, run: TaskRun, state: State) -> None:
-    if not state.name == 'Cached':
-        print('I run anytime this task executes successfully')
-    else:
-        print('and can condition my behavior on details of this run')
-
-
-@task(log_prints=True, on_completion=[first_task_hook])
-def nice_task(name: str):
-    print(f"Hello {name}!")
-
-
-# alternatively hooks can be specified via decorator
-@nice_task.on_completion
-def second_hook(tsk: Task, run: TaskRun, state: State) -> None:
-    print('another hook')
-
-nice_task(name='Marvin')
-```
-
-<Note>
-To import a `TaskRun` or `FlowRun` for type hinting, you can import from `prefect.client.schemas.objects`.
-</Note>
-
 State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
-or to use the same state change hook for different transitions:
+or to use the same state change hook for different transitions.
 
-```python
-def my_success_hook(task, task_run, state):
-    print("Task run succeeded!")
-
-def my_failure_hook(task, task_run, state):
-    print("Task run failed!")
-
-def my_succeed_or_fail_hook(task, task_run, state):
-    print("If the task run succeeds or fails, this hook runs.")
-
-@task(
-    on_completion=[my_success_hook, my_succeed_or_fail_hook],
-    on_failure=[my_failure_hook, my_succeed_or_fail_hook]
-)
-```
+For examples on how to use state change hooks, see the [How to respond to state changes guide](/v3/how-to-guides/workflows/state-change-hooks) section of this page.
 
 ### Available state change hooks
 
@@ -321,71 +276,3 @@ Note that the `on_rollback` hook for tasks is _not_ a proper state change hook b
 is a transaction lifecycle hook.
 Rollback hooks accept one argument representing the transaction for the task.
 </ Note>
-
-### Pass `kwargs` to state change hooks
-
-You can compose the `with_options` method to effectively pass arbitrary `**kwargs` to your hooks:
-
-```python
-from functools import partial
-from prefect import flow, task
-
-data = {}
-
-def my_hook(task, task_run, state, **kwargs):
-    data.update(state=state, **kwargs)
-
-@task
-def bad_task():
-    raise ValueError("meh")
-
-@flow
-def ok_with_failure_flow(x: str = "foo", y: int = 42):
-    bad_task_with_a_hook = bad_task.with_options(
-        on_failure=[partial(my_hook, **dict(x=x, y=y))]
-    )
-    # return a tuple of "bar" and the task run state
-    # to avoid raising the task's exception
-    return "bar", bad_task_with_a_hook(return_state=True)
-
-_, task_run_state = ok_with_failure_flow()
-
-assert data == {"x": "foo", "y": 42, "state": task_run_state}
-```
-
-### Example usage: send a notification when a flow run fails
-
-State change hooks enable you to customize messages sent when tasks transition between states, such as sending notifications containing sensitive information when tasks enter a `Failed` state.
-
-Here's an example of running a client-side hook upon a flow run entering a `Failed` state:
-
-```python
-from prefect import flow
-from prefect.blocks.core import Block
-from prefect.settings import PREFECT_API_URL
-
-def notify_slack(flow, flow_run, state):
-    slack_webhook_block = Block.load(
-        "slack-webhook/my-slack-webhook"
-    )
-
-    slack_webhook_block.notify(
-        (
-            f"Your job {flow_run.name} entered {state.name} "
-            f"with message:\n\n"
-            f"See <https://{PREFECT_API_URL.value()}/flow-runs/"
-            f"flow-run/{flow_run.id}|the flow run in the UI>\n\n"
-            f"Tags: {flow_run.tags}\n\n"
-            f"Scheduled start: {flow_run.expected_start_time}"
-        )
-    )
-
-@flow(on_failure=[notify_slack], retries=1)
-def failing_flow():
-    raise ValueError("oops!")
-
-if __name__ == "__main__":
-    failing_flow()
-```
-
-Note that retries are configured in this example. This means the `on_failure` hook does not run until all `retries` have completed when the flow run enters a `Failed` state.
