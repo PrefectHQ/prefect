@@ -968,16 +968,9 @@ class Runner:
 
         pid = process_map_entry.get("pid") if process_map_entry else None
         if not pid:
-            if flow_run.state:
-                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates={
-                    "message": (
-                        "Could not find process ID for flow run"
-                        " and cancellation cannot be guaranteed."
-                    )
-                },
+            self._logger.debug(
+                "Received cancellation request for flow run %s but no process was found.",
+                flow_run.id,
             )
             return
 
