@@ -933,6 +933,48 @@ class TestRunner:
         assert resource["prefect.deployment.version-type"] == "githubulous"
         assert resource["prefect.deployment.version"] == "1.2.3.4.5.6"
 
+    async def test_runner_does_not_try_to_cancel_flow_run_if_no_process_id_is_found(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/18106
+        """
+        runner_1 = Runner()
+        runner_2 = Runner()
+        runner_2._mark_flow_run_as_cancelled = AsyncMock()
+        runner_2._kill_process = AsyncMock()
+        deployment_id = await runner_1.add_deployment(
+            await tired_flow.to_deployment(__file__)
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        async with runner_1, runner_2:
+            execute_task = asyncio.create_task(runner_1.execute_flow_run(flow_run.id))
+
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_running():
+                    break
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=flow_run.state.model_copy(
+                    update={"name": "Cancelling", "type": StateType.CANCELLING}
+                ),
+            )
+
+            await execute_task
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state.is_cancelled()
+        runner_2._mark_flow_run_as_cancelled.assert_not_called()
+        runner_2._kill_process.assert_not_called()
+
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self,
