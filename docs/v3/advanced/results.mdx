@@ -193,7 +193,7 @@ Flows and tasks both include an option to drop the result from memory once the
 result has been committed with `cache_result_in_memory`:
 
 ```python
-from prefect import flow
+from prefect import flow, task
 
 @flow(cache_result_in_memory=False)
 def foo():
