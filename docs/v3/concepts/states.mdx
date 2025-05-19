@@ -245,6 +245,8 @@ specific state transitions in a workflow.
 State hooks have the following signature:
 
 ```python
+from prefect.client.schemas.objects import TaskRun, FlowRun, Task, Flow, State
+
 def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
     ...
 
