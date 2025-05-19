@@ -89,3 +89,82 @@ def test_call_future_cancelled():
     with pytest.raises(CancelledError):
         call.result()
     assert call.cancelled()
+
+
+def test_call_equality_after_args_kwargs_deletion_targets():
+    """
+    Tests Call.__eq__ behavior after args/kwargs deletion, focusing on:
+        1. No AttributeError is raised
+        2. A Call object with deleted args/kwargs compares as unequal to
+       an otherwise identical Call that still has them
+        3. A Call object (with or without args/kwargs) compares equal to itself
+        4. Two distinct Call objects, both with args/kwargs deleted but otherwise
+       identical before deletion, will compare as unequal with this __eq__ logic
+       (because they are not the same instance and the try-except path is hit)
+
+    This is a regression test for https://github.com/PrefectHQ/prefect/issues/18080
+    """
+
+    def create_call(val, kwarg_val="default"):
+        return Call.new(identity, val, k=kwarg_val)
+
+    # Scenario 1: Baseline - original call and a structurally similar one
+    call_orig_A = create_call(1, kwarg_val="A")
+    call_structurally_same_as_A = create_call(1, kwarg_val="A")
+
+    # With the current simple __eq__, these will be unequal due to different Future instances.
+    assert call_orig_A != call_structurally_same_as_A, (
+        "Newly created identical calls should differ due to Future identity"
+    )
+
+    # Scenario 2: Mutate a call by deleting args/kwargs
+    call_mutated_A = create_call(1, kwarg_val="A")
+    del call_mutated_A.args
+    del call_mutated_A.kwargs
+
+    assert not hasattr(call_mutated_A, "args")
+    assert not hasattr(call_mutated_A, "kwargs")
+
+    try:
+        assert call_mutated_A != call_orig_A, (
+            "Mutated call (no args/kwargs) should be unequal to original call (with args/kwargs)"
+        )
+        assert not (call_mutated_A == call_orig_A)
+    except AttributeError:
+        pytest.fail("AttributeError during comparison: mutated_call vs original_call")
+
+    # Test Point 3: Self-comparison (with and without args/kwargs)
+    try:
+        assert call_orig_A == call_orig_A, "Original call should be equal to itself"
+        assert call_mutated_A == call_mutated_A, (
+            "Mutated call should be equal to itself"
+        )
+    except AttributeError:
+        pytest.fail("AttributeError during self-comparison")
+
+    # Test Point 4: Two distinct calls, both mutated similarly
+    call_mutated_B = create_call(1, kwarg_val="A")
+    del call_mutated_B.args
+    del call_mutated_B.kwargs
+
+    assert call_mutated_A is not call_mutated_B  # Ensure they are different instances
+
+    try:
+        # With the current __eq__, these are unequal because `call_mutated_A.args` (or `call_mutated_B.args`)
+        # will raise AttributeError in the try block, leading to `return False`.
+        assert call_mutated_A != call_mutated_B, (
+            "Two distinct, similarly mutated calls should be unequal with this __eq__ logic"
+        )
+    except AttributeError:
+        pytest.fail("AttributeError during comparison of two distinct mutated calls")
+
+    # Test a different scenario: one call with args, one without args, different original values
+    call_C_has_args = create_call(3, kwarg_val="C")
+    call_D_no_args = create_call(4, kwarg_val="D")  # different original content
+    del call_D_no_args.args
+    del call_D_no_args.kwargs
+
+    try:
+        assert call_C_has_args != call_D_no_args
+    except AttributeError:
+        pytest.fail("AttributeError: call_C_has_args vs call_D_no_args")
