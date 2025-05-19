@@ -1,7 +1,9 @@
 import base64
+import io
 import json
 import uuid
 from dataclasses import dataclass
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,6 +19,7 @@ from prefect.serializers import (
 )
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.dispatch import get_registry_for_type
+from prefect.utilities.importtools import to_qualified_name
 
 # Freeze a UUID for deterministic tests
 TEST_UUID = uuid.UUID("a53e3495-d681-4a53-84b8-9d9542f7237c")
@@ -168,7 +171,7 @@ class TestPickleSerializer:
         with pytest.raises(ValueError):
             PickleSerializer(picklelib=pickle)
 
-    def test_picklelib_is_used(self, monkeypatch):
+    def test_picklelib_is_used(self, monkeypatch: pytest.MonkeyPatch):
         dumps = MagicMock(return_value=b"test")
         loads = MagicMock(return_value="test")
         monkeypatch.setattr("pickle.dumps", dumps)
@@ -179,7 +182,7 @@ class TestPickleSerializer:
         serializer.loads(b"test")
         loads.assert_called_once_with(base64.decodebytes(b"test"))
 
-    def test_picklelib_must_implement_dumps(self, monkeypatch):
+    def test_picklelib_must_implement_dumps(self, monkeypatch: pytest.MonkeyPatch):
         import pickle
 
         monkeypatch.delattr(pickle, "dumps")
@@ -189,7 +192,7 @@ class TestPickleSerializer:
         ):
             PickleSerializer(picklelib="pickle")
 
-    def test_picklelib_must_implement_loads(self, monkeypatch):
+    def test_picklelib_must_implement_loads(self, monkeypatch: pytest.MonkeyPatch):
         import pickle
 
         monkeypatch.delattr(pickle, "loads")
@@ -202,13 +205,13 @@ class TestPickleSerializer:
 
 class TestJSONSerializer:
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
-    def test_simple_roundtrip(self, data):
+    def test_simple_roundtrip(self, data: Any):
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
 
     @pytest.mark.parametrize("data", EXCEPTION_TEST_CASES)
-    def test_exception_roundtrip(self, data):
+    def test_exception_roundtrip(self, data: Any):
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
         assert exceptions_equal(serializer.loads(serialized), data)
@@ -223,7 +226,7 @@ class TestJSONSerializer:
             {"key": complex_str.encode("ASCII")},
         ],
     )
-    def test_simple_roundtrip_with_complex_bytes(self, data):
+    def test_simple_roundtrip_with_complex_bytes(self, data: Any):
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
@@ -236,7 +239,7 @@ class TestJSONSerializer:
         serialized = serializer.dumps("test")
         assert serializer.loads(serialized) == "test"
 
-    def test_uses_alternative_json_library(self, monkeypatch):
+    def test_uses_alternative_json_library(self, monkeypatch: pytest.MonkeyPatch):
         dumps_mock = MagicMock()
         loads_mock = MagicMock()
         monkeypatch.setattr("orjson.dumps", dumps_mock)
@@ -249,7 +252,68 @@ class TestJSONSerializer:
             "test", object_hook=prefect_json_object_decoder
         )
 
-    def test_allows_custom_encoder(self, monkeypatch):
+    def test_json_serializer_does_not_consume_iobase_objects(self):
+        serializer = JSONSerializer()
+        string_io_content = "hello world from unit test"
+        string_io = io.StringIO(string_io_content)
+        data_with_stream = {"my_stream": string_io, "other_data": 123}
+
+        string_io.seek(0)
+        assert string_io.tell() == 0, "Initial seek(0) failed"
+
+        serialized_data = serializer.dumps(data_with_stream)
+
+        assert string_io.tell() == 0, "Stream pointer moved after dumps()"
+        assert string_io.read() == string_io_content, (
+            "Stream content changed or was consumed after dumps()"
+        )
+        string_io.seek(0)
+
+        deserialized_data = json.loads(serialized_data.decode())
+
+        deserialized_stream_placeholder: dict[str, Any] = deserialized_data.get(
+            "my_stream"
+        )
+
+        assert isinstance(deserialized_stream_placeholder, dict), (
+            f"Deserialized 'my_stream' should be a dict placeholder, "
+            f"but got {type(deserialized_stream_placeholder)}"
+        )
+
+        assert deserialized_stream_placeholder.get("__class__") == to_qualified_name(
+            io.StringIO
+        ), (
+            f"Placeholder __class__ ('{deserialized_stream_placeholder.get('__class__')}') "
+            f"does not match expected ('{to_qualified_name(io.StringIO)}')"
+        )
+
+        placeholder_data_string = deserialized_stream_placeholder.get("data")
+        assert isinstance(placeholder_data_string, str), (
+            f"Placeholder data field should be a string, "
+            f"but got {type(placeholder_data_string)}"
+        )
+
+        expected_placeholder_prefix = "<Prefect IOStream Placeholder:"
+        expected_placeholder_type_info = f"type={string_io.__class__.__name__}"
+        expected_placeholder_repr_info = f"repr={repr(string_io)}"
+        expected_placeholder_suffix = "(original content not read)>"
+
+        assert expected_placeholder_prefix in placeholder_data_string, (
+            f"Placeholder prefix '{expected_placeholder_prefix}' missing in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_type_info in placeholder_data_string, (
+            f"Expected type info '{expected_placeholder_type_info}' not in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_repr_info in placeholder_data_string, (
+            f"Expected repr info '{expected_placeholder_repr_info}' not in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_suffix in placeholder_data_string, (
+            f"Placeholder suffix '{expected_placeholder_suffix}' missing in placeholder string: {placeholder_data_string}"
+        )
+
+        assert deserialized_data.get("other_data") == 123, "Other data was altered"
+
+    def test_allows_custom_encoder(self, monkeypatch: pytest.MonkeyPatch):
         fake_object_encoder = MagicMock(return_value="foobar!")
         prefect_object_encoder = MagicMock()
 
@@ -274,7 +338,7 @@ class TestJSONSerializer:
         prefect_object_encoder.assert_not_called()
         fake_object_encoder.assert_called_once_with(obj)
 
-    def test_allows_custom_decoder(self, monkeypatch):
+    def test_allows_custom_decoder(self, monkeypatch: pytest.MonkeyPatch):
         fake_object_decoder = MagicMock(return_value="test")
         prefect_object_decoder = MagicMock()
 
@@ -298,7 +362,7 @@ class TestJSONSerializer:
         fake_object_decoder.assert_called_once_with({"foo": "bar"})
         prefect_object_decoder.assert_not_called()
 
-    def test_allows_custom_kwargs(self, monkeypatch):
+    def test_allows_custom_kwargs(self, monkeypatch: pytest.MonkeyPatch):
         dumps_mock = MagicMock()
         loads_mock = MagicMock()
         monkeypatch.setattr("json.dumps", dumps_mock)
@@ -326,7 +390,7 @@ class TestJSONSerializer:
 
 class TestCompressedSerializer:
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
-    def test_simple_roundtrip(self, data):
+    def test_simple_roundtrip(self, data: Any):
         serializer = CompressedSerializer(serializer="pickle")
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
@@ -337,7 +401,9 @@ class TestCompressedSerializer:
         serialized = serializer.dumps("test")
         assert serializer.loads(serialized) == "test"
 
-    def test_uses_alternative_compression_library(self, monkeypatch):
+    def test_uses_alternative_compression_library(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         compress_mock = MagicMock(return_value=b"test")
         decompress_mock = MagicMock(return_value=PickleSerializer().dumps("test"))
         monkeypatch.setattr("zlib.compress", compress_mock)
@@ -348,7 +414,7 @@ class TestCompressedSerializer:
         compress_mock.assert_called_once()
         decompress_mock.assert_called_once()
 
-    def test_uses_given_serializer(self, monkeypatch):
+    def test_uses_given_serializer(self, monkeypatch: pytest.MonkeyPatch):
         compress_mock = MagicMock(return_value=b"test")
         decompress_mock = MagicMock(return_value=JSONSerializer().dumps("test"))
         monkeypatch.setattr("zlib.compress", compress_mock)

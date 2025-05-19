@@ -127,6 +127,8 @@ def build_docker_image(
     tag: str | None = None,
     additional_tags: list[str] | None = None,
     ignore_cache: bool = False,
+    persist_dockerfile: bool = False,
+    dockerfile_output_path: str = "Dockerfile.generated",
     **build_kwargs: Any,
 ) -> BuildDockerImageResult:
     """
@@ -142,6 +144,10 @@ def build_docker_image(
             passed, a temporary Dockerfile will be created to build the image.
         tag: The tag to apply to the built image.
         additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
+        persist_dockerfile: If True and dockerfile="auto", the generated Dockerfile will be saved
+            instead of deleted after the build.
+        dockerfile_output_path: Optional path where the auto-generated Dockerfile should be saved
+            (e.g., "Dockerfile.generated"). Only used if `persist_dockerfile` is True.
         **build_kwargs: Additional keyword arguments to pass to Docker when building
             the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
             documentation.
@@ -187,6 +193,17 @@ def build_docker_image(
                 dockerfile: Dockerfile
                 platform: amd64
         ```
+        Save the auto-generated Dockerfile to disk:
+        ```yaml
+        build:
+          - prefect_docker.deployments.steps.build_docker_image:
+              requires: prefect-docker
+              image_name: repo-name/image-name
+              tag: dev
+              dockerfile: auto
+              persist_dockerfile: true
+              dockerfile_output_path: Dockerfile.generated
+        ```
     """  # noqa
 
     namespace, repository = split_repository_path(image_name)
@@ -220,6 +237,18 @@ def build_docker_image(
 
         with Path(temp_dockerfile).open("w") as f:
             f.writelines(line + "\n" for line in lines)
+
+        if persist_dockerfile:
+            logger.info(
+                f"Persisting auto-generated Dockerfile to {dockerfile_output_path or 'Dockerfile.generated'}. Please update your 'dockerfile' value to use this Dockerfile for subsequent runs."
+            )
+            output_path = Path(dockerfile_output_path or "Dockerfile.generated")
+            with output_path.open("w") as out_file:
+                out_file.writelines(line + "\n" for line in lines)
+        else:
+            logger.info(
+                "Deleting auto-generated Dockerfile after build. Consider using `persist_dockerfile` to save it."
+            )
 
         dockerfile = str(temp_dockerfile)
 

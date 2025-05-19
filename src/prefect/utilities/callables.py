@@ -424,6 +424,10 @@ def generate_parameter_schema(
         name, type_, field = process_params(
             param, position=position, docstrings=docstrings, aliases=aliases
         )
+
+        if name == "cls":
+            continue  # Exclude 'cls' as it's implicitly passed to @classmethod and not a real flow parameter
+
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:

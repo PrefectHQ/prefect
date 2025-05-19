@@ -124,6 +124,24 @@ Start the Prefect server to use your PostgreSQL database instance:
 prefect server start
 ```
 
+If your PostgreSQL enabled [Certificate Authentication](https://www.postgresql.org/docs/current/auth-cert.html):
+
+1. Update `PREFECT_API_DATABASE_CONNECTION_URL` without password, for example
+
+```bash
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres@localhost:5432/prefect"
+```
+
+2. Enable TLS and specify certification path information by
+
+```bash
+prefect config set PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_ENABLED=True
+prefect config set PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_CA_FILE=/path/to/root/ca/file
+prefect config set PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_CERT_FILE=/path/to/client/cert/file
+prefect config set PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_KEY_FILE=/path/to/client/key
+prefect config set PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_CHECK_HOSTNAME=True
+```
+
 ### In-memory database
 
 To use an in-memory SQLite database, set the following environment variable:

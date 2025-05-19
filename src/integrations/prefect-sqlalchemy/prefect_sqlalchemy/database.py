@@ -316,6 +316,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         connection: Union[Connection, AsyncConnection],
         *execute_args: Tuple[Any],
+        execute_commit: bool = True,
         **execute_kwargs: Dict[str, Any],
     ) -> CursorResult:
         """
@@ -328,8 +329,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
         if self._driver_is_async:
             result_set = await result_set
-            await connection.commit()  # very important
-        elif SQLALCHEMY_VERSION.startswith("2."):
+            if execute_commit:
+                await connection.commit()  # very important
+        elif SQLALCHEMY_VERSION.startswith("2.") and execute_commit:
             connection.commit()
         return result_set
 
@@ -371,7 +373,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             else:
                 connection = self._exit_stack.enter_context(self.get_connection())
             result_set = await self._async_sync_execute(
-                connection, *execute_args, **execute_kwargs
+                connection, *execute_args, execute_commit=False, **execute_kwargs
             )
             # implicitly store the connection by storing the result set
             # which points to its parent connection
