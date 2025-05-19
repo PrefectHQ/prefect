@@ -50,8 +50,10 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     elif isinstance(obj, io.IOBase):
         return {
             "__class__": to_qualified_name(obj.__class__),
-            "__prefect_io_placeholder__": True,
-            "repr": repr(obj),
+            "data": (
+                f"<Prefect IOStream Placeholder: type={obj.__class__.__name__}, "
+                f"repr={repr(obj)} (original content not read)>"
+            ),
         }
     else:
         return {

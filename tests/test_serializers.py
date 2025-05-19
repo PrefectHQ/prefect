@@ -19,6 +19,7 @@ from prefect.serializers import (
 )
 from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.dispatch import get_registry_for_type
+from prefect.utilities.importtools import to_qualified_name
 
 # Freeze a UUID for deterministic tests
 TEST_UUID = uuid.UUID("a53e3495-d681-4a53-84b8-9d9542f7237c")
@@ -262,32 +263,54 @@ class TestJSONSerializer:
 
         serialized_data = serializer.dumps(data_with_stream)
 
-        assert string_io.tell() == 0, (
-            "Stream pointer should not have moved after dumps()"
-        )
-
+        assert string_io.tell() == 0, "Stream pointer moved after dumps()"
         assert string_io.read() == string_io_content, (
             "Stream content changed or was consumed after dumps()"
         )
-
         string_io.seek(0)
 
         deserialized_data = json.loads(serialized_data.decode())
-        assert isinstance(deserialized_data.get("my_stream"), dict), (
-            "Serialized 'my_stream' is not a dict"
+
+        deserialized_stream_placeholder: dict[str, Any] = deserialized_data.get(
+            "my_stream"
         )
-        assert (
-            deserialized_data["my_stream"].get("__prefect_io_placeholder__") is True
-        ), "Missing '__prefect_io_placeholder__'"
-        assert "repr" in deserialized_data["my_stream"], (
-            "Missing 'repr' in serialized stream placeholder"
+
+        assert isinstance(deserialized_stream_placeholder, dict), (
+            f"Deserialized 'my_stream' should be a dict placeholder, "
+            f"but got {type(deserialized_stream_placeholder)}"
         )
-        assert string_io_content not in deserialized_data["my_stream"]["repr"], (
-            "Original content found in repr of placeholder"
+
+        assert deserialized_stream_placeholder.get("__class__") == to_qualified_name(
+            io.StringIO
+        ), (
+            f"Placeholder __class__ ('{deserialized_stream_placeholder.get('__class__')}') "
+            f"does not match expected ('{to_qualified_name(io.StringIO)}')"
         )
-        assert "StringIO" in deserialized_data["my_stream"]["repr"], (
-            "'StringIO' not in repr of placeholder"
+
+        placeholder_data_string = deserialized_stream_placeholder.get("data")
+        assert isinstance(placeholder_data_string, str), (
+            f"Placeholder data field should be a string, "
+            f"but got {type(placeholder_data_string)}"
         )
+
+        expected_placeholder_prefix = "<Prefect IOStream Placeholder:"
+        expected_placeholder_type_info = f"type={string_io.__class__.__name__}"
+        expected_placeholder_repr_info = f"repr={repr(string_io)}"
+        expected_placeholder_suffix = "(original content not read)>"
+
+        assert expected_placeholder_prefix in placeholder_data_string, (
+            f"Placeholder prefix '{expected_placeholder_prefix}' missing in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_type_info in placeholder_data_string, (
+            f"Expected type info '{expected_placeholder_type_info}' not in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_repr_info in placeholder_data_string, (
+            f"Expected repr info '{expected_placeholder_repr_info}' not in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_suffix in placeholder_data_string, (
+            f"Placeholder suffix '{expected_placeholder_suffix}' missing in placeholder string: {placeholder_data_string}"
+        )
+
         assert deserialized_data.get("other_data") == 123, "Other data was altered"
 
     def test_allows_custom_encoder(self, monkeypatch: pytest.MonkeyPatch):
