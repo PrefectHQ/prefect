@@ -12,6 +12,7 @@ bytes to an object respectively.
 """
 
 import base64
+import io
 from typing import Any, ClassVar, Generic, Optional, Union, overload
 
 from pydantic import (
@@ -46,6 +47,12 @@ def prefect_json_object_encoder(obj: Any) -> Any:
     """
     if isinstance(obj, BaseException):
         return {"__exc_type__": to_qualified_name(obj.__class__), "message": str(obj)}
+    elif isinstance(obj, io.IOBase):
+        return {
+            "__class__": to_qualified_name(obj.__class__),
+            "__prefect_io_placeholder__": True,
+            "repr": repr(obj),
+        }
     else:
         return {
             "__class__": to_qualified_name(obj.__class__),
