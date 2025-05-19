@@ -29,7 +29,6 @@
                 "group": "Manage state and configuration",
                 "pages": [
                   "v3/develop/manage-states",
-                  "v3/develop/results",
                   "v3/develop/artifacts",
                   "v3/develop/variables",
                   "v3/develop/blocks"
@@ -197,7 +196,8 @@
         "v3/advanced/caching",
         "v3/advanced/logging-customization",
         "v3/advanced/transactions",
-        "v3/advanced/interactive"
+        "v3/advanced/interactive",
+        "v3/advanced/results"
        ]
       },
       {
@@ -1610,6 +1610,10 @@
     {
       "source": "/v3/deploy/static-infrastructure-examples/docker",
       "destination": "/v3/how-to-guides/deployments/serve-flows-docker"
+    },
+    {
+      "source": "/v3/develop/results",
+      "destination": "/v3/advanced/results"
     }
   ]
 }

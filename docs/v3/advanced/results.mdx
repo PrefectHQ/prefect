@@ -1,5 +1,6 @@
 ---
-title: Manage results
+title: How to persist workflow results
+sidebarTitle: Persist workflow results
 description: Results represent the data returned by a flow or a task and enable features such as caching.
 ---
 
@@ -181,7 +182,7 @@ Current built-in options include `"pickle"`, `"json"`, `"compressed/pickle"` and
 The `result_serializer` accepts both a string identifier or an instance of a `ResultSerializer` class, allowing
 you to customize serialization behavior.
 
-## Advanced: Caching results in memory
+## Caching results in memory
 
 When running workflows, Prefect keeps the results of all tasks and flows in memory
 so they can be passed downstream. In some cases, it is desirable to override this behavior.
