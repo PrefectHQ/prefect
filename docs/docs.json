@@ -74,12 +74,6 @@
                   "v3/deploy/infrastructure-examples/kubernetes",
                   "v3/deploy/infrastructure-examples/coiled"
                 ]
-              },
-              {
-                "group": "Static infrastructure examples",
-                "pages": [
-                  "v3/deploy/static-infrastructure-examples/background-tasks"
-                ]
               }
             ]
           },
@@ -183,6 +177,12 @@
               "v3/how-to-guides/cloud/workspaces",
               "v3/how-to-guides/cloud/create-a-webhook",
               "v3/how-to-guides/cloud/troubleshoot-cloud"
+            ]
+          },
+          {
+            "group": "Data Applications",
+            "pages": [
+              "v3/how-to-guides/applications/background-tasks"
             ]
           }
         ]
@@ -1619,6 +1619,10 @@
     {
       "source": "/v3/develop/results",
       "destination": "/v3/advanced/results"
+    },
+    {
+      "source": "/v3/deploy/static-infrastructure-examples/background-tasks",
+      "destination": "/v3/how-to-guides/applications/background-tasks"
     }
   ]
 }

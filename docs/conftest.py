@@ -43,7 +43,6 @@ SKIP_FILES = {
     # --- Below this line are files that pass locally but fail in CI ---
     "docs/v3/api-ref/rest-api/index.mdx": "Needs Debugging in CI",
     "docs/v3/how-to-guides/automations/create-schedules.mdx": "Needs Debugging in CI",
-    "docs/v3/develop/deferred-tasks.mdx": "Needs Debugging in CI",
     "docs/v3/develop/logging.mdx": "Needs Debugging in CI",
     "docs/v3/develop/variables.mdx": "Needs Debugging in CI",
     "docs/v3/develop/write-flows.mdx": "Needs Debugging in CI",
