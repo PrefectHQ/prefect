@@ -149,6 +149,23 @@ def mock_datetime(monkeypatch: pytest.MonkeyPatch):
             },
             "registry/repo:mytag",
         ),
+        (
+            {
+                "image_name": "registry/repo",
+                "dockerfile": "auto",
+                "persist_dockerfile": True,
+            },
+            f"registry/repo:{FAKE_DEFAULT_TAG}",
+        ),
+        (
+            {
+                "image_name": "registry/repo",
+                "dockerfile": "auto",
+                "persist_dockerfile": True,
+                "dockerfile_output_path": "Dockerfile.test",
+            },
+            f"registry/repo:{FAKE_DEFAULT_TAG}",
+        ),
     ],
 )
 @pytest.mark.usefixtures("mock_datetime")
@@ -160,6 +177,8 @@ def test_build_docker_image(
     auto_build = False
     image_name = kwargs.get("image_name")
     dockerfile = kwargs.get("dockerfile", "Dockerfile")
+    persist_dockerfile = kwargs.get("persist_dockerfile", False)
+    dockerfile_output_path = kwargs.get("dockerfile_output_path", None)
     tag = kwargs.get("tag", FAKE_DEFAULT_TAG)
     additional_tags = kwargs.get("additional_tags", None)
     path = kwargs.get("path", os.getcwd())
@@ -202,7 +221,10 @@ def test_build_docker_image(
     mock_docker_client.images.get.assert_called_once_with(FAKE_CONTAINER_ID)
 
     if auto_build:
-        assert not Path("Dockerfile").exists()
+        if persist_dockerfile:
+            assert Path(dockerfile_output_path or "Dockerfile.generated").exists()
+        else:
+            assert not Path("Dockerfile").exists()
 
 
 def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
