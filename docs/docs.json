@@ -79,7 +79,6 @@
               {
                 "group": "Static infrastructure examples",
                 "pages": [
-                  "v3/deploy/static-infrastructure-examples/docker",
                   "v3/deploy/static-infrastructure-examples/background-tasks"
                 ]
               }
@@ -159,7 +158,8 @@
               "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/versioning",
               "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
-              "v3/how-to-guides/deployments/customize-job-variables"
+              "v3/how-to-guides/deployments/customize-job-variables",
+              "v3/how-to-guides/deployments/serve-flows-docker"
             ]
           },
           {
@@ -1611,6 +1611,11 @@
     {
       "source": "/v3/develop/manage-states",
       "destination": "/v3/concepts/states"
+    },
+    {
+      "source": "/v3/deploy/static-infrastructure-examples/docker",
+      "destination": "/v3/how-to-guides/deployments/serve-flows-docker"
+
     }
   ]
 }
