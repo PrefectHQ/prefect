@@ -1,5 +1,6 @@
 ---
-title: Manage results
+title: How to persist workflow results
+sidebarTitle: Persist workflow results
 description: Results represent the data returned by a flow or a task and enable features such as caching.
 ---
 
@@ -87,13 +88,12 @@ For example, a common distributed filesystem for result storage is AWS S3.
 
 Additionally, you can control the default persistence behavior for task results using the `default_persist_result` setting. This setting allows you to specify whether results should be persisted by default for all tasks. You can set this to `True` to enable persistence by default, or `False` to disable it. This setting can be overridden at the individual task or flow level.
 
-{/* pmd-metadata: fixture:cleanup_s3_bucket_block */}
 ```python
 from prefect import flow, task
 from prefect_aws.s3 import S3Bucket
 
 test_block = S3Bucket(bucket_name='test-bucket')
-test_block.save('test-block')
+test_block.save('test-block', overwrite=True)
 
 # define three tasks
 # with different result persistence configuration
@@ -181,7 +181,7 @@ Current built-in options include `"pickle"`, `"json"`, `"compressed/pickle"` and
 The `result_serializer` accepts both a string identifier or an instance of a `ResultSerializer` class, allowing
 you to customize serialization behavior.
 
-## Advanced: Caching results in memory
+## Caching results in memory
 
 When running workflows, Prefect keeps the results of all tasks and flows in memory
 so they can be passed downstream. In some cases, it is desirable to override this behavior.
@@ -192,7 +192,7 @@ Flows and tasks both include an option to drop the result from memory once the
 result has been committed with `cache_result_in_memory`:
 
 ```python
-from prefect import flow
+from prefect import flow, task
 
 @flow(cache_result_in_memory=False)
 def foo():
