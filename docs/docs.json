@@ -60,8 +60,7 @@
                 "pages": [
                   "v3/deploy/infrastructure-concepts/store-flow-code",
                   "v3/deploy/infrastructure-concepts/deploy-via-python",
-                  "v3/deploy/infrastructure-concepts/prefect-yaml",
-                  "v3/deploy/infrastructure-concepts/deploy-ci-cd"
+                  "v3/deploy/infrastructure-concepts/prefect-yaml"
                 ]
               },
 
@@ -152,7 +151,8 @@
               "v3/how-to-guides/deployments/versioning",
               "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
               "v3/how-to-guides/deployments/customize-job-variables",
-              "v3/how-to-guides/deployments/serve-flows-docker"
+              "v3/how-to-guides/deployments/serve-flows-docker",
+              "v3/how-to-guides/deployments/deploy-ci-cd"
             ]
           },
           {
@@ -1623,6 +1623,10 @@
     {
       "source": "/v3/deploy/static-infrastructure-examples/background-tasks",
       "destination": "/v3/how-to-guides/applications/background-tasks"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
+      "destination": "/v3/how-to-guides/deployments/deploy-ci-cd"
     }
   ]
 }
