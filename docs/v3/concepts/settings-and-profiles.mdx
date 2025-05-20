@@ -1,5 +1,5 @@
 ---
-title: Configure settings and profiles
+title: Settings and profiles
 description: Prefect settings let you customize behavior across different environments.
 ---
 
@@ -149,20 +149,7 @@ Profiles are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect
 
 One and only one profile can be active at any time.
 
-Immediately after installation, the `ephemeral` profile will be used, which only has 1 setting configured:
-
-```bash
-» docker run -it prefecthq/prefect:3-latest
-  ___ ___ ___ ___ ___ ___ _____
- | _ \ _ \ __| __| __/ __|_   _|
- |  _/   / _|| _|| _| (__  | |
- |_| |_|_\___|_| |___\___| |_|
-
-
-root@e56e34ab8934:/opt/prefect $ prefect config view
-PREFECT_PROFILE='ephemeral'
-PREFECT_SERVER_ALLOW_EPHEMERAL_MODE='True' (from profile)
-```
+Immediately after installation, the `ephemeral` profile will be used, which only has `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` configured:
 
 <Tip>
 **What is `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE`?**
@@ -211,20 +198,6 @@ prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true PREFECT_LOGGING_LEVEL
 
 prefect profile inspect
 prefect config unset PREFECT_LOGGING_LEVEL -y
-```
-
-## View current configuration
-
-To view all available settings and their active values from the command line, run:
-
-```bash
-prefect config view --show-defaults
-```
-
-These settings are type-validated and you may verify your setup at any time with:
-
-```bash
-prefect config validate
 ```
 
 ## Common client settings

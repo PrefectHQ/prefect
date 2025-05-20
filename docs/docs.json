@@ -33,12 +33,6 @@
                   "v3/develop/global-concurrency-limits"
                 ]
               },
-              {
-                "group": "Manage settings",
-                "pages": [
-                  "v3/develop/settings-and-profiles"
-                ]
-              },
               "v3/develop/test-workflows"
             ]
           },
@@ -111,7 +105,8 @@
           { "group": "Configuration",
             "pages": [
               "v3/how-to-guides/configuration/store-secrets",
-              "v3/how-to-guides/configuration/variables"
+              "v3/how-to-guides/configuration/variables",
+              "v3/how-to-guides/configuration/manage-settings"
             ]
           },
           {
@@ -214,7 +209,8 @@
         "v3/concepts/states",
         "v3/concepts/artifacts",
         "v3/concepts/variables",
-        "v3/concepts/blocks"
+        "v3/concepts/blocks",
+        "v3/concepts/settings-and-profiles"
        ]
       },
       {
@@ -1645,6 +1641,10 @@
     {
       "source": "/v3/develop/blocks",
       "destination": "/v3/advanced/custom-blocks"
+    },
+    {
+      "source": "/v3/develop/settings-and-profiles",
+      "destination": "/v3/how-to-guides/configuration/manage-settings"
     }
   ]
 }
