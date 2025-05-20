@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import logging
 import random
 import sys
 import threading
@@ -1322,6 +1323,45 @@ class TestTaskRetries:
 
             test_flow()
             assert mock.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("retries_configured", "expected_log_fragment"),
+        [
+            (0, "No retries configured for this task"),
+            (1, "Retries are exhausted"),
+        ],
+    )
+    async def test_task_retry_logging(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        retries_configured: int,
+        expected_log_fragment: str,
+    ):
+        caplog.set_level(logging.ERROR, logger="prefect.task_engine")
+        exc = ValueError("Test Exception")
+
+        @task(retries=retries_configured)
+        def failing_task():
+            raise exc
+
+        @flow
+        def test_flow():
+            try:
+                failing_task()
+            except ValueError:
+                pass  # Expected
+
+        test_flow()
+
+        found_message = False
+        for record in caplog.records:
+            if expected_log_fragment in record.message and record.levelname == "ERROR":
+                assert str(exc) in record.message
+                found_message = True
+                break
+        assert found_message, (
+            f"Expected log fragment '{expected_log_fragment}' not found in ERROR logs."
+        )
 
 
 class TestResultPersistence:
