@@ -552,8 +552,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 else "No retries configured for this task."
             )
             self.logger.error(
-                f"Task run failed with exception: %r - {retry_message_suffix}",
-                exc,
+                f"Task run failed with exception: {exc!r} - {retry_message_suffix}",
                 exc_info=True,
             )
             return False
@@ -1107,8 +1106,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 else "No retries configured for this task."
             )
             self.logger.error(
-                f"Task run failed with exception: %r - {retry_message_suffix}",
-                exc,
+                f"Task run failed with exception: {exc!r} - {retry_message_suffix}",
                 exc_info=True,
             )
             return False
