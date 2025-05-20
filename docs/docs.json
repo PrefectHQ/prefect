@@ -49,8 +49,7 @@
               {
                 "group": "Run flows on dynamic infrastructure",
                 "pages": [
-                  "v3/deploy/infrastructure-concepts/store-flow-code",
-                  "v3/deploy/infrastructure-concepts/prefect-yaml"
+                  "v3/deploy/infrastructure-concepts/store-flow-code"
                 ]
               }
             ]
@@ -129,6 +128,7 @@
             "pages": [
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/deploy-via-python",
+              "v3/how-to-guides/deployments/prefect-yaml",
               "v3/how-to-guides/deployments/versioning",
               "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
@@ -1649,6 +1649,10 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/deploy-via-python",
       "destination": "/v3/how-to-guides/deployments/deploy-via-python"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/prefect-yaml",
+      "destination": "/v3/how-to-guides/deployments/prefect-yaml"
     }
   ]
 }
