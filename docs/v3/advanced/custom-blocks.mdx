@@ -10,6 +10,7 @@ on Pydantic's `BaseModel`, so you can declare custom fields just like a [Pydanti
 
 We've already seen an example of a `Cube` block that represents a cube and holds information about the length of each edge in inches:
 
+{/* pmd-metadata: notest}
 ```python
 from prefect.blocks.core import Block
 
@@ -64,6 +65,7 @@ class AwsCredentials(Block):
 Since `aws_secret_access_key` has the `SecretStr` type hint assigned to it, 
 the value of that field is not exposed if the object is logged:
 
+{/* pmd-metadata: continuation}
 ```python
 aws_credentials_block = AwsCredentials(
     aws_access_key_id="AKIAJKLJKLJKLJKLJKLJK",
@@ -107,6 +109,7 @@ system_configuration_block = SystemConfiguration(
 
 `system_secrets` is obfuscated when `system_configuration_block` is displayed, but `system_variables` show up in plain-text:
 
+{/* pmd-metadata: continuation}
 ```python
 print(system_configuration_block)
 # SystemConfiguration(
@@ -137,6 +140,11 @@ read and write objects from (this field exists on [our implementation](https://g
 Add the new field to the class definition:
 
 ```python
+from typing import Optional
+
+from prefect.blocks.core import Block
+
+
 class S3Bucket(Block):
     bucket_name: str
     credentials: AwsCredentials
@@ -149,6 +157,7 @@ Then [register the updated block type](#register-blocks) with either your Prefec
 If you have any existing blocks of this type that were created before the update and 
 you'd prefer to not re-create them, migrate them to the new version of your block type by adding the missing values:
 
+{/* pmd-metadata: continuation}
 ```python
 # Bypass Pydantic validation to allow your local Block class to load the old block version
 my_s3_bucket_block = S3Bucket.load("my-s3-bucket", validate=False)

@@ -33,6 +33,7 @@ In addition, block schemas allow for fields of `SecretStr` type which are stored
 
 Block types are identified by a _slug_ that is not configurable.
 
+{/* pmd-metadata: notest}
 ```python
 from prefect.blocks.core import Block
 
@@ -55,6 +56,7 @@ A block _document_ is an instantiation of the schema, or block type. A document 
 
 All block types allow for the creation of as many documents as you wish. Building on our example above:
 
+{/* pmd-metadata: notest}
 ```python
 from prefect.blocks.core import Block
 
@@ -87,6 +89,7 @@ For example, an `S3Bucket` block contains methods for downloading data from, or 
 
 Returning to our `Cube` example from above:
 
+{/* pmd-metadata: notest}
 ```python
 from prefect.blocks.core import Block
 
