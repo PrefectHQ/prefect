@@ -32,8 +32,7 @@
                   "v3/develop/task-run-limits",
                   "v3/develop/global-concurrency-limits"
                 ]
-              },
-              "v3/develop/test-workflows"
+              }
             ]
           },
           {
