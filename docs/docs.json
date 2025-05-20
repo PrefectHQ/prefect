@@ -28,7 +28,6 @@
               {
                 "group": "Manage state and configuration",
                 "pages": [
-                  "v3/develop/artifacts",
                   "v3/develop/variables",
                   "v3/develop/blocks"
                 ]
@@ -47,7 +46,6 @@
                   "v3/develop/settings-and-profiles"
                 ]
               },
-              "v3/develop/interact-with-api",
               "v3/develop/test-workflows"
             ]
           },
@@ -124,7 +122,8 @@
               "v3/how-to-guides/workflows/turn-a-command-into-workflow",
               "v3/how-to-guides/workflows/visualize-workflow-structure",
               "v3/how-to-guides/workflows/run-background-tasks",
-              "v3/how-to-guides/workflows/state-change-hooks"
+              "v3/how-to-guides/workflows/state-change-hooks",
+              "v3/how-to-guides/workflows/artifacts"
             ]
           },
           { "group": "Configuration",
@@ -197,7 +196,8 @@
         "v3/advanced/logging-customization",
         "v3/advanced/transactions",
         "v3/advanced/interactive",
-        "v3/advanced/results"
+        "v3/advanced/results",
+        "v3/advanced/api-client"
        ]
       },
       {
@@ -216,7 +216,8 @@
         "v3/concepts/workers",
         "v3/concepts/runtime-context",
         "v3/concepts/cancel-workflows",
-        "v3/concepts/states"
+        "v3/concepts/states",
+        "v3/concepts/artifacts"
        ]
       },
       {
@@ -1627,6 +1628,14 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
       "destination": "/v3/how-to-guides/deployments/deploy-ci-cd"
+    },
+    {
+      "source": "/v3/develop/artifacts",
+      "destination": "/v3/how-to-guides/workflows/artifacts"
+    },
+    {
+      "source": "/v3/develop/interact-with-api",
+      "destination": "/v3/advanced/api-client"
     }
   ]
 }
