@@ -1,0 +1,169 @@
+---
+title: How to create custom blocks
+sidebarTitle: Create custom blocks
+---
+
+### Create a new block type
+
+To create a custom block type, define a class that subclasses `Block`. The `Block` base class builds 
+on Pydantic's `BaseModel`, so you can declare custom fields just like a [Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
+
+We've already seen an example of a `Cube` block that represents a cube and holds information about the length of each edge in inches:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.blocks.core import Block
+
+class Cube(Block):
+    edge_length_inches: float
+
+
+Cube.register_type_and_schema()
+```
+
+### Register custom blocks
+
+In addition to the `register_type_and_schema` method shown above, you can register blocks from a Python module with a CLI command:
+
+```bash
+prefect block register --module prefect_aws.credentials
+```
+
+This command is useful for registering all blocks found within a module in a [Prefect Integration library](/integrations/).
+
+Alternatively, if a custom block was created in a `.py` file, you can register the block with the CLI command:
+
+```bash
+prefect block register --file my_block.py
+```
+
+Block documents can now be created with the registered block schema.
+
+### Secret fields
+
+All block values are encrypted before being stored.
+If you have values that you would not like visible in the UI or in logs, 
+use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values.
+You can use this capability for fields that store credentials such as passwords and API tokens.
+
+Here's an example of an `AwsCredentials` block that uses `SecretStr`:
+
+```python
+from typing import Optional
+
+from prefect.blocks.core import Block
+from pydantic import SecretStr
+
+class AwsCredentials(Block):
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[SecretStr] = None
+    aws_session_token: Optional[str] = None
+    profile_name: Optional[str] = None
+    region_name: Optional[str] = None
+```
+
+Since `aws_secret_access_key` has the `SecretStr` type hint assigned to it, 
+the value of that field is not exposed if the object is logged:
+
+{/* pmd-metadata: notest */}
+```python
+aws_credentials_block = AwsCredentials(
+    aws_access_key_id="AKIAJKLJKLJKLJKLJKLJK",
+    aws_secret_access_key="secret_access_key"
+)
+
+print(aws_credentials_block)
+# aws_access_key_id='AKIAJKLJKLJKLJKLJKLJK' aws_secret_access_key=SecretStr('**********') aws_session_token=None profile_name=None region_name=None
+```
+
+Prefect's `SecretDict` field type allows you to add a dictionary field to your block 
+that automatically obfuscates values at all levels in the UI or in logs.
+This capability is useful for blocks where typing or structure of secret fields is not known until configuration time.
+
+Here's an example of a block that uses `SecretDict`:
+
+```python
+from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
+
+
+class SystemConfiguration(Block):
+    system_secrets: SecretDict
+    system_variables: dict
+
+
+system_configuration_block = SystemConfiguration(
+    system_secrets={
+        "password": "p@ssw0rd",
+        "api_token": "token_123456789",
+        "private_key": "<private key here>",
+    },
+    system_variables={
+        "self_destruct_countdown_seconds": 60,
+        "self_destruct_countdown_stop_time": 7,
+    },
+)
+```
+
+`system_secrets` is obfuscated when `system_configuration_block` is displayed, but `system_variables` show up in plain-text:
+
+{/* pmd-metadata: notest */}
+```python
+print(system_configuration_block)
+# SystemConfiguration(
+#   system_secrets=SecretDict('{'password': '**********', 'api_token': '**********', 'private_key': '**********'}'), 
+#   system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7}
+# )
+```
+
+### Customize a block's display
+
+You can set metadata fields on a block type's subclass to control how a block displays.
+
+Available metadata fields include:
+
+| Property          | Description                                                                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_block_type_name` | Display name of the block in the UI. Defaults to the class name.                                                                             |
+| `_block_type_slug` | Unique slug used to reference the block type in the API. Defaults to a lowercase, dash-delimited version of the block type name.             |
+| `_logo_url`        | URL pointing to an image that should be displayed for the block type in the UI. Default to `None`.                                           |
+| `_description`     | Short description of block type. Defaults to docstring, if provided.                                                                         |
+| `_code_example`    | Short code snippet shown in UI for how to load/use block type. Defaults to first example provided in the docstring of the class, if provided. |
+
+### Update custom `Block` types
+
+Here's an example of how to add a `bucket_folder` field to your custom `S3Bucket` block; it represents the default path to 
+read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py)).
+
+Add the new field to the class definition:
+
+{/* pmd-metadata: notest */}
+```python
+from typing import Optional
+
+from prefect.blocks.core import Block
+
+
+class S3Bucket(Block):
+    bucket_name: str
+    credentials: AwsCredentials
+    bucket_folder: Optional[str] = None
+    ...
+```
+
+Then [register the updated block type](#register-blocks) with either your Prefect Cloud account or your self-hosted Prefect server instance.
+
+If you have any existing blocks of this type that were created before the update and 
+you'd prefer to not re-create them, migrate them to the new version of your block type by adding the missing values:
+
+{/* pmd-metadata: notest */}
+```python
+# Bypass Pydantic validation to allow your local Block class to load the old block version
+my_s3_bucket_block = S3Bucket.load("my-s3-bucket", validate=False)
+
+# Set the new field to an appropriate value
+my_s3_bucket_block.bucket_path = "my-default-bucket-path"
+
+# Overwrite the old block values and update the expected fields on the block
+my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
+```
