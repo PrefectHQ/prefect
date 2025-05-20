@@ -36,18 +36,6 @@
             ]
           },
           {
-            "group": "Deploy",
-            "pages": [
-              "v3/deploy/index",
-              {
-                "group": "Run flows on dynamic infrastructure",
-                "pages": [
-                  "v3/deploy/infrastructure-concepts/store-flow-code"
-                ]
-              }
-            ]
-          },
-          {
             "group": "Operate",
             "pages": [
               {
@@ -121,9 +109,11 @@
           {
             "group": "Deployments",
             "pages": [
+              "v3/how-to-guides/deployments/create-deployments",
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/deploy-via-python",
               "v3/how-to-guides/deployments/prefect-yaml",
+              "v3/how-to-guides/deployments/store-flow-code",
               "v3/how-to-guides/deployments/versioning",
               "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
@@ -197,6 +187,7 @@
         "v3/concepts/flows-and-tasks",
         "v3/concepts/caching",
         "v3/concepts/events",
+        "v3/concepts/deployments",
         "v3/concepts/automations",
         "v3/concepts/event-triggers",
         "v3/concepts/webhooks",
@@ -1657,6 +1648,14 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/prefect-yaml",
       "destination": "/v3/how-to-guides/deployments/prefect-yaml"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/store-flow-code",
+      "destination": "/v3/how-to-guides/deployments/store-flow-code"
+    },
+    {
+      "source": "/v3/deploy/index",
+      "destination": "/v3/concepts/deployments"
     }
   ]
 }
