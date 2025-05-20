@@ -83,15 +83,13 @@ This capability is useful for blocks where typing or structure of secret fields 
 Here's an example of a block that uses `SecretDict`:
 
 ```python
-from typing import Dict
-
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 
 
 class SystemConfiguration(Block):
     system_secrets: SecretDict
-    system_variables: Dict
+    system_variables: dict
 
 
 system_configuration_block = SystemConfiguration(
