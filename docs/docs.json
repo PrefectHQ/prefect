@@ -46,7 +46,6 @@
                   "v3/develop/settings-and-profiles"
                 ]
               },
-              "v3/develop/interact-with-api",
               "v3/develop/test-workflows"
             ]
           },
@@ -197,7 +196,8 @@
         "v3/advanced/logging-customization",
         "v3/advanced/transactions",
         "v3/advanced/interactive",
-        "v3/advanced/results"
+        "v3/advanced/results",
+        "v3/advanced/api-client"
        ]
       },
       {
@@ -1632,6 +1632,10 @@
     {
       "source": "/v3/develop/artifacts",
       "destination": "/v3/how-to-guides/workflows/artifacts"
+    },
+    {
+      "source": "/v3/develop/interact-with-api",
+      "destination": "/v3/advanced/api-client"
     }
   ]
 }
