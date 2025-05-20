@@ -65,7 +65,7 @@ class AwsCredentials(Block):
 Since `aws_secret_access_key` has the `SecretStr` type hint assigned to it, 
 the value of that field is not exposed if the object is logged:
 
-{/* pmd-metadata: continuation}
+{/* pmd-metadata: continuation */}
 ```python
 aws_credentials_block = AwsCredentials(
     aws_access_key_id="AKIAJKLJKLJKLJKLJKLJK",
@@ -109,7 +109,7 @@ system_configuration_block = SystemConfiguration(
 
 `system_secrets` is obfuscated when `system_configuration_block` is displayed, but `system_variables` show up in plain-text:
 
-{/* pmd-metadata: continuation}
+{/* pmd-metadata: continuation */}
 ```python
 print(system_configuration_block)
 # SystemConfiguration(
@@ -157,7 +157,7 @@ Then [register the updated block type](#register-blocks) with either your Prefec
 If you have any existing blocks of this type that were created before the update and 
 you'd prefer to not re-create them, migrate them to the new version of your block type by adding the missing values:
 
-{/* pmd-metadata: continuation}
+{/* pmd-metadata: continuation */}
 ```python
 # Bypass Pydantic validation to allow your local Block class to load the old block version
 my_s3_bucket_block = S3Bucket.load("my-s3-bucket", validate=False)
