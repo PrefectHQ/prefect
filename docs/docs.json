@@ -32,8 +32,7 @@
                   "v3/develop/task-run-limits",
                   "v3/develop/global-concurrency-limits"
                 ]
-              },
-              "v3/develop/test-workflows"
+              }
             ]
           },
           {
@@ -97,7 +96,8 @@
               "v3/how-to-guides/workflows/visualize-workflow-structure",
               "v3/how-to-guides/workflows/run-background-tasks",
               "v3/how-to-guides/workflows/state-change-hooks",
-              "v3/how-to-guides/workflows/artifacts"
+              "v3/how-to-guides/workflows/artifacts",
+              "v3/how-to-guides/workflows/test-workflows"
             ]
           },
           { "group": "Configuration",
@@ -1645,6 +1645,10 @@
     {
       "source": "/v3/develop/settings-and-profiles",
       "destination": "/v3/how-to-guides/configuration/manage-settings"
+    },
+    {
+      "source": "/v3/develop/test-workflows",
+      "destination": "/v3/how-to-guides/workflows/test-workflows"
     },
     {
       "source": "/v3/deploy/infrastructure-concepts/deploy-via-python",
