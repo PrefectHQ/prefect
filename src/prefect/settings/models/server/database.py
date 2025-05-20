@@ -15,6 +15,42 @@ from typing_extensions import Literal, Self
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
+class SQLAlchemyTLSSettings(PrefectBaseSettings):
+    """
+    Settings for controlling SQLAlchemy mTLS context when
+    using a PostgreSQL database.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database", "sqlalchemy", "connect_args", "tls")
+    )
+
+    enabled: bool = Field(
+        default=False,
+        description="Controls whether connected to mTLS enabled PostgreSQL when using a PostgreSQL database with the Prefect backend.",
+    )
+
+    ca_file: Optional[str] = Field(
+        default=None,
+        description="This configuration settings option specifies the path to PostgreSQL client certificate authority file.",
+    )
+
+    cert_file: Optional[str] = Field(
+        default=None,
+        description="This configuration settings option specifies the path to PostgreSQL client certificate file.",
+    )
+
+    key_file: Optional[str] = Field(
+        default=None,
+        description="This configuration settings option specifies the path to PostgreSQL client key file.",
+    )
+
+    check_hostname: bool = Field(
+        default=True,
+        description="This configuration settings option specifies whether to verify PostgreSQL server hostname.",
+    )
+
+
 class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
     """
     Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
@@ -42,6 +78,11 @@ class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
             "When set to 0, statement caching is disabled. Defaults to None to use "
             "SQLAlchemy's default behavior."
         ),
+    )
+
+    tls: SQLAlchemyTLSSettings = Field(
+        default_factory=SQLAlchemyTLSSettings,
+        description="Settings for controlling SQLAlchemy mTLS behavior",
     )
 
 

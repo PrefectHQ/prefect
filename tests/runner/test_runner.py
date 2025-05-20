@@ -92,6 +92,25 @@ def dummy_flow_1():
     pass
 
 
+@flow
+def dummy_flow_2():
+    pass
+
+
+class ClassNameStaticmethod:
+    @flow
+    @staticmethod
+    def dummy_flow_staticmethod():
+        pass
+
+
+class ClassNameClassmethod:
+    @flow
+    @classmethod
+    def dummy_flow_classmethod(cls):
+        pass
+
+
 @task
 def my_task(seconds: int):
     time.sleep(seconds)
@@ -116,11 +135,6 @@ def on_crashed(flow, flow_run, state):
 def crashing_flow():
     print("Oh boy, here I go crashing again...")
     os.kill(os.getpid(), signal.SIGTERM)
-
-
-@flow
-def dummy_flow_2():
-    pass
 
 
 @flow()
@@ -290,6 +304,8 @@ class TestServe:
         serve(
             dummy_flow_1.to_deployment(__file__),
             dummy_flow_2.to_deployment(__file__),
+            ClassNameStaticmethod.dummy_flow_staticmethod.to_deployment(__file__),
+            ClassNameClassmethod.dummy_flow_classmethod.to_deployment(__file__),
             tired_flow.to_deployment(__file__),
         )
 
@@ -301,6 +317,8 @@ class TestServe:
         )
         assert "dummy-flow-1/test_runner" in captured.out
         assert "dummy-flow-2/test_runner" in captured.out
+        assert "dummy-flow-staticmethod/test_runner" in captured.out
+        assert "dummy-flow-classmethod/test_runner" in captured.out
         assert "tired-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
@@ -427,6 +445,8 @@ class TestAServe:
         await aserve(
             await dummy_flow_1.to_deployment(__file__),
             await dummy_flow_2.to_deployment(__file__),
+            await ClassNameStaticmethod.dummy_flow_staticmethod.to_deployment(__file__),
+            await ClassNameClassmethod.dummy_flow_classmethod.to_deployment(__file__),
             await tired_flow.to_deployment(__file__),
         )
 
@@ -438,6 +458,8 @@ class TestAServe:
         )
         assert "dummy-flow-1/test_runner" in captured.out
         assert "dummy-flow-2/test_runner" in captured.out
+        assert "dummy-flow-staticmethod/test_runner" in captured.out
+        assert "dummy-flow-classmethod/test_runner" in captured.out
         assert "tired-flow/test_runner" in captured.out
         assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
 
@@ -911,6 +933,48 @@ class TestRunner:
         assert resource["prefect.deployment.version-type"] == "githubulous"
         assert resource["prefect.deployment.version"] == "1.2.3.4.5.6"
 
+    async def test_runner_does_not_try_to_cancel_flow_run_if_no_process_id_is_found(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/18106
+        """
+        runner_1 = Runner()
+        runner_2 = Runner()
+        runner_2._mark_flow_run_as_cancelled = AsyncMock()
+        runner_2._kill_process = AsyncMock()
+        deployment_id = await runner_1.add_deployment(
+            await tired_flow.to_deployment(__file__)
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        async with runner_1, runner_2:
+            execute_task = asyncio.create_task(runner_1.execute_flow_run(flow_run.id))
+
+            while True:
+                await anyio.sleep(0.5)
+                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+                assert flow_run.state
+                if flow_run.state.is_running():
+                    break
+
+            await prefect_client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=flow_run.state.model_copy(
+                    update={"name": "Cancelling", "type": StateType.CANCELLING}
+                ),
+            )
+
+            await execute_task
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state.is_cancelled()
+        runner_2._mark_flow_run_as_cancelled.assert_not_called()
+        runner_2._kill_process.assert_not_called()
+
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self,
@@ -1117,14 +1181,23 @@ class TestRunner:
         assert len(heartbeat_events) == 0
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.parametrize(
+        "dummy_flow",
+        [
+            dummy_flow_1,
+            ClassNameClassmethod.dummy_flow_classmethod,
+            ClassNameStaticmethod.dummy_flow_staticmethod,
+        ],
+    )
     async def test_runner_can_execute_a_single_flow_run(
         self,
+        dummy_flow: Flow,
         prefect_client: PrefectClient,
         mock_events_client: AssertingEventsClient,
     ):
         runner = Runner(heartbeat_seconds=30, limit=None)
 
-        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        deployment_id = await (await dummy_flow.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
@@ -1155,7 +1228,7 @@ class TestRunner:
             {
                 "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
                 "prefect.resource.role": "flow",
-                "prefect.resource.name": dummy_flow_1.name,
+                "prefect.resource.name": dummy_flow.name,
             },
         ]
 
@@ -1825,9 +1898,35 @@ class TestRunnerDeployment:
     def dummy_flow_1_entrypoint(self, relative_file_path):
         return f"{relative_file_path}:dummy_flow_1"
 
-    def test_from_flow(self, relative_file_path):
+    @pytest.mark.parametrize(
+        "dummy_flow, flow_name, entrypoint_suffix",
+        [
+            (
+                dummy_flow_1,
+                "dummy-flow-1",
+                "dummy_flow_1",
+            ),
+            (
+                ClassNameClassmethod.dummy_flow_classmethod,
+                "dummy-flow-classmethod",
+                "ClassNameClassmethod.dummy_flow_classmethod",
+            ),
+            (
+                ClassNameStaticmethod.dummy_flow_staticmethod,
+                "dummy-flow-staticmethod",
+                "ClassNameStaticmethod.dummy_flow_staticmethod",
+            ),
+        ],
+    )
+    def test_from_flow(
+        self,
+        dummy_flow: Flow,
+        flow_name: str,
+        entrypoint_suffix: str,
+        relative_file_path: Path,
+    ):
         deployment = RunnerDeployment.from_flow(
-            dummy_flow_1,
+            dummy_flow,
             __file__,
             tags=["test"],
             version="alpha",
@@ -1838,8 +1937,8 @@ class TestRunnerDeployment:
         )
 
         assert deployment.name == "test_runner"
-        assert deployment.flow_name == "dummy-flow-1"
-        assert deployment.entrypoint == f"{relative_file_path}:dummy_flow_1"
+        assert deployment.flow_name == flow_name
+        assert deployment.entrypoint == f"{relative_file_path}:{entrypoint_suffix}"
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.version_type == VersionType.SIMPLE

@@ -57,7 +57,7 @@ dependencies = [
     "humanize>=4.9.0,<5.0.0",
     "importlib_metadata>=4.4;python_version<'3.10'",
     "jsonpatch>=1.32,<2.0",
-    "jsonschema>=4.0.0,<5.0.0",
+    "jsonschema>=4.18.0,<5.0.0",
     "opentelemetry-api>=1.27.0,<2.0.0",
     "orjson>=3.7,<4.0",
     "packaging>=21.3,<25.1",
@@ -83,7 +83,6 @@ dependencies = [
     "websockets>=13.0,<16.0",
     "whenever>=0.7.3,<0.9.0; python_version>='3.13'",
     "uv>=0.6.0",
-    "uuid7>=0.1.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"

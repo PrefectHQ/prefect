@@ -1,9 +1,10 @@
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.types import TaskRetryDelaySeconds
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
@@ -73,7 +74,7 @@ class TasksSettings(PrefectBaseSettings):
         ),
     )
 
-    default_retry_delay_seconds: Union[int, float, list[float]] = Field(
+    default_retry_delay_seconds: TaskRetryDelaySeconds = Field(
         default=0,
         description="This value sets the default retry delay seconds for all tasks.",
         validation_alias=AliasChoices(
