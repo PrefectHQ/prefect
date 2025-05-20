@@ -26,12 +26,6 @@
             "pages": [
               "v3/develop/index",
               {
-                "group": "Manage state and configuration",
-                "pages": [
-                  "v3/develop/blocks"
-                ]
-              },
-              {
                 "group": "Manage concurrency",
                 "pages": [
                   "v3/develop/task-runners",
@@ -197,7 +191,8 @@
         "v3/advanced/transactions",
         "v3/advanced/interactive",
         "v3/advanced/results",
-        "v3/advanced/api-client"
+        "v3/advanced/api-client",
+        "v3/advanced/custom-blocks"
        ]
       },
       {
@@ -218,7 +213,8 @@
         "v3/concepts/cancel-workflows",
         "v3/concepts/states",
         "v3/concepts/artifacts",
-        "v3/concepts/variables"
+        "v3/concepts/variables",
+        "v3/concepts/blocks"
        ]
       },
       {
@@ -1645,6 +1641,10 @@
     {
       "source": "/v3/deploy/infrastructure-examples/:slug*",
       "destination": "/v3/how-to-guides/deployment_infra/:slug*"
+    },
+    {
+      "source": "/v3/develop/blocks",
+      "destination": "/v3/advanced/custom-blocks"
     }
   ]
 }
