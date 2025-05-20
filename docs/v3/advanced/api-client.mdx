@@ -22,6 +22,7 @@ By default, `get_client()` returns an asynchronous client to be used as a contex
 
 <CodeGroup>
 
+{/* pmd-metadata: notest */}
 ```python async
 from prefect import get_client
 
@@ -261,6 +262,7 @@ to get the last three completed flow runs of a specific deployment.
 Use `get_client`to set multiple runs to a `Cancelled` state.
 This example cancels all flow runs that are in `Pending`, `Running`, `Scheduled`, or `Late` states when the script is run.
 
+{/* pmd-metadata: notest */}
 ```python
 async def list_flow_runs_with_states(states: list[str]) -> list[FlowRun]:
     async with get_client() as client:
@@ -283,6 +285,7 @@ async def cancel_flow_runs(flow_runs: list[FlowRun]):
 
 Cancel all pending, running, scheduled or late flows:
 
+{/* pmd-metadata: notest */}
 ```python
 async def bulk_cancel_flow_runs():
     states = ["Pending", "Running", "Scheduled", "Late"]
