@@ -58,7 +58,7 @@ class Webhook(Block):
         else:
             self._client = AsyncClient(transport=_insecure_http_transport)
 
-    async def call(self, payload: dict[str, Any] | None = None) -> Response:
+    async def call(self, payload: dict[str, Any] | str | None = None) -> Response:
         """
         Call the webhook.
 
@@ -69,9 +69,17 @@ class Webhook(Block):
             validate_restricted_url(self.url.get_secret_value())
 
         async with self._client:
-            return await self._client.request(
-                method=self.method,
-                url=self.url.get_secret_value(),
-                headers=self.headers.get_secret_value(),
-                json=payload,
-            )
+            if isinstance(payload, str):
+                return await self._client.request(
+                    method=self.method,
+                    url=self.url.get_secret_value(),
+                    headers=self.headers.get_secret_value(),
+                    content=payload,
+                )
+            else:
+                return await self._client.request(
+                    method=self.method,
+                    url=self.url.get_secret_value(),
+                    headers=self.headers.get_secret_value(),
+                    json=payload,
+                )

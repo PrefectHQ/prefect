@@ -810,6 +810,8 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
+                from prefect.task_worker import store_parameters
+
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -825,7 +827,7 @@ class Task(Generic[P, R]):
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await store.store_parameters(parameters_id, data)
+                await store_parameters(store, parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -911,6 +913,8 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
+                from prefect.task_worker import store_parameters
+
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -926,7 +930,7 @@ class Task(Generic[P, R]):
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await store.store_parameters(parameters_id, data)
+                await store_parameters(store, parameters_id, data)
 
             # collect task inputs
             task_inputs = {
