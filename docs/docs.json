@@ -28,7 +28,6 @@
               {
                 "group": "Manage state and configuration",
                 "pages": [
-                  "v3/develop/variables",
                   "v3/develop/blocks"
                 ]
               },
@@ -128,7 +127,8 @@
           },
           { "group": "Configuration",
             "pages": [
-              "v3/how-to-guides/configuration/store-secrets"
+              "v3/how-to-guides/configuration/store-secrets",
+              "v3/how-to-guides/configuration/variables"
             ]
           },
           {
@@ -217,7 +217,8 @@
         "v3/concepts/runtime-context",
         "v3/concepts/cancel-workflows",
         "v3/concepts/states",
-        "v3/concepts/artifacts"
+        "v3/concepts/artifacts",
+        "v3/concepts/variables"
        ]
       },
       {
@@ -1636,6 +1637,10 @@
     {
       "source": "/v3/develop/interact-with-api",
       "destination": "/v3/advanced/api-client"
+    },
+    {
+      "source": "/v3/develop/variables",
+      "destination": "/v3/how-to-guides/configuration/variables"
     }
   ]
 }
