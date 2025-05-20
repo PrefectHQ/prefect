@@ -61,6 +61,7 @@ It also deletes any remaining late flow runs of that deployment.
 
 First, define the rescheduling function:
 
+{/* pmd-metadata: notest */}
 ```python
 async def reschedule_late_flow_runs(
     deployment_name: str,
@@ -97,6 +98,7 @@ async def reschedule_late_flow_runs(
 
 Then use it to reschedule flows:
 
+{/* pmd-metadata: notest */}
 ```python
 rescheduled_flow_runs = asyncio.run(
     reschedule_late_flow_runs(
@@ -184,6 +186,7 @@ To get the last `N` completed flow runs from your workspace, use `read_flow_runs
 
 This example gets the last three completed flow runs from your workspace:
 
+{/* pmd-metadata: notest */}
 ```python
 async def get_most_recent_flow_runs(
     n: int,
@@ -201,6 +204,7 @@ async def get_most_recent_flow_runs(
 
 Use it to get the last 3 completed runs:
 
+{/* pmd-metadata: notest */}
 ```python
 flow_runs: list[FlowRun] = asyncio.run(
     get_most_recent_flow_runs(n=3)
