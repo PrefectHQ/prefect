@@ -97,7 +97,8 @@
               "v3/how-to-guides/workflows/visualize-workflow-structure",
               "v3/how-to-guides/workflows/run-background-tasks",
               "v3/how-to-guides/workflows/state-change-hooks",
-              "v3/how-to-guides/workflows/artifacts"
+              "v3/how-to-guides/workflows/artifacts",
+              "v3/how-to-guides/workflows/test-workflows"
             ]
           },
           { "group": "Configuration",
