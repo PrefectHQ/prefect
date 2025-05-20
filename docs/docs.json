@@ -109,6 +109,7 @@
           {
             "group": "Deployments",
             "pages": [
+              "v3/how-to-guides/deployments/create-deployments",
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/deploy-via-python",
               "v3/how-to-guides/deployments/prefect-yaml",
@@ -186,6 +187,7 @@
         "v3/concepts/flows-and-tasks",
         "v3/concepts/caching",
         "v3/concepts/events",
+        "v3/concepts/deployments",
         "v3/concepts/automations",
         "v3/concepts/event-triggers",
         "v3/concepts/webhooks",
@@ -1650,6 +1652,10 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/store-flow-code",
       "destination": "/v3/how-to-guides/deployments/store-flow-code"
+    },
+    {
+      "source": "/v3/deploy/index",
+      "destination": "/v3/concepts/deployments"
     }
   ]
 }

@@ -7,7 +7,7 @@ description: Learn about code storage as it relates to execution of deployments
 When a deployment runs, the execution environment needs access to the flow code.
 Flow code is not stored directly in Prefect server or Prefect Cloud; instead, it must be made available to the execution environment. There are two main ways to achieve this:
 
-1.  **Include source code directly in your runtime:** Often, this means [building your code into a Docker image](/v3/deploy/infrastructure-examples/docker/).
+1.  **Include source code directly in your runtime:** Often, this means [building your code into a Docker image](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 2.  **Retrieve code from storage at runtime:** The [worker](/v3/concepts/workers/) pulls code from a specified location before starting the flow run.
 
 This page focuses on the second approach: retrieving code from a storage location at runtime.
@@ -20,7 +20,7 @@ You have several options for where your code can be stored and pulled from:
 
 The ideal choice depends on your team's needs and tools.
 
-In the examples below, we show how to create a deployment configured to run on [dynamic infrastructure](/v3/deploy/infrastructure-concepts/work-pools) for each of these storage options. 
+In the examples below, we show how to create a deployment configured to run on [dynamic infrastructure](/v3/concepts/work-pools) for each of these storage options. 
 
 ## Deployment creation options
 As detailed in the [Deployment overview](/v3/deploy), you can create a deployment in one of two main ways:
