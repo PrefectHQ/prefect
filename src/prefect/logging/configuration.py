@@ -54,7 +54,10 @@ def load_logging_config(path: Path) -> dict[str, Any]:
             to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
         )
         if env_val:
-            val = env_val
+            if isinstance(val, list):
+                val = env_val.split(",")
+            else:
+                val = env_val
 
         # reassign the updated value
         flat_config[key_tup] = val

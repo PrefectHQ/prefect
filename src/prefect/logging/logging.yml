@@ -2,7 +2,8 @@
 #
 # Any item in this file can be overridden with an environment variable:
 #    `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
-#
+# List items can be overridden with a comma-separated list:
+#   `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=item1,item2,item3`
 # Templated values can be used to insert values from the Prefect settings at runtime.
 
 version: 1
