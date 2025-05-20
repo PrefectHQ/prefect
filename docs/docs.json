@@ -136,6 +136,7 @@
             "pages": [
               "v3/how-to-guides/deployments/run-flows-in-local-processes",
               "v3/how-to-guides/deployments/versioning",
+              "v3/how-to-guides/deployments/manage-work-pools",
               "v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
               "v3/how-to-guides/deployments/customize-job-variables",
               "v3/how-to-guides/deployments/serve-flows-docker",
@@ -143,15 +144,14 @@
             ]
           },
           {
-            "group": "Work Pools",
+            "group": "Deployment Infrastructure",
             "pages": [
-              "v3/how-to-guides/deployments/manage-work-pools",
-              "v3/how-to-guides/work_pools/managed",
-              "v3/how-to-guides/work_pools/serverless",
-              "v3/how-to-guides/work_pools/docker",
-              "v3/how-to-guides/work_pools/kubernetes",
-              "v3/how-to-guides/work_pools/modal",
-              "v3/how-to-guides/work_pools/coiled"
+              "v3/how-to-guides/deployment_infra/managed",
+              "v3/how-to-guides/deployment_infra/serverless",
+              "v3/how-to-guides/deployment_infra/docker",
+              "v3/how-to-guides/deployment_infra/kubernetes",
+              "v3/how-to-guides/deployment_infra/modal",
+              "v3/how-to-guides/deployment_infra/coiled"
             ]
           },
           {
