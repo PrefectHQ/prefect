@@ -1647,6 +1647,10 @@
       "destination": "/v3/how-to-guides/configuration/manage-settings"
     },
     {
+      "source": "/v3/develop/test-workflows",
+      "destination": "/v3/how-to-guides/workflows/test-workflows"
+    },
+    {
       "source": "/v3/deploy/infrastructure-concepts/deploy-via-python",
       "destination": "/v3/how-to-guides/deployments/deploy-via-python"
     },
