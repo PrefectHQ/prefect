@@ -1332,7 +1332,10 @@ class TestTaskRetries:
         ],
     )
     async def test_task_retry_logging(
-        self, caplog, retries_configured, expected_log_fragment
+        self,
+        caplog: pytest.LogCaptureFixture,
+        retries_configured: int,
+        expected_log_fragment: str,
     ):
         caplog.set_level(logging.ERROR, logger="prefect.task_engine")
         exc = ValueError("Test Exception")
@@ -1343,19 +1346,16 @@ class TestTaskRetries:
 
         @flow
         def test_flow():
-            # Use try/except to catch the expected failure and allow log assertions
             try:
-                failing_task.submit().wait()
+                failing_task()
             except ValueError:
                 pass  # Expected
 
         test_flow()
 
-        # Check for the specific log message
         found_message = False
         for record in caplog.records:
             if expected_log_fragment in record.message and record.levelname == "ERROR":
-                # Ensure the exception itself is also in the message for context
                 assert str(exc) in record.message
                 found_message = True
                 break
