@@ -1,5 +1,6 @@
 ---
-title: Retrieve code from storage
+title: How to retrieve code from storage
+sidebarTitle: Retrieve code from storage
 description: Learn about code storage as it relates to execution of deployments
 ---
 
@@ -7,7 +8,7 @@ When a deployment runs, the execution environment needs access to the flow code.
 Flow code is not stored directly in Prefect server or Prefect Cloud; instead, it must be made available to the execution environment. There are two main ways to achieve this:
 
 1.  **Include source code directly in your runtime:** Often, this means [building your code into a Docker image](/v3/deploy/infrastructure-examples/docker/).
-2.  **Retrieve code from storage at runtime:** The [worker](/v3/deploy/infrastructure-concepts/workers/) pulls code from a specified location before starting the flow run.
+2.  **Retrieve code from storage at runtime:** The [worker](/v3/concepts/workers/) pulls code from a specified location before starting the flow run.
 
 This page focuses on the second approach: retrieving code from a storage location at runtime.
 
@@ -24,7 +25,7 @@ In the examples below, we show how to create a deployment configured to run on [
 ## Deployment creation options
 As detailed in the [Deployment overview](/v3/deploy), you can create a deployment in one of two main ways:
 
-- [Python code with the `flow.deploy` method](/v3/deploy/infrastructure-concepts/deploy-via-python)
+- [Python code with the `flow.deploy` method](/v3/how-to-guides/deployments/deploy-via-python)
 
     - When using `.deploy`, specify a storage location for your flow with the `flow.from_source` method.
 
@@ -36,7 +37,7 @@ As detailed in the [Deployment overview](/v3/deploy), you can create a deploymen
     - The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
 
 
-- [YAML specification defined in a `prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml)
+- [YAML specification defined in a `prefect.yaml` file](/v3/how-to-guides/deployments/prefect-yaml)
 
     - To create a `prefect.yaml` file interactively, run `prefect deploy` from the CLI and follow the prompts.
 
@@ -509,7 +510,7 @@ To push the image to a remote registry, pass `push=True` in the Python `deploy` 
 If an `image` is not specified by one of the methods above, deployment flow runs associated with a Docker work pool will use the base Prefect image (e.g. `prefecthq/prefect:3-latest`) when executing.
 Alternatively, you can create a custom Docker image outside of Prefect by running `docker build` && `docker push` elsewhere (e.g. in your CI/CD pipeline) and then reference the resulting `image` in the `job_variables` section of your deployment definition, or set the `image` as a default directly on the work pool.
 
-For more information, see [this discussion of custom Docker images](/v3/deploy/infrastructure-examples/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
+For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
 ## Blob storage
 
