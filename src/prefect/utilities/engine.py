@@ -140,6 +140,19 @@ def collect_task_run_inputs_sync(
     return inputs
 
 
+def store_task_run_parents(
+    child_task_run_id: UUID, task_inputs: dict[str, set[TaskRunInput]]
+):
+    flow_run_ctx = FlowRunContext.get()
+    if not flow_run_ctx:
+        return
+
+    for tr_inputs in task_inputs.values():
+        for tr_input in tr_inputs:
+            if isinstance(tr_input, TaskRunResult):
+                flow_run_ctx.task_run_parents[child_task_run_id].add(tr_input.id)
+
+
 @contextlib.contextmanager
 def capture_sigterm() -> Generator[None, Any, None]:
     def cancel_flow_run(*args: object) -> NoReturn:

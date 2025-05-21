@@ -883,7 +883,10 @@ class Task(Generic[P, R]):
         deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities._engine import dynamic_key_for_task_run
-        from prefect.utilities.engine import collect_task_run_inputs_sync
+        from prefect.utilities.engine import (
+            collect_task_run_inputs_sync,
+            store_task_run_parents,
+        )
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -959,15 +962,7 @@ class Task(Generic[P, R]):
                 else None
             )
             task_run_id = id or uuid7()
-
-            from prefect.assets.core import _parents_table
-
-            parents_tbl = _parents_table(flow_run_context)
-
-            child_id = task_run_id
-            for tri_set in task_inputs.values():
-                for tri in tri_set:
-                    parents_tbl[child_id].add(tri.id)
+            store_task_run_parents(task_run_id, task_inputs)
 
             state = prefect.states.Pending(
                 state_details=StateDetails(
