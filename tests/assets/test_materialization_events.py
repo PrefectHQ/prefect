@@ -5,7 +5,6 @@ from prefect.tasks import task
 
 
 def _asset_events(worker: EventsWorker):
-    """Return *only* asset‑centric events emitted during the test run."""
     return [e for e in worker._client.events if e.event.startswith("prefect.asset.")]
 
 
