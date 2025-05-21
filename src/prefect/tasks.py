@@ -959,6 +959,16 @@ class Task(Generic[P, R]):
                 else None
             )
             task_run_id = id or uuid7()
+
+            from prefect.assets.core import _parents_table
+
+            parents_tbl = _parents_table(flow_run_context)
+
+            child_id = task_run_id
+            for tri_set in task_inputs.values():
+                for tri in tri_set:
+                    parents_tbl[child_id].add(tri.id)
+
             state = prefect.states.Pending(
                 state_details=StateDetails(
                     task_run_id=task_run_id,
