@@ -1,4 +1,6 @@
-from prefect.assets import Asset, materialize
+import pytest
+
+from prefect.assets import Asset, ReadOnlyAsset, materialize
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
@@ -37,7 +39,6 @@ def test_single_asset_materialization_success(
     assert evt.resource.id == users.key
     assert evt.resource["prefect.resource.name"] == "Users"
     assert evt.resource["region"] == "us‑east1"
-    # Flow‑run context must be present
     assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
@@ -86,14 +87,11 @@ def test_linear_dependency(asserting_events_worker: EventsWorker, reset_worker_e
     asserting_events_worker.drain()
 
     events = sorted(_asset_events(asserting_events_worker), key=lambda e: e.resource.id)
-    # two events: upstream then downstream
     assert len(events) == 2
 
     up_evt, down_evt = events
     assert up_evt.resource.id == upstream.key
     assert down_evt.resource.id == downstream.key
-
-    # Downstream must reference upstream in related‑assets
     assert any(r.id == upstream.key and r.role == "asset" for r in down_evt.related)
 
 
@@ -120,7 +118,6 @@ def test_read_only_observation(
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    # Should have exactly **one** materialization (the downstream)
     mats = [e for e in events if e.event.startswith("prefect.asset.materialization")]
     obs = [e for e in events if e.event.startswith("prefect.asset.observation")]
 
@@ -208,15 +205,12 @@ def test_fan_in_dependency(asserting_events_worker: EventsWorker, reset_worker_e
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    # Should have 3 events (2 upstream assets + 1 downstream)
     assert len(events) == 3
 
-    # Get the downstream event
     downstream_events = [e for e in events if e.resource.id == user_orders.key]
     assert len(downstream_events) == 1
     downstream_evt = downstream_events[0]
 
-    # Check that downstream event references both upstream assets in related resources
     assert any(
         r.id == raw_users.key and r.role == "asset" for r in downstream_evt.related
     )
@@ -224,12 +218,10 @@ def test_fan_in_dependency(asserting_events_worker: EventsWorker, reset_worker_e
         r.id == raw_orders.key and r.role == "asset" for r in downstream_evt.related
     )
 
-    # Verify flow-run context is present
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
 def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_events):
-    # Case #5: 1 upstream asset -> 2 downstream assets
     events_raw = Asset(key="s3://data/events_raw", name="Raw Events")
     events_daily = Asset(key="s3://data/events_daily", name="Daily Aggregates")
     events_hourly = Asset(key="s3://data/events_hourly", name="Hourly Aggregates")
@@ -266,16 +258,13 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    # Should have 3 events (1 upstream + 2 downstream)
     assert len(events) == 3
 
-    # Get the downstream events
     daily_events = [e for e in events if e.resource.id == events_daily.key]
     hourly_events = [e for e in events if e.resource.id == events_hourly.key]
     assert len(daily_events) == 1
     assert len(hourly_events) == 1
 
-    # Both downstream events should reference the same upstream asset
     for evt in [daily_events[0], hourly_events[0]]:
         assert any(r.id == events_raw.key and r.role == "asset" for r in evt.related)
         # Also check for flow-run context
@@ -285,7 +274,6 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_
 def test_fan_in_to_fan_out_dependency(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    # Case #6: 2 upstream assets -> 2 downstream assets
     users_raw = Asset(key="postgres://prod/users_raw", name="Users Raw")
     orders_raw = Asset(key="postgres://prod/orders_raw", name="Orders Raw")
     per_user = Asset(key="postgres://prod/orders_per_user", name="Orders Per User")
@@ -308,22 +296,18 @@ def test_fan_in_to_fan_out_dependency(
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    # Should have 4 events total (2 upstream + 2 downstream)
     assert len(events) == 4
 
-    # Get events for each asset
     users_events = [e for e in events if e.resource.id == users_raw.key]
     orders_events = [e for e in events if e.resource.id == orders_raw.key]
     per_user_events = [e for e in events if e.resource.id == per_user.key]
     summary_events = [e for e in events if e.resource.id == summary.key]
 
-    # Verify one event per asset
     assert len(users_events) == 1
     assert len(orders_events) == 1
     assert len(per_user_events) == 1
     assert len(summary_events) == 1
 
-    # Each downstream event should reference both upstream assets
     for evt in [per_user_events[0], summary_events[0]]:
         assert any(r.id == users_raw.key and r.role == "asset" for r in evt.related)
         assert any(r.id == orders_raw.key and r.role == "asset" for r in evt.related)
@@ -359,22 +343,92 @@ def test_linear_dependency_with_intermediate_task(
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    # Should have 2 events (1 upstream + 1 downstream)
     assert len(events) == 2
 
-    # Get events for each asset
     upstream_events = [e for e in events if e.resource.id == upstream.key]
     downstream_events = [e for e in events if e.resource.id == downstream.key]
 
-    # Verify one event per asset
     assert len(upstream_events) == 1
     assert len(downstream_events) == 1
-
-    # Downstream event should reference the upstream asset
     downstream_evt = downstream_events[0]
     assert any(
         r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
     )
-
-    # Verify flow-run context is present
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+
+
+@pytest.mark.parametrize(
+    "invalid_key",
+    [
+        "invalid-key",
+        "assets/my-asset",
+        "/path/to/file",
+        "no-protocol-prefix",
+        "UPPERCASE://resource",
+        "://missing-protocol",
+    ],
+)
+def test_asset_invalid_uri(invalid_key):
+    with pytest.raises(ValueError, match="key must match URI pattern"):
+        Asset(key=invalid_key)
+
+
+def test_asset_as_resource():
+    asset = Asset(
+        key="s3://bucket/data",
+        name="Test Data",
+        metadata={"owner": "data-team", "region": "us-west-2"},
+    )
+
+    resource = asset.as_resource()
+    assert resource["prefect.resource.id"] == "s3://bucket/data"
+    assert resource["prefect.resource.name"] == "Test Data"
+    assert resource["owner"] == "data-team"
+    assert resource["region"] == "us-west-2"
+
+    asset_no_name = Asset(key="s3://bucket/data", metadata={"owner": "data-team"})
+    resource_no_name = asset_no_name.as_resource()
+    assert resource_no_name["prefect.resource.id"] == "s3://bucket/data"
+    assert "prefect.resource.name" not in resource_no_name
+    assert resource_no_name["owner"] == "data-team"
+
+
+def test_asset_as_related():
+    asset = Asset(
+        key="postgres://prod/users",
+        name="Users",
+        metadata={"owner": "data-team"},
+    )
+
+    related = asset.as_related()
+    assert related["prefect.resource.id"] == "postgres://prod/users"
+    assert related["prefect.resource.role"] == "asset"
+
+    assert "owner" not in related
+    assert "prefect.resource.name" not in related
+
+
+def test_asset_read():
+    original_asset = Asset(
+        key="postgres://prod/users",
+        name="Users",
+        metadata={"owner": "data-team"},
+    )
+
+    read_only = original_asset.read()
+
+    assert isinstance(read_only, ReadOnlyAsset)
+
+    assert read_only.key == original_asset.key
+    assert read_only.name == original_asset.name
+    assert read_only.metadata == original_asset.metadata
+
+    original_asset.metadata["new_key"] = "value"
+    assert "new_key" not in read_only.metadata
+
+    resource = read_only.as_resource()
+    assert resource["prefect.resource.id"] == "postgres://prod/users"
+
+    related = read_only.as_related()
+    assert related["prefect.resource.id"] == "postgres://prod/users"
+    assert related["prefect.resource.role"] == "asset"

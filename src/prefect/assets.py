@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import re
 from functools import wraps
-from typing import Callable, Generic, Sequence, TypeVar
+from typing import Callable, Dict, Generic, Sequence, TypeVar
 from uuid import UUID
 
+from pydantic import Field, field_validator
+
 from prefect import Task
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import TaskRun
 from prefect.context import FlowRunContext
 from prefect.events import emit_event
@@ -15,19 +19,22 @@ P = TypeVar("P")
 R = TypeVar("R")
 
 
-class Asset:
-    def __init__(
-        self,
-        *,
-        key: str,
-        name: str | None = None,
-        metadata: dict[str, str] | None = None,
-    ):
-        self.key = key
-        self.name = name
-        self.metadata = metadata or {}
+URI_REGEX = re.compile(r"^[a-z0-9]+://")
 
-    def as_resource(self) -> dict[str, str]:
+
+class Asset(PrefectBaseModel):
+    key: str
+    name: str | None = None
+    metadata: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("key")
+    @classmethod
+    def validate_key(cls, value: str) -> str:
+        if not URI_REGEX.match(value):
+            raise ValueError("key must match URI pattern '^[a-z0-9]+://'")
+        return value
+
+    def as_resource(self) -> Dict[str, str]:
         resource = {
             "prefect.resource.id": self.key,
         }
@@ -35,10 +42,9 @@ class Asset:
             resource["prefect.resource.name"] = self.name
 
         resource.update(self.metadata)
-
         return resource
 
-    def as_related(self) -> dict[str, str]:
+    def as_related(self) -> Dict[str, str]:
         return {
             "prefect.resource.id": self.key,
             "prefect.resource.role": "asset",
@@ -90,7 +96,7 @@ class MaterializationTask(Task, Generic[P, R]):
         parents = ctx.task_run_parents
         assets = ctx.task_run_assets
 
-        todo: list[UUID] = list(parents.get(task_run.id, ()))
+        todo: list[UUID] = list(parents.get(task_run.id, set()))
         seen: set[UUID] = set()
         found: list[Asset] = []
 
