@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 from functools import wraps
-from typing import Callable, Dict, Generic, Sequence, TypeVar
+from typing import Any, Callable, Sequence, TypeVar, cast
 from uuid import UUID
 
 from pydantic import Field, field_validator
+from typing_extensions import ParamSpec
 
 from prefect import Task
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -15,7 +16,7 @@ from prefect.events import emit_event
 from prefect.states import State
 
 T = TypeVar("T")
-P = TypeVar("P")
+P = ParamSpec("P")
 R = TypeVar("R")
 
 
@@ -25,7 +26,7 @@ URI_REGEX = re.compile(r"^[a-z0-9]+://")
 class Asset(PrefectBaseModel):
     key: str
     name: str | None = None
-    metadata: Dict[str, str] = Field(default_factory=dict)
+    metadata: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("key")
     @classmethod
@@ -34,7 +35,7 @@ class Asset(PrefectBaseModel):
             raise ValueError("key must match URI pattern '^[a-z0-9]+://'")
         return value
 
-    def as_resource(self) -> Dict[str, str]:
+    def as_resource(self) -> dict[str, str]:
         resource = {
             "prefect.resource.id": self.key,
         }
@@ -44,7 +45,7 @@ class Asset(PrefectBaseModel):
         resource.update(self.metadata)
         return resource
 
-    def as_related(self) -> Dict[str, str]:
+    def as_related(self) -> dict[str, str]:
         return {
             "prefect.resource.id": self.key,
             "prefect.resource.role": "asset",
@@ -63,8 +64,10 @@ class ReadOnlyAsset(Asset):
     pass
 
 
-class MaterializationTask(Task, Generic[P, R]):
-    def __init__(self, fn: Callable[..., R], *, assets: Sequence[Asset], **task_kwargs):
+class MaterializationTask(Task[P, R]):
+    def __init__(
+        self, fn: Callable[P, R], *, assets: Sequence[Asset], **task_kwargs: Any
+    ) -> None:
         self.assets: list[Asset] = list(assets)
 
         on_completion = task_kwargs.pop("on_completion", [])
@@ -73,11 +76,15 @@ class MaterializationTask(Task, Generic[P, R]):
         task_kwargs["on_failure"] = [self._materialization_failed, *on_fail]
         super().__init__(fn=fn, **task_kwargs)
 
-    def _materialization_succeeded(self, task, task_run: TaskRun, state: State):
+    def _materialization_succeeded(
+        self, task: Any, task_run: TaskRun, state: State
+    ) -> None:
         self._record_assets(task_run)
         self._emit_events(task_run, succeeded=True)
 
-    def _materialization_failed(self, task, task_run: TaskRun, state: State):
+    def _materialization_failed(
+        self, task: Any, task_run: TaskRun, state: State
+    ) -> None:
         self._record_assets(task_run)
         self._emit_events(task_run, succeeded=False)
 
@@ -135,19 +142,21 @@ class MaterializationTask(Task, Generic[P, R]):
             )
 
 
-def materialize(*assets: Asset, **task_kwargs):
+def materialize(
+    *assets: Asset, **task_kwargs: Any
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     if not assets:
         raise TypeError(
             "materialize requires at least one Asset argument, e.x. `@materialize(asset1)`"
         )
 
-    def decorator(fn: Callable[..., R]):
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         task = MaterializationTask(fn, assets=assets, **task_kwargs)
 
         @wraps(fn)
-        def wrapper(*args, **kwargs):
-            return task(*args, **kwargs)
+        def wrapper(*args: Any, **kwargs: Any) -> R:
+            return cast(R, task(*args, **kwargs))
 
-        return wrapper
+        return cast(Callable[P, R], wrapper)
 
     return decorator

@@ -142,7 +142,7 @@ def collect_task_run_inputs_sync(
 
 def store_task_run_parents(
     child_task_run_id: UUID, task_inputs: dict[str, set[TaskRunInput]]
-):
+) -> None:
     flow_run_ctx = FlowRunContext.get()
     if not flow_run_ctx:
         return
