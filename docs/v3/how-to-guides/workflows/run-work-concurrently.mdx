@@ -207,12 +207,14 @@ When using `.map` as in the above example, the result of the task is a list of f
 
 You can wait for or retrieve the results from these futures with `wait` or `result` methods:
 
+{/* pmd-metadata: notest */}
 ```python
 futures = some_task.map(some_iterable)
 results = futures.result()
 ```
 which is syntactic sugar for the corresponding list comprehension:
 
+{/* pmd-metadata: notest */}
 ```python
 futures = some_task.map(some_iterable)
 results = [future.result() for future in futures]
@@ -263,6 +265,7 @@ run_text_analysis()
 
 <Accordion title="Output">
 
+{/* pmd-metadata: notest */}
 ```python
 00:03:45.159 | INFO    | Flow run 'hilarious-collie' - Beginning flow run 'hilarious-collie' for flow 'run-text-analysis'
 00:03:45.233 | INFO    | Task run 'count_words-01a' - Finished in state Completed()
@@ -294,6 +297,7 @@ when calling a task by specifying upstream task dependencies. This enables you t
 order for tasks that do not share data dependencies.
 
 ```python
+from prefect import flow, task
 @task
 def task_a():
     pass
@@ -407,6 +411,7 @@ evaluate_models(
 
 <Accordion title="Output">
 
+{/* pmd-metadata: notest */}
 ```python
 00:56:47.873 | INFO    | Flow run 'precious-walrus' - Beginning flow run 'precious-walrus' for flow 'evaluate-models'
 00:56:47.981 | INFO    | Task run 'train on customers with random_forest' - Finished in state Completed()
