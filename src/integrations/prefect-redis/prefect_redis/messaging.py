@@ -33,9 +33,6 @@ from prefect.server.utilities.messaging import (
     StopConsumer,
 )
 from prefect.server.utilities.messaging import Publisher as _Publisher
-from prefect.server.utilities.messaging._consumer_names import (
-    generate_unique_consumer_name,
-)
 from prefect_redis.client import get_async_redis_client
 
 logger = get_logger(__name__)
@@ -231,7 +228,7 @@ class Consumer(_Consumer):
         max_retries: int = 3,
         trim_every: timedelta = timedelta(seconds=60),
     ):
-        self.name = generate_unique_consumer_name(group or topic)
+        self.name = name or topic
         self.stream = topic  # Use topic as stream name
         self.group = group or topic  # Use topic as default group name
         self.block = block
