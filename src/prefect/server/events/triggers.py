@@ -710,7 +710,22 @@ def load_automation(automation: Optional[Automation]) -> None:
 
     for trigger in event_triggers:
         triggers[trigger.id] = trigger
-        next_proactive_runs.pop(trigger.id, None)
+        # next_proactive_runs.pop(trigger.id, None) # This was causing the reload storm
+
+        # Only initialize next_proactive_runs for new proactive triggers or if it's missing.
+        # Existing schedules for proactive triggers should be preserved unless the automation
+        # is deleted/disabled (handled by forget_automation) or its definition changes
+        # in a way that requires rescheduling (a more complex case not handled here).
+        if trigger.posture == Posture.Proactive:
+            if trigger.id not in next_proactive_runs:
+                logger.critical(
+                    f"load_automation: Initializing next_proactive_run for new/missing proactive TriggerID={trigger.id} to now."
+                )
+                next_proactive_runs[trigger.id] = prefect.types._datetime.now("UTC")
+            # If it exists, we leave it alone, allowing its schedule to persist across simple reloads.
+        else:
+            # Ensure non-proactive triggers don't have stale entries if their posture changed
+            next_proactive_runs.pop(trigger.id, None)
 
 
 def forget_automation(automation_id: UUID) -> None:
