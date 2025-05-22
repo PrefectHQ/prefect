@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING, NoReturn
 from prefect.logging import get_logger
 from prefect.server.events import actions
 from prefect.server.services.base import RunInAllServers, Service
-from prefect.server.utilities.messaging import Consumer, create_consumer
+from prefect.server.utilities.messaging import create_consumer
+from prefect.server.utilities.messaging._names import generate_consumer_name
+from prefect.settings import PREFECT_MESSAGING_BROKER
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 
@@ -27,7 +29,11 @@ class Actions(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Actions already started"
-        self.consumer: Consumer = create_consumer("actions")
+        consumer_kwargs = {}
+        if PREFECT_MESSAGING_BROKER.value() == "prefect_redis.messaging":
+            consumer_kwargs["name"] = generate_consumer_name()
+
+        self.consumer = create_consumer("actions", **consumer_kwargs)
 
         async with actions.consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))

@@ -8,7 +8,9 @@ import rich
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.services.base import RunInAllServers, Service
-from prefect.server.utilities.messaging import Consumer, Message, create_consumer
+from prefect.server.utilities.messaging import Message, create_consumer
+from prefect.server.utilities.messaging._names import generate_consumer_name
+from prefect.settings import PREFECT_MESSAGING_BROKER
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types._datetime import now
@@ -30,7 +32,11 @@ class EventLogger(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Logger already started"
-        self.consumer: Consumer = create_consumer("events")
+        consumer_kwargs = {}
+        if PREFECT_MESSAGING_BROKER.value() == "prefect_redis.messaging":
+            consumer_kwargs["name"] = generate_consumer_name()
+
+        self.consumer = create_consumer("events", **consumer_kwargs)
 
         console = rich.console.Console()
 

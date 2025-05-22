@@ -19,15 +19,16 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
 from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities.messaging import (
-    Consumer,
     Message,
     MessageHandler,
     create_consumer,
 )
+from prefect.server.utilities.messaging._names import generate_consumer_name
 from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
+    PREFECT_MESSAGING_BROKER,
     PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE,
 )
 from prefect.settings.context import get_current_settings
@@ -102,7 +103,11 @@ class EventPersister(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Event persister already started"
-        self.consumer: Consumer = create_consumer("events")
+        consumer_kwargs = {}
+        if PREFECT_MESSAGING_BROKER.value() == "prefect_redis.messaging":
+            consumer_kwargs["name"] = generate_consumer_name()
+
+        self.consumer = create_consumer("events", **consumer_kwargs)
 
         async with create_handler(
             batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
