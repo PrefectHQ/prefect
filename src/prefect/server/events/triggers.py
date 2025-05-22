@@ -268,6 +268,9 @@ async def evaluate(
 
 
 async def fire(session: AsyncSession, firing: Firing) -> None:
+    logger.critical(
+        f"fire: TriggerID={firing.trigger.id} AutomationID={firing.trigger.automation.id} ParentType={type(firing.trigger.parent).__name__} EventID={firing.triggering_event.id if firing.triggering_event else 'N/A'}"
+    )
     if isinstance(firing.trigger.parent, Automation):
         await act(firing)
     elif isinstance(firing.trigger.parent, CompositeTrigger):
@@ -283,6 +286,10 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
 
     assert isinstance(firing.trigger.parent, CompositeTrigger)
     trigger: CompositeTrigger = firing.trigger.parent
+
+    logger.critical(
+        f"eval_composite: START CompositeTriggerID={trigger.id} AutomationID={automation.id} ChildFiringID={firing.id} NumExpected={trigger.num_expected_firings}"
+    )
 
     # If we only need to see 1 child firing,
     # then the parent trigger can fire immediately.
@@ -315,6 +322,9 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
     # If we're only looking within a certain time horizon, remove any older firings that
     # should no longer be considered as satisfying this trigger
     if trigger.within is not None:
+        logger.critical(
+            f"eval_composite: CompositeTriggerID={trigger.id} AutomationID={automation.id} HasWithin={trigger.within}. Clearing child firings older than {firing.triggered - trigger.within}."
+        )
         await clear_old_child_firings(
             session, trigger, firing.triggered - trigger.within
         )
@@ -328,12 +338,20 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
     ]
     firing_ids: set[UUID] = {f.id for f in firings}
 
+    logger.critical(
+        f"eval_composite: CompositeTriggerID={trigger.id} AutomationID={automation.id} Got {len(firings)} current child firings. ChildFiringIDs={firing_ids}."
+    )
+
     # If our current firing no longer exists when we read firings
     # another firing has superseded it, and we should defer to that one
     if firing.id not in firing_ids:
         return
 
-    if trigger.ready_to_fire(firings):
+    is_ready = trigger.ready_to_fire(firings)
+    logger.critical(
+        f"eval_composite: CompositeTriggerID={trigger.id} AutomationID={automation.id} ReadyToFire={is_ready}."
+    )
+    if is_ready:
         logger.info(
             "Automation %s (%r) %s trigger %s fired",
             automation.id,
@@ -351,6 +369,9 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
         # clear by firing id
         await clear_child_firings(session, trigger, firing_ids=list(firing_ids))
 
+        logger.critical(
+            f"eval_composite: FIRING PARENT CompositeTriggerID={trigger.id} AutomationID={automation.id}."
+        )
         await fire(
             session,
             Firing(
@@ -485,6 +506,9 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
         each recursive call.
 
     """
+    logger.critical(
+        f"reactive_eval: START EventID={event.id} EventName={event.event} Occurred={event.occurred} Follows={event.follows}. Known triggers count: {len(triggers)}"
+    )
     async with AsyncExitStack() as stack:
         await update_events_clock(event)
         await stack.enter_async_context(
@@ -597,13 +621,21 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
 
-    logger.debug("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
+    logger.critical(f"periodic_eval: START AsOf={as_of} EffectiveClockOffset={offset}s")
 
     # Any followers that have been sitting around longer than our lookback are never
     # going to see their leader event (maybe it was lost or took too long to arrive).
     # These events can just be evaluated now in the order they occurred.
-    for event in await get_lost_followers():
-        await reactive_evaluation(event)
+    lost_followers_events = await get_lost_followers()
+    if lost_followers_events:
+        logger.critical(
+            f"periodic_eval: Found {len(lost_followers_events)} lost follower(s). LostEventIDs:{[e.id for e in lost_followers_events]}"
+        )
+        for event in lost_followers_events:
+            logger.critical(
+                f"periodic_eval: Evaluating lost follower EventID={event.id} Occurred={event.occurred} Follows={event.follows}"
+            )
+            await reactive_evaluation(event)
 
     async with automations_session() as session:
         await sweep_closed_buckets(
@@ -661,9 +693,16 @@ def load_automation(automation: Optional[Automation]) -> None:
     if not automation:
         return
 
+    logger.critical(
+        f"load_automation: Loading AutomationID={automation.id} Enabled={automation.enabled} Name='{automation.name}'"
+    )
+
     event_triggers = automation.triggers_of_type(EventTrigger)
 
     if not automation.enabled or not event_triggers:
+        logger.critical(
+            f"load_automation: Forgetting AutomationID={automation.id} due to not enabled or no event triggers."
+        )
         forget_automation(automation.id)
         return
 
@@ -677,9 +716,16 @@ def load_automation(automation: Optional[Automation]) -> None:
 def forget_automation(automation_id: UUID) -> None:
     """Unloads the given automation from memory"""
     if automation := automations_by_id.pop(automation_id, None):
+        logger.critical(
+            f"forget_automation: Unloaded AutomationID={automation_id} Name='{automation.name}'"
+        )
         for trigger in automation.triggers():
             triggers.pop(trigger.id, None)
             next_proactive_runs.pop(trigger.id, None)
+    else:
+        logger.critical(
+            f"forget_automation: Attempted to unload AutomationID={automation_id}, but it was not found in cache."
+        )
 
 
 async def automation_changed(
@@ -1044,6 +1090,9 @@ async def consumer(
         try:
             await reactive_evaluation(event)
         except EventArrivedEarly:
+            logger.critical(
+                f"consumer_handler: EventID={event.id} (event_name={event.event}, follows={event.follows}) arrived early. Added to waitlist."
+            )
             pass  # it's fine to ACK this message, since it is safe in the DB
 
     try:
