@@ -67,28 +67,28 @@ def test_asset_as_related():
     assert "prefect.resource.name" not in related
 
 
-def test_asset_read():
+def test_asset_ref():
     original_asset = Asset(
         key="postgres://prod/users",
         name="Users",
         metadata={"owner": "data-team"},
     )
 
-    read_only = original_asset.read()
+    asset_ref = original_asset.ref()
 
-    assert isinstance(read_only, AssetRef)
+    assert isinstance(asset_ref, AssetRef)
 
-    assert read_only.key == original_asset.key
-    assert read_only.name == original_asset.name
-    assert read_only.metadata == original_asset.metadata
+    assert asset_ref.key == original_asset.key
+    assert asset_ref.name == original_asset.name
+    assert asset_ref.metadata == original_asset.metadata
 
     original_asset.metadata["new_key"] = "value"
-    assert "new_key" not in read_only.metadata
+    assert "new_key" not in asset_ref.metadata
 
-    resource = read_only._as_resource()
+    resource = asset_ref._as_resource()
     assert resource["prefect.resource.id"] == "postgres://prod/users"
 
-    related = read_only._as_related()
+    related = asset_ref._as_related()
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
@@ -172,14 +172,14 @@ def test_linear_dependency(asserting_events_worker: EventsWorker, reset_worker_e
     assert any(r.id == upstream.key and r.role == "asset" for r in down_evt.related)
 
 
-def test_read_only_observation(
+def test_asset_ref_observation(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
     upstream = Asset(key="postgres://prod/users", name="Users")
     downstream = Asset(key="postgres://prod/users_clean", name="Users Clean")
 
-    @materialize(upstream.read())
-    def read_only():
+    @materialize(upstream.ref())
+    def read():
         return {"rows": 1}
 
     @materialize(downstream)
@@ -188,7 +188,7 @@ def test_read_only_observation(
 
     @flow
     def pipeline():
-        data = read_only()
+        data = read()
         load(data)
 
     pipeline()
@@ -440,7 +440,7 @@ def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_eve
         key="postgres://prod/users_clean_submit", name="Users Clean Submit"
     )
 
-    @materialize(upstream.read())
+    @materialize(upstream.ref())
     def extract():
         return {"rows": 10}
 
@@ -477,7 +477,7 @@ def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events)
     source_asset = Asset(key="s3://data/source_data", name="Source Data")
     destination_asset = Asset(key="s3://data/processed", name="Processed Data")
 
-    @materialize(source_asset.read())
+    @materialize(source_asset.ref())
     def extract_source():
         return ["item1", "item2", "item3"]
 
@@ -561,21 +561,15 @@ def test_snowflake_aggregation_direct_deps_only(
 ):
     SNOWFLAKE_SCHEMA = "snowflake://my-database/my-schema"
 
-    @materialize(
-        Asset(key=f"{SNOWFLAKE_SCHEMA}/table-1-raw", name="Table 1 Raw").read()
-    )
+    @materialize(Asset(key=f"{SNOWFLAKE_SCHEMA}/table-1-raw", name="Table 1 Raw").ref())
     def table_1_raw():
         return "fake data 1"
 
-    @materialize(
-        Asset(key=f"{SNOWFLAKE_SCHEMA}/table-2-raw", name="Table 2 Raw").read()
-    )
+    @materialize(Asset(key=f"{SNOWFLAKE_SCHEMA}/table-2-raw", name="Table 2 Raw").ref())
     def table_2_raw():
         return "fake data 2"
 
-    @materialize(
-        Asset(key=f"{SNOWFLAKE_SCHEMA}/table-3-raw", name="Table 3 Raw").read()
-    )
+    @materialize(Asset(key=f"{SNOWFLAKE_SCHEMA}/table-3-raw", name="Table 3 Raw").ref())
     def table_3_raw():
         return "fake data 3"
 
@@ -663,7 +657,7 @@ def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_ev
         key="s3://data/dependencies/dependent", name="Dependent Data"
     )
 
-    @materialize(source_asset.read())
+    @materialize(source_asset.ref())
     def create_source():
         return {"source_data": "value"}
 
