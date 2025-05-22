@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.assets import Asset, ReadOnlyAsset, materialize
+from prefect.assets import Asset, AssetRef, materialize
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
@@ -39,14 +39,14 @@ def test_asset_as_resource():
         metadata={"owner": "data-team", "region": "us-west-2"},
     )
 
-    resource = asset.as_resource()
+    resource = asset._as_resource()
     assert resource["prefect.resource.id"] == "s3://bucket/data"
     assert resource["prefect.resource.name"] == "Test Data"
     assert resource["owner"] == "data-team"
     assert resource["region"] == "us-west-2"
 
     asset_no_name = Asset(key="s3://bucket/data", metadata={"owner": "data-team"})
-    resource_no_name = asset_no_name.as_resource()
+    resource_no_name = asset_no_name._as_resource()
     assert resource_no_name["prefect.resource.id"] == "s3://bucket/data"
     assert "prefect.resource.name" not in resource_no_name
     assert resource_no_name["owner"] == "data-team"
@@ -59,7 +59,7 @@ def test_asset_as_related():
         metadata={"owner": "data-team"},
     )
 
-    related = asset.as_related()
+    related = asset._as_related()
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
@@ -76,7 +76,7 @@ def test_asset_read():
 
     read_only = original_asset.read()
 
-    assert isinstance(read_only, ReadOnlyAsset)
+    assert isinstance(read_only, AssetRef)
 
     assert read_only.key == original_asset.key
     assert read_only.name == original_asset.name
@@ -85,10 +85,10 @@ def test_asset_read():
     original_asset.metadata["new_key"] = "value"
     assert "new_key" not in read_only.metadata
 
-    resource = read_only.as_resource()
+    resource = read_only._as_resource()
     assert resource["prefect.resource.id"] == "postgres://prod/users"
 
-    related = read_only.as_related()
+    related = read_only._as_related()
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 

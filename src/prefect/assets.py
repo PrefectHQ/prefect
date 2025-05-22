@@ -36,7 +36,7 @@ class Asset(PrefectBaseModel):
             )
         return value
 
-    def as_resource(self) -> dict[str, str]:
+    def _as_resource(self) -> dict[str, str]:
         resource = {
             "prefect.resource.id": self.key,
         }
@@ -49,22 +49,20 @@ class Asset(PrefectBaseModel):
 
         return resource
 
-    def as_related(self) -> dict[str, str]:
+    def _as_related(self) -> dict[str, str]:
         return {
             "prefect.resource.id": self.key,
             "prefect.resource.role": "asset",
         }
 
-    def read(self) -> "ReadOnlyAsset":
-        return ReadOnlyAsset(
-            key=self.key, name=self.name, metadata=self.metadata.copy()
-        )
+    def ref(self) -> "AssetRef":
+        return AssetRef(key=self.key, name=self.name, metadata=self.metadata.copy())
 
     def __repr__(self) -> str:
         return f"Asset(key={self.key!r}, name={self.name!r})"
 
 
-class ReadOnlyAsset(Asset):
+class AssetRef(Asset):
     pass
 
 
@@ -130,10 +128,10 @@ class MaterializationTask(Task[P, R]):
 
     def _emit_events(self, task_run: TaskRun, *, succeeded: bool) -> None:
         upstream_assets = self._discover_upstream_assets(task_run)
-        upstream_related = [a.as_related() for a in upstream_assets]
+        upstream_related = [a._as_related() for a in upstream_assets]
 
         for asset in self.assets:
-            is_read = isinstance(asset, ReadOnlyAsset)
+            is_read = isinstance(asset, AssetRef)
             event = (
                 "prefect.asset.observation."
                 if is_read
@@ -144,7 +142,7 @@ class MaterializationTask(Task[P, R]):
 
             emit_event(
                 event=event,
-                resource=asset.as_resource(),
+                resource=asset._as_resource(),
                 related=related,
             )
 
