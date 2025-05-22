@@ -36,25 +36,6 @@ class Asset(PrefectBaseModel):
             )
         return value
 
-    def _as_resource(self) -> dict[str, str]:
-        resource = {
-            "prefect.resource.id": self.key,
-        }
-        if self.name:
-            resource["prefect.resource.name"] = self.name
-
-        if self.metadata:
-            for k, v in self.metadata.items():
-                resource[k] = v
-
-        return resource
-
-    def _as_related(self) -> dict[str, str]:
-        return {
-            "prefect.resource.id": self.key,
-            "prefect.resource.role": "asset",
-        }
-
     def ref(self) -> "AssetRef":
         return AssetRef(key=self.key, name=self.name, metadata=self.metadata.copy())
 
@@ -126,9 +107,30 @@ class MaterializationTask(Task[P, R]):
 
         return found
 
+    @staticmethod
+    def _asset_as_resource(asset: Asset) -> dict[str, str]:
+        resource = {
+            "prefect.resource.id": asset.key,
+        }
+        if asset.name:
+            resource["prefect.resource.name"] = asset.name
+
+        if asset.metadata:
+            for k, v in asset.metadata.items():
+                resource[k] = v
+
+        return resource
+
+    @staticmethod
+    def _asset_as_related(asset: Asset) -> dict[str, str]:
+        return {
+            "prefect.resource.id": asset.key,
+            "prefect.resource.role": "asset",
+        }
+
     def _emit_events(self, task_run: TaskRun, *, succeeded: bool) -> None:
         upstream_assets = self._discover_upstream_assets(task_run)
-        upstream_related = [a._as_related() for a in upstream_assets]
+        upstream_related = [self._asset_as_related(a) for a in upstream_assets]
 
         for asset in self.assets:
             is_read = isinstance(asset, AssetRef)
@@ -142,7 +144,7 @@ class MaterializationTask(Task[P, R]):
 
             emit_event(
                 event=event,
-                resource=asset._as_resource(),
+                resource=self._asset_as_resource(asset),
                 related=related,
             )
 

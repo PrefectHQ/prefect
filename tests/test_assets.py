@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.assets import Asset, AssetRef, materialize
+from prefect.assets import Asset, AssetRef, MaterializationTask, materialize
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
@@ -39,14 +39,14 @@ def test_asset_as_resource():
         metadata={"owner": "data-team", "region": "us-west-2"},
     )
 
-    resource = asset._as_resource()
+    resource = MaterializationTask._asset_as_resource(asset)
     assert resource["prefect.resource.id"] == "s3://bucket/data"
     assert resource["prefect.resource.name"] == "Test Data"
     assert resource["owner"] == "data-team"
     assert resource["region"] == "us-west-2"
 
     asset_no_name = Asset(key="s3://bucket/data", metadata={"owner": "data-team"})
-    resource_no_name = asset_no_name._as_resource()
+    resource_no_name = MaterializationTask._asset_as_resource(asset_no_name)
     assert resource_no_name["prefect.resource.id"] == "s3://bucket/data"
     assert "prefect.resource.name" not in resource_no_name
     assert resource_no_name["owner"] == "data-team"
@@ -59,7 +59,7 @@ def test_asset_as_related():
         metadata={"owner": "data-team"},
     )
 
-    related = asset._as_related()
+    related = MaterializationTask._asset_as_related(asset)
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
@@ -85,10 +85,10 @@ def test_asset_ref():
     original_asset.metadata["new_key"] = "value"
     assert "new_key" not in asset_ref.metadata
 
-    resource = asset_ref._as_resource()
+    resource = MaterializationTask._asset_as_resource(asset_ref)
     assert resource["prefect.resource.id"] == "postgres://prod/users"
 
-    related = asset_ref._as_related()
+    related = MaterializationTask._asset_as_related(asset_ref)
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
