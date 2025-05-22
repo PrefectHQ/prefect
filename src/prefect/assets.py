@@ -101,12 +101,6 @@ class MaterializationTask(Task[P, R]):
         ctx.task_run_assets[task_run.id] = self.assets
 
     def _discover_upstream_assets(self, task_run: TaskRun) -> list[Asset]:
-        """
-        Return *direct* upstream assets for ``task_run``.
-        We climb the parent chain until we hit the first task-run
-        whose assets are recorded, then stop—preventing us from
-        bubbling past one materialization into earlier ones.
-        """
         ctx = FlowRunContext.get()
         if not ctx:
             return []
