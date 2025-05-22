@@ -4,8 +4,10 @@ from uuid import UUID
 from fastapi import Body, Depends, HTTPException, Path, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
+import json
 
 from prefect.server.api.dependencies import LimitBody
+from prefect.server.utilities.messaging import create_publisher
 from prefect.server.api.validation import (
     validate_job_variables_for_run_deployment_action,
 )
@@ -88,6 +90,16 @@ async def create_automation(
                 owned_by_resource=True,
             )
 
+    if created_automation:
+        async with create_publisher(topic="automations-notifications") as publisher:
+            message_data = {
+                "event_type": "automation_created",
+                "automation_id": str(created_automation.id),
+            }
+            await publisher.publish_data(
+                json.dumps(message_data).encode(), attributes={}
+            )
+
     return created_automation
 
 
@@ -127,7 +139,16 @@ async def update_automation(
             automation_id=automation_id,
         )
 
-    if not updated:
+    if updated:
+        async with create_publisher(topic="automations-notifications") as publisher:
+            message_data = {
+                "event_type": "automation_updated",
+                "automation_id": str(automation_id),
+            }
+            await publisher.publish_data(
+                json.dumps(message_data).encode(), attributes={}
+            )
+    else:
         raise ObjectNotFoundError("Automation not found")
 
 
@@ -153,7 +174,16 @@ async def patch_automation(
             body=automation.model_dump(mode="json"),
         )
 
-    if not updated:
+    if updated:
+        async with create_publisher(topic="automations-notifications") as publisher:
+            message_data = {
+                "event_type": "automation_updated",
+                "automation_id": str(automation_id),
+            }
+            await publisher.publish_data(
+                json.dumps(message_data).encode(), attributes={}
+            )
+    else:
         raise ObjectNotFoundError("Automation not found")
 
 
@@ -171,7 +201,16 @@ async def delete_automation(
             automation_id=automation_id,
         )
 
-    if not deleted:
+    if deleted:
+        async with create_publisher(topic="automations-notifications") as publisher:
+            message_data = {
+                "event_type": "automation_deleted",
+                "automation_id": str(automation_id),
+            }
+            await publisher.publish_data(
+                json.dumps(message_data).encode(), attributes={}
+            )
+    else:
         raise ObjectNotFoundError("Automation not found")
 
 

@@ -53,8 +53,9 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
-from prefect.server.utilities.messaging import Message, MessageHandler
+from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
+import json
 
 if TYPE_CHECKING:
     import logging
@@ -1047,6 +1048,82 @@ async def consumer(
         yield message_handler
     finally:
         proactive_task.cancel()
+
+
+@asynccontextmanager
+async def automations_notification_consumer() -> AsyncGenerator[MessageHandler, None]:
+    """
+    A consumer that processes messages about automation changes from the
+    `automations-notifications` topic.
+    """
+    logger.debug("Starting automations notification consumer...")
+    try:
+        async with create_consumer(topic="automations-notifications") as created_consumer:
+
+            async def message_handler(message: Message):
+                logger.debug(f"Received automation notification: {message.data!r}")
+                try:
+                    data = json.loads(message.data.decode())
+                    event_type_raw = data.get("event_type")
+                    automation_id_str = data.get("automation_id")
+
+                    if not event_type_raw or not automation_id_str:
+                        logger.error(
+                            "Missing 'event_type' or 'automation_id' in automation"
+                            f" notification: {data}"
+                        )
+                        return
+
+                    try:
+                        automation_id = UUID(automation_id_str)
+                    except ValueError:
+                        logger.error(
+                            f"Invalid UUID for automation_id: {automation_id_str}"
+                        )
+                        return
+
+                    # Map the event_type from the message (e.g., "automation_created")
+                    # to the format expected by `automation_changed` (e.g., "automation__created")
+                    if event_type_raw == "automation_created":
+                        event_type = "automation__created"
+                    elif event_type_raw == "automation_updated":
+                        event_type = "automation__updated"
+                    elif event_type_raw == "automation_deleted":
+                        event_type = "automation__deleted"
+                    else:
+                        logger.warning(f"Received unhandled raw event_type: {event_type_raw}")
+                        return
+                    
+                    # Ensure event_type is one of the Literal values expected by automation_changed
+                    if event_type not in ("automation__created", "automation__updated", "automation__deleted"):
+                        logger.error(f"Logic error: Mapped event_type '{event_type}' is invalid.")
+                        return
+
+                    await automation_changed(automation_id, event_type)
+                    logger.info(
+                        f"Successfully processed {event_type} for automation"
+                        f" {automation_id}"
+                    )
+                except json.JSONDecodeError:
+                    logger.exception(
+                        "Failed to decode JSON from automation notification message:"
+                        f" {message.data!r}"
+                    )
+                except Exception:
+                    logger.exception(
+                        "Error processing automation notification message:"
+                        f" {message.data!r}"
+                    )
+
+            yield message_handler
+    except Exception: # pragma: no cover
+        logger.exception("Error in automations_notification_consumer setup") # pragma: no cover
+        # Yield a no-op handler if setup fails to prevent crashes
+        async def no_op_handler(message: Message): # pragma: no cover
+            pass # pragma: no cover
+        yield no_op_handler # pragma: no cover
+    finally:
+        logger.debug("Stopped automations notification consumer.")
 
 
 async def proactive_evaluation(

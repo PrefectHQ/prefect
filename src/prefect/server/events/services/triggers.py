@@ -19,37 +19,77 @@ logger: "logging.Logger" = get_logger(__name__)
 
 
 class ReactiveTriggers(RunInAllServers, Service):
-    """Evaluates reactive automation triggers"""
+    """Evaluates reactive automation triggers and listens for automation changes"""
 
-    consumer_task: asyncio.Task[None] | None = None
+    event_consumer_task: asyncio.Task[None] | None = None
+    automation_notification_consumer_task: asyncio.Task[None] | None = None
+
+    event_consumer: Consumer | None = None
+    automation_notification_consumer: Consumer | None = None
 
     @classmethod
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.triggers
 
     async def start(self) -> NoReturn:
-        assert self.consumer_task is None, "Reactive triggers already started"
-        self.consumer: Consumer = create_consumer("events")
+        assert self.event_consumer_task is None, "Reactive triggers event consumer already started"
+        assert self.automation_notification_consumer_task is None, (
+            "Reactive triggers automation notification consumer already started"
+        )
 
-        async with triggers.consumer() as handler:
-            self.consumer_task = asyncio.create_task(self.consumer.run(handler))
-            logger.debug("Reactive triggers started")
+        self.event_consumer = create_consumer("events")
+        self.automation_notification_consumer = create_consumer(
+            "automations-notifications"
+        )
+
+        async with triggers.consumer() as event_handler, triggers.automations_notification_consumer() as automation_notification_handler:
+            self.event_consumer_task = asyncio.create_task(
+                self.event_consumer.run(event_handler)
+            )
+            self.automation_notification_consumer_task = asyncio.create_task(
+                self.automation_notification_consumer.run(automation_notification_handler)
+            )
+
+            logger.debug("Reactive triggers service started with both consumers")
 
             try:
-                await self.consumer_task
+                # Gather will propagate cancellations to both tasks
+                await asyncio.gather(
+                    self.event_consumer_task,
+                    self.automation_notification_consumer_task,
+                )
             except asyncio.CancelledError:
-                pass
+                logger.debug("Reactive triggers service cancellation received")
+            finally:
+                logger.debug("Reactive triggers service shutting down consumers")
 
     async def stop(self) -> None:
-        assert self.consumer_task is not None, "Reactive triggers not started"
-        self.consumer_task.cancel()
+        running_tasks = []
+        if self.event_consumer_task:
+            if not self.event_consumer_task.done():
+                self.event_consumer_task.cancel()
+            running_tasks.append(self.event_consumer_task)
+            self.event_consumer_task = None
+
+        if self.automation_notification_consumer_task:
+            if not self.automation_notification_consumer_task.done():
+                self.automation_notification_consumer_task.cancel()
+            running_tasks.append(self.automation_notification_consumer_task)
+            self.automation_notification_consumer_task = None
+        
+        if not running_tasks:
+            logger.debug("Reactive triggers service had no running tasks to stop.")
+            return
+
+        logger.debug(f"Stopping {len(running_tasks)} consumer tasks...")
         try:
-            await self.consumer_task
+            await asyncio.gather(*running_tasks, return_exceptions=True)
         except asyncio.CancelledError:
-            pass
-        finally:
-            self.consumer_task = None
-        logger.debug("Reactive triggers stopped")
+            logger.debug("Consumer tasks cancelled during stop.")
+        
+        self.event_consumer = None
+        self.automation_notification_consumer = None
+        logger.debug("Reactive triggers service stopped")
 
 
 class ProactiveTriggers(RunInAllServers, LoopService):
