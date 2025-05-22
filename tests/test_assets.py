@@ -357,6 +357,45 @@ def test_linear_dependency_with_intermediate_task(
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
+def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_events):
+    upstream = Asset(key="postgres://prod/users_submit", name="Raw Users Submit")
+    downstream = Asset(
+        key="postgres://prod/users_clean_submit", name="Users Clean Submit"
+    )
+
+    @materialize(upstream.read())
+    def extract():
+        return {"rows": 10}
+
+    @materialize(downstream)
+    def load(data):
+        return {"rows": 10}
+
+    @flow
+    def pipeline():
+        fut_up = extract.submit()
+        fut_down = load.submit(fut_up)
+        # explicitly wait
+        fut_down.wait()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    upstream_events = [e for e in events if e.resource.id == upstream.key]
+    downstream_events = [e for e in events if e.resource.id == downstream.key]
+
+    assert len(upstream_events) == 1
+    assert len(downstream_events) == 1
+    downstream_evt = downstream_events[0]
+    assert any(
+        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
+    )
+    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+
+
 @pytest.mark.parametrize(
     "invalid_key",
     [

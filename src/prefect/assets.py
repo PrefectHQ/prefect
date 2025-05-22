@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import re
-from functools import wraps
-from typing import Any, Callable, Sequence, TypeVar, cast
+from typing import Any, Callable, Sequence, TypeVar
 from uuid import UUID
 
 from pydantic import Field, field_validator
@@ -151,20 +150,15 @@ class MaterializationTask(Task[P, R]):
 
 
 def materialize(
-    *assets: Asset, **task_kwargs: Any
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    *assets: Asset,
+    **task_kwargs: Any,
+) -> Callable[[Callable[P, R]], MaterializationTask[P, R]]:
     if not assets:
         raise TypeError(
-            "materialize requires at least one Asset argument, e.x. `@materialize(asset1)`"
+            "materialize requires at least one Asset argument, e.g. `@materialize(asset1)`"
         )
 
-    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
-        task = MaterializationTask(fn, assets=assets, **task_kwargs)
-
-        @wraps(fn)
-        def wrapper(*args: Any, **kwargs: Any) -> R:
-            return cast(R, task(*args, **kwargs))
-
-        return cast(Callable[P, R], wrapper)
+    def decorator(fn: Callable[P, R]) -> MaterializationTask[P, R]:
+        return MaterializationTask(fn, assets=assets, **task_kwargs)
 
     return decorator
