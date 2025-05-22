@@ -449,6 +449,31 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
     )
 
 
+class ServerServicesAutomationCacheSynchronizerSettings(ServicesBaseSetting):
+    """
+    Settings for controlling the Automation Cache Synchronizer service
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "automation_cache_synchronizer")
+    )
+
+    enabled: bool = Field(
+        default=True,
+        description=(
+            "Whether or not to start the Automation Cache Synchronizer service in the server application. "
+            "This service also requires a PostgreSQL database."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("enabled"),
+            "prefect_server_services_automation_cache_synchronizer_enabled",
+            # Keeping the old API var for a bit for smoother transition if anyone used it, though unlikely for a new service
+            "prefect_api_services_automation_cache_synchronizer_enabled",
+        ),
+    )
+    # Add any other specific settings for this service here in the future, e.g., loop_seconds if it becomes a LoopService.
+
+
 class ServerServicesSettings(PrefectBaseSettings):
     """
     Settings for controlling server services
@@ -493,4 +518,8 @@ class ServerServicesSettings(PrefectBaseSettings):
     triggers: ServerServicesTriggersSettings = Field(
         default_factory=ServerServicesTriggersSettings,
         description="Settings for controlling the triggers service",
+    )
+    automation_cache_synchronizer: ServerServicesAutomationCacheSynchronizerSettings = Field(
+        default_factory=ServerServicesAutomationCacheSynchronizerSettings,
+        description="Settings for controlling the Automation Cache Synchronizer service",
     )

@@ -173,8 +173,7 @@ class AutomationCacheSynchronizer(Service):
         # This service has custom enablement logic in `enabled()`
         # but we can still return a base setting. For example, if we wanted
         # to add specific interval settings for it later, they'd go here.
-        # For now, let's point to a general server setting or triggers if relevant.
-        return get_current_settings().server.services.triggers
+        return get_current_settings().server.services.automation_cache_synchronizer
 
     @classmethod
     def enabled(cls) -> bool:
