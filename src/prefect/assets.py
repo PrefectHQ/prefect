@@ -4,7 +4,7 @@ import re
 from typing import Any, Callable, Sequence, TypeVar
 from uuid import UUID
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from typing_extensions import ParamSpec
 
 from prefect import Task
@@ -27,6 +27,8 @@ class Asset(PrefectBaseModel):
     name: str | None = None
     metadata: dict[str, str] = Field(default_factory=dict)
 
+    model_config = ConfigDict(frozen=True)
+
     @field_validator("key")
     @classmethod
     def validate_key(cls, value: str) -> str:
@@ -42,9 +44,12 @@ class Asset(PrefectBaseModel):
     def __repr__(self) -> str:
         return f"Asset(key={self.key!r}, name={self.name!r})"
 
+    def __hash__(self) -> int:
+        return hash(self.key)
+
 
 class AssetRef(Asset):
-    pass
+    model_config = ConfigDict(frozen=True)
 
 
 class MaterializationTask(Task[P, R]):
@@ -78,32 +83,33 @@ class MaterializationTask(Task[P, R]):
 
         ctx.task_run_assets[task_run.id] = self.assets
 
-    def _discover_upstream_assets(self, task_run: TaskRun) -> list[Asset]:
+    @staticmethod
+    def _discover_upstream_assets(task_run: TaskRun) -> set[Asset]:
         ctx = FlowRunContext.get()
         if not ctx:
-            return []
+            return set()
 
         parents = ctx.task_run_parents
         assets = ctx.task_run_assets
 
         todo: list[UUID] = list(parents.get(task_run.id, set()))
         seen: set[UUID] = set()
-        found: list[Asset] = []
+        found: set[Asset] = set()
 
         while todo:
-            rid = todo.pop()
-            if rid in seen:
+            run_id = todo.pop()
+            if run_id in seen:
                 continue
-            seen.add(rid)
+            seen.add(run_id)
 
-            upstream_assets = assets.get(rid, ())
+            upstream_assets = assets.get(run_id, ())
             if upstream_assets:
                 for a in upstream_assets:
                     if a not in found:
-                        found.append(a)
+                        found.add(a)
                 continue
 
-            todo.extend(parents.get(rid, ()))
+            todo.extend(parents.get(run_id, set()))
 
         return found
 
