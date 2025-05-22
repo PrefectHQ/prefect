@@ -432,3 +432,150 @@ def test_asset_read():
     related = read_only.as_related()
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
+
+
+def test_three_stage_materialization_direct_deps_only(
+    asserting_events_worker, reset_worker_events
+):
+    bronze = Asset(key="s3://lake/bronze/users", name="Users Bronze")
+    silver = Asset(key="s3://lake/silver/users", name="Users Silver")
+    gold = Asset(key="s3://lake/gold/users", name="Users Gold")
+
+    @materialize(bronze)
+    def stage_bronze():
+        return {"rows": 100}
+
+    @materialize(silver)
+    def stage_silver(df):
+        return {"rows": df["rows"]}
+
+    @materialize(gold)
+    def stage_gold(df):
+        return {"rows": df["rows"]}
+
+    @flow
+    def pipeline():
+        bronze_df = stage_bronze()
+        silver_df = stage_silver(bronze_df)
+        stage_gold(silver_df)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 3
+
+    def evt_for(asset):
+        return next(e for e in events if e.resource.id == asset.key)
+
+    evt_bronze = evt_for(bronze)
+    evt_silver = evt_for(silver)
+    evt_gold = evt_for(gold)
+
+    assert not any(r.role == "asset" for r in evt_bronze.related)
+    assert {r.id for r in evt_silver.related if r.role == "asset"} == {bronze.key}
+    assert {r.id for r in evt_gold.related if r.role == "asset"} == {silver.key}
+
+    for e in (evt_bronze, evt_silver, evt_gold):
+        assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
+
+
+def test_snowflake_aggregation_direct_deps_only(
+    asserting_events_worker, reset_worker_events
+):
+    SNOWFLAKE_SCHEMA = "snowflake://my-database/my-schema"
+
+    @materialize(
+        Asset(key=f"{SNOWFLAKE_SCHEMA}/table-1-raw", name="Table 1 Raw").read()
+    )
+    def table_1_raw():
+        return "fake data 1"
+
+    @materialize(
+        Asset(key=f"{SNOWFLAKE_SCHEMA}/table-2-raw", name="Table 2 Raw").read()
+    )
+    def table_2_raw():
+        return "fake data 2"
+
+    @materialize(
+        Asset(key=f"{SNOWFLAKE_SCHEMA}/table-3-raw", name="Table 3 Raw").read()
+    )
+    def table_3_raw():
+        return "fake data 3"
+
+    table_1_cleaned_asset = Asset(
+        key=f"{SNOWFLAKE_SCHEMA}/table-1-cleaned", name="Table 1 Cleaned"
+    )
+    table_2_cleaned_asset = Asset(
+        key=f"{SNOWFLAKE_SCHEMA}/table-2-cleaned", name="Table 2 Cleaned"
+    )
+    table_3_cleaned_asset = Asset(
+        key=f"{SNOWFLAKE_SCHEMA}/table-3-cleaned", name="Table 3 Cleaned"
+    )
+
+    @materialize(table_1_cleaned_asset)
+    def table_1_cleaned(raw_table_1):
+        return f"cleaned {raw_table_1}"
+
+    @materialize(table_2_cleaned_asset)
+    def table_2_cleaned(raw_table_2):
+        return f"cleaned {raw_table_2}"
+
+    @materialize(table_3_cleaned_asset)
+    def table_3_cleaned(raw_table_3):
+        return f"cleaned {raw_table_3}"
+
+    aggregated_asset = Asset(
+        key=f"{SNOWFLAKE_SCHEMA}/aggregated-table", name="Aggregated Table"
+    )
+
+    @materialize(aggregated_asset)
+    def aggregated_table(cleaned_table_1, cleaned_table_2, cleaned_table_3):
+        return None
+
+    @flow
+    def my_flow():
+        r1 = table_1_raw()
+        r2 = table_2_raw()
+        r3 = table_3_raw()
+        c1 = table_1_cleaned(r1)
+        c2 = table_2_cleaned(r2)
+        c3 = table_3_cleaned(r3)
+        aggregated_table(c1, c2, c3)
+
+    my_flow()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 7
+
+    by_id = {e.resource.id: e for e in events}
+
+    for raw_key in (
+        f"{SNOWFLAKE_SCHEMA}/table-1-raw",
+        f"{SNOWFLAKE_SCHEMA}/table-2-raw",
+        f"{SNOWFLAKE_SCHEMA}/table-3-raw",
+    ):
+        evt = by_id[raw_key]
+        assert evt.event == "prefect.asset.observation.succeeded"
+        assert not any(r.role == "asset" for r in evt.related)
+
+    for cleaned_key, raw_key in [
+        (table_1_cleaned_asset.key, f"{SNOWFLAKE_SCHEMA}/table-1-raw"),
+        (table_2_cleaned_asset.key, f"{SNOWFLAKE_SCHEMA}/table-2-raw"),
+        (table_3_cleaned_asset.key, f"{SNOWFLAKE_SCHEMA}/table-3-raw"),
+    ]:
+        evt = by_id[cleaned_key]
+        upstream = {r.id for r in evt.related if r.role == "asset"}
+        assert upstream == {raw_key}
+
+    agg_evt = by_id[aggregated_asset.key]
+    upstream_assets = {r.id for r in agg_evt.related if r.role == "asset"}
+    assert upstream_assets == {
+        table_1_cleaned_asset.key,
+        table_2_cleaned_asset.key,
+        table_3_cleaned_asset.key,
+    }
+
+    for e in events:
+        assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
