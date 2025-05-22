@@ -29,6 +29,7 @@ logger: Logger = get_logger(__name__)
 
 def _known_service_modules() -> list[ModuleType]:
     """Get list of Prefect server modules containing Service subclasses"""
+    from prefect.server.events import listeners as automation_listeners_service
     from prefect.server.events import stream
     from prefect.server.events.services import (
         actions,
@@ -61,6 +62,7 @@ def _known_service_modules() -> list[ModuleType]:
         triggers,
         actions,
         stream,
+        automation_listeners_service,
     ]
 
 
