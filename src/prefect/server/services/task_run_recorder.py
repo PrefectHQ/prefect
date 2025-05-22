@@ -165,13 +165,15 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
     }
 
     db = provide_database_interface()
-    async with db.session_context() as session:
+    session = await db.session()
+    try:
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(
             session, task_run, denormalized_state_attributes
         )
-        await session.commit()
+    finally:
+        await session.close()
 
     logger.debug(
         "Recorded task run state change",
