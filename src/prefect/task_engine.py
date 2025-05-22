@@ -367,21 +367,29 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         for hook in hooks or []:
             hook_name = get_hook_name(hook)
 
+            # Undocumented way to disable logging for a hook. Subject to change.
+            should_log = getattr(hook, "log_on_run", True)
+
             try:
-                self.logger.info(
-                    f"Running hook {hook_name!r} in response to entering state"
-                    f" {state.name!r}"
-                )
+                if should_log:
+                    self.logger.info(
+                        f"Running hook {hook_name!r} in response to entering state"
+                        f" {state.name!r}"
+                    )
                 result = hook(task, task_run, state)
                 if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
-                self.logger.error(
-                    f"An error was encountered while running hook {hook_name!r}",
-                    exc_info=True,
-                )
+                if should_log:
+                    self.logger.error(
+                        f"An error was encountered while running hook {hook_name!r}",
+                        exc_info=True,
+                    )
             else:
-                self.logger.info(f"Hook {hook_name!r} finished running successfully")
+                if should_log:
+                    self.logger.info(
+                        f"Hook {hook_name!r} finished running successfully"
+                    )
 
     def begin_run(self) -> None:
         new_state = Running()
@@ -903,21 +911,29 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         for hook in hooks or []:
             hook_name = get_hook_name(hook)
 
+            # Undocumented way to disable logging for a hook. Subject to change.
+            should_log = getattr(hook, "log_on_run", True)
+
             try:
-                self.logger.info(
-                    f"Running hook {hook_name!r} in response to entering state"
-                    f" {state.name!r}"
-                )
+                if should_log:
+                    self.logger.info(
+                        f"Running hook {hook_name!r} in response to entering state"
+                        f" {state.name!r}"
+                    )
                 result = hook(task, task_run, state)
                 if inspect.isawaitable(result):
                     await result
             except Exception:
-                self.logger.error(
-                    f"An error was encountered while running hook {hook_name!r}",
-                    exc_info=True,
-                )
+                if should_log:
+                    self.logger.error(
+                        f"An error was encountered while running hook {hook_name!r}",
+                        exc_info=True,
+                    )
             else:
-                self.logger.info(f"Hook {hook_name!r} finished running successfully")
+                if should_log:
+                    self.logger.info(
+                        f"Hook {hook_name!r} finished running successfully"
+                    )
 
     async def begin_run(self) -> None:
         try:

@@ -690,3 +690,29 @@ def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_ev
         r.id == source_asset.key and r.role == "asset" for r in dependent_evt.related
     )
     assert any(r.id.startswith("prefect.flow-run.") for r in dependent_evt.related)
+
+
+def test_cached_asset_does_not_emit_event(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    asset = Asset(key="s3://bucket/cached-data", name="Cached Data")
+
+    @materialize(asset, persist_result=True)
+    def make_data():
+        return {"rows": 100}
+
+    @flow
+    def pipeline():
+        # First run - should emit materialization event
+        make_data()
+        # Second run - should use cache and NOT emit event
+        make_data()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+
+    assert len(events) == 1
+    assert events[0].event == "prefect.asset.materialization.succeeded"
+    assert events[0].resource.id == asset.key

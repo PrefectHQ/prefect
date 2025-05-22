@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from functools import partial
 from typing import Any, Callable, Sequence, TypeVar
 from uuid import UUID
 
@@ -59,21 +60,36 @@ class MaterializationTask(Task[P, R]):
         self.assets: list[Asset] = list(assets)
 
         on_completion = task_kwargs.pop("on_completion", [])
-        on_fail = task_kwargs.pop("on_failure", [])
-        task_kwargs["on_completion"] = [self._materialization_succeeded, *on_completion]
-        task_kwargs["on_failure"] = [self._materialization_failed, *on_fail]
+        on_failure = task_kwargs.pop("on_failure", [])
+
+        # Avoid logging when running this rollback hook since it is not user-defined
+        succeeded_hook = partial(self._materialization_succeeded)
+        succeeded_hook.log_on_run = False
+        failed_hook = partial(self._materialization_failed)
+        failed_hook.log_on_run = False
+
+        task_kwargs["on_completion"] = [succeeded_hook, *on_completion]
+        task_kwargs["on_failure"] = [failed_hook, *on_failure]
         super().__init__(fn=fn, **task_kwargs)
 
     def _materialization_succeeded(
         self, task: Any, task_run: TaskRun, state: State
     ) -> None:
         self._record_assets(task_run)
+
+        if state.name == "Cached":
+            return
+
         self._emit_events(task_run, succeeded=True)
 
     def _materialization_failed(
         self, task: Any, task_run: TaskRun, state: State
     ) -> None:
         self._record_assets(task_run)
+
+        if state.name == "Cached":
+            return
+
         self._emit_events(task_run, succeeded=False)
 
     def _record_assets(self, task_run: TaskRun) -> None:
