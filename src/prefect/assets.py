@@ -32,7 +32,9 @@ class Asset(PrefectBaseModel):
     @classmethod
     def validate_key(cls, value: str) -> str:
         if not URI_REGEX.match(value):
-            raise ValueError("key must match URI pattern '^[a-z0-9]+://'")
+            raise ValueError(
+                "Key must be a valid URI, e.g. storage://bucket/folder/asset.csv"
+            )
         return value
 
     def as_resource(self) -> dict[str, str]:
@@ -42,7 +44,10 @@ class Asset(PrefectBaseModel):
         if self.name:
             resource["prefect.resource.name"] = self.name
 
-        resource.update(self.metadata)
+        if self.metadata:
+            for k, v in self.metadata.items():
+                resource[k] = v
+
         return resource
 
     def as_related(self) -> dict[str, str]:

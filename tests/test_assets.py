@@ -369,7 +369,7 @@ def test_linear_dependency_with_intermediate_task(
     ],
 )
 def test_asset_invalid_uri(invalid_key):
-    with pytest.raises(ValueError, match="key must match URI pattern"):
+    with pytest.raises(ValueError, match="Key must be a valid URI"):
         Asset(key=invalid_key)
 
 
