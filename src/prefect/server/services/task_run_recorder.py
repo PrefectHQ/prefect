@@ -243,7 +243,7 @@ class TaskRunRecorder(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "TaskRunRecorder already started"
-        self.consumer: Consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events", group="task_run_recorder")
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
