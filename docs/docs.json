@@ -36,25 +36,6 @@
             ]
           },
           {
-            "group": "Operate",
-            "pages": [
-              {
-                "group": "Prefect server",
-                "pages": [
-                  "v3/manage/server/index",
-                  {
-                    "group": "Self-hosting examples",
-                    "pages": [
-                      "v3/manage/server/examples/cli",
-                      "v3/manage/server/examples/docker",
-                      "v3/manage/server/examples/helm"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
             "group": "Migrate",
             "pages": [
               "v3/tutorials/airflow",
@@ -92,7 +73,9 @@
             "pages": [
               "v3/how-to-guides/configuration/store-secrets",
               "v3/how-to-guides/configuration/variables",
-              "v3/how-to-guides/configuration/manage-settings"
+              "v3/how-to-guides/configuration/manage-settings",
+              "v3/how-to-guides/configuration/server-cli",
+              "v3/how-to-guides/configuration/server-docker"
             ]
           },
           {
@@ -177,7 +160,8 @@
         "v3/advanced/interactive",
         "v3/advanced/results",
         "v3/advanced/api-client",
-        "v3/advanced/custom-blocks"
+        "v3/advanced/custom-blocks",
+        "v3/advanced/server-helm"
        ]
       },
       {
@@ -201,7 +185,8 @@
         "v3/concepts/artifacts",
         "v3/concepts/variables",
         "v3/concepts/blocks",
-        "v3/concepts/settings-and-profiles"
+        "v3/concepts/settings-and-profiles",
+        "v3/concepts/server"
        ]
       },
       {
@@ -1656,6 +1641,22 @@
     {
       "source": "/v3/deploy/index",
       "destination": "/v3/concepts/deployments"
+    },
+    {
+      "source": "v3/manage/server/index",
+      "destination": "/v3/concepts/server"
+    },
+    {
+      "source": "v3/manage/server/examples/cli",
+      "destination": "/v3/how-to-guides/configuration/server-cli"
+    },
+    {
+      "source": "v3/manage/server/examples/docker",
+      "destination": "/v3/how-to-guides/configuration/server-docker"
+    },
+    {
+      "source": "v3/manage/server/examples/helm",
+      "destination": "/v3/advanced/server-helm"
     }
   ]
 }
