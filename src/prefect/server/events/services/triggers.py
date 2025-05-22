@@ -6,12 +6,8 @@ from typing import TYPE_CHECKING, Any, NoReturn, Optional
 from prefect.logging import get_logger
 from prefect.server.events import triggers
 from prefect.server.services.base import LoopService, RunInAllServers, Service
-from prefect.server.utilities.messaging import create_consumer
+from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.server.utilities.messaging._names import generate_consumer_name
-from prefect.settings import (
-    PREFECT_EVENTS_PROACTIVE_GRANULARITY,
-    PREFECT_MESSAGING_BROKER,
-)
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 
@@ -33,11 +29,14 @@ class ReactiveTriggers(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Reactive triggers already started"
-        consumer_kwargs = {}
-        if PREFECT_MESSAGING_BROKER.value() == "prefect_redis.messaging":
+        consumer_kwargs: dict[str, Any] = {}
+        if (
+            get_current_settings().server.events.messaging_broker
+            == "prefect_redis.messaging"
+        ):
             consumer_kwargs["name"] = generate_consumer_name()
 
-        self.consumer = create_consumer("events", **consumer_kwargs)
+        self.consumer: Consumer = create_consumer("events", **consumer_kwargs)
 
         async with triggers.consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
@@ -71,7 +70,7 @@ class ProactiveTriggers(RunInAllServers, LoopService):
         super().__init__(
             loop_seconds=(
                 loop_seconds
-                or PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
+                or get_current_settings().server.events.proactive_granularity.total_seconds()
             ),
             **kwargs,
         )

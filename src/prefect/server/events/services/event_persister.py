@@ -19,18 +19,12 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
 from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities.messaging import (
+    Consumer,
     Message,
     MessageHandler,
     create_consumer,
 )
 from prefect.server.utilities.messaging._names import generate_consumer_name
-from prefect.settings import (
-    PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
-    PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
-    PREFECT_EVENTS_RETENTION_PERIOD,
-    PREFECT_MESSAGING_BROKER,
-    PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE,
-)
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types._datetime import now
@@ -103,16 +97,19 @@ class EventPersister(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Event persister already started"
-        consumer_kwargs = {}
-        if PREFECT_MESSAGING_BROKER.value() == "prefect_redis.messaging":
+        consumer_kwargs: dict[str, Any] = {}
+        if (
+            get_current_settings().server.events.messaging_broker
+            == "prefect_redis.messaging"
+        ):
             consumer_kwargs["name"] = generate_consumer_name()
 
-        self.consumer = create_consumer("events", **consumer_kwargs)
+        self.consumer: Consumer = create_consumer("events", **consumer_kwargs)
 
         async with create_handler(
-            batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
+            batch_size=get_current_settings().server.services.event_persister.batch_size,
             flush_every=timedelta(
-                seconds=PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL.value()
+                seconds=get_current_settings().server.services.event_persister.flush_interval
             ),
         ) as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
@@ -172,9 +169,9 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        older_than = now("UTC") - get_current_settings().server.events.retention_period
         delete_batch_size = (
-            PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE.value()
+            get_current_settings().server.services.event_persister.batch_size_delete
         )
         try:
             async with db.session_context() as session:
