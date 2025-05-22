@@ -396,6 +396,43 @@ def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_eve
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
+def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events):
+    source_asset = Asset(key="s3://data/source_data", name="Source Data")
+    destination_asset = Asset(key="s3://data/processed", name="Processed Data")
+
+    @materialize(source_asset.read())
+    def extract_source():
+        return ["item1", "item2", "item3"]
+
+    @materialize(destination_asset)
+    def process_item(item):
+        return {"processed": item}
+
+    @flow
+    def pipeline():
+        source_data = extract_source()
+        process_item.map(source_data)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+
+    assert len(events) == 4
+
+    source_events = [e for e in events if e.resource.id == source_asset.key]
+    assert len(source_events) == 1
+    assert source_events[0].event == "prefect.asset.observation.succeeded"
+
+    destination_events = [e for e in events if e.resource.id == destination_asset.key]
+    assert len(destination_events) == 3
+
+    for evt in destination_events:
+        assert evt.event == "prefect.asset.materialization.succeeded"
+        assert any(r.id == source_asset.key and r.role == "asset" for r in evt.related)
+        assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
+
+
 @pytest.mark.parametrize(
     "invalid_key",
     [
