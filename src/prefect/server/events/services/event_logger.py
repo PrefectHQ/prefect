@@ -30,7 +30,7 @@ class EventLogger(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Logger already started"
-        self.consumer: Consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events", group="event-logger")
 
         console = rich.console.Console()
 

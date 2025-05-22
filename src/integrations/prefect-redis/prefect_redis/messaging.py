@@ -126,7 +126,7 @@ class Publisher(_Publisher):
         topic: str,
         cache: _Cache,
         deduplicate_by: Optional[str] = None,
-        batch_size: int = 5,
+        batch_size: int = 1,
         publish_every: Optional[timedelta] = None,
     ):
         self.stream = topic  # Use topic as stream name
@@ -224,7 +224,9 @@ class Consumer(_Consumer):
         max_retries: int = 3,
         trim_every: timedelta = timedelta(seconds=60),
     ):
-        self.name = name or topic
+        self.name = (
+            name or f"{topic}-{socket.gethostname()}-{uuid.uuid4().hex}"
+        )  # Generate unique consumer name
         self.stream = topic  # Use topic as stream name
         self.group = group or topic  # Use topic as default group name
         self.block = block
@@ -450,12 +452,19 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
     # Find the lowest last-delivered-id across all groups
     # The last-delivered-id is stored as 'last-delivered-id' in group info
-    lowest_id = min(
+    group_ids = [
         group["last-delivered-id"]
         for group in groups
         if group["last-delivered-id"]
         != "0-0"  # Skip groups that haven't consumed anything
-    )
+    ]
+    if not group_ids:
+        logger.debug(f"No messages have been delivered in stream {stream_name}")
+        return
+
+    # Find the lowest last-delivered-id across all groups
+    # The last-delivered-id is stored as 'last-delivered-id' in group info
+    lowest_id = min(group_ids)
 
     if lowest_id == "0-0":
         logger.debug(f"No messages have been delivered in stream {stream_name}")

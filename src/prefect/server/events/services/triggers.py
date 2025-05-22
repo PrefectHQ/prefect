@@ -29,7 +29,7 @@ class ReactiveTriggers(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Reactive triggers already started"
-        self.consumer: Consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events", group="reactive-triggers")
 
         async with triggers.consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
