@@ -237,6 +237,11 @@ class Call(Generic[T]):
     runner: Optional["Portal"] = None
 
     def __eq__(self, other: object) -> bool:
+        """this is to avoid attempts at invalid access of args/kwargs in <3.13 stemming from the
+        auto-generated __eq__ method on the dataclass.
+
+        this will no longer be required in 3.13+, see https://github.com/python/cpython/issues/128294
+        """
         if self is other:
             return True
         if not isinstance(other, Call):
