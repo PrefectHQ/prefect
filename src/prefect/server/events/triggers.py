@@ -349,9 +349,12 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
 
     is_ready = trigger.ready_to_fire(firings)
     logger.critical(
-        f"eval_composite: CompositeTriggerID={trigger.id} AutomationID={automation.id} ReadyToFire={is_ready}."
+        f"eval_composite: CompositeTriggerID={trigger.id} AutomationID={automation.id} ReadyToFire={is_ready}. CurrentChildFiringIDs={firing_ids}"
     )
     if is_ready:
+        logger.critical(
+            f"eval_composite: FIRING PARENT CompositeTriggerID={trigger.id} AutomationID={automation.id} due to ChildFiringIDs:{[f.id for f in firings]}."
+        )
         logger.info(
             "Automation %s (%r) %s trigger %s fired",
             automation.id,
