@@ -22,20 +22,6 @@
             ]
           },
           {
-            "group": "Develop",
-            "pages": [
-              "v3/develop/index",
-              {
-                "group": "Manage concurrency",
-                "pages": [
-                  "v3/develop/task-runners",
-                  "v3/develop/task-run-limits",
-                  "v3/develop/global-concurrency-limits"
-                ]
-              }
-            ]
-          },
-          {
             "group": "Migrate",
             "pages": [
               "v3/tutorials/airflow",
@@ -66,7 +52,9 @@
               "v3/how-to-guides/workflows/run-background-tasks",
               "v3/how-to-guides/workflows/state-change-hooks",
               "v3/how-to-guides/workflows/artifacts",
-              "v3/how-to-guides/workflows/test-workflows"
+              "v3/how-to-guides/workflows/test-workflows",
+              "v3/how-to-guides/workflows/global-concurrency-limits",
+              "v3/how-to-guides/workflows/tag-based-concurrency-limits"
             ]
           },
           { "group": "Configuration",
@@ -186,7 +174,8 @@
         "v3/concepts/variables",
         "v3/concepts/blocks",
         "v3/concepts/settings-and-profiles",
-        "v3/concepts/server"
+        "v3/concepts/server",
+        "v3/concepts/task-runners"
        ]
       },
       {
@@ -1657,6 +1646,18 @@
     {
       "source": "v3/manage/server/examples/helm",
       "destination": "/v3/advanced/server-helm"
+    },
+    {
+      "source": "v3/develop/task-runners",
+      "destination": "/v3/concepts/task-runners"
+    },
+    {
+      "source": "v3/develop/global-concurrency-limits",
+      "destination": "/v3/how-to-guides/workflows/global-concurrency-limits"
+    },
+    {
+      "source": "v3/develop/task-run-limits",
+      "destination": "/v3/how-to-guides/workflows/tag-based-concurrency-limits"
     }
   ]
 }
