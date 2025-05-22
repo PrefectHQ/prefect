@@ -16,6 +16,83 @@ def _first_event(worker: EventsWorker):
     return events[0]
 
 
+@pytest.mark.parametrize(
+    "invalid_key",
+    [
+        "invalid-key",
+        "assets/my-asset",
+        "/path/to/file",
+        "no-protocol-prefix",
+        "UPPERCASE://resource",
+        "://missing-protocol",
+    ],
+)
+def test_asset_invalid_uri(invalid_key):
+    with pytest.raises(ValueError, match="Key must be a valid URI"):
+        Asset(key=invalid_key)
+
+
+def test_asset_as_resource():
+    asset = Asset(
+        key="s3://bucket/data",
+        name="Test Data",
+        metadata={"owner": "data-team", "region": "us-west-2"},
+    )
+
+    resource = asset.as_resource()
+    assert resource["prefect.resource.id"] == "s3://bucket/data"
+    assert resource["prefect.resource.name"] == "Test Data"
+    assert resource["owner"] == "data-team"
+    assert resource["region"] == "us-west-2"
+
+    asset_no_name = Asset(key="s3://bucket/data", metadata={"owner": "data-team"})
+    resource_no_name = asset_no_name.as_resource()
+    assert resource_no_name["prefect.resource.id"] == "s3://bucket/data"
+    assert "prefect.resource.name" not in resource_no_name
+    assert resource_no_name["owner"] == "data-team"
+
+
+def test_asset_as_related():
+    asset = Asset(
+        key="postgres://prod/users",
+        name="Users",
+        metadata={"owner": "data-team"},
+    )
+
+    related = asset.as_related()
+    assert related["prefect.resource.id"] == "postgres://prod/users"
+    assert related["prefect.resource.role"] == "asset"
+
+    assert "owner" not in related
+    assert "prefect.resource.name" not in related
+
+
+def test_asset_read():
+    original_asset = Asset(
+        key="postgres://prod/users",
+        name="Users",
+        metadata={"owner": "data-team"},
+    )
+
+    read_only = original_asset.read()
+
+    assert isinstance(read_only, ReadOnlyAsset)
+
+    assert read_only.key == original_asset.key
+    assert read_only.name == original_asset.name
+    assert read_only.metadata == original_asset.metadata
+
+    original_asset.metadata["new_key"] = "value"
+    assert "new_key" not in read_only.metadata
+
+    resource = read_only.as_resource()
+    assert resource["prefect.resource.id"] == "postgres://prod/users"
+
+    related = read_only.as_related()
+    assert related["prefect.resource.id"] == "postgres://prod/users"
+    assert related["prefect.resource.role"] == "asset"
+
+
 def test_single_asset_materialization_success(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
@@ -433,83 +510,6 @@ def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events)
         assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
-@pytest.mark.parametrize(
-    "invalid_key",
-    [
-        "invalid-key",
-        "assets/my-asset",
-        "/path/to/file",
-        "no-protocol-prefix",
-        "UPPERCASE://resource",
-        "://missing-protocol",
-    ],
-)
-def test_asset_invalid_uri(invalid_key):
-    with pytest.raises(ValueError, match="Key must be a valid URI"):
-        Asset(key=invalid_key)
-
-
-def test_asset_as_resource():
-    asset = Asset(
-        key="s3://bucket/data",
-        name="Test Data",
-        metadata={"owner": "data-team", "region": "us-west-2"},
-    )
-
-    resource = asset.as_resource()
-    assert resource["prefect.resource.id"] == "s3://bucket/data"
-    assert resource["prefect.resource.name"] == "Test Data"
-    assert resource["owner"] == "data-team"
-    assert resource["region"] == "us-west-2"
-
-    asset_no_name = Asset(key="s3://bucket/data", metadata={"owner": "data-team"})
-    resource_no_name = asset_no_name.as_resource()
-    assert resource_no_name["prefect.resource.id"] == "s3://bucket/data"
-    assert "prefect.resource.name" not in resource_no_name
-    assert resource_no_name["owner"] == "data-team"
-
-
-def test_asset_as_related():
-    asset = Asset(
-        key="postgres://prod/users",
-        name="Users",
-        metadata={"owner": "data-team"},
-    )
-
-    related = asset.as_related()
-    assert related["prefect.resource.id"] == "postgres://prod/users"
-    assert related["prefect.resource.role"] == "asset"
-
-    assert "owner" not in related
-    assert "prefect.resource.name" not in related
-
-
-def test_asset_read():
-    original_asset = Asset(
-        key="postgres://prod/users",
-        name="Users",
-        metadata={"owner": "data-team"},
-    )
-
-    read_only = original_asset.read()
-
-    assert isinstance(read_only, ReadOnlyAsset)
-
-    assert read_only.key == original_asset.key
-    assert read_only.name == original_asset.name
-    assert read_only.metadata == original_asset.metadata
-
-    original_asset.metadata["new_key"] = "value"
-    assert "new_key" not in read_only.metadata
-
-    resource = read_only.as_resource()
-    assert resource["prefect.resource.id"] == "postgres://prod/users"
-
-    related = read_only.as_related()
-    assert related["prefect.resource.id"] == "postgres://prod/users"
-    assert related["prefect.resource.role"] == "asset"
-
-
 def test_three_stage_materialization_direct_deps_only(
     asserting_events_worker, reset_worker_events
 ):
@@ -655,3 +655,42 @@ def test_snowflake_aggregation_direct_deps_only(
 
     for e in events:
         assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
+
+
+def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_events):
+    source_asset = Asset(key="s3://data/dependencies/source", name="Source Data")
+    dependent_asset = Asset(
+        key="s3://data/dependencies/dependent", name="Dependent Data"
+    )
+
+    @materialize(source_asset.read())
+    def create_source():
+        return {"source_data": "value"}
+
+    @materialize(dependent_asset)
+    def create_dependent():
+        return {"dependent_data": "processed"}
+
+    @flow
+    def pipeline():
+        source_future = create_source.submit()
+        dependent_future = create_dependent.submit(wait_for=source_future)
+        dependent_future.wait()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    source_events = [e for e in events if e.resource.id == source_asset.key]
+    dependent_events = [e for e in events if e.resource.id == dependent_asset.key]
+
+    assert len(source_events) == 1
+    assert len(dependent_events) == 1
+
+    dependent_evt = dependent_events[0]
+    assert any(
+        r.id == source_asset.key and r.role == "asset" for r in dependent_evt.related
+    )
+    assert any(r.id.startswith("prefect.flow-run.") for r in dependent_evt.related)
