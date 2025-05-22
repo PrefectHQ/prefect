@@ -488,7 +488,9 @@ def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events)
     @flow
     def pipeline():
         source_data = extract_source()
-        process_item.map(source_data)
+        futures = process_item.map(source_data)
+        for future in futures:
+            future.wait()
 
     pipeline()
     asserting_events_worker.drain()
