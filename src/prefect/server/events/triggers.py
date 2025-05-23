@@ -284,9 +284,18 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
     assert isinstance(firing.trigger.parent, CompositeTrigger)
     trigger: CompositeTrigger = firing.trigger.parent
 
+    logger.critical(
+        f"[COMPOSITE_EVAL] Evaluating composite trigger: parent_id={trigger.id}, "
+        f"child_that_fired_id={firing.trigger.id}, automation_id={automation.id}, "
+        f"triggering_event_id={firing.triggering_event.id if firing.triggering_event else 'None'}"
+    )
+
     # If we only need to see 1 child firing,
     # then the parent trigger can fire immediately.
     if trigger.num_expected_firings == 1:
+        logger.critical(
+            f"[COMPOSITE_EVAL] Firing (shortcut due to num_expected_firings=1): parent_id={trigger.id}, child_id={firing.trigger.id}"
+        )
         logger.info(
             "Automation %s (%r) %s trigger %s fired (shortcut)",
             automation.id,
@@ -323,17 +332,33 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
     # what the current state of the world is. If we have enough firings, we'll
     # fire the parent trigger.
     await upsert_child_firing(session, firing)
-    firings: list[Firing] = [
+    child_firings_from_db: list[Firing] = [
         cf.child_firing for cf in await get_child_firings(session, trigger)
     ]
-    firing_ids: set[UUID] = {f.id for f in firings}
+    firing_ids_from_db: set[UUID] = {f.id for f in child_firings_from_db}
+
+    logger.critical(
+        f"[COMPOSITE_EVAL] State for parent_id={trigger.id}: current_child_firing_id={firing.id}, "
+        f"all_child_firings_from_db_ids={[f.id for f in child_firings_from_db]}"
+    )
 
     # If our current firing no longer exists when we read firings
     # another firing has superseded it, and we should defer to that one
-    if firing.id not in firing_ids:
+    if firing.id not in firing_ids_from_db:
+        logger.critical(
+            f"[COMPOSITE_EVAL] Current child firing (id={firing.id}) not in DB firings for parent_id={trigger.id}. Deferring."
+        )
         return
 
-    if trigger.ready_to_fire(firings):
+    ready_to_fire_result = trigger.ready_to_fire(child_firings_from_db)
+    logger.critical(
+        f"[COMPOSITE_EVAL] Parent_id={trigger.id} ready_to_fire_result={ready_to_fire_result} based on children: {[f.id for f in child_firings_from_db]}"
+    )
+
+    if ready_to_fire_result:
+        logger.critical(
+            f"[COMPOSITE_EVAL] FIRING composite trigger: parent_id={trigger.id}, automation_id={automation.id}"
+        )
         logger.info(
             "Automation %s (%r) %s trigger %s fired",
             automation.id,
@@ -344,12 +369,15 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
                 "automation": automation.id,
                 "trigger": trigger.id,
                 "trigger_type": trigger.type,
-                "firings": ",".join(str(f.id) for f in firings),
+                "firings": ",".join(str(f.id) for f in child_firings_from_db),
             },
         )
 
         # clear by firing id
-        await clear_child_firings(session, trigger, firing_ids=list(firing_ids))
+        await clear_child_firings(session, trigger, firing_ids=list(firing_ids_from_db))
+        logger.critical(
+            f"[COMPOSITE_EVAL] CLEARED child firings for composite trigger: parent_id={trigger.id} using ids: {list(firing_ids_from_db)}"
+        )
 
         await fire(
             session,
@@ -357,7 +385,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
                 trigger=trigger,
                 trigger_states={TriggerState.Triggered},
                 triggered=prefect.types._datetime.now("UTC"),
-                triggering_firings=firings,
+                triggering_firings=child_firings_from_db,
                 triggering_event=firing.triggering_event,
             ),
         )
@@ -682,13 +710,27 @@ async def automation_changed(
     automation_id: UUID,
     event: Literal["automation__created", "automation__updated", "automation__deleted"],
 ) -> None:
+    logger.critical(
+        f"[AUTOMATION_CACHE] automation_changed called: id={automation_id}, event_type={event}"
+    )
     async with _automations_lock():
         if event in ("automation__deleted", "automation__updated"):
+            logger.critical(
+                f"[AUTOMATION_CACHE] Forgetting automation_id={automation_id} due to event_type={event}"
+            )
             forget_automation(automation_id)
 
         if event in ("automation__created", "automation__updated"):
             async with automations_session() as session:
                 automation = await read_automation(session, automation_id)
+                if automation:
+                    logger.critical(
+                        f"[AUTOMATION_CACHE] Loading automation_id={automation_id}, name='{automation.name}' due to event_type={event}"
+                    )
+                else:
+                    logger.critical(
+                        f"[AUTOMATION_CACHE] Attempted to load automation_id={automation_id} due to event_type={event}, but it was not found in DB."
+                    )
                 load_automation(automation)
 
 
