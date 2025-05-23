@@ -89,3 +89,25 @@ prefect-analysis.json
 *.tar
 *.tar.gz
 *.zip
+
+# misc python directories
+tests/
+benches/
+docs/
+compat-tests/
+learning/
+load_testing/
+flows/
+scripts/test*
+*.md
+!README.md
+justfile
+.github/
+.git/hooks/
+.git/logs/
+.git/refs/
+.git/objects/
+# Keep only essential git files for versioning
+# .git/config
+# .git/HEAD
+# .git/packed-refs
