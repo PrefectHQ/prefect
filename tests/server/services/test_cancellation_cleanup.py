@@ -1,9 +1,10 @@
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database.orm_models import ORMFlow, ORMFlowRun
 from prefect.server.schemas import states
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.services.cancellation_cleanup import CancellationCleanup
@@ -301,3 +302,35 @@ async def test_service_works_with_partial_flow_run_objects(
     # Verify correct state transitions with partial objects
     assert subflow_with_deployment.state.type == states.StateType.CANCELLING
     assert subflow_without_deployment.state.type == states.StateType.CANCELLED
+
+
+@pytest.fixture
+async def many_cancelled_runs(
+    session: AsyncSession, flow: ORMFlow
+) -> Sequence[ORMFlowRun]:
+    runs: list[ORMFlowRun] = []
+    async with session.begin():
+        for i in range(10):
+            runs.append(
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=flow.id, state=states.Cancelled(), end_time=THE_PAST
+                    ),
+                )
+            )
+    return runs
+
+
+async def test_service_does_a_finite_amount_of_work(
+    session: AsyncSession, many_cancelled_runs: Sequence[ORMFlowRun]
+):
+    """Regression test for PrefectHQ/prefect#18005, where the CancellationCleanup
+    service can get stuck in an infinite loop if more than the batch size of runs
+    are cancelled"""
+
+    service = CancellationCleanup()
+    service.batch_size = 5
+    assert len(many_cancelled_runs) > service.batch_size
+
+    await service.start(loops=1)

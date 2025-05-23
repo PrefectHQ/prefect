@@ -59,6 +59,7 @@ class CancellationCleanup(LoopService):
     async def clean_up_cancelled_flow_run_task_runs(
         self, db: PrefectDBInterface
     ) -> None:
+        high_water_mark = UUID(int=0)
         while True:
             cancelled_flow_query = (
                 sa.select(db.FlowRun)
@@ -66,7 +67,9 @@ class CancellationCleanup(LoopService):
                     db.FlowRun.state_type == states.StateType.CANCELLED,
                     db.FlowRun.end_time.is_not(None),
                     db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
+                    db.FlowRun.id > high_water_mark,
                 )
+                .order_by(db.FlowRun.id)
                 .limit(self.batch_size)
             )
 
@@ -76,6 +79,7 @@ class CancellationCleanup(LoopService):
 
             for run in flow_runs:
                 await self._cancel_child_runs(db=db, flow_run=run)
+                high_water_mark = run.id
 
             # if no relevant flows were found, exit the loop
             if len(flow_runs) < self.batch_size:
