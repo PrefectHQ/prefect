@@ -18,7 +18,7 @@ from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
 from prefect.server.schemas.responses import DeploymentResponse, OrchestrationResult
-from prefect.settings import PREFECT_SERVER_API_AUTH_STRING
+from prefect.settings import get_current_settings
 from prefect.types import StrictVariableValue
 
 if TYPE_CHECKING:
@@ -39,18 +39,19 @@ class BaseClient:
         # will point it to the the currently running server instance
         api_app = create_app()
 
-        # we pull the auth string from _server_ settings because this client is run on the server
-        auth_string = PREFECT_SERVER_API_AUTH_STRING.value()
+        settings = get_current_settings()
 
-        if auth_string:
-            token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
-            additional_headers.setdefault("Authorization", f"Basic {token}")
+        # we pull the auth string from _server_ settings because this client is run on the server
+        if auth_string_secret := settings.server.api.auth_string:
+            if auth_string := auth_string_secret.get_secret_value():
+                token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+                additional_headers.setdefault("Authorization", f"Basic {token}")
 
         self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
             base_url="http://prefect-in-memory/api",
-            enable_csrf_support=False,
+            enable_csrf_support=settings.server.api.csrf_protection_enabled,
             raise_on_all_errors=False,
         )
 

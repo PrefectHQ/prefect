@@ -27,7 +27,11 @@ from typing_extensions import Self
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
 from prefect.server.utilities.messaging import Consumer as _Consumer
-from prefect.server.utilities.messaging import Message, MessageHandler, StopConsumer
+from prefect.server.utilities.messaging import (
+    Message,
+    MessageHandler,
+    StopConsumer,
+)
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect_redis.client import get_async_redis_client
 
