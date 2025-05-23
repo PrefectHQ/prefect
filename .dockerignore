@@ -47,7 +47,7 @@ ui/node_modules/
 src/integrations/**/.venv/
 ui/dist/
 ui/.next/
-ui-v2/
+# ui-v2/
 
 # Build artifacts
 build/
