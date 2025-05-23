@@ -25,6 +25,9 @@ from prefect.server.utilities.messaging import (
     MessageHandler,
     create_consumer,
 )
+from prefect.server.utilities.messaging._consumer_names import (
+    generate_unique_consumer_name,
+)
 from prefect.server.utilities.messaging.memory import log_metrics_periodically
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
@@ -243,7 +246,11 @@ class TaskRunRecorder(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "TaskRunRecorder already started"
-        self.consumer: Consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer(
+            "events",
+            group="task-run-recorder",
+            name=generate_unique_consumer_name("task-run-recorder"),
+        )
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))

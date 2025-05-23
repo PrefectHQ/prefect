@@ -70,8 +70,8 @@ class Trigger(PrefectBaseModel, abc.ABC):
 
     id: UUID = Field(default_factory=uuid4, description="The unique ID of this trigger")
 
-    _automation: Optional[weakref.ref] = PrivateAttr(None)
-    _parent: Optional[weakref.ref] = PrivateAttr(None)
+    _automation: Optional[weakref.ref[Any]] = PrivateAttr(None)
+    _parent: Optional[weakref.ref[Any]] = PrivateAttr(None)
 
     @property
     def automation(self) -> "Automation":
