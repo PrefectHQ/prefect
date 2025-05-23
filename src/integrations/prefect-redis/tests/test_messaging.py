@@ -12,6 +12,8 @@ from prefect_redis.messaging import (
     Consumer,
     Message,
     Publisher,
+    RedisMessagingConsumerSettings,
+    RedisMessagingPublisherSettings,
     StopConsumer,
 )
 from redis.asyncio import Redis
@@ -442,3 +444,39 @@ async def test_can_be_used_as_event_publisher(broker: str, cache: Cache):
         await consumer_task
 
     assert captured_events == [emitted_event]
+
+
+class TestRedisMessagingSettings:
+    """Test the Redis messaging settings."""
+
+    def test_publisher_settings(self):
+        """Test Redis publisher settings."""
+        settings = RedisMessagingPublisherSettings()
+        assert settings.batch_size == 5
+        assert settings.publish_every == timedelta(seconds=10)
+        assert settings.deduplicate_by is None
+
+    def test_consumer_settings(self):
+        """Test Redis consumer settings."""
+        settings = RedisMessagingConsumerSettings()
+        assert settings.block == timedelta(seconds=1)
+        assert settings.min_idle_time == timedelta(seconds=0)
+        assert settings.max_retries == 3
+        assert settings.trim_every == timedelta(seconds=60)
+        assert settings.should_process_pending_messages is True
+        assert settings.starting_message_id == "0"
+        assert settings.automatically_acknowledge is True
+
+    def test_publisher_settings_can_be_overridden(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that Redis publisher settings can be overridden."""
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "10")
+        settings = RedisMessagingPublisherSettings()
+        assert settings.batch_size == 10
+
+    def test_consumer_settings_can_be_overridden(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that Redis consumer settings can be overridden."""
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
+        settings = RedisMessagingConsumerSettings()
+        assert settings.block == timedelta(seconds=10)
