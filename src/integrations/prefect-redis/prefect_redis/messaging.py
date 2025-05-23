@@ -53,7 +53,7 @@ def _interpret_string_as_timedelta_seconds(value: timedelta | str) -> timedelta:
 
 
 TimeDelta = Annotated[
-    timedelta | str,
+    Union[str, timedelta],
     BeforeValidator(_interpret_string_as_timedelta_seconds),
 ]
 
