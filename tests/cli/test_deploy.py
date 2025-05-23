@@ -6163,3 +6163,167 @@ class TestDeployingUsingCustomPrefectFile:
         )
 
         assert await invalid_update_deployment.apply()
+
+
+class TestDeployDryRun:
+    @pytest.fixture
+    def project_dir_with_single_deployment(self, project_dir: str):
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:hello_world",
+                    "work_pool": {"name": "test-pool"},
+                }
+            ],
+        }
+        with open(Path(project_dir) / "prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        flows_file = Path(project_dir) / "flows.py"
+        flows_file.write_text("""
+from prefect import flow
+
+@flow
+def hello_world():
+    print("Hello, world!")
+""")
+        return project_dir
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_no_api_calls(self):
+        """Test that dry run mode doesn't make API calls."""
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            # Mock the work pool to exist for validation
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=0,
+                expected_output_contains=[
+                    "DRY RUN: Would create/update deployment",
+                    "DRY RUN COMPLETE",
+                ],
+            )
+
+            # Verify no deployment creation API calls were made
+            mock_client.create_deployment.assert_not_called()
+            mock_client.update_deployment.assert_not_called()
+            mock_client.create_automation.assert_not_called()
+            mock_client.apply_slas_for_deployment.assert_not_called()
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_non_interactive(self):
+        """Test that dry run mode is non-interactive."""
+        from prefect.cli.deploy import _is_interactive_mode
+
+        assert _is_interactive_mode(dry_run=True) is False
+
+        with mock.patch("prefect.cli.deploy.is_interactive", return_value=True):
+            assert _is_interactive_mode(dry_run=False) is True
+            assert _is_interactive_mode(dry_run=True) is False
+
+    @pytest.fixture
+    def project_dir_with_multi_deployments(self, project_dir: str):
+        prefect_yaml = {
+            "name": "test-project",
+            "build": [
+                {
+                    "prefect_docker.deployments.steps.build_docker_image": {
+                        "image_name": "test",
+                        "tag": "latest",
+                    }
+                }
+            ],
+            "deployments": [
+                {
+                    "name": "test-deployment-1",
+                    "entrypoint": "flows.py:hello_world",
+                    "work_pool": {"name": "test-pool"},
+                },
+                {
+                    "name": "test-deployment-2",
+                    "entrypoint": "flows.py:hello_world",
+                    "work_pool": {"name": "test-pool"},
+                },
+            ],
+        }
+        with open(Path(project_dir) / "prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        flows_file = Path(project_dir) / "flows.py"
+        flows_file.write_text("""
+from prefect import flow
+
+@flow
+def hello_world():
+    print("Hello, world!")
+""")
+        return project_dir
+
+    @pytest.mark.usefixtures("project_dir_with_multi_deployments")
+    async def test_dry_run_with_build_steps(self):
+        """Test dry run with build steps doesn't execute them."""
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            with mock.patch(
+                "prefect.deployments.steps.core.run_steps"
+            ) as mock_run_steps:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy --all --dry-run",
+                    expected_code=0,
+                    expected_output_contains=[
+                        "DRY RUN MODE",
+                        "Would run 1 build step(s)",
+                        "DRY RUN COMPLETE",
+                    ],
+                )
+
+                # Verify build steps were not executed
+                mock_run_steps.assert_not_called()
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_missing_entrypoint_fails(self):
+        """Test that dry run still validates required fields."""
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    # Missing entrypoint should fail validation
+                    "work_pool": {"name": "test-pool"},
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --dry-run",
+            expected_code=1,
+            expected_output_contains=[
+                "An entrypoint must be provided",
+            ],
+        )
