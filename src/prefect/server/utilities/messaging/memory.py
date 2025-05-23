@@ -329,6 +329,7 @@ class Consumer(_Consumer):
         topic: str,
         subscription: Optional[Subscription] = None,
         concurrency: int = 2,
+        **kwargs: Any,
     ):
         self.topic: Topic = Topic.by_name(topic)
         if not subscription:
