@@ -42,7 +42,7 @@ class BaseClient:
         settings = get_current_settings()
 
         # we pull the auth string from _server_ settings because this client is run on the server
-        if auth_string_secret := settings.api.auth_string:
+        if auth_string_secret := settings.server.api.auth_string:
             if auth_string := auth_string_secret.get_secret_value():
                 token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
                 additional_headers.setdefault("Authorization", f"Basic {token}")
