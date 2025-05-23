@@ -143,7 +143,15 @@ async def evaluate(
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
         # we are still within the automation time period, so spend the count in the
         # current bucket
-        bucket = await increment_bucket(session, bucket, count, triggering_event)
+        updated_bucket = await increment_bucket(
+            session, bucket, count, triggering_event
+        )
+        if updated_bucket is None:
+            logger.warning(
+                f"Bucket for automation {automation.id}, trigger {trigger.id} disappeared after increment. Stopping evaluation."
+            )
+            return None
+        bucket = updated_bucket
         count = 0
 
     # Reactive automations will fire "eagerly", meaning they will fire as _soon_ as the
@@ -255,9 +263,14 @@ async def evaluate(
                 end=end,
                 count=0,
             )
+            if bucket is None:
+                logger.warning(
+                    f"Bucket for automation {automation.id}, trigger {trigger.id} disappeared when trying to start new reactive bucket. Stopping evaluation."
+                )
+                return None
             return await evaluate(session, trigger, bucket, now, triggering_event)
         else:
-            return await start_new_bucket(
+            new_bucket = await start_new_bucket(
                 session,
                 trigger,
                 bucketing_key=tuple(bucket.bucketing_key),
@@ -265,6 +278,11 @@ async def evaluate(
                 end=end,
                 count=count,
             )
+            if new_bucket is None:
+                logger.warning(
+                    f"Bucket for automation {automation.id}, trigger {trigger.id} disappeared when trying to start new bucket. Stopping evaluation."
+                )
+            return new_bucket
 
 
 async def fire(session: AsyncSession, firing: Firing) -> None:
@@ -568,6 +586,11 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
                             last_event=event,
                             initial_count=initial_count,
                         )
+                        if bucket is None:
+                            logger.warning(
+                                f"Initial bucket creation for trigger {trigger.id} (after case) failed or automation removed. Skipping."
+                            )
+                            continue  # Skip to the next trigger
 
                     if (
                         not bucket
@@ -593,14 +616,24 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
                             end=event.occurred + trigger.within,
                             last_event=event,
                         )
+                        if bucket is None:
+                            logger.warning(
+                                f"Initial bucket creation for trigger {trigger.id} (standard case) failed or automation removed. Skipping."
+                            )
+                            continue  # Skip to the next trigger
 
                     if not trigger.expects(event.event):
                         continue
 
                     if not bucket:
-                        bucket = await read_bucket(session, trigger, bucketing_key)
-                        if not bucket:
-                            continue
+                        continue
+
+                    # Bucket could have become None from earlier ensure_bucket calls if automation was pruned
+                    if bucket is None:
+                        logger.warning(
+                            f"Bucket is None before evaluate for trigger {trigger.id}. Automation likely removed. Skipping evaluation."
+                        )
+                        continue
 
                     await evaluate(
                         session,
@@ -851,33 +884,45 @@ async def increment_bucket(
     additional_updates: dict[str, ReceivedEvent] = (
         {"last_event": last_event} if last_event else {}
     )
-    await session.execute(
-        db.queries.insert(db.AutomationBucket)
-        .values(
-            automation_id=bucket.automation_id,
-            trigger_id=bucket.trigger_id,
-            bucketing_key=bucket.bucketing_key,
-            start=bucket.start,
-            end=bucket.end,
-            count=count,
-            last_operation="increment_bucket[insert]",
+    try:
+        await session.execute(
+            db.queries.insert(db.AutomationBucket)
+            .values(
+                automation_id=bucket.automation_id,
+                trigger_id=bucket.trigger_id,
+                bucketing_key=bucket.bucketing_key,
+                start=bucket.start,
+                end=bucket.end,
+                count=count,
+                last_operation="increment_bucket[insert]",
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    db.AutomationBucket.automation_id,
+                    db.AutomationBucket.trigger_id,
+                    db.AutomationBucket.bucketing_key,
+                ],
+                set_=dict(
+                    count=db.AutomationBucket.count + count,
+                    last_operation="increment_bucket[update]",
+                    updated=prefect.types._datetime.now("UTC"),
+                    **additional_updates,
+                ),
+            )
         )
-        .on_conflict_do_update(
-            index_elements=[
-                db.AutomationBucket.automation_id,
-                db.AutomationBucket.trigger_id,
-                db.AutomationBucket.bucketing_key,
-            ],
-            set_=dict(
-                count=db.AutomationBucket.count + count,
-                last_operation="increment_bucket[update]",
-                updated=prefect.types._datetime.now("UTC"),
-                **additional_updates,
-            ),
-        )
-    )
+    except sa.exc.IntegrityError as e:
+        if "fk_automation_bucket__automation_id__automation" in str(e).lower():
+            logger.warning(
+                f"Foreign key violation for automation_id={bucket.automation_id} when incrementing bucket. "
+                f"Assuming automation was deleted and removing from cache. Error: {e}"
+            )
+            async with _automations_lock():
+                forget_automation(bucket.automation_id)
+            return None  # type: ignore
+        else:
+            raise
 
-    read_bucket = await read_bucket_by_trigger_id(
+    read_bucket_result = await read_bucket_by_trigger_id(
         session,
         bucket.automation_id,
         bucket.trigger_id,
@@ -885,9 +930,9 @@ async def increment_bucket(
     )
 
     if TYPE_CHECKING:
-        assert read_bucket is not None
+        assert read_bucket_result is not None
 
-    return read_bucket
+    return read_bucket_result
 
 
 @db_injector
@@ -905,34 +950,46 @@ async def start_new_bucket(
     returning the new bucket"""
     automation = trigger.automation
 
-    await session.execute(
-        db.queries.insert(db.AutomationBucket)
-        .values(
-            automation_id=automation.id,
-            trigger_id=trigger.id,
-            bucketing_key=bucketing_key,
-            start=start,
-            end=end,
-            count=count,
-            last_operation="start_new_bucket[insert]",
-            triggered_at=triggered_at,
-        )
-        .on_conflict_do_update(
-            index_elements=[
-                db.AutomationBucket.automation_id,
-                db.AutomationBucket.trigger_id,
-                db.AutomationBucket.bucketing_key,
-            ],
-            set_=dict(
+    try:
+        await session.execute(
+            db.queries.insert(db.AutomationBucket)
+            .values(
+                automation_id=automation.id,
+                trigger_id=trigger.id,
+                bucketing_key=bucketing_key,
                 start=start,
                 end=end,
                 count=count,
-                last_operation="start_new_bucket[update]",
-                updated=prefect.types._datetime.now("UTC"),
+                last_operation="start_new_bucket[insert]",
                 triggered_at=triggered_at,
-            ),
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    db.AutomationBucket.automation_id,
+                    db.AutomationBucket.trigger_id,
+                    db.AutomationBucket.bucketing_key,
+                ],
+                set_=dict(
+                    start=start,
+                    end=end,
+                    count=count,
+                    last_operation="start_new_bucket[update]",
+                    updated=prefect.types._datetime.now("UTC"),
+                    triggered_at=triggered_at,
+                ),
+            )
         )
-    )
+    except sa.exc.IntegrityError as e:
+        if "fk_automation_bucket__automation_id__automation" in str(e).lower():
+            logger.warning(
+                f"Foreign key violation for automation_id={automation.id} when starting new bucket. "
+                f"Assuming automation was deleted and removing from cache. Error: {e}"
+            )
+            async with _automations_lock():
+                forget_automation(automation.id)
+            return None  # type: ignore
+        else:
+            raise
 
     read_bucket = await read_bucket_by_trigger_id(
         session,
@@ -964,31 +1021,44 @@ async def ensure_bucket(
     additional_updates: dict[str, ReceivedEvent] = (
         {"last_event": last_event} if last_event else {}
     )
-    await session.execute(
-        db.queries.insert(db.AutomationBucket)
-        .values(
-            automation_id=automation.id,
-            trigger_id=trigger.id,
-            bucketing_key=bucketing_key,
-            last_event=last_event,
-            start=start,
-            end=end,
-            count=initial_count,
-            last_operation="ensure_bucket[insert]",
+    try:
+        await session.execute(
+            db.queries.insert(db.AutomationBucket)
+            .values(
+                automation_id=automation.id,
+                trigger_id=trigger.id,
+                bucketing_key=bucketing_key,
+                last_event=last_event,
+                start=start,
+                end=end,
+                count=initial_count,
+                last_operation="ensure_bucket[insert]",
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    db.AutomationBucket.automation_id,
+                    db.AutomationBucket.trigger_id,
+                    db.AutomationBucket.bucketing_key,
+                ],
+                set_=dict(
+                    # no-op, but this counts as an update so the query returns a row
+                    count=db.AutomationBucket.count,
+                    **additional_updates,
+                ),
+            )
         )
-        .on_conflict_do_update(
-            index_elements=[
-                db.AutomationBucket.automation_id,
-                db.AutomationBucket.trigger_id,
-                db.AutomationBucket.bucketing_key,
-            ],
-            set_=dict(
-                # no-op, but this counts as an update so the query returns a row
-                count=db.AutomationBucket.count,
-                **additional_updates,
-            ),
-        )
-    )
+    except sa.exc.IntegrityError as e:
+        # Check if this is the specific FK violation we expect
+        if "fk_automation_bucket__automation_id__automation" in str(e).lower():
+            logger.warning(
+                f"Foreign key violation for automation_id={automation.id} when ensuring bucket. "
+                f"Assuming automation was deleted and removing from cache. Error: {e}"
+            )
+            async with _automations_lock():
+                forget_automation(automation.id)
+            return None  # type: ignore
+        else:
+            raise  # Re-raise if it's a different integrity error
 
     read_bucket = await read_bucket_by_trigger_id(
         session, automation.id, trigger.id, tuple(bucketing_key)
@@ -1116,7 +1186,7 @@ async def proactive_evaluation(
     async with automations_session() as session:
         try:
             if not trigger.for_each:
-                await ensure_bucket(
+                ensure_bucket_result = await ensure_bucket(
                     session,
                     trigger,
                     bucketing_key=tuple(),
@@ -1124,6 +1194,13 @@ async def proactive_evaluation(
                     end=as_of + trigger.within,
                     last_event=None,
                 )
+                # If ensure_bucket returns None, the automation was likely just pruned.
+                # We can stop proactive evaluation for this trigger for this cycle.
+                if ensure_bucket_result is None:
+                    logger.warning(
+                        f"Proactive evaluation for trigger {trigger.id} found automation was removed when ensuring bucket. Skipping this cycle."
+                    )
+                    return as_of + trigger.within  # Schedule to check again later
 
             # preemptively delete buckets where possible without
             # evaluating them in memory
@@ -1133,7 +1210,17 @@ async def proactive_evaluation(
                 next_bucket = await evaluate(
                     session, trigger, bucket, as_of, triggering_event=None
                 )
-                if next_bucket and as_of < next_bucket.end < run_again_at:
+                if (
+                    next_bucket is None
+                ):  # Evaluate might return None if automation was pruned during its execution
+                    logger.warning(
+                        f"Proactive evaluation for trigger {trigger.id} had 'evaluate' return None. Automation likely removed."
+                    )
+                    # If the automation is gone, we don't need to schedule it sooner based on bucket.end
+                    # The default run_again_at should suffice, or it will be picked up if re-created.
+                    continue  # Continue to check other buckets if any, though unlikely for a pruned automation
+
+                if as_of < next_bucket.end < run_again_at:
                     run_again_at = prefect.types._datetime.create_datetime_instance(
                         next_bucket.end
                     )
