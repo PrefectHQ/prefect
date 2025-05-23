@@ -1,98 +1,70 @@
 # The version of Python in the final image
 ARG PYTHON_VERSION=3.9
-# The base image to use for the final image; Prefect and its Python requirements will
-# be installed in this image. The default is the official Python slim image.
-# The following images are also available in this file:
-#   prefect-conda: Derivative of continuum/miniconda3 with a 'prefect' environment. Used for the 'conda' flavor.
-# Any image tag can be used, but it must have apt and pip.
+# The base image to use for the final image
 ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.9
-# THe version used to build the UI distributable.
+# The version used to build the UI distributable.
 ARG NODE_VERSION=18.18.0
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
 
-# Build the UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
-
+# ============= STAGE 1: UI Dependencies (rarely changes) =============
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-deps
 WORKDIR /opt/ui
-
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-    # Required for arm64 builds
-    chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install dependencies separately so they cache
+# Only copy package files first
 COPY ./ui/package*.json ./
 RUN npm ci
 
-# Build static UI files
+# ============= STAGE 2: UI Builder (only rebuilds when UI code changes) =============
+FROM ui-deps AS ui-builder
+WORKDIR /opt/ui
+# Install chromium only when we need to build
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y chromium && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Now copy the actual UI code
 COPY ./ui .
 RUN npm run build
 
-
-# Build the Python distributable.
-# Without this build step, versioningit cannot infer the version without git
-FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
-
+# ============= STAGE 3: Python Builder Base (rarely changes) =============
+FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder-base
 WORKDIR /opt/prefect
-
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     gpg \
     git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install UV from official image - pin to specific version for build caching
+# Install UV early and cache it
 COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
 
-# Copy the repository in; requires full git history for versions to generate correctly
+# ============= STAGE 4: Python Source Builder =============
+FROM python-builder-base AS python-builder
+WORKDIR /opt/prefect
+# Copy only what's needed for version detection first
+COPY .git ./.git
+COPY pyproject.toml ./
+# Then copy the rest of the source
 COPY . ./
-
-# Package the UI into the distributable.
+# Package the UI into the distributable
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
-
-# Create a source distributable archive; ensuring existing dists are removed first
+# Create source distributable
 RUN rm -rf dist && uv build --sdist --out-dir dist
 RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
-
-# Setup a base final image from miniconda
+# ============= STAGE 5: Conda Base (for conda flavor) =============
 FROM continuumio/miniconda3 AS prefect-conda
-
-# Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
-RUN conda create \
-    python=${PYTHON_VERSION} \
-    --name prefect
-
-# Use the prefect environment by default
+RUN conda create python=${PYTHON_VERSION} --name prefect
 RUN echo "conda activate prefect" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
 
-
-
-# Build the final image with Prefect installed and our entrypoint configured
-FROM ${BASE_IMAGE} AS final
-
+# ============= STAGE 6: Final Base (system packages) =============
+FROM ${BASE_IMAGE} AS final-base
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-ENV UV_SYSTEM_PYTHON=1
-
-LABEL maintainer="help@prefect.io" \
-    io.prefect.python-version=${PYTHON_VERSION} \
-    org.label-schema.schema-version="1.0" \
-    org.label-schema.name="prefect" \
-    org.label-schema.url="https://www.prefect.io/"
-
 WORKDIR /opt/prefect
 
-# Install system requirements
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
@@ -100,13 +72,21 @@ RUN apt-get update && \
     git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
+
+# ============= STAGE 7: Final Image =============
+FROM final-base AS final
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV UV_SYSTEM_PYTHON=1
+LABEL maintainer="help@prefect.io" \
+    io.prefect.python-version=${PYTHON_VERSION} \
+    org.label-schema.schema-version="1.0" \
+    org.label-schema.name="prefect" \
+    org.label-schema.url="https://www.prefect.io/"
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
-
-# Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \

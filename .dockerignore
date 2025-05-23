@@ -17,6 +17,7 @@ sdist/
 .dmypy.json
 dmypy.json
 .pyre/
+.ruff_cache/
 
 # IPython
 profile_default/
@@ -25,19 +26,37 @@ ipython_config.py
 # Environments
 .python-version
 .env
-.venv
+.venv/
 env/
 venv/
+test_venv/
+**/.venv/
 
 # Documentation artifacts
 site/
+docs/
 
 # UI artifacts
 src/prefect/server/ui/*
-ui/node_modules
+ui/node_modules/
+
+# Selectively exclude integrations (keep only what's needed)
+src/integrations/*
+!src/integrations/prefect-redis/
+# But ALWAYS exclude .venv directories from integrations
+src/integrations/**/.venv/
+ui/dist/
+ui/.next/
+ui-v2/
+
+# Build artifacts
+build/
+**/build/
+**/*.egg-info/
 
 # Databases
 *.db
+*.sqlite
 
 # MacOS
 .DS_Store
@@ -48,3 +67,31 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+
+# misc python directories
+sandbox/
+repros/
+tests/
+benches/
+compat-tests/
+learning/
+load_testing/
+flows/
+
+# Node
+node_modules/
+
+# Temporary and cache files
+*.log
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
