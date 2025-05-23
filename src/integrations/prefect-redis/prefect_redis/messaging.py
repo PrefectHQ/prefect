@@ -20,6 +20,7 @@ from typing import (
 )
 
 import orjson
+from pydantic import Field
 from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 from typing_extensions import Self
@@ -33,11 +34,70 @@ from prefect.server.utilities.messaging import (
     StopConsumer,
 )
 from prefect.server.utilities.messaging import Publisher as _Publisher
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect_redis.client import get_async_redis_client
 
 logger = get_logger(__name__)
 
 M = TypeVar("M", bound=Message)
+
+
+class RedisMessagingPublisherSettings(PrefectBaseSettings):
+    """Settings for the Redis messaging publisher.
+
+    No settings are required to be set by the user but any of the settings can be
+    overridden by the user using environment variables.
+
+    Example:
+        ```
+        PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE=10
+        PREFECT_REDIS_MESSAGING_PUBLISHER_PUBLISH_EVERY=10
+        PREFECT_REDIS_MESSAGING_PUBLISHER_DEDUPLICATE_BY=message_id
+        ```
+    """
+
+    model_config = build_settings_config(
+        (
+            "redis",
+            "messaging",
+            "publisher",
+        ),
+    )
+    batch_size: int = Field(default=5)
+    publish_every: timedelta = Field(default=timedelta(seconds=10))
+    deduplicate_by: Optional[str] = Field(default=None)
+
+
+class RedisMessagingConsumerSettings(PrefectBaseSettings):
+    """Settings for the Redis messaging consumer.
+
+    No settings are required to be set by the user but any of the settings can be
+    overridden by the user using environment variables.
+
+    Example:
+        ```
+        PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK=10
+        PREFECT_REDIS_MESSAGING_CONSUMER_MIN_IDLE_TIME=10
+        PREFECT_REDIS_MESSAGING_CONSUMER_MAX_RETRIES=3
+        PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_EVERY=60
+        ```
+    """
+
+    model_config = build_settings_config(
+        (
+            "redis",
+            "messaging",
+            "consumer",
+        ),
+    )
+    block: timedelta = Field(default=timedelta(seconds=1))
+    min_idle_time: timedelta = Field(default=timedelta(seconds=0))
+    max_retries: int = Field(default=3)
+    trim_every: timedelta = Field(default=timedelta(seconds=60))
+    should_process_pending_messages: bool = Field(default=True)
+    starting_message_id: str = Field(default="0")
+    automatically_acknowledge: bool = Field(default=True)
+
 
 MESSAGE_DEDUPLICATION_LOOKBACK = timedelta(minutes=5)
 
@@ -130,14 +190,16 @@ class Publisher(_Publisher):
         topic: str,
         cache: _Cache,
         deduplicate_by: Optional[str] = None,
-        batch_size: int = 5,
+        batch_size: Optional[int] = None,
         publish_every: Optional[timedelta] = None,
     ):
+        settings = RedisMessagingPublisherSettings()
+
         self.stream = topic  # Use topic as stream name
         self.cache = cache
-        self.deduplicate_by = deduplicate_by
-        self.batch_size = batch_size
-        self.publish_every = publish_every
+        self.deduplicate_by = deduplicate_by or settings.deduplicate_by
+        self.batch_size = batch_size or settings.batch_size
+        self.publish_every = publish_every or settings.publish_every
         self._periodic_task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(self) -> Self:
@@ -220,27 +282,35 @@ class Consumer(_Consumer):
         topic: str,
         name: Optional[str] = None,
         group: Optional[str] = None,
-        block: timedelta = timedelta(seconds=1),
-        min_idle_time: timedelta = timedelta(seconds=0),
-        should_process_pending_messages: bool = True,
-        starting_message_id: str = "0",
-        automatically_acknowledge: bool = True,
-        max_retries: int = 3,
-        trim_every: timedelta = timedelta(seconds=60),
+        block: Optional[timedelta] = None,
+        min_idle_time: Optional[timedelta] = None,
+        should_process_pending_messages: Optional[bool] = None,
+        starting_message_id: Optional[str] = None,
+        automatically_acknowledge: Optional[bool] = None,
+        max_retries: Optional[int] = None,
+        trim_every: Optional[timedelta] = None,
     ):
+        settings = RedisMessagingConsumerSettings()
+
         self.name = name or topic
         self.stream = topic  # Use topic as stream name
         self.group = group or topic  # Use topic as default group name
-        self.block = block
-        self.min_idle_time = min_idle_time
-        self.should_process_pending_messages = should_process_pending_messages
-        self.starting_message_id = starting_message_id
-        self.automatically_acknowledge = automatically_acknowledge
+        self.block = block or settings.block
+        self.min_idle_time = min_idle_time or settings.min_idle_time
+        self.should_process_pending_messages = (
+            should_process_pending_messages or settings.should_process_pending_messages
+        )
+        self.starting_message_id = starting_message_id or settings.starting_message_id
+        self.automatically_acknowledge = (
+            automatically_acknowledge or settings.automatically_acknowledge
+        )
+        self.trim_every = trim_every or settings.trim_every
 
-        self.subscription = Subscription(max_retries=max_retries)
+        self.subscription = Subscription(
+            max_retries=max_retries or settings.max_retries
+        )
         self._retry_counts: dict[str, int] = {}
 
-        self.trim_every = trim_every
         self._last_trimmed: Optional[float] = None
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
