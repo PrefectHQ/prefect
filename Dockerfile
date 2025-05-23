@@ -45,14 +45,6 @@ WORKDIR /opt/prefect
 COPY . ./
 # Package the UI into the distributable.
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
-# Debug: Check git status to see what's dirty
-RUN git config --global --add safe.directory /opt/prefect && \
-    echo "=== Git status ===" && \
-    git status --porcelain | head -20 && \
-    echo "=== Git diff ===" && \
-    git diff --stat | head -20 && \
-    echo "=== Checking if UI is tracked ===" && \
-    git ls-files src/prefect/server/ui | head -5 || echo "UI files not tracked"
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && uv build --sdist --out-dir dist
 RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"

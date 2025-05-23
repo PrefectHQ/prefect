@@ -40,14 +40,9 @@ site/
 src/prefect/server/ui/*
 ui/node_modules/
 
-# Selectively exclude integrations (keep only what's needed)
-# src/integrations/*
-# !src/integrations/prefect-redis/
-# But ALWAYS exclude .venv directories from integrations
 src/integrations/**/.venv/
 ui/dist/
 ui/.next/
-# ui-v2/
 
 # Build artifacts
 build/
@@ -70,12 +65,6 @@ dask-worker-space/
 
 sandbox/
 repros/
-# tests/
-# benches/
-# compat-tests/
-# learning/
-# load_testing/
-# flows/
 
 # Node
 node_modules/
