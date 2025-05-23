@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # The version of Python in the final image
 ARG PYTHON_VERSION=3.9
 # The base image to use for the final image
@@ -9,8 +8,6 @@ ARG BUILD_PYTHON_VERSION=3.9
 ARG NODE_VERSION=18.18.0
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
-# Version override for faster builds
-ARG PREFECT_VERSION
 
 # ============= STAGE 1: UI Dependencies (rarely changes) =============
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-deps
@@ -40,29 +37,16 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 # Install UV early and cache it
 COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
-# Speed up UV
-ENV UV_NO_PROGRESS=1
 
 # ============= STAGE 4: Python Source Builder =============
 FROM python-builder-base AS python-builder
 WORKDIR /opt/prefect
-
-# Use provided version if available
-ENV VERSIONINGIT_PRETEND_VERSION=${PREFECT_VERSION}
-
-# Copy only what we need
-COPY pyproject.toml README.md LICENSE ./
-COPY tools ./tools/
-COPY src ./src/
-
-# Package the UI into the distributable
+# Copy the repository in; requires full git history for versions to generate correctly
+COPY . ./
+# Package the UI into the distributable.
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
-
-# Build with mounted git for version detection (if no version provided)
-RUN --mount=source=.git,target=.git,type=bind \
-    --mount=type=cache,target=/root/.cache/uv \
-    rm -rf dist && uv build --sdist --out-dir dist
-
+# Create a source distributable archive; ensuring existing dists are removed first
+RUN rm -rf dist && uv build --sdist --out-dir dist
 RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 # ============= STAGE 5: Conda Base (for conda flavor) =============

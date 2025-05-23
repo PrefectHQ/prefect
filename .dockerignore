@@ -34,12 +34,11 @@ test_venv/
 
 # Documentation artifacts
 site/
-# docs/
+docs/
 
 # UI artifacts
 src/prefect/server/ui/*
 ui/node_modules/
-
 src/integrations/**/.venv/
 ui/dist/
 ui/.next/
@@ -63,8 +62,15 @@ dask-worker-space/
 .idea/
 .vscode/
 
+# Project specific
 sandbox/
 repros/
+tests/
+benches/
+compat-tests/
+learning/
+load_testing/
+flows/
 
 # Node
 node_modules/
@@ -83,31 +89,11 @@ temp/
 .benchmarks/
 /prof
 prefect-analysis.json
-*.log
 
 # Archives
 *.tar
 *.tar.gz
 *.zip
 
-# misc python directories
-tests/
-benches/
-docs/
-compat-tests/
-learning/
-load_testing/
-flows/
-scripts/test*
-*.md
-!README.md
-justfile
-.github/
-.git/hooks/
-.git/logs/
-.git/refs/
-.git/objects/
-# Keep only essential git files for versioning
-# .git/config
-# .git/HEAD
-# .git/packed-refs
+# IMPORTANT: Don't exclude .git - versioningit needs it
+# .git
