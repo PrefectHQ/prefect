@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import socket
@@ -8,6 +10,7 @@ from datetime import timedelta
 from functools import partial
 from types import TracebackType
 from typing import (
+    Annotated,
     Any,
     AsyncGenerator,
     Awaitable,
@@ -20,7 +23,7 @@ from typing import (
 )
 
 import orjson
-from pydantic import Field
+from pydantic import BeforeValidator, Field
 from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 from typing_extensions import Self
@@ -40,6 +43,19 @@ from prefect_redis.client import get_async_redis_client
 logger = get_logger(__name__)
 
 M = TypeVar("M", bound=Message)
+
+
+def _interpret_string_as_timedelta_seconds(value: timedelta | str) -> timedelta:
+    """Interpret a string as a timedelta in seconds."""
+    if isinstance(value, str):
+        return timedelta(seconds=int(value))
+    return value
+
+
+TimeDelta = Annotated[
+    timedelta | str,
+    BeforeValidator(_interpret_string_as_timedelta_seconds),
+]
 
 
 class RedisMessagingPublisherSettings(PrefectBaseSettings):
@@ -64,7 +80,7 @@ class RedisMessagingPublisherSettings(PrefectBaseSettings):
         ),
     )
     batch_size: int = Field(default=5)
-    publish_every: timedelta = Field(default=timedelta(seconds=10))
+    publish_every: TimeDelta = Field(default=timedelta(seconds=10))
     deduplicate_by: Optional[str] = Field(default=None)
 
 
@@ -90,10 +106,10 @@ class RedisMessagingConsumerSettings(PrefectBaseSettings):
             "consumer",
         ),
     )
-    block: timedelta = Field(default=timedelta(seconds=1))
-    min_idle_time: timedelta = Field(default=timedelta(seconds=0))
+    block: TimeDelta = Field(default=timedelta(seconds=1))
+    min_idle_time: TimeDelta = Field(default=timedelta(seconds=0))
     max_retries: int = Field(default=3)
-    trim_every: timedelta = Field(default=timedelta(seconds=60))
+    trim_every: TimeDelta = Field(default=timedelta(seconds=60))
     should_process_pending_messages: bool = Field(default=True)
     starting_message_id: str = Field(default="0")
     automatically_acknowledge: bool = Field(default=True)
