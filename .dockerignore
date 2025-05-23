@@ -41,8 +41,8 @@ src/prefect/server/ui/*
 ui/node_modules/
 
 # Selectively exclude integrations (keep only what's needed)
-src/integrations/*
-!src/integrations/prefect-redis/
+# src/integrations/*
+# !src/integrations/prefect-redis/
 # But ALWAYS exclude .venv directories from integrations
 src/integrations/**/.venv/
 ui/dist/
