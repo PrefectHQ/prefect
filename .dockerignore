@@ -73,10 +73,9 @@ repros/
 # tests/
 # benches/
 # compat-tests/
-learning/
-load_testing/
-marvin_fails/
-flows/
+# learning/
+# load_testing/
+# flows/
 
 # Node
 node_modules/
