@@ -34,7 +34,7 @@ test_venv/
 
 # Documentation artifacts
 site/
-docs/
+# docs/
 
 # UI artifacts
 src/prefect/server/ui/*
@@ -70,9 +70,9 @@ dask-worker-space/
 
 sandbox/
 repros/
-tests/
-benches/
-compat-tests/
+# tests/
+# benches/
+# compat-tests/
 learning/
 load_testing/
 marvin_fails/
