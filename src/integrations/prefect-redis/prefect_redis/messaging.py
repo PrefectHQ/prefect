@@ -213,9 +213,13 @@ class Publisher(_Publisher):
 
         self.stream = topic  # Use topic as stream name
         self.cache = cache
-        self.deduplicate_by = deduplicate_by or settings.deduplicate_by
-        self.batch_size = batch_size or settings.batch_size
-        self.publish_every = publish_every or settings.publish_every
+        self.deduplicate_by = (
+            deduplicate_by if deduplicate_by is not None else settings.deduplicate_by
+        )
+        self.batch_size = batch_size if batch_size is not None else settings.batch_size
+        self.publish_every = (
+            publish_every if publish_every is not None else settings.publish_every
+        )
         self._periodic_task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(self) -> Self:
@@ -311,19 +315,29 @@ class Consumer(_Consumer):
         self.name = name or topic
         self.stream = topic  # Use topic as stream name
         self.group = group or topic  # Use topic as default group name
-        self.block = block or settings.block
-        self.min_idle_time = min_idle_time or settings.min_idle_time
+        self.block = block if block is not None else settings.block
+        self.min_idle_time = (
+            min_idle_time if min_idle_time is not None else settings.min_idle_time
+        )
         self.should_process_pending_messages = (
-            should_process_pending_messages or settings.should_process_pending_messages
+            should_process_pending_messages
+            if should_process_pending_messages is not None
+            else settings.should_process_pending_messages
         )
-        self.starting_message_id = starting_message_id or settings.starting_message_id
+        self.starting_message_id = (
+            starting_message_id
+            if starting_message_id is not None
+            else settings.starting_message_id
+        )
         self.automatically_acknowledge = (
-            automatically_acknowledge or settings.automatically_acknowledge
+            automatically_acknowledge
+            if automatically_acknowledge is not None
+            else settings.automatically_acknowledge
         )
-        self.trim_every = trim_every or settings.trim_every
+        self.trim_every = trim_every if trim_every is not None else settings.trim_every
 
         self.subscription = Subscription(
-            max_retries=max_retries or settings.max_retries
+            max_retries=max_retries if max_retries is not None else settings.max_retries
         )
         self._retry_counts: dict[str, int] = {}
 
