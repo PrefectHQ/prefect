@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from functools import partial
-from typing import Any, Callable, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Sequence, TypeVar
 from uuid import UUID
 
 from pydantic import ConfigDict, Field, field_validator
@@ -10,10 +10,12 @@ from typing_extensions import ParamSpec
 
 from prefect import Task
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.client.schemas.objects import TaskRun
 from prefect.context import FlowRunContext
 from prefect.events import emit_event
-from prefect.states import State
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import TaskRun
+    from prefect.states import State
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -73,7 +75,7 @@ class MaterializationTask(Task[P, R]):
         super().__init__(fn=fn, **task_kwargs)
 
     def _materialization_succeeded(
-        self, task: Any, task_run: TaskRun, state: State
+        self, task: Task[P, R], task_run: TaskRun, state: State
     ) -> None:
         self._record_assets(task_run)
 
@@ -83,7 +85,7 @@ class MaterializationTask(Task[P, R]):
         self._emit_events(task_run, succeeded=True)
 
     def _materialization_failed(
-        self, task: Any, task_run: TaskRun, state: State
+        self, task: Task[P, R], task_run: TaskRun, state: State
     ) -> None:
         self._record_assets(task_run)
 
