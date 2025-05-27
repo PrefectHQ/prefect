@@ -73,3 +73,20 @@ Avoid this by splitting the code into multiple dependent tasks.
 </Note>
 
 For detailed configuration options and implementation guidance, see [how to write and run workflows](/v3/how-to-guides/workflows/write-and-run). 
+
+## Background tasks
+
+Background tasks enable deferred execution patterns where tasks are submitted for execution on separate infrastructure without blocking the calling workflow. This execution model is particularly valuable for web applications and workflows that need to dispatch heavy or long-running work without waiting for completion.
+
+When a task is executed with `.delay()`, it creates a task run that is queued for execution by [task workers](/v3/how-to-guides/workflows/run-background-tasks#task-workers) running in separate processes. This allows the calling code to continue execution immediately while the background task is processed asynchronously.
+
+<Note>
+Prefect background tasks can be used in place of tools like [Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html) and [RabbitMQ](https://www.rabbitmq.com/) for task queue functionality.
+</Note>
+
+Background tasks are useful for scenarios such as:
+- Web applications that need to trigger long-running processes without blocking HTTP responses
+- Workflows that dispatch work to specialized infrastructure or resource pools
+- Systems that need to scale task execution independently from the main application
+
+For implementation details, see [how to run background tasks](/v3/how-to-guides/workflows/run-background-tasks).

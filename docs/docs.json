@@ -1577,7 +1577,7 @@
 		},
 		{
 			"source": "/v3/deploy/static-infrastructure-examples/background-tasks",
-			"destination": "/v3/how-to-guides/applications/background-tasks"
+			"destination": "/v3/how-to-guides/advanced/background-tasks"
 		},
 		{
 			"source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
