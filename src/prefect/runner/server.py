@@ -257,7 +257,7 @@ def _build_generic_endpoint_for_flows(
 @deprecated_callable(
     start_date=datetime(2025, 4, 1),
     end_date=datetime(2025, 10, 1),
-    help="Use background tasks (https://docs.prefect.io/v3/concepts/flows-and-tasks#background-tasks) or `run_deployment` and `.serve` instead of submitting runs to the Runner webserver.",
+    help="Use background tasks (https://docs.prefect.io/v3/concepts/tasks#background-tasks) or `run_deployment` and `.serve` instead of submitting runs to the Runner webserver.",
 )
 async def build_server(runner: "Runner") -> FastAPI:
     """

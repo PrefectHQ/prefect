@@ -60,7 +60,7 @@ serve(add, multiply) # start a task worker listening for both `add` and `multipl
 To submit multiple background tasks, call `.map()` on the task with `deferred=True`.
 
 {/* pmd-metadata: notest */}
-```pythonfrom prefect import task
+```python
 from prefect import task
 
 @task(log_prints=True)
