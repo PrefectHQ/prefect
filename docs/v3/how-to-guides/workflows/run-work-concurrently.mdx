@@ -3,6 +3,30 @@ title: How to run work concurrently
 sidebarTitle: Run work concurrently
 ---
 
+## Using `__call__`
+
+Tasks can be called directly, but they **will not** run concurrently.
+
+```python
+import time
+
+from prefect import task
+
+@task
+def stop_at_floor(floor: int):
+    print(f"elevator moving to floor {floor}")
+    time.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+stop_at_floor(0.1) # blocks for 0.1 seconds
+stop_at_floor(0.2) # blocks for 0.2 seconds
+stop_at_floor(0.3) # blocks for 0.3 seconds
+```
+
+When you call a task directly, it will block the main thread until the task completes.
+
+Continue reading to learn how to run tasks concurrently via [task runners](/v3/concepts/task-runners).
+
 ## Using `.submit`
 
 Tasks in your workflows can be run concurrently using the `.submit()` method. 
@@ -29,9 +53,16 @@ def elevator():
 
 By default, tasks are submitted via the `ThreadPoolTaskRunner`, which runs tasks concurrently in a thread pool.
 
+<Warning>
+A common mistake is to pass non-thread-safe objects to tasks that you submit to a task runner. Avoid passing non-thread-safe objects to tasks you intend to run concurrently.
+
+See [Design Considerations](/v3/concepts/task-runners#design-considerations) for more information.
+</Warning>
+
+
 ### Using a different task runner
 
-To run tasks concurrently with a different task runner, you can pass a `task_runner` argument to the `@flow` decorator.
+To run submitted tasks with a different task runner, you can pass a `task_runner` argument to the `@flow` decorator.
 
 <Note>
 To run this example, you'll need to install the `prefect[dask]` extra
