@@ -57,7 +57,8 @@
               "v3/how-to-guides/workflows/tag-based-concurrency-limits"
             ]
           },
-          { "group": "Configuration",
+          {
+            "group": "Configuration",
             "pages": [
               "v3/how-to-guides/configuration/store-secrets",
               "v3/how-to-guides/configuration/variables",
@@ -74,7 +75,8 @@
               "v3/how-to-guides/automations/creating-deployment-triggers",
               "v3/how-to-guides/automations/chaining-deployments-with-events",
               "v3/how-to-guides/automations/use-custom-event-grammar",
-              "v3/how-to-guides/automations/detect-zombie-flows"
+              "v3/how-to-guides/automations/detect-zombie-flows",
+              "v3/how-to-guides/automations/access-parameters-in-templates"
             ]
           },
           {
@@ -130,53 +132,51 @@
           },
           {
             "group": "Applications",
-            "pages": [
-              "v3/how-to-guides/applications/background-tasks"
-            ]
+            "pages": ["v3/how-to-guides/applications/background-tasks"]
           }
         ]
       },
       {
-       "tab": "Advanced",
-       "pages": [
-        "v3/advanced/index",
-        "v3/advanced/infrastructure-as-code",
-        "v3/advanced/daemonize-processes",
-        "v3/advanced/caching",
-        "v3/advanced/logging-customization",
-        "v3/advanced/transactions",
-        "v3/advanced/interactive",
-        "v3/advanced/results",
-        "v3/advanced/api-client",
-        "v3/advanced/custom-blocks",
-        "v3/advanced/server-helm"
-       ]
+        "tab": "Advanced",
+        "pages": [
+          "v3/advanced/index",
+          "v3/advanced/infrastructure-as-code",
+          "v3/advanced/daemonize-processes",
+          "v3/advanced/caching",
+          "v3/advanced/logging-customization",
+          "v3/advanced/transactions",
+          "v3/advanced/interactive",
+          "v3/advanced/results",
+          "v3/advanced/api-client",
+          "v3/advanced/custom-blocks",
+          "v3/advanced/server-helm"
+        ]
       },
       {
-       "tab": "Concepts",
-       "pages": [
-        "v3/concepts/index",
-        "v3/concepts/flows-and-tasks",
-        "v3/concepts/caching",
-        "v3/concepts/events",
-        "v3/concepts/deployments",
-        "v3/concepts/automations",
-        "v3/concepts/event-triggers",
-        "v3/concepts/webhooks",
-        "v3/concepts/rate-limits",
-        "v3/concepts/schedules",
-        "v3/concepts/work-pools",
-        "v3/concepts/workers",
-        "v3/concepts/runtime-context",
-        "v3/concepts/cancel-workflows",
-        "v3/concepts/states",
-        "v3/concepts/artifacts",
-        "v3/concepts/variables",
-        "v3/concepts/blocks",
-        "v3/concepts/settings-and-profiles",
-        "v3/concepts/server",
-        "v3/concepts/task-runners"
-       ]
+        "tab": "Concepts",
+        "pages": [
+          "v3/concepts/index",
+          "v3/concepts/flows-and-tasks",
+          "v3/concepts/caching",
+          "v3/concepts/events",
+          "v3/concepts/deployments",
+          "v3/concepts/automations",
+          "v3/concepts/event-triggers",
+          "v3/concepts/webhooks",
+          "v3/concepts/rate-limits",
+          "v3/concepts/schedules",
+          "v3/concepts/work-pools",
+          "v3/concepts/workers",
+          "v3/concepts/runtime-context",
+          "v3/concepts/cancel-workflows",
+          "v3/concepts/states",
+          "v3/concepts/artifacts",
+          "v3/concepts/variables",
+          "v3/concepts/blocks",
+          "v3/concepts/settings-and-profiles",
+          "v3/concepts/server",
+          "v3/concepts/task-runners"
+        ]
       },
       {
         "tab": "API Reference",
@@ -193,9 +193,7 @@
                   "v3/api-ref/rest-api/index",
                   {
                     "group": "Cloud API",
-                    "pages": [
-                      "v3/api-ref/rest-api/cloud/index"
-                    ]
+                    "pages": ["v3/api-ref/rest-api/cloud/index"]
                   },
                   {
                     "group": "Server API",
@@ -1560,9 +1558,9 @@
       "destination": "/v3/how-to-guides/workflows/pause-workflows"
     },
     {
-			"source": "/v3/develop/cancel",
-			"destination": "/v3/concepts/cancel-workflows"
-		},
+      "source": "/v3/develop/cancel",
+      "destination": "/v3/concepts/cancel-workflows"
+    },
     {
       "source": "/v3/deploy/infrastructure-concepts/customize",
       "destination": "/v3/how-to-guides/deployments/customize-job-variables"
