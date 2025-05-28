@@ -95,3 +95,12 @@ import { deployments } from "/snippets/resource-management/vars.mdx"
 import { API } from "/snippets/resource-management/api.mdx"
 
 <API name="deployments" href={deployments.api} />
+
+
+<Tip>
+    **Choosing between deployment methods**
+
+    For many cases, `serve` is sufficient for scheduling and orchestration.
+    The work pool / worker paradigm via `.deploy()` or `prefect deploy` can be great for complex infrastructure requirements and isolated flow run environments.
+    You are not locked into one method and can combine approaches as needed.
+</Tip>

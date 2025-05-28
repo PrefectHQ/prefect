@@ -15,14 +15,6 @@ Other advantages of work pools:
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
 - Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/v3/deploy/infrastructure-concepts/work-pools/#work-queues).
 
-<Tip>
-    **Choosing Between `flow.deploy()` and `flow.serve()`**
-
-    For many use cases, `serve` is sufficient for scheduling and orchestration.
-    Work pools are great for complex infrastructure requirements. But they are optional.
-    You are not locked into one method and can combine approaches as needed.
-</Tip>
-
 Work pools have different operational modes, each designed to work with specific infrastructures and work delivery methods:
 
 1. Pull work pools: These require workers to actively poll for flow runs to execute.
