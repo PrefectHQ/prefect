@@ -13,25 +13,21 @@ Only minimal, internal‑use functionality is implemented.
 
 from __future__ import annotations
 
-import logging
 import shlex
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import anyio
-import kubernetes_asyncio
 from kubernetes_asyncio.client import (
     ApiClient,
     CustomObjectsApi,
-    V1Job,
 )
-from kubernetes_asyncio.client.exceptions import ApiException
 from pydantic import Field, model_validator
 
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_kubernetes.utilities import (
-    _slugify_name,
     _slugify_label_key,
     _slugify_label_value,
+    _slugify_name,
 )
 from prefect_kubernetes.worker import (
     KubernetesWorker,
@@ -73,9 +69,7 @@ def _get_default_volcano_job_manifest_template() -> Dict[str, Any]:
                         {"event": "TaskCompleted", "action": "CompleteJob"},
                     ],
                     "template": {
-                        "metadata": {
-                            "labels": "{{ labels }}"
-                        },
+                        "metadata": {"labels": "{{ labels }}"},
                         "spec": {
                             "restartPolicy": "Never",
                             "serviceAccountName": "{{ service_account_name }}",
@@ -157,20 +151,24 @@ class VolcanoWorkerJobConfiguration(KubernetesWorkerJobConfiguration):
         """Propagates Prefect-specific labels to the pod in the job manifest."""
         if self.job_manifest.get("apiVersion") == "batch.volcano.sh/v1alpha1":
             # For Volcano Jobs, the pod template is at spec.tasks[0].template
-            current_pod_metadata = self.job_manifest["spec"]["tasks"][0]["template"].get("metadata", {})
+            current_pod_metadata = self.job_manifest["spec"]["tasks"][0][
+                "template"
+            ].get("metadata", {})
             current_pod_labels = current_pod_metadata.get("labels", {})
-            
+
             # Handle case where labels might be a template string
             if isinstance(current_pod_labels, str):
                 current_pod_labels = {}
-            
+
             all_labels = {**current_pod_labels, **self.labels}
 
             current_pod_metadata["labels"] = {
                 _slugify_label_key(k): _slugify_label_value(v)
                 for k, v in all_labels.items()
             }
-            self.job_manifest["spec"]["tasks"][0]["template"]["metadata"] = current_pod_metadata
+            self.job_manifest["spec"]["tasks"][0]["template"]["metadata"] = (
+                current_pod_metadata
+            )
         else:
             # For standard Kubernetes Jobs, use the parent implementation
             super()._propagate_labels_to_pod()
