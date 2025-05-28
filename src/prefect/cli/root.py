@@ -152,15 +152,15 @@ def get_prefect_integrations() -> dict[str, str]:
 
     integrations: dict[str, str] = {}
     for dist in distributions():
-        if dist.metadata["Name"].startswith("prefect-"):
+        name = dist.metadata.get("Name")
+        if name and name.startswith("prefect-"):
             author_email = dist.metadata.get("Author-email", "").strip()
             if author_email.endswith("@prefect.io>"):
                 if (  # TODO: remove clause after updating `prefect-client` packaging config
-                    dist.metadata["Name"] == "prefect-client"
-                    and dist.version == "0.0.0"
+                    name == "prefect-client" and dist.version == "0.0.0"
                 ):
                     continue
-                integrations[dist.metadata["Name"]] = dist.version
+                integrations[name] = dist.version
 
     return integrations
 
