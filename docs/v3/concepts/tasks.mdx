@@ -23,15 +23,15 @@ Tasks are cache-able and retryable units of work that are easy to execute concur
 
 Like flows, tasks are free to call other tasks or flows, there is no required nesting pattern.
 
-When a function becomes a task, it gains the following capabilities:
+Generally, tasks behave like normal Python functions, but they have some additional capabilities:
 
 - Metadata about task runs, such as run time and final state, is automatically tracked
 - Each [state](/v3/concepts/states/) the task enters is recorded, enabling observability and state-based logic
-- Input arguments can be validated and tracked as part of the workflow execution graph
+- [Futures](/v3/how-to-guides/workflows/run-work-concurrently#handling-futures) from upstream tasks are automatically resolved by downstream tasks
 - [Retries](/v3/how-to-guides/workflows/retries) can be performed on failure, with configurable delay and retry limits
-- Timeouts can be enforced to prevent unintentional, long-running operations
 - [Caching](/v3/how-to-guides/workflows/cache-workflow-steps) enables result reuse across workflow executions
-- [Concurrency](/v3/how-to-guides/workflows/run-work-concurrently) allows parallel execution within and across workflows
+- [Concurrency](/v3/how-to-guides/workflows/run-work-concurrently) via `.submit()` and `.map()` allow concurrent execution within and across workflows
+- [Timeouts](/v3/how-to-guides/workflows/write-and-run#cancel-a-workflow-if-it-runs-for-too-long) can be enforced to prevent unintentional, long-running operations
 
 Tasks are uniquely identified by a task key, which is a hash composed of the task name and the fully qualified name of the function.
 
