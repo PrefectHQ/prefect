@@ -49,6 +49,8 @@ venv/
 site/
 .cache/
 src/mkdocs-material
+docs/v3/examples/*.mdx
+!docs/v3/examples/index.mdx
 
 # UI artifacts
 src/prefect/server/ui/*
