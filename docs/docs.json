@@ -20,14 +20,6 @@
 							"v3/get-started/install",
 							"v3/get-started/quickstart"
 						]
-					},
-					{
-						"group": "Migrate",
-						"pages": [
-							"v3/tutorials/airflow",
-							"v3/resources/upgrade-to-prefect-3",
-							"v3/resources/upgrade-agents-to-workers"
-						]
 					}
 				]
 			},
@@ -128,6 +120,14 @@
 							"v3/how-to-guides/cloud/workspaces",
 							"v3/how-to-guides/cloud/create-a-webhook",
 							"v3/how-to-guides/cloud/troubleshoot-cloud"
+						]
+					},
+					{
+						"group": "Migrate",
+						"pages": [
+							"v3/how-to-guides/migrate/airflow",
+							"v3/how-to-guides/migrate/upgrade-to-prefect-3",
+							"v3/how-to-guides/migrate/upgrade-agents-to-workers"
 						]
 					}
 				]
@@ -1654,6 +1654,18 @@
 		{
 			"source": "v3/develop/task-run-limits",
 			"destination": "/v3/how-to-guides/workflows/tag-based-concurrency-limits"
+		},
+		{
+			"source": "v3/tutorials/airflow",
+			"destination": "/v3/how-to-guides/migrate/airflow"
+		},
+		{
+			"source": "v3/resources/upgrade-to-prefect-3",
+			"destination": "/v3/how-to-guides/migrate/upgrade-to-prefect-3"
+		},
+		{
+			"source": "v3/resources/upgrade-agents-to-workers",
+			"destination": "/v3/how-to-guides/migrate/upgrade-agents-to-workers"
 		}
 	]
 }
