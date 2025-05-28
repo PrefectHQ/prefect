@@ -25,7 +25,8 @@
 			},
 			{
 				"tab": "How-to Guides",
-				"groups": [
+                "pages": [
+                    "v3/how-to-guides/index",
 					{
 						"group": "Workflows",
 						"pages": [
