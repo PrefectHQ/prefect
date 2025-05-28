@@ -655,6 +655,35 @@ async def test_adds_docker_host_gateway_on_linux(
     assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
 
 
+async def test_user_provided_extra_hosts_merge_with_auto_generated(
+    mock_docker_client: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    flow_run: FlowRun,
+    default_docker_worker_job_configuration: DockerWorkerJobConfiguration,
+):
+    """Test that user-provided extra_hosts are merged with auto-generated ones without error.
+
+    this is a regression test for https://github.com/PrefectHQ/prefect/issues/18187
+    """
+    monkeypatch.setattr("sys.platform", "linux")
+
+    default_docker_worker_job_configuration.container_create_kwargs = {
+        "extra_hosts": ["host.docker.internal:host-gateway"]
+    }
+    default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    mock_docker_client.containers.create.assert_called_once()
+    call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+        "extra_hosts"
+    )
+    assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
+
+
 async def test_default_image_pull_policy_pulls_image_with_latest_tag(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
