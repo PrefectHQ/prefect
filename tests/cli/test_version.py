@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import platform
 import sqlite3
 import sys
