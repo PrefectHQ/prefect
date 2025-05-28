@@ -36,8 +36,8 @@ SKIP_FILES = {
     "docs/integrations/prefect-sqlalchemy/index.mdx": "Needs block cleanup handling",
     "docs/integrations/use-integrations.mdx": "Pydantic failures",
     # --- Below this line are files that haven't been debugged yet. ---
-    "docs/v3/resources/upgrade-agents-to-workers.mdx": "Needs Debugging",
-    "docs/v3/resources/upgrade-to-prefect-3.mdx": "Needs Debugging",
+    "docs/v3/how-to-guides/migrate/upgrade-agents-to-workers.mdx": "Needs Debugging",
+    "docs/v3/how-to-guides/migrate/upgrade-to-prefect-3.mdx": "Needs Debugging",
     "docs/contribute/develop-a-new-worker-type.mdx": "Needs Debugging",
     "docs/integrations/prefect-aws/index.mdx": "Needs Debugging",
     "docs/integrations/prefect-shell/index.mdx": "Needs Debugging",
