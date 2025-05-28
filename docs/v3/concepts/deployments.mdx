@@ -11,7 +11,7 @@ They store the crucial metadata for remote orchestration including when, where, 
 
 In addition to manually triggering and managing flow runs, deploying a flow exposes an API and UI that allow you to:
 
-- trigger new runs, [cancel active runs](/v3/develop/write-flows/#cancel-a-flow-run), pause scheduled runs, customize parameters, and more
+- trigger new runs, [cancel active runs](/v3/develop/write-flows/#cancel-a-flow-run), pause scheduled runs, [customize parameters](/v3/how-to-guides/workflows/form-building/), and more
 - remotely configure [schedules](/v3/automate/add-schedules) and [automation rules](/v3/automate/events/automations-triggers)
 - dynamically provision infrastructure with [work pools](/v3/deploy/infrastructure-concepts/work-pools) - optionally with templated guardrails for other users
 
@@ -138,32 +138,30 @@ class Deployment:
     name: str
     flow_id: UUID
     entrypoint: str
-    path: Optional[str] = None
+    path: str | None = None
 
     # workflow scheduling and parametrization
-    parameters: Optional[Dict[str, Any]] = None
-    parameter_openapi_schema: Optional[Dict[str, Any]] = None
-    schedules: list[Schedule] = None
+    parameters: dict[str, Any] | None = None
+    parameter_openapi_schema: dict[str, Any] | None = None
+    schedules: list[Schedule] | None = None
     paused: bool = False
-    trigger: Trigger = None
+    trigger: Trigger | None = None
 
     # concurrency limiting
-    concurrency_limit: Optional[int] = None
-    concurrency_options: Optional[
-        ConcurrencyOptions(collision_strategy=Literal['ENQUEUE', 'CANCEL_NEW'])
-    ] = None
+    concurrency_limit: int | None = None
+    concurrency_options: ConcurrencyOptions(collision_strategy=Literal['ENQUEUE', 'CANCEL_NEW']) | None = None
 
     # metadata for bookkeeping
-    version: Optional[str] = None
-    version_type: Optional[VersionType] = None
-    description: Optional[str] = None
-    tags: Optional[list] = None
+    version: str | None = None
+    version_type: VersionType | None = None
+    description: str | None = None
+    tags: list | None = None
 
     # worker-specific fields
-    work_pool_name: Optional[str] = None
-    work_queue_name: Optional[str] = None
-    job_variables: Optional[Dict[str, Any]] = None
-    pull_steps: Optional[Dict[str, Any]] = None
+    work_pool_name: str | None = None
+    work_queue_name: str | None = None
+    job_variables: dict[str, Any] | None = None
+    pull_steps: dict[str, Any] | None = None
 ```
 
 All methods for creating Prefect deployments are interfaces for populating this schema.
