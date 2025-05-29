@@ -89,7 +89,7 @@
 						]
 					},
 					{
-						"group": "Deployment Infrastructure",
+						"group": "Infrastructure",
 						"pages": [
 							"v3/how-to-guides/deployment_infra/managed",
 							"v3/how-to-guides/deployment_infra/serverless",
@@ -154,27 +154,53 @@
 				"tab": "Concepts",
 				"pages": [
 					"v3/concepts/index",
-					"v3/concepts/flows",
-					"v3/concepts/tasks",
-					"v3/concepts/caching",
-					"v3/concepts/events",
-					"v3/concepts/deployments",
-					"v3/concepts/automations",
-					"v3/concepts/event-triggers",
-					"v3/concepts/webhooks",
-					"v3/concepts/rate-limits",
-					"v3/concepts/schedules",
-					"v3/concepts/work-pools",
-					"v3/concepts/workers",
-					"v3/concepts/runtime-context",
-					"v3/concepts/cancel-workflows",
-					"v3/concepts/states",
-					"v3/concepts/artifacts",
-					"v3/concepts/variables",
-					"v3/concepts/blocks",
-					"v3/concepts/settings-and-profiles",
-					"v3/concepts/server",
-					"v3/concepts/task-runners"
+					{
+						"group": "Workflows",
+						"pages": [
+							"v3/concepts/flows",
+							"v3/concepts/tasks",
+							"v3/concepts/caching",
+							"v3/concepts/states",
+							"v3/concepts/runtime-context",
+							"v3/concepts/cancel-workflows",
+							"v3/concepts/artifacts",
+							"v3/concepts/task-runners"
+						]
+					},
+					{
+						"group": "Configuration",
+						"pages": [
+							"v3/concepts/variables",
+							"v3/concepts/blocks",
+							"v3/concepts/settings-and-profiles",
+							"v3/concepts/server"
+						]
+					},
+					{
+						"group": "Automations",
+						"pages": [
+							"v3/concepts/events",
+							"v3/concepts/automations",
+							"v3/concepts/event-triggers",
+							"v3/concepts/schedules"
+						]
+					},
+					{
+						"group": "Deployments",
+						"pages": [
+							"v3/concepts/deployments",
+							"v3/concepts/work-pools",
+							"v3/concepts/workers"
+						]
+					},
+					{
+						"group": "Prefect Cloud",
+						"pages": [
+							"v3/concepts/rate-limits",
+							"v3/concepts/slas",
+							"v3/concepts/webhooks"
+						]
+					}
 				]
 			},
 			{
