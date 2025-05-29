@@ -100,6 +100,10 @@ All flow runs receive:
 
 Maximum flow run time is limited to 24 hours.
 
+Every account has a compute usage limit per workspace that resets monthly. Compute used is defined as the duration
+between compute startup and teardown, rounded up to the nearest minute. This is approximately, although not exactly,
+the duration of a flow run going from `PENDING` to `COMPLETED`.
+
 ## Next steps
 
 Read more about creating deployments in [Run flows in Docker containers](/v3/deploy/infrastructure-examples/docker/).
