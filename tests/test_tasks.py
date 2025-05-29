@@ -2184,9 +2184,9 @@ class TestTaskCaching:
                 return x
 
         assert foo.cache_policy == NO_CACHE
-        assert foo.persist_result is False
         assert (
-            "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
         )
 
     async def test_disable_cache_setting_allows_normal_caching_when_false(self):
