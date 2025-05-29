@@ -63,6 +63,11 @@ class TasksSettings(PrefectBaseSettings):
         description="If `True`, sets the default cache policy on all tasks to `NO_CACHE`.",
     )
 
+    disable_caching: bool = Field(
+        default=False,
+        description="If `True`, disables caching on all tasks regardless of cache policy.",
+    )
+
     default_retries: int = Field(
         default=0,
         ge=0,
