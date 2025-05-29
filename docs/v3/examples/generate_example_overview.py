@@ -1,5 +1,4 @@
 import glob
-import os
 import re
 
 
@@ -41,6 +40,7 @@ def main():
     with open("index.mdx", "w") as f:
         f.write("""---\ntitle: Examples\n---\n""")
         f.write(card_table)
+
 
 if __name__ == "__main__":
     main()
