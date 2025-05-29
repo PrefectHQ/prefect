@@ -1413,7 +1413,7 @@ class ECSWorker(BaseWorker):
         if task_definition.get("memory"):
             task_definition["memory"] = str(task_definition["memory"])
 
-        task_definition = _drop_empty_keys_from_dict(task_definition)
+        _drop_empty_keys_from_dict(task_definition)
 
         return task_definition
 
