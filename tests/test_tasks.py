@@ -4329,6 +4329,21 @@ class TestTaskConstructorValidation:
             async def insanity():
                 raise RuntimeError("try again!")
 
+    def test_task_accepts_fractional_retry_delay_seconds(self):
+        @task(retries=2, retry_delay_seconds=1.5)
+        def task_with_float_delay():
+            return "success"
+
+        @task(retries=3, retry_delay_seconds=[0.5, 1.1, 2.7])
+        def task_with_float_list_delay():
+            return "success"
+
+        assert task_with_float_delay.retries == 2
+        assert task_with_float_delay.retry_delay_seconds == 1.5
+
+        assert task_with_float_list_delay.retries == 3
+        assert task_with_float_list_delay.retry_delay_seconds == [0.5, 1.1, 2.7]
+
 
 async def test_task_run_name_is_set(prefect_client, events_pipeline):
     @task(task_run_name="fixed-name")

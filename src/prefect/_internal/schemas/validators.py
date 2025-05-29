@@ -403,6 +403,18 @@ def validate_compressionlib(value: str) -> str:
 
 # TODO: if we use this elsewhere we can change the error message to be more generic
 @overload
+def list_length_50_or_less(v: int) -> int: ...
+
+
+@overload
+def list_length_50_or_less(v: float) -> float: ...
+
+
+@overload
+def list_length_50_or_less(v: list[int]) -> list[int]: ...
+
+
+@overload
 def list_length_50_or_less(v: list[float]) -> list[float]: ...
 
 
@@ -410,7 +422,9 @@ def list_length_50_or_less(v: list[float]) -> list[float]: ...
 def list_length_50_or_less(v: None) -> None: ...
 
 
-def list_length_50_or_less(v: Optional[list[float]]) -> Optional[list[float]]:
+def list_length_50_or_less(
+    v: Optional[int | float | list[int] | list[float]],
+) -> Optional[int | float | list[int] | list[float]]:
     if isinstance(v, list) and (len(v) > 50):
         raise ValueError("Can not configure more than 50 retry delays per task.")
     return v
