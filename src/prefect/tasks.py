@@ -467,7 +467,7 @@ class Task(Generic[P, R]):
                 persist_result = True
 
         # Check for global cache disable setting
-        if settings.tasks.disable_cache:
+        if settings.tasks.disable_caching:
             cache_policy = NO_CACHE
 
         if persist_result is False:

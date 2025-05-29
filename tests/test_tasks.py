@@ -2172,12 +2172,12 @@ class TestTaskCaching:
         assert await s5.result() == 42
         assert await s6.result() == 42
 
-    async def test_disable_cache_setting_disables_caching_regardless_of_cache_policy(
+    async def test_disable_caching_setting_disables_caching_regardless_of_cache_policy(
         self, caplog
     ):
-        from prefect.settings import PREFECT_TASKS_DISABLE_CACHE
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
 
-        with temporary_settings({PREFECT_TASKS_DISABLE_CACHE: True}):
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: True}):
 
             @task(cache_policy=TASK_SOURCE)
             def foo(x):
@@ -2189,10 +2189,10 @@ class TestTaskCaching:
             not in caplog.text
         )
 
-    async def test_disable_cache_setting_allows_normal_caching_when_false(self):
-        from prefect.settings import PREFECT_TASKS_DISABLE_CACHE
+    async def test_disable_caching_setting_allows_normal_caching_when_false(self):
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
 
-        with temporary_settings({PREFECT_TASKS_DISABLE_CACHE: False}):
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: False}):
 
             @task(cache_policy=TASK_SOURCE)
             def foo(x):

@@ -435,7 +435,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_TASKS_DEFAULT_PERSIST_RESULT": {"test_value": True},
     "PREFECT_TASKS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
-    "PREFECT_TASKS_DISABLE_CACHE": {"test_value": False},
+    "PREFECT_TASKS_DISABLE_CACHING": {"test_value": False},
     "PREFECT_TASKS_REFRESH_CACHE": {"test_value": True},
     "PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS": {"test_value": 5},
     "PREFECT_TASKS_SCHEDULING_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
