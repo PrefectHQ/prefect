@@ -698,7 +698,7 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Union[None, int, list[int]] = Field(
+    retry_delay: Union[None, int, float, list[int], list[float]] = Field(
         default=None,
         description="A delay time or list of delay times between retries, in seconds.",
     )
@@ -728,8 +728,8 @@ class TaskRunPolicy(PrefectBaseModel):
     @field_validator("retry_delay")
     @classmethod
     def validate_configured_retry_delays(
-        cls, v: Optional[list[float]]
-    ) -> Optional[list[float]]:
+        cls, v: Optional[int | float | list[int] | list[float]]
+    ) -> Optional[int | float | list[int] | list[float]]:
         return list_length_50_or_less(v)
 
     @field_validator("retry_jitter_factor")
