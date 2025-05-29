@@ -403,16 +403,28 @@ class ECSJobConfiguration(BaseJobConfiguration):
         validated server-side.
         """
 
-        job_config: Dict[str, Any] = base_job_template["job_configuration"]
+        base_config: dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
+
+        # copy variable defaults for `env` to base config before they're replaced by
+        # deployment overrides
+        if variables.get("env"):
+            base_config["env"] = variables.get("env")
+
         variables.update(values)
 
         _drop_empty_keys_from_dict(variables)  # TODO: investigate why this is necessary
 
-        populated_configuration = apply_values(template=job_config, values=variables)
+        # deep merge `env`
+        if isinstance(base_config.get("env"), dict) and (
+            deployment_env := variables.get("env")
+        ):
+            base_config["env"] = base_config.get("env") | deployment_env
+
+        populated_configuration = apply_values(template=base_config, values=variables)
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client
         )
