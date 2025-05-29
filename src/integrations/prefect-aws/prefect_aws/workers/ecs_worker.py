@@ -63,9 +63,7 @@ from slugify import slugify
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
-from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRun
-from prefect.client.utilities import inject_client
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
@@ -74,9 +72,6 @@ from prefect.workers.base import (
     BaseVariables,
     BaseWorker,
     BaseWorkerResult,
-    apply_values,
-    resolve_block_document_references,
-    resolve_variables,
 )
 from prefect_aws.credentials import AwsCredentials, ClientType
 
@@ -387,51 +382,6 @@ class ECSJobConfiguration(BaseJobConfiguration):
                 "You must provide a `vpc_id` to enable custom `network_configuration`."
             )
         return self
-
-    @classmethod
-    @inject_client
-    async def from_template_and_values(
-        cls,
-        base_job_template: dict,
-        values: dict,
-        client: Optional[PrefectClient] = None,
-    ):
-        """Creates a valid worker configuration object from the provided base
-        configuration and overrides.
-
-        Important: this method expects that the base_job_template was already
-        validated server-side.
-        """
-
-        base_config: dict[str, Any] = base_job_template["job_configuration"]
-        variables_schema = base_job_template["variables"]
-        variables = cls._get_base_config_defaults(
-            variables_schema.get("properties", {})
-        )
-
-        # copy variable defaults for `env` to base config before they're replaced by
-        # deployment overrides
-        if variables.get("env"):
-            base_config["env"] = variables.get("env")
-
-        variables.update(values)
-
-        _drop_empty_keys_from_dict(variables)  # TODO: investigate why this is necessary
-
-        # deep merge `env`
-        if isinstance(base_config.get("env"), dict) and (
-            deployment_env := variables.get("env")
-        ):
-            base_config["env"] = base_config.get("env") | deployment_env
-
-        populated_configuration = apply_values(template=base_config, values=variables)
-        populated_configuration = await resolve_block_document_references(
-            template=populated_configuration, client=client
-        )
-        populated_configuration = await resolve_variables(
-            template=populated_configuration, client=client
-        )
-        return cls(**populated_configuration)
 
 
 class ECSVariables(BaseVariables):
@@ -1462,6 +1412,8 @@ class ECSWorker(BaseWorker):
             task_definition["cpu"] = str(task_definition["cpu"])
         if task_definition.get("memory"):
             task_definition["memory"] = str(task_definition["memory"])
+
+        task_definition = _drop_empty_keys_from_dict(task_definition)
 
         return task_definition
 
