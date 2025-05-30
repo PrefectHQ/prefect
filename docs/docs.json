@@ -63,8 +63,6 @@
 							"v3/how-to-guides/automations/creating-automations",
 							"v3/how-to-guides/automations/creating-deployment-triggers",
 							"v3/how-to-guides/automations/chaining-deployments-with-events",
-							"v3/how-to-guides/automations/use-custom-event-grammar",
-							"v3/how-to-guides/automations/detect-zombie-flows",
 							"v3/how-to-guides/automations/access-parameters-in-templates"
 						]
 					},
@@ -151,6 +149,13 @@
                             "v3/advanced/form-building",
 							"v3/advanced/results",
 							"v3/advanced/background-tasks"
+						]
+					},
+					{
+						"group": "Automations",
+						"pages": [
+							"v3/advanced/detect-zombie-flows",
+							"v3/advanced/use-custom-event-grammar"
 						]
 					},
 					{
