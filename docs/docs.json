@@ -47,30 +47,10 @@
 						]
 					},
 					{
-						"group": "Configuration",
-						"pages": [
-							"v3/how-to-guides/configuration/store-secrets",
-							"v3/how-to-guides/configuration/variables",
-							"v3/how-to-guides/configuration/manage-settings",
-							"v3/how-to-guides/configuration/server-cli",
-							"v3/how-to-guides/configuration/server-docker"
-						]
-					},
-					{
-						"group": "Automations",
-						"pages": [
-							"v3/how-to-guides/automations/create-schedules",
-							"v3/how-to-guides/automations/creating-automations",
-							"v3/how-to-guides/automations/creating-deployment-triggers",
-							"v3/how-to-guides/automations/chaining-deployments-with-events",
-							"v3/how-to-guides/automations/access-parameters-in-templates"
-						]
-					},
-					{
 						"group": "Deployments",
 						"pages": [
 							"v3/how-to-guides/deployments/create-deployments",
-							"v3/how-to-guides/deployments/run-flows-in-local-processes",
+							"v3/how-to-guides/deployments/create-schedules",
 							"v3/how-to-guides/deployments/deploy-via-python",
 							"v3/how-to-guides/deployments/prefect-yaml",
 							"v3/how-to-guides/deployments/store-flow-code",
@@ -82,8 +62,26 @@
 						]
 					},
 					{
+						"group": "Configuration",
+						"pages": [
+							"v3/how-to-guides/configuration/store-secrets",
+							"v3/how-to-guides/configuration/variables",
+							"v3/how-to-guides/configuration/manage-settings"
+						]
+					},
+					{
+						"group": "Automations",
+						"pages": [
+							"v3/how-to-guides/automations/creating-automations",
+							"v3/how-to-guides/automations/creating-deployment-triggers",
+							"v3/how-to-guides/automations/chaining-deployments-with-events",
+							"v3/how-to-guides/automations/access-parameters-in-templates"
+						]
+					},
+					{
 						"group": "Workflow Infrastructure",
 						"pages": [
+							"v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
 							"v3/how-to-guides/deployment_infra/managed",
 							"v3/how-to-guides/deployment_infra/serverless",
 							"v3/how-to-guides/deployment_infra/docker",
@@ -205,14 +203,14 @@
 						"pages": [
 							"v3/concepts/events",
 							"v3/concepts/automations",
-							"v3/concepts/event-triggers",
-							"v3/concepts/schedules"
+							"v3/concepts/event-triggers"
 						]
 					},
 					{
 						"group": "Deployments",
 						"pages": [
 							"v3/concepts/deployments",
+							"v3/concepts/schedules",
 							"v3/concepts/work-pools",
 							"v3/concepts/workers"
 						]
@@ -1532,7 +1530,7 @@
 		},
 		{
 			"source": "/v3/deploy/run-flows-in-local-processes",
-			"destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
+			"destination": "/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
 		},
 		{
 			"source": "v3/develop/deferred-tasks",
