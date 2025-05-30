@@ -852,14 +852,14 @@ def resolve_inputs_sync(
 
 
 def get_upstream_assets_from_task_inputs(task_run: TaskRun) -> set[Any]:
-    """Extract upstream assets from task inputs (already forwarded)."""
+    """Extract upstream assets from task inputs"""
     if not task_run or not task_run.task_inputs:
         return set()
 
     upstream_assets = set()
     for input_list in task_run.task_inputs.values():
         for task_input in input_list:
-            if hasattr(task_input, "assets") and task_input.assets:
+            if isinstance(task_input, TaskRunResult) and task_input.assets:
                 upstream_assets.update(task_input.assets)
 
     return upstream_assets
@@ -912,3 +912,28 @@ def emit_asset_events(task: Any, task_run: TaskRun, succeeded: bool) -> None:
                 resource=asset_as_resource(asset),
                 related=all_related,
             )
+
+
+def record_task_assets(task: Any, task_run: TaskRun) -> None:
+    """Record direct assets and conditionally propagate upstream assets based on task type."""
+    ctx = FlowRunContext.get()
+    if not ctx or not task_run:
+        return
+
+    direct_assets = []
+
+    if hasattr(task, "asset_deps") and task.asset_deps:
+        from prefect.assets import Asset
+
+        for asset in task.asset_deps:
+            asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
+            direct_assets.append(asset_obj)
+
+    if hasattr(task, "assets"):
+        direct_assets.extend(task.assets[:])
+        assets_for_downstream = task.assets[:]
+    else:
+        upstream_assets = get_upstream_assets_from_task_inputs(task_run)
+        assets_for_downstream = direct_assets + list(upstream_assets)
+
+    ctx.task_run_assets[task_run.id] = assets_for_downstream

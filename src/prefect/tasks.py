@@ -888,6 +888,7 @@ class Task(Generic[P, R]):
         from prefect.utilities._engine import dynamic_key_for_task_run
         from prefect.utilities.engine import (
             collect_task_run_inputs_sync,
+            record_task_assets,
         )
 
         if flow_run_context is None:
@@ -928,7 +929,7 @@ class Task(Generic[P, R]):
 
                 store = await ResultStore(
                     result_storage=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(task)
+                ).update_for_task(self)
                 context = serialize_context()
                 data: dict[str, Any] = {"context": context}
                 if parameters:
@@ -995,54 +996,9 @@ class Task(Generic[P, R]):
             )
 
             # Record task assets after creating the task run
-            self.task_run = task_run
-            self._record_task_assets()
+            record_task_assets(self, task_run)
 
             return task_run
-
-    def _record_task_assets(self) -> None:
-        """Record direct assets and conditionally propagate upstream assets based on task type."""
-        ctx = FlowRunContext.get()
-        if not ctx or not hasattr(self, "task_run") or not self.task_run:
-            return
-
-        direct_assets = []
-
-        # TODO don't do hasattr
-        if hasattr(self, "asset_deps") and self.asset_deps:
-            from prefect.assets import Asset
-
-            for asset in self.asset_deps:
-                asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
-                direct_assets.append(asset_obj)
-
-        if hasattr(self, "assets"):
-            direct_assets.extend(self.assets)
-            assets_for_downstream = self.assets[:]
-        else:
-            upstream_assets = self._get_upstream_assets_from_inputs()
-            assets_for_downstream = direct_assets + list(upstream_assets)
-
-        ctx.task_run_assets[self.task_run.id] = assets_for_downstream
-
-    def _get_upstream_assets_from_inputs(self) -> set[Any]:
-        """Extract upstream assets from task inputs"""
-        if (
-            not hasattr(self, "task_run")
-            or not self.task_run
-            or not self.task_run.task_inputs
-        ):
-            return set()
-
-        upstream_assets = set()
-        for input_list in self.task_run.task_inputs.values():
-            # TODO make sure we're only checking TaskRunResult
-            # TODO I think I can just get rid of this whole method...
-            for task_input in input_list:
-                if hasattr(task_input, "assets") and task_input.assets:
-                    upstream_assets.update(task_input.assets)
-
-        return upstream_assets
 
     @overload
     def __call__(
