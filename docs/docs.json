@@ -36,13 +36,10 @@
 							"v3/how-to-guides/workflows/custom-metadata",
 							"v3/how-to-guides/workflows/pass-inputs",
 							"v3/how-to-guides/workflows/add-logging",
-							"v3/how-to-guides/workflows/pause-workflows",
 							"v3/how-to-guides/workflows/access-runtime-info",
 							"v3/how-to-guides/workflows/run-work-concurrently",
 							"v3/how-to-guides/workflows/cache-workflow-steps",
 							"v3/how-to-guides/workflows/form-building",
-							"v3/how-to-guides/workflows/turn-a-command-into-workflow",
-							"v3/how-to-guides/workflows/visualize-workflow-structure",
 							"v3/how-to-guides/workflows/run-background-tasks",
 							"v3/how-to-guides/workflows/state-change-hooks",
 							"v3/how-to-guides/workflows/artifacts",
@@ -1527,14 +1524,6 @@
 			"destination": "/v3/how-to-guides/deployments/run-flows-in-local-processes"
 		},
 		{
-			"source": "/v3/develop/cli-shell",
-			"destination": "/v3/how-to-guides/workflows/turn-a-command-into-workflow"
-		},
-		{
-			"source": "/v3/develop/visualize-workflow-structure",
-			"destination": "/v3/how-to-guides/workflows/visualize-flow-structure"
-		},
-		{
 			"source": "v3/develop/deferred-tasks",
 			"destination": "/v3/how-to-guides/workflows/run-background-tasks"
 		},
@@ -1596,7 +1585,7 @@
 		},
 		{
 			"source": "/v3/develop/pause-resume",
-			"destination": "/v3/how-to-guides/workflows/pause-workflows"
+			"destination": "/v3/how-to-guides/advanced/interactive"
 		},
 		{
 			"source": "/v3/develop/cancel",
