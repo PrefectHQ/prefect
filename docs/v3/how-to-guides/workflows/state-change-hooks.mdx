@@ -1,7 +1,45 @@
 ---
 title: How to respond to state changes
 sidebarTitle: Respond to state changes
+description: Learn how to execute code in response to entering states in your workflows.
 ---
+
+
+State change hooks execute code in response to **_client side_** changes in flow or task run states, enabling you to define actions for
+specific state transitions in a workflow.
+
+State hooks have the following signature:
+
+```python
+from prefect import Task, Flow
+from prefect.states import State
+from prefect.client.schemas.objects import TaskRun, FlowRun
+
+def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
+    ...
+
+def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
+    ...
+```
+
+State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
+or to use the same state change hook for different transitions.
+
+### Available state change hooks
+
+| Type | Flow | Task | Description |
+| ----- | --- | --- | --- |
+| `on_completion` | ✓ | ✓ | Executes when a flow or task run enters a `Completed` state. |
+| `on_failure` | ✓ | ✓ | Executes when a flow or task run enters a `Failed` state. |
+| <span class="no-wrap">`on_cancellation`</span> | ✓ | - | Executes when a flow run enters a `Cancelling` state. |
+| `on_crashed` | ✓ | - | Executes when a flow run enters a `Crashed` state. |
+| `on_running` | ✓ | - | Executes when a flow run enters a `Running` state. |
+
+<Note>
+Note that the `on_rollback` hook for tasks is _not_ a proper state change hook but instead
+is a transaction lifecycle hook.
+Rollback hooks accept one argument representing the transaction for the task.
+</Note>
 
 ### Send a notification when a workflow run fails
 
@@ -40,8 +78,6 @@ if __name__ == "__main__":
 ```
 
 Retries are configured in this example, so the `on_failure` hook will not run until all `retries` have completed and the flow run enters a `Failed` state.
-
-To see the list of available state change hooks, see the [states concept page](/v3/concepts/states#available-state-change-hooks).
 
 <Warning>
 **State change hooks execute client side**
