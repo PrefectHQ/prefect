@@ -222,7 +222,7 @@ class Future(concurrent.futures.Future[T]):
             self._cancel_scope = None
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(eq=False)
 class Call(Generic[T]):
     """
     A deferred function call.
@@ -235,6 +235,42 @@ class Call(Generic[T]):
     context: contextvars.Context
     timeout: Optional[float]
     runner: Optional["Portal"] = None
+
+    def __eq__(self, other: object) -> bool:
+        """this is to avoid attempts at invalid access of args/kwargs in <3.13 stemming from the
+        auto-generated __eq__ method on the dataclass.
+
+        this will no longer be required in 3.13+, see https://github.com/python/cpython/issues/128294
+        """
+        if self is other:
+            return True
+        if not isinstance(other, Call):
+            return NotImplemented
+
+        try:
+            # Attempt to access args/kwargs. If any are missing on self or other,
+            # an AttributeError will be raised by the access attempt on one of them.
+            s_args, s_kwargs = self.args, self.kwargs
+            o_args, o_kwargs = other.args, other.kwargs
+        except AttributeError:
+            # If args/kwargs are missing on self or other (and self is not other),
+            # they are considered not equal. This ensures that a Call with deleted
+            # args/kwargs compares as different from one that still has them
+            return False
+
+        # If all args/kwargs were accessible on both, proceed with full field comparison.
+        # Note: self.future == other.future will use Future's __eq__ (default is identity).
+        return (
+            (self.future == other.future)
+            and (self.fn == other.fn)
+            and (s_args == o_args)
+            and (s_kwargs == o_kwargs)
+            and (self.context == other.context)
+            and (self.timeout == other.timeout)
+            and (self.runner == other.runner)
+        )
+
+    __hash__ = None  # type: ignore
 
     @classmethod
     def new(

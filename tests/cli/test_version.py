@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import platform
 import sqlite3
 import sys
@@ -58,6 +60,39 @@ def test_version_cloud_server_type():
         invoke_and_assert(
             ["version"], expected_output_contains="Server type:         cloud"
         )
+
+
+@pytest.mark.usefixtures("disable_hosted_api_server")
+def test_version_handles_none_metadata_names(monkeypatch: pytest.MonkeyPatch):
+    """Test that version command handles packages with None metadata names gracefully."""
+
+    class MockDistribution:
+        def __init__(self, metadata: dict[str, str | None], version: str = "1.0.0"):
+            self.metadata = metadata
+            self.version = version
+
+    mock_distributions = [
+        MockDistribution(
+            {"Name": "prefect-aws", "Author-email": "help@prefect.io>"}, "2.0.0"
+        ),
+        MockDistribution({"Name": None, "Author-email": "help@prefect.io>"}),
+        MockDistribution({"Author-email": "help@prefect.io>"}),
+        MockDistribution(
+            {"Name": "some-other-package", "Author-email": "other@example.com"}
+        ),
+    ]
+
+    def mock_distributions_func():
+        return mock_distributions
+
+    monkeypatch.setattr("importlib.metadata.distributions", mock_distributions_func)
+
+    result = invoke_and_assert(
+        ["version"],
+        expected_code=0,
+    )
+    assert "prefect-aws" in result.output
+    assert "2.0.0" in result.output
 
 
 @pytest.mark.usefixtures("disable_hosted_api_server")

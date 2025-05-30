@@ -466,6 +466,10 @@ class Task(Generic[P, R]):
             ):
                 persist_result = True
 
+        # Check for global cache disable setting
+        if settings.tasks.disable_caching:
+            cache_policy = NO_CACHE
+
         if persist_result is False:
             self.cache_policy = None if cache_policy is None else NO_CACHE
             if cache_policy and cache_policy is not NotSet and cache_policy != NO_CACHE:
@@ -810,6 +814,8 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
+                from prefect.task_worker import store_parameters
+
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -825,7 +831,7 @@ class Task(Generic[P, R]):
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await store.store_parameters(parameters_id, data)
+                await store_parameters(store, parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -911,6 +917,8 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
+                from prefect.task_worker import store_parameters
+
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
 
@@ -926,7 +934,7 @@ class Task(Generic[P, R]):
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await store.store_parameters(parameters_id, data)
+                await store_parameters(store, parameters_id, data)
 
             # collect task inputs
             task_inputs = {

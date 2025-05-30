@@ -372,7 +372,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         super().__enter__()
 
         if ray.is_initialized():
-            self.logger.info(
+            self.logger.debug(
                 "Local Ray instance is already initialized. "
                 "Using existing local instance."
             )
