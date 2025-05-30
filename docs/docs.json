@@ -55,10 +55,7 @@
 							"v3/how-to-guides/deployments/prefect-yaml",
 							"v3/how-to-guides/deployments/store-flow-code",
 							"v3/how-to-guides/deployments/versioning",
-							"v3/how-to-guides/deployments/manage-work-pools",
-							"v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
-							"v3/how-to-guides/deployments/customize-job-variables",
-							"v3/how-to-guides/deployments/deploy-ci-cd"
+							"v3/how-to-guides/deployments/customize-job-variables"
 						]
 					},
 					{
@@ -81,6 +78,7 @@
 					{
 						"group": "Workflow Infrastructure",
 						"pages": [
+							"v3/how-to-guides/deployment_infra/manage-work-pools",
 							"v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
 							"v3/how-to-guides/deployment_infra/managed",
 							"v3/how-to-guides/deployment_infra/serverless",
@@ -157,10 +155,17 @@
 						]
 					},
 					{
-						"group": "Infrastructure",
+						"group": "Workflow Infrastructure",
 						"pages": [
-							"v3/advanced/infrastructure-as-code",
 							"v3/advanced/daemonize-processes",
+							"v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+						]
+					},
+					{
+						"group": "Platform",
+						"pages": [
+							"v3/advanced/deploy-ci-cd",
+							"v3/advanced/infrastructure-as-code",
 							"v3/advanced/server-helm"
 						]
 					},
@@ -190,6 +195,15 @@
 						]
 					},
 					{
+						"group": "Deployments",
+						"pages": [
+							"v3/concepts/deployments",
+							"v3/concepts/schedules",
+							"v3/concepts/work-pools",
+							"v3/concepts/workers"
+						]
+					},
+					{
 						"group": "Configuration",
 						"pages": [
 							"v3/concepts/variables",
@@ -204,15 +218,6 @@
 							"v3/concepts/events",
 							"v3/concepts/automations",
 							"v3/concepts/event-triggers"
-						]
-					},
-					{
-						"group": "Deployments",
-						"pages": [
-							"v3/concepts/deployments",
-							"v3/concepts/schedules",
-							"v3/concepts/work-pools",
-							"v3/concepts/workers"
 						]
 					},
 					{
@@ -998,7 +1003,7 @@
 		},
 		{
 			"source": "/latest/guides/ci-cd",
-			"destination": "/v3/deploy/infrastructure-concepts/deploy-ci-cd"
+			"destination": "/v3/advanced/deploy-ci-cd"
 		},
 		{
 			"source": "/latest/concepts/deployments-block-based",
@@ -1562,7 +1567,7 @@
 		},
 		{
 			"source": "/v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
-			"destination": "/v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+			"destination": "/v3/advanced/submit-flows-directly-to-dynamic-infrastructure"
 		},
 		{
 			"source": "/v3/deploy/daemonize-processes",
@@ -1622,7 +1627,7 @@
 		},
 		{
 			"source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
-			"destination": "/v3/how-to-guides/deployments/deploy-ci-cd"
+			"destination": "/v3/advanced/deploy-ci-cd"
 		},
 		{
 			"source": "/v3/develop/artifacts",
