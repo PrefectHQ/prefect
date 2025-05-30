@@ -578,18 +578,7 @@
 			},
 			{
 				"tab": "Examples",
-				"groups": [
-					{
-						"group": "Examples",
-						"pages": [
-							"v3/examples/index",
-							"v3/examples/flows",
-							"v3/examples/deployments",
-							"v3/examples/infrastructure",
-							"v3/examples/scripts"
-						]
-					}
-				]
+                "pages": ["v3/examples/index"]
 			},
 			{
 				"tab": "Integrations",
