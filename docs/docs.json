@@ -137,17 +137,32 @@
 				"tab": "Advanced",
 				"pages": [
 					"v3/advanced/index",
-					"v3/advanced/infrastructure-as-code",
-					"v3/advanced/daemonize-processes",
-					"v3/advanced/caching",
-					"v3/advanced/logging-customization",
-					"v3/advanced/transactions",
-					"v3/advanced/interactive",
-					"v3/advanced/results",
-					"v3/advanced/api-client",
-					"v3/advanced/custom-blocks",
-					"v3/advanced/server-helm",
-					"v3/advanced/background-tasks"
+					{
+						"group": "Workflows",
+						"pages": [
+							"v3/advanced/caching",
+							"v3/advanced/logging-customization",
+							"v3/advanced/transactions",
+							"v3/advanced/interactive",
+							"v3/advanced/results",
+							"v3/advanced/background-tasks"
+						]
+					},
+					{
+						"group": "Infrastructure",
+						"pages": [
+							"v3/advanced/infrastructure-as-code",
+							"v3/advanced/daemonize-processes",
+							"v3/advanced/server-helm"
+						]
+					},
+					{
+						"group": "Extensibility",
+						"pages": [
+							"v3/advanced/api-client",
+							"v3/advanced/custom-blocks"
+						]
+					}
 				]
 			},
 			{
