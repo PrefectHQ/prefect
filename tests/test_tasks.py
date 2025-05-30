@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import logging
 import random
 import sys
 import threading
@@ -1323,6 +1324,45 @@ class TestTaskRetries:
             test_flow()
             assert mock.call_count == 2
 
+    @pytest.mark.parametrize(
+        ("retries_configured", "expected_log_fragment"),
+        [
+            (0, "No retries configured for this task"),
+            (1, "Retries are exhausted"),
+        ],
+    )
+    async def test_task_retry_logging(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        retries_configured: int,
+        expected_log_fragment: str,
+    ):
+        caplog.set_level(logging.ERROR, logger="prefect.task_engine")
+        exc = ValueError("Test Exception")
+
+        @task(retries=retries_configured)
+        def failing_task():
+            raise exc
+
+        @flow
+        def test_flow():
+            try:
+                failing_task()
+            except ValueError:
+                pass  # Expected
+
+        test_flow()
+
+        found_message = False
+        for record in caplog.records:
+            if expected_log_fragment in record.message and record.levelname == "ERROR":
+                assert str(exc) in record.message
+                found_message = True
+                break
+        assert found_message, (
+            f"Expected log fragment '{expected_log_fragment}' not found in ERROR logs."
+        )
+
 
 class TestResultPersistence:
     @pytest.mark.parametrize("persist_result", [True, False])
@@ -2131,6 +2171,50 @@ class TestTaskCaching:
         assert s6.name == "Cached"
         assert await s5.result() == 42
         assert await s6.result() == 42
+
+    async def test_disable_caching_setting_disables_caching_regardless_of_cache_policy(
+        self, caplog
+    ):
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
+
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: True}):
+
+            @task(cache_policy=TASK_SOURCE)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
+
+    async def test_disable_caching_setting_allows_normal_caching_when_false(self):
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
+
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: False}):
+
+            @task(cache_policy=TASK_SOURCE)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == TASK_SOURCE
+        assert foo.persist_result is True
+
+    @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
+    async def test_does_not_warn_when_false_persist_result_and_none_cache_policy(
+        self, caplog, cache_policy
+    ):
+        @task(persist_result=False, cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == cache_policy
+
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
 
 
 class TestCacheFunctionBuiltins:
@@ -4288,6 +4372,21 @@ class TestTaskConstructorValidation:
             @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
             async def insanity():
                 raise RuntimeError("try again!")
+
+    def test_task_accepts_fractional_retry_delay_seconds(self):
+        @task(retries=2, retry_delay_seconds=1.5)
+        def task_with_float_delay():
+            return "success"
+
+        @task(retries=3, retry_delay_seconds=[0.5, 1.1, 2.7])
+        def task_with_float_list_delay():
+            return "success"
+
+        assert task_with_float_delay.retries == 2
+        assert task_with_float_delay.retry_delay_seconds == 1.5
+
+        assert task_with_float_list_delay.retries == 3
+        assert task_with_float_list_delay.retry_delay_seconds == [0.5, 1.1, 2.7]
 
 
 async def test_task_run_name_is_set(prefect_client, events_pipeline):

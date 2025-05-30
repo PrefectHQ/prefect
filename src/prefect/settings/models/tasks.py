@@ -1,9 +1,10 @@
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.types import TaskRetryDelaySeconds
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
@@ -62,6 +63,11 @@ class TasksSettings(PrefectBaseSettings):
         description="If `True`, sets the default cache policy on all tasks to `NO_CACHE`.",
     )
 
+    disable_caching: bool = Field(
+        default=False,
+        description="If `True`, disables caching on all tasks regardless of cache policy.",
+    )
+
     default_retries: int = Field(
         default=0,
         ge=0,
@@ -73,7 +79,7 @@ class TasksSettings(PrefectBaseSettings):
         ),
     )
 
-    default_retry_delay_seconds: Union[int, float, list[float]] = Field(
+    default_retry_delay_seconds: TaskRetryDelaySeconds = Field(
         default=0,
         description="This value sets the default retry delay seconds for all tasks.",
         validation_alias=AliasChoices(
