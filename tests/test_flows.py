@@ -94,6 +94,8 @@ from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
+from prefect._experimental.sla.objects import TimeToCompletionSla, LatenessSla
+from prefect.utilities.annotations import NotSet
 
 # Give an ample amount of sleep time in order to test flow timeouts
 SLEEP_TIME = 10
@@ -581,6 +583,64 @@ class TestFlowWithOptions:
 
         new_flow = ChildProcessor.process.with_options()
         assert new_flow(5) == 10
+
+
+class TestFlowSLA:
+    def test_flow_decorator_sla_initialization(self):
+        sla_object = TimeToCompletionSla(timedelta=datetime.timedelta(hours=1))
+        sla_object_2 = LatenessSla(timedelta=datetime.timedelta(minutes=30))
+
+        @flow(sla=sla_object)
+        def flow_with_single_sla():
+            pass
+
+        assert flow_with_single_sla.sla == [sla_object]
+
+        @flow(sla=[sla_object, sla_object_2])
+        def flow_with_list_sla():
+            pass
+
+        assert flow_with_list_sla.sla == [sla_object, sla_object_2]
+
+        @flow()
+        def flow_with_no_sla():
+            pass
+
+        assert flow_with_no_sla.sla is None
+
+    def test_flow_with_options_sla(self):
+        sla_object_initial = TimeToCompletionSla(
+            timedelta=datetime.timedelta(hours=1)
+        )
+        sla_object_new = LatenessSla(timedelta=datetime.timedelta(minutes=30))
+
+        @flow(sla=sla_object_initial)
+        def my_flow():
+            pass
+
+        # Test that SLA is preserved when other options are changed
+        new_flow_same_sla = my_flow.with_options(name="new-name")
+        assert new_flow_same_sla.sla == [sla_object_initial]
+
+        # Test overriding SLA with a new single object
+        new_flow_with_sla = my_flow.with_options(sla=sla_object_new)
+        assert new_flow_with_sla.sla == [sla_object_new]
+
+        # Test overriding SLA with a list of objects
+        sla_list = [
+            TimeToCompletionSla(timedelta=datetime.timedelta(hours=2)),
+            LatenessSla(timedelta=datetime.timedelta(minutes=15)),
+        ]
+        new_flow_with_list_sla = my_flow.with_options(sla=sla_list)
+        assert new_flow_with_list_sla.sla == sla_list
+
+        # Test clearing SLA by passing None
+        new_flow_cleared_sla = new_flow_with_sla.with_options(sla=None)
+        assert new_flow_cleared_sla.sla is None
+
+        # Test that NotSet does not change the SLA
+        flow_notset_sla = new_flow_with_sla.with_options(sla=NotSet)
+        assert flow_notset_sla.sla == [sla_object_new]
 
 
 class TestFlowCall:

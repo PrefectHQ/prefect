@@ -196,6 +196,9 @@ class Flow(Generic[P, R]):
         on_cancellation: An optional list of callables to run when the flow enters a cancelling state.
         on_crashed: An optional list of callables to run when the flow enters a crashed state.
         on_running: An optional list of callables to run when the flow enters a running state.
+        sla: An optional Service Level Agreement (SLA) or list of SLAs to associate with this flow.
+            When this flow is deployed, these SLAs will be configured on the deployment.
+            Requires Prefect Cloud.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -224,6 +227,7 @@ class Flow(Generic[P, R]):
         on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ):
         if name is not None and not isinstance(name, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
@@ -395,6 +399,13 @@ class Flow(Generic[P, R]):
         self.on_crashed_hooks: list[FlowStateHook[P, R]] = on_crashed or []
         self.on_running_hooks: list[FlowStateHook[P, R]] = on_running or []
 
+        if sla is None:
+            self.sla = None
+        elif isinstance(sla, list):
+            self.sla = sla
+        else:
+            self.sla = [sla]
+
         # Used for flows loaded from remote storage
         self._storage: Optional["RunnerStorage"] = None
         self._entrypoint: Optional[str] = None
@@ -463,6 +474,7 @@ class Flow(Generic[P, R]):
         on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = NotSet,
     ) -> "Flow[P, R]":
         """
         Create a new flow from the current object, updating provided options.
@@ -492,6 +504,7 @@ class Flow(Generic[P, R]):
             on_cancellation: A new list of callables to run when the flow enters a cancelling state.
             on_crashed: A new list of callables to run when the flow enters a crashed state.
             on_running: A new list of callables to run when the flow enters a running state.
+            sla: A new SLA or list of SLAs for the flow.
 
         Returns:
             A new `Flow` instance.
@@ -566,6 +579,7 @@ class Flow(Generic[P, R]):
             on_cancellation=on_cancellation or self.on_cancellation_hooks,
             on_crashed=on_crashed or self.on_crashed_hooks,
             on_running=on_running or self.on_running_hooks,
+            sla=sla if sla is not NotSet else self.sla,
         )
         new_flow._storage = self._storage
         new_flow._entrypoint = self._entrypoint
@@ -747,7 +761,12 @@ class Flow(Generic[P, R]):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
-            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. If provided, this will
+                override any SLA configuration set directly on the flow. If `None` (default)
+                and the flow has an SLA configured, the flow's SLA will be used. Requires Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. If provided, this will
+                override any SLA configuration set directly on the flow. If `None` (default)
+                and the flow has an SLA configured, the flow's SLA will be used. Requires Prefect Cloud.
 
         Examples:
             Prepare two deployments and serve them:
@@ -797,7 +816,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
-                _sla=_sla,
+                _sla=_sla if _sla is not None else self.sla,
             )
         else:
             return RunnerDeployment.from_flow(
@@ -821,7 +840,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
-                _sla=_sla,
+                _sla=_sla if _sla is not None else self.sla,
             )
 
     @async_dispatch(ato_deployment)
@@ -940,7 +959,7 @@ class Flow(Generic[P, R]):
                     work_pool_name=work_pool_name,
                     work_queue_name=work_queue_name,
                     job_variables=job_variables,
-                    _sla=_sla,
+                    _sla=_sla if _sla is not None else self.sla,
                     _sync=True,  # pyright: ignore[reportCallIssue] _sync is valid because .from_storage is decorated with async_dispatch
                 ),
             )
@@ -966,7 +985,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
-                _sla=_sla,
+                _sla=_sla if _sla is not None else self.sla,
             )
 
     def on_completion(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
@@ -1448,7 +1467,9 @@ class Flow(Generic[P, R]):
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
-            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. If provided, this will
+                override any SLA configuration set directly on the flow. If `None` (default)
+                and the flow has an SLA configured, the flow's SLA will be used. Requires Prefect Cloud.
         Returns:
             The ID of the created/updated deployment.
 
@@ -1530,7 +1551,7 @@ class Flow(Generic[P, R]):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
             entrypoint_type=entrypoint_type,
-            _sla=_sla,
+            _sla=_sla if _sla is not None else self.sla,
         )
 
         if inspect.isawaitable(to_deployment_coro):
@@ -1783,6 +1804,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     @overload
@@ -1809,6 +1831,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     def __call__(
@@ -1834,6 +1857,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ) -> Union[Flow[P, R], Callable[[Callable[P, R]], Flow[P, R]]]:
         """
         Decorator to designate a function as a Prefect workflow.
@@ -1899,6 +1923,11 @@ class FlowDecorator:
                 final state of the flow run.
             on_running: An optional list of functions to call when the flow run is started. Each
                 function should accept three arguments: the flow, the flow run, and the current state
+            sla: An optional Service Level Agreement ([`SlaTypes`][prefect._experimental.sla.objects.SlaTypes])
+                or list of SLAs to associate with this flow. When this flow is deployed, these SLAs will
+                be configured on the deployment. The `severity` field on the SLA object (e.g., "critical")
+                is used by Prefect Cloud to determine alert severity. This is an experimental feature.
+                Requires Prefect Cloud.
 
         Returns:
             A callable `Flow` object which, when called, will run the flow and return its
@@ -1937,6 +1966,19 @@ class FlowDecorator:
             >>> @flow(task_runner=DaskTaskRunner)
             >>> def my_flow():
             >>>     pass
+
+            Define a flow with an SLA
+
+            >>> from datetime import timedelta
+            >>> from prefect import flow
+            >>> from prefect._experimental.sla.objects import TimeToCompletionSla
+            >>>
+            >>> custom_sla = TimeToCompletionSla(duration=timedelta(minutes=30), severity="critical")
+            >>>
+            >>> @flow(sla=custom_sla, retries=2)
+            >>> def my_sla_flow():
+            >>>     # ... flow logic ...
+            >>>     pass
         """
         if __fn:
             return Flow(
@@ -1960,6 +2002,7 @@ class FlowDecorator:
                 on_cancellation=on_cancellation,
                 on_crashed=on_crashed,
                 on_running=on_running,
+                sla=sla,
             )
         else:
             return cast(
@@ -1985,6 +2028,7 @@ class FlowDecorator:
                     on_cancellation=on_cancellation,
                     on_crashed=on_crashed,
                     on_running=on_running,
+                    sla=sla,
                 ),
             )
 
