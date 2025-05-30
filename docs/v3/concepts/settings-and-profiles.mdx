@@ -1,0 +1,283 @@
+---
+title: Settings and profiles
+description: Prefect settings let you customize behavior across different environments.
+---
+
+## Why use settings?
+
+Settings in Prefect help you control how your workflows behave. They let you easily customize Prefect to work the way you need it to, whether you're testing locally or running in production.
+
+Specifically, settings enable:
+
+- **Environment-Specific Configuration**: Use different settings for development (like detailed logging), testing (like test databases), and production (like your production server) without changing your workflow code.
+
+- **Runtime Flexibility**: Quickly adjust things like retry attempts or logging levels without having to modify and redeploy your workflows.
+
+## Get started with settings
+
+The simplest way declare settings is by creating a `prefect.toml` file in your project directory. For example:
+
+```toml prefect.toml
+# Set more detailed logging while developing
+[logging]
+level = "DEBUG"
+```
+
+<Note>
+To use `prefect.toml` or `pyproject.toml` for configuration, `prefect>=3.1` must be installed.
+
+To use a `.env` file for configuration, `prefect>=3.0.5` must be installed.
+</Note>
+
+Most editors have plugins for TOML that provide syntax highlighting, linting, and autocomplete for `prefect.toml` files. If you use VSCode, we recommend the [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml).
+
+<Tip>
+**Writing TOML**
+
+TOML is a simple configuration language. If you're new to TOML, learn more about the syntax in the [official documentation](https://toml.io/en/). 
+
+In particular, note that TOML uses square brackets to denote [tables](https://toml.io/en/v1.0.0#table), which are analogous to dictionaries in Python.
+</Tip>
+
+## Settings sources
+
+You can configure settings via the following sources (highest to lowest precedence):
+
+- **Environment variables**: Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a single workflow run.
+
+- **`.env` file**: `.env` files are useful for declaring local settings that you want to apply across multiple runs.
+
+- **`prefect.toml` file**: A `prefect.toml` file is useful when you want to declare settings for an entire project. You can keep this file in your project directory and it will be automatically applied regardless of where you run your project.
+
+- **`pyproject.toml` file**: If you already have a `pyproject.toml` file in your project or like to consolidate settings for all your tools in one place, you can declare settings in the `[tool.prefect]` table of your `pyproject.toml` file.
+
+- **Profiles**: Prefect profiles are useful for switching between different environments. For example, you might use one profile for a local Prefect server and another for your production environment.
+
+When multiple settings sources define the same setting, Prefect follows this precedence order (highest to lowest):
+
+<Steps>
+  <Step title="Environment variables"/>
+  <Step title=".env file in the current working directory"/>
+  <Step title="prefect.toml file in the current working directory"/>
+  <Step title="pyproject.toml file in the current working directory"/>
+  <Step title="Active profile settings"/>
+  <Step title="Default values"/>
+</Steps>
+
+For example, if you set `PREFECT_API_URL` in both your environment and your active profile, the environment variable value will take precedence.
+
+### Environment variables
+
+Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a workflow. 
+
+All Prefect settings can be set using environment variables prefixed with `PREFECT_`. They take precedence over all other sources, making them ideal for adjustments that should only apply to a single session or process.
+
+For example, you can run the following command to temporarily set the logging level for a single flow run:
+
+```bash
+PREFECT_LOGGING_LEVEL="DEBUG" python my_flow.py
+```
+
+You can also export an environment variable in your shell to apply it to all flow runs in that shell session:
+
+```bash
+export PREFECT_LOGGING_LEVEL="DEBUG"
+prefect run my_flow.py
+```
+
+You can see supported environment variables for each setting in the [settings reference documentation](/v3/develop/settings-ref).
+
+<Tip>
+**Environment variables _always_ take precedence**
+
+Environment variables always take precedence over values declared in other sources.
+This allows you to configure certain runtime behavior for your workflows by setting the appropriate
+environment variable on the job or process executing the workflow.
+</Tip>
+
+### `.env` file
+
+`.env` files are useful for declaring local settings that you want to apply across multiple runs. 
+
+When running `prefect` in a directory that contains a `.env` file, Prefect will automatically apply the settings in the file. We recommend keeping your `.env` files local and not committing them to your code repositories.
+
+For example, the following `.env` file declares a local setting for the logging level:
+
+```bash .env
+PREFECT_LOGGING_LEVEL="DEBUG"
+```
+
+Any flows run in the same directory as this `.env` file will use the `DEBUG` logging level, even if they are run in different shell sessions.
+
+View supported environment variables for each setting in the [settings reference documentation](/v3/develop/settings-ref).
+
+### `prefect.toml` file
+
+A `prefect.toml` file is useful when you want to declare settings for an entire project. 
+
+You can keep a `prefect.toml` file in your project directory and the declared settings will be automatically applied when running `prefect` in that directory. We recommend committing this file to your code repositories to ensure consistency across environments.
+
+For example, the following `prefect.toml` file declares a setting for the logging level:
+
+```toml prefect.toml
+[logging]
+level = "DEBUG"
+```
+
+If you commit your `prefect.toml` file to a code repository, creating deployments from flows in that repository will use the settings declared in the `prefect.toml` file.
+
+You can see the `prefect.toml` path for each setting in the [settings reference documentation](/v3/develop/settings-ref).
+
+### `pyproject.toml` file
+
+Declaring settings in a `pyproject.toml` file is very similar to declaring settings in a `prefect.toml` file. The main difference is that settings are declared in the `[tool.prefect]` table instead of at the root of the file.
+
+For example, the following `pyproject.toml` file declares a setting for the logging level:
+
+```toml pyproject.toml
+[tool.prefect]
+logging.level = "DEBUG"
+```
+
+The advantage of declaring settings in a `pyproject.toml` file is that it allows you to keep all your dependencies and settings for all your tools in one place. You can learn more about `pyproject.toml` files in the [Python Packaging User Guide](https://packaging.python.org/en/latest/specifications/pyproject-toml/#arbitrary-tool-configuration-the-tool-table).
+
+### Profiles
+
+Prefect profiles are useful for switching between different environments. By creating different profiles with different API URLs, you can easily switch between a local Prefect server and your production environment.
+
+Profiles are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect/profiles.toml` by default. This location can be configured by setting `PREFECT_PROFILES_PATH`.
+
+One and only one profile can be active at any time.
+
+Immediately after installation, the `ephemeral` profile will be used, which only has `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` configured:
+
+<Tip>
+**What is `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE`?**
+
+This setting allows a Prefect server to be run ephemerally as needed without explicitly starting a server process.
+</Tip>
+
+The `prefect profile` CLI commands enable you to create, review, and manage profiles:
+
+| Command | Description |
+| --- | --- |
+| `create` | Create a new profile; use the `--from` flag to copy settings from another profile. |
+| `delete` | Delete the given profile. |
+| `inspect` | Display settings from a given profile; defaults to active. |
+| `ls` | List all profile names. |
+| `rename` | Change the name of a profile. |
+| `use` | Switch the active profile. |
+| `populate-defaults` | Populate your `profiles.toml` file with opinionated stock profiles. |
+
+... or you may edit your `profiles.toml` file directly:
+
+```bash
+vim ~/.prefect/profiles.toml
+```
+
+#### Configure settings for the active profile
+
+The `prefect config` CLI commands enable you to manage the settings within the currently active profile.
+
+| Command | Description |
+| --- | --- |
+| set | Change the value for a setting. |
+| unset | Restore the default value for a setting. |
+| view | Display the current settings. |
+
+For example, the following CLI commands set configuration in the `ephemeral` profile and then create a new
+profile with new settings:
+
+```bash
+prefect profile use ephemeral
+prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+
+prefect profile create new-profile --from ephemeral
+prefect profile use new-profile
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true PREFECT_LOGGING_LEVEL="ERROR"
+
+prefect profile inspect
+prefect config unset PREFECT_LOGGING_LEVEL -y
+```
+
+## Common client settings
+
+- [`api.url`](/v3/develop/settings-ref/#url): this setting specifies the API endpoint of your 
+Prefect Cloud workspace or a self-hosted Prefect server instance.
+- [`api.key`](/v3/develop/settings-ref/#key): this setting specifies the 
+[API key](/v3/manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
+- [`home`](/v3/develop/settings-ref/#home): the `home` value specifies the local Prefect directory for configuration files,
+profiles, and the location of the default Prefect SQLite database.
+
+<Tip>
+**Use `prefect cloud login` to set these values for Prefect Cloud**
+
+To set `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
+Read more about [managing API keys](/v3/manage/cloud/manage-users/api-keys/). 
+</Tip>
+
+## Common server settings
+
+
+- [`server.database.connection_url`](/v3/develop/settings-ref#connection-url): the database connection URL for a self-hosted Prefect server instance.
+Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres. 
+
+#### Security settings
+
+**Basic Authentication**
+
+Self-hosted Prefect servers can be equipped with Basic Authentication through two settings:
+
+- **`server.api.auth_string="admin:pass"`**: this setting should be set with an administrator / password combination, separated by a colon, on any process that hosts the Prefect webserver (for example `prefect server start`).
+- **`api.auth_string="admin:pass"`**: this setting should be set with the same administrator / password combination as the server on any client process that needs to communicate with the Prefect API (for example, any process that runs a workflow).
+
+With these settings, the UI will prompt for the full authentication string `"admin:pass"` (no quotes) upon first load. It is recommended to store this information in a secure way, such as a Kubernetes Secret or in a private `.env` file.
+
+If both `PREFECT_API_KEY` and `PREFECT_API_AUTH_STRING` are set on the client, `PREFECT_API_KEY` will take precedence. If you plan to use a
+self-hosted Prefect server, you may want to make sure `PREFECT_API_KEY` is not set in your active profile or as
+an environment variable, otherwise authentication will fail (`HTTP 401 Unauthorized`).
+
+Example `.env` file:
+
+```bash .env
+PREFECT_SERVER_API_AUTH_STRING="admin:pass"
+PREFECT_API_AUTH_STRING="admin:pass"
+```
+
+**Host the UI behind a reverse proxy**
+
+When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
+ hosted Prefect UI instance, you must also configure the self-hosted Prefect server instance to connect to the API. 
+The [`ui.api_url`](/v3/develop/settings-ref/#api_url) setting should be set to the external proxy URL.
+
+For example, if your external URL is `https://prefect-server.example.com` then you can configure a `prefect.toml` file for your server like this:
+
+```toml prefect.toml
+[ui]
+api_url = "https://prefect-server.example.com/api"
+```
+
+If you do not set `ui.api_url`, then `api.url` will be used as a fallback.
+
+**CSRF protection settings**
+
+If using self-hosted Prefect server, you can configure CSRF protection settings.
+
+- [`server.api.csrf_protection_enabled`](/v3/develop/settings-ref/#csrf-protection-enabled): activates CSRF protection on the server, 
+requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. 
+Defaults to `False`.
+- [`server.api.csrf_token_expiration`](/v3/develop/settings-ref/#csrf-token-expiration): sets the expiration duration for server-issued CSRF tokens, 
+influencing how often tokens need to be refreshed. The default is 1 hour.
+- [`client.csrf_support_enabled`](/v3/develop/settings-ref/#csrf-support-enabled): enables or disables CSRF token handling in the Prefect client. 
+When enabled, the client manages CSRF tokens for state-changing API requests. Defaults to `True`.
+
+By default clients expect that CSRF protection is enabled on the server. If you are running a server without CSRF protection, 
+you can disable CSRF support in the client.
+
+**CORS settings**
+
+If using self-hosted Prefect server, you can configure CORS settings to control which origins are allowed to make cross-origin requests to your server.
+
+- [`server.api.cors_allowed_origins`](/v3/develop/settings-ref/#cors-allowed-origins): a list of origins that are allowed to make cross-origin requests.
+- [`server.api.cors_allowed_methods`](/v3/develop/settings-ref/#cors-allowed-methods): a list of HTTP methods that are allowed to be used during cross-origin requests.
+- [`server.api.cors_allowed_headers`](/v3/develop/settings-ref/#cors-allowed-headers): a list of headers that are allowed to be used during cross-origin requests.

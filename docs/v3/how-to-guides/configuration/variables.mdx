@@ -1,0 +1,112 @@
+---
+title: How to share configuration between workflows
+sidebarTitle: Share configuration between workflows
+---
+
+### Create a variable
+
+To create a variable stored in the Prefect backend, use `Variable.set()`.
+
+```python
+from prefect.variables import Variable
+
+Variable.set("answer", 42)
+```
+
+### Read a variable
+
+To read a variable, use `Variable.get()`.
+
+```python
+from prefect.variables import Variable
+
+Variable.get("answer")
+```
+
+To read a variable with a fallback value, use `Variable.get(default=...)`.
+
+```python
+from prefect.variables import Variable
+
+Variable.get("answer", default=42)
+```
+
+### Update a variable
+
+To update a variable, use `Variable.set(value, overwrite=True)`.
+
+```python
+from prefect.variables import Variable
+
+Variable.set("answer", 42, overwrite=True)
+```
+
+### Delete a variable
+
+To delete a variable, use `Variable.unset()`.
+
+```python
+from prefect.variables import Variable
+
+Variable.unset("answer")
+```
+
+<Warning>
+**Contextual Behavior**
+
+In a sync context (such as an `if __name__ == "__main__"` block or simple `def` scope), these methods are used synchronously.
+In an async context (such as an `async def` scope), they are used asynchronously.
+</Warning>
+
+<CodeGroup>
+```python Synchronous
+
+from prefect import flow
+from prefect.variables import Variable
+
+@flow(log_prints=True)
+def space_mission_sync(mission_name: str):
+    crew = Variable.get("crew_members", default=["Backup1", "Backup2"])
+    print(f"Launching {mission_name} with crew: {', '.join(crew)}")
+
+if __name__ == "__main__":
+    Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
+    space_mission_sync("Mars Expedition")
+```
+
+```python Asynchronous
+import asyncio
+from prefect import flow
+from prefect.variables import Variable
+
+@flow(log_prints=True)
+async def space_mission_async(mission_name: str):
+    crew = await Variable.get("crew_members", default=["Backup1", "Backup2"])
+    print(f"Launching {mission_name} with crew: {', '.join(crew)}")
+
+if __name__ == "__main__":
+    Variable.set("crew_members", ["Zaphod", "Arthur", "Trillian"])
+    asyncio.run(space_mission_async("Mars Expedition"))
+```
+</CodeGroup>
+
+### Use variables in `prefect.yaml` deployment steps
+
+In `prefect.yaml` files, variables are expressed as strings wrapped in quotes and double curly brackets: 
+```
+"{{ prefect.variables.my_variable }}"
+```
+
+Use variables to templatize deployment steps by 
+referencing them in the `prefect.yaml` file that creates the deployments.
+
+For example, you can pass in a variable to specify a branch for a git repo in a deployment `pull` step:
+
+```
+pull:
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/PrefectHQ/hello-projects.git
+    branch: "{{ prefect.variables.deployment_branch }}"
+```
+
+The `deployment_branch` variable is evaluated at runtime for the deployed flow, allowing changes to variables used in a pull action without updating a deployment directly.

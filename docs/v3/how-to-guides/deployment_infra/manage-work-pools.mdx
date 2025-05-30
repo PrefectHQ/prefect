@@ -1,0 +1,157 @@
+---
+title: How to manage work pools
+sidebarTitle: Manage Work Pools
+description: Configure Prefect work pools using the CLI, Terraform, or REST API
+---
+
+
+You can configure work pools by using the Prefect UI. 
+
+To manage work pools in the UI, click the **Work Pools** icon. This displays a list of currently configured work pools.
+
+![The UI displays a list of configured work pools](/v3/img/ui/work-pool-list.png)
+
+Select the **+** button to create a new work pool. You can specify the details about infrastructure created for this work pool.
+
+## Using the CLI
+
+import { CLI } from "/snippets/resource-management/cli.mdx"
+import { work_pools } from "/snippets/resource-management/vars.mdx"
+
+<CLI name="work pools" href={work_pools.cli} />
+
+```bash
+prefect work-pool create [OPTIONS] NAME
+```
+
+`NAME` is a required, unique name for the work pool.
+
+Optional configuration parameters to filter work on the pool include:
+
+
+
+<Tip>
+**Managing work pools in CI/CD**
+
+  Version control your base job template by committing it as a JSON file to a git repository and control updates to your 
+  work pools' base job templates with the `prefect work-pool update` command in your CI/CD pipeline. 
+  
+  For example, use the following command to update a work pool's base job template to the contents of a file named `base-job-template.json`:
+
+    ```bash
+    prefect work-pool update --base-job-template base-job-template.json my-work-pool
+    ```
+</Tip>
+
+
+
+### List available work pools
+
+```bash
+prefect work-pool ls
+```
+
+### Inspect a work pool
+
+```bash
+prefect work-pool inspect 'test-pool'
+```
+
+### Preview scheduled work
+
+```bash
+prefect work-pool preview 'test-pool' --hours 12
+```
+
+### Pause a work pool
+
+```bash
+prefect work-pool pause 'test-pool'
+```
+
+### Resume a work pool
+
+```bash
+prefect work-pool resume 'test-pool'
+```
+
+### Delete a work pool
+
+```bash
+prefect work-pool delete 'test-pool'
+```
+
+<Note>
+**Pausing a work pool does not pause deployment schedules**
+
+
+</Note>
+
+### Manage concurrency for a work pool
+
+Set concurrency:
+
+```bash
+prefect work-pool set-concurrency-limit [LIMIT] [POOL_NAME]
+```
+
+Clear concurrency:
+
+```bash
+prefect work-pool clear-concurrency-limit [POOL_NAME]
+```
+
+### Base job template
+
+View default base job template:
+
+```bash
+prefect work-pool get-default-base-job-template --type process
+```
+
+Example `prefect.yaml`:
+
+```yaml
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
+    name: above-ground  
+    job_variables:
+        stream_output: false
+```
+
+
+<Tip>
+**Advanced customization of the base job template**
+
+    For advanced use cases, create work pools with fully customizable job templates. This customization is available when 
+    creating or editing a work pool on the 'Advanced' tab within the UI or when updating a work pool via the Prefect CLI.
+
+    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. 
+    In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors. 
+    Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which are useful for restricting 
+    capabilities in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
+    to configure the manifest that workers use to create jobs for flow execution.
+
+    See more information about [overriding a work pool's job variables](/v3/deploy/infrastructure-concepts/customize).
+</Tip>
+
+
+
+## Using Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="work pools" href={work_pools.tf} />
+
+## Using the REST API
+
+import { API } from "/snippets/resource-management/api.mdx"
+
+<API name="work pools" href={work_pools.api} />
+
+## Further reading
+
+- [Work pools](/v3/concepts/work-pools) concept page
+- [Customize job variables](/v3/deploy/infrastructure-concepts/customize) page

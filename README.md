@@ -32,11 +32,11 @@
         Quickstart
     </a>
     ·
-    <a href="https://docs.prefect.io/v3/develop/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+    <a href="https://docs.prefect.io/v3/how-to-guides/workflows/write-and-run?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
         Build workflows
     </a>
     ·
-    <a href="https://docs.prefect.io/v3/deploy/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
+    <a href="https://docs.prefect.io/v3/concepts/deployments?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none">
         Deploy workflows
     </a>
     ·

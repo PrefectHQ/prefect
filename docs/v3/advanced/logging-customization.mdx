@@ -1,0 +1,212 @@
+---
+title: How to customize Prefect's logging configuration
+sidebarTitle: Customize logging
+---
+
+Prefect relies on [the standard Python implementation of logging configuration](https://docs.python.org/3/library/logging.config.html).
+The full specification of the default logging configuration for any version of Prefect can always be inspected [here](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml).
+The default logging level is `INFO`.
+
+### Customize logging configuration
+
+Prefect provides several settings to configure the logging level and individual loggers.
+
+Any value in [Prefect's logging configuration file](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) can be overridden through 
+a Prefect setting of the form `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=value` corresponding to the nested address of the field you are configuring.
+
+For example, to change the default logging level for flow runs but not task runs, update your profile with:
+```bash
+prefect config set PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL="ERROR"
+```
+or set the corresponding environment variable:
+```bash
+export PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL="ERROR"
+```
+
+You can also configure the "root" Python logger. The root logger receives logs from all loggers unless they 
+explicitly opt out by disabling propagation. By default, the root logger is configured to output `WARNING` level logs 
+to the console. As with other logging settings, you can override this from the environment or in the logging configuration 
+file. For example, you can change the level with the `PREFECT_LOGGING_ROOT_LEVEL` environment variable.
+
+In some situations you may want to completely overhaul the Prefect logging configuration by providing your own `logging.yml` file.
+You can create your own version of `logging.yml` in one of two ways:
+
+1. Create a `logging.yml` file in your `PREFECT_HOME` directory (default is `~/.prefect`).
+2. Specify a custom path to your `logging.yml` file using the `PREFECT_LOGGING_SETTINGS_PATH` setting.
+
+If Prefect cannot find the `logging.yml` file at the specified location, it will fall back to using the default logging configuration.
+
+See the Python [Logging configuration](https://docs.python.org/3/library/logging.config.html#logging.config.dictConfig) 
+documentation for more information about the configuration options and syntax used by `logging.yml`.
+
+<Note>
+As with all Prefect settings, logging settings are loaded at runtime.
+This means that to customize Prefect logging in a remote environment requires setting the appropriate environment variables and/or profile in that environment.
+</ Note>
+
+### Formatters
+
+Prefect log formatters specify the format of log messages. 
+The default formatting for task and flow run records is 
+`"%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"` for tasks and
+similarly `"%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"` for flows.
+
+The variables available to interpolate in log messages vary by logger. 
+In addition to the run context, message string, 
+and any keyword arguments, flow and task run loggers have access to additional variables.
+
+The flow run logger has the following variables available for formatting:
+
+- `flow_run_name`
+- `flow_run_id`
+- `flow_name`
+
+The task run logger has the following variables available for formatting:
+
+- `task_run_id`
+- `flow_run_id`
+- `task_run_name`
+- `task_name`
+- `flow_run_name`
+- `flow_name`
+
+You can specify custom formatting by setting the relevant environment variable or by modifying the formatter in a custom `logging.yml` file as
+described earlier. 
+For example, the following changes the formatting for the flow runs formatter:
+
+
+```bash
+PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
+```
+
+The resulting messages, using the flow run ID instead of name, look like this:
+
+
+```bash
+10:40:01.211 | INFO    | e43a5a80-417a-41c4-a39e-2ef7421ee1fc - Created task run
+'othertask-1c085beb-3' for task 'othertask'
+```
+
+### Styles
+
+By default, Prefect highlights specific keywords in the console logs with a variety of colors.
+You can toggle highlighting on/off with the `PREFECT_LOGGING_COLORS` setting:
+
+
+```bash
+PREFECT_LOGGING_COLORS=False
+```
+
+You can also change what gets highlighted and even adjust the colors by updating the styles - see the `styles`
+section of [the Prefect logging configuration file](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) for available keys.
+
+<Note>
+Note that these style settings only impact the display within a terminal, not the Prefect UI.
+</ Note>
+
+You can even build your own handler with a [custom highlighter](https://rich.readthedocs.io/en/stable/highlighting.html#custom-highlighters). 
+For example, to additionally highlight emails:
+
+1. Copy and paste the following code into  `my_package_or_module.py` (rename as needed) in the same directory as the flow run 
+script; or ideally as part of a Python package so it's available in `site-packages` and accessible anywhere within your environment.
+
+```python
+import logging
+from typing import Dict, Union
+
+from rich.highlighter import Highlighter
+
+from prefect.logging.handlers import PrefectConsoleHandler
+from prefect.logging.highlighters import PrefectConsoleHighlighter
+
+class CustomConsoleHighlighter(PrefectConsoleHighlighter):
+    base_style = "log."
+    highlights = PrefectConsoleHighlighter.highlights + [
+        # ?P<email> is naming this expression as `email`
+        r"(?P<email>[\w-]+@([\w-]+\.)+[\w-]+)",
+    ]
+
+class CustomConsoleHandler(PrefectConsoleHandler):
+    def __init__(
+        self,
+        highlighter: Highlighter = CustomConsoleHighlighter,
+        styles: Dict[str, str] = None,
+        level: Union[int, str] = logging.NOTSET,
+   ):
+        super().__init__(highlighter=highlighter, styles=styles, level=level)
+```
+
+2. Update `~/.prefect/logging.yml` to use `my_package_or_module.CustomConsoleHandler` and additionally reference the 
+base_style and named expression: `log.email`.
+
+```yaml
+    console_flow_runs:
+        level: 0
+        class: my_package_or_module.CustomConsoleHandler
+        formatter: flow_runs
+        styles:
+            log.email: magenta
+            # other styles can be appended here, e.g.
+            # log.completed_state: green
+```
+
+3. On your next flow run, text that looks like an email is highlighted. For example, `my@email.com` is colored in 
+magenta below:
+
+```python
+from prefect import flow
+from prefect.logging import get_run_logger
+
+@flow
+def log_email_flow():
+    logger = get_run_logger()
+    logger.info("my@email.com")
+
+log_email_flow()
+```
+
+### Apply markup in logs
+
+To use [Rich's markup](https://rich.readthedocs.io/en/stable/markup.html#console-markup) in Prefect logs, first 
+configure `PREFECT_LOGGING_MARKUP`:
+
+
+```bash
+PREFECT_LOGGING_MARKUP=True
+```
+
+The following will highlight "fancy" in red:
+
+```python
+from prefect import flow
+from prefect.logging import get_run_logger
+
+@flow
+def my_flow():
+    logger = get_run_logger()
+    logger.info("This is [bold red]fancy[/]")
+
+my_flow()
+```
+<Warning>
+**Inaccurate logs could result**
+
+If enabled, strings that contain square brackets may be 
+inaccurately interpreted and lead to incomplete output. For example, `DROP TABLE [dbo].[SomeTable];"` outputs 
+`DROP TABLE .[SomeTable];`.
+</Warning>
+
+## Include logs from other libraries
+
+By default, Prefect won't capture log statements from libraries that your flows
+and tasks use. You can tell Prefect to include logs from these libraries with
+the `PREFECT_LOGGING_EXTRA_LOGGERS` setting.
+
+To use this setting, specify one or more Python library names to include,
+separated by commas. For example, if you want Prefect to capture Dask
+and SciPy logging statements with your flow and task run logs, use:
+
+`PREFECT_LOGGING_EXTRA_LOGGERS=dask,scipy`
+
+Configure this setting as an environment variable or in a profile. See
+[Settings](/v3/develop/settings-and-profiles/) for more details about how to use settings.

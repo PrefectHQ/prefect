@@ -1,0 +1,94 @@
+---
+title: How to manage settings
+sidebarTitle: Manage settings
+---
+
+### View current configuration
+
+To view all available settings and their active values from the command line, run:
+
+```bash
+prefect config view --show-defaults
+```
+
+These settings are type-validated and you may verify your setup at any time with:
+
+```bash
+prefect config validate
+```
+
+### Configure settings for the active profile
+
+To update a setting for the active profile, run:
+
+```bash
+prefect config set <setting>=<value>
+```
+
+For example, to set the `PREFECT_API_URL` setting to `http://127.0.0.1:4200/api`, run:
+
+```bash
+prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+```
+
+To restore the default value for a setting, run:
+
+```bash
+prefect config unset <setting>
+```
+
+For example, to restore the default value for the `PREFECT_API_URL` setting, run:
+
+```bash
+prefect config unset PREFECT_API_URL
+```
+
+### Create a new profile
+
+To create a new profile, run:
+
+```bash
+prefect profile create <profile>
+```
+
+To switch to a new profile, run:
+
+```bash
+prefect profile use <profile>
+```
+
+### Configure settings for a project
+
+To configure settings for a project, create a `prefect.toml` or `.env` file in the project directory and add the settings with the values you want to use.
+
+For example, to configure the `PREFECT_API_URL` setting to `http://127.0.0.1:4200/api`, create a `.env` file with the following content:
+
+```bash
+PREFECT_API_URL=http://127.0.0.1:4200/api
+```
+
+To configure the `PREFECT_API_URL` setting to `http://127.0.0.1:4200/api` in a `prefect.toml` file, create a `prefect.toml` file with the following content:
+
+```bash
+api.url = "http://127.0.0.1:4200/api"
+```
+
+Refer to the [setting concept guide](/v3/concepts/settings-and-profiles/) for more information on how to configure settings and the [settings reference guide](/v3/api-ref/settings-ref/) for more information on the available settings.
+
+### Configure temporary settings for a process
+
+To configure temporary settings for a process, set an environment variable with the name matching the setting you want to configure.
+
+For example, to configure the `PREFECT_API_URL` setting to `http://127.0.0.1:4200/api` for a process, set the `PREFECT_API_URL` environment variable to `http://127.0.0.1:4200/api`.
+
+```bash
+export PREFECT_API_URL=http://127.0.0.1:4200/api
+```
+
+You can use this to run a command with the temporary setting:
+
+```bash
+PREFECT_LOGGING_LEVEL=DEBUG python my_script.py
+```
+
+

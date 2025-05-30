@@ -1,0 +1,158 @@
+---
+title: How to manage account roles
+sidebarTitle: Manage account roles
+description: Configure user workspace roles in Prefect Cloud.
+---
+
+Prefect Cloud's [Pro and Enterprise tiers](https://www.prefect.io/pricing) allow you to set team member 
+access to the appropriate level within specific workspaces.
+
+Role-based access controls (RBAC) enable you to assign users granular permissions to perform certain activities.
+
+Enterprise account administrators can create custom roles for users to give users access to capabilities 
+beyond the scope of Prefect's built-in workspace roles.
+
+## Built-in roles
+
+Roles give users abilities at either the account level or at the individual workspace level.
+
+- An _account-level role_ defines a user's default permissions within an account.
+- A _workspace-level role_ defines a user's permissions within a specific workspace.
+
+The following sections outline the abilities of the built-in, Prefect-defined access controls and workspace roles.
+
+### Account-level roles
+
+The following built-in roles have permissions across an account in Prefect Cloud.
+{/*
+<!-- vale off -->
+*/}
+
+| Role   | Abilities                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner  | - Set/change all account profile settings allowed to be set/changed by a Prefect user. <br /> - Add and remove account members, and their account roles. <br /> - Create and delete service accounts in the account. <br /> - Create workspaces in the account. <br /> - Implicit workspace owner access on all workspaces in the account. <br /> - Bypass SSO. |
+| Admin  | - Set/change all account profile settings allowed to be set/changed by a Prefect user. <br /> - Add and remove account members, and their account roles. <br /> - Create and delete service accounts in the account. <br /> - Create workspaces in the account. <br /> - Implicit workspace owner access on all workspaces in the account. <br /> - Cannot bypass SSO.  |
+| Member | - View account profile settings. <br /> - View workspaces you have access to in the account. <br /> - View account members and their roles. <br /> - View service accounts in the account.                                                                                                                                                                |
+
+{/*
+<!-- vale on -->
+*/}
+
+### Workspace-level roles
+
+The following built-in roles have permissions within a given workspace in Prefect Cloud.
+
+| Role      | Abilities                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewer    | - View flow runs within a workspace. <br /> - View deployments within a workspace. <br /> - View all work pools within a workspace. <br /> - View all blocks within a workspace. <br /> - View all automations within a workspace. <br /> - View workspace handle and description.                                                                                                                                                                |
+| Runner    | All Viewer abilities, _plus_: <br /> - Run deployments within a workspace.                                                                                                                                                                                                                                                                                                                                                                                         |
+| Developer | All Runner abilities, _plus_: <br /> - Run flows within a workspace. <br /> - Delete flow runs within a workspace. <br /> - Create, edit, and delete deployments within a workspace. <br /> - Create, edit, and delete work pools within a workspace. <br /> - Create, edit, and delete all blocks and their secrets within a workspace. <br /> - Create, edit, and delete automations within a workspace. <br /> - View all workspace settings. |
+| Owner     | All Developer abilities, _plus_: <br /> - Add and remove account members, and set their role within a workspace. <br /> - Set the workspace's default workspace role for all users in the account. <br /> - Set, view, edit workspace settings.    |
+| Worker     | The minimum scopes required for a worker to poll for and submit work.|
+
+## Custom workspace roles
+
+The built-in roles serve the needs of most users, but custom roles give users access to 
+specific permissions within a workspace.
+
+Custom roles can inherit permissions from a built-in role.
+This enables tweaks to the role to meet your team's needs, while ensuring users still benefit 
+from Prefect's default workspace role permission curation as new capabilities becomes available.
+
+{/*
+<!-- vale off -->
+*/}
+
+You can create custom workspace roles independently of Prefect's built-in roles. This option gives 
+workspace admins full control of user access to workspace capabilities. However, for non-inherited custom roles, 
+the workspace Admin takes on the responsibility for monitoring and setting permissions for new capabilities as it is released.
+
+{/*
+<!-- vale on -->
+*/}
+
+See [Role permissions](#workspace-role-permissions) for details of permissions you may set for custom roles.
+
+After you create a new role, it becomes available in the account **Members** page and the **Workspace Sharing** 
+page for you to apply to users.
+
+### Inherited roles
+
+You can configure a custom role as an **Inherited Role**. Using an inherited role allows you to create a 
+custom role from a set of initial permissions associated with a built-in Prefect role. 
+You can add additional permissions to the custom role. Permissions included in the inherited role cannot be removed.
+
+Custom roles created from an inherited role follow Prefect's default workspace role permission curation as 
+new capabilities becomes available.
+
+To configure an inherited role alongside a custom role, select **Inherit permission from a default role**, then select the role from which the new role should inherit permissions.
+
+## Workspace role permissions
+
+The following permissions are available for custom roles.
+
+### Automations
+
+| Permission                           | Description                                                                                                     |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| View automations                     | User can see configured automations within a workspace.                                                         |
+| Create, edit, and delete automations | User can create, edit, and delete automations within a workspace. Includes permissions of **View automations**. |
+
+### Blocks
+
+| Permission                      | Description                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| View blocks                     | User can see configured blocks within a workspace.                                                                                   |
+| View secret block data          | User can see configured blocks and their secrets within a workspace. Includes permissions of **View blocks**.                        |
+| Create, edit, and delete blocks | User can create, edit, and delete blocks within a workspace. Includes permissions of **View blocks** and **View secret block data**. |
+
+### Deployments
+
+| Permission                  | Description                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| View deployments            | User can see configured deployments within a workspace.                                                                                                                                                                                                                                                                                                                  |
+| Run deployments             | User can run deployments within a workspace. This does not give a user permission to execute the flow associated with the deployment. This only gives a user (through their key) the ability to run a deployment&mdash;another user/key must actually execute that flow, such as a service account with an appropriate role. Includes permissions of **View deployments**. |
+| Create and edit deployments | User can create and edit deployments within a workspace. Includes permissions of **View deployments** and **Run deployments**.                                                                                                                                                                                                                                           |
+| Delete deployments          | User can delete deployments within a workspace. Includes permissions of **View deployments**, **Run deployments**, and **Create and edit deployments**.                                                                                                                                                                                                                  |
+
+### Flows
+
+| Permission                                      | Description                                                                                                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| View flows and flow runs                        | User can see flows and flow runs within a workspace.                                                                                                   |
+| Create, update, and delete saved search filters | User can create, update, and delete saved flow run search filters configured within a workspace. Includes permissions of **View flows and flow runs**. |
+| Create, update, and run flows                   | User can create, update, and run flows within a workspace. Includes permissions of **View flows and flow runs**.                                       |
+| Delete flows                                    | User can delete flows within a workspace. Includes permissions of **View flows and flow runs** and **Create, update, and run flows**.                  |
+
+### Notifications
+
+| Permission                            | Description                                                                                                                                                                |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| View notification policies            | User can see notification policies configured within a workspace.                                                                                                          |
+| Create and edit notification policies | User can create and edit notification policies configured within a workspace. Includes permissions of **View notification policies**.                                      |
+| Delete notification policies          | User can delete notification policies configured within a workspace. Includes permissions of **View notification policies** and **Create and edit notification policies**. |
+
+### Task run concurrency
+
+| Permission                                  | Description                                                                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| View concurrency limits                     | User can see configured task run concurrency limits within a workspace.                                                                |
+| Create, edit, and delete concurrency limits | User can create, edit, and delete task run concurrency limits within a workspace. Includes permissions of **View concurrency limits**. |
+
+### Work pools
+
+| Permission                         | Description                                                                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| View work pools                    | User can see work pools configured within a workspace.                                                                                            |
+| Create, edit, and pause work pools | User can create, edit, and pause work pools configured within a workspace. Includes permissions of **View work pools**.                           |
+| Delete work pools                  | User can delete work pools configured within a workspace. Includes permissions of **View work pools** and **Create, edit, and pause work pools**. |
+
+### Workspace management
+
+| Permission                                        | Description                                                                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| View information about workspace service accounts | User can see service accounts configured within a workspace.                                                      |
+| View information about workspace users            | User can see user accounts for users invited to the workspace.                                                    |
+| View workspace settings                           | User can see settings configured within a workspace.                                                              |
+| Edit workspace settings                           | User can edit settings for a workspace. Includes permissions of **View workspace settings**.                      |
+| Delete the workspace                              | User can delete a workspace. Includes permissions of **View workspace settings** and **Edit workspace settings**. |

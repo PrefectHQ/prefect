@@ -1,0 +1,172 @@
+---
+title: Work pools
+description: Learn how to configure dynamic infrastructure provisioning with work pools
+---
+
+Work pools are a bridge between the Prefect orchestration layer and the infrastructure where flows are run.
+
+The primary reason to use work pools is for **dynamic infrastructure provisioning and configuration**.
+For example, you might have a workflow that has expensive infrastructure requirements and runs infrequently.
+In this case, you don't want an idle process running within that infrastructure.
+
+Other advantages of work pools:
+
+- Configure default infrastructure configurations on your work pools that all jobs inherit and can override.
+- Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
+- Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/v3/deploy/infrastructure-concepts/work-pools/#work-queues).
+
+Work pools have different operational modes, each designed to work with specific infrastructures and work delivery methods:
+
+1. Pull work pools: These require workers to actively poll for flow runs to execute.
+2. [Push work pools](/v3/how-to-guides/deployment_infra/serverless): These submit runs directly to serverless infrastructure providers.
+3. [Managed work pools](/v3/how-to-guides/deployment_infra/managed): These are administered by Prefect and handle both submission and execution of code.
+
+Each type of work pool is optimized for different use cases, allowing you to choose the best fit for your specific infrastructure and workflow requirements. 
+By using work pools, you can efficiently manage the distribution and execution of your Prefect flows across environments and infrastructures.
+
+<Tip>
+**Work pools are like pub/sub topics**
+
+    Work pools help coordinate deployments with workers 
+    through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a 
+    pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the worker that will execute their runs, 
+    making it easy to promote runs through environments — or even to debug locally.
+</Tip>
+
+The following diagram provides a high-level overview of the conceptual elements involved in defining a work-pool based 
+deployment that is polled by a worker and executes a flow run based on that deployment.
+
+```mermaid
+%%{
+  init: {
+    'theme': 'neutral',
+    'themeVariables': {
+      'margin': '10px'
+    }
+  }
+}%%
+
+flowchart LR
+
+    B(Deployment Definition)
+
+    subgraph Server [Prefect API]
+        C(Deployment)
+    end
+
+    subgraph Remote Storage [Remote Storage]
+        D(Flow Code)
+    end
+
+    E(Worker)
+
+    subgraph Infrastructure [Infrastructure]
+        F((Flow Run))
+    end
+
+    B --> C
+    B -.-> D
+    C --> E
+    D -.-> E
+    E -.-> F
+````
+
+### Work pool types
+
+The following work pool types are supported by Prefect:
+
+<Tabs>
+  <Tab title="Prefect Cloud">
+
+    | Infrastructure Type                  | Description                                                                                                                |
+    | ------------------------------       | -------------------------------------------------------------------------------------------------------------------------- |
+    | Process                              | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                    |
+    | AWS Elastic Container Service        | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.               |
+    | Azure Container Instances            | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                      |
+    | Docker                               | Execute flow runs within Docker containers. Works well for managing flow execution environments through Docker images. Requires  access to a running Docker daemon.  |
+    | Google Cloud Run                     | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account.                          |
+    | Google Cloud Run V2                  | Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account.                 |
+    | Google Vertex AI                     | Execute flow runs within containers on Google Vertex AI. Requires a Google Cloud Platform account.                          |
+    | Kubernetes                           | Execute flow runs within jobs scheduled on a Kubernetes cluster. Requires a Kubernetes cluster.                             |
+    | Google Cloud Run - Push              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.  |
+    | AWS Elastic Container Service - Push | Execute flow runs within containers on AWS ECS. Works with existing ECS clusters and serverless execution through AWS Fargate. Requires an AWS account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.   |
+    | Azure Container Instances - Push     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account. Flow runs are pushed directly to your environment, without the need for a Prefect worker.    |
+    | Modal - Push                         | Execute [flow runs on Modal](/v3/deploy/infrastructure-examples/modal). Requires a Modal account. Flow runs are pushed directly to your Modal workspace, without the need for a Prefect worker.  |
+    | Coiled                               | Execute flow runs in the cloud platform of your choice with Coiled.  Makes it easy to run in your account without setting up Kubernetes or other cloud infrastructure.  | 
+    | Prefect Managed                      | Execute flow runs within containers on Prefect managed infrastructure.                                                      |
+  </Tab>
+  <Tab title="Self-hosted Prefect server">
+
+    | Infrastructure Type           | Description              |
+    | ----------------------------  | ------------------------ |
+    | Process                       | Execute flow runs as subprocesses on a worker. Works well for local execution when first getting started.                       |
+    | AWS Elastic Container Service | Execute flow runs within containers on AWS ECS. Works with EC2 and Fargate clusters. Requires an AWS account.                  |
+    | Azure Container Instances     | Execute flow runs within containers on Azure's Container Instances service. Requires an Azure account.                         |
+    | Docker                        | Execute flow runs within Docker containers. Works well for managing flow execution environments through Docker images. Requires access to a running Docker daemon.    |
+    | Google Cloud Run              | Execute flow runs within containers on Google Cloud Run. Requires a Google Cloud Platform account.                             |
+    | Google Cloud Run V2           | Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account.                    |
+    | Google Vertex AI              | Execute flow runs within containers on Google Vertex AI. Requires a Google Cloud Platform account.                             |
+    | Kubernetes                    | Execute flow runs within jobs scheduled on a Kubernetes cluster. Requires a Kubernetes cluster.                                |
+  </Tab>
+</Tabs>
+
+### Work queues
+
+Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue which is used if another  work queue name is not specified.
+Add additional queues to a work pool to enable greater control over work delivery through fine-grained priority and concurrency.
+
+
+#### Queue priority
+
+Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work with `1` being the highest priority. 
+You can add new queues without changing the rank of the higher-priority queues.
+
+#### Queue concurrency limits
+
+Work queues can also have their own concurrency limits. Each queue is also subject to the global work pool concurrency limit, 
+which cannot be exceeded.
+
+#### Precise control with priority and concurrency
+
+Together, work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: 
+
+- a "low" queue with priority `10` and no concurrency limit
+- a "high" queue with priority `5` and a concurrency limit of `3` 
+- a "critical" queue with priority `1` and a concurrency limit of `1`
+
+This arrangement enables a pattern of two levels of priority: "high" and "low" for regularly scheduled flow runs, 
+with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
+
+Priority determines the order of flow runs submitted for execution.
+If all flow runs are capable of being executed with no limitation due to concurrency or otherwise,
+priority is still used to determine order of submission, but there is no impact to execution.
+
+If not all flow runs can execute, usually as a result of concurrency limits, priority determines which queues receive 
+precedence to submit runs for execution.
+
+Priority for flow run submission proceeds from the highest priority to the lowest priority. In the previous example, all work from the 
+"critical" queue (priority 1) is submitted, before any work is submitted from "high" (priority 5). Once all work is submitted 
+from priority queue "critical", work from the "high" queue begins submission.
+
+If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run 
+submission goes back to ensuring all scheduled work is first satisfied. This happens from the highest priority queue, until it is empty, 
+in waterfall fashion.
+
+<Tip>
+**Work queue status**
+
+    A work queue has a `READY` status when it has been polled by a worker in the last 60 seconds. Pausing a work queue gives it a 
+    `PAUSED` status and means that it will accept no new work until it is unpaused. A user can control the work queue's paused status in the UI. 
+    Unpausing a work queue gives the work queue a `NOT_READY` status unless a worker has polled it in the last 60 seconds.
+</Tip>
+
+## Further reading
+
+* Learn more about [workers](/v3/deploy/infrastructure-concepts/workers) and how they interact with work pools
+* Learn how to [deploy flows](/v3/deploy/infrastructure-concepts/prefect-yaml) that run in work pools
+* Learn how to set up work pools for:
+
+  * [Kubernetes](/v3/how-to-guides/deployment_infra/kubernetes)
+  * [Docker](/v3/how-to-guides/deployment_infra/docker)
+  * [Serverless platforms](/v3/how-to-guides/deployment_infra/serverless)
+  * [Infrastructure managed by Prefect Cloud](/v3/how-to-guides/deployment_infra/managed)

@@ -1,0 +1,246 @@
+---
+title: How to version deployments
+sidebarTitle: Version Deployments
+description: Track changes to your deployments and roll back to previous versions
+---
+
+In Prefect Cloud, deployments have a version history.
+The **live** deployment version is the runnable version of a deployment.
+A previous deployment version can be made live by **rolling back** to it.
+When a previous deployment version is live, a newer deployment version can be made live by **promoting** it.
+
+<Warning>
+When a new version of a deployment is created, it is automatically set as the live version.
+</Warning>
+
+## What's included in a deployment version
+
+Deployment versions are a history of changes to a deployment's configuration.
+
+While the majority of deployment properties are included in a deployment's version, some properties cannot be versioned.
+Persisting these properties across all versions helps prevent unexpected execution behavior when rolling back or promoting versions.
+
+<AccordionGroup>
+<Accordion title="Versioned deployment properties" icon="check" iconType="solid">
+These properties are pinned to each deployment version.
+
+| Deployment Property        | Versioned                                                          |
+| -------------------------- | ------------------------------------------------------------------ |
+| `description`              | <Icon icon="check" iconType="solid" />                             |
+| `tags`                     | <Icon icon="check" iconType="solid" />                             |
+| `labels`                   | <Icon icon="check" iconType="solid" />                             |
+| `entrypoint`               | <Icon icon="check" iconType="solid" />                             |
+| `pull_steps`               | <Icon icon="check" iconType="solid" />                             |
+| `parameters`               | <Icon icon="check" iconType="solid" />                             |
+| `parameter_openapi_schema` | <Icon icon="check" iconType="solid" />                             |
+| `enforce_parameter_schema` | <Icon icon="check" iconType="solid" />                             |
+| `work_queue_id`            | <Icon icon="check" iconType="solid" />                             |
+| `work_pool_name`           | <Icon icon="check" iconType="solid" />                             |
+| `job_variables`            | <Icon icon="check" iconType="solid" />                             |
+| `created_by`               | <Icon icon="check" iconType="solid" />                             |
+| `updated_by`               | <Icon icon="check" iconType="solid" />                             |
+| `version_info`             | <Icon icon="check" iconType="solid" />                             |
+</Accordion>
+<Accordion title="Unversioned deployment properties" icon="xmark" description="">
+These properties persist across version rollbacks and promotions.
+
+| Deployment Property        | Versioned                                                          |
+| -------------------------- | ------------------------------------------------------------------ |
+| `name`                     | <Icon icon="xmark" iconType="solid" color="#FF0000" /> (immutable) |
+| `schedules`                | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `is_schedule_active`       | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `paused`                   | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `disabled`                 | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `concurrency_limit`        | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+| `concurrency_options`      | <Icon icon="xmark" iconType="solid" color="#FF0000" />             |
+</Accordion>
+</AccordionGroup>
+
+## How to create and manage versions
+
+A new deployment version is created every time a deployment is updated, whether from the CLI, from Python, or from the UI.
+
+If you're deploying from a supported source code management platform or from inside a Git repository, Prefect automatically collects the **repository name**, **repository URL**, the currently checked out **branch**, the **commit SHA**, and the **first line of your commit message** from your environment.
+This information is used to help create a record of which code versions produced which deployment versions, and does not affect deployment execution.
+
+### Supported source code management platforms
+
+Prefect searches for environment variables in each supported platform's CI environment in order to collect information about the current state of the repository from which deployment versions are created.
+It may be useful to access these environment variables in other stages of your deployment process for constructing version identifiers.
+
+<Note>
+Prefect's automatic version information collection currently supports GitHub Actions, GitLab CI, Bitbucket Pipelines, and Azure Pipelines.
+If deploying from a Git repository not on one of these platforms, Prefect will use `git` CLI commands as a best effort to discover these values.
+</Note>
+
+<Tabs>
+<Tab title="GitHub Actions">
+| Environment Variable | Value |
+| - | - |
+| `GITHUB_SHA`| Commit SHA |
+| `GITHUB_REF_NAME` | Branch name |
+| `GITHUB_REPOSITORY` | Repository name |
+| `GITHUB_SERVER_URL`| Github account or organization URL |
+</Tab>
+<Tab title="GitLab CI">
+| Environment Variable | Value |
+| - | - |
+| `CI_COMMIT_SHA`| Commit SHA |
+| `CI_COMMIT_REF_NAME` | Branch name |
+| `CI_PROJECT_NAME` | Repository name |
+| `CI_PROJECT_URL`| Repository URL |
+</Tab>
+<Tab title="Bitbucket Pipelines">
+| Environment Variable | Value |
+| - | - |
+| `BITBUCKET_COMMIT`| Commit SHA |
+| `BITBUCKET_BRANCH` | Branch name |
+| `BITBUCKET_REPO_SLUG` | Repository name |
+| `BITBUCKET_GIT_HTTP_ORIGIN`| Bitbucket account or organization URL |
+</Tab>
+<Tab title="Azure Pipelines">
+| Environment Variable | Value |
+| - | - |
+| `BUILD_SOURCEVERSION`| Commit SHA |
+| `BUILD_SOURCEBRANCHNAME` | Branch name |
+| `BUILD_REPOSITORY_NAME` | Repository name |
+| `BUILD_REPOSITORY_URI`| Repository URL |
+</Tab>
+</Tabs>
+
+### Using the `version` deployment property
+
+Supplying a `version` to your deployment is not required, but using human-readable version names helps give meaning to each change you make.
+It's also valuable for quickly finding or communicating the version you want to roll back to or promote.
+
+For additional details on how Prefect handles the value of `version`, see [deployment metadata for bookkeeping](/v3/deploy#metadata-for-bookkeeping).
+
+### Executing specific code versions
+
+It's possible to synchronize code changes to deployment versions so each deployment version executes the exact commit that was checked out when it was created.
+Since `pull_steps` and `job_variables` define what repository or image to pull when a flow runs, updating their contents with each code change keeps deployment versions in step with your codebase.
+Which of these configurations to use depends on whether you are pulling code from Git or storing code in Docker images.
+
+The examples in this section use GitHub as their source control management and CI platform, so be sure to replace URLs, environment variables, and CI workflows with the ones relevant to your platform.
+You can check out complete example repositories on GitHub for executing specific code versions when [pulling from Git](https://github.com/kevingrismore/version-testing) and [pulling Docker images](https://github.com/kevingrismore/version-testing-docker/tree/main).
+
+#### Pulling from Git
+
+The `git_clone` deployment pull step and `GitRepository` deployment storage class offer a `commit_sha` field.
+When deploying from a Git repository, provide the commit SHA from your environment to your deployment.
+Both approaches below will result in a deployment pull step that clones your repository and checks out a specific commit.
+
+<CodeGroup>
+
+```yaml With prefect.yaml
+pull:
+- prefect.deployments.steps.git_clone:
+    repository: https://github.com/my-org/my-repo.git
+    commit_sha: "{{ $GITHUB_SHA }}"
+
+deployments:
+- name: my-deployment
+  version: 0.0.1
+  entrypoint: example.py:my_flow
+  work_pool:
+    name: my-work-pool
+```
+
+```python With .deploy()
+import os
+
+from prefect import flow
+from prefect.runner.storage import GitRepository
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello world!")
+
+if __name__ == "__main__":
+    my_flow.from_source(
+        source=GitRepository(
+            repo_url="https://github.com/my-org/my-repo.git",
+            commit_sha=os.getenv("GITHUB_SHA"),
+        )
+    ).deploy(
+        name="my-deployment",
+        version="0.0.1",
+        work_pool_name="my-work-pool",
+    )
+```
+
+</CodeGroup>
+
+
+#### Pulling Docker images
+
+When baking code into Docker images, use the image digest to pin exact code versions to deployment versions.
+An image digest uniquely and immutably identifies a container image.
+
+First, build your image in your CI job and pass the image digest as an environment variable to the Prefect deploy step.
+
+```yaml Github Actions
+      ...
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        id: build-docker-image
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: my-registry/my-example-image:my-tag
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy a Prefect flow
+        env:
+          IMAGE_DIGEST: ${{ steps.build-docker-image.outputs.digest }}
+          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+          PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
+        ... # your deployment action here
+```
+
+Then, refer to that digest in the image name you provide to this deployment version's job variables.
+
+<CodeGroup>
+
+```yaml With prefect.yaml
+deployments:
+- name: my-deployment
+  version: 0.0.1
+  entrypoint: example.py:my_flow
+  work_pool:
+    name: my-work-pool
+    job_variables:
+      image: "my-registry/my-image@{{ $IMAGE_DIGEST }}"
+```
+
+```python With .deploy()
+import os
+
+from prefect import flow
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello world!")
+
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="my-deployment",
+        version="0.0.1",
+        work_pool_name="my-work-pool",
+        image=f"my-registry/my-image@{os.getenv('IMAGE_DIGEST')}",
+        build=False,
+    )
+```
+
+</CodeGroup>

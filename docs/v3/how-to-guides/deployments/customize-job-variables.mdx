@@ -1,0 +1,234 @@
+---
+title: How to override job configuration for specific deployments
+sidebarTitle: Override Job Configuration
+description: Override job variables on a deployment to set environment variables, specify a Docker image, allocate resources, and more.
+---
+
+There are two ways to deploy flows to work pools: with a [`prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml) or using the [Python `deploy` method](/v3/deploy/infrastructure-concepts/deploy-via-python). 
+In both cases, you can add or override job variables to the work pool's defaults for a given deployment.
+You can override both a work pool and a deployment when a flow run is triggered. 
+
+This guide explores common patterns for overriding job variables in 
+both deployment methods.
+
+## Job variables
+
+Job variables are infrastructure-related values that are configurable on a work pool. 
+You can override job variables on a per-deployment or 
+per-flow run basis. This allows you to dynamically change infrastructure from the work pool's defaults.
+
+For example, when you create or edit a work pool, you can specify a set of environment variables to set in the 
+runtime environment of the flow run.
+
+You could set the following value in the `env` field of any work pool:
+```json
+{
+  "EXECUTION_ENV": "staging",
+  "MY_NOT_SO_SECRET_CONFIG": "plumbus",
+}
+```
+
+Rather than hardcoding these values into your work pool in the UI (and making them available to all 
+deployments associated with that work pool), you can override these values for a specific deployment.
+
+## Override job variables on a deployment
+
+Here's an example repo structure:
+```
+» tree
+.
+|── README.md
+|── requirements.txt
+|── demo_project
+|   |── daily_flow.py
+```
+
+With a `demo_flow.py` file like:
+
+```python
+import os
+from prefect import flow, task
+
+
+@task
+def do_something_important(not_so_secret_value: str) -> None:
+    print(f"Doing something important with {not_so_secret_value}!")
+
+
+@flow(log_prints=True)
+def some_work():
+    environment = os.environ.get("EXECUTION_ENVIRONMENT", "local")
+    
+    print(f"Coming to you live from {environment}!")
+    
+    not_so_secret_value = os.environ.get("MY_NOT_SO_SECRET_CONFIG")
+    
+    if not_so_secret_value is None:
+        raise ValueError("You forgot to set MY_NOT_SO_SECRET_CONFIG!")
+
+    do_something_important(not_so_secret_value)
+```
+### Use a `prefect.yaml` file
+
+Imagine you have the following deployment definition in a `prefect.yaml` file at the 
+root of your repository:
+
+```yaml
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
+    name: local
+  schedule: null
+```
+
+<Note>
+    While not the focus of this guide, this deployment definition uses a default "global" `pull` step, 
+    because one is not explicitly defined on the deployment. For reference, here's what that would look like at 
+    the top of the `prefect.yaml` file:
+    ```yaml
+    pull:
+    - prefect.deployments.steps.git_clone: &clone_repo
+        repository: https://github.com/some-user/prefect-monorepo
+        branch: main
+    ```
+</Note>
+
+#### Hard-coded job variables
+To provide the `EXECUTION_ENVIRONMENT` and `MY_NOT_SO_SECRET_CONFIG` environment variables to this deployment, 
+you can add a `job_variables` section to your deployment definition in the `prefect.yaml` file:
+
+```yaml
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
+    name: local
+    job_variables:
+        env:
+            EXECUTION_ENVIRONMENT: staging
+            MY_NOT_SO_SECRET_CONFIG: plumbus
+  schedule: null
+```
+
+Then run `prefect deploy -n demo-deployment` to deploy the flow with these job variables.
+
+You should see the job variables in the `Configuration` tab of the deployment in the UI:
+
+![Job variables in the UI](/v3/img/guides/job-variables.png)
+
+#### Use existing environment variables
+To use environment variables that are already set in your local environment, you can template 
+these in the `prefect.yaml` file using the `{{ $ENV_VAR_NAME }}` syntax:
+
+```yaml
+deployments:
+- name: demo-deployment
+  entrypoint: demo_project/demo_flow.py:some_work
+  work_pool:
+    name: local
+    job_variables:
+        env:
+            EXECUTION_ENVIRONMENT: "{{ $EXECUTION_ENVIRONMENT }}"
+            MY_NOT_SO_SECRET_CONFIG: "{{ $MY_NOT_SO_SECRET_CONFIG }}"
+  schedule: null
+```
+
+<Note>
+    This assumes that the machine where `prefect deploy` is run would have these environment variables set.
+
+    ```bash
+    export EXECUTION_ENVIRONMENT=staging
+    export MY_NOT_SO_SECRET_CONFIG=plumbus
+    ```
+   
+</Note>
+
+Run `prefect deploy -n demo-deployment` to deploy the flow with these job variables, 
+and you should see them in the UI under the `Configuration` tab.
+
+### Use the `.deploy()` method
+If you're using the `.deploy()` method to deploy your flow, the process is similar. But instead of  
+`prefect.yaml` defining the job variables, you can pass them as a dictionary to the `job_variables` argument 
+of the `.deploy()` method.
+
+Add the following block to your `demo_project/daily_flow.py` file from the setup section:
+```python
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/zzstoatzz/prefect-monorepo.git",
+        entrypoint="src/demo_project/demo_flow.py:some_work"
+    ).deploy(
+        name="demo-deployment",
+        work_pool_name="local", 
+        job_variables={
+            "env": {
+                "EXECUTION_ENVIRONMENT": os.environ.get("EXECUTION_ENVIRONMENT", "local"),
+                "MY_NOT_SO_SECRET_CONFIG": os.environ.get("MY_NOT_SO_SECRET_CONFIG")
+            }
+        }
+    )
+```
+
+<Note>
+    The above example works assuming a couple things:
+    - the machine where this script is run would have these environment variables set.
+
+    ```bash
+    export EXECUTION_ENVIRONMENT=staging
+    export MY_NOT_SO_SECRET_CONFIG=plumbus
+    ```
+
+
+    - `demo_project/daily_flow.py` _already exists_ in the repository at the specified path
+</Note>
+
+Run the script to deploy the flow with the specified job variables. 
+
+```bash
+python demo_project/daily_flow.py
+```
+
+The job variables should be visible in the UI under the `Configuration` tab.
+
+![Job variables in the UI](/v3/img/guides/job-variables.png)
+
+
+## Override job variables on a flow run
+
+When running flows, you can pass in job variables that override any values set on the work pool or deployment. 
+Any interface that runs deployments can accept job variables.
+
+### Use the custom run form in the UI
+
+Custom runs allow you to pass in a dictionary of variables into your flow run infrastructure. Using the same 
+`env` example from above, you could do the following:
+
+![Job variables through custom run](/v3/img/ui/deployment-job-variables.png)
+
+### Use the CLI
+
+Similarly, runs kicked off through the CLI accept job variables with the `-jv` or `--job-variable` flag.
+
+```bash
+prefect deployment run \
+  --id "fb8e3073-c449-474b-b993-851fe5e80e53" \
+  --job-variable MY_NEW_ENV_VAR=42 \
+  --job-variable HELLO=THERE
+```
+
+### Use job variables in Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="job variables" href={deployments.tf} />
+
+### Use job variables in automations
+
+Additionally, runs kicked off through automation actions can use job variables, including ones rendered from Jinja 
+templates.
+
+![Job variables through automation action](/v3/img/ui/automations-action-job-variable.png)
+
+
