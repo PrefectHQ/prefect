@@ -3673,7 +3673,6 @@ dependencies = [
     { name = "typer" },
     { name = "typing-extensions" },
     { name = "ujson" },
-    { name = "uuid7" },
     { name = "uv" },
     { name = "uvicorn" },
     { name = "websockets" },
@@ -3820,7 +3819,7 @@ requires-dist = [
     { name = "apprise", specifier = ">=1.1.0,<2.0.0" },
     { name = "asgi-lifespan", specifier = ">=1.0,<3.0" },
     { name = "asyncpg", specifier = ">=0.23,<1.0.0" },
-    { name = "cachetools", specifier = ">=5.3,<6.0" },
+    { name = "cachetools", specifier = ">=5.3,<7.0" },
     { name = "click", specifier = ">=8.0,<8.2" },
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
     { name = "coolname", specifier = ">=1.0.4,<3.0.0" },
@@ -3839,7 +3838,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6,<4.0.0" },
     { name = "jinja2-humanize-extension", specifier = ">=0.4.0" },
     { name = "jsonpatch", specifier = ">=1.32,<2.0" },
-    { name = "jsonschema", specifier = ">=4.0.0,<5.0.0" },
+    { name = "jsonschema", specifier = ">=4.18.0,<5.0.0" },
     { name = "opentelemetry-api", specifier = ">=1.27.0,<2.0.0" },
     { name = "opentelemetry-distro", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.27.0,<2.0.0" },
@@ -3885,10 +3884,9 @@ requires-dist = [
     { name = "sniffio", specifier = ">=1.3.0,<2.0.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3.0.0" },
     { name = "toml", specifier = ">=0.10.0" },
-    { name = "typer", specifier = ">=0.12.0,!=0.12.2,<0.16.0" },
+    { name = "typer", specifier = ">=0.12.0,!=0.12.2,<0.17.0" },
     { name = "typing-extensions", specifier = ">=4.10.0,<5.0.0" },
     { name = "ujson", specifier = ">=5.8.0,<6.0.0" },
-    { name = "uuid7", specifier = ">=0.1.0" },
     { name = "uv", specifier = ">=0.6.0" },
     { name = "uvicorn", specifier = ">=0.14.0,!=0.29.0" },
     { name = "websockets", specifier = ">=13.0,<16.0" },
@@ -6729,15 +6727,6 @@ resolution-markers = [
 sdist = { url = "https://files.pythonhosted.org/packages/8a/78/16493d9c386d8e60e442a35feac5e00f0913c0f4b7c217c11e8ec2ff53e0/urllib3-2.4.0.tar.gz", hash = "sha256:414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466", size = 390672 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/11/cc635220681e93a0183390e26485430ca2c7b5f9d33b15c74c2861cb8091/urllib3-2.4.0-py3-none-any.whl", hash = "sha256:4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813", size = 128680 },
-]
-
-[[package]]
-name = "uuid7"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/19/7472bd526591e2192926247109dbf78692e709d3e56775792fec877a7720/uuid7-0.1.0.tar.gz", hash = "sha256:8c57aa32ee7456d3cc68c95c4530bc571646defac01895cfc73545449894a63c", size = 14052 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/77/8852f89a91453956582a85024d80ad96f30a41fed4c2b3dce0c9f12ecc7e/uuid7-0.1.0-py2.py3-none-any.whl", hash = "sha256:5e259bb63c8cb4aded5927ff41b444a80d0c7124e8a0ced7cf44efa1f5cccf61", size = 7477 },
 ]
 
 [[package]]

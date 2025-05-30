@@ -320,7 +320,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         # Default to unset
         return None
 
-    def get_extra_hosts(self, docker_client) -> Optional[dict[str, str]]:
+    def get_extra_hosts(self, docker_client: DockerClient) -> Optional[dict[str, str]]:
         """
         A host.docker.internal -> host-gateway mapping is necessary for communicating
         with the API on Linux machines. Docker Desktop on macOS will automatically
@@ -665,8 +665,28 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         container_create_kwargs = {
             k: v
             for k, v in container_create_kwargs.items()
-            if k not in configuration.model_fields.keys()
+            if k not in configuration.__class__.model_fields.keys()
         }
+
+        # Get extra_hosts from configuration
+        extra_hosts = configuration.get_extra_hosts(docker_client)
+
+        # If user provided extra_hosts in container_create_kwargs, merge them
+        if "extra_hosts" in container_create_kwargs:
+            user_extra_hosts = container_create_kwargs.pop("extra_hosts")
+            if extra_hosts:
+                # Merge user's extra_hosts with the auto-generated ones
+                # Convert list format to dict if necessary
+                if isinstance(user_extra_hosts, list):
+                    for host_entry in user_extra_hosts:
+                        if ":" in host_entry:
+                            host, ip = host_entry.split(":", 1)
+                            extra_hosts[host] = ip
+                elif isinstance(user_extra_hosts, dict):
+                    extra_hosts.update(user_extra_hosts)
+            else:
+                # No auto-generated extra_hosts, use user's directly
+                extra_hosts = user_extra_hosts
 
         return dict(
             image=configuration.image,
@@ -676,7 +696,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             environment=configuration.env,
             auto_remove=configuration.auto_remove,
             labels=configuration.labels,
-            extra_hosts=configuration.get_extra_hosts(docker_client),
+            extra_hosts=extra_hosts,
             name=configuration.name,
             volumes=configuration.volumes,
             mem_limit=configuration.mem_limit,

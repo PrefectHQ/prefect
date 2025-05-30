@@ -239,7 +239,7 @@ import FinalFlowState from '/snippets/final-flow-state.mdx'
 
 <FinalFlowState />
 
-## Execute code on state changes
+## State change hooks
 
 State change hooks execute code in response to **_client side_** changes in flow or task run states, enabling you to define actions for
 specific state transitions in a workflow.
@@ -261,20 +261,7 @@ def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
 State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
 or to use the same state change hook for different transitions.
 
-For examples on how to use state change hooks, see the [How to respond to state changes guide](/v3/how-to-guides/workflows/state-change-hooks) section of this page.
 
-### Available state change hooks
+### Further reading
 
-| Type | Flow | Task | Description |
-| ----- | --- | --- | --- |
-| `on_completion` | ✓ | ✓ | Executes when a flow or task run enters a `Completed` state. |
-| `on_failure` | ✓ | ✓ | Executes when a flow or task run enters a `Failed` state. |
-| <span class="no-wrap">`on_cancellation`</span> | ✓ | - | Executes when a flow run enters a `Cancelling` state. |
-| `on_crashed` | ✓ | - | Executes when a flow run enters a `Crashed` state. |
-| `on_running` | ✓ | - | Executes when a flow run enters a `Running` state. |
-
-<Note>
-Note that the `on_rollback` hook for tasks is _not_ a proper state change hook but instead
-is a transaction lifecycle hook.
-Rollback hooks accept one argument representing the transaction for the task.
-</ Note>
+- See examples of [how to execute code in response to entering states](/v3/how-to-guides/workflows/state-change-hooks) in your flows and tasks.
