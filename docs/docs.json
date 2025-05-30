@@ -29,6 +29,7 @@
                     "v3/how-to-guides/index",
 					{
 						"group": "Workflows",
+                        "defaultOpen": false,
 						"pages": [
 							"v3/how-to-guides/workflows/write-and-run",
 							"v3/how-to-guides/workflows/retries",
@@ -143,6 +144,7 @@
 							"v3/advanced/caching",
 							"v3/advanced/logging-customization",
 							"v3/advanced/transactions",
+							"v3/advanced/cancel-workflows",
 							"v3/advanced/interactive",
 							"v3/advanced/results",
 							"v3/advanced/background-tasks"
@@ -177,7 +179,6 @@
 							"v3/concepts/caching",
 							"v3/concepts/states",
 							"v3/concepts/runtime-context",
-							"v3/concepts/cancel-workflows",
 							"v3/concepts/artifacts",
 							"v3/concepts/task-runners"
 						]
@@ -1599,7 +1600,7 @@
 		},
 		{
 			"source": "/v3/develop/cancel",
-			"destination": "/v3/concepts/cancel-workflows"
+			"destination": "/v3/advanced/cancel-workflows"
 		},
 		{
 			"source": "/v3/deploy/infrastructure-concepts/customize",
