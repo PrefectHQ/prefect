@@ -241,4 +241,27 @@ import FinalFlowState from '/snippets/final-flow-state.mdx'
 
 ## State change hooks
 
-See [how to execute code in response to entering states](/v3/how-to-guides/workflows/state-change-hooks) in your flows and tasks.
+State change hooks execute code in response to **_client side_** changes in flow or task run states, enabling you to define actions for
+specific state transitions in a workflow.
+
+State hooks have the following signature:
+
+```python
+from prefect import Task, Flow
+from prefect.states import State
+from prefect.client.schemas.objects import TaskRun, FlowRun
+
+def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
+    ...
+
+def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
+    ...
+```
+
+State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
+or to use the same state change hook for different transitions.
+
+
+### Further reading
+
+- See examples of [how to execute code in response to entering states](/v3/how-to-guides/workflows/state-change-hooks) in your flows and tasks.
