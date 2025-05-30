@@ -29,7 +29,6 @@
                     "v3/how-to-guides/index",
 					{
 						"group": "Workflows",
-                        "defaultOpen": false,
 						"pages": [
 							"v3/how-to-guides/workflows/write-and-run",
 							"v3/how-to-guides/workflows/retries",
@@ -39,7 +38,6 @@
 							"v3/how-to-guides/workflows/access-runtime-info",
 							"v3/how-to-guides/workflows/run-work-concurrently",
 							"v3/how-to-guides/workflows/cache-workflow-steps",
-							"v3/how-to-guides/workflows/form-building",
 							"v3/how-to-guides/workflows/run-background-tasks",
 							"v3/how-to-guides/workflows/state-change-hooks",
 							"v3/how-to-guides/workflows/artifacts",
@@ -82,16 +80,16 @@
 							"v3/how-to-guides/deployments/manage-work-pools",
 							"v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure",
 							"v3/how-to-guides/deployments/customize-job-variables",
-							"v3/how-to-guides/deployments/serve-flows-docker",
 							"v3/how-to-guides/deployments/deploy-ci-cd"
 						]
 					},
 					{
-						"group": "Infrastructure",
+						"group": "Workflow Infrastructure",
 						"pages": [
 							"v3/how-to-guides/deployment_infra/managed",
 							"v3/how-to-guides/deployment_infra/serverless",
 							"v3/how-to-guides/deployment_infra/docker",
+							"v3/how-to-guides/deployment_infra/serve-flows-docker",
 							"v3/how-to-guides/deployment_infra/kubernetes",
 							"v3/how-to-guides/deployment_infra/modal",
 							"v3/how-to-guides/deployment_infra/coiled"
@@ -122,6 +120,13 @@
 						]
 					},
 					{
+						"group": "Prefect Self-hosted",
+						"pages": [
+							"v3/how-to-guides/self-hosted/server-cli",
+							"v3/how-to-guides/self-hosted/server-docker"
+						]
+					},
+					{
 						"group": "Migrate",
 						"pages": [
 							"v3/how-to-guides/migrate/airflow",
@@ -143,6 +148,7 @@
 							"v3/advanced/transactions",
 							"v3/advanced/cancel-workflows",
 							"v3/advanced/interactive",
+                            "v3/advanced/form-building",
 							"v3/advanced/results",
 							"v3/advanced/background-tasks"
 						]
@@ -1441,7 +1447,7 @@
 		},
 		{
 			"source": "/v3/tutorials/form-building",
-			"destination": "v3/how-to-guides/workflows/form-building"
+			"destination": "v3/advanced/form-building"
 		},
 		{
 			"source": "/latest/api-ref/prefect/:slug*",
@@ -1601,7 +1607,7 @@
 		},
 		{
 			"source": "/v3/deploy/static-infrastructure-examples/docker",
-			"destination": "/v3/how-to-guides/deployments/serve-flows-docker"
+			"destination": "/v3/how-to-guides/deployment_infra/serve-flows-docker"
 		},
 		{
 			"source": "/v3/develop/results",
@@ -1665,11 +1671,11 @@
 		},
 		{
 			"source": "v3/manage/server/examples/cli",
-			"destination": "/v3/how-to-guides/configuration/server-cli"
+			"destination": "/v3/how-to-guides/self-hosted/server-cli"
 		},
 		{
 			"source": "v3/manage/server/examples/docker",
-			"destination": "/v3/how-to-guides/configuration/server-docker"
+			"destination": "/v3/how-to-guides/self-hosted/server-docker"
 		},
 		{
 			"source": "v3/manage/server/examples/helm",
