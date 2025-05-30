@@ -354,6 +354,8 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
+        # TODO FIX TYPE HERE
+        asset_deps: list = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -542,6 +544,7 @@ class Task(Generic[P, R]):
 
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
+        self.asset_deps = asset_deps
 
     @property
     def ismethod(self) -> bool:
@@ -885,7 +888,6 @@ class Task(Generic[P, R]):
         from prefect.utilities._engine import dynamic_key_for_task_run
         from prefect.utilities.engine import (
             collect_task_run_inputs_sync,
-            store_task_run_parents,
         )
 
         if flow_run_context is None:
@@ -962,7 +964,6 @@ class Task(Generic[P, R]):
                 else None
             )
             task_run_id = id or uuid7()
-            store_task_run_parents(task_run_id, task_inputs)
 
             state = prefect.states.Pending(
                 state_details=StateDetails(
@@ -993,7 +994,53 @@ class Task(Generic[P, R]):
                 updated=state.timestamp,
             )
 
+            # Record task assets after creating the task run
+            self.task_run = task_run
+            self._record_task_assets()
+
             return task_run
+
+    def _record_task_assets(self) -> None:
+        """Record direct assets and conditionally propagate upstream assets based on task type."""
+        ctx = FlowRunContext.get()
+        if not ctx or not hasattr(self, "task_run") or not self.task_run:
+            return
+
+        direct_assets = []
+
+        # TODO don't do hasattr
+        if hasattr(self, "asset_deps") and self.asset_deps:
+            from prefect.assets import Asset
+
+            for asset in self.asset_deps:
+                asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
+                direct_assets.append(asset_obj)
+
+        if hasattr(self, "assets"):
+            direct_assets.extend(self.assets)
+            assets_for_downstream = self.assets[:]
+        else:
+            upstream_assets = self._get_upstream_assets_from_inputs()
+            assets_for_downstream = direct_assets + list(upstream_assets)
+
+        ctx.task_run_assets[self.task_run.id] = assets_for_downstream
+
+    def _get_upstream_assets_from_inputs(self) -> set[Any]:
+        """Extract upstream assets from task inputs"""
+        if (
+            not hasattr(self, "task_run")
+            or not self.task_run
+            or not self.task_run.task_inputs
+        ):
+            return set()
+
+        upstream_assets = set()
+        for input_list in self.task_run.task_inputs.values():
+            for task_input in input_list:
+                if hasattr(task_input, "assets") and task_input.assets:
+                    upstream_assets.update(task_input.assets)
+
+        return upstream_assets
 
     @overload
     def __call__(
@@ -1667,6 +1714,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Literal[None] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1702,6 +1751,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1738,6 +1789,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1771,6 +1824,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1907,6 +1962,7 @@ def task(
             on_failure=on_failure,
             retry_condition_fn=retry_condition_fn,
             viz_return_value=viz_return_value,
+            asset_deps=asset_deps,
         )
     else:
         return cast(
@@ -1936,5 +1992,6 @@ def task(
                 on_failure=on_failure,
                 retry_condition_fn=retry_condition_fn,
                 viz_return_value=viz_return_value,
+                asset_deps=asset_deps,
             ),
         )

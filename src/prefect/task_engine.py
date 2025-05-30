@@ -94,6 +94,7 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
+    emit_asset_events,
     emit_task_run_state_change_event,
     link_state_to_result,
     resolve_to_final_result,
@@ -301,6 +302,22 @@ class BaseTaskRunEngine(Generic[P, R]):
             validated_state=rolled_back_state,
             follows=self._last_event,
         )
+
+    def handle_assets(self):
+        state = self.state
+        task = self.task
+        task_run = self.task_run
+
+        if not state or not task or not task_run:
+            return
+
+        if state.name == "Cached":
+            return
+
+        if state.is_failed():
+            emit_asset_events(task, task_run, succeeded=False)
+        elif state.is_completed():
+            emit_asset_events(task, task_run, succeeded=True)
 
 
 @dataclass
@@ -782,6 +799,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     try:
                         yield
                     finally:
+                        self.handle_assets()
                         self.call_hooks()
 
     @contextmanager
@@ -1071,7 +1089,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(terminal_state)
         await self.set_state(terminal_state)
         self._return_value = result
-
         self._telemetry.end_span_on_success()
 
         return result
@@ -1339,6 +1356,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     try:
                         yield
                     finally:
+                        self.handle_assets()
                         await self.call_hooks()
 
     @asynccontextmanager

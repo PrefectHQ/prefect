@@ -757,6 +757,14 @@ class TaskRunResult(TaskRunInput):
     input_type: Literal["task_run"] = "task_run"
     id: UUID
 
+    # TODO: HOW DO I NOT CIRCULAR IMPORT THIS TYPE? IF TYPECHECKING DOES NOT WORK :(
+    assets: Optional[list[Any]] = Field(
+        default=None,
+        description="A list of assets associated with the task run result.",
+    )
+
+    __hash__ = object.__hash__
+
 
 class Parameter(TaskRunInput):
     """Represents a parameter input to a task run."""

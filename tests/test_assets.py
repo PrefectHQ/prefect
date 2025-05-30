@@ -1,9 +1,10 @@
 import pytest
 
-from prefect.assets import Asset, AssetRef, MaterializationTask, materialize
+from prefect.assets import Asset, materialize
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
+from prefect.utilities.engine import asset_as_related, asset_as_resource
 
 
 def _asset_events(worker: EventsWorker):
@@ -14,6 +15,11 @@ def _first_event(worker: EventsWorker):
     events = _asset_events(worker)
     assert events, "No asset events were captured by the worker"
     return events[0]
+
+
+# =============================================================================
+# Basic Asset Validation and Utilities
+# =============================================================================
 
 
 @pytest.mark.parametrize(
@@ -33,72 +39,31 @@ def test_asset_invalid_uri(invalid_key):
 
 
 def test_asset_as_resource():
-    asset = Asset(
-        key="s3://bucket/data",
-        name="Test Data",
-        metadata={"owner": "data-team", "region": "us-west-2"},
-    )
-
-    resource = MaterializationTask._asset_as_resource(asset)
+    asset = Asset(key="s3://bucket/data")
+    resource = asset_as_resource(asset)
     assert resource["prefect.resource.id"] == "s3://bucket/data"
-    assert resource["prefect.resource.name"] == "Test Data"
-    assert resource["owner"] == "data-team"
-    assert resource["region"] == "us-west-2"
-
-    asset_no_name = Asset(key="s3://bucket/data", metadata={"owner": "data-team"})
-    resource_no_name = MaterializationTask._asset_as_resource(asset_no_name)
-    assert resource_no_name["prefect.resource.id"] == "s3://bucket/data"
-    assert "prefect.resource.name" not in resource_no_name
-    assert resource_no_name["owner"] == "data-team"
 
 
 def test_asset_as_related():
-    asset = Asset(
-        key="postgres://prod/users",
-        name="Users",
-        metadata={"owner": "data-team"},
-    )
-
-    related = MaterializationTask._asset_as_related(asset)
+    asset = Asset(key="postgres://prod/users")
+    related = asset_as_related(asset)
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
-    assert "owner" not in related
-    assert "prefect.resource.name" not in related
 
-
-def test_asset_ref():
-    original_asset = Asset(
-        key="postgres://prod/users",
-        name="Users",
-        metadata={"owner": "data-team"},
-    )
-
-    asset_ref = original_asset.ref()
-
-    assert isinstance(asset_ref, AssetRef)
-
-    assert asset_ref.key == original_asset.key
-    assert asset_ref.name == original_asset.name
-    assert asset_ref.metadata == original_asset.metadata
-
-    original_asset.metadata["new_key"] = "value"
-    assert "new_key" not in asset_ref.metadata
-
-    resource = MaterializationTask._asset_as_resource(asset_ref)
-    assert resource["prefect.resource.id"] == "postgres://prod/users"
-
-    related = MaterializationTask._asset_as_related(asset_ref)
-    assert related["prefect.resource.id"] == "postgres://prod/users"
-    assert related["prefect.resource.role"] == "asset"
+# =============================================================================
+# Single Asset Operations
+# =============================================================================
 
 
 def test_single_asset_materialization_success(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    users = Asset(
-        key="postgres://prod/users", name="Users", metadata={"region": "us‑east1"}
-    )
+    """Test single asset materialization success.
+
+    Expected graph: [M: postgres://prod/users]
+    """
+    users = Asset(key="postgres://prod/users")
 
     @materialize(users)
     def make_users():
@@ -114,15 +79,17 @@ def test_single_asset_materialization_success(
     evt = _first_event(asserting_events_worker)
     assert evt.event == "prefect.asset.materialization.succeeded"
     assert evt.resource.id == users.key
-    assert evt.resource["prefect.resource.name"] == "Users"
-    assert evt.resource["region"] == "us‑east1"
     assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
 def test_single_asset_materialization_failure(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    asset = Asset(key="s3://data/broken", name="Broken")
+    """Test single asset materialization failure.
+
+    Expected graph: [M: s3://data/broken] (failed)
+    """
+    asset = Asset(key="s3://data/broken")
 
     @materialize(asset)
     def always_broken():
@@ -143,9 +110,163 @@ def test_single_asset_materialization_failure(
     assert evt.resource.id == asset.key
 
 
-def test_linear_dependency(asserting_events_worker: EventsWorker, reset_worker_events):
-    upstream = Asset(key="postgres://prod/users", name="Raw Users")
-    downstream = Asset(key="postgres://prod/users_clean", name="Users Clean")
+def test_single_asset_observation(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test single asset observation.
+
+    Expected graph: [O: s3://bucket/raw_data.csv]
+    """
+
+    @task(asset_deps=["s3://bucket/raw_data.csv"])
+    def read_data():
+        return {"rows": 100}
+
+    @flow
+    def pipeline():
+        read_data()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    evt = _first_event(asserting_events_worker)
+    assert evt.event == "prefect.asset.observation.succeeded"
+    assert evt.resource.id == "s3://bucket/raw_data.csv"
+
+
+def test_multiple_asset_observations(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test multiple asset observations from single task.
+
+    Expected graph: [O: s3://bucket/raw1.csv], [O: s3://bucket/raw2.csv], [O: s3://bucket/raw3.csv]
+    """
+    deps = ["s3://bucket/raw1.csv", "s3://bucket/raw2.csv", "s3://bucket/raw3.csv"]
+
+    @task(asset_deps=deps)
+    def read_multiple():
+        return {"combined": True}
+
+    @flow
+    def pipeline():
+        read_multiple()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 3
+
+    observed_keys = {e.resource.id for e in events}
+    assert observed_keys == set(deps)
+
+    for evt in events:
+        assert evt.event == "prefect.asset.observation.succeeded"
+
+
+def test_multiple_asset_materializations(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test multiple assets materialized by single function.
+
+    Expected graph: [M: postgres://prod/users_raw], [M: postgres://prod/orders_raw]
+    """
+    user_asset = Asset(key="postgres://prod/users_raw")
+    orders_asset = Asset(key="postgres://prod/orders_raw")
+
+    @materialize(user_asset, orders_asset)
+    def ingest():
+        return ({"rows": 1}, {"rows": 1})
+
+    @flow
+    def pipeline():
+        ingest()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    ids = {e.resource.id for e in _asset_events(asserting_events_worker)}
+    assert ids == {user_asset.key, orders_asset.key}
+
+
+# =============================================================================
+# String Key Conversion
+# =============================================================================
+
+
+def test_mixed_asset_objects_and_string_keys(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test that mixed Asset objects and string keys work together.
+
+    This comprehensively tests string key conversion in both @materialize and @task(asset_deps).
+
+    Expected graph:
+    [O: postgres://db/users] --> [M: s3://bucket/final.parquet]
+    [O: s3://bucket/raw.csv] --> [M: s3://bucket/summary.json]
+    """
+    # Mix Asset object and string in asset_deps
+    asset_obj = Asset(key="postgres://db/users")
+
+    @task(asset_deps=[asset_obj, "s3://bucket/raw.csv"])
+    def read_mixed_deps():
+        return {"data": "mixed"}
+
+    # Mix Asset object and string in materialize
+    output_asset = Asset(key="s3://bucket/final.parquet")
+
+    @materialize(output_asset, "s3://bucket/summary.json")
+    def write_mixed_outputs(data):
+        return ({"final": True}, {"summary": True})
+
+    @flow
+    def pipeline():
+        data = read_mixed_deps()
+        write_mixed_outputs(data)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 4  # 2 observations + 2 materializations
+
+    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    mat_events = [
+        e for e in events if e.event.startswith("prefect.asset.materialization")
+    ]
+
+    assert len(obs_events) == 2
+    assert len(mat_events) == 2
+
+    # Check observation events include both Asset object and string key
+    obs_keys = {evt.resource.id for evt in obs_events}
+    assert obs_keys == {"postgres://db/users", "s3://bucket/raw.csv"}
+
+    # Check materialization events include both Asset object and string key
+    mat_keys = {evt.resource.id for evt in mat_events}
+    assert mat_keys == {"s3://bucket/final.parquet", "s3://bucket/summary.json"}
+
+    # Check that materialization events have the observations as related assets
+    for mat_evt in mat_events:
+        related_asset_ids = {r.id for r in mat_evt.related if r.role == "asset"}
+        assert "postgres://db/users" in related_asset_ids
+        assert "s3://bucket/raw.csv" in related_asset_ids
+
+
+# =============================================================================
+# Linear Dependencies
+# =============================================================================
+
+
+def test_materialization_to_materialization_dependency(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test linear asset dependency between two materializations.
+
+    Expected graph: [M: postgres://prod/users] --> [M: postgres://prod/users_clean]
+    """
+    upstream = Asset(key="postgres://prod/users")
+    downstream = Asset(key="postgres://prod/users_clean")
 
     @materialize(upstream)
     def extract():
@@ -172,13 +293,17 @@ def test_linear_dependency(asserting_events_worker: EventsWorker, reset_worker_e
     assert any(r.id == upstream.key and r.role == "asset" for r in down_evt.related)
 
 
-def test_asset_ref_observation(
+def test_observation_to_materialization_dependency(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    upstream = Asset(key="postgres://prod/users", name="Users")
-    downstream = Asset(key="postgres://prod/users_clean", name="Users Clean")
+    """Test linear dependency from observation to materialization.
 
-    @materialize(upstream.ref())
+    Expected graph: [O: postgres://prod/users] --> [M: postgres://prod/users_clean]
+    """
+    upstream = Asset(key="postgres://prod/users")
+    downstream = Asset(key="postgres://prod/users_clean")
+
+    @task(asset_deps=[upstream])
     def read():
         return {"rows": 1}
 
@@ -206,54 +331,160 @@ def test_asset_ref_observation(
     assert any(r.id == upstream.key and r.role == "asset" for r in mat_evt.related)
 
 
-def test_multiple_assets_single_function(
+def test_linear_dependency_with_intermediate_task(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    user_asset = Asset(key="postgres://prod/users_raw", name="Users Raw")
-    orders_asset = Asset(key="postgres://prod/orders_raw", name="Orders Raw")
+    """Test linear dependency with intermediate non-asset task.
 
-    @materialize(user_asset, orders_asset)
-    def ingest():
-        return ({"rows": 1}, {"rows": 1})
+    Expected graph: [M: s3://data/raw_data] --> [M: s3://data/processed_data]
+    """
+    upstream = Asset(key="s3://data/raw_data")
+    downstream = Asset(key="s3://data/processed_data")
+
+    @materialize(upstream)
+    def extract():
+        return {"rows": 100}
+
+    @task
+    def transform(data):
+        return {"rows": data["rows"], "processed": True}
+
+    @materialize(downstream)
+    def load(transformed_data):
+        return {"rows": transformed_data["rows"]}
 
     @flow
     def pipeline():
-        ingest()
+        raw_data = extract()
+        transformed_data = transform(raw_data)
+        load(transformed_data)
 
     pipeline()
     asserting_events_worker.drain()
 
-    ids = {e.resource.id for e in _asset_events(asserting_events_worker)}
-    assert ids == {user_asset.key, orders_asset.key}
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    upstream_events = [e for e in events if e.resource.id == upstream.key]
+    downstream_events = [e for e in events if e.resource.id == downstream.key]
+
+    assert len(upstream_events) == 1
+    assert len(downstream_events) == 1
+    downstream_evt = downstream_events[0]
+    assert any(
+        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
+    )
+    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
-async def test_async_materialization(
+def test_materialize_with_explicit_asset_deps(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    asset = Asset(key="postgres://prod/async", name="Async")
+    """Test @materialize with explicit asset_deps parameter.
 
-    @materialize(asset)
-    async def do_async():
-        return {"rows": 5}
+    Expected graph: [O: s3://bucket/raw_data.csv] --> [M: s3://bucket/data.csv]
+    """
+
+    @materialize("s3://bucket/data.csv", asset_deps=["s3://bucket/raw_data.csv"])
+    def write_data():
+        return {"rows": 100}
 
     @flow
-    async def async_flow():
-        await do_async()
+    def pipeline():
+        write_data()
 
-    await async_flow()
-    await asserting_events_worker.drain()
+    pipeline()
+    asserting_events_worker.drain()
 
-    evt = _first_event(asserting_events_worker)
-    assert evt.event == "prefect.asset.materialization.succeeded"
-    assert evt.resource.id == asset.key
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    # Find observation and materialization events
+    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    mat_events = [
+        e for e in events if e.event.startswith("prefect.asset.materialization")
+    ]
+
+    assert len(obs_events) == 1
+    assert len(mat_events) == 1
+
+    # Check observation
+    assert obs_events[0].resource.id == "s3://bucket/raw_data.csv"
+
+    # Check materialization
+    assert mat_events[0].resource.id == "s3://bucket/data.csv"
+    assert any(
+        r.id == "s3://bucket/raw_data.csv" and r.role == "asset"
+        for r in mat_events[0].related
+    )
+
+
+def test_three_stage_linear_pipeline(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test three-stage linear pipeline with direct dependencies only.
+
+    Expected graph: [M: s3://lake/bronze/users] --> [M: s3://lake/silver/users] --> [M: s3://lake/gold/users]
+    """
+    bronze = Asset(key="s3://lake/bronze/users")
+    silver = Asset(key="s3://lake/silver/users")
+    gold = Asset(key="s3://lake/gold/users")
+
+    @materialize(bronze)
+    def stage_bronze():
+        return {"rows": 100}
+
+    @materialize(silver)
+    def stage_silver(df):
+        return {"rows": df["rows"]}
+
+    @materialize(gold)
+    def stage_gold(df):
+        return {"rows": df["rows"]}
+
+    @flow
+    def pipeline():
+        bronze_df = stage_bronze()
+        silver_df = stage_silver(bronze_df)
+        stage_gold(silver_df)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 3
+
+    def evt_for(asset):
+        return next(e for e in events if e.resource.id == asset.key)
+
+    evt_bronze = evt_for(bronze)
+    evt_silver = evt_for(silver)
+    evt_gold = evt_for(gold)
+
+    assert not any(r.role == "asset" for r in evt_bronze.related)
+    assert {r.id for r in evt_silver.related if r.role == "asset"} == {bronze.key}
+    assert {r.id for r in evt_gold.related if r.role == "asset"} == {silver.key}
+
+    for e in (evt_bronze, evt_silver, evt_gold):
+        assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
+
+
+# =============================================================================
+# Complex Dependency Patterns
+# =============================================================================
 
 
 def test_fan_in_dependency(asserting_events_worker: EventsWorker, reset_worker_events):
-    raw_users = Asset(key="postgres://prod/users", name="Raw Users")
-    raw_orders = Asset(key="postgres://prod/orders", name="Raw Orders")
-    user_orders = Asset(
-        key="postgres://prod/user_orders_enriched", name="Enriched User-Orders"
-    )
+    """Test fan-in dependency pattern.
+    
+    Expected graph:
+    [M: postgres://prod/users]     \
+                                    --> [M: postgres://prod/user_orders_enriched]
+    [M: postgres://prod/orders]    /
+    """
+    raw_users = Asset(key="postgres://prod/users")
+    raw_orders = Asset(key="postgres://prod/orders")
+    user_orders = Asset(key="postgres://prod/user_orders_enriched")
 
     @materialize(raw_users)
     def extract_users():
@@ -299,9 +530,16 @@ def test_fan_in_dependency(asserting_events_worker: EventsWorker, reset_worker_e
 
 
 def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_events):
-    events_raw = Asset(key="s3://data/events_raw", name="Raw Events")
-    events_daily = Asset(key="s3://data/events_daily", name="Daily Aggregates")
-    events_hourly = Asset(key="s3://data/events_hourly", name="Hourly Aggregates")
+    """Test fan-out dependency pattern.
+
+    Expected graph:
+                                   --> [M: s3://data/events_daily]
+    [M: s3://data/events_raw]
+                                   --> [M: s3://data/events_hourly]
+    """
+    events_raw = Asset(key="s3://data/events_raw")
+    events_daily = Asset(key="s3://data/events_daily")
+    events_hourly = Asset(key="s3://data/events_hourly")
 
     @materialize(events_raw)
     def ingest_events():
@@ -351,10 +589,17 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_
 def test_fan_in_to_fan_out_dependency(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    users_raw = Asset(key="postgres://prod/users_raw", name="Users Raw")
-    orders_raw = Asset(key="postgres://prod/orders_raw", name="Orders Raw")
-    per_user = Asset(key="postgres://prod/orders_per_user", name="Orders Per User")
-    summary = Asset(key="postgres://prod/orders_summary", name="Orders Summary")
+    """Test fan-in to fan-out dependency pattern.
+
+    Expected graph:
+    [M: postgres://prod/users_raw]  ---> [M: postgres://prod/orders_per_user]
+                                     |
+    [M: postgres://prod/orders_raw] ---> [M: postgres://prod/orders_summary]
+    """
+    users_raw = Asset(key="postgres://prod/users_raw")
+    orders_raw = Asset(key="postgres://prod/orders_raw")
+    per_user = Asset(key="postgres://prod/orders_per_user")
+    summary = Asset(key="postgres://prod/orders_summary")
 
     @materialize(users_raw, orders_raw)
     def ingest():
@@ -392,198 +637,92 @@ def test_fan_in_to_fan_out_dependency(
         assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
-def test_linear_dependency_with_intermediate_task(
+def test_forward_propagation_asset_lineage(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    upstream = Asset(key="s3://data/raw_data", name="Raw Data")
-    downstream = Asset(key="s3://data/processed_data", name="Processed Data")
+    """Test that asset lineage flows forward through task graph without backward traversal.
+    
+    Expected graph:
+    [O: s3://bucket/raw.csv]        \
+                                     --> [M: s3://bucket/final.csv]
+    [O: postgres://prod/users]      /
+    """
 
-    @materialize(upstream)
+    @task(asset_deps=["s3://bucket/raw.csv"])
     def extract():
-        return {"rows": 100}
+        return {"data": "raw"}
 
-    @task
+    @task(asset_deps=["postgres://prod/users"])
     def transform(data):
-        return {"rows": data["rows"], "processed": True}
+        return {"data": "transformed"}
 
-    @materialize(downstream)
-    def load(transformed_data):
-        return {"rows": transformed_data["rows"]}
-
-    @flow
-    def pipeline():
-        raw_data = extract()
-        transformed_data = transform(raw_data)
-        load(transformed_data)
-
-    pipeline()
-    asserting_events_worker.drain()
-
-    events = _asset_events(asserting_events_worker)
-    assert len(events) == 2
-
-    upstream_events = [e for e in events if e.resource.id == upstream.key]
-    downstream_events = [e for e in events if e.resource.id == downstream.key]
-
-    assert len(upstream_events) == 1
-    assert len(downstream_events) == 1
-    downstream_evt = downstream_events[0]
-    assert any(
-        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
-    )
-    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
-
-
-def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_events):
-    upstream = Asset(key="postgres://prod/users_submit", name="Raw Users Submit")
-    downstream = Asset(
-        key="postgres://prod/users_clean_submit", name="Users Clean Submit"
-    )
-
-    @materialize(upstream.ref())
-    def extract():
-        return {"rows": 10}
-
-    @materialize(downstream)
+    @materialize("s3://bucket/final.csv")
     def load(data):
-        return {"rows": 10}
+        return {"data": "final"}
 
     @flow
-    def pipeline():
-        fut_up = extract.submit()
-        fut_down = load.submit(fut_up)
-        # explicitly wait
-        fut_down.wait()
+    def etl_pipeline():
+        raw = extract()
+        transformed = transform(raw)
+        load(transformed)
 
-    pipeline()
-    asserting_events_worker.drain()
-
-    events = _asset_events(asserting_events_worker)
-    assert len(events) == 2
-
-    upstream_events = [e for e in events if e.resource.id == upstream.key]
-    downstream_events = [e for e in events if e.resource.id == downstream.key]
-
-    assert len(upstream_events) == 1
-    assert len(downstream_events) == 1
-    downstream_evt = downstream_events[0]
-    assert any(
-        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
-    )
-    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
-
-
-def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events):
-    source_asset = Asset(key="s3://data/source_data", name="Source Data")
-    destination_asset = Asset(key="s3://data/processed", name="Processed Data")
-
-    @materialize(source_asset.ref())
-    def extract_source():
-        return ["item1", "item2", "item3"]
-
-    @materialize(destination_asset)
-    def process_item(item):
-        return {"processed": item}
-
-    @flow
-    def pipeline():
-        source_data = extract_source()
-        futures = process_item.map(source_data)
-        for future in futures:
-            future.wait()
-
-    pipeline()
-    asserting_events_worker.drain()
-
-    events = _asset_events(asserting_events_worker)
-
-    assert len(events) == 4
-
-    source_events = [e for e in events if e.resource.id == source_asset.key]
-    assert len(source_events) == 1
-    assert source_events[0].event == "prefect.asset.observation.succeeded"
-
-    destination_events = [e for e in events if e.resource.id == destination_asset.key]
-    assert len(destination_events) == 3
-
-    for evt in destination_events:
-        assert evt.event == "prefect.asset.materialization.succeeded"
-        assert any(r.id == source_asset.key and r.role == "asset" for r in evt.related)
-        assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
-
-
-def test_three_stage_materialization_direct_deps_only(
-    asserting_events_worker, reset_worker_events
-):
-    bronze = Asset(key="s3://lake/bronze/users", name="Users Bronze")
-    silver = Asset(key="s3://lake/silver/users", name="Users Silver")
-    gold = Asset(key="s3://lake/gold/users", name="Users Gold")
-
-    @materialize(bronze)
-    def stage_bronze():
-        return {"rows": 100}
-
-    @materialize(silver)
-    def stage_silver(df):
-        return {"rows": df["rows"]}
-
-    @materialize(gold)
-    def stage_gold(df):
-        return {"rows": df["rows"]}
-
-    @flow
-    def pipeline():
-        bronze_df = stage_bronze()
-        silver_df = stage_silver(bronze_df)
-        stage_gold(silver_df)
-
-    pipeline()
+    etl_pipeline()
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
     assert len(events) == 3
 
-    def evt_for(asset):
-        return next(e for e in events if e.resource.id == asset.key)
+    # Find all event types
+    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    mat_events = [
+        e for e in events if e.event.startswith("prefect.asset.materialization")
+    ]
 
-    evt_bronze = evt_for(bronze)
-    evt_silver = evt_for(silver)
-    evt_gold = evt_for(gold)
+    assert len(obs_events) == 2  # Two observation events
+    assert len(mat_events) == 1  # One materialization event
 
-    assert not any(r.role == "asset" for r in evt_bronze.related)
-    assert {r.id for r in evt_silver.related if r.role == "asset"} == {bronze.key}
-    assert {r.id for r in evt_gold.related if r.role == "asset"} == {silver.key}
+    # Check observations
+    obs_resources = {e.resource.id for e in obs_events}
+    assert "s3://bucket/raw.csv" in obs_resources
+    assert "postgres://prod/users" in obs_resources
 
-    for e in (evt_bronze, evt_silver, evt_gold):
-        assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
+    # Check materialization - should include both upstream assets as related
+    mat_event = mat_events[0]
+    assert mat_event.resource.id == "s3://bucket/final.csv"
+
+    # The materialization should have both upstream assets as related
+    related_asset_ids = {r.id for r in mat_event.related if r.role == "asset"}
+    assert "s3://bucket/raw.csv" in related_asset_ids
+    assert "postgres://prod/users" in related_asset_ids
 
 
-def test_snowflake_aggregation_direct_deps_only(
-    asserting_events_worker, reset_worker_events
+def test_complex_snowflake_aggregation(
+    asserting_events_worker: EventsWorker, reset_worker_events
 ):
+    """Test complex Snowflake aggregation pattern with multiple observations and materializations.
+    
+    Expected graph:
+    [O: .../table-1-raw] --> [M: .../table-1-cleaned] \
+    [O: .../table-2-raw] --> [M: .../table-2-cleaned]  --> [M: .../aggregated-table]
+    [O: .../table-3-raw] --> [M: .../table-3-cleaned] /
+    """
     SNOWFLAKE_SCHEMA = "snowflake://my-database/my-schema"
 
-    @materialize(Asset(key=f"{SNOWFLAKE_SCHEMA}/table-1-raw", name="Table 1 Raw").ref())
+    @task(asset_deps=[Asset(key=f"{SNOWFLAKE_SCHEMA}/table-1-raw")])
     def table_1_raw():
         return "fake data 1"
 
-    @materialize(Asset(key=f"{SNOWFLAKE_SCHEMA}/table-2-raw", name="Table 2 Raw").ref())
+    @task(asset_deps=[Asset(key=f"{SNOWFLAKE_SCHEMA}/table-2-raw")])
     def table_2_raw():
         return "fake data 2"
 
-    @materialize(Asset(key=f"{SNOWFLAKE_SCHEMA}/table-3-raw", name="Table 3 Raw").ref())
+    @task(asset_deps=[Asset(key=f"{SNOWFLAKE_SCHEMA}/table-3-raw")])
     def table_3_raw():
         return "fake data 3"
 
-    table_1_cleaned_asset = Asset(
-        key=f"{SNOWFLAKE_SCHEMA}/table-1-cleaned", name="Table 1 Cleaned"
-    )
-    table_2_cleaned_asset = Asset(
-        key=f"{SNOWFLAKE_SCHEMA}/table-2-cleaned", name="Table 2 Cleaned"
-    )
-    table_3_cleaned_asset = Asset(
-        key=f"{SNOWFLAKE_SCHEMA}/table-3-cleaned", name="Table 3 Cleaned"
-    )
+    table_1_cleaned_asset = Asset(key=f"{SNOWFLAKE_SCHEMA}/table-1-cleaned")
+    table_2_cleaned_asset = Asset(key=f"{SNOWFLAKE_SCHEMA}/table-2-cleaned")
+    table_3_cleaned_asset = Asset(key=f"{SNOWFLAKE_SCHEMA}/table-3-cleaned")
 
     @materialize(table_1_cleaned_asset)
     def table_1_cleaned(raw_table_1):
@@ -597,9 +736,7 @@ def test_snowflake_aggregation_direct_deps_only(
     def table_3_cleaned(raw_table_3):
         return f"cleaned {raw_table_3}"
 
-    aggregated_asset = Asset(
-        key=f"{SNOWFLAKE_SCHEMA}/aggregated-table", name="Aggregated Table"
-    )
+    aggregated_asset = Asset(key=f"{SNOWFLAKE_SCHEMA}/aggregated-table")
 
     @materialize(aggregated_asset)
     def aggregated_table(cleaned_table_1, cleaned_table_2, cleaned_table_3):
@@ -653,13 +790,162 @@ def test_snowflake_aggregation_direct_deps_only(
         assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
 
 
-def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_events):
-    source_asset = Asset(key="s3://data/dependencies/source", name="Source Data")
-    dependent_asset = Asset(
-        key="s3://data/dependencies/dependent", name="Dependent Data"
-    )
+# =============================================================================
+# Advanced Execution Patterns
+# =============================================================================
 
-    @materialize(source_asset.ref())
+
+async def test_async_materialization(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test async asset materialization.
+
+    Expected graph: [M: postgres://prod/async]
+    """
+    asset = Asset(key="postgres://prod/async")
+
+    @materialize(asset)
+    async def do_async():
+        return {"rows": 5}
+
+    @flow
+    async def async_flow():
+        await do_async()
+
+    await async_flow()
+    await asserting_events_worker.drain()
+
+    evt = _first_event(asserting_events_worker)
+    assert evt.event == "prefect.asset.materialization.succeeded"
+    assert evt.resource.id == asset.key
+
+
+def test_cached_asset_does_not_emit_duplicate_events(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test that cached assets don't emit duplicate events.
+
+    Expected graph: [M: s3://bucket/cached-data] (only first execution, second is cached)
+    """
+    asset = Asset(key="s3://bucket/cached-data")
+
+    @materialize(asset, persist_result=True)
+    def make_data():
+        return {"rows": 100}
+
+    @flow
+    def pipeline():
+        # First run - should emit materialization event
+        make_data()
+        # Second run - should use cache and NOT emit event
+        make_data()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+
+    assert len(events) == 1
+    assert events[0].event == "prefect.asset.materialization.succeeded"
+    assert events[0].resource.id == asset.key
+
+
+def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_events):
+    """Test linear dependency using task.submit().
+
+    Expected graph: [O: postgres://prod/users_submit] --> [M: postgres://prod/users_clean_submit]
+    """
+    upstream = Asset(key="postgres://prod/users_submit")
+    downstream = Asset(key="postgres://prod/users_clean_submit")
+
+    @task(asset_deps=[upstream])
+    def extract():
+        return {"rows": 10}
+
+    @materialize(downstream)
+    def load(data):
+        return {"rows": 10}
+
+    @flow
+    def pipeline():
+        fut_up = extract.submit()
+        fut_down = load.submit(fut_up)
+        # explicitly wait
+        fut_down.wait()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    upstream_events = [e for e in events if e.resource.id == upstream.key]
+    downstream_events = [e for e in events if e.resource.id == downstream.key]
+
+    assert len(upstream_events) == 1
+    assert len(downstream_events) == 1
+    downstream_evt = downstream_events[0]
+    assert any(
+        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
+    )
+    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+
+
+def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events):
+    """Test map operation with asset dependency.
+
+    Expected graph:
+                                       --> [M: s3://data/processed] (task 1)
+    [O: s3://data/source_data]        --> [M: s3://data/processed] (task 2)
+                                       --> [M: s3://data/processed] (task 3)
+    """
+    source_asset = Asset(key="s3://data/source_data")
+    destination_asset = Asset(key="s3://data/processed")
+
+    @task(asset_deps=[source_asset])
+    def extract_source():
+        return ["item1", "item2", "item3"]
+
+    @materialize(destination_asset)
+    def process_item(item):
+        return {"processed": item}
+
+    @flow
+    def pipeline():
+        source_data = extract_source()
+        futures = process_item.map(source_data)
+        for future in futures:
+            future.wait()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+
+    assert len(events) == 4
+
+    source_events = [e for e in events if e.resource.id == source_asset.key]
+    assert len(source_events) == 1
+    assert source_events[0].event == "prefect.asset.observation.succeeded"
+
+    destination_events = [e for e in events if e.resource.id == destination_asset.key]
+    assert len(destination_events) == 3
+
+    for evt in destination_events:
+        assert evt.event == "prefect.asset.materialization.succeeded"
+        assert any(r.id == source_asset.key and r.role == "asset" for r in evt.related)
+        assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
+
+
+def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_events):
+    """Test asset dependency using wait_for parameter.
+
+    Expected graph: [O: s3://data/dependencies/source] --> [M: s3://data/dependencies/dependent]
+    """
+    source_asset = Asset(key="s3://data/dependencies/source")
+    dependent_asset = Asset(key="s3://data/dependencies/dependent")
+
+    @task(asset_deps=[source_asset])
     def create_source():
         return {"source_data": "value"}
 
@@ -690,29 +976,3 @@ def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_ev
         r.id == source_asset.key and r.role == "asset" for r in dependent_evt.related
     )
     assert any(r.id.startswith("prefect.flow-run.") for r in dependent_evt.related)
-
-
-def test_cached_asset_does_not_emit_event(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
-    asset = Asset(key="s3://bucket/cached-data", name="Cached Data")
-
-    @materialize(asset, persist_result=True)
-    def make_data():
-        return {"rows": 100}
-
-    @flow
-    def pipeline():
-        # First run - should emit materialization event
-        make_data()
-        # Second run - should use cache and NOT emit event
-        make_data()
-
-    pipeline()
-    asserting_events_worker.drain()
-
-    events = _asset_events(asserting_events_worker)
-
-    assert len(events) == 1
-    assert events[0].event == "prefect.asset.materialization.succeeded"
-    assert events[0].resource.id == asset.key
