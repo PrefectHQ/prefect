@@ -304,20 +304,16 @@ class BaseTaskRunEngine(Generic[P, R]):
         )
 
     def handle_assets(self):
-        state = self.state
-        task = self.task
-        task_run = self.task_run
-
-        if not state or not task or not task_run:
+        if not self.state or not self.task or not self.task_run:
             return
 
-        if state.name == "Cached":
+        if self.state.name == "Cached":
             return
 
-        if state.is_failed():
-            emit_asset_events(task, task_run, succeeded=False)
-        elif state.is_completed():
-            emit_asset_events(task, task_run, succeeded=True)
+        if self.state.is_failed():
+            emit_asset_events(self.task, self.task_run, succeeded=False)
+        elif self.state.is_completed():
+            emit_asset_events(self.task, self.task_run, succeeded=True)
 
 
 @dataclass
@@ -384,29 +380,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         for hook in hooks or []:
             hook_name = get_hook_name(hook)
 
-            # Undocumented way to disable logging for a hook. Subject to change.
-            should_log = getattr(hook, "log_on_run", True)
-
             try:
-                if should_log:
-                    self.logger.info(
-                        f"Running hook {hook_name!r} in response to entering state"
-                        f" {state.name!r}"
-                    )
+                self.logger.info(
+                    f"Running hook {hook_name!r} in response to entering state"
+                    f" {state.name!r}"
+                )
                 result = hook(task, task_run, state)
                 if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
-                if should_log:
-                    self.logger.error(
-                        f"An error was encountered while running hook {hook_name!r}",
-                        exc_info=True,
-                    )
+                self.logger.error(
+                    f"An error was encountered while running hook {hook_name!r}",
+                    exc_info=True,
+                )
             else:
-                if should_log:
-                    self.logger.info(
-                        f"Hook {hook_name!r} finished running successfully"
-                    )
+                self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
     def begin_run(self) -> None:
         new_state = Running()
@@ -929,29 +917,21 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         for hook in hooks or []:
             hook_name = get_hook_name(hook)
 
-            # Undocumented way to disable logging for a hook. Subject to change.
-            should_log = getattr(hook, "log_on_run", True)
-
             try:
-                if should_log:
-                    self.logger.info(
-                        f"Running hook {hook_name!r} in response to entering state"
-                        f" {state.name!r}"
-                    )
+                self.logger.info(
+                    f"Running hook {hook_name!r} in response to entering state"
+                    f" {state.name!r}"
+                )
                 result = hook(task, task_run, state)
                 if inspect.isawaitable(result):
                     await result
             except Exception:
-                if should_log:
-                    self.logger.error(
-                        f"An error was encountered while running hook {hook_name!r}",
-                        exc_info=True,
-                    )
+                self.logger.error(
+                    f"An error was encountered while running hook {hook_name!r}",
+                    exc_info=True,
+                )
             else:
-                if should_log:
-                    self.logger.info(
-                        f"Hook {hook_name!r} finished running successfully"
-                    )
+                self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
     async def begin_run(self) -> None:
         try:

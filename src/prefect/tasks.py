@@ -1036,6 +1036,8 @@ class Task(Generic[P, R]):
 
         upstream_assets = set()
         for input_list in self.task_run.task_inputs.values():
+            # TODO make sure we're only checking TaskRunResult
+            # TODO I think I can just get rid of this whole method...
             for task_input in input_list:
                 if hasattr(task_input, "assets") and task_input.assets:
                     upstream_assets.update(task_input.assets)

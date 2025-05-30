@@ -10,7 +10,6 @@ import asyncio
 import os
 import sys
 import warnings
-from collections import defaultdict
 from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
@@ -19,7 +18,6 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    DefaultDict,
     Optional,
     TypeVar,
     Union,
@@ -386,9 +384,6 @@ class EngineContext(RunContext):
 
     # Tracking information needed to track asset linage between
     # tasks and materializations
-    task_run_parents: DefaultDict[UUID, set[UUID]] = Field(
-        default_factory=lambda: defaultdict(set)
-    )
     # TODO how to type this dict[UUID, list[Asset]] without circular imports?
     task_run_assets: dict[UUID, list[Any]] = Field(default_factory=dict)
 
