@@ -60,6 +60,22 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
+def _get_task_run_assets(task_run_id: UUID) -> Optional[Any]:
+    """
+    Helper function to get task run assets from the flow run context.
+
+    Args:
+        task_run_id: The ID of the task run to get assets for
+
+    Returns:
+        The assets associated with the task run, or None if not found
+    """
+    flow_ctx = FlowRunContext.get()
+    if flow_ctx and task_run_id in flow_ctx.task_run_assets:
+        return flow_ctx.task_run_assets[task_run_id]
+    return None
+
+
 async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunResult]:
     """
     This function recurses through an expression to generate a set of any discernible
@@ -77,17 +93,27 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
-            inputs.add(TaskRunResult(id=obj.task_run_id))
+            assets = _get_task_run_assets(obj.task_run_id)
+            inputs.add(TaskRunResult(id=obj.task_run_id, assets=assets))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+                assets = _get_task_run_assets(obj.state_details.task_run_id)
+                inputs.add(
+                    TaskRunResult(
+                        id=obj.state_details.task_run_id,
+                        assets=assets,
+                    )
+                )
         # Expressions inside quotes should not be traversed
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+                assets = _get_task_run_assets(state.state_details.task_run_id)
+                inputs.add(
+                    TaskRunResult(id=state.state_details.task_run_id, assets=assets)
+                )
 
     visit_collection(
         expr,
@@ -118,17 +144,32 @@ def collect_task_run_inputs_sync(
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
-            inputs.add(TaskRunResult(id=obj.task_run_id))
+            assets = _get_task_run_assets(obj.task_run_id)
+            inputs.add(
+                TaskRunResult(
+                    id=obj.task_run_id,
+                    assets=assets,
+                )
+            )
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+                assets = _get_task_run_assets(obj.state_details.task_run_id)
+                inputs.add(
+                    TaskRunResult(
+                        id=obj.state_details.task_run_id,
+                        assets=assets,  # Forward the assets
+                    )
+                )
         # Expressions inside quotes should not be traversed
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+                assets = _get_task_run_assets(state.state_details.task_run_id)
+                inputs.add(
+                    TaskRunResult(id=state.state_details.task_run_id, assets=assets)
+                )
 
     visit_collection(
         expr,
@@ -808,3 +849,91 @@ def resolve_inputs_sync(
             ) from exc
 
     return resolved_parameters
+
+
+def get_upstream_assets_from_task_inputs(task_run: TaskRun) -> set[Any]:
+    """Extract upstream assets from task inputs"""
+    if not task_run or not task_run.task_inputs:
+        return set()
+
+    upstream_assets = set()
+    for input_list in task_run.task_inputs.values():
+        for task_input in input_list:
+            if isinstance(task_input, TaskRunResult) and task_input.assets:
+                upstream_assets.update(task_input.assets)
+
+    return upstream_assets
+
+
+def asset_as_resource(asset: Any) -> dict[str, str]:
+    """Convert Asset to event resource format."""
+    resource = {"prefect.resource.id": asset.key}
+
+    return resource
+
+
+def asset_as_related(asset: Any) -> dict[str, str]:
+    """Convert Asset to event related format."""
+    return {
+        "prefect.resource.id": asset.key,
+        "prefect.resource.role": "asset",
+    }
+
+
+def emit_asset_events(task: Any, task_run: TaskRun, succeeded: bool) -> None:
+    """Emit observation/materialization events for assets."""
+    from prefect.events import emit_event
+
+    upstream_assets = get_upstream_assets_from_task_inputs(task_run)
+    upstream_related = [asset_as_related(a) for a in upstream_assets]
+
+    asset_deps_related = []
+
+    # TODO don't do has attr
+
+    if hasattr(task, "asset_deps") and task.asset_deps:
+        from prefect.assets import Asset
+
+        for asset in task.asset_deps:
+            asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
+            emit_event(
+                event=f"prefect.asset.observation.{'succeeded' if succeeded else 'failed'}",
+                resource=asset_as_resource(asset_obj),
+                related=[],
+            )
+            asset_deps_related.append(asset_as_related(asset_obj))
+
+    all_related = upstream_related + asset_deps_related
+
+    if hasattr(task, "assets"):
+        for asset in task.assets:
+            emit_event(
+                event=f"prefect.asset.materialization.{'succeeded' if succeeded else 'failed'}",
+                resource=asset_as_resource(asset),
+                related=all_related,
+            )
+
+
+def record_task_assets(task: Any, task_run: TaskRun) -> None:
+    """Record direct assets and conditionally propagate upstream assets based on task type."""
+    ctx = FlowRunContext.get()
+    if not ctx or not task_run:
+        return
+
+    direct_assets = []
+
+    if hasattr(task, "asset_deps") and task.asset_deps:
+        from prefect.assets import Asset
+
+        for asset in task.asset_deps:
+            asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
+            direct_assets.append(asset_obj)
+
+    if hasattr(task, "assets"):
+        direct_assets.extend(task.assets[:])
+        assets_for_downstream = task.assets[:]
+    else:
+        upstream_assets = get_upstream_assets_from_task_inputs(task_run)
+        assets_for_downstream = direct_assets + list(upstream_assets)
+
+    ctx.task_run_assets[task_run.id] = assets_for_downstream

@@ -354,6 +354,8 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
+        # TODO FIX TYPE HERE
+        asset_deps: list = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -546,6 +548,7 @@ class Task(Generic[P, R]):
 
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
+        self.asset_deps = asset_deps
 
     @property
     def ismethod(self) -> bool:
@@ -887,7 +890,10 @@ class Task(Generic[P, R]):
         deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities._engine import dynamic_key_for_task_run
-        from prefect.utilities.engine import collect_task_run_inputs_sync
+        from prefect.utilities.engine import (
+            collect_task_run_inputs_sync,
+            record_task_assets,
+        )
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -927,7 +933,7 @@ class Task(Generic[P, R]):
 
                 store = await ResultStore(
                     result_storage=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(task)
+                ).update_for_task(self)
                 context = serialize_context()
                 data: dict[str, Any] = {"context": context}
                 if parameters:
@@ -963,6 +969,7 @@ class Task(Generic[P, R]):
                 else None
             )
             task_run_id = id or uuid7()
+
             state = prefect.states.Pending(
                 state_details=StateDetails(
                     task_run_id=task_run_id,
@@ -991,6 +998,9 @@ class Task(Generic[P, R]):
                 created=state.timestamp,
                 updated=state.timestamp,
             )
+
+            # Record task assets after creating the task run
+            record_task_assets(self, task_run)
 
             return task_run
 
@@ -1666,6 +1676,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Literal[None] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1701,6 +1713,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1737,6 +1751,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1770,6 +1786,8 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
+    # TODO FIX TYPING
+    asset_deps: list[Any] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1906,6 +1924,7 @@ def task(
             on_failure=on_failure,
             retry_condition_fn=retry_condition_fn,
             viz_return_value=viz_return_value,
+            asset_deps=asset_deps,
         )
     else:
         return cast(
@@ -1935,5 +1954,6 @@ def task(
                 on_failure=on_failure,
                 retry_condition_fn=retry_condition_fn,
                 viz_return_value=viz_return_value,
+                asset_deps=asset_deps,
             ),
         )

@@ -13,7 +13,16 @@ import warnings
 from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Optional,
+    TypeVar,
+    Union,
+)
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from typing_extensions import Self
@@ -372,6 +381,11 @@ class EngineContext(RunContext):
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
     task_run_results: dict[int, State] = Field(default_factory=dict)
+
+    # Tracking information needed to track asset linage between
+    # tasks and materializations
+    # TODO how to type this dict[UUID, list[Asset]] without circular imports?
+    task_run_assets: dict[UUID, list[Any]] = Field(default_factory=dict)
 
     # Events worker to emit events
     events: Optional[EventsWorker] = None
