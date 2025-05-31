@@ -1,0 +1,40 @@
+name: Free Threaded Python Tests
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  run-free-threaded-tests:
+    name: Free Threaded Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.13t"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install packages
+        run: uv sync --locked
+
+      - name: Run free-threaded tests
+        run: |
+          uv run pytest tests/test_task_runners.py tests/test_task_worker.py tests/_internal/concurrency tests/concurrency tests/server/services \
+          --numprocesses auto \
+          --maxprocesses 6 \
+          --dist worksteal \
+          --disable-docker-image-builds \
+          --exclude-service kubernetes \
+          --exclude-service docker \
+          --durations 26 
