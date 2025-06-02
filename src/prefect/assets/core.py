@@ -11,10 +11,18 @@ URI_REGEX = re.compile(r"^[a-z0-9]+://")
 
 
 class AssetProperties(PrefectBaseModel):
-    name: Optional[str] = Field(default=None)
-    url: Optional[str] = Field(default=None)
-    description: Optional[str] = Field(default=None)
-    owners: Optional[list[str]] = Field(default=None)
+    name: Optional[str] = Field(
+        default=None, description="Human readable name of the Asset."
+    )
+    url: Optional[str] = Field(
+        default=None, description="Visitable url to view the Asset."
+    )
+    description: Optional[str] = Field(
+        default=None, description="Description of the Asset."
+    )
+    owners: Optional[list[str]] = Field(
+        default=None, description="Owners of the Asset."
+    )
 
 
 class Asset(PrefectBaseModel):
@@ -27,7 +35,7 @@ class Asset(PrefectBaseModel):
     properties: Optional[AssetProperties] = Field(
         default=None,
         description="Properties of the asset. "
-        "Leave this unset to avoid overwriting properties of an already known asset",
+        "Setting this will overwrite properties of a known asset.",
     )
 
     @field_validator("key")
