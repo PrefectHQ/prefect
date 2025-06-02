@@ -551,7 +551,10 @@ class TestRayTaskRunner:
             return processed
 
         result = pipeline()
-        assert result.result()["rows"] == 100
+        data = await result.result()
+        assert data["rows"] == 100
+
+        await asyncio.sleep(1)
 
         async with get_client() as client:
             response = await client._client.post(
