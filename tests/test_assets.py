@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.assets import Asset, materialize
+from prefect.assets import Asset, AssetProperties, materialize
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
@@ -49,6 +49,56 @@ def test_asset_as_related():
     related = asset_as_related(asset)
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
+
+
+def test_asset_as_resource_with_no_properties():
+    asset = Asset(key="s3://bucket/data")
+    resource = asset_as_resource(asset)
+
+    assert resource == {"prefect.resource.id": "s3://bucket/data"}
+    assert "prefect.resource.name" not in resource
+    assert "prefect.asset.description" not in resource
+    assert "prefect.asset.url" not in resource
+    assert "prefect.asset.owners" not in resource
+
+
+def test_asset_as_resource_with_partial_properties():
+    asset = Asset(
+        key="postgres://prod/users",
+        properties=AssetProperties(name="Users Table", description="Main users table"),
+    )
+    resource = asset_as_resource(asset)
+
+    expected = {
+        "prefect.resource.id": "postgres://prod/users",
+        "prefect.resource.name": "Users Table",
+        "prefect.asset.description": "Main users table",
+    }
+    assert resource == expected
+    assert "prefect.asset.url" not in resource
+    assert "prefect.asset.owners" not in resource
+
+
+def test_asset_as_resource_with_all_properties():
+    asset = Asset(
+        key="s3://data-lake/enriched/customers.parquet",
+        properties=AssetProperties(
+            name="Customer Data",
+            description="Enriched customer dataset",
+            url="https://dashboard.company.com/datasets/customers",
+            owners=["data-team", "analytics"],
+        ),
+    )
+    resource = asset_as_resource(asset)
+
+    expected = {
+        "prefect.resource.id": "s3://data-lake/enriched/customers.parquet",
+        "prefect.resource.name": "Customer Data",
+        "prefect.asset.description": "Enriched customer dataset",
+        "prefect.asset.url": "https://dashboard.company.com/datasets/customers",
+        "prefect.asset.owners": '["data-team", "analytics"]',
+    }
+    assert resource == expected
 
 
 # =============================================================================

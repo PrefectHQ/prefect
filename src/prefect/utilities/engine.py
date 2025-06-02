@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import json
 import os
 import signal
 import time
@@ -866,14 +867,27 @@ def get_upstream_assets_from_task_inputs(task_run: TaskRun) -> set[Asset]:
     return upstream_assets
 
 
-def asset_as_resource(asset: Any) -> dict[str, str]:
+def asset_as_resource(asset: Asset) -> dict[str, str]:
     """Convert Asset to event resource format."""
     resource = {"prefect.resource.id": asset.key}
+
+    if asset.properties:
+        if asset.properties.name:
+            resource["prefect.resource.name"] = asset.properties.name
+
+        if asset.properties.description:
+            resource["prefect.asset.description"] = asset.properties.description
+
+        if asset.properties.url:
+            resource["prefect.asset.url"] = asset.properties.url
+
+        if asset.properties.owners:
+            resource["prefect.asset.owners"] = json.dumps(asset.properties.owners)
 
     return resource
 
 
-def asset_as_related(asset: Any) -> dict[str, str]:
+def asset_as_related(asset: Asset) -> dict[str, str]:
     """Convert Asset to event related format."""
     return {
         "prefect.resource.id": asset.key,
@@ -881,7 +895,7 @@ def asset_as_related(asset: Any) -> dict[str, str]:
     }
 
 
-def emit_asset_events(task: Any, task_run: TaskRun, succeeded: bool) -> None:
+def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
     """Emit observation/materialization events for assets."""
     from prefect.events import emit_event
 
@@ -913,7 +927,7 @@ def emit_asset_events(task: Any, task_run: TaskRun, succeeded: bool) -> None:
             )
 
 
-def record_task_assets(task: Any, task_run: TaskRun) -> None:
+def record_task_assets(task: Task, task_run: TaskRun) -> None:
     """Record direct assets and conditionally propagate upstream assets based on task type."""
     ctx = FlowRunContext.get()
     if not ctx or not task_run:

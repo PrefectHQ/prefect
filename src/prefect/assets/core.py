@@ -1,19 +1,34 @@
 from __future__ import annotations
 
 import re
-from typing import ClassVar
+from typing import ClassVar, Optional
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 
 URI_REGEX = re.compile(r"^[a-z0-9]+://")
 
 
+class AssetProperties(PrefectBaseModel):
+    name: Optional[str] = Field(default=None)
+    url: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    owners: Optional[list[str]] = Field(default=None)
+
+
 class Asset(PrefectBaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    key: str
+    key: str = Field(
+        description="The key of the asset in a URI like format.",
+        examples=["s3://bucket/folder/data.csv", "postgres://dbtable"],
+    )
+    properties: Optional[AssetProperties] = Field(
+        default=None,
+        description="Properties of the asset. "
+        "Leave this unset to avoid overwriting properties of an already known asset",
+    )
 
     @field_validator("key")
     @classmethod
