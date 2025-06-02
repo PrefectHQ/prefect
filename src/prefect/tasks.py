@@ -127,7 +127,7 @@ class TaskOptions(TypedDict, total=False):
     on_commit: Optional[list[Callable[["Transaction"], None]]]
     retry_condition_fn: Optional[Callable[["Task[..., Any]", TaskRun, State], bool]]
     viz_return_value: Any
-    asset_deps: Optional[list[Asset]]
+    asset_deps: Optional[list[Union[Asset, str]]]
 
 
 def task_input_hash(
