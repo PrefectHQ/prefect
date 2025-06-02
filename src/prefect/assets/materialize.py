@@ -27,7 +27,7 @@ def materialize(
     """
     if not assets:
         raise TypeError(
-            "materialize requires at least one asset argument, e.g. `@materialize(asset1)`"
+            "materialize requires at least one asset argument, e.g. `@materialize(asset)`"
         )
 
     asset_objs = [Asset(key=a) if isinstance(a, str) else a for a in assets]
