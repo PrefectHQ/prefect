@@ -46,7 +46,7 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -101,7 +101,7 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
