@@ -29,10 +29,20 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypedDict, TypeIs
+from typing_extensions import (
+    Literal,
+    ParamSpec,
+    Self,
+    Sequence,
+    TypeAlias,
+    TypedDict,
+    TypeIs,
+    Unpack,
+)
 
 import prefect.states
 from prefect._internal.uuid7 import uuid7
+from prefect.assets import Asset
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -72,7 +82,6 @@ from prefect.utilities.urls import url_for
 if TYPE_CHECKING:
     import logging
 
-    from prefect.assets import Asset
     from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
     from prefect.transactions import Transaction
@@ -2003,3 +2012,27 @@ def task(
                 asset_deps=asset_deps,
             ),
         )
+
+
+class MaterializingTask(Task[P, R]):
+    """
+    A task that materializes Assets.
+
+    Args:
+        assets: List of Assets that this task materializes (can be str or Asset)
+        materialized_by: An optional tool that materialized the asset e.g. "dbt" or "spark"
+        **task_kwargs: All other Task arguments
+    """
+
+    def __init__(
+        self,
+        fn: Callable[P, R] | "classmethod[Any, P, R]" | "staticmethod[P, R]",
+        *,
+        assets: Sequence[Union[str, Asset]],
+        materialized_by: str | None = None,
+        **task_kwargs: Unpack[TaskOptions],
+    ):
+        super().__init__(fn=fn, **task_kwargs)
+
+        self.assets = [Asset(key=a) if isinstance(a, str) else a for a in assets]
+        self.materialized_by = materialized_by

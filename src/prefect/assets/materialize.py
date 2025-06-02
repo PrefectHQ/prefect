@@ -11,16 +11,14 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 if TYPE_CHECKING:
-    from prefect.tasks import Task, TaskOptions
+    from prefect.tasks import MaterializingTask, TaskOptions
 
 
-# TODO:
-#  - task.assets = asset_objs ... should be a new class?
 def materialize(
     *assets: Union[str, Asset],
     by: str | None = None,
     **task_kwargs: Unpack[TaskOptions],
-) -> Callable[[Callable[P, R]], Task[P, R]]:
+) -> Callable[[Callable[P, R]], MaterializingTask[P, R]]:
     """
     Decorator for materializing assets.
 
@@ -34,14 +32,11 @@ def materialize(
             "materialize requires at least one asset argument, e.g. `@materialize(asset)`"
         )
 
-    asset_objs = [Asset(key=a) if isinstance(a, str) else a for a in assets]
+    from prefect.tasks import MaterializingTask
 
-    from prefect.tasks import Task
-
-    def decorator(fn: Callable[P, R]) -> Task[P, R]:
-        task = Task(fn=fn, **task_kwargs)
-        task.assets = asset_objs
-        task.materialized_by = by
-        return task
+    def decorator(fn: Callable[P, R]) -> MaterializingTask[P, R]:
+        return MaterializingTask(
+            fn=fn, assets=assets, materialized_by=by, **task_kwargs
+        )
 
     return decorator

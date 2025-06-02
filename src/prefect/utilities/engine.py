@@ -48,7 +48,7 @@ from prefect.logging.loggers import get_logger
 from prefect.results import ResultRecord, should_persist_result
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
-from prefect.tasks import Task
+from prefect.tasks import MaterializingTask, Task
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
@@ -907,12 +907,9 @@ def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
     """Emit observation/materialization events for assets."""
     from prefect.events import emit_event
 
-    upstream_assets = get_upstream_assets_from_task_inputs(task_run)
-    upstream_related = [asset_as_related(a) for a in upstream_assets]
-
     asset_deps_related = []
 
-    if hasattr(task, "asset_deps") and task.asset_deps:
+    if task.asset_deps:
         from prefect.assets import Asset
 
         for asset in task.asset_deps:
@@ -924,18 +921,22 @@ def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
             )
             asset_deps_related.append(asset_as_related(asset_obj))
 
-    all_related = upstream_related + asset_deps_related
+    if isinstance(task, MaterializingTask):
+        upstream_assets = get_upstream_assets_from_task_inputs(task_run)
+        upstream_related = [asset_as_related(a) for a in upstream_assets]
 
-    if hasattr(task, "materialized_by") and task.materialized_by:
-        all_related.append(related_materialized_by(task.materialized_by))
+        all_related = upstream_related + asset_deps_related
 
-    if hasattr(task, "assets"):
-        for asset in task.assets:
-            emit_event(
-                event=f"prefect.asset.materialization.{'succeeded' if succeeded else 'failed'}",
-                resource=asset_as_resource(asset),
-                related=all_related,
-            )
+        if task.materialized_by:
+            all_related.append(related_materialized_by(task.materialized_by))
+
+        if task.assets:
+            for asset in task.assets:
+                emit_event(
+                    event=f"prefect.asset.materialization.{'succeeded' if succeeded else 'failed'}",
+                    resource=asset_as_resource(asset),
+                    related=all_related,
+                )
 
 
 def record_task_assets(task: Task, task_run: TaskRun) -> None:
@@ -946,10 +947,10 @@ def record_task_assets(task: Task, task_run: TaskRun) -> None:
 
     direct_assets = []
 
-    if hasattr(task, "asset_deps") and task.asset_deps:
+    if task.asset_deps:
         direct_assets.extend(task.asset_deps[:])
 
-    if hasattr(task, "assets"):
+    if isinstance(task, MaterializingTask) and task.assets:
         direct_assets.extend(task.assets[:])
         assets_for_downstream = task.assets[:]
     else:
