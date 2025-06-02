@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from pydantic import ConfigDict, Field, field_validator
 
@@ -22,9 +22,22 @@ class AssetProperties(PrefectBaseModel):
     description: Optional[str] = Field(
         default=None, description="Description of the Asset."
     )
-    owners: Optional[tuple[str]] = Field(
+    owners: Optional[list[str]] = Field(
         default=None, description="Owners of the Asset."
     )
+
+    def __hash__(self) -> int:
+        return hash((self.name, self.url, self.description, tuple(self.owners)))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, AssetProperties):
+            return False
+        return (
+            self.name == other.name
+            and self.url == other.url
+            and self.description == other.description
+            and self.owners == other.owners
+        )
 
 
 class Asset(PrefectBaseModel):
