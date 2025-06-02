@@ -133,6 +133,7 @@ jobs:
           --numprocesses auto
           --maxprocesses 6
           --dist loadscope
+          --p no:benchmark
           --disable-docker-image-builds
           --exclude-service kubernetes
           --exclude-service docker
@@ -245,6 +246,7 @@ jobs:
           --numprocesses auto
           --maxprocesses 6
           --dist loadscope
+          --p no:benchmark
           --disable-docker-image-builds
           --exclude-service kubernetes
           --exclude-service docker
@@ -535,6 +537,7 @@ jobs:
           --numprocesses auto
           --maxprocesses 6
           --dist loadscope
+          --p no:benchmark
           --disable-docker-image-builds
           --only-service docker
           --durations 26
