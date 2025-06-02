@@ -485,7 +485,15 @@ class SPCSWorker(BaseWorker):
                     )
 
                 # If status in one of these, the container is no longer running.
-                if service_status["status"] in ("DONE", "FAILED", "SUSPENDING", "SUSPENDED", "DELETING", "DELETED", "INTERNAL_ERROR"):
+                if service_status["status"] in (
+                    "DONE",
+                    "FAILED",
+                    "SUSPENDING",
+                    "SUSPENDED",
+                    "DELETING",
+                    "DELETED",
+                    "INTERNAL_ERROR",
+                ):
                     break
             except NotFoundError:
                 self._logger.info(
