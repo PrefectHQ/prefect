@@ -757,13 +757,22 @@ class TaskRunResult(TaskRunInput):
     input_type: Literal["task_run"] = "task_run"
     id: UUID
 
-    # TODO: HOW DO I NOT CIRCULAR IMPORT THIS TYPE? IF TYPECHECKING DOES NOT WORK :(
-    assets: Optional[list[Any]] = Field(
+    assets: Optional[frozenset[Any]] = Field(
         default=None,
-        description="A list of assets associated with the task run result.",
+        description="A set of assets associated with the task run result.",
     )
 
-    __hash__ = object.__hash__
+    def __hash__(self) -> int:
+        return hash((self.input_type, self.id, self.assets))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, TaskRunResult):
+            return False
+        return (
+            self.input_type == other.input_type
+            and self.id == other.id
+            and self.assets == other.assets
+        )
 
 
 class Parameter(TaskRunInput):
