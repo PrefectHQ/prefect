@@ -668,6 +668,7 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
+        asset_deps: Optional[list[Union[str, Asset]]] = None,
     ) -> "Task[P, R]":
         """
         Create a new task from the current object, updating provided options.
@@ -801,6 +802,7 @@ class Task(Generic[P, R]):
             on_failure=on_failure or self.on_failure_hooks,
             retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
             viz_return_value=viz_return_value or self.viz_return_value,
+            asset_deps=asset_deps or self.asset_deps,
         )
 
     def on_completion(self, fn: StateHookCallable) -> StateHookCallable:

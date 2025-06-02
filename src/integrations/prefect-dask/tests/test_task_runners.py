@@ -521,7 +521,7 @@ class TestDaskTaskRunner:
         report_content = report_path.read_text()
         assert "Dask Performance Report" in report_content
 
-    def test_assets_with_task_runner(self, task_runner):
+    async def test_assets_with_task_runner(self, task_runner):
         upstream = Asset(key="s3://data/dask_raw")
         downstream = Asset(key="s3://data/dask_processed")
 
@@ -543,26 +543,18 @@ class TestDaskTaskRunner:
         result = pipeline()
         assert result.result()["rows"] == 100
 
-        import asyncio
-
-        asyncio.sleep(1)
-
-        async def get_asset_events():
-            async with get_client() as client:
-                response = await client._client.post(
-                    "/events/filter",
-                    json={
-                        "filter": {
-                            "event": {"prefix": ["prefect.asset.materialization"]}
-                        },
-                    },
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get("events", [])
-                return []
-
-        asset_events = asyncio.run(get_asset_events())
+        async with get_client() as client:
+            response = await client._client.post(
+                "/events/filter",
+                json={
+                    "filter": {"event": {"prefix": ["prefect.asset.materialization"]}},
+                },
+            )
+            if response.status_code == 200:
+                data = response.json()
+                asset_events = data.get("events", [])
+            else:
+                response.raise_for_status()
 
         assert len(asset_events) == 2
 
