@@ -7,6 +7,9 @@ from prefect.logging import get_logger
 from prefect.server.events import triggers
 from prefect.server.services.base import LoopService, RunInAllServers, Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
+from prefect.server.utilities.messaging._consumer_names import (
+    generate_unique_consumer_name,
+)
 from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
@@ -29,7 +32,10 @@ class ReactiveTriggers(RunInAllServers, Service):
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Reactive triggers already started"
-        self.consumer: Consumer = create_consumer("events")
+        consumer_name = generate_unique_consumer_name("reactive-triggers")
+        self.consumer: Consumer = create_consumer(
+            "events", group="reactive-triggers", name=consumer_name
+        )
 
         async with triggers.consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
