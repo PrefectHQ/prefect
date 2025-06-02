@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
+from typing import TYPE_CHECKING, Callable, TypeVar, Union, Unpack
 
 from typing_extensions import ParamSpec
 
@@ -11,13 +11,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 if TYPE_CHECKING:
-    from prefect.tasks import Task
+    from prefect.tasks import Task, TaskOptions
 
 
 def materialize(
     *assets: Union[str, Asset],
-    **task_kwargs: Any,
-) -> Callable[[Callable[P, R]], "Task"[P, R]]:
+    **task_kwargs: Unpack[TaskOptions],
+) -> Callable[[Callable[P, R]], Task[P, R]]:
     """
     Decorator for materializing assets.
 

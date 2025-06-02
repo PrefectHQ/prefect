@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import ClassVar
 
 from pydantic import ConfigDict, field_validator
 
@@ -10,7 +11,7 @@ URI_REGEX = re.compile(r"^[a-z0-9]+://")
 
 
 class Asset(PrefectBaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     key: str
 

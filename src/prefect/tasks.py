@@ -29,7 +29,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
+from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypedDict, TypeIs
 
 import prefect.states
 from prefect._internal.uuid7 import uuid7
@@ -89,6 +89,45 @@ FutureOrResult: TypeAlias = Union[PrefectFuture[T], T]
 OneOrManyFutureOrResult: TypeAlias = Union[
     FutureOrResult[T], Iterable[FutureOrResult[T]]
 ]
+
+
+class TaskOptions(TypedDict, total=False):
+    """
+    A TypedDict representing all available task configuration options.
+
+    This can be used with `Unpack` to provide type hints for **kwargs.
+    """
+
+    name: Optional[str]
+    description: Optional[str]
+    tags: Optional[Iterable[str]]
+    version: Optional[str]
+    cache_policy: Union[CachePolicy, type[NotSet]]
+    cache_key_fn: Union[
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]], None
+    ]
+    cache_expiration: Optional[datetime.timedelta]
+    task_run_name: Optional[TaskRunNameValueOrCallable]
+    retries: Optional[int]
+    retry_delay_seconds: Union[
+        float, int, list[float], Callable[[int], list[float]], None
+    ]
+    retry_jitter_factor: Optional[float]
+    persist_result: Optional[bool]
+    result_storage: Optional[ResultStorage]
+    result_serializer: Optional[ResultSerializer]
+    result_storage_key: Optional[str]
+    cache_result_in_memory: bool
+    timeout_seconds: Union[int, float, None]
+    log_prints: Optional[bool]
+    refresh_cache: Optional[bool]
+    on_completion: Optional[list[StateHookCallable]]
+    on_failure: Optional[list[StateHookCallable]]
+    on_rollback: Optional[list[Callable[["Transaction"], None]]]
+    on_commit: Optional[list[Callable[["Transaction"], None]]]
+    retry_condition_fn: Optional[Callable[["Task[..., Any]", TaskRun, State], bool]]
+    viz_return_value: Any
+    asset_deps: Optional[list[Asset]]
 
 
 def task_input_hash(

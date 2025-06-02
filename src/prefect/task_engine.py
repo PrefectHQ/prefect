@@ -303,7 +303,7 @@ class BaseTaskRunEngine(Generic[P, R]):
             follows=self._last_event,
         )
 
-    def handle_assets(self):
+    def handle_assets(self) -> None:
         if not self.state or not self.task or not self.task_run:
             return
 
