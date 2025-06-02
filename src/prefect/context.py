@@ -456,6 +456,21 @@ class TaskRunContext(RunContext):
             context={"include_secrets": include_secrets},
         )
 
+    def add_asset_metadata(
+        self: Self, asset: Union[str | Asset], metadata: dict[str, Any]
+    ):
+        from prefect.tasks import MaterializingTask
+
+        if not isinstance(self.task, MaterializingTask):
+            raise RuntimeError(
+                "Unable to add metadata when not inside the context of a materializing task."
+            )
+
+        asset_key = asset.key if isinstance(asset, Asset) else asset
+
+        existing = self.task_run._materialization_metadata.get(asset_key, {})
+        self.task_run._materialization_metadata[asset_key] = existing | metadata
+
 
 class TagsContext(ContextModel):
     """

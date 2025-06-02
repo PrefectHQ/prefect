@@ -936,6 +936,7 @@ def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
                     event=f"prefect.asset.materialization.{'succeeded' if succeeded else 'failed'}",
                     resource=asset_as_resource(asset),
                     related=all_related,
+                    payload=task_run._materialization_metadata.get(asset.key),
                 )
 
 
