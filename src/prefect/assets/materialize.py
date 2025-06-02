@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from prefect.tasks import Task, TaskOptions
 
 
+# TODO:
+#  - ensure this works with type ide/autocomplete?
+#  - task.assets = asset_objs ... should be a new class?
 def materialize(
     *assets: Union[str, Asset],
     **task_kwargs: Unpack[TaskOptions],

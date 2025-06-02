@@ -922,11 +922,7 @@ def record_task_assets(task: Any, task_run: TaskRun) -> None:
     direct_assets = []
 
     if hasattr(task, "asset_deps") and task.asset_deps:
-        from prefect.assets import Asset
-
-        for asset in task.asset_deps:
-            asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
-            direct_assets.append(asset_obj)
+        direct_assets.extend(task.asset_deps[:])
 
     if hasattr(task, "assets"):
         direct_assets.extend(task.assets[:])

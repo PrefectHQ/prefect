@@ -395,7 +395,7 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
-        asset_deps: Optional[list[Asset]] = None,
+        asset_deps: Optional[list[Union[str, Asset]]] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -584,7 +584,15 @@ class Task(Generic[P, R]):
 
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
-        self.asset_deps = asset_deps
+
+        if asset_deps:
+            from prefect.assets import Asset
+
+            self.asset_deps = [
+                Asset(key=a) if isinstance(a, str) else a for a in asset_deps
+            ]
+        else:
+            self.asset_deps = []
 
     @property
     def ismethod(self) -> bool:
@@ -1711,7 +1719,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Literal[None] = None,
     viz_return_value: Any = None,
-    asset_deps: Optional[list[Asset]] = None,
+    asset_deps: Optional[list[Union[str, Asset]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1747,7 +1755,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-    asset_deps: Optional[list[Asset]] = None,
+    asset_deps: Optional[list[Union[str, Asset]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1784,7 +1792,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-    asset_deps: Optional[list[Asset]] = None,
+    asset_deps: Optional[list[Union[str, Asset]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1818,7 +1826,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-    asset_deps: Optional[list[Asset]] = None,
+    asset_deps: Optional[list[Union[str, Asset]]] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
