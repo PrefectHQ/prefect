@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, TypeVar, Union, Unpack
+from typing import TYPE_CHECKING, Callable, TypeVar, Union
 
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Unpack
 
 from .core import Asset
 

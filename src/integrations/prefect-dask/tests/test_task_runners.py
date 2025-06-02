@@ -11,6 +11,9 @@ from prefect_dask import DaskTaskRunner
 from prefect_dask.task_runners import PrefectDaskFuture
 
 from prefect import flow, task
+from prefect.assets import Asset, materialize
+from prefect.events.clients import AssertingEventsClient
+from prefect.events.worker import EventsWorker
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
@@ -519,77 +522,76 @@ class TestDaskTaskRunner:
         report_content = report_path.read_text()
         assert "Dask Performance Report" in report_content
 
-    # TODO: Figure out how to capture events correctly here
-    # @pytest.fixture
-    # def asserting_events_worker(
-    #     self,
-    #     monkeypatch: pytest.MonkeyPatch,
-    # ) -> Generator[EventsWorker, None, None]:
-    #     worker = EventsWorker.instance(AssertingEventsClient)
-    #     # Always yield the asserting worker when new instances are retrieved
-    #     monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
-    #     try:
-    #         yield worker
-    #     finally:
-    #         worker.drain()
-    #
-    # @pytest.fixture
-    # def reset_worker_events(
-    #     self,
-    #     asserting_events_worker: EventsWorker,
-    # ) -> Generator[None, None, None]:
-    #     yield
-    #     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-    #     asserting_events_worker._client.events = []
-    #
-    # def test_assets_with_task_runner(
-    #     self, task_runner, asserting_events_worker, reset_worker_events
-    # ):
-    #     upstream = Asset(key="s3://data/dask_raw", name="Dask Raw Data")
-    #     downstream = Asset(key="s3://data/dask_processed", name="Dask Processed Data")
-    #
-    #     @materialize(upstream)
-    #     def extract():
-    #         return {"rows": 50}
-    #
-    #     @materialize(downstream)
-    #     def load(data):
-    #         return {"rows": data["rows"] * 2}
-    #
-    #     @flow(task_runner=task_runner)
-    #     def pipeline():
-    #         raw_data = extract.submit()
-    #         processed = load.submit(raw_data)
-    #         processed.wait()
-    #         return processed
-    #
-    #     result = pipeline()
-    #     assert result.result()["rows"] == 100
-    #
-    #     asserting_events_worker.drain()
-    #
-    #     def _asset_events():
-    #         return [
-    #             e
-    #             for e in asserting_events_worker._client.events
-    #             if e.event.startswith("prefect.asset.")
-    #         ]
-    #
-    #     events = _asset_events()
-    #     assert len(events) == 2
-    #
-    #     upstream_events = [e for e in events if e.resource.id == upstream.key]
-    #     downstream_events = [e for e in events if e.resource.id == downstream.key]
-    #
-    #     assert len(upstream_events) == 1
-    #     assert len(downstream_events) == 1
-    #
-    #     assert upstream_events[0].event == "prefect.asset.materialization.succeeded"
-    #     assert downstream_events[0].event == "prefect.asset.materialization.succeeded"
-    #
-    #     downstream_evt = downstream_events[0]
-    #     assert any(
-    #         r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
-    #     )
-    #
-    #     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+    @pytest.fixture
+    def asserting_events_worker(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> Generator[EventsWorker, None, None]:
+        worker = EventsWorker.instance(AssertingEventsClient)
+        # Always yield the asserting worker when new instances are retrieved
+        monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
+        try:
+            yield worker
+        finally:
+            worker.drain()
+
+    @pytest.fixture
+    def reset_worker_events(
+        self,
+        asserting_events_worker: EventsWorker,
+    ) -> Generator[None, None, None]:
+        yield
+        assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+        asserting_events_worker._client.events = []
+
+    def test_assets_with_task_runner(
+        self, task_runner, asserting_events_worker, reset_worker_events
+    ):
+        upstream = Asset(key="s3://data/dask_raw")
+        downstream = Asset(key="s3://data/dask_processed")
+
+        @materialize(upstream)
+        def extract():
+            return {"rows": 50}
+
+        @materialize(downstream)
+        def load(data):
+            return {"rows": data["rows"] * 2}
+
+        @flow(task_runner=task_runner)
+        def pipeline():
+            raw_data = extract.submit()
+            processed = load.submit(raw_data)
+            processed.wait()
+            return processed
+
+        result = pipeline()
+        assert result.result()["rows"] == 100
+
+        asserting_events_worker.drain()
+
+        def _asset_events():
+            return [
+                e
+                for e in asserting_events_worker._client.events
+                if e.event.startswith("prefect.asset.")
+            ]
+
+        events = _asset_events()
+        assert len(events) == 2
+
+        upstream_events = [e for e in events if e.resource.id == upstream.key]
+        downstream_events = [e for e in events if e.resource.id == downstream.key]
+
+        assert len(upstream_events) == 1
+        assert len(downstream_events) == 1
+
+        assert upstream_events[0].event == "prefect.asset.materialization.succeeded"
+        assert downstream_events[0].event == "prefect.asset.materialization.succeeded"
+
+        downstream_evt = downstream_events[0]
+        assert any(
+            r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
+        )
+
+        assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
