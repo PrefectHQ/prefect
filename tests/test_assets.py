@@ -1104,3 +1104,71 @@ def test_materialization_with_by_parameter_and_dependencies(
 
     assert "asset-materialized-by" in related_by_role
     assert related_by_role["asset-materialized-by"] == "spark"
+
+
+def test_linear_dependency_with_asset_properties(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test linear dependency from observation to materialization where both assets have properties.
+
+    Expected graph: [O: s3://lake/raw/customer_data.parquet] --> [M: postgres://warehouse/customers]
+    """
+    source_asset = Asset(
+        key="s3://lake/raw/customer_data.parquet",
+        properties=AssetProperties(
+            name="Raw Customer Data",
+            description="Raw customer data from external source",
+            url="https://dashboard.company.com/datasets/raw-customers",
+            owners=["data-ingestion-team"],
+        ),
+    )
+
+    target_asset = Asset(
+        key="postgres://warehouse/customers",
+        properties=AssetProperties(
+            name="Customer Table",
+            description="Processed customer data in warehouse",
+            url="https://dashboard.company.com/tables/customers",
+            owners=["data-team", "analytics-team"],
+        ),
+    )
+
+    @task(asset_deps=[source_asset])
+    def extract_customers():
+        return {"rows": 1000, "extracted": True}
+
+    @materialize(target_asset)
+    def load_customers(data):
+        return {"rows": data["rows"], "processed": True}
+
+    @flow
+    def customer_pipeline():
+        raw_data = extract_customers()
+        load_customers(raw_data)
+
+    customer_pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    mat_events = [
+        e for e in events if e.event.startswith("prefect.asset.materialization")
+    ]
+
+    assert len(obs_events) == 1
+    assert len(mat_events) == 1
+
+    obs_evt = obs_events[0]
+    assert obs_evt.resource.id == source_asset.key
+    assert obs_evt.event == "prefect.asset.observation.succeeded"
+
+    mat_evt = mat_events[0]
+    assert mat_evt.resource.id == target_asset.key
+    assert mat_evt.event == "prefect.asset.materialization.succeeded"
+
+    assert any(r.id == source_asset.key and r.role == "asset" for r in mat_evt.related)
+
+    assert any(r.id.startswith("prefect.flow-run.") for r in obs_evt.related)
+    assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)

@@ -11,6 +11,8 @@ URI_REGEX = re.compile(r"^[a-z0-9]+://")
 
 
 class AssetProperties(PrefectBaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
+
     name: Optional[str] = Field(
         default=None, description="Human readable name of the Asset."
     )
@@ -20,7 +22,7 @@ class AssetProperties(PrefectBaseModel):
     description: Optional[str] = Field(
         default=None, description="Description of the Asset."
     )
-    owners: Optional[list[str]] = Field(
+    owners: Optional[tuple[str]] = Field(
         default=None, description="Owners of the Asset."
     )
 
