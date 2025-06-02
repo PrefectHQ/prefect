@@ -33,7 +33,6 @@ from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
 from prefect._internal.uuid7 import uuid7
-from prefect.assets.core import Asset
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -73,6 +72,7 @@ from prefect.utilities.urls import url_for
 if TYPE_CHECKING:
     import logging
 
+    from prefect.assets import Asset
     from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
     from prefect.transactions import Transaction

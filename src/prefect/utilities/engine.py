@@ -24,7 +24,7 @@ from typing_extensions import TypeIs
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.assets.core import Asset
+from prefect.assets import Asset
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.client.schemas.responses import (

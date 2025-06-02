@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
-from prefect.assets.core import Asset
+from .core import Asset
 
 T = TypeVar("T")
 P = ParamSpec("P")
