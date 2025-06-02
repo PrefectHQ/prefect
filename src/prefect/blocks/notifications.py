@@ -845,12 +845,30 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         from apprise.plugins.sendgrid import NotifySendGrid
 
-        url = SecretStr(
-            NotifySendGrid(
+        self._NotifySendGrid = NotifySendGrid  # Cache the working import
+        url = self._build_sendgrid_url()
+        self._start_apprise_client(url)
+
+    def _build_sendgrid_url(self) -> SecretStr:
+        """Build the SendGrid URL with current to_emails."""
+        return SecretStr(
+            self._NotifySendGrid(
                 apikey=self.api_key.get_secret_value(),
                 from_email=self.sender_email,
                 targets=self.to_emails,
             ).url()
         )
 
-        self._start_apprise_client(url)
+    @sync_compatible
+    @instrument_instance_method_call
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        # Update apprise client with current to_emails before sending
+        if hasattr(self, "_apprise_client") and self._apprise_client:
+            self._apprise_client.clear()
+            self._apprise_client.add(self._build_sendgrid_url().get_secret_value())
+
+        await super().notify(body, subject)
