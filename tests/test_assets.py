@@ -1026,3 +1026,81 @@ def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_ev
         r.id == source_asset.key and r.role == "asset" for r in dependent_evt.related
     )
     assert any(r.id.startswith("prefect.flow-run.") for r in dependent_evt.related)
+
+
+def test_materialization_with_by_parameter(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test that @materialize with by parameter includes materialized-by tool as related resource.
+
+    Expected graph: [M: s3://bucket/dbt_table] (materialized by dbt)
+    """
+    asset = Asset(key="s3://bucket/dbt_table")
+
+    @materialize(asset, by="dbt")
+    def create_dbt_table():
+        return {"rows": 100}
+
+    @flow
+    def pipeline():
+        create_dbt_table()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    evt = _first_event(asserting_events_worker)
+    assert evt.event == "prefect.asset.materialization.succeeded"
+    assert evt.resource.id == asset.key
+
+    materialized_by_resources = [
+        r for r in evt.related if r.role == "asset-materialized-by"
+    ]
+    assert len(materialized_by_resources) == 1
+    assert materialized_by_resources[0].id == "dbt"
+
+
+def test_materialization_with_by_parameter_and_dependencies(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test materialization with by parameter includes tool alongside asset dependencies.
+
+    Expected graph: [O: postgres://prod/raw_users] --> [M: s3://warehouse/users] (materialized by spark)
+    """
+    source_asset = Asset(key="postgres://prod/raw_users")
+    target_asset = Asset(key="s3://warehouse/users")
+
+    @task(asset_deps=[source_asset])
+    def extract_users():
+        return {"users": 500}
+
+    @materialize(target_asset, by="spark")
+    def transform_users(raw_data):
+        return {"processed_users": raw_data["users"]}
+
+    @flow
+    def pipeline():
+        raw_data = extract_users()
+        transform_users(raw_data)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    # Find the materialization event
+    mat_events = [
+        e for e in events if e.event.startswith("prefect.asset.materialization")
+    ]
+    assert len(mat_events) == 1
+    mat_evt = mat_events[0]
+
+    assert mat_evt.resource.id == target_asset.key
+
+    related_by_role = {r.role: r.id for r in mat_evt.related}
+
+    assert "asset" in related_by_role
+    assert related_by_role["asset"] == source_asset.key
+
+    assert "asset-materialized-by" in related_by_role
+    assert related_by_role["asset-materialized-by"] == "spark"

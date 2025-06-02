@@ -895,6 +895,14 @@ def asset_as_related(asset: Asset) -> dict[str, str]:
     }
 
 
+def related_materialized_by(by: str) -> dict[str, str]:
+    """Create a related resource for the tool that performed the materialization"""
+    return {
+        "prefect.resource.id": by,
+        "prefect.resource.role": "asset-materialized-by",
+    }
+
+
 def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
     """Emit observation/materialization events for assets."""
     from prefect.events import emit_event
@@ -917,6 +925,9 @@ def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
             asset_deps_related.append(asset_as_related(asset_obj))
 
     all_related = upstream_related + asset_deps_related
+
+    if hasattr(task, "materialized_by") and task.materialized_by:
+        all_related.append(related_materialized_by(task.materialized_by))
 
     if hasattr(task, "assets"):
         for asset in task.assets:

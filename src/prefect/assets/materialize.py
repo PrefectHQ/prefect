@@ -15,10 +15,10 @@ if TYPE_CHECKING:
 
 
 # TODO:
-#  - ensure this works with type ide/autocomplete?
 #  - task.assets = asset_objs ... should be a new class?
 def materialize(
     *assets: Union[str, Asset],
+    by: str | None = None,
     **task_kwargs: Unpack[TaskOptions],
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     """
@@ -26,6 +26,7 @@ def materialize(
 
     Args:
         *assets: Assets to materialize
+        by: An optional tool that materialized the asset e.g. "dbt" or "spark"
         **task_kwargs: Additional task configuration
     """
     if not assets:
@@ -40,6 +41,7 @@ def materialize(
     def decorator(fn: Callable[P, R]) -> Task[P, R]:
         task = Task(fn=fn, **task_kwargs)
         task.assets = asset_objs
+        task.materialized_by = by
         return task
 
     return decorator
