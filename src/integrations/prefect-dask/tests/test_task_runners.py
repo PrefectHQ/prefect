@@ -12,8 +12,7 @@ from prefect_dask.task_runners import PrefectDaskFuture
 
 from prefect import flow, task
 from prefect.assets import Asset, materialize
-from prefect.events.clients import AssertingEventsClient
-from prefect.events.worker import EventsWorker
+from prefect.client.orchestration import get_client
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
@@ -522,31 +521,7 @@ class TestDaskTaskRunner:
         report_content = report_path.read_text()
         assert "Dask Performance Report" in report_content
 
-    @pytest.fixture
-    def asserting_events_worker(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> Generator[EventsWorker, None, None]:
-        worker = EventsWorker.instance(AssertingEventsClient)
-        # Always yield the asserting worker when new instances are retrieved
-        monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
-        try:
-            yield worker
-        finally:
-            worker.drain()
-
-    @pytest.fixture
-    def reset_worker_events(
-        self,
-        asserting_events_worker: EventsWorker,
-    ) -> Generator[None, None, None]:
-        yield
-        assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-        asserting_events_worker._client.events = []
-
-    def test_assets_with_task_runner(
-        self, task_runner, asserting_events_worker, reset_worker_events
-    ):
+    def test_assets_with_task_runner(self, task_runner):
         upstream = Asset(key="s3://data/dask_raw")
         downstream = Asset(key="s3://data/dask_processed")
 
@@ -568,30 +543,48 @@ class TestDaskTaskRunner:
         result = pipeline()
         assert result.result()["rows"] == 100
 
-        asserting_events_worker.drain()
+        import asyncio
 
-        def _asset_events():
-            return [
-                e
-                for e in asserting_events_worker._client.events
-                if e.event.startswith("prefect.asset.")
-            ]
+        asyncio.sleep(1)
 
-        events = _asset_events()
-        assert len(events) == 2
+        async def get_asset_events():
+            async with get_client() as client:
+                response = await client._client.post(
+                    "/events/filter",
+                    json={
+                        "filter": {
+                            "event": {"prefix": ["prefect.asset.materialization"]}
+                        },
+                    },
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("events", [])
+                return []
 
-        upstream_events = [e for e in events if e.resource.id == upstream.key]
-        downstream_events = [e for e in events if e.resource.id == downstream.key]
+        asset_events = asyncio.run(get_asset_events())
+
+        assert len(asset_events) == 2
+
+        upstream_events = [
+            e for e in asset_events if e.get("resource", {}).get("id") == upstream.key
+        ]
+        downstream_events = [
+            e for e in asset_events if e.get("resource", {}).get("id") == downstream.key
+        ]
 
         assert len(upstream_events) == 1
         assert len(downstream_events) == 1
 
-        assert upstream_events[0].event == "prefect.asset.materialization.succeeded"
-        assert downstream_events[0].event == "prefect.asset.materialization.succeeded"
-
-        downstream_evt = downstream_events[0]
-        assert any(
-            r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
+        assert upstream_events[0]["event"] == "prefect.asset.materialization.succeeded"
+        assert (
+            downstream_events[0]["event"] == "prefect.asset.materialization.succeeded"
         )
 
-        assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+        downstream_evt = downstream_events[0]
+        related = downstream_evt.get("related", [])
+        assert any(
+            r.get("id") == upstream.key and r.get("role") == "asset" for r in related
+        )
+
+        assert any(r.get("id", "").startswith("prefect.flow-run.") for r in related)
