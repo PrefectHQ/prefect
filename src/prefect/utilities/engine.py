@@ -24,6 +24,7 @@ from typing_extensions import TypeIs
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
+from prefect.assets.core import Asset
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.client.schemas.responses import (
@@ -60,7 +61,7 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-def _get_task_run_assets(task_run_id: UUID) -> Optional[Any]:
+def _get_task_run_assets(task_run_id: UUID) -> Optional[list[Asset]]:
     """
     Helper function to get task run assets from the flow run context.
 
@@ -851,7 +852,7 @@ def resolve_inputs_sync(
     return resolved_parameters
 
 
-def get_upstream_assets_from_task_inputs(task_run: TaskRun) -> set[Any]:
+def get_upstream_assets_from_task_inputs(task_run: TaskRun) -> set[Asset]:
     """Extract upstream assets from task inputs"""
     if not task_run or not task_run.task_inputs:
         return set()
@@ -888,8 +889,6 @@ def emit_asset_events(task: Any, task_run: TaskRun, succeeded: bool) -> None:
     upstream_related = [asset_as_related(a) for a in upstream_assets]
 
     asset_deps_related = []
-
-    # TODO don't do has attr
 
     if hasattr(task, "asset_deps") and task.asset_deps:
         from prefect.assets import Asset

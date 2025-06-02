@@ -30,6 +30,7 @@ from typing_extensions import Self
 import prefect.settings
 import prefect.types._datetime
 from prefect._internal.compatibility.migration import getattr_migration
+from prefect.assets.core import Asset
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
@@ -384,8 +385,7 @@ class EngineContext(RunContext):
 
     # Tracking information needed to track asset linage between
     # tasks and materializations
-    # TODO how to type this dict[UUID, list[Asset]] without circular imports?
-    task_run_assets: dict[UUID, list[Any]] = Field(default_factory=dict)
+    task_run_assets: dict[UUID, list[Asset]] = Field(default_factory=dict)
 
     # Events worker to emit events
     events: Optional[EventsWorker] = None

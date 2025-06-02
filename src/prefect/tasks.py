@@ -33,6 +33,7 @@ from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
 from prefect._internal.uuid7 import uuid7
+from prefect.assets.core import Asset
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -311,6 +312,7 @@ class Task(Generic[P, R]):
             should end as failed. Defaults to `None`, indicating the task should always continue
             to its retry policy.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
+        asset_deps: An optional list of upstream assets that this task depends on.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -354,8 +356,7 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
-        # TODO FIX TYPE HERE
-        asset_deps: list = None,
+        asset_deps: Optional[list[Asset]] = None,
     ):
         # Validate if hook passed is list and contains callables
         hook_categories = [on_completion, on_failure]
@@ -995,7 +996,6 @@ class Task(Generic[P, R]):
                 updated=state.timestamp,
             )
 
-            # Record task assets after creating the task run
             record_task_assets(self, task_run)
 
             return task_run
@@ -1672,8 +1672,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Literal[None] = None,
     viz_return_value: Any = None,
-    # TODO FIX TYPING
-    asset_deps: list[Any] = None,
+    asset_deps: Optional[list[Asset]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1709,8 +1708,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-    # TODO FIX TYPING
-    asset_deps: list[Any] = None,
+    asset_deps: Optional[list[Asset]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1747,8 +1745,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-    # TODO FIX TYPING
-    asset_deps: list[Any] = None,
+    asset_deps: Optional[list[Asset]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
@@ -1782,8 +1779,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-    # TODO FIX TYPING
-    asset_deps: list[Any] = None,
+    asset_deps: Optional[list[Asset]] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -1844,6 +1840,7 @@ def task(
             should end as failed. Defaults to `None`, indicating the task should always continue
             to its retry policy.
         viz_return_value: An optional value to return when the task dependency tree is visualized.
+        asset_deps: An optional list of upstream assets that this task depends on.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
