@@ -84,7 +84,7 @@ You can create deployments with the CLI command `prefect deploy` without alterin
 `prefect.yaml` file. The `prefect deploy` command helps in deployment creation through interactive prompts. The `prefect.yaml` 
 file facilitates version-controlling your deployment configuration and managing multiple deployments.
 
-### Deployment actions
+## Deployment actions
 
 Deployment actions defined in your `prefect.yaml` file control the lifecycle of the creation and execution of your deployments.
 The three actions available are `build`, `push`, and `pull`.
@@ -282,7 +282,7 @@ pull:
     access_token: "{{ prefect.blocks.secret.bitbucket-token }}"
 ```
 
-### Utility steps
+## Utility steps
 
 Use utility steps within a build, push, or pull action to assist in managing the deployment lifecycle:
 
@@ -364,7 +364,7 @@ preceding example, but utilizing the Azure Python SDK for retrieval.
     access_token: '{{ get-access-token.access_token }}'
 ```
 
-### Templating options
+## Templating options
 
 Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
 
@@ -435,7 +435,7 @@ A `prefect.yaml` file can have multiple deployment configurations that control t
 You can manage these deployments independently of one another, allowing you to deploy the same flow with different 
 configurations in the same codebase.
 
-### Work with multiple deployments with prefect.yaml
+## Work with multiple deployments with prefect.yaml
 
 Prefect supports multiple deployment declarations within the `prefect.yaml` file. This method of declaring multiple 
 deployments supports version control for all deployments through a single command.
@@ -609,9 +609,9 @@ In the above example, YAML aliases reuse work pool, schedule, and build configur
 - `deployment-1` and `deployment-3` use the same schedule
 - `deployment-1` and `deployment-2` use the same build deployment action, but `deployment-2` overrides the `dockerfile` field to use a custom Dockerfile
 
-### Deployment declaration reference
+## Deployment declaration reference
 
-#### Deployment fields
+### Deployment fields
 
 These are fields you can add to each deployment declaration.
 
@@ -629,7 +629,7 @@ These are fields you can add to each deployment declaration.
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
 | `work_pool`                                | Information of where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
 
-#### Schedule fields
+### Schedule fields
 
 These are fields you can add to a deployment declaration's `schedule` section.
 
@@ -642,7 +642,7 @@ These are fields you can add to a deployment declaration's `schedule` section.
 | `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
 | `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
 
-#### Concurrency limit fields
+### Concurrency limit fields
 
 These are fields you can add to a deployment declaration's `concurrency_limit` section.
 
@@ -652,7 +652,7 @@ These are fields you can add to a deployment declaration's `concurrency_limit` s
 | `collision_strategy`                       | Configure the behavior for runs once the concurrency limit is reached. Options are `ENQUEUE`, and `CANCEL_NEW`. Defaults to `ENQUEUE`.                                                                                 |
 
 
-#### Work pool fields
+### Work pool fields
 
 These are fields you can add to a deployment declaration's `work_pool` section.
 
@@ -662,7 +662,7 @@ These are fields you can add to a deployment declaration's `work_pool` section.
 | <span class="no-wrap">`work_queue_name`</span> | The name of the work queue within the specified work pool to schedule flow runs in for the deployment. If not provided, the default queue for the specified work pool is used.                       |
 | `job_variables`                                | Values used to override the default values in the specified work pool's [base job template](/v3/concepts/work-pools/#base-job-template). Maps directly to a created deployments `infra_overrides` attribute. |
 
-#### Deployment mechanics
+### Deployment mechanics
 
 Anytime you run `prefect deploy` in a directory that contains a `prefect.yaml` file, the following actions take place in order:
 

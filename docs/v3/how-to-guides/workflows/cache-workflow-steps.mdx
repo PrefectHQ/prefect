@@ -3,9 +3,53 @@ title: How to cache workflow step outputs
 sidebarTitle: Cache workflow step outputs
 ---
 
+The simplest way to cache the results of tasks within in a flow is to set `persist_result=True` on a task definition.
+
+```python
+from prefect import task, flow
+
+@task(persist_result=True)
+def add_one(x: int):
+    return x + 1
+
+@flow
+def my_flow():
+    add_one(1) # will not be cached
+    add_one(1) # will be cached
+    add_one(2) # will not be cached
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+<Accordion title="Output">
+
+```python
+16:28:51.230 | INFO    | Flow run 'outgoing-cicada' - Beginning flow run 'outgoing-cicada' for flow 'my-flow'
+16:28:51.257 | INFO    | Task run 'add_one-d85' - Finished in state Completed()
+16:28:51.276 | INFO    | Task run 'add_one-eff' - Finished in state Cached(type=COMPLETED)
+16:28:51.294 | INFO    | Task run 'add_one-d16' - Finished in state Completed()
+16:28:51.311 | INFO    | Flow run 'outgoing-cicada' - Finished in state Completed()
+```
+
+</Accordion>
+
+This will implicitly use the `DEFAULT` cache policy, which is a composite cache policy defined as:
+
+```python
+DEFAULT = INPUTS + TASK_SOURCE + RUN_ID
+```
+
+This means subsequent calls of a task with identical inputs from within the same parent run will return cached results without executing the body of the function.
+
+<Note>
+The `TASK_SOURCE` component of the `DEFAULT` cache policy helps avoid naming collisions between similar tasks that should not share a cache.
+</Note>
+
+
 ### Cache based on inputs
 
-To cache the output of a workflow step, set the `cache_policy` parameter on the task decorator.
+To cache the result of a task based only on task inputs, set `cache_policy=INPUTS` in the task decorator:
 
 ```python
 from prefect import task
