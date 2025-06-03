@@ -107,7 +107,7 @@ class RedisMessagingConsumerSettings(PrefectBaseSettings):
         ),
     )
     block: TimeDelta = Field(default=timedelta(seconds=1))
-    min_idle_time: TimeDelta = Field(default=timedelta(seconds=0))
+    min_idle_time: TimeDelta = Field(default=timedelta(seconds=5))
     max_retries: int = Field(default=3)
     trim_every: TimeDelta = Field(default=timedelta(seconds=60))
     should_process_pending_messages: bool = Field(default=True)
@@ -554,12 +554,18 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
     # Find the lowest last-delivered-id across all groups
     # The last-delivered-id is stored as 'last-delivered-id' in group info
-    lowest_id = min(
+    group_ids = [
         group["last-delivered-id"]
         for group in groups
         if group["last-delivered-id"]
         != "0-0"  # Skip groups that haven't consumed anything
-    )
+    ]
+
+    if not group_ids:
+        logger.debug(f"No messages have been delivered in stream {stream_name}")
+        return
+
+    lowest_id = min(group_ids)
 
     if lowest_id == "0-0":
         logger.debug(f"No messages have been delivered in stream {stream_name}")
