@@ -927,12 +927,31 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
                 NotifySendGrid,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
-        url = SecretStr(
-            NotifySendGrid(
+        self._NotifySendGrid = NotifySendGrid  # Cache the working import
+        url = self._build_sendgrid_url()
+        self._start_apprise_client(url)
+
+    def _build_sendgrid_url(self) -> SecretStr:
+        """Build the SendGrid URL with current to_emails."""
+        return SecretStr(
+            self._NotifySendGrid(
                 apikey=self.api_key.get_secret_value(),
                 from_email=self.sender_email,
                 targets=self.to_emails,
             ).url()  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType] incomplete type hints in apprise
         )
 
-        self._start_apprise_client(url)
+    @sync_compatible
+    async def notify(
+        self,
+        body: str,
+        subject: str | None = None,
+    ):
+        # Update apprise client with current to_emails before sending
+        if hasattr(self, "_apprise_client") and self._apprise_client:
+            self._apprise_client.clear()
+            self._apprise_client.add(
+                servers=self._build_sendgrid_url().get_secret_value()
+            )
+
+        await super().notify(body, subject)
