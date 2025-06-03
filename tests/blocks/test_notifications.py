@@ -780,7 +780,7 @@ class TestSendgridEmail:
             )
             await sg_block.notify("test")
 
-            # check if the apprise object is created
+            # Apprise is called once during initialization
             AppriseMock.assert_called_once()
 
             # check if the Apprise().add function is called with correct url
@@ -792,7 +792,14 @@ class TestSendgridEmail:
             url += "?"
             url += urllib.parse.urlencode(TestSendgridEmail.URL_PARAMS)
 
-            apprise_instance_mock.add.assert_called_once_with(url)
+            # add() should be called twice: once in constructor, once in notify update
+            assert apprise_instance_mock.add.call_count == 2
+            for call in apprise_instance_mock.add.call_args_list:
+                assert call.kwargs["servers"] == url
+
+            # clear() should be called once during notify to update emails
+            apprise_instance_mock.clear.assert_called_once()
+
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
@@ -822,8 +829,16 @@ class TestSendgridEmail:
             url += "?"
             url += urllib.parse.urlencode(TestSendgridEmail.URL_PARAMS)
 
+            # Apprise is called once during initialization
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(url)
+            # add() should be called twice: once in constructor, once in notify update
+            assert apprise_instance_mock.add.call_count == 2
+            for call in apprise_instance_mock.add.call_args_list:
+                assert call.kwargs["servers"] == url
+
+            # clear() should be called once during notify to update emails
+            apprise_instance_mock.clear.assert_called_once()
+
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
@@ -837,6 +852,45 @@ class TestSendgridEmail:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, SendgridEmail)
+
+    def test_notify_uses_updated_to_emails(self):
+        """Test that notify() uses programmatically updated to_emails."""
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            # Create block with empty recipients
+            sg_block = SendgridEmail(
+                api_key="test-api-key",
+                sender_email="test@gmail.com",
+                to_emails=[],
+            )
+
+            # Update recipients programmatically
+            sg_block.to_emails = ["updated@gmail.com"]
+
+            # Call notify - should use updated recipients
+            sg_block.notify("test")
+
+            # Verify that add() was called twice: once in constructor (empty), once in notify (updated)
+            add_calls = apprise_instance_mock.add.call_args_list
+            assert len(add_calls) == 2
+
+            # The second call should have the updated email in the URL
+            updated_url = add_calls[1].kwargs["servers"]
+            assert "updated%40gmail.com" in updated_url
+
+            # The first call should have empty targets (since to_emails was [])
+            initial_url = add_calls[0].kwargs["servers"]
+            # With empty to_emails, the URL should still be valid but have no targets in path
+            assert initial_url.startswith("sendgrid://")
+            assert "updated%40gmail.com" not in initial_url
+
+            # Apprise should be called once during initialization only
+            AppriseMock.assert_called_once()
+
+            # clear() should be called once to update the email list
+            apprise_instance_mock.clear.assert_called_once()
 
 
 class TestMicrosoftTeamsWebhook:
