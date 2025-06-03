@@ -24,7 +24,7 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         docker run -p 4200:4200 -d --rm prefecthq/prefect:3-python3.12 prefect server start --host 0.0.0.0
         ```
 
-        Both commands start a server at [`http://localhost:4200`](http://localhost:4200). Keep this running in a terminal window.
+        Both commands start a server at [`http://localhost:4200`](http://localhost:4200). Keep this process running for this tutorial.
       </Step>
       <Step title="What code should run?">
         Let's start with a boring Python script that fetches a list of customer ids and processes them all in parallel. You can find this code and other examples hosted in our [quickstart repository](https://github.com/PrefectHQ/quickstart/blob/main/01_getting_started.py). 
