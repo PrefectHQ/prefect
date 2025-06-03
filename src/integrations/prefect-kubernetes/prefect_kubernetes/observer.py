@@ -5,7 +5,7 @@ import json
 import logging
 import threading
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import anyio
@@ -134,10 +134,12 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             resource=EventResourceFilter(
                 id=[f"prefect.kubernetes.pod.{uid}"],
             ),
-            **(
-                {"occurred": EventOccurredFilter(since=k8s_event_time)}
-                if k8s_event_time
-                else {}
+            occurred=EventOccurredFilter(
+                since=(
+                    k8s_event_time
+                    if k8s_event_time
+                    else (datetime.now(timezone.utc) - timedelta(hours=1))
+                )
             ),
         )
 
