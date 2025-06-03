@@ -135,11 +135,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 id=[f"prefect.kubernetes.pod.{uid}"],
             ),
             **(
-                {
-                    "occurred": EventOccurredFilter(
-                        since=k8s_event_time - timedelta(minutes=10)
-                    )
-                }
+                {"occurred": EventOccurredFilter(since=k8s_event_time)}
                 if k8s_event_time
                 else {}
             ),
