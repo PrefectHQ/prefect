@@ -41,11 +41,9 @@ class TestReadCollectionViews:
             },
         }
 
-    @respx.mock
     @pytest.fixture
     def mock_get_view(
         self,
-        respx_mock,
         mock_flow_response,
         mock_block_response,
     ):
@@ -62,7 +60,6 @@ class TestReadCollectionViews:
 
             yield respx_mock, flow_route, block_route
 
-    @respx.mock
     @pytest.fixture
     def mock_get_missing_view(
         self,
