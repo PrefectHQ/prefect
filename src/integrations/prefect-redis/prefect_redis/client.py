@@ -113,7 +113,6 @@ def get_async_redis_client(
         health_check_interval=health_check_interval or settings.health_check_interval,
         ssl=ssl or settings.ssl,
         decode_responses=decode_responses,
-        retry_on_timeout=True,
     )
 
 
@@ -122,7 +121,6 @@ def async_redis_from_settings(
     settings: RedisMessagingSettings, **options: Any
 ) -> Redis:
     options = {
-        "retry_on_timeout": True,
         "decode_responses": True,
         **options,
     }
