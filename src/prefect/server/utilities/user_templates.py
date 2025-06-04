@@ -24,7 +24,7 @@ def _check_template_range(*args: int) -> range:
     if len(rng) > MAX_TEMPLATE_RANGE:
         raise OverflowError(
             "Range too big. The sandbox blocks ranges larger than"
-            f" MAX_RANGE ({MAX_TEMPLATE_RANGE})."
+            f" {MAX_TEMPLATE_RANGE=}."
         )
     return rng
 
