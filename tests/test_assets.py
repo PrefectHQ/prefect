@@ -101,14 +101,38 @@ def test_asset_as_resource_with_all_properties():
     assert resource == expected
 
 
+def test_asset_as_resource_excludes_unset_properties():
+    """Test that asset_as_resource excludes properties that were not explicitly set."""
+    asset = Asset(
+        key="postgres://prod/transactions",
+        properties=AssetProperties(
+            name="Transactions",
+            # description is not set (will be None)
+            # url is not set (will be None)
+            owners=["finance-team"],
+        ),
+    )
+    resource = AssetContext.asset_as_resource(asset)
+
+    # Should only include the fields that were explicitly set
+    expected = {
+        "prefect.resource.id": "postgres://prod/transactions",
+        "prefect.resource.name": "Transactions",
+        "prefect.asset.owners": '["finance-team"]',
+    }
+    assert resource == expected
+    # Ensure unset fields are not included
+    assert "prefect.asset.description" not in resource
+    assert "prefect.asset.url" not in resource
+
+
 # =============================================================================
 # Single Asset Operations
 # =============================================================================
 
 
-def test_single_asset_materialization_success(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_single_asset_materialization_success(asserting_events_worker: EventsWorker):
     """Test single asset materialization success.
 
     Expected graph: [M: postgres://prod/users]
@@ -132,9 +156,8 @@ def test_single_asset_materialization_success(
     assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
-def test_single_asset_materialization_failure(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_single_asset_materialization_failure(asserting_events_worker: EventsWorker):
     """Test single asset materialization failure.
 
     Expected graph: [M: s3://data/broken] (failed)
@@ -160,9 +183,8 @@ def test_single_asset_materialization_failure(
     assert evt.resource.id == asset.key
 
 
-def test_single_asset_observation(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_single_asset_observation(asserting_events_worker: EventsWorker):
     """Test single asset observation.
 
     Expected graph: [O: s3://bucket/raw_data.csv]
@@ -184,9 +206,8 @@ def test_single_asset_observation(
     assert evt.resource.id == "s3://bucket/raw_data.csv"
 
 
-def test_multiple_asset_observations(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_multiple_asset_observations(asserting_events_worker: EventsWorker):
     """Test multiple asset observations from single task.
 
     Expected graph: [O: s3://bucket/raw1.csv], [O: s3://bucket/raw2.csv], [O: s3://bucket/raw3.csv]
@@ -214,9 +235,8 @@ def test_multiple_asset_observations(
         assert evt.event == "prefect.asset.observation.succeeded"
 
 
-def test_multiple_asset_materializations(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_multiple_asset_materializations(asserting_events_worker: EventsWorker):
     """Test multiple assets materialized by single function.
 
     Expected graph: [M: postgres://prod/users_raw], [M: postgres://prod/orders_raw]
@@ -244,9 +264,8 @@ def test_multiple_asset_materializations(
 # =============================================================================
 
 
-def test_mixed_asset_objects_and_string_keys(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_mixed_asset_objects_and_string_keys(asserting_events_worker: EventsWorker):
     """Test that mixed Asset objects and string keys work together.
 
     This comprehensively tests string key conversion in both @materialize and @task(asset_deps).
@@ -308,8 +327,9 @@ def test_mixed_asset_objects_and_string_keys(
 # =============================================================================
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_materialization_to_materialization_dependency(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test linear asset dependency between two materializations.
 
@@ -343,8 +363,9 @@ def test_materialization_to_materialization_dependency(
     assert any(r.id == upstream.key and r.role == "asset" for r in down_evt.related)
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_observation_to_materialization_dependency(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test linear dependency from observation to materialization.
 
@@ -381,8 +402,9 @@ def test_observation_to_materialization_dependency(
     assert any(r.id == upstream.key and r.role == "asset" for r in mat_evt.related)
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_linear_dependency_with_intermediate_task(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test linear dependency with intermediate non-asset task.
 
@@ -427,9 +449,8 @@ def test_linear_dependency_with_intermediate_task(
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
-def test_materialize_with_explicit_asset_deps(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialize_with_explicit_asset_deps(asserting_events_worker: EventsWorker):
     """Test @materialize with explicit asset_deps parameter.
 
     Expected graph: [O: s3://bucket/raw_data.csv] --> [M: s3://bucket/data.csv]
@@ -469,9 +490,8 @@ def test_materialize_with_explicit_asset_deps(
     )
 
 
-def test_three_stage_linear_pipeline(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_three_stage_linear_pipeline(asserting_events_worker: EventsWorker):
     """Test three-stage linear pipeline with direct dependencies only.
 
     Expected graph: [M: s3://lake/bronze/users] --> [M: s3://lake/silver/users] --> [M: s3://lake/gold/users]
@@ -524,7 +544,8 @@ def test_three_stage_linear_pipeline(
 # =============================================================================
 
 
-def test_fan_in_dependency(asserting_events_worker: EventsWorker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_fan_in_dependency(asserting_events_worker: EventsWorker):
     """Test fan-in dependency pattern.
     
     Expected graph:
@@ -579,7 +600,8 @@ def test_fan_in_dependency(asserting_events_worker: EventsWorker, reset_worker_e
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
-def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_fan_out_dependency(asserting_events_worker: EventsWorker):
     """Test fan-out dependency pattern.
 
     Expected graph:
@@ -636,9 +658,8 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker, reset_worker_
         assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
-def test_fan_in_to_fan_out_dependency(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_fan_in_to_fan_out_dependency(asserting_events_worker: EventsWorker):
     """Test fan-in to fan-out dependency pattern.
 
     Expected graph:
@@ -687,9 +708,8 @@ def test_fan_in_to_fan_out_dependency(
         assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
-def test_forward_propagation_asset_lineage(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_forward_propagation_asset_lineage(asserting_events_worker: EventsWorker):
     """Test that asset lineage flows forward through task graph without backward traversal.
     
     Expected graph:
@@ -746,9 +766,8 @@ def test_forward_propagation_asset_lineage(
     assert "postgres://prod/users" in related_asset_ids
 
 
-def test_complex_snowflake_aggregation(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_complex_snowflake_aggregation(asserting_events_worker: EventsWorker):
     """Test complex Snowflake aggregation pattern with multiple observations and materializations.
     
     Expected graph:
@@ -845,9 +864,8 @@ def test_complex_snowflake_aggregation(
 # =============================================================================
 
 
-async def test_async_materialization(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+async def test_async_materialization(asserting_events_worker: EventsWorker):
     """Test async asset materialization.
 
     Expected graph: [M: postgres://prod/async]
@@ -870,8 +888,9 @@ async def test_async_materialization(
     assert evt.resource.id == asset.key
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_cached_asset_does_not_emit_duplicate_events(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test that cached assets don't emit duplicate events.
 
@@ -900,7 +919,8 @@ def test_cached_asset_does_not_emit_duplicate_events(
     assert events[0].resource.id == asset.key
 
 
-def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_linear_dependency_with_submit(asserting_events_worker):
     """Test linear dependency using task.submit().
 
     Expected graph: [O: postgres://prod/users_submit] --> [M: postgres://prod/users_clean_submit]
@@ -941,7 +961,8 @@ def test_linear_dependency_with_submit(asserting_events_worker, reset_worker_eve
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
 
-def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_map_with_asset_dependency(asserting_events_worker):
     """Test map operation with asset dependency.
 
     Expected graph:
@@ -987,7 +1008,8 @@ def test_map_with_asset_dependency(asserting_events_worker, reset_worker_events)
         assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
-def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_events):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_asset_dependency_with_wait_for(asserting_events_worker):
     """Test asset dependency using wait_for parameter.
 
     Expected graph: [O: s3://data/dependencies/source] --> [M: s3://data/dependencies/dependent]
@@ -1033,9 +1055,8 @@ def test_asset_dependency_with_wait_for(asserting_events_worker, reset_worker_ev
 # =============================================================================
 
 
-def test_materialization_with_by_parameter(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialization_with_by_parameter(asserting_events_worker: EventsWorker):
     """Test that @materialize with by parameter includes materialized-by tool as related resource.
 
     Expected graph: [M: s3://bucket/dbt_table] (materialized by dbt)
@@ -1064,8 +1085,9 @@ def test_materialization_with_by_parameter(
     assert materialized_by_resources[0].id == "dbt"
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_materialization_with_by_parameter_and_dependencies(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test materialization with by parameter includes tool alongside asset dependencies.
 
@@ -1116,9 +1138,8 @@ def test_materialization_with_by_parameter_and_dependencies(
 # =============================================================================
 
 
-def test_linear_dependency_with_asset_properties(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_linear_dependency_with_asset_properties(asserting_events_worker: EventsWorker):
     """Test linear dependency from observation to materialization where both assets have properties.
 
     Expected graph: [O: s3://lake/raw/customer_data.parquet] --> [M: postgres://warehouse/customers]
@@ -1184,9 +1205,8 @@ def test_linear_dependency_with_asset_properties(
     assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)
 
 
-def test_materialization_metadata(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialization_metadata(asserting_events_worker: EventsWorker):
     """Test that metadata is still captured when a materializing task succeeds."""
 
     asset = Asset(key="s3://bucket/data.csv")
@@ -1208,9 +1228,8 @@ def test_materialization_metadata(
     assert event.payload == {"wrote_rows": 1000}
 
 
-def test_materialization_metadata_str_utility(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialization_metadata_str_utility(asserting_events_worker: EventsWorker):
     """Test that metadata is still captured when a materializing task succeeds."""
     from prefect.assets import add_asset_metadata
 
@@ -1231,9 +1250,8 @@ def test_materialization_metadata_str_utility(
     assert event.payload == {"wrote_rows": 1000}
 
 
-def test_stacking_materialization_metadata(
-    asserting_events_worker: EventsWorker, reset_worker_events
-):
+@pytest.mark.usefixtures("reset_worker_events")
+def test_stacking_materialization_metadata(asserting_events_worker: EventsWorker):
     """Test that metadata is still captured when a materializing task succeeds."""
 
     asset = Asset(key="s3://bucket/data.csv")
@@ -1256,8 +1274,9 @@ def test_stacking_materialization_metadata(
     assert event.payload == {"wrote_rows": 1000, "wrote_columns": 5}
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_materialization_metadata_multiple_assets(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test that metadata is still captured when a materializing task succeeds."""
 
@@ -1303,8 +1322,9 @@ def test_materialization_metadata_multiple_assets(
     assert event2.payload == {"wrote_columns": 5}
 
 
+@pytest.mark.usefixtures("reset_worker_events")
 def test_materialization_metadata_with_task_failure(
-    asserting_events_worker: EventsWorker, reset_worker_events
+    asserting_events_worker: EventsWorker,
 ):
     """Test that metadata is still captured when a task fails."""
 

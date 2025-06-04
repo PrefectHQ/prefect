@@ -505,7 +505,7 @@ class AssetContext(ContextModel):
         from prefect.client.schemas import TaskRunResult
         from prefect.tasks import MaterializingTask
 
-        upstream_assets = []
+        upstream_assets: list[Asset] = []
 
         # Get upstream assets from engine context instead of TaskRunResult.assets
         flow_ctx = FlowRunContext.get()
@@ -548,17 +548,19 @@ class AssetContext(ContextModel):
         resource = {"prefect.resource.id": asset.key}
 
         if asset.properties:
-            if asset.properties.name:
-                resource["prefect.resource.name"] = asset.properties.name
+            properties_dict = asset.properties.model_dump(exclude_unset=True)
 
-            if asset.properties.description:
-                resource["prefect.asset.description"] = asset.properties.description
+            if "name" in properties_dict:
+                resource["prefect.resource.name"] = properties_dict["name"]
 
-            if asset.properties.url:
-                resource["prefect.asset.url"] = asset.properties.url
+            if "description" in properties_dict:
+                resource["prefect.asset.description"] = properties_dict["description"]
 
-            if asset.properties.owners:
-                resource["prefect.asset.owners"] = json.dumps(asset.properties.owners)
+            if "url" in properties_dict:
+                resource["prefect.asset.url"] = properties_dict["url"]
+
+            if "owners" in properties_dict:
+                resource["prefect.asset.owners"] = json.dumps(properties_dict["owners"])
 
         return resource
 
@@ -594,7 +596,7 @@ class AssetContext(ContextModel):
         else:
             return
 
-        asset_deps_related = []
+        asset_deps_related: list[Asset] = []
 
         # Emit observation events for direct asset dependencies
         for asset in self.direct_asset_dependencies:

@@ -2022,7 +2022,7 @@ class MaterializingTask(Task[P, R]):
 
     def __init__(
         self,
-        fn: Callable[P, R] | "classmethod[Any, P, R]" | "staticmethod[P, R]",
+        fn: Callable[P, R],
         *,
         assets: Sequence[Union[str, Asset]],
         materialized_by: str | None = None,

@@ -450,7 +450,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 result = state.data
 
-            link_state_to_result(state, result)
+            link_state_to_result(new_state, result)
             if asset_context := AssetContext.get():
                 asset_context.emit_events(new_state)
 
