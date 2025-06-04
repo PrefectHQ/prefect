@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import json
 import os
 import signal
 import time
@@ -48,7 +47,7 @@ from prefect.logging.loggers import get_logger
 from prefect.results import ResultRecord, should_persist_result
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
-from prefect.tasks import MaterializingTask, Task
+from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
@@ -851,111 +850,3 @@ def resolve_inputs_sync(
             ) from exc
 
     return resolved_parameters
-
-
-def get_upstream_assets_from_task_inputs(task_run: TaskRun) -> set[Asset]:
-    """Extract upstream assets from task inputs"""
-    if not task_run or not task_run.task_inputs:
-        return set()
-
-    upstream_assets = set()
-    for input_list in task_run.task_inputs.values():
-        for task_input in input_list:
-            if isinstance(task_input, TaskRunResult) and task_input.assets:
-                upstream_assets.update(task_input.assets)
-
-    return upstream_assets
-
-
-def asset_as_resource(asset: Asset) -> dict[str, str]:
-    """Convert Asset to event resource format."""
-    resource = {"prefect.resource.id": asset.key}
-
-    if asset.properties:
-        if asset.properties.name:
-            resource["prefect.resource.name"] = asset.properties.name
-
-        if asset.properties.description:
-            resource["prefect.asset.description"] = asset.properties.description
-
-        if asset.properties.url:
-            resource["prefect.asset.url"] = asset.properties.url
-
-        if asset.properties.owners:
-            resource["prefect.asset.owners"] = json.dumps(asset.properties.owners)
-
-    return resource
-
-
-def asset_as_related(asset: Asset) -> dict[str, str]:
-    """Convert Asset to event related format."""
-    return {
-        "prefect.resource.id": asset.key,
-        "prefect.resource.role": "asset",
-    }
-
-
-def related_materialized_by(by: str) -> dict[str, str]:
-    """Create a related resource for the tool that performed the materialization"""
-    return {
-        "prefect.resource.id": by,
-        "prefect.resource.role": "asset-materialized-by",
-    }
-
-
-def emit_asset_events(task: Task, task_run: TaskRun, succeeded: bool) -> None:
-    """Emit observation/materialization events for assets."""
-    from prefect.events import emit_event
-
-    asset_deps_related = []
-
-    if task.asset_deps:
-        from prefect.assets import Asset
-
-        for asset in task.asset_deps:
-            asset_obj = asset if isinstance(asset, Asset) else Asset(key=asset)
-            emit_event(
-                event=f"prefect.asset.observation.{'succeeded' if succeeded else 'failed'}",
-                resource=asset_as_resource(asset_obj),
-                related=[],
-            )
-            asset_deps_related.append(asset_as_related(asset_obj))
-
-    if isinstance(task, MaterializingTask):
-        upstream_assets = get_upstream_assets_from_task_inputs(task_run)
-        upstream_related = [asset_as_related(a) for a in upstream_assets]
-
-        all_related = upstream_related + asset_deps_related
-
-        if task.materialized_by:
-            all_related.append(related_materialized_by(task.materialized_by))
-
-        if task.assets:
-            for asset in task.assets:
-                emit_event(
-                    event=f"prefect.asset.materialization.{'succeeded' if succeeded else 'failed'}",
-                    resource=asset_as_resource(asset),
-                    related=all_related,
-                    payload=task_run._materialization_metadata.get(asset.key),
-                )
-
-
-def record_task_assets(task: Task, task_run: TaskRun) -> None:
-    """Record direct assets and conditionally propagate upstream assets based on task type."""
-    ctx = FlowRunContext.get()
-    if not ctx or not task_run:
-        return
-
-    direct_assets = []
-
-    if task.asset_deps:
-        direct_assets.extend(task.asset_deps[:])
-
-    if isinstance(task, MaterializingTask) and task.assets:
-        direct_assets.extend(task.assets[:])
-        assets_for_downstream = task.assets[:]
-    else:
-        upstream_assets = get_upstream_assets_from_task_inputs(task_run)
-        assets_for_downstream = direct_assets + list(upstream_assets)
-
-    ctx.task_run_assets[task_run.id] = assets_for_downstream

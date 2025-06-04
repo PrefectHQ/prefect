@@ -25,7 +25,6 @@ from pydantic import (
     Field,
     HttpUrl,
     IPvAnyNetwork,
-    PrivateAttr,
     SerializationInfo,
     SerializerFunctionWrapHandler,
     Tag,
@@ -900,8 +899,6 @@ class TaskRun(TimeSeriesBaseModel, ObjectBaseModel):
     @classmethod
     def set_default_name(cls, name: Optional[str]) -> Name:
         return get_or_create_run_name(name)
-
-    _materialization_metadata: dict[str, Any] = PrivateAttr(default_factory=dict)
 
 
 class Workspace(PrefectBaseModel):

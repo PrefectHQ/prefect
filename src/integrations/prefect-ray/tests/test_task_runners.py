@@ -530,31 +530,28 @@ class TestRayTaskRunner:
 
         assert add_random_integers() > 0
 
-    @pytest.mark.skip("Not working yet")
     async def test_assets_with_task_runner(self, task_runner):
         upstream = Asset(key="s3://data/dask_raw")
         downstream = Asset(key="s3://data/dask_processed")
 
         @materialize(upstream)
-        def extract():
+        async def extract():
             return {"rows": 50}
 
         @materialize(downstream)
-        def load(data):
-            return {"rows": data["rows"] * 2}
+        async def load(d):
+            return {"rows": d["rows"] * 2}
 
-        @flow(task_runner=task_runner)
-        def pipeline():
+        @flow(version="test", task_runner=task_runner)
+        async def pipeline():
             raw_data = extract.submit()
             processed = load.submit(raw_data)
-            processed.wait()
             return processed
 
-        result = pipeline()
-        data = await result.result()
-        assert data["rows"] == 100
+        await pipeline()
 
-        await asyncio.sleep(1)
+        # Give the server some time to process the events
+        await asyncio.sleep(5)
 
         async with get_client() as client:
             response = await client._client.post(

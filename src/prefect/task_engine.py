@@ -43,6 +43,7 @@ from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
+    AssetContext,
     AsyncClientContext,
     FlowRunContext,
     SyncClientContext,
@@ -94,7 +95,6 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
-    emit_asset_events,
     emit_task_run_state_change_event,
     link_state_to_result,
     resolve_to_final_result,
@@ -303,18 +303,6 @@ class BaseTaskRunEngine(Generic[P, R]):
             follows=self._last_event,
         )
 
-    def handle_assets(self) -> None:
-        if not self.state or not self.task or not self.task_run:
-            return
-
-        if self.state.name == "Cached":
-            return
-
-        if self.state.is_failed():
-            emit_asset_events(self.task, self.task_run, succeeded=False)
-        elif self.state.is_completed():
-            emit_asset_events(self.task, self.task_run, succeeded=True)
-
 
 @dataclass
 class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
@@ -463,6 +451,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = state.data
 
             link_state_to_result(state, result)
+            if asset_context := AssetContext.get():
+                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -638,6 +628,19 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
+
+            asset_context = AssetContext.get()
+            if not asset_context:
+                asset_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                stack.enter_context(asset_context)
+
+            if flow_run_context := FlowRunContext.get():
+                asset_context.update_tracked_assets(flow_run_context)
+
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -791,7 +794,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     try:
                         yield
                     finally:
-                        self.handle_assets()
                         self.call_hooks()
 
     @contextmanager
@@ -1017,7 +1019,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 result = new_state.data
 
-            link_state_to_result(new_state, result)
+            link_state_to_result(state, result)
+            if asset_context := AssetContext.get():
+                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1193,6 +1197,19 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
+
+            asset_context = AssetContext.get()
+            if not asset_context:
+                asset_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                stack.enter_context(asset_context)
+
+            if flow_run_context := FlowRunContext.get():
+                asset_context.update_tracked_assets(flow_run_context)
+
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1344,7 +1361,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     try:
                         yield
                     finally:
-                        self.handle_assets()
                         await self.call_hooks()
 
     @asynccontextmanager

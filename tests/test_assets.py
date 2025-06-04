@@ -1,10 +1,10 @@
 import pytest
 
 from prefect.assets import Asset, AssetProperties, materialize
+from prefect.context import AssetContext
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
-from prefect.utilities.engine import asset_as_related, asset_as_resource
 
 
 def _asset_events(worker: EventsWorker):
@@ -40,20 +40,20 @@ def test_asset_invalid_uri(invalid_key):
 
 def test_asset_as_resource():
     asset = Asset(key="s3://bucket/data")
-    resource = asset_as_resource(asset)
+    resource = AssetContext.asset_as_resource(asset)
     assert resource["prefect.resource.id"] == "s3://bucket/data"
 
 
 def test_asset_as_related():
     asset = Asset(key="postgres://prod/users")
-    related = asset_as_related(asset)
+    related = AssetContext.asset_as_related(asset)
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
 
 def test_asset_as_resource_with_no_properties():
     asset = Asset(key="s3://bucket/data")
-    resource = asset_as_resource(asset)
+    resource = AssetContext.asset_as_resource(asset)
 
     assert resource == {"prefect.resource.id": "s3://bucket/data"}
     assert "prefect.resource.name" not in resource
@@ -67,7 +67,7 @@ def test_asset_as_resource_with_partial_properties():
         key="postgres://prod/users",
         properties=AssetProperties(name="Users Table", description="Main users table"),
     )
-    resource = asset_as_resource(asset)
+    resource = AssetContext.asset_as_resource(asset)
 
     expected = {
         "prefect.resource.id": "postgres://prod/users",
@@ -89,7 +89,7 @@ def test_asset_as_resource_with_all_properties():
             owners=["data-team", "analytics"],
         ),
     )
-    resource = asset_as_resource(asset)
+    resource = AssetContext.asset_as_resource(asset)
 
     expected = {
         "prefect.resource.id": "s3://data-lake/enriched/customers.parquet",
@@ -1188,14 +1188,35 @@ def test_materialization_metadata(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
     """Test that metadata is still captured when a materializing task succeeds."""
-    from prefect.context import get_run_context
 
     asset = Asset(key="s3://bucket/data.csv")
 
     @materialize(asset)
     def my_task():
-        ctx = get_run_context()
-        ctx.add_asset_metadata(asset, {"wrote_rows": 1000})
+        asset.add_metadata({"wrote_rows": 1000})
+
+    @flow
+    def pipeline():
+        my_task()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    event = _first_event(asserting_events_worker)
+    assert event.event == "prefect.asset.materialization.succeeded"
+    assert event.resource.id == "s3://bucket/data.csv"
+    assert event.payload == {"wrote_rows": 1000}
+
+
+def test_materialization_metadata_str_utility(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Test that metadata is still captured when a materializing task succeeds."""
+    from prefect.assets import add_asset_metadata
+
+    @materialize("s3://bucket/data.csv")
+    def my_task():
+        add_asset_metadata("s3://bucket/data.csv", {"wrote_rows": 1000})
 
     @flow
     def pipeline():
@@ -1214,15 +1235,13 @@ def test_stacking_materialization_metadata(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
     """Test that metadata is still captured when a materializing task succeeds."""
-    from prefect.context import get_run_context
 
     asset = Asset(key="s3://bucket/data.csv")
 
     @materialize(asset)
     def my_task():
-        ctx = get_run_context()
-        ctx.add_asset_metadata(asset, {"wrote_rows": 1000})
-        ctx.add_asset_metadata(asset, {"wrote_columns": 5})
+        asset.add_metadata({"wrote_rows": 1000})
+        asset.add_metadata({"wrote_columns": 5})
 
     @flow
     def pipeline():
@@ -1241,16 +1260,14 @@ def test_materialization_metadata_multiple_assets(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
     """Test that metadata is still captured when a materializing task succeeds."""
-    from prefect.context import get_run_context
 
     asset1 = Asset(key="s3://bucket/data1.csv")
     asset2 = Asset(key="s3://bucket/data2.csv")
 
     @materialize(asset1, asset2)
     def my_task():
-        ctx = get_run_context()
-        ctx.add_asset_metadata(asset1, {"wrote_rows": 1000})
-        ctx.add_asset_metadata(asset2, {"wrote_columns": 5})
+        asset1.add_metadata({"wrote_rows": 1000})
+        asset2.add_metadata({"wrote_columns": 5})
 
     @flow
     def pipeline():
@@ -1290,14 +1307,12 @@ def test_materialization_metadata_with_task_failure(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
     """Test that metadata is still captured when a task fails."""
-    from prefect.context import get_run_context
 
-    @materialize("s3://bucket/failed_output.csv")
+    asset = Asset(key="s3://bucket/failed_output.csv")
+
+    @materialize(asset)
     def failing_task():
-        ctx = get_run_context()
-        ctx.add_asset_metadata(
-            "s3://bucket/failed_output.csv", {"attempted_rows": 1000}
-        )
+        asset.add_metadata({"attempted_rows": 1000})
         raise RuntimeError("Processing failed")
 
     @flow

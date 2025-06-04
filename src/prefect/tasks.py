@@ -951,7 +951,6 @@ class Task(Generic[P, R]):
         from prefect.utilities._engine import dynamic_key_for_task_run
         from prefect.utilities.engine import (
             collect_task_run_inputs_sync,
-            record_task_assets,
         )
 
         if flow_run_context is None:
@@ -1057,8 +1056,6 @@ class Task(Generic[P, R]):
                 created=state.timestamp,
                 updated=state.timestamp,
             )
-
-            record_task_assets(self, task_run)
 
             return task_run
 
@@ -2034,5 +2031,7 @@ class MaterializingTask(Task[P, R]):
     ):
         super().__init__(fn=fn, **task_kwargs)
 
-        self.assets = [Asset(key=a) if isinstance(a, str) else a for a in assets]
+        self.assets: list[Asset] = [
+            Asset(key=a) if isinstance(a, str) else a for a in assets
+        ]
         self.materialized_by = materialized_by

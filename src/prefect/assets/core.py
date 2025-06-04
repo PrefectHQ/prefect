@@ -64,3 +64,26 @@ class Asset(PrefectBaseModel):
 
     def __repr__(self) -> str:
         return f"Asset(key={self.key!r})"
+
+    def add_metadata(self, metadata: dict[str, Any]):
+        from prefect.context import AssetContext
+
+        asset_ctx = AssetContext.get()
+        if not asset_ctx:
+            raise RuntimeError(
+                "Unable add Asset metadata when not inside of an AssetContext"
+            )
+
+        asset_ctx.add_asset_metadata(self.key, metadata)
+
+
+def add_asset_metadata(asset_key: str, metadata: dict[str, Any]) -> None:
+    from prefect.context import AssetContext
+
+    asset_ctx = AssetContext.get()
+    if not asset_ctx:
+        raise RuntimeError(
+            "Unable to call `add_asset_metadata` when not inside of an AssetContext"
+        )
+
+    asset_ctx.add_asset_metadata(asset_key, metadata)

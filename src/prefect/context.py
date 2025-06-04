@@ -7,6 +7,7 @@ For more user-accessible information about the current run, see [`prefect.runtim
 """
 
 import asyncio
+import json
 import os
 import sys
 import warnings
@@ -66,12 +67,14 @@ def serialize_context() -> dict[str, Any]:
     task_run_context = TaskRunContext.get()
     tags_context = TagsContext.get()
     settings_context = SettingsContext.get()
+    asset_context = AssetContext.get()
 
     return {
         "flow_run_context": flow_run_context.serialize() if flow_run_context else {},
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
+        "asset_context": asset_context.serialize() if asset_context else {},
     }
 
 
@@ -122,6 +125,9 @@ def hydrated_context(
             # Set up tags context
             if tags_context := serialized_context.get("tags_context"):
                 stack.enter_context(tags(*tags_context["current_tags"]))
+            # Set up asset context
+            if asset_context := serialized_context.get("asset_context"):
+                stack.enter_context(AssetContext(**asset_context))
         yield
 
 
@@ -384,7 +390,7 @@ class EngineContext(RunContext):
     task_run_results: dict[int, State] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
-    # tasks and materializations
+    # tasks and materialization
     task_run_assets: dict[UUID, list[Asset]] = Field(default_factory=dict)
 
     # Events worker to emit events
@@ -456,20 +462,190 @@ class TaskRunContext(RunContext):
             context={"include_secrets": include_secrets},
         )
 
-    def add_asset_metadata(
-        self: Self, asset: Union[str | Asset], metadata: dict[str, Any]
-    ):
+
+class AssetContext(ContextModel):
+    """
+    The asset context for a materializing task run. Contains all asset-related information needed
+    for asset event emission and downstream asset dependency propagation.
+
+    Attributes:
+        direct_asset_dependencies: Assets that this task directly depends on (from task.asset_deps)
+        downstream_assets: Assets that this task will create/materialize (from MaterializingTask.assets)
+        upstream_assets: Assets from upstream task dependencies
+        materialized_by: Tool that materialized the assets (from MaterializingTask.materialized_by)
+        task_run_id: ID of the associated task run
+        materialization_metadata: Metadata for materialized assets
+    """
+
+    direct_asset_dependencies: list[Asset] = Field(default_factory=list)
+    downstream_assets: list[Asset] = Field(default_factory=list)
+    upstream_assets: list[Asset] = Field(default_factory=list)
+    materialized_by: Optional[str] = None
+    task_run_id: Optional[UUID] = None
+    materialization_metadata: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+    __var__: ClassVar[ContextVar[Self]] = ContextVar("asset_context")
+
+    @classmethod
+    def from_task_and_inputs(
+        cls,
+        task: "Task[Any, Any]",
+        task_run_id: UUID,
+        task_inputs: Optional[dict[str, list[Any]]] = None,
+    ) -> "AssetContext":
+        """
+        Create an AssetContext from a task and its resolved inputs.
+
+        Args:
+            task: The task instance
+            task_run_id: The task run ID
+            task_inputs: The resolved task inputs (TaskRunResult objects)
+
+        Returns:
+            Configured AssetContext
+        """
+        from prefect.client.schemas import TaskRunResult
         from prefect.tasks import MaterializingTask
 
-        if not isinstance(self.task, MaterializingTask):
-            raise RuntimeError(
-                "Unable to add metadata when not inside the context of a materializing task."
+        upstream_assets = []
+
+        if task_inputs:
+            for input_list in task_inputs.values():
+                for task_input in input_list:
+                    if isinstance(task_input, TaskRunResult) and task_input.assets:
+                        upstream_assets.extend(task_input.assets)
+
+        return cls(
+            direct_asset_dependencies=task.asset_deps[:] if task.asset_deps else [],
+            downstream_assets=task.assets[:]
+            if isinstance(task, MaterializingTask) and task.assets
+            else [],
+            upstream_assets=upstream_assets,
+            materialized_by=task.materialized_by
+            if isinstance(task, MaterializingTask)
+            else None,
+            task_run_id=task_run_id,
+        )
+
+    def add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None:
+        """
+        Add metadata for a materialized asset.
+
+        Args:
+            asset_key: The asset key
+            metadata: Metadata dictionary to add
+        """
+
+        existing = self.materialization_metadata.get(asset_key, {})
+        self.materialization_metadata[asset_key] = existing | metadata
+
+    @staticmethod
+    def asset_as_resource(asset: Asset) -> dict[str, str]:
+        """Convert Asset to event resource format."""
+        resource = {"prefect.resource.id": asset.key}
+
+        if asset.properties:
+            if asset.properties.name:
+                resource["prefect.resource.name"] = asset.properties.name
+
+            if asset.properties.description:
+                resource["prefect.asset.description"] = asset.properties.description
+
+            if asset.properties.url:
+                resource["prefect.asset.url"] = asset.properties.url
+
+            if asset.properties.owners:
+                resource["prefect.asset.owners"] = json.dumps(asset.properties.owners)
+
+        return resource
+
+    @staticmethod
+    def asset_as_related(asset: Asset) -> dict[str, str]:
+        """Convert Asset to event related format."""
+        return {
+            "prefect.resource.id": asset.key,
+            "prefect.resource.role": "asset",
+        }
+
+    @staticmethod
+    def related_materialized_by(by: str) -> dict[str, str]:
+        """Create a related resource for the tool that performed the materialization"""
+        return {
+            "prefect.resource.id": by,
+            "prefect.resource.role": "asset-materialized-by",
+        }
+
+    def emit_events(self, state: State) -> None:
+        """
+        Emit asset observation and materialization events based on task completion.
+        """
+
+        from prefect.events import emit_event
+
+        if state.name == "Cached":
+            return
+        if state.is_failed():
+            event_status = "failed"
+        elif state.is_completed():
+            event_status = "succeeded"
+        else:
+            return
+
+        asset_deps_related = []
+
+        # Emit observation events for direct asset dependencies
+        for asset in self.direct_asset_dependencies:
+            emit_event(
+                event=f"prefect.asset.observation.{event_status}",
+                resource=self.asset_as_resource(asset),
+                related=[],
+            )
+            asset_deps_related.append(self.asset_as_related(asset))
+
+        # Emit materialization events for downstream assets
+        if self.downstream_assets:
+            upstream_related = [self.asset_as_related(a) for a in self.upstream_assets]
+            all_related = upstream_related + asset_deps_related
+
+            if self.materialized_by:
+                all_related.append(self.related_materialized_by(self.materialized_by))
+
+            for asset in self.downstream_assets:
+                emit_event(
+                    event=f"prefect.asset.materialization.{event_status}",
+                    resource=self.asset_as_resource(asset),
+                    related=all_related,
+                    payload=self.materialization_metadata.get(asset.key),
+                )
+
+    def update_tracked_assets(self, flow_run_context: FlowRunContext) -> None:
+        """
+        Update the flow run context with assets that should be propagated downstream.
+
+        Args:
+            flow_run_context: The current flow run context
+        """
+        if not self.task_run_id:
+            return
+
+        if self.downstream_assets:
+            # MaterializingTask: propagate the downstream assets (what we create)
+            assets_for_downstream = self.downstream_assets[:]
+        else:
+            # Regular task: propagate upstream assets + direct dependencies
+            assets_for_downstream = (
+                list(self.upstream_assets) + self.direct_asset_dependencies
             )
 
-        asset_key = asset.key if isinstance(asset, Asset) else asset
+        flow_run_context.task_run_assets[self.task_run_id] = assets_for_downstream
 
-        existing = self.task_run._materialization_metadata.get(asset_key, {})
-        self.task_run._materialization_metadata[asset_key] = existing | metadata
+    def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
+        """Serialize the AssetContext for distributed execution."""
+        return self.model_dump(
+            exclude_unset=True,
+            serialize_as_any=True,
+            context={"include_secrets": include_secrets},
+        )
 
 
 class TagsContext(ContextModel):
