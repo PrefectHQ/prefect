@@ -412,38 +412,3 @@ class PrefectDbtRunner:
                     f"Failures detected during invocation of dbt command '{''.join(args)}':\n{os.linesep.join(failure_results)}"
                 )
             return res
-
-    async def aemit_materialization_events(self):
-        """Asynchronously emit asset events for all relevant nodes in the dbt manifest.
-
-        This method parses the manifest if not already loaded and emits asset events for
-        models, seeds, and exposures.
-        """
-        if self.manifest is None:
-            self._set_manifest_from_project_dir()
-
-        assert self.manifest is not None  # for type checking
-
-        related_prefect_context = await related_resources_from_run_context(self.client)
-
-        for manifest_node in self.manifest.nodes.values():
-            self._emit_asset_events(manifest_node, related_prefect_context)
-
-    def emit_materialization_events(self):
-        """Synchronously emit asset events for all relevant nodes in the dbt manifest.
-
-        This method parses the manifest if not already loaded and emits asset events for
-        models, seeds, and exposures.
-        """
-        if self.manifest is None:
-            self._set_manifest_from_project_dir()
-
-        assert self.manifest is not None  # for type checking
-
-        related_prefect_context = run_coro_as_sync(
-            related_resources_from_run_context(self.client),
-        )
-        assert related_prefect_context is not None
-
-        for manifest_node in self.manifest.nodes.values():
-            self._emit_asset_events(manifest_node, related_prefect_context)
