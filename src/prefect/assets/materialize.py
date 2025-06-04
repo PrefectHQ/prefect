@@ -24,7 +24,7 @@ def materialize(
 
     Args:
         *assets: Assets to materialize
-        by: An optional tool that materialized the asset e.g. "dbt" or "spark"
+        by: An optional tool that is ultimately responsible for materializing the asset e.g. "dbt" or "spark"
         **task_kwargs: Additional task configuration
     """
     if not assets:
