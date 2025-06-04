@@ -563,3 +563,57 @@ class TestGcsBucket:
             gcs_bucket_with_bucket_folder.upload_from_dataframe(
                 df=pandas_dataframe, to_path=to_path, serialization_format="pickle"
             )
+
+    def test_bucket_folder_path_no_duplication(self, gcp_credentials):
+        """
+        Regression test for issue #18227: Setting a bucket folder on GCS Bucket block breaks task caching
+
+        The bug was that cache files were being written to alpha/alpha/xxx instead of alpha/xxx
+        due to bucket folder being applied twice in the path resolution chain.
+        """
+        from io import BytesIO
+
+        # Create a GCS bucket with bucket_folder set (like in the issue)
+        gcs_bucket = GcsBucket(
+            bucket="test-bucket", gcp_credentials=gcp_credentials, bucket_folder="alpha"
+        )
+
+        # Test that write_path doesn't duplicate the bucket folder
+        # This simulates what happens when Prefect writes cache/result files
+        cache_key = "761db2ef8cf25ad06b5203ca47f4f20d"
+        result_path = gcs_bucket.write_path(cache_key, b"cache_data")
+
+        # Should be "alpha/761db2ef8cf25ad06b5203ca47f4f20d", NOT "alpha/alpha/761db2ef8cf25ad06b5203ca47f4f20d"
+        assert result_path == f"alpha/{cache_key}"
+        assert not result_path.startswith("alpha/alpha/")
+
+        # Test that reading from the same path works (path consistency)
+        read_data = gcs_bucket.read_path(cache_key)
+        assert read_data == b"bytes"
+
+        # Test other public methods that use path resolution
+        # These should also not duplicate the bucket folder
+        upload_path = gcs_bucket.upload_from_file_object(
+            from_file_object=BytesIO(b"test_data"), to_path=cache_key
+        )
+        assert upload_path == f"alpha/{cache_key}"
+
+    def test_bucket_folder_path_already_prefixed_no_duplication(self, gcp_credentials):
+        """
+        Test that paths already containing the bucket folder prefix don't get duplicated.
+
+        This tests the specific condition that was causing the duplication bug.
+        """
+        from io import BytesIO
+
+        gcs_bucket = GcsBucket(
+            bucket="test-bucket", gcp_credentials=gcp_credentials, bucket_folder="alpha"
+        )
+
+        # Test upload methods with already-prefixed paths
+        already_prefixed_path = "alpha/some_file.txt"
+
+        upload_path = gcs_bucket.upload_from_file_object(
+            from_file_object=BytesIO(b"test_data"), to_path=already_prefixed_path
+        )
+        assert upload_path == "alpha/some_file.txt"
