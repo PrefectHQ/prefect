@@ -29,7 +29,7 @@ AWS Linux image, you can install Python and pip with `sudo yum install -y python
 A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
 You will use systemd and learn how to automatically start a
 [Prefect worker](/v3/deploy/infrastructure-concepts/workers/) or
-long-lived [`serve` process](/v3/how-to-guides/workflows/run-flows-in-local-processes) when Linux starts.
+long-lived [`serve` process](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes) when Linux starts.
 This approach provides resilience by automatically restarting the process if it crashes.
 
 ### Step 1: Add a user
@@ -67,7 +67,7 @@ to target the `prefect` application in the `bin` subdirectory of your virtual en
 
 Next, set up your environment so the Prefect client knows which server to connect to.
 
-If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-get-started/#create-an-api-key)
+If connecting to Prefect Cloud, follow [the instructions](v3/how-to-guides/cloud/connect-to-cloud)
 to obtain an API key, and then run the following:
 
 ```bash
