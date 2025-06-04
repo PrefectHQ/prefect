@@ -3,9 +3,9 @@ title: How to run work concurrently
 sidebarTitle: Run work concurrently
 ---
 
-## Using `__call__`
+## Calling tasks directly
 
-Tasks can be called directly, but they **will not** run concurrently.
+Tasks can be called directly (i.e. using [`__call__`](https://docs.python.org/3/reference/datamodel.html#object.__call__)), but they **will not** run concurrently.
 
 ```python
 import time

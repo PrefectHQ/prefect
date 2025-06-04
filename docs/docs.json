@@ -158,7 +158,7 @@
 						"group": "Workflow Infrastructure",
 						"pages": [
 							"v3/advanced/daemonize-processes",
-							"v3/how-to-guides/deployments/submit-flows-directly-to-dynamic-infrastructure"
+							"v3/advanced/submit-flows-directly-to-dynamic-infrastructure"
 						]
 					},
 					{
