@@ -18,20 +18,22 @@ MAX_LOOP_COUNT = 10
 MAX_NESTED_LOOP_DEPTH = 2
 
 
-def _check_template_range(*args):
+def _check_template_range(*args: int) -> range:
     rng = range(*args)
+
     if len(rng) > MAX_TEMPLATE_RANGE:
         raise OverflowError(
-            f"Range too big. The sandbox blocks ranges larger than MAX_RANGE ({MAX_TEMPLATE_RANGE})."
+            "Range too big. The sandbox blocks ranges larger than"
+            f" MAX_RANGE ({MAX_TEMPLATE_RANGE})."
         )
     return rng
 
 
 class UserTemplateEnvironment(ImmutableSandboxedEnvironment):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         # Override the range function to limit its size
-        self.globals["range"] = _check_template_range
+        self.globals["range"] = _check_template_range  # type: ignore
 
 
 _template_environment = UserTemplateEnvironment(
