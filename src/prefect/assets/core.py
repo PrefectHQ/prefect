@@ -31,7 +31,7 @@ class AssetProperties(PrefectBaseModel):
     )
 
     def __hash__(self) -> int:
-        return hash((self.name, self.url, self.description, tuple(self.owners)))
+        return hash((self.name, self.url, self.description, tuple(self.owners or [])))
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, AssetProperties):
