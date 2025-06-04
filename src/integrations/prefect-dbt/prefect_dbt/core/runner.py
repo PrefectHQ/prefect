@@ -82,9 +82,17 @@ class PrefectDbtRunner:
         client: Optional[PrefectClient] = None,
     ):
         self.settings = settings or PrefectDbtSettings()
-        self.manifest: Optional[Manifest] = manifest
+        self._manifest: Optional[Manifest] = manifest
         self.client = client or get_client()
         self.raise_on_failure = raise_on_failure
+
+    @property
+    def manifest(self) -> Manifest:
+        """Get the manifest, loading it from disk if necessary."""
+        if self._manifest is None:
+            self._set_manifest_from_project_dir()
+            assert self._manifest is not None  # for type checking
+        return self._manifest
 
     def _set_manifest_from_project_dir(self):
         """Set the manifest from the project directory"""
@@ -92,7 +100,7 @@ class PrefectDbtRunner:
             with open(
                 os.path.join(self.settings.project_dir, "target", "manifest.json"), "r"
             ) as f:
-                self.manifest = Manifest.from_dict(json.load(f))  # type: ignore[reportUnknownMemberType]
+                self._manifest = Manifest.from_dict(json.load(f))  # type: ignore[reportUnknownMemberType]
         except FileNotFoundError:
             raise ValueError(
                 f"Manifest file not found in {os.path.join(self.settings.project_dir, 'target', 'manifest.json')}"
@@ -159,8 +167,6 @@ class PrefectDbtRunner:
         dbt_event: EventMsg | None = None,
     ):
         """Emit asset events for a given node"""
-        assert self.manifest is not None  # for type checking
-
         if manifest_node.resource_type not in NODE_TYPES_TO_EMIT_MATERIALIZATION_EVENTS:
             return
 
@@ -275,10 +281,6 @@ class PrefectDbtRunner:
 
         def events_callback(event: EventMsg):
             if event.info.name == "NodeFinished":
-                if self.manifest is None:
-                    self._set_manifest_from_project_dir()
-
-                assert self.manifest is not None  # for type checking
                 node_id = self._get_dbt_event_node_id(event)
 
                 assert isinstance(node_id, str)
