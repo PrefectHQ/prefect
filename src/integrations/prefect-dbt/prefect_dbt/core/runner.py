@@ -40,9 +40,13 @@ FAILURE_STATUSES = [
     FreshnessStatus.Error,
     FreshnessStatus.RuntimeErr,
 ]
-FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
-
-
+NODE_SUCCESS_STATUSES = [
+    NodeStatus.Success,
+    NodeStatus.Skipped,
+    NodeStatus.Pass,
+    NodeStatus.PartialSuccess,
+    NodeStatus.Warn,
+]
 NODE_TYPES_TO_EMIT_MATERIALIZATION_EVENTS = [
     NodeType.Model,
     NodeType.Seed,
@@ -52,6 +56,7 @@ NODE_TYPES_TO_EMIT_OBSERVATION_EVENTS = [
     NodeType.Exposure,
     NodeType.Source,
 ]
+FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 
 
 class PrefectDbtRunner:
@@ -200,18 +205,7 @@ class PrefectDbtRunner:
             event_data = MessageToDict(dbt_event.data, preserving_proto_field_name=True)
             node_info = event_data.get("node_info")
             node_status = node_info.get("node_status") if node_info else None
-            status = (
-                "succeeded"
-                if node_status
-                in [
-                    NodeStatus.Success,
-                    NodeStatus.Skipped,
-                    NodeStatus.Pass,
-                    NodeStatus.PartialSuccess,
-                    NodeStatus.Warn,
-                ]
-                else "failed"
-            )
+            status = "succeeded" if node_status in NODE_SUCCESS_STATUSES else "failed"
         else:
             status = "succeeded"
 
