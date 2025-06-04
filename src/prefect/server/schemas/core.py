@@ -34,6 +34,7 @@ from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    list_length_50_or_less,
     set_run_policy_deprecated_fields,
     validate_cache_key_length,
     validate_default_queue_id_not_none,
@@ -356,7 +357,7 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Union[None, int, List[int]] = Field(
+    retry_delay: Union[None, int, float, List[int], List[float]] = Field(
         default=None,
         description="A delay time or list of delay times between retries, in seconds.",
     )
@@ -371,11 +372,9 @@ class TaskRunPolicy(PrefectBaseModel):
     @field_validator("retry_delay")
     @classmethod
     def validate_configured_retry_delays(
-        cls, v: int | list[int] | None
-    ) -> int | list[int] | None:
-        if isinstance(v, list) and (len(v) > 50):
-            raise ValueError("Can not configure more than 50 retry delays per task.")
-        return v
+        cls, v: int | float | list[int] | list[float] | None
+    ) -> int | float | list[int] | list[float] | None:
+        return list_length_50_or_less(v)
 
     @field_validator("retry_jitter_factor")
     @classmethod
