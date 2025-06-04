@@ -598,14 +598,13 @@ class Task(Generic[P, R]):
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 
-        if asset_deps:
-            from prefect.assets import Asset
+        from prefect.assets import Asset
 
-            self.asset_deps = [
-                Asset(key=a) if isinstance(a, str) else a for a in asset_deps
-            ]
-        else:
-            self.asset_deps = []
+        self.asset_deps: list[Asset] = (
+            [Asset(key=a) if isinstance(a, str) else a for a in asset_deps]
+            if asset_deps
+            else []
+        )
 
     @property
     def ismethod(self) -> bool:

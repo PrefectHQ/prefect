@@ -11,6 +11,10 @@ URI_REGEX = re.compile(r"^[a-z0-9]+://")
 
 
 class AssetProperties(PrefectBaseModel):
+    """
+    Metadata properties to configure on an Asset
+    """
+
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     name: Optional[str] = Field(
@@ -41,6 +45,11 @@ class AssetProperties(PrefectBaseModel):
 
 
 class Asset(PrefectBaseModel):
+    """
+    Assets represent data objects that are materialized by materializing tasks.
+    They provide a way to track and visualize data lineage, dependencies.
+    """
+
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     key: str = Field(
@@ -65,7 +74,7 @@ class Asset(PrefectBaseModel):
     def __repr__(self) -> str:
         return f"Asset(key={self.key!r})"
 
-    def add_metadata(self, metadata: dict[str, Any]):
+    def add_metadata(self, metadata: dict[str, Any]) -> None:
         from prefect.context import AssetContext
 
         asset_ctx = AssetContext.get()
