@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING, Any, Optional
 
-import jinja2.sandbox
 from jinja2 import ChainableUndefined, nodes
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 
@@ -14,12 +13,28 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-jinja2.sandbox.MAX_RANGE = 100
+MAX_TEMPLATE_RANGE = 100
 MAX_LOOP_COUNT = 10
 MAX_NESTED_LOOP_DEPTH = 2
 
 
-_template_environment = ImmutableSandboxedEnvironment(
+def _prefect_safe_range(*args):
+    rng = range(*args)
+    if len(rng) > MAX_TEMPLATE_RANGE:
+        raise OverflowError(
+            f"Range too big. The sandbox blocks ranges larger than MAX_RANGE ({MAX_TEMPLATE_RANGE})."
+        )
+    return rng
+
+
+class UserTemplateEnvironment(ImmutableSandboxedEnvironment):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Override the range function to limit its size
+        self.globals["range"] = _prefect_safe_range
+
+
+_template_environment = UserTemplateEnvironment(
     undefined=ChainableUndefined,
     enable_async=True,
     extensions=[
@@ -29,7 +44,7 @@ _template_environment = ImmutableSandboxedEnvironment(
     ],
 )
 
-_sync_template_environment = ImmutableSandboxedEnvironment(
+_sync_template_environment = UserTemplateEnvironment(
     undefined=ChainableUndefined,
     enable_async=False,
     extensions=[
