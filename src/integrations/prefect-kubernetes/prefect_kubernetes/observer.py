@@ -5,7 +5,7 @@ import json
 import logging
 import threading
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import anyio
@@ -18,10 +18,16 @@ from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.events import Event, RelatedResource
 from prefect.events.clients import EventsClient, get_events_client
-from prefect.events.filters import EventFilter, EventNameFilter, EventResourceFilter
+from prefect.events.filters import (
+    EventFilter,
+    EventNameFilter,
+    EventOccurredFilter,
+    EventResourceFilter,
+)
 from prefect.events.schemas.events import Resource
 from prefect.exceptions import ObjectNotFound
 from prefect.states import Crashed
+from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_kubernetes.settings import KubernetesSettings
@@ -89,6 +95,17 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 
     logger.debug(f"Pod event received - type: {event_type}, phase: {phase}, uid: {uid}")
 
+    # Extract the creation timestamp from the Kubernetes event
+    k8s_event_time = None
+    if isinstance(event, dict) and "object" in event:
+        obj = event["object"]
+        if isinstance(obj, dict) and "metadata" in obj:
+            metadata = obj["metadata"]
+            if "creationTimestamp" in metadata:
+                k8s_event_time = DateTime.fromisoformat(
+                    metadata["creationTimestamp"].replace("Z", "+00:00")
+                )
+
     # Create a deterministic event ID based on the pod's ID, phase, and restart count.
     # This ensures that the event ID is the same for the same pod in the same phase and restart count
     # and Prefect's event system will be able to deduplicate events.
@@ -110,15 +127,26 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     if event_type is None:
         if orchestration_client is None:
             raise RuntimeError("Orchestration client not initialized")
+
+        # Use the Kubernetes event timestamp for the filter to avoid "Query time range is too large" error
+        event_filter = EventFilter(
+            event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
+            resource=EventResourceFilter(
+                id=[f"prefect.kubernetes.pod.{uid}"],
+            ),
+            occurred=EventOccurredFilter(
+                since=(
+                    k8s_event_time
+                    if k8s_event_time
+                    else (datetime.now(timezone.utc) - timedelta(hours=1))
+                )
+            ),
+        )
+
         response = await orchestration_client.request(
             "POST",
             "/events/filter",
-            json=EventFilter(
-                event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
-                resource=EventResourceFilter(
-                    id=[f"prefect.kubernetes.pod.{uid}"],
-                ),
-            ).model_dump(exclude_unset=True),
+            json=event_filter.model_dump(exclude_unset=True, mode="json"),
         )
         # If the event already exists, we don't need to emit a new one.
         if response.json()["events"]:
@@ -139,12 +167,15 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 resource["kubernetes.reason"] = reason
                 break
 
+    # Create the Prefect event, using the K8s event timestamp as the occurred time if available
     prefect_event = Event(
         event=f"prefect.kubernetes.pod.{phase.lower()}",
-        resource=Resource(resource),
+        resource=Resource.model_validate(resource),
         id=event_id,
         related=_related_resources_from_labels(labels),
+        **({"occurred": k8s_event_time} if k8s_event_time else {}),
     )
+
     if (prev_event := _last_event_cache.get(event_id)) is not None:
         if (
             -timedelta(minutes=5)
