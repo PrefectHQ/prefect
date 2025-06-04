@@ -30,19 +30,6 @@ class AssetProperties(PrefectBaseModel):
         default=None, description="Owners of the Asset."
     )
 
-    def __hash__(self) -> int:
-        return hash((self.name, self.url, self.description, tuple(self.owners or [])))
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, AssetProperties):
-            return False
-        return (
-            self.name == other.name
-            and self.url == other.url
-            and self.description == other.description
-            and self.owners == other.owners
-        )
-
 
 class Asset(PrefectBaseModel):
     """
