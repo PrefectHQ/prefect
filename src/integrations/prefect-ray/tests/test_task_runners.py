@@ -206,9 +206,8 @@ if sys.version_info >= (3, 10):
 class TestRayTaskRunner:
     @pytest.fixture(params=task_runner_setups)
     def task_runner(self, request):
-        yield request.getfixturevalue(
-            request.param._pytestfixturefunction.name or request.param.__name__
-        )
+        fixture_name = request.param._fixture_function.__name__
+        yield request.getfixturevalue(fixture_name)
 
     @pytest.fixture
     def tmp_file(self, tmp_path):

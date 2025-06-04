@@ -75,9 +75,8 @@ class TestDaskTaskRunner:
     def task_runner(
         self, request: pytest.FixtureRequest
     ) -> Generator[DaskTaskRunner, None, None]:
-        yield request.getfixturevalue(
-            request.param._pytestfixturefunction.name or request.param.__name__
-        )
+        fixture_name = request.param._fixture_function.__name__
+        yield request.getfixturevalue(fixture_name)
 
     async def test_duplicate(self, task_runner: DaskTaskRunner):
         new = task_runner.duplicate()
