@@ -67,9 +67,9 @@ class TestDaskTaskRunner:
             default_dask_task_runner,
             # Existing cluster works outside of tests, but fails with serialization errors in tests
             # dask_task_runner_with_existing_cluster, :TODO Fix serialization errors in these tests
-            # dask_task_runner_with_existing_cluster_address,
-            # dask_task_runner_with_process_pool,
-            # dask_task_runner_with_thread_pool,
+            dask_task_runner_with_existing_cluster_address,
+            dask_task_runner_with_process_pool,
+            dask_task_runner_with_thread_pool,
         ]
     )
     def task_runner(
