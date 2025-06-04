@@ -1139,7 +1139,7 @@ class TestPrefectDbtRunnerEvents:
                 }
             ]
 
-    def test_events_callback_with_emit_lineage_events_false(
+    def test_events_callback_with_emit_materialization_events_false(
         self, mock_dbt_runner, settings
     ):
         runner = PrefectDbtRunner(settings=settings)
@@ -1150,7 +1150,7 @@ class TestPrefectDbtRunnerEvents:
         node.name = "example"
         node.relation_name = '"schema"."table"'
         node.depends_on_nodes = []
-        node.config.meta = {"prefect": {"emit_lineage_events": False}}
+        node.config.meta = {"prefect": {"emit_materialization_events": False}}
         node.resource_type = NodeType.Model
         runner.manifest.nodes = {"model.test.example": node}
 
@@ -1187,7 +1187,7 @@ class TestPrefectDbtRunnerEvents:
             "prefect": {
                 "emit_events": True,
                 "emit_node_events": False,
-                "emit_lineage_events": False,
+                "emit_materialization_events": False,
             }
         }
         node.resource_type = NodeType.Model
@@ -1216,7 +1216,7 @@ class TestPrefectDbtRunnerEvents:
 
 class TestPrefectDbtRunnerLineage:
     @pytest.mark.parametrize("provide_manifest", [True, False])
-    def test_emit_lineage_events(
+    def test_emit_materialization_events(
         self, mock_dbt_runner, settings, mock_manifest_with_nodes, provide_manifest
     ):
         """Test that lineage events are emitted correctly for all relevant nodes."""
@@ -1234,7 +1234,7 @@ class TestPrefectDbtRunnerLineage:
             with patch(
                 "prefect_dbt.core.runner.emit_external_resource_lineage"
             ) as mock_emit_lineage:
-                runner.emit_lineage_events()
+                runner.emit_materialization_events()
 
                 # Should emit lineage for model and seed, but not test or exposure
                 assert mock_emit_lineage.call_count == 2
@@ -1272,7 +1272,7 @@ class TestPrefectDbtRunnerLineage:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("provide_manifest", [True, False])
-    async def test_aemit_lineage_events(
+    async def test_aemit_materialization_events(
         self, mock_dbt_runner, settings, mock_manifest_with_nodes, provide_manifest
     ):
         """Test that lineage events are emitted correctly for all relevant nodes (async version)."""
@@ -1290,7 +1290,7 @@ class TestPrefectDbtRunnerLineage:
             with patch(
                 "prefect_dbt.core.runner.emit_external_resource_lineage"
             ) as mock_emit_lineage:
-                await runner.aemit_lineage_events()
+                await runner.aemit_materialization_events()
 
                 # Should emit lineage for model and seed, but not test or exposure
                 assert mock_emit_lineage.call_count == 2

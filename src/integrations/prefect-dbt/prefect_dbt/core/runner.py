@@ -2,11 +2,17 @@
 Runner for dbt commands
 """
 
+import json
 import os
 from typing import Any, Callable, Optional
 
 from dbt.artifacts.resources.types import NodeType
-from dbt.artifacts.schemas.results import FreshnessStatus, RunStatus, TestStatus
+from dbt.artifacts.schemas.results import (
+    FreshnessStatus,
+    NodeStatus,
+    RunStatus,
+    TestStatus,
+)
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
@@ -15,15 +21,17 @@ from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
-from prefect._experimental.lineage import emit_external_resource_lineage
+from prefect.assets import Asset, AssetProperties
 from prefect.client.orchestration import PrefectClient
 from prefect.events import emit_event
 from prefect.events.related import related_resources_from_run_context
 from prefect.events.schemas.events import RelatedResource
 from prefect.exceptions import MissingContextError
 from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.engine import asset_as_related, asset_as_resource
 from prefect_dbt.core.profiles import aresolve_profiles_yml, resolve_profiles_yml
 from prefect_dbt.core.settings import PrefectDbtSettings
+from prefect_dbt.utilities import format_resource_id
 
 FAILURE_STATUSES = [
     RunStatus.Error,
@@ -34,24 +42,15 @@ FAILURE_STATUSES = [
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 
-REQUIRES_MANIFEST = [
-    "build",
-    "compile",
-    "docs",
-    "list",
-    "ls",
-    "run",
-    "run-operation",
-    "seed",
-    "show",
-    "snapshot",
-    "source",
-    "test",
-]
-NODE_TYPES_TO_EMIT_LINEAGE = [
+
+NODE_TYPES_TO_EMIT_MATERIALIZATION_EVENTS = [
     NodeType.Model,
     NodeType.Seed,
     NodeType.Snapshot,
+]
+NODE_TYPES_TO_EMIT_OBSERVATION_EVENTS = [
+    NodeType.Exposure,
+    NodeType.Source,
 ]
 
 
@@ -82,132 +81,152 @@ class PrefectDbtRunner:
         self.client = client or get_client()
         self.raise_on_failure = raise_on_failure
 
-    def _get_manifest_depends_on_nodes(self, manifest_node: ManifestNode) -> list[str]:
-        """Type completeness wrapper for manifest_node.depends_on_nodes"""
-        return manifest_node.depends_on_nodes  # type: ignore[reportUnknownMemberType]
+    def _set_manifest_from_project_dir(self):
+        """Set the manifest from the project directory"""
+        try:
+            with open(
+                os.path.join(self.settings.project_dir, "target", "manifest.json"), "r"
+            ) as f:
+                self.manifest = Manifest.from_dict(json.load(f))  # type: ignore[reportUnknownMemberType]
+        except FileNotFoundError:
+            raise ValueError(
+                f"Manifest file not found in {os.path.join(self.settings.project_dir, 'target', 'manifest.json')}"
+            )
 
-    def _emit_lineage_event(
+    def _get_node_prefect_config(
+        self, manifest_node: ManifestNode
+    ) -> dict[str, dict[str, Any]]:
+        """Get the Prefect config for a given node"""
+        return manifest_node.config.meta.get("prefect", {})
+
+    def _get_upstream_manifest_nodes(
+        self,
+        adapter_type: str,
+        manifest_node: ManifestNode,
+        related_prefect_context: list[RelatedResource],
+    ) -> list[RelatedResource]:
+        """Get upstream nodes for a given node"""
+        upstream_manifest_nodes: list[RelatedResource] = []
+
+        for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
+            depends_manifest_node = self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+
+            if not depends_manifest_node or not self._get_node_prefect_config(
+                depends_manifest_node
+            ).get("emit_asset_events", True):
+                continue
+
+            if not depends_manifest_node.relation_name:
+                raise ValueError("Relation name not found in manifest")
+
+            asset = Asset(
+                key=format_resource_id(
+                    adapter_type, depends_manifest_node.relation_name
+                ),
+                properties=AssetProperties(
+                    name=depends_manifest_node.name,
+                    description=depends_manifest_node.description,
+                    owners=[owner]
+                    if (owner := depends_manifest_node.config.meta.get("owner"))
+                    and isinstance(owner, str)
+                    else None,
+                ),
+            )
+
+            upstream_manifest_nodes.append(RelatedResource(asset_as_related(asset)))
+
+            if (
+                depends_manifest_node.resource_type
+                in NODE_TYPES_TO_EMIT_OBSERVATION_EVENTS
+            ):
+                emit_event(
+                    event="prefect.asset.observation.succeeded",
+                    resource=asset_as_resource(asset),
+                    related=related_prefect_context,
+                )
+
+        return upstream_manifest_nodes
+
+    def _emit_asset_events(
         self,
         manifest_node: ManifestNode,
         related_prefect_context: list[RelatedResource],
+        dbt_event: EventMsg | None = None,
     ):
-        """Emit a lineage event for a given node"""
+        """Emit asset events for a given node"""
         assert self.manifest is not None  # for type checking
 
-        if manifest_node.resource_type not in NODE_TYPES_TO_EMIT_LINEAGE:
+        if manifest_node.resource_type not in NODE_TYPES_TO_EMIT_MATERIALIZATION_EVENTS:
             return
 
         adapter_type = self.manifest.metadata.adapter_type
-        node_name = manifest_node.name
-        primary_relation_name = (
-            manifest_node.relation_name.replace('"', "").replace(".", "/")
-            if manifest_node.relation_name
-            else None
-        )
-        related_resources: list[dict[str, str]] = []
+        if not adapter_type:
+            raise ValueError("Adapter type not found in manifest")
 
-        # Add related resources from the prefect context
-        for realted_resource in related_prefect_context:
-            related_resources.append(realted_resource.model_dump())
+        if not manifest_node.relation_name:
+            raise ValueError("Relation name not found in manifest")
 
-        # Add upstream nodes from the manifest
-        upstream_manifest_nodes: list[dict[str, Any]] = []
-        for depends_on_node in self._get_manifest_depends_on_nodes(manifest_node):
-            depends_manifest_node = self.manifest.nodes.get(depends_on_node)
-            if depends_manifest_node is not None:
-                depends_node_prefect_config: dict[str, dict[str, Any]] = (
-                    depends_manifest_node.config.meta.get("prefect", {})
-                )
-                depends_relation_name = (
-                    depends_manifest_node.relation_name.replace('"', "").replace(
-                        ".", "/"
-                    )
-                    if depends_manifest_node.relation_name
-                    else None
-                )
-                if depends_node_prefect_config.get("emit_lineage_events", True):
-                    upstream_manifest_nodes.append(
-                        {
-                            "prefect.resource.id": f"{adapter_type}://{depends_relation_name}",
-                            "prefect.resource.lineage-group": depends_node_prefect_config.get(
-                                "lineage_group", "global"
-                            ),
-                            "prefect.resource.role": depends_manifest_node.resource_type,
-                            "prefect.resource.name": depends_manifest_node.name,
-                        }
-                    )
-
-        node_prefect_config: dict[str, Any] = manifest_node.config.meta.get(
-            "prefect", {}
-        )
-
-        # Add related resources from the node config
-        upstream_config_resources: list[dict[str, str]] = []
-        upstream_resources = node_prefect_config.get("upstream_resources")
-        if upstream_resources:
-            for upstream_resource in upstream_resources:
-                if (resource_id := upstream_resource.get("id")) is None:
-                    raise ValueError("Upstream resources must have an id")
-                elif (resource_name := upstream_resource.get("name")) is None:
-                    raise ValueError("Upstream resources must have a name")
-                else:
-                    resource: dict[str, str] = {
-                        "prefect.resource.id": resource_id,
-                        "prefect.resource.lineage-group": upstream_resource.get(
-                            "lineage_group", "global"
-                        ),
-                        "prefect.resource.role": upstream_resource.get("role", "table"),
-                        "prefect.resource.name": resource_name,
-                    }
-                upstream_config_resources.append(resource)
-
-        primary_resource: dict[str, Any] = {
-            "prefect.resource.id": f"{adapter_type}://{primary_relation_name}",
-            "prefect.resource.lineage-group": node_prefect_config.get(
-                "lineage_group", "global"
-            ),
-            "prefect.resource.role": manifest_node.resource_type,
-            "prefect.resource.name": node_name,
-        }
-
-        if related_prefect_context:
-            run_coro_as_sync(
-                emit_external_resource_lineage(
-                    context_resources=related_prefect_context,
-                    upstream_resources=upstream_manifest_nodes
-                    + upstream_config_resources,
-                    downstream_resources=[primary_resource],
-                )
+        resource: dict[str, str] = asset_as_resource(
+            Asset(
+                key=format_resource_id(adapter_type, manifest_node.relation_name),
+                properties=AssetProperties(
+                    name=manifest_node.name,
+                    description=manifest_node.description,
+                    owners=[owner]
+                    if (owner := manifest_node.config.meta.get("owner"))
+                    and isinstance(owner, str)
+                    else None,
+                ),
             )
+        )
 
-    def _emit_node_event(
-        self,
-        manifest_node: ManifestNode,
-        related_prefect_context: list[RelatedResource],
-        dbt_event: EventMsg,
-    ):
-        """Emit a generic event for a given node"""
-        assert self.manifest is not None  # for type checking
+        related: list[RelatedResource] = []
+        related.extend(related_prefect_context)
+        related.extend(
+            self._get_upstream_manifest_nodes(
+                adapter_type, manifest_node, related_prefect_context
+            )
+        )
+        related.append(
+            RelatedResource(
+                root={
+                    "prefect.resource.id": "dbt",
+                    "prefect.resource.role": "asset-materialized-by",
+                }
+            )
+        )
 
-        related_resources: list[dict[str, str]] = []
+        if dbt_event:
+            event_data = MessageToDict(dbt_event.data, preserving_proto_field_name=True)
+            node_info = event_data.get("node_info")
+            node_status = node_info.get("node_status") if node_info else None
+            status = (
+                "succeeded"
+                if node_status
+                in [
+                    NodeStatus.Success,
+                    NodeStatus.Skipped,
+                    NodeStatus.Pass,
+                    NodeStatus.PartialSuccess,
+                    NodeStatus.Warn,
+                ]
+                else "failed"
+            )
+        else:
+            status = "succeeded"
 
-        # Add related resources from the prefect context
-        for resource in related_prefect_context:
-            related_resources.append(resource.model_dump())
+        payload: dict[str, Any] = {}
+        if dbt_event:
+            payload = MessageToDict(dbt_event.data, preserving_proto_field_name=True)
 
-        event_data = MessageToDict(dbt_event.data, preserving_proto_field_name=True)
-        node_info = event_data.get("node_info")
-        node_status = node_info.get("node_status") if node_info else None
+        if manifest_node.resource_type == NodeType.Model and manifest_node.compiled:
+            payload["query"] = manifest_node.compiled_code
 
         emit_event(
-            event=f"{manifest_node.name} {node_status}",
-            resource={
-                "prefect.resource.id": f"dbt.{manifest_node.unique_id}",
-                "prefect.resource.name": manifest_node.name,
-                "dbt.node.status": node_status or "",
-            },
-            related=related_resources,
-            payload=event_data,
+            event=f"prefect.asset.materialization.{status}",
+            resource=resource,
+            related=related,
+            payload=payload,
         )
 
     def _get_dbt_event_msg(self, event: EventMsg) -> str:
@@ -250,88 +269,45 @@ class PrefectDbtRunner:
     def _create_events_callback(
         self, related_prefect_context: list[RelatedResource]
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for tracking dbt node lineage.
+        """Creates a callback function for emitting asset events.
 
         Args:
             related_prefect_context: List of related Prefect resources to include
-                in lineage tracking.
+                in asset tracking.
 
         Returns:
-            A callback function that emits lineage events when dbt nodes finish executing.
+            A callback function that emits asset events when dbt nodes finish executing.
         """
 
         def events_callback(event: EventMsg):
-            if event.info.name == "NodeFinished" and self.manifest is not None:
+            if event.info.name == "NodeFinished":
+                if self.manifest is None:
+                    self._set_manifest_from_project_dir()
+
+                assert self.manifest is not None  # for type checking
                 node_id = self._get_dbt_event_node_id(event)
+
                 assert isinstance(node_id, str)
 
                 manifest_node = self.manifest.nodes.get(node_id)
 
                 if manifest_node:
                     prefect_config = manifest_node.config.meta.get("prefect", {})
-                    emit_events = prefect_config.get("emit_events", True)
-                    emit_node_events = prefect_config.get("emit_node_events", True)
-                    emit_lineage_events = prefect_config.get(
-                        "emit_lineage_events", True
+                    enable_asset_events = prefect_config.get(
+                        "enable_asset_events", True
                     )
 
                     try:
-                        if emit_events and emit_node_events:
-                            self._emit_node_event(
+                        if enable_asset_events:
+                            self._emit_asset_events(
                                 manifest_node, related_prefect_context, event
-                            )
-                        if emit_events and emit_lineage_events:
-                            self._emit_lineage_event(
-                                manifest_node, related_prefect_context
                             )
                     except Exception as e:
                         print(e)
 
         return events_callback
 
-    def parse(self, **kwargs: Any):
-        """Parses the dbt project and loads the manifest.
-
-        This method runs the dbt parse command to generate and load the manifest
-        if it hasn't been loaded already.
-
-        Raises:
-            ValueError: If the manifest fails to load.
-        """
-        if self.manifest is None:
-            related_prefect_context = run_coro_as_sync(
-                related_resources_from_run_context(self.client),
-            )
-            assert related_prefect_context is not None
-
-            invoke_kwargs = {
-                "project_dir": kwargs.pop("project_dir", self.settings.project_dir),
-                "profiles_dir": kwargs.pop("profiles_dir", self.settings.profiles_dir),
-                "log_level": kwargs.pop(
-                    "log_level",
-                    "none" if related_prefect_context else self.settings.log_level,
-                ),
-                **kwargs,
-            }
-
-            with resolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
-                invoke_kwargs["profiles_dir"] = profiles_dir
-                res: dbtRunnerResult = dbtRunner(
-                    callbacks=[self._create_logging_callback(self.settings.log_level)]
-                ).invoke(  # type: ignore[reportUnknownMemberType]
-                    ["parse"], **invoke_kwargs
-                )
-
-            if not res.success:
-                raise ValueError(f"Failed to load manifest: {res.exception}")
-
-            assert isinstance(res.result, Manifest), (
-                "Expected manifest result from dbt parse"
-            )
-
-            self.manifest = res.result
-
-    async def ainvoke(self, args: list[str], **kwargs: Any):
+    async def ainvoke(self, args: list[str], **kwargs: Any) -> dbtRunnerResult:
         """Asynchronously invokes a dbt command.
 
         Args:
@@ -356,15 +332,11 @@ class PrefectDbtRunner:
         async with aresolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
-            needs_manifest = any(arg in REQUIRES_MANIFEST for arg in args)
-            if self.manifest is None and "parse" not in args and needs_manifest:
-                self.parse()
-
             callbacks = [
                 self._create_logging_callback(self.settings.log_level),
                 self._create_events_callback(related_prefect_context),
             ]
-            res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)
+            res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)  # type: ignore[reportUnknownMemberType]
 
             if not res.success and res.exception:
                 raise ValueError(
@@ -418,10 +390,6 @@ class PrefectDbtRunner:
         with resolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
-            needs_manifest = any(arg in REQUIRES_MANIFEST for arg in args)
-            if self.manifest is None and "parse" not in args and needs_manifest:
-                self.parse()
-
             callbacks = [
                 self._create_logging_callback(self.settings.log_level),
                 self._create_events_callback(related_prefect_context),
@@ -451,30 +419,30 @@ class PrefectDbtRunner:
                 )
             return res
 
-    async def aemit_lineage_events(self):
-        """Asynchronously emit lineage events for all relevant nodes in the dbt manifest.
+    async def aemit_materialization_events(self):
+        """Asynchronously emit asset events for all relevant nodes in the dbt manifest.
 
-        This method parses the manifest if not already loaded and emits lineage events for
+        This method parses the manifest if not already loaded and emits asset events for
         models, seeds, and exposures.
         """
         if self.manifest is None:
-            self.parse()
+            self._set_manifest_from_project_dir()
 
         assert self.manifest is not None  # for type checking
 
         related_prefect_context = await related_resources_from_run_context(self.client)
 
         for manifest_node in self.manifest.nodes.values():
-            self._emit_lineage_event(manifest_node, related_prefect_context)
+            self._emit_asset_events(manifest_node, related_prefect_context)
 
-    def emit_lineage_events(self):
-        """Synchronously emit lineage events for all relevant nodes in the dbt manifest.
+    def emit_materialization_events(self):
+        """Synchronously emit asset events for all relevant nodes in the dbt manifest.
 
-        This method parses the manifest if not already loaded and emits lineage events for
+        This method parses the manifest if not already loaded and emits asset events for
         models, seeds, and exposures.
         """
         if self.manifest is None:
-            self.parse()
+            self._set_manifest_from_project_dir()
 
         assert self.manifest is not None  # for type checking
 
@@ -484,4 +452,4 @@ class PrefectDbtRunner:
         assert related_prefect_context is not None
 
         for manifest_node in self.manifest.nodes.values():
-            self._emit_lineage_event(manifest_node, related_prefect_context)
+            self._emit_asset_events(manifest_node, related_prefect_context)
