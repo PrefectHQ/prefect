@@ -184,8 +184,8 @@ def test_single_asset_materialization_failure(asserting_events_worker: EventsWor
 
 
 @pytest.mark.usefixtures("reset_worker_events")
-def test_single_asset_observation(asserting_events_worker: EventsWorker):
-    """Test single asset observation.
+def test_single_asset_reference(asserting_events_worker: EventsWorker):
+    """Test single asset reference.
 
     Expected graph: [O: s3://bucket/raw_data.csv]
     """
@@ -202,13 +202,13 @@ def test_single_asset_observation(asserting_events_worker: EventsWorker):
     asserting_events_worker.drain()
 
     evt = _first_event(asserting_events_worker)
-    assert evt.event == "prefect.asset.observation.succeeded"
+    assert evt.event == "prefect.asset.reference.succeeded"
     assert evt.resource.id == "s3://bucket/raw_data.csv"
 
 
 @pytest.mark.usefixtures("reset_worker_events")
-def test_multiple_asset_observations(asserting_events_worker: EventsWorker):
-    """Test multiple asset observations from single task.
+def test_multiple_asset_references(asserting_events_worker: EventsWorker):
+    """Test multiple asset references from single task.
 
     Expected graph: [O: s3://bucket/raw1.csv], [O: s3://bucket/raw2.csv], [O: s3://bucket/raw3.csv]
     """
@@ -228,11 +228,11 @@ def test_multiple_asset_observations(asserting_events_worker: EventsWorker):
     events = _asset_events(asserting_events_worker)
     assert len(events) == 3
 
-    observed_keys = {e.resource.id for e in events}
-    assert observed_keys == set(deps)
+    ref_keys = {e.resource.id for e in events}
+    assert ref_keys == set(deps)
 
     for evt in events:
-        assert evt.event == "prefect.asset.observation.succeeded"
+        assert evt.event == "prefect.asset.reference.succeeded"
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -297,25 +297,25 @@ def test_mixed_asset_objects_and_string_keys(asserting_events_worker: EventsWork
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 4  # 2 observations + 2 materializations
+    assert len(events) == 4  # 2 references + 2 materializations
 
-    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
     mat_events = [
         e for e in events if e.event.startswith("prefect.asset.materialization")
     ]
 
-    assert len(obs_events) == 2
+    assert len(ref_events) == 2
     assert len(mat_events) == 2
 
-    # Check observation events include both Asset object and string key
-    obs_keys = {evt.resource.id for evt in obs_events}
-    assert obs_keys == {"postgres://db/users", "s3://bucket/raw.csv"}
+    # Check reference events include both Asset object and string key
+    ref_keys = {evt.resource.id for evt in ref_events}
+    assert ref_keys == {"postgres://db/users", "s3://bucket/raw.csv"}
 
     # Check materialization events include both Asset object and string key
     mat_keys = {evt.resource.id for evt in mat_events}
     assert mat_keys == {"s3://bucket/final.parquet", "s3://bucket/summary.json"}
 
-    # Check that materialization events have the observations as related assets
+    # Check that materialization events have the references as related assets
     for mat_evt in mat_events:
         related_asset_ids = {r.id for r in mat_evt.related if r.role == "asset"}
         assert "postgres://db/users" in related_asset_ids
@@ -364,10 +364,10 @@ def test_materialization_to_materialization_dependency(
 
 
 @pytest.mark.usefixtures("reset_worker_events")
-def test_observation_to_materialization_dependency(
+def test_reference_to_materialization_dependency(
     asserting_events_worker: EventsWorker,
 ):
-    """Test linear dependency from observation to materialization.
+    """Test linear dependency from reference to materialization.
 
     Expected graph: [O: postgres://prod/users] --> [M: postgres://prod/users_clean]
     """
@@ -392,10 +392,10 @@ def test_observation_to_materialization_dependency(
 
     events = _asset_events(asserting_events_worker)
     mats = [e for e in events if e.event.startswith("prefect.asset.materialization")]
-    obs = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    refs = [e for e in events if e.event.startswith("prefect.asset.reference")]
 
     assert len(mats) == 1
-    assert len(obs) == 1
+    assert len(refs) == 1
 
     mat_evt = mats[0]
     assert mat_evt.resource.id == downstream.key
@@ -470,17 +470,17 @@ def test_materialize_with_explicit_asset_deps(asserting_events_worker: EventsWor
     events = _asset_events(asserting_events_worker)
     assert len(events) == 2
 
-    # Find observation and materialization events
-    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    # Find reference and materialization events
+    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
     mat_events = [
         e for e in events if e.event.startswith("prefect.asset.materialization")
     ]
 
-    assert len(obs_events) == 1
+    assert len(ref_events) == 1
     assert len(mat_events) == 1
 
-    # Check observation
-    assert obs_events[0].resource.id == "s3://bucket/raw_data.csv"
+    # Check reference
+    assert ref_events[0].resource.id == "s3://bucket/raw_data.csv"
 
     # Check materialization
     assert mat_events[0].resource.id == "s3://bucket/data.csv"
@@ -743,18 +743,18 @@ def test_forward_propagation_asset_lineage(asserting_events_worker: EventsWorker
     assert len(events) == 3
 
     # Find all event types
-    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
     mat_events = [
         e for e in events if e.event.startswith("prefect.asset.materialization")
     ]
 
-    assert len(obs_events) == 2  # Two observation events
+    assert len(ref_events) == 2  # Two reference events
     assert len(mat_events) == 1  # One materialization event
 
-    # Check observations
-    obs_resources = {e.resource.id for e in obs_events}
-    assert "s3://bucket/raw.csv" in obs_resources
-    assert "postgres://prod/users" in obs_resources
+    # Check references
+    refs_resources = {e.resource.id for e in ref_events}
+    assert "s3://bucket/raw.csv" in refs_resources
+    assert "postgres://prod/users" in refs_resources
 
     # Check materialization - should include both upstream assets as related
     mat_event = mat_events[0]
@@ -768,7 +768,7 @@ def test_forward_propagation_asset_lineage(asserting_events_worker: EventsWorker
 
 @pytest.mark.usefixtures("reset_worker_events")
 def test_complex_snowflake_aggregation(asserting_events_worker: EventsWorker):
-    """Test complex Snowflake aggregation pattern with multiple observations and materializations.
+    """Test complex Snowflake aggregation pattern with multiple references and materializations.
     
     Expected graph:
     [O: .../table-1-raw] --> [M: .../table-1-cleaned] \
@@ -835,7 +835,7 @@ def test_complex_snowflake_aggregation(asserting_events_worker: EventsWorker):
         f"{SNOWFLAKE_SCHEMA}/table-3-raw",
     ):
         evt = by_id[raw_key]
-        assert evt.event == "prefect.asset.observation.succeeded"
+        assert evt.event == "prefect.asset.reference.succeeded"
         assert not any(r.role == "asset" for r in evt.related)
 
     for cleaned_key, raw_key in [
@@ -997,7 +997,7 @@ def test_map_with_asset_dependency(asserting_events_worker):
 
     source_events = [e for e in events if e.resource.id == source_asset.key]
     assert len(source_events) == 1
-    assert source_events[0].event == "prefect.asset.observation.succeeded"
+    assert source_events[0].event == "prefect.asset.reference.succeeded"
 
     destination_events = [e for e in events if e.resource.id == destination_asset.key]
     assert len(destination_events) == 3
@@ -1140,7 +1140,7 @@ def test_materialization_with_by_parameter_and_dependencies(
 
 @pytest.mark.usefixtures("reset_worker_events")
 def test_linear_dependency_with_asset_properties(asserting_events_worker: EventsWorker):
-    """Test linear dependency from observation to materialization where both assets have properties.
+    """Test linear dependency from reference to materialization where both assets have properties.
 
     Expected graph: [O: s3://lake/raw/customer_data.parquet] --> [M: postgres://warehouse/customers]
     """
@@ -1183,17 +1183,17 @@ def test_linear_dependency_with_asset_properties(asserting_events_worker: Events
     events = _asset_events(asserting_events_worker)
     assert len(events) == 2
 
-    obs_events = [e for e in events if e.event.startswith("prefect.asset.observation")]
+    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
     mat_events = [
         e for e in events if e.event.startswith("prefect.asset.materialization")
     ]
 
-    assert len(obs_events) == 1
+    assert len(ref_events) == 1
     assert len(mat_events) == 1
 
-    obs_evt = obs_events[0]
-    assert obs_evt.resource.id == source_asset.key
-    assert obs_evt.event == "prefect.asset.observation.succeeded"
+    ref_evt = ref_events[0]
+    assert ref_evt.resource.id == source_asset.key
+    assert ref_evt.event == "prefect.asset.reference.succeeded"
 
     mat_evt = mat_events[0]
     assert mat_evt.resource.id == target_asset.key
@@ -1201,7 +1201,7 @@ def test_linear_dependency_with_asset_properties(asserting_events_worker: Events
 
     assert any(r.id == source_asset.key and r.role == "asset" for r in mat_evt.related)
 
-    assert any(r.id.startswith("prefect.flow-run.") for r in obs_evt.related)
+    assert any(r.id.startswith("prefect.flow-run.") for r in ref_evt.related)
     assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)
 
 

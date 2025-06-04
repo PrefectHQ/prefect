@@ -582,7 +582,7 @@ class AssetContext(ContextModel):
 
     def emit_events(self, state: State) -> None:
         """
-        Emit asset observation and materialization events based on task completion.
+        Emit asset reference and materialization events based on task completion.
         """
 
         from prefect.events import emit_event
@@ -598,10 +598,10 @@ class AssetContext(ContextModel):
 
         asset_deps_related: list[Asset] = []
 
-        # Emit observation events for direct asset dependencies
+        # Emit reference events for direct asset dependencies
         for asset in self.direct_asset_dependencies:
             emit_event(
-                event=f"prefect.asset.observation.{event_status}",
+                event=f"prefect.asset.reference.{event_status}",
                 resource=self.asset_as_resource(asset),
                 related=[],
             )
