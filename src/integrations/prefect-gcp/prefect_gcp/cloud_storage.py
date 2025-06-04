@@ -806,7 +806,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         if self.bucket_folder != "" and bucket_path.startswith(self.bucket_folder):
             self.logger.info(
                 f"Bucket path {bucket_path!r} is already prefixed with "
-                f"bucket folder {self.bucket_folder!r}; is this intentional?"
+                f"bucket folder {self.bucket_folder!r}; returning unmodified path."
             )
             return bucket_path
 
