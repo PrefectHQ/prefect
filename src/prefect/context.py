@@ -621,13 +621,13 @@ class AssetContext(ContextModel):
                     payload=self.materialization_metadata.get(asset.key),
                 )
 
-    def update_tracked_assets(self, flow_run_context: FlowRunContext) -> None:
+    def update_tracked_assets(self) -> None:
         """
         Update the flow run context with assets that should be propagated downstream.
-
-        Args:
-            flow_run_context: The current flow run context
         """
+        if not (flow_run_context := FlowRunContext.get()):
+            return
+
         if not self.task_run_id:
             return
 
