@@ -663,10 +663,6 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             else {}
         )
 
-        assert isinstance(container_create_kwargs, dict), (
-            "container_create_kwargs must be a dict"
-        )
-
         # Check if volumes are being passed through container_create_kwargs
         if "volumes" in container_create_kwargs:
             warnings.warn(
