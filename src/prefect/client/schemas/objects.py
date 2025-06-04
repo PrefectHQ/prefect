@@ -757,23 +757,6 @@ class TaskRunResult(TaskRunInput):
     input_type: Literal["task_run"] = "task_run"
     id: UUID
 
-    assets: Optional[frozenset[Any]] = Field(
-        default=None,
-        description="A set of assets associated with the task run result.",
-    )
-
-    def __hash__(self) -> int:
-        return hash((self.input_type, self.id, self.assets))
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, TaskRunResult):
-            return False
-        return (
-            self.input_type == other.input_type
-            and self.id == other.id
-            and self.assets == other.assets
-        )
-
 
 class Parameter(TaskRunInput):
     """Represents a parameter input to a task run."""

@@ -24,7 +24,6 @@ from typing_extensions import TypeIs
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.assets import Asset
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.client.schemas.responses import (
@@ -61,22 +60,6 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-def _get_task_run_assets(task_run_id: UUID) -> Optional[list[Asset]]:
-    """
-    Helper function to get task run assets from the flow run context.
-
-    Args:
-        task_run_id: The ID of the task run to get assets for
-
-    Returns:
-        The assets associated with the task run, or None if not found
-    """
-    flow_ctx = FlowRunContext.get()
-    if flow_ctx and task_run_id in flow_ctx.task_run_assets:
-        return flow_ctx.task_run_assets[task_run_id]
-    return None
-
-
 async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunResult]:
     """
     This function recurses through an expression to generate a set of any discernible
@@ -94,15 +77,12 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
-            assets = _get_task_run_assets(obj.task_run_id)
-            inputs.add(TaskRunResult(id=obj.task_run_id, assets=assets))
+            inputs.add(TaskRunResult(id=obj.task_run_id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                assets = _get_task_run_assets(obj.state_details.task_run_id)
                 inputs.add(
                     TaskRunResult(
                         id=obj.state_details.task_run_id,
-                        assets=assets,
                     )
                 )
         # Expressions inside quotes should not be traversed
@@ -111,10 +91,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
-                assets = _get_task_run_assets(state.state_details.task_run_id)
-                inputs.add(
-                    TaskRunResult(id=state.state_details.task_run_id, assets=assets)
-                )
+                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
 
     visit_collection(
         expr,
@@ -145,20 +122,16 @@ def collect_task_run_inputs_sync(
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
-            assets = _get_task_run_assets(obj.task_run_id)
             inputs.add(
                 TaskRunResult(
                     id=obj.task_run_id,
-                    assets=assets,
                 )
             )
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                assets = _get_task_run_assets(obj.state_details.task_run_id)
                 inputs.add(
                     TaskRunResult(
                         id=obj.state_details.task_run_id,
-                        assets=assets,  # Forward the assets
                     )
                 )
         # Expressions inside quotes should not be traversed
@@ -167,10 +140,7 @@ def collect_task_run_inputs_sync(
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
-                assets = _get_task_run_assets(state.state_details.task_run_id)
-                inputs.add(
-                    TaskRunResult(id=state.state_details.task_run_id, assets=assets)
-                )
+                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
 
     visit_collection(
         expr,

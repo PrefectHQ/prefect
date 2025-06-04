@@ -507,11 +507,16 @@ class AssetContext(ContextModel):
 
         upstream_assets = []
 
-        if task_inputs:
+        # Get upstream assets from engine context instead of TaskRunResult.assets
+        flow_ctx = FlowRunContext.get()
+        if task_inputs and flow_ctx:
             for input_list in task_inputs.values():
                 for task_input in input_list:
-                    if isinstance(task_input, TaskRunResult) and task_input.assets:
-                        upstream_assets.extend(task_input.assets)
+                    if isinstance(task_input, TaskRunResult):
+                        # Look up assets in the engine context
+                        task_assets = flow_ctx.task_run_assets.get(task_input.id)
+                        if task_assets:
+                            upstream_assets.extend(task_assets)
 
         return cls(
             direct_asset_dependencies=task.asset_deps[:] if task.asset_deps else [],
