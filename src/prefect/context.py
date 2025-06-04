@@ -67,14 +67,12 @@ def serialize_context() -> dict[str, Any]:
     task_run_context = TaskRunContext.get()
     tags_context = TagsContext.get()
     settings_context = SettingsContext.get()
-    asset_context = AssetContext.get()
 
     return {
         "flow_run_context": flow_run_context.serialize() if flow_run_context else {},
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
-        "asset_context": asset_context.serialize() if asset_context else {},
     }
 
 
