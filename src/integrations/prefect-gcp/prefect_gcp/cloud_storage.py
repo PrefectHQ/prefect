@@ -808,6 +808,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 f"Bucket path {bucket_path!r} is already prefixed with "
                 f"bucket folder {self.bucket_folder!r}; is this intentional?"
             )
+            return bucket_path
 
         bucket_path = str(PurePosixPath(self.bucket_folder) / bucket_path)
         if bucket_path in ["", ".", "/"]:
