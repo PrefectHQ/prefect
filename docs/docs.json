@@ -232,8 +232,18 @@
 			},
 			{
 				"tab": "Examples",
-                "pages": ["v3/examples/index"]
-			},
+                "pages": ["v3/examples/index",
+					{
+						"group": "Examples",
+						"pages": [
+							"v3/examples/hello-world",
+							"v3/examples/simple-web-scraper",
+							"v3/examples/run-api-sourced-etl",
+							"v3/examples/run-dbt-with-prefect"
+                        ]
+                    }
+                ]
+            },
 			{
 				"tab": "Integrations",
 				"groups": [
