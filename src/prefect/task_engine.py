@@ -43,6 +43,7 @@ from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
+    AssetContext,
     AsyncClientContext,
     FlowRunContext,
     SyncClientContext,
@@ -449,7 +450,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 result = state.data
 
-            link_state_to_result(state, result)
+            link_state_to_result(new_state, result)
+            if asset_context := AssetContext.get():
+                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -625,6 +628,18 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
+
+            asset_context = AssetContext.get()
+            if not asset_context:
+                asset_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                stack.enter_context(asset_context)
+
+            asset_context.update_tracked_assets()
+
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1004,6 +1019,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = new_state.data
 
             link_state_to_result(new_state, result)
+            if asset_context := AssetContext.get():
+                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1059,7 +1076,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(terminal_state)
         await self.set_state(terminal_state)
         self._return_value = result
-
         self._telemetry.end_span_on_success()
 
         return result
@@ -1180,6 +1196,17 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
+
+            asset_context = AssetContext.get()
+            if not asset_context:
+                asset_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                stack.enter_context(asset_context)
+            asset_context.update_tracked_assets()
+
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
