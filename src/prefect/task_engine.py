@@ -638,8 +638,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 )
                 stack.enter_context(asset_context)
 
-            asset_context.update_tracked_assets()
-
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1205,7 +1203,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     task_inputs=self.task_run.task_inputs,
                 )
                 stack.enter_context(asset_context)
-            asset_context.update_tracked_assets()
 
             stack.enter_context(
                 TaskRunContext(
