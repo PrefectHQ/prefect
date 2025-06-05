@@ -16,6 +16,8 @@ import prefect
 import prefect.task_engine
 import tests
 from prefect import flow, task
+from prefect.assets import Asset, materialize
+from prefect.client.orchestration import get_client
 from prefect.futures import as_completed
 from prefect.states import State, StateType
 from prefect.testing.fixtures import (  # noqa: F401
@@ -204,9 +206,8 @@ if sys.version_info >= (3, 10):
 class TestRayTaskRunner:
     @pytest.fixture(params=task_runner_setups)
     def task_runner(self, request):
-        yield request.getfixturevalue(
-            request.param._pytestfixturefunction.name or request.param.__name__
-        )
+        fixture_name = request.param._fixture_function.__name__
+        yield request.getfixturevalue(fixture_name)
 
     @pytest.fixture
     def tmp_file(self, tmp_path):
@@ -527,3 +528,65 @@ class TestRayTaskRunner:
             return sum
 
         assert add_random_integers() > 0
+
+    @pytest.mark.skip("Not passing yet")
+    async def test_assets_with_task_runner(self, task_runner):
+        upstream = Asset(key="s3://data/dask_raw")
+        downstream = Asset(key="s3://data/dask_processed")
+
+        @materialize(upstream)
+        async def extract():
+            return {"rows": 50}
+
+        @materialize(downstream)
+        async def load(d):
+            return {"rows": d["rows"] * 2}
+
+        @flow(version="test", task_runner=task_runner)
+        async def pipeline():
+            raw_data = extract.submit()
+            processed = load.submit(raw_data)
+            return processed
+
+        await pipeline()
+
+        # Give the server some time to process the events
+        await asyncio.sleep(5)
+
+        async with get_client() as client:
+            response = await client._client.post(
+                "/events/filter",
+                json={
+                    "filter": {"event": {"prefix": ["prefect.asset."]}},
+                },
+            )
+            if response.status_code == 200:
+                data = response.json()
+                asset_events = data.get("events", [])
+            else:
+                response.raise_for_status()
+
+        assert len(asset_events) == 2
+
+        upstream_events = [
+            e for e in asset_events if e.get("resource", {}).get("id") == upstream.key
+        ]
+        downstream_events = [
+            e for e in asset_events if e.get("resource", {}).get("id") == downstream.key
+        ]
+
+        assert len(upstream_events) == 1
+        assert len(downstream_events) == 1
+
+        assert upstream_events[0]["event"] == "prefect.asset.materialization.succeeded"
+        assert (
+            downstream_events[0]["event"] == "prefect.asset.materialization.succeeded"
+        )
+
+        downstream_evt = downstream_events[0]
+        related = downstream_evt.get("related", [])
+        assert any(
+            r.get("id") == upstream.key and r.get("role") == "asset" for r in related
+        )
+
+        assert any(r.get("id", "").startswith("prefect.flow-run.") for r in related)

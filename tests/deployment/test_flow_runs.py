@@ -11,11 +11,11 @@ from opentelemetry import trace
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas import TaskRunResult
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.context import FlowRunContext
 from prefect.deployments import run_deployment
 from prefect.flow_engine import run_flow_async
-from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import (
     PREFECT_API_URL,
 )

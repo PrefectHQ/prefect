@@ -31,6 +31,7 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
+    TaskRunResult,
     Worker,
     WorkerStatus,
 )
@@ -65,7 +66,6 @@ from prefect.logging import get_run_logger
 from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.schedules import Cron, Interval, RRule, Schedule
-from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import (
