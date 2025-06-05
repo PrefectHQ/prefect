@@ -662,6 +662,17 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             if configuration.container_create_kwargs
             else {}
         )
+
+        # Check if volumes are being passed through container_create_kwargs
+        if "volumes" in container_create_kwargs:
+            warnings.warn(
+                "volumes should be specified in job_variables rather than container_create_kwargs. "
+                "Use job_variables={'volumes': ['/host/path:/container/path']} instead. "
+                "The volumes in container_create_kwargs will be ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         container_create_kwargs = {
             k: v
             for k, v in container_create_kwargs.items()
