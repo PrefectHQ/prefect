@@ -3,7 +3,6 @@ Runner for dbt commands
 """
 
 import os
-import threading
 from typing import Any, Callable, Optional
 
 from dbt.artifacts.resources.types import NodeType
@@ -18,13 +17,10 @@ from google.protobuf.json_format import MessageToDict
 from prefect import get_client, get_run_logger
 from prefect._experimental.lineage import emit_external_resource_lineage
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import TaskRunInput
-from prefect.context import serialize_context
 from prefect.events import emit_event
 from prefect.events.related import related_resources_from_run_context
 from prefect.events.schemas.events import RelatedResource
 from prefect.exceptions import MissingContextError
-from prefect.tasks import Task, TaskOptions
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_dbt.core.profiles import aresolve_profiles_yml, resolve_profiles_yml
 from prefect_dbt.core.settings import PrefectDbtSettings
@@ -65,126 +61,59 @@ NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS = [
 
 
 class TaskState:
-    """State for managing tasks across callbacks with proper synchronization."""
+    """State for managing tasks and collecting node information during dbt execution."""
 
     def __init__(self):
-        self._tasks: dict[str, Task[Any, Any]] = {}
-        self._task_loggers: dict[str, Any] = {}
-        self._task_results: dict[str, Any] = {}
-        self._node_status: dict[str, dict[str, Any]] = {}
-        self._completion_events: dict[str, threading.Event] = {}
-        self._task_runner = None
+        self._node_results: dict[str, Any] = {}
+        self._node_dependencies: dict[str, list[str]] = {}
+        self._task_futures: dict[str, Any] = {}
 
-    def start_task(self, node_id: str, task: Task[Any, Any]) -> None:
-        """Start a task for a node."""
-        self._tasks[node_id] = task
-        self._completion_events[node_id] = threading.Event()
+    def set_node_result(self, node_id: str, result: Any) -> None:
+        """Set the result for a node."""
+        self._node_results[node_id] = result
 
-    def get_task(self, node_id: str) -> Task[Any, Any] | None:
-        """Get the task for a node."""
-        return self._tasks.get(node_id)
+    def get_node_result(self, node_id: str) -> Any | None:
+        """Get the result for a node."""
+        return self._node_results.get(node_id)
 
-    def end_task(self, node_id: str) -> None:
-        """Signal that a task has completed."""
-        self._tasks.pop(node_id, None)
-        self._task_loggers.pop(node_id, None)
+    def set_node_dependencies(self, node_id: str, dependencies: list[str]) -> None:
+        """Set the dependencies for a node."""
+        self._node_dependencies[node_id] = dependencies
 
-        # Signal completion
-        if event := self._completion_events.get(node_id):
-            event.set()
-
-        # Task runner handles cleanup automatically
-
-    def wait_for_completion(self, node_id: str, timeout: float = 30.0) -> bool:
-        """Wait for a node to complete, with timeout."""
-        if event := self._completion_events.get(node_id):
-            return event.wait(timeout)
-        return False
-
-    def set_task_logger(self, node_id: str, logger: Any) -> None:
-        """Set the logger for a task."""
-        self._task_loggers[node_id] = logger
-
-    def get_task_logger(self, node_id: str) -> Any | None:
-        """Get the logger for a task."""
-        return self._task_loggers.get(node_id)
-
-    def set_node_status(
-        self, node_id: str, event_data: dict[str, Any], event_message: str
-    ) -> None:
-        """Set the status for a node."""
-        self._node_status[node_id] = {
-            "event_data": event_data,
-            "event_message": event_message,
-        }
-
-    def get_node_status(self, node_id: str) -> dict[str, Any] | None:
-        """Get the status for a node."""
-        return self._node_status.get(node_id)
+    def get_node_dependencies(self, node_id: str) -> list[str]:
+        """Get the dependencies for a node."""
+        return self._node_dependencies.get(node_id, [])
 
     def set_task_future(self, node_id: str, future: Any) -> None:
         """Set the future for a task."""
-        self._task_results[node_id] = future
+        self._task_futures[node_id] = future
 
     def get_task_future(self, node_id: str) -> Any | None:
         """Get the future for a task."""
-        return self._task_results.get(node_id)
+        return self._task_futures.get(node_id)
 
-    def run_task_in_thread(
-        self,
-        node_id: str,
-        task: Task[Any, Any],
-        parameters: dict[str, Any],
-        context: dict[str, Any],
-        wait_for: list[TaskRunInput],
-    ) -> None:
-        """Run a task in a separate thread."""
-
-        # Use ThreadPoolTaskRunner to properly submit tasks and get futures
-        from prefect.task_runners import ThreadPoolTaskRunner
-
-        if self._task_runner is None:
-            self._task_runner = ThreadPoolTaskRunner(max_workers=8)
-            self._task_runner.__enter__()
-
-        # Submit the task to get a proper PrefectFuture
-        future = self._task_runner.submit(
-            task,
-            parameters=parameters,
-            wait_for=wait_for,
-        )
-        self.set_task_future(node_id, future)
-
-    def cleanup(self):
-        """Clean up resources and wait for all tasks to complete."""
-        # Wait for all futures to complete
-        for node_id, future in self._task_results.items():
-            if future is not None:
-                try:
-                    future.wait(timeout=30.0)  # Wait up to 30 seconds per task
-                except Exception as e:
-                    get_run_logger().error(f"Error waiting for task {node_id}: {e}")
-
-        if self._task_runner is not None:
-            self._task_runner.__exit__(None, None, None)
-            self._task_runner = None
+    def get_all_nodes(self) -> list[str]:
+        """Get all node IDs that have results."""
+        return list(self._node_results.keys())
 
 
 def execute_dbt_node(task_state: TaskState, node_id: str):
-    """Execute a dbt node and wait for its completion using proper synchronization."""
-    task_state.set_task_logger(node_id, get_run_logger())
+    """Execute a dbt node task that represents the dbt execution result."""
+    logger = get_run_logger()
+    logger.info(f"Executing dbt node {node_id}")
 
-    # Wait for the node to finish with timeout
-    if not task_state.wait_for_completion(node_id, timeout=300.0):  # 5 minute timeout
-        raise Exception(f"Node {node_id} timed out waiting for completion")
+    # Get the result that was stored by the dbt callback
+    result = task_state.get_node_result(node_id)
+    if result is None:
+        # This shouldn't happen if we submit tasks correctly
+        raise Exception(f"Node {node_id} has no result available")
 
-    # Get the final status
-    status = task_state.get_node_status(node_id)
-    if status:
-        node_info = status["event_data"].get("node_info", {})
-        node_status = node_info.get("node_status")
-        if node_status in FAILURE_STATUSES:
-            raise Exception(f"Node {node_id} finished with status {node_status}")
+    # Check if the node failed
+    if result.get("status") in FAILURE_STATUSES:
+        raise Exception(f"Node {node_id} failed with status {result['status']}")
+
+    logger.info(f"Node {node_id} completed successfully")
+    return result
 
 
 class PrefectDbtRunner:
@@ -353,8 +282,12 @@ class PrefectDbtRunner:
         def logging_callback(event: EventMsg):
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
             if event_data.get("node_info"):
-                node_id = self._get_dbt_event_node_id(event)
-                logger = task_state.get_task_logger(node_id)
+                # For node-specific events, we'll just use the main logger
+                # since we're no longer tracking per-task loggers
+                try:
+                    logger = get_run_logger()
+                except MissingContextError:
+                    logger = None
             else:
                 try:
                     logger = get_run_logger()
@@ -380,62 +313,21 @@ class PrefectDbtRunner:
     def _get_dbt_event_node_id(self, event: EventMsg) -> str:
         return event.data.node_info.unique_id  # type: ignore[reportUnknownMemberType]
 
-    def _call_task(
+    def _store_node_info(
         self,
         task_state: TaskState,
         manifest_node: ManifestNode,
-        context: dict[str, Any],
         dbt_event: EventMsg,
     ):
-        """Create and run a task for a node."""
-        if manifest_node.resource_type in NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS:
-            task_options = TaskOptions(
-                task_run_name=f"Materialize {manifest_node.resource_type.lower()} {manifest_node.name}",
-                cache_policy=None,  # Disable caching due to non-serializable TaskState
-            )
-            # For now, use regular Task - we can add MaterializingTask later
-            task = Task(
-                fn=execute_dbt_node,
-                **task_options,
-            )
-        else:
-            task_options = TaskOptions(
-                task_run_name=f"Execute {manifest_node.resource_type.lower()} {manifest_node.name}",
-                cache_policy=None,  # Disable caching due to non-serializable TaskState
-            )
-            task = Task(
-                fn=execute_dbt_node,
-                **task_options,
-            )
-
-        # Start the task in a separate thread
-        task_state.start_task(manifest_node.unique_id, task)
-
-        wait_for: list[Any] = []
-        for depends_on_node in self._get_manifest_depends_on_nodes(manifest_node):
-            depends_manifest_node = self.manifest.nodes.get(depends_on_node)
-            if depends_manifest_node and (
-                upstream_future := task_state.get_task_future(
-                    depends_manifest_node.unique_id
-                )
-            ):
-                wait_for.append(upstream_future)
-
-        task_state.run_task_in_thread(
-            manifest_node.unique_id,
-            task,
-            parameters={
-                "task_state": task_state,
-                "node_id": manifest_node.unique_id,
-            },
-            context=context,
-            wait_for=wait_for,
-        )
+        """Store information about a node for later task submission."""
+        # Store the dependencies for this node
+        dependencies = self._get_manifest_depends_on_nodes(manifest_node)
+        task_state.set_node_dependencies(manifest_node.unique_id, dependencies)
 
     def _create_node_started_callback(
         self, task_state: TaskState, context: dict[str, Any]
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for starting tasks when nodes start."""
+        """Creates a callback function for storing node information when nodes start."""
 
         def node_started_callback(event: EventMsg):
             if event.info.name == "NodeStart" and self.manifest is not None:
@@ -448,10 +340,10 @@ class PrefectDbtRunner:
 
                     if enable_assets:
                         try:
-                            self._call_task(task_state, manifest_node, context, event)
+                            self._store_node_info(task_state, manifest_node, event)
                         except Exception as e:
                             get_run_logger().error(
-                                f"Failed to create task for {node_id}: {e}"
+                                f"Failed to store info for {node_id}: {e}"
                             )
 
         return node_started_callback
@@ -459,7 +351,7 @@ class PrefectDbtRunner:
     def _create_node_finished_callback(
         self, task_state: TaskState, context: dict[str, Any]
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for ending tasks when nodes finish."""
+        """Creates a callback function for storing node results when nodes finish."""
 
         def node_finished_callback(event: EventMsg):
             if event.info.name == "NodeFinished" and self.manifest is not None:
@@ -472,21 +364,80 @@ class PrefectDbtRunner:
 
                     if enable_assets:
                         try:
-                            # Store the status before ending the task
+                            # Store the result from the dbt event
                             event_data = MessageToDict(
                                 event.data, preserving_proto_field_name=True
                             )
-                            event_message = self._get_dbt_event_msg(event)
-                            task_state.set_node_status(
-                                node_id, event_data, event_message
-                            )
-                            task_state.end_task(node_id)
+                            node_info = event_data.get("node_info", {})
+                            node_status = node_info.get("node_status")
+
+                            result = {
+                                "status": node_status,
+                                "event_data": event_data,
+                                "message": self._get_dbt_event_msg(event),
+                            }
+                            task_state.set_node_result(node_id, result)
                         except Exception as e:
                             get_run_logger().error(
-                                f"Failed to end task for {node_id}: {e}"
+                                f"Failed to store result for {node_id}: {e}"
                             )
 
         return node_finished_callback
+
+    def _submit_collected_tasks(self, task_state: TaskState) -> None:
+        """Submit tasks for all collected nodes with proper dependencies."""
+        from prefect.tasks import Task, TaskOptions
+
+        all_nodes = task_state.get_all_nodes()
+        if not all_nodes:
+            return
+
+        # Submit tasks for all nodes with dependencies
+        for node_id in all_nodes:
+            if self.manifest is None:
+                continue
+
+            manifest_node = self.manifest.nodes.get(node_id)
+            if not manifest_node:
+                continue
+
+            prefect_config = manifest_node.config.meta.get("prefect", {})
+            enable_assets = prefect_config.get("enable_assets", True)
+
+            if not enable_assets:
+                continue
+
+            # Create the task
+            if manifest_node.resource_type in NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS:
+                task_options = TaskOptions(
+                    task_run_name=f"Materialize {manifest_node.resource_type.lower()} {manifest_node.name}",
+                    cache_policy=None,  # Disable caching due to non-serializable TaskState
+                )
+            else:
+                task_options = TaskOptions(
+                    task_run_name=f"Execute {manifest_node.resource_type.lower()} {manifest_node.name}",
+                    cache_policy=None,  # Disable caching due to non-serializable TaskState
+                )
+
+            task = Task(fn=execute_dbt_node, **task_options)
+
+            # Collect dependencies - only from nodes that also have tasks
+            wait_for = []
+            dependencies = task_state.get_node_dependencies(node_id)
+            for dep_node_id in dependencies:
+                if dep_future := task_state.get_task_future(dep_node_id):
+                    wait_for.append(dep_future)
+
+            # Submit the task
+            try:
+                future = task.submit(
+                    task_state=task_state,
+                    node_id=node_id,
+                    wait_for=wait_for,
+                )
+                task_state.set_task_future(node_id, future)
+            except Exception as e:
+                get_run_logger().error(f"Failed to submit task for {node_id}: {e}")
 
     def _create_events_callback(
         self, related_prefect_context: list[RelatedResource]
@@ -561,7 +512,6 @@ class PrefectDbtRunner:
 
     async def ainvoke(self, args: list[str], **kwargs: Any):
         """Asynchronously invokes a dbt command."""
-        context = serialize_context()
         task_state = TaskState()
 
         related_prefect_context = await related_resources_from_run_context(self.client)
@@ -585,15 +535,15 @@ class PrefectDbtRunner:
 
             callbacks = [
                 self._create_logging_callback(task_state, self.settings.log_level),
-                self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state, context),
+                self._create_node_started_callback(task_state, {}),
+                self._create_node_finished_callback(task_state, {}),
                 self._create_events_callback(related_prefect_context),
             ]
 
             res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)
 
-            # Clean up the task runner
-            task_state.cleanup()
+            # Submit tasks for all collected nodes after dbt finishes
+            self._submit_collected_tasks(task_state)
 
             if not res.success and res.exception:
                 raise ValueError(
@@ -621,7 +571,6 @@ class PrefectDbtRunner:
 
     def invoke(self, args: list[str], **kwargs: Any):
         """Synchronously invokes a dbt command."""
-        context = serialize_context()
         task_state = TaskState()
 
         related_prefect_context = run_coro_as_sync(
@@ -648,15 +597,15 @@ class PrefectDbtRunner:
 
             callbacks = [
                 self._create_logging_callback(task_state, self.settings.log_level),
-                self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state, context),
+                self._create_node_started_callback(task_state, {}),
+                self._create_node_finished_callback(task_state, {}),
                 self._create_events_callback(related_prefect_context),
             ]
 
             res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)
 
-            # Clean up the task runner
-            task_state.cleanup()
+            # Submit tasks for all collected nodes after dbt finishes
+            self._submit_collected_tasks(task_state)
 
             if not res.success and res.exception:
                 raise ValueError(
