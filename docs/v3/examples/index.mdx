@@ -1,30 +1,26 @@
 ---
-title: Code Examples
-sidebarTitle: Overview
+title: Overview
+icon: bars
 ---
+<CardGroup cols={3}>
 
-The [PrefectHQ/examples](https://github.com/PrefectHQ/examples) repository contains a collection of examples that you can use to get started with Prefect.
+          <Card title="Hello, world!" icon="play" href="/v3/examples/hello-world">
+            Your first steps with Prefect – learn how to create a basic flow and understand core concepts.
+          </Card>
 
-Clone the repository if you want to run the examples locally.
+          
+          <Card title="Simple web scraper" icon="globe" href="/v3/examples/simple-web-scraper">
+            Learn how to scrape article content from web pages with Prefect tasks, retries, and automatic logging.
+          </Card>
 
-```bash
-git clone https://github.com/PrefectHQ/examples.git
-cd examples
-```
+          
+          <Card title="API-sourced ETL with pandas" icon="database" href="/v3/examples/run-api-sourced-etl">
+            Build a small ETL pipeline that fetches JSON from a public API, transforms it with pandas, and writes a CSV – all orchestrated by Prefect.
+          </Card>
 
-Run an example:
+          
+          <Card title="dbt Model Orchestration" icon="database" href="/v3/examples/run-dbt-with-prefect">
+            Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file – no YAML or shell scripts required.
+          </Card>
 
-<CodeGroup>
-
-```bash uv
-uv run flows/hello_world.py
-```
-
-```bash pip
-# Remember to `pip install` any dependencies first
-python flows/hello_world.py
-```
-
-</CodeGroup>
-
-See the [flows](/v3/examples/flows), [deployments](/v3/examples/deployments), [infrastructure](/v3/examples/infrastructure), and [scripts](/v3/examples/scripts) pages for a brief description of the examples included in the repository.
+          </CardGroup>

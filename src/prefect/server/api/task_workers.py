@@ -23,7 +23,7 @@ async def read_task_workers(
     """
     Read active task workers. Optionally filter by task keys.
 
-    For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
+    For more information, see https://docs.prefect.io/v3/concepts/flows-and-tasks#background-tasks.
     """
 
     if task_worker_filter and task_worker_filter.task_keys:

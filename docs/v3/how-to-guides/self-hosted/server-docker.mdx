@@ -1,0 +1,25 @@
+---
+title: How to self-host the Prefect Server with Docker
+sidebarTitle: Self-host the Prefect Server with Docker
+description: Self-host your own Prefect server instance with Docker.
+---
+
+You can use the official Prefect Docker image to run a server in a container.
+
+If you're running a server in a Docker container, you need to:
+
+- Port forward the server to your local machine (e.g. `-p 4200:4200`)
+- Set the `--host` flag on the `prefect server start` command to `0.0.0.0`
+- Set the API server address, `PREFECT_API_URL`, to use Prefect within a container.
+
+For example:
+
+```bash
+docker run -p 4200:4200 -d --rm prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+```
+
+<Tip>
+The `-d` flag runs the container in detached mode (i.e. in the background) and the `--rm` flag removes the container once it is stopped.
+</Tip>
+
+For more information, see the Docker topic about [Networking using the host network](https://docs.docker.com/network/network-tutorial-host/).

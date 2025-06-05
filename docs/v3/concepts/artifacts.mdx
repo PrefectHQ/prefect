@@ -1,0 +1,46 @@
+---
+title: Artifacts
+description: Artifacts are persisted outputs designed for human consumption and available in the UI.
+---
+
+Prefect artifacts:
+
+- are visually rich annotations on flow and task runs
+- are human-readable visual metadata defined in code
+- come in standardized formats such as tables, progress indicators, images, Markdown, and links
+- are stored in Prefect Cloud or Prefect server and rendered in the Prefect UI
+- make it easy to visualize outputs or side effects that your runs produce, and capture updates over time
+
+![Markdown artifact sales report screenshot](/v3/img/ui/md-artifact-info.png)
+
+Common use cases for artifacts include:
+
+- **Progress** indicators: Publish progress indicators for long-running tasks. This helps monitor the progress of your tasks and flows and ensure they are running as expected.
+- **Debugging**: Publish data that you care about in the UI to easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to a storage location (such as an S3 bucket).
+- **Data quality checks**: Publish data quality checks from in-progress tasks to ensure that data quality is maintained throughout a pipeline. Artifacts make for great performance graphs. For example, you can visualize a long-running machine learning model training run. You can also track artifact versions, making it easier to identify changes in your data.
+- **Documentation**: Publish documentation and sample data to help you keep track of your work and share information. 
+For example, add a description to signify why a piece of data is important.
+
+## Artifact types
+
+There are five artifact types:
+
+- links
+- Markdown
+- progress
+- images
+- tables
+
+<Note> 
+Each artifact created within a task is displayed individually in the Prefect UI.
+This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact.
+
+Unlike the Python `print()` function (where you can concatenate multiple calls to include additional items in a report), 
+these artifact creation functions must be called multiple times, if necessary. 
+
+To create artifacts such as reports or summaries using `create_markdown_artifact()`, define your message string 
+and then pass it to `create_markdown_artifact()` to create the artifact.
+</Note>
+
+
+For more information on how to create and use artifacts, see the [how to produce workflow artifacts](/v3/how-to-guides/workflows/artifacts/) guide.

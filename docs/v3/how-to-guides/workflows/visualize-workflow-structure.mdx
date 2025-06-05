@@ -1,0 +1,70 @@
+---
+title: How to visualize workflow structure
+sidebarTitle: Visualize workflow structure
+---
+
+You can visualize the structure of your flow using the `visualize()` method.
+
+<Note>
+**Install Graphviz**
+
+To use the `visualize()` method, you must have Graphviz installed. Please follow the [Graphviz installation instructions](https://graphviz.org/download/) for your platform.
+</Note>
+
+```python
+from prefect import flow, task
+
+@task(name="Print Hello")
+def print_hello(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@task(name="Print Hello Again")
+def print_hello_again(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@flow(name="Hello Flow")
+def hello_world(name="world"):
+    message = print_hello(name)
+    message2 = print_hello_again(message)
+
+if __name__ == "__main__":
+    hello_world.visualize()
+```
+
+![A simple flow visualized with the .visualize() method](/v3/img/orchestration/hello-flow-viz.png)
+
+<Warning>
+**Calling `visualize()` will execute code outside of tasks**
+
+Code outside of tasks will run when calling `visualize()`. To avoid inadvertent execution, place code you don't want to run in tasks.
+</Warning>
+
+
+For workflows with dynamic structure using loops and/or if/else statements, you can provide tasks with mock return values for use in the `visualize()` call to choose which code paths to visualize.
+
+```python
+from prefect import flow, task
+@task(viz_return_value=[4])
+def get_list():
+    return [1, 2, 3]
+
+@task
+def append_one(n):
+    return n.append(6)
+
+@flow
+def viz_return_value_tracked():
+    l = get_list()
+    for num in range(3):
+        l.append(5)
+        append_one(l)
+
+if __name__ == "__main__":
+    viz_return_value_tracked.visualize()
+```
+
+![A flow with return values visualized with the .visualize() method](/v3/img/orchestration/viz-return-value-tracked.png)

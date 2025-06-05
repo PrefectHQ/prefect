@@ -1,0 +1,142 @@
+---
+title: Tasks
+description: Tasks are atomic units of work with transactional semantics.
+---
+
+```python
+from prefect import task
+
+@task(log_prints=True)
+def explain_tasks():
+    print("run any python code here!")
+    print("but maybe just a little bit")
+
+if __name__ == "__main__":
+    explain_tasks()
+```
+
+## What is a task?
+
+Tasks are defined as decorated Python functions. Above, `explain_tasks` is an instance of a task.
+
+Tasks are cache-able and retryable units of work that are easy to execute concurrently, in parallel, and/or with [transactional semantics](/v3/concepts/transactions/).
+
+Like flows, tasks are free to call other tasks or flows, there is no required nesting pattern.
+
+Generally, tasks behave like normal Python functions, but they have some additional capabilities:
+
+- Metadata about task runs, such as run time and final state, is automatically tracked
+- Each [state](/v3/concepts/states/) the task enters is recorded, enabling observability and state-based logic
+- [Futures](/v3/how-to-guides/workflows/run-work-concurrently#handling-futures) from upstream tasks are automatically resolved by downstream tasks
+- [Retries](/v3/how-to-guides/workflows/retries) can be performed on failure, with configurable delay and retry limits
+- [Caching](/v3/how-to-guides/workflows/cache-workflow-steps) enables result reuse across workflow executions
+- [Concurrency](/v3/how-to-guides/workflows/run-work-concurrently) via `.submit()` and `.map()` allow concurrent execution within and across workflows
+- [Timeouts](/v3/how-to-guides/workflows/write-and-run#cancel-a-workflow-if-it-runs-for-too-long) can be enforced to prevent unintentional, long-running operations
+
+Tasks are uniquely identified by a task key, which is a hash composed of the task name and the fully qualified name of the function.
+
+
+## Running a task
+
+A **task run** is a representation of a single invocation of a task.
+
+### The life of a task run
+
+Like flow runs, each task run has its own state lifecycle. Task states provide observability into execution progress and enable sophisticated runtime logic based on upstream outcomes.
+
+Like flow runs, each task run can be observed in the Prefect UI or CLI.
+
+A normal task run lifecycle looks like this:
+
+```mermaid
+flowchart TD
+    A[Pending] -->|🚀 Starting execution| B[Running]
+    A -->|📦 Cached result available| C[Completed]
+    B -->|✅ Success| C[Completed]
+    B -.->|❌ Error occurred| D[Retrying/AwaitingRetry]
+    B -.->|💥 Infrastructure failure| E[Crashed]
+    D -->|🔄 Retry attempt| B
+    D -.->|😵 Retries exhausted| F[Failed]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#9ff,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#9f9,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#ff9,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#f66,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#f99,stroke:#333,stroke-width:2px,color:#000
+    
+    classDef default fill-opacity:0.9
+```
+
+<Note>
+**[Background tasks](#background-tasks) have an additional state**
+
+When using `.delay()`, background tasks start in a `Scheduled` state before transitioning to `Pending`. This allows them to be queued and distributed to available workers.
+</Note>
+
+### Different ways to create a task run
+
+The simplest way to create a task run is to call a `@task` decorated function (i.e. `__call__`), just like a normal Python function.
+
+```python
+from prefect import task
+
+@task
+def add_integers(a: int, b: int) -> int:
+    return a + b
+
+if __name__ == "__main__":
+    add_integers(1, 2)
+```
+
+Tasks may be submitted to a [task runner](/v3/how-to-guides/workflows/run-work-concurrently#task-runners) for concurrent execution where the eventual result is desired.
+
+
+When the result of a task is not required by the caller, it may be delayed to static infrastructure in the background for execution by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers).
+
+## Task orchestration model
+### Client-side orchestration
+
+Prefect tasks are orchestrated client-side, which means that task runs are created and updated locally. This allows for efficient handling of large-scale workflows with many tasks and improves reliability when connectivity fails intermittently.
+
+Task updates are logged in batch, leading to eventual consistency for task states in the UI and API queries.
+
+### State dependencies
+
+Tasks automatically resolve dependencies based on data flow between them. When a task receives the result or future of an upstream task as input, Prefect establishes an implicit state dependency such that a downstream task cannot begin until the upstream task has `Completed`.
+
+Explicit state dependencies can be introduced with [the `wait_for` parameter.](/v3/how-to-guides/workflows/run-work-concurrently#creating-state-dependencies)
+
+## Task composition within flows
+
+Tasks are typically organized into [flows](/v3/concepts/flows#organize-flows-with-subflows-and-tasks) to create comprehensive workflows.
+Each task offers isolated observability within the Prefect UI. Task-level metrics, logs, and state information help identify bottlenecks and troubleshoot issues at a granular level. Tasks can also be reused across multiple flows, promoting consistency and modularity across an organization's data ecosystem.
+
+<Note>
+**How big should a task be?**
+
+Prefect encourages "small tasks." As a rule of thumb, each task should represent a logical step or significant "side effect" in your workflow. 
+This allows task-level observability and orchestration to narrate your workflow out-of-the-box.
+
+<img src="/v3/img/concepts/narrative-encapsulation.png" alt="Narrative encapsulation" />
+
+</Note>
+
+For detailed configuration options and implementation guidance, see [how to write and run workflows](/v3/how-to-guides/workflows/write-and-run). 
+
+## Background tasks
+
+Background tasks are an alternate task execution model where tasks are submitted in a non-blocking manner by one process and executed by a pool of processes. This execution model is particularly valuable for web applications and workflows that need to dispatch heavy or long-running work without waiting for completion to dedicated, horizontally scaled infrastructure.
+
+When a task is executed with `.delay()`, it pushes the resulting task run onto a server-side topic, which is distributed to an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers) for execution.
+
+<Note>
+Prefect background tasks can be used in place of tools like [Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html) and [RabbitMQ](https://www.rabbitmq.com/) for task queue functionality.
+</Note>
+
+Background tasks are useful for scenarios such as:
+- Web applications that need to trigger long-running processes without blocking HTTP responses
+- Workflows that dispatch work to specialized infrastructure or resource pools
+- Systems that need to scale task execution independently from the main application
+
+For implementation details, see [how to run background tasks](/v3/how-to-guides/workflows/run-background-tasks).

@@ -1,0 +1,78 @@
+---
+title: How to test workflows
+sidebarTitle: Test workflows
+description: Learn about writing tests for Prefect flows and tasks.
+---
+
+### Isolate tests with an ephemeral backend
+
+Prefect provides a simple context manager for unit tests that allows you to run flows and tasks against a temporary local SQLite database.
+
+```python
+from prefect import flow
+from prefect.testing.utilities import prefect_test_harness
+
+@flow
+def my_favorite_flow():
+    return 42
+
+def test_my_favorite_flow():
+  with prefect_test_harness():
+      # run the flow against a temporary testing database
+      assert my_favorite_flow() == 42
+```
+
+For more extensive testing, use `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:
+
+```python
+from prefect import flow
+import pytest
+from prefect.testing.utilities import prefect_test_harness
+
+@pytest.fixture(autouse=True, scope="session")
+def prefect_test_fixture():
+    with prefect_test_harness():
+        yield
+
+@flow
+def my_favorite_flow():
+    return 42
+
+def test_my_favorite_flow():
+    assert my_favorite_flow() == 42
+```
+
+<Note>
+**Session scoped fixture**
+
+In this example, the fixture is scoped to run once for the entire test session. In most cases, you do not need a clean database for each test. Just isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so we recommend scoping the fixture to the session. If you need to isolate some tests fully, use the test harness again to create a fresh database.
+</Note>
+
+### Unit testing underlying functions
+
+To test the function decorated with `@task` or `@flow`, use `.fn` to call the wrapped function directly:
+
+```python
+from prefect import flow, task
+
+@task
+def my_favorite_task():
+    return 42
+
+@flow
+def my_favorite_flow():
+    val = my_favorite_task()
+    return val
+
+def test_my_favorite_task():
+    assert my_favorite_task.fn() == 42
+```
+
+If your flow or task uses a logger, you can disable the logger to avoid the `RuntimeError` raised from a missing flow context.
+    ```python
+    from prefect.logging import disable_run_logger
+
+    def test_my_favorite_task():
+        with disable_run_logger():
+            assert my_favorite_task.fn() == 42
+    ```

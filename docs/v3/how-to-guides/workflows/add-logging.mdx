@@ -1,0 +1,99 @@
+---
+title: How to add logging to a workflow
+sidebarTitle: Add logging
+---
+
+### Emit custom logs
+
+To emit custom logs, use `get_run_logger` from within a flow or task.
+
+```python
+from prefect import flow, task
+from prefect.logging import get_run_logger
+
+
+@task(name="log-example-task")
+def logger_task():
+    # this logger instance will emit logs 
+    # associated with both the flow run *and* the individual task run
+    logger = get_run_logger()
+    logger.info("INFO level log message from a task.")
+    logger.debug("DEBUG level log message from a task.")
+
+
+@flow(name="log-example-flow")
+def logger_flow():
+    # this logger instance will emit logs
+    # associated with the flow run only
+    logger = get_run_logger()
+    logger.info("INFO level log message.")
+    logger.debug("DEBUG level log message.")
+    logger.error("ERROR level log message.")
+    logger.critical("CRITICAL level log message.")
+
+    logger_task()
+```
+
+The logger returned by `get_run_logger` support the [standard Python logging methods](https://docs.python.org/3/library/logging.html). Any logs emitted by the logger will be associated with the flow run or task run they are emitted from and sent to the Prefect backend. Logs sent to the Prefect backend are visible in the Prefect UI.
+
+<Warning>
+`get_run_logger()` can only be used in the context of a flow or task.
+
+To use a normal Python logger anywhere with your same configuration, use `get_logger()` from `prefect.logging`.
+
+The logger retrieved with `get_logger()` will **not** send log records to the Prefect API.
+</ Warning>
+
+### Log with print statements
+
+To send `print` statements to the Prefect backend as logs, set the `log_prints` kwarg to `True` on the flow or task.
+
+```python
+from prefect import task, flow
+
+@task
+def my_task():
+    print("we're logging print statements from a task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+The `log_prints` kwarg is inherited by default by nested flow runs and tasks. To opt out of logging `print` statements for a specific task or flow, set `log_prints=False` on the child flow or task.
+
+```python
+from prefect import task, flow
+
+@task(log_prints=False)
+def my_task():
+    print("not logging print statements in this task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+You can configure the default `log_prints` setting for all Prefect flow and task runs through the 
+`PREFECT_LOGGING_LOG_PRINTS` setting:
+
+
+```bash
+prefect config set PREFECT_LOGGING_LOG_PRINTS=True
+```
+
+## Access logs from the command line
+
+You can retrieve logs for a specific flow run ID using Prefect's CLI:
+
+```bash
+prefect flow-run logs MY-FLOW-RUN-ID
+```
+
+This can be particularly helpful if you want to access the logs as a local file:
+
+```bash
+prefect flow-run logs  MY-FLOW-RUN-ID > flow.log
+```

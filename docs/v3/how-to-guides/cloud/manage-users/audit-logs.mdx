@@ -1,0 +1,44 @@
+---
+title: How to audit Cloud activity
+sidebarTitle: Audit Cloud activity
+description: Monitor user access and activity with audit logs in Prefect Cloud.
+---
+
+Prefect Cloud's [Pro and Enterprise plans](https://www.prefect.io/pricing) offer enhanced compliance and transparency through audit logs.
+Audit logs provide a chronological record of activities performed by members in your account, 
+allowing you to monitor detailed Prefect Cloud actions for security and compliance purposes.
+
+Audit logs show who took what action, when, and using what resources within your Prefect Cloud account.
+In conjunction with appropriate tools and procedures, audit logs assist in detecting 
+potential security violations and investigating application errors.  
+
+Audit logs record:
+
+- Access to workspaces
+- User login activity
+- User API key creation and removal
+- Workspace creation and removal
+- Account member invitations and removal
+- Service account creation, API key rotation, and removal
+- Billing payment method for self-serve pricing tiers
+
+## View audit logs
+
+From your account settings page, select the **Audit Log** page to view audit logs.
+Administrators can view audit logs for:
+
+- Account-level events in Prefect Cloud, such as:
+  - Member invites
+  - Changing a member's role
+  - Member login and logout of Prefect Cloud
+  - Creating or deleting a service account
+- Workspace-level events in Prefect Cloud, such as:
+  - Adding a member to a workspace
+  - Changing a member's workspace role
+  - Creating or deleting a workspace
+
+Admins can filter audit logs on multiple dimensions to restrict the results they see by workspace, user, or event type.
+View audit log events in the **Events** drop-down menu.
+
+You may also filter audit logs by date range. 
+Audit log retention period varies by [Prefect Cloud plan](https://www.prefect.io/pricing).
