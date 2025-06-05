@@ -12,10 +12,12 @@ import pytest
 
 import prefect.settings
 from prefect import flow, task
+from prefect.assets import Asset, materialize
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.context import (
     GLOBAL_SETTINGS_CONTEXT,
+    AssetContext,
     ContextModel,
     FlowRunContext,
     SettingsContext,
@@ -385,6 +387,7 @@ class TestSerializeContext:
             "task_run_context": {},
             "tags_context": {},
             "settings_context": SettingsContext.get().serialize(),
+            "asset_context": {},
         }
 
     async def test_with_flow_run_context(self, prefect_client):
@@ -410,6 +413,7 @@ class TestSerializeContext:
                 "task_run_context": {},
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
+                "asset_context": {},
             }
 
     async def test_serialize_from_subprocess_with_flow_run_from_deployment(
@@ -502,6 +506,7 @@ class TestSerializeContext:
                 "task_run_context": task_ctx.serialize(),
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
+                "asset_context": {},
             }
 
     def test_with_tags_context(self):
@@ -512,7 +517,38 @@ class TestSerializeContext:
                 "task_run_context": {},
                 "tags_context": {"current_tags": current_tags},
                 "settings_context": SettingsContext.get().serialize(),
+                "asset_context": {},
             }
+
+    def test_with_asset_context(self):
+        asset = Asset(key="s3://bucket/data.csv")
+
+        @materialize(asset, by="foo")
+        def bar():
+            pass
+
+        task_run_id = uuid.uuid4()
+
+        serialized = serialize_context(
+            asset_ctx_kwargs={
+                "task": bar,
+                "task_run_id": task_run_id,
+                "task_inputs": {},
+            }
+        )
+        assert serialized == {
+            "flow_run_context": {},
+            "task_run_context": {},
+            "tags_context": {},
+            "settings_context": SettingsContext.get().serialize(),
+            "asset_context": AssetContext(
+                task_run_id=task_run_id,
+                downstream_assets=[asset],
+                upstream_assets=[],
+                direct_asset_dependencies=[],
+                materialized_by="foo",
+            ).serialize(),
+        }
 
     def test_with_multiple_contexts(self):
         with tags("a", "b") as current_tags:
@@ -525,6 +561,7 @@ class TestSerializeContext:
                     "task_run_context": {},
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
+                    "asset_context": {},
                 }
                 assert (
                     serialized["settings_context"]["settings"]["api"]["key"] == "test"
