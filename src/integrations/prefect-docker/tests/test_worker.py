@@ -1,5 +1,4 @@
 import copy
-import os
 import uuid
 from unittest.mock import MagicMock, call, patch
 
@@ -1260,12 +1259,13 @@ async def test_docker_client_default_timeout_configuration(
         mocked_from_env.assert_called_once_with(timeout=default_timeout_duration)
 
 
-@patch.dict(os.environ, {"DOCKER_CLIENT_TIMEOUT": "30"})
 @patch("docker.from_env")
 async def test_docker_client_overwrite_timeout_configuration(
-    mocked_from_env: MagicMock,
+    mocked_from_env: MagicMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Validate we can pass a timeout via environment variables to the underlying docker client."""
+
+    monkeypatch.setenv("DOCKER_CLIENT_TIMEOUT", "30")
 
     async with DockerWorker(work_pool_name="test") as worker:
         _ = worker._get_client()
