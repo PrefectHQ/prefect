@@ -97,6 +97,7 @@ from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
+from prefect.utilities.engine import collect_task_run_inputs_sync
 from prefect.utilities.importtools import lazy_import
 from prefect_ray.context import RemoteOptionsContext
 
@@ -249,12 +250,22 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
+        task_run_id = uuid4()
+        task_inputs = {
+            k: collect_task_run_inputs_sync(v, future_cls=PrefectRayFuture)
+            for k, v in parameters.items()
+        }
+        context = serialize_context(
+            asset_ctx_kwargs={
+                "task": task,
+                "task_run_id": task_run_id,
+                "task_inputs": task_inputs,
+            }
+        )
 
         parameters, upstream_ray_obj_refs = self._exchange_prefect_for_ray_futures(
             parameters
         )
-        task_run_id = uuid4()
-        context = serialize_context()
 
         remote_options = RemoteOptionsContext.get().current_remote_options
         if remote_options:
