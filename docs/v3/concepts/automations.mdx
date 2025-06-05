@@ -1,0 +1,183 @@
+---
+title: Automations
+description: Learn how to automatically take action in response to events.
+---
+
+Automations enable you to configure [actions](#actions) that execute automatically based on [trigger](#triggers) conditions.
+
+Potential triggers include the occurrence of events from changes in a flow run's state—or the absence of such events.
+You can define your own custom trigger to fire based on a custom [event](/v3/concepts/event-triggers/) defined in Python code.
+
+
+With Prefect Cloud you can even create [webhooks](/v3/automate/events/webhook-triggers/) that can receive data for use in actions.
+
+Actions you can take upon a trigger include:
+
+- creating flow runs from existing deployments
+- pausing and resuming schedules or work pools
+- sending custom notifications
+
+
+### Triggers
+
+Triggers specify the conditions under which your action should be performed. The Prefect UI includes templates for many
+common conditions, such as:
+
+- Flow run state change (Flow Run Tags are only evaluated with `OR` criteria)
+- Work pool status
+- Work queue status
+- Deployment status
+- Metric thresholds, such as average duration, lateness, or completion percentage
+- Custom event triggers
+
+Importantly, you can configure the triggers not only in reaction to events, but also proactively: in the absence of
+an expected event.
+
+![Configuring a trigger for an automation in Prefect Cloud.](/v3/img/ui/automations-trigger.png)
+
+For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer
+than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state.
+A trigger could kick off an action if the flow stays in a running state for more than 30 minutes.
+
+This action could be taken on the flow itself, such as cancelling or restarting it. Or the action could take the form of a
+notification for someone to take manual remediation steps. Or you could set both actions to take place when the trigger occurs.
+
+### Actions
+
+Actions specify what your automation does when its trigger criteria are met. Current action types include:
+
+- Cancel a flow run
+- Pause or resume a schedule
+- Run a deployment
+- Pause or resume a deployment schedule
+- Pause or resume a work pool
+- Pause or resume a work queue
+- Pause or resume an automation
+- Send a [notification](#automation-notifications)
+- Call a webhook
+- Suspend a flow run
+- Change the state of a flow run
+
+![Configuring an action for an automation in Prefect Cloud.](/v3/img/ui/automations-action.png)
+
+
+### Selected and inferred action targets
+
+Some actions require you to either select the target of the action, or specify that the target of the action should be
+inferred. Selected targets are simple and useful for when you know exactly what object your action should act on. For
+example, the case of a cleanup flow you want to run or a specific notification you want to send.
+
+Inferred targets are deduced from the trigger itself.
+
+For example, if a trigger fires on a flow run that is stuck in a running state, and the action is to cancel an inferred
+flow run—the flow run that caused the trigger to fire.
+
+Similarly, if a trigger fires on a work queue event and the corresponding action is to pause an inferred work queue, the
+inferred work queue is the one that emitted the event.
+
+Prefect infers the relevant event whenever possible, but sometimes one does not exist.
+
+Specify a name and, optionally, a description for the automation.
+
+
+## Sending notifications with automations
+
+
+Automations support sending notifications through any predefined block that is capable of and configured
+to send a message, including:
+
+- Slack message to a channel
+- Microsoft Teams message to a channel
+- Email to an email address
+
+![Configuring notifications for an automation in Prefect Cloud.](/v3/img/ui/automations-notifications.png)
+
+## Templating with Jinja
+
+You can access templated variables with automation actions through [Jinja](https://palletsprojects.com/p/jinja/) syntax.
+Templated variables enable you to dynamically include details from an automation trigger, such as a flow or pool name.
+
+Jinja templated variable syntax wraps the variable name in double curly brackets, like this: `{{ variable }}`.
+
+You can access properties of the underlying flow run objects including:
+
+- [flow_run](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
+- [work_pool](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+
+In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
+
+The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
+
+Here's an example relevant to a flow run state-based notification:
+
+```
+Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
+
+    Timestamp: {{ flow_run.state.timestamp }}
+    Flow ID: {{ flow_run.flow_id }}
+    Flow Run ID: {{ flow_run.id }}
+    State message: {{ flow_run.state.message }}
+```
+
+The resulting Slack webhook notification looks something like this:
+
+![Configuring notifications for an automation in Prefect Cloud.](/v3/img/ui/templated-notification.png)
+
+You could include `flow` and `deployment` properties:
+
+```
+Flow run {{ flow_run.name }} for flow {{ flow.name }}
+entered state {{ flow_run.state.name }}
+with message {{ flow_run.state.message }}
+
+Flow tags: {{ flow_run.tags }}
+Deployment name: {{ deployment.name }}
+Deployment version: {{ deployment.version }}
+Deployment parameters: {{ deployment.parameters }}
+```
+
+An automation that reports on work pool status might include notifications using `work_pool` properties:
+
+```
+Work pool status alert!
+
+Name: {{ work_pool.name }}
+Last polled: {{ work_pool.last_polled }}
+```
+
+In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the
+event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations)
+for additional details.
+
+```
+Automation: {{ automation.name }}
+Description: {{ automation.description }}
+
+Event: {{ event.id }}
+Resource:
+{% for label, value in event.resource %}
+{{ label }}: {{ value }}
+{% endfor %}
+Related Resources:
+{% for related in event.related %}
+    Role: {{ related.role }}
+    {% for label, value in related %}
+    {{ label }}: {{ value }}
+    {% endfor %}
+{% endfor %}
+```
+
+Note that this example also illustrates the ability to use Jinja features such as iterator and for loop
+[control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when
+templating notifications.
+
+For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
+
+## Further reading
+
+- To learn more about Prefect events, which can trigger automations, see the [events docs](/v3/concepts/events/).
+- See the [webhooks guide](/v3/how-to-guides/cloud/create-a-webhook/)
+to learn how to create webhooks and receive external events.
