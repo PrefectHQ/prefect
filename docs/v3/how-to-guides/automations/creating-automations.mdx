@@ -1,0 +1,48 @@
+---
+title: How to create automations
+sidebarTitle: Create Automations
+description: Learn how to define automations that trigger actions based on events.
+---
+
+## Create an automation
+
+On the **Automations** page, select the **+** icon to create a new automation. You'll be prompted to configure:
+
+- A [trigger](#triggers) condition that causes the automation to execute.
+- One or more [actions](#actions) carried out by the automation.
+- [Details](#details) about the automation, such as a name and description.
+
+import { COMBINED } from "/snippets/resource-management/combined.mdx"
+import { automations } from "/snippets/resource-management/vars.mdx"
+
+<COMBINED name="automations" hrefTF={automations.tf} hrefAPI={automations.api} hrefCLI={automations.cli} />
+
+
+### Create automations with the Python SDK
+
+You can create and access any automation with the Python SDK's `Automation` class and its methods.
+```python
+from prefect.automations import Automation
+from prefect.events.schemas.automations import EventTrigger
+from prefect.events.actions import CancelFlowRun
+
+# creating an automation
+automation = Automation(
+    name="woodchonk",
+    trigger=EventTrigger(
+        expect={"animal.walked"},
+        match={
+            "genus": "Marmota",
+            "species": "monax",
+        },
+        posture="Reactive",
+        threshold=3,
+    ),
+    actions=[CancelFlowRun()],
+).create()
+
+# reading the automation
+automation = Automation.read(id=automation.id)
+# or by name
+automation = Automation.read(name="woodchonk")
+```

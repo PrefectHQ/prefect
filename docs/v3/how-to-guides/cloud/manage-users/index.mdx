@@ -1,0 +1,60 @@
+---
+title: How to manage user accounts
+sidebarTitle: Manage user accounts
+description: Special features for Prefect Cloud users
+---
+
+Sign up for a Prefect Cloud account at [app.prefect.cloud](https://app.prefect.cloud).
+
+<Note>
+An individual user can be invited to become a member of other accounts.
+</Note>
+
+## User settings
+
+You can access your personal settings in the [profile menu](https://app.prefect.cloud/my/profile), including:
+
+- **Profile**: View and edit basic information, such as name.
+- **API keys**: Create and view [API keys](/v3/manage/cloud/manage-users/api-keys/) 
+for connecting to Prefect Cloud from the CLI or other environments.
+- **Preferences**: Manage settings, such as color mode and default time zone.
+- **Feature previews**: Enable or disable feature previews.
+
+## Account roles
+
+Users who are part of an account can hold the role of Admin or Member.
+Admins can invite other users to join the account and manage the account's workspaces and teams.
+
+Admins on Pro and Enterprise tier Prefect Cloud accounts can grant members of the account 
+[roles](/v3/manage/cloud/manage-users/manage-roles/) in a workspace, such as Runner or Viewer.
+Custom roles are available on Enterprise tier accounts.
+
+## API keys
+
+[API keys](/v3/manage/cloud/manage-users/api-keys/) enable you to authenticate an environment to work with Prefect Cloud.
+
+## Service accounts (Pro) (Enterprise)
+
+[Service accounts](/v3/manage/cloud/manage-users/service-accounts/) enable you to create a 
+Prefect Cloud API key that is not associated with a user account.
+
+## Single sign-on (Pro)
+
+Enterprise tier plans offer [single sign-on (SSO)](/v3/manage/cloud/manage-users/configure-sso/) 
+integration with your team's identity provider, including options for 
+[directory sync and SCIM provisioning](/v3/manage/cloud/manage-users/configure-sso/#directory-sync).
+
+## Audit log (Pro) (Enterprise)
+
+[Audit logs](/v3/manage/cloud/manage-users/audit-logs/) provide a chronological record of 
+activities performed by Prefect Cloud users who are members of an account.
+
+## Object-level access control lists (Enterprise)
+
+Prefect Cloud's Enterprise plan offers object-level access control lists (ACLs) to 
+restrict access to specific users and service accounts within a workspace.
+
+## Teams (Enterprise)
+
+Users of Enterprise tier Prefect Cloud accounts can be added to 
+[Teams](/v3/manage/cloud/manage-users/manage-teams/) to simplify access control governance.

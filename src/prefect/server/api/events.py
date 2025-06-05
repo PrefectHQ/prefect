@@ -51,7 +51,7 @@ async def create_events(
     """
     Record a batch of Events.
 
-    For more information, see https://docs.prefect.io/v3/automate/events/events.
+    For more information, see https://docs.prefect.io/v3/concepts/events.
     """
     if ephemeral_request:
         await EventsPipeline().process_events(events)

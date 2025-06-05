@@ -1,0 +1,71 @@
+---
+title: Variables
+description: Variables are dynamically-named, mutable string values than can be used to store and reuse non-sensitive bits of data.
+---
+
+Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. 
+They are:
+
+- named, mutable values of any JSON type
+- scoped to a self-hosted Prefect server instance or a single workspace in a Prefect Cloud account
+- meant for values with infrequent writes and frequent reads (but you can create or 
+modify variables at any time)
+- cacheable for quicker retrieval
+- most commonly loaded during flow runtime (but you can load them in other contexts to pass 
+configuration information to Prefect configuration files, such as deployment steps)
+
+<Warning>
+**Variables are not Encrypted**
+
+We do not recommend using variables to store sensitive information. Instead, use 
+[Secret blocks](https://docs.prefect.io/develop/blocks/#prefect-built-in-blocks) to store and access 
+sensitive information.
+</Warning>
+
+## Manage variables
+
+Create, read, edit, and delete variables through the Prefect UI, API, and CLI. 
+Names must adhere to these traditional variable naming conventions:
+
+- Have no more than 255 characters
+- Only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
+- Be unique
+
+Values must have less than or equal to 5000 characters.
+
+Optionally, you can add tags to a variable.
+
+### Through the Prefect UI
+
+View all the variables in your self-hosted Prefect server instance or Prefect Cloud account workspace 
+in the **Variables** page of the Prefect UI. Both the name and value of all variables 
+are visible to anyone with access to the server or workspace.
+
+To create a new variable:
+1. Select the **+** button next to the header of the **Variables** page. 
+1. Enter the name and value of the variable.
+
+### Through the REST API
+
+import { API } from "/snippets/resource-management/api.mdx"
+import { variables } from "/snippets/resource-management/vars.mdx"
+
+<API name="variables" href={variables.api} />
+
+### Through the CLI
+
+import { CLI } from "/snippets/resource-management/cli.mdx"
+
+<CLI name="variables" href={variables.cli} />
+
+- `prefect variable set` creates or updates a variable.
+- `prefect variable get` retrieves a variable's value.
+- `prefect variable unset` deletes a variable.
+- `prefect variable ls` lists all variables.
+- `prefect variable inspect` shows a variable's details.
+
+### Through Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+
+<TF name="variables" href={variables.tf} />

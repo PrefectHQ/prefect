@@ -1,0 +1,82 @@
+---
+title: How to chain deployments with events
+sidebarTitle: Chain Deployments with Events
+description: Learn how to establish event-based dependencies between individual workflows.
+---
+
+This example shows how to use a trigger to schedule a run of downstream deployment when a run of an upstream deployment completes.
+
+
+## Define an upstream and downstream deployment
+```python event_driven_deployments.py
+from prefect import flow, serve
+from prefect.events import DeploymentEventTrigger
+
+
+@flow(log_prints=True)
+def upstream_flow():
+    print("upstream flow")
+
+
+@flow(log_prints=True)
+def downstream_flow():
+    print("downstream flow")
+
+
+if __name__ == "__main__":
+    upstream_deployment = upstream_flow.to_deployment(name="upstream_deployment")
+    downstream_deployment = downstream_flow.to_deployment(
+        name="downstream_deployment",
+        triggers=[
+            DeploymentEventTrigger(
+                expect={"prefect.flow-run.Completed"},
+                match_related={"prefect.resource.name": "upstream_deployment"},
+            )
+        ],
+    )
+
+    serve(upstream_deployment, downstream_deployment)
+```
+
+## Test it out
+
+First, start the `serve` process to listen for scheduled deployments runs:
+
+```bash
+python event_driven_deployments.py
+```
+
+Now, run the upstream deployment and see the downstream deployment kick off after it completes:
+
+```bash
+prefect deployment run upstream-flow/upstream_deployment
+```
+
+<Tip>
+**Check the event feed**
+
+You can inspect raw events in the event feed in the UI to see what related resources are available to match against.
+
+For example, the following `prefect.flow-run.Completed` event's related resources include:
+```json
+{
+   "related": [
+    {
+      "prefect.resource.id": "prefect.flow.10e099ec-8358-4146-b188-be68027ee58f",
+      "prefect.resource.role": "flow",
+      "prefect.resource.name": "upstream-flow"
+    },
+    {
+      "prefect.resource.id": "prefect.deployment.be777bbd-4b15-49f3-bc1f-4d109374cee2",
+      "prefect.resource.role": "deployment",
+      "prefect.resource.name": "upstream_deployment"
+    },
+    {
+      "prefect.resource.id": "prefect-cloud.user.80546602-9f31-4396-ab4b-e873a5377feb",
+      "prefect.resource.role": "creator",
+      "prefect.resource.name": "stoat"
+    }
+  ]
+}
+```
+</Tip>
