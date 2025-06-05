@@ -35,7 +35,7 @@ from prefect.logging import get_run_logger
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import PREFECT_TASK_DEFAULT_RETRIES, temporary_settings
-from prefect.states import Completed, Pending, Running, State
+from prefect.states import Completed, Failed, Pending, Running, State
 from prefect.task_engine import (
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
@@ -1225,6 +1225,42 @@ class TestTaskRetries:
 
             await test_flow()
             assert mock.call_count == 2
+
+    async def test_task_retries_with_explicit_failed_state(self):
+        mock = MagicMock()
+
+        @task(retries=3)
+        async def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            return Failed(message="oops", data=ValueError("oops"))
+
+        @flow
+        async def test_flow():
+            return await flaky_function()
+
+        await test_flow()
+
+        assert mock.call_count == 2
+
+    async def test_sync_task_retries_with_explicit_failed_state(self):
+        mock = MagicMock()
+
+        @task(retries=3)
+        def flaky_function():
+            mock()
+            if mock.call_count == 2:
+                return True
+            return Failed(message="oops", data=ValueError("oops"))
+
+        @flow
+        def test_flow():
+            return flaky_function()
+
+        test_flow()
+
+        assert mock.call_count == 2
 
     @pytest.mark.parametrize(
         "retry_delay_seconds,expected_delay_sequence",
