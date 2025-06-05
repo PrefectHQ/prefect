@@ -80,7 +80,11 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
             inputs.add(TaskRunResult(id=obj.task_run_id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+                inputs.add(
+                    TaskRunResult(
+                        id=obj.state_details.task_run_id,
+                    )
+                )
         # Expressions inside quotes should not be traversed
         elif isinstance(obj, quote):
             raise StopVisiting
@@ -118,10 +122,18 @@ def collect_task_run_inputs_sync(
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
-            inputs.add(TaskRunResult(id=obj.task_run_id))
+            inputs.add(
+                TaskRunResult(
+                    id=obj.task_run_id,
+                )
+            )
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
+                inputs.add(
+                    TaskRunResult(
+                        id=obj.state_details.task_run_id,
+                    )
+                )
         # Expressions inside quotes should not be traversed
         elif isinstance(obj, quote):
             raise StopVisiting

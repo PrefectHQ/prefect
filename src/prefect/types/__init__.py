@@ -14,6 +14,7 @@ from .names import (
     BANNED_CHARACTERS,
     WITHOUT_BANNED_CHARACTERS,
     MAX_VARIABLE_NAME_LENGTH,
+    URILike,
 )
 from pydantic import (
     BeforeValidator,
@@ -219,4 +220,5 @@ __all__ = [
     "StatusCode",
     "StrictVariableValue",
     "TaskRetryDelaySeconds",
+    "URILike",
 ]
