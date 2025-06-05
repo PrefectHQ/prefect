@@ -314,9 +314,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    def can_retry(self, exc_or_state: Exception | State) -> bool:
+    def can_retry(self, exc_or_state: Exception | State[R]) -> bool:
         retry_condition: Optional[
-            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
+            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
         failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
@@ -481,7 +481,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def handle_success(
         self, result: R, transaction: Transaction
-    ) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]:
+    ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
         # Handle the case where the task explicitly returns a failed state, in
         # which case we should retry the task if it has retries left.
         if isinstance(result, State) and result.is_failed():
@@ -520,7 +520,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         self._telemetry.end_span_on_success()
 
-    def handle_retry(self, exc_or_state: Exception | State) -> bool:
+    def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
@@ -867,9 +867,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    async def can_retry(self, exc_or_state: Exception | State) -> bool:
+    async def can_retry(self, exc_or_state: Exception | State[R]) -> bool:
         retry_condition: Optional[
-            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
+            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
 
         failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
@@ -1048,7 +1048,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def handle_success(
         self, result: R, transaction: AsyncTransaction
-    ) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]:
+    ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
         if isinstance(result, State) and result.is_failed():
             if await self.handle_retry(result):
                 return None
@@ -1085,7 +1085,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         return result
 
-    async def handle_retry(self, exc_or_state: Exception | State) -> bool:
+    async def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
