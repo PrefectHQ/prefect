@@ -59,9 +59,15 @@ if TYPE_CHECKING:
     from prefect.tasks import Task
 
 
-def serialize_context() -> dict[str, Any]:
+def serialize_context(
+    asset_ctx_kwargs: Union[dict[str, Any], None] = None,
+) -> dict[str, Any]:
     """
     Serialize the current context for use in a remote execution environment.
+
+    Optionally provide asset_ctx_kwargs to create new AssetContext, that will be used
+    in the remote execution environment. This is useful for TaskRunners, who rely on creating the
+    task run in the remote environment.
     """
     flow_run_context = EngineContext.get()
     task_run_context = TaskRunContext.get()
@@ -73,6 +79,11 @@ def serialize_context() -> dict[str, Any]:
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
+        "asset_context": AssetContext.from_task_and_inputs(
+            **asset_ctx_kwargs
+        ).serialize()
+        if asset_ctx_kwargs
+        else {},
     }
 
 
@@ -489,7 +500,7 @@ class AssetContext(ContextModel):
         cls,
         task: "Task[Any, Any]",
         task_run_id: UUID,
-        task_inputs: Optional[dict[str, list[Any]]] = None,
+        task_inputs: Optional[dict[str, set[Any]]] = None,
     ) -> "AssetContext":
         """
         Create an AssetContext from a task and its resolved inputs.
@@ -510,15 +521,15 @@ class AssetContext(ContextModel):
         # Get upstream assets from engine context instead of TaskRunResult.assets
         flow_ctx = FlowRunContext.get()
         if task_inputs and flow_ctx:
-            for input_list in task_inputs.values():
-                for task_input in input_list:
+            for inputs in task_inputs.values():
+                for task_input in inputs:
                     if isinstance(task_input, TaskRunResult):
                         # Look up assets in the engine context
                         task_assets = flow_ctx.task_run_assets.get(task_input.id)
                         if task_assets:
                             upstream_assets.extend(task_assets)
 
-        return cls(
+        ctx = cls(
             direct_asset_dependencies=task.asset_deps[:] if task.asset_deps else [],
             downstream_assets=task.assets[:]
             if isinstance(task, MaterializingTask) and task.assets
@@ -529,6 +540,9 @@ class AssetContext(ContextModel):
             else None,
             task_run_id=task_run_id,
         )
+        ctx.update_tracked_assets()
+
+        return ctx
 
     def add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None:
         """
