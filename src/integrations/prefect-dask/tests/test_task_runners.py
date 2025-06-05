@@ -13,6 +13,7 @@ from prefect_dask.task_runners import PrefectDaskFuture
 from prefect import flow, task
 from prefect.assets import Asset, materialize
 from prefect.client.orchestration import get_client
+from prefect.context import get_run_context
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
@@ -534,49 +535,66 @@ class TestDaskTaskRunner:
 
         @flow(version="test", task_runner=task_runner)
         async def pipeline():
+            run_context = get_run_context()
             raw_data = extract.submit()
             processed = load.submit(raw_data)
-            return processed
+            processed.wait()
+            return run_context.flow_run.id
 
-        await pipeline()
-
-        # Give the server some time to process the events
-        await asyncio.sleep(5)
+        flow_run_id = await pipeline()
 
         async with get_client() as client:
-            response = await client._client.post(
-                "/events/filter",
-                json={
-                    "filter": {"event": {"prefix": ["prefect.asset."]}},
-                },
-            )
-            if response.status_code == 200:
+            for i in range(5):
+                response = await client._client.post(
+                    "/events/filter",
+                    json={
+                        "filter": {
+                            "event": {"prefix": ["prefect.asset."]},
+                            "related": {"id": [f"prefect.flow-run.{flow_run_id}"]},
+                        },
+                    },
+                )
+                response.raise_for_status()
                 data = response.json()
                 asset_events = data.get("events", [])
+                if asset_events:
+                    break
+                # give a little more time for
+                # server to process events
+                await asyncio.sleep(2)
             else:
-                response.raise_for_status()
+                raise RuntimeError("Unable to get any events from server!")
 
         assert len(asset_events) == 2
 
         upstream_events = [
-            e for e in asset_events if e.get("resource", {}).get("id") == upstream.key
+            e
+            for e in asset_events
+            if e.get("resource", {}).get("prefect.resource.id") == upstream.key
         ]
         downstream_events = [
-            e for e in asset_events if e.get("resource", {}).get("id") == downstream.key
+            e
+            for e in asset_events
+            if e.get("resource", {}).get("prefect.resource.id") == downstream.key
         ]
 
         assert len(upstream_events) == 1
         assert len(downstream_events) == 1
 
-        assert upstream_events[0]["event"] == "prefect.asset.materialization.succeeded"
-        assert (
-            downstream_events[0]["event"] == "prefect.asset.materialization.succeeded"
-        )
+        upstream_event = upstream_events[0]
+        downstream_event = downstream_events[0]
 
-        downstream_evt = downstream_events[0]
-        related = downstream_evt.get("related", [])
-        assert any(
-            r.get("id") == upstream.key and r.get("role") == "asset" for r in related
-        )
+        # confirm upstream events
+        assert upstream_event["event"] == "prefect.asset.materialization.succeeded"
+        assert upstream_event["resource"]["prefect.resource.id"] == upstream.key
 
-        assert any(r.get("id", "").startswith("prefect.flow-run.") for r in related)
+        # confirm downstream events
+        assert downstream_event["event"] == "prefect.asset.materialization.succeeded"
+        assert downstream_event["resource"]["prefect.resource.id"] == downstream.key
+        related_assets = [
+            r
+            for r in downstream_event["related"]
+            if r.get("prefect.resource.role") == "asset"
+        ]
+        assert len(related_assets) == 1
+        assert related_assets[0]["prefect.resource.id"] == upstream.key
