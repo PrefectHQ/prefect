@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from distributed import Client, Future
 
-from prefect.context import serialize_context
+from prefect.context import AssetContext, serialize_context
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.tasks import Task
 from prefect.utilities.callables import get_call_parameters
@@ -31,8 +31,8 @@ class PrefectDaskClient(Client):
         if isinstance(func, Task):
             run_task_kwargs = {}
             run_task_kwargs["task"] = func
-            run_task_kwargs["task_run_id"] = uuid4()
-            run_task_kwargs["context"] = serialize_context()
+            task_run_id = uuid4()
+            run_task_kwargs["task_run_id"] = task_run_id
 
             passed_dependencies = kwargs.pop("dependencies", None)
             run_task_kwargs["wait_for"] = kwargs.pop("wait_for", None)
@@ -53,6 +53,14 @@ class PrefectDaskClient(Client):
                     for k, v in dependencies.items()
                 }
             run_task_kwargs["dependencies"] = dependencies
+
+            asset_context = AssetContext.from_task_and_inputs(
+                task=func, task_run_id=task_run_id, task_inputs=dependencies
+            )
+            asset_context.update_tracked_assets()
+            context = serialize_context()
+            context["asset_context"] = asset_context.serialize()
+            run_task_kwargs["context"] = context
 
             @wraps(func)
             def wrapper_func(*args, **kwargs):

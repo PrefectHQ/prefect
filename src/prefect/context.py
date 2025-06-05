@@ -489,7 +489,7 @@ class AssetContext(ContextModel):
         cls,
         task: "Task[Any, Any]",
         task_run_id: UUID,
-        task_inputs: Optional[dict[str, list[Any]]] = None,
+        task_inputs: Optional[dict[str, set[Any]]] = None,
     ) -> "AssetContext":
         """
         Create an AssetContext from a task and its resolved inputs.
@@ -510,8 +510,8 @@ class AssetContext(ContextModel):
         # Get upstream assets from engine context instead of TaskRunResult.assets
         flow_ctx = FlowRunContext.get()
         if task_inputs and flow_ctx:
-            for input_list in task_inputs.values():
-                for task_input in input_list:
+            for inputs in task_inputs.values():
+                for task_input in inputs:
                     if isinstance(task_input, TaskRunResult):
                         # Look up assets in the engine context
                         task_assets = flow_ctx.task_run_assets.get(task_input.id)
