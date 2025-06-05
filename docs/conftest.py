@@ -1,3 +1,4 @@
+import glob
 import os
 from typing import Union
 from unittest import mock
@@ -52,6 +53,11 @@ SKIP_FILES = {
 }
 
 
+examples = {
+    example: "Skipping examples that live in separate repository"
+    for example in glob.glob("docs/v3/examples/*.mdx")
+}
+SKIP_FILES.update(examples)
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
