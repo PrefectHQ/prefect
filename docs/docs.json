@@ -24,6 +24,58 @@
 				]
 			},
 			{
+				"tab": "Concepts",
+				"pages": [
+					"v3/concepts/index",
+					{
+						"group": "Workflows",
+						"pages": [
+							"v3/concepts/flows",
+							"v3/concepts/tasks",
+							"v3/concepts/caching",
+							"v3/concepts/states",
+							"v3/concepts/runtime-context",
+							"v3/concepts/artifacts",
+							"v3/concepts/task-runners"
+						]
+					},
+					{
+						"group": "Deployments",
+						"pages": [
+							"v3/concepts/deployments",
+							"v3/concepts/schedules",
+							"v3/concepts/work-pools",
+							"v3/concepts/workers"
+						]
+					},
+					{
+						"group": "Configuration",
+						"pages": [
+							"v3/concepts/variables",
+							"v3/concepts/blocks",
+							"v3/concepts/settings-and-profiles",
+							"v3/concepts/server"
+						]
+					},
+					{
+						"group": "Automations",
+						"pages": [
+							"v3/concepts/events",
+							"v3/concepts/automations",
+							"v3/concepts/event-triggers"
+						]
+					},
+					{
+						"group": "Prefect Cloud",
+						"pages": [
+							"v3/concepts/rate-limits",
+							"v3/concepts/slas",
+							"v3/concepts/webhooks"
+						]
+					}
+				]
+			},
+			{
 				"tab": "How-to Guides",
                 "pages": [
                     "v3/how-to-guides/index",
@@ -179,53 +231,146 @@
 				]
 			},
 			{
-				"tab": "Concepts",
-				"pages": [
-					"v3/concepts/index",
+				"tab": "Examples",
+                "pages": ["v3/examples/index"]
+			},
+			{
+				"tab": "Integrations",
+				"groups": [
 					{
-						"group": "Workflows",
+						"group": "Integrations",
 						"pages": [
-							"v3/concepts/flows",
-							"v3/concepts/tasks",
-							"v3/concepts/caching",
-							"v3/concepts/states",
-							"v3/concepts/runtime-context",
-							"v3/concepts/artifacts",
-							"v3/concepts/task-runners"
-						]
-					},
-					{
-						"group": "Deployments",
-						"pages": [
-							"v3/concepts/deployments",
-							"v3/concepts/schedules",
-							"v3/concepts/work-pools",
-							"v3/concepts/workers"
-						]
-					},
-					{
-						"group": "Configuration",
-						"pages": [
-							"v3/concepts/variables",
-							"v3/concepts/blocks",
-							"v3/concepts/settings-and-profiles",
-							"v3/concepts/server"
-						]
-					},
-					{
-						"group": "Automations",
-						"pages": [
-							"v3/concepts/events",
-							"v3/concepts/automations",
-							"v3/concepts/event-triggers"
-						]
-					},
-					{
-						"group": "Prefect Cloud",
-						"pages": [
-							"v3/concepts/rate-limits",
-							"v3/concepts/slas",
-							"v3/concepts/webhooks"
+							"integrations/integrations",
+							"integrations/use-integrations",
+							{
+								"group": "AWS",
+								"pages": [
+									"integrations/prefect-aws/index",
+									"integrations/prefect-aws/ecs_guide",
+									"integrations/prefect-aws/sdk"
+								]
+							},
+							{
+								"group": "Azure",
+								"pages": [
+									"integrations/prefect-azure/index",
+									"integrations/prefect-azure/aci_worker",
+									"integrations/prefect-azure/sdk"
+								]
+							},
+							{
+								"group": "Bitbucket",
+								"pages": [
+									"integrations/prefect-bitbucket/index",
+									"integrations/prefect-bitbucket/sdk"
+								]
+							},
+							{
+								"group": "Dask",
+								"pages": [
+									"integrations/prefect-dask/index",
+									"integrations/prefect-dask/sdk"
+								]
+							},
+							{
+								"group": "Databricks",
+								"pages": [
+									"integrations/prefect-databricks/index",
+									"integrations/prefect-databricks/sdk"
+								]
+							},
+							{
+								"group": "dbt",
+								"pages": [
+									"integrations/prefect-dbt/index",
+									"integrations/prefect-dbt/sdk"
+								]
+							},
+							{
+								"group": "Docker",
+								"pages": [
+									"integrations/prefect-docker/index",
+									"integrations/prefect-docker/sdk"
+								]
+							},
+							{
+								"group": "Email",
+								"pages": [
+									"integrations/prefect-email/index",
+									"integrations/prefect-email/sdk"
+								]
+							},
+							{
+								"group": "GCP",
+								"pages": [
+									"integrations/prefect-gcp/index",
+									"integrations/prefect-gcp/gcp-worker-guide",
+									"integrations/prefect-gcp/sdk"
+								]
+							},
+							{
+								"group": "GitHub",
+								"pages": [
+									"integrations/prefect-github/index",
+									"integrations/prefect-github/sdk"
+								]
+							},
+							{
+								"group": "Gitlab",
+								"pages": [
+									"integrations/prefect-gitlab/index",
+									"integrations/prefect-gitlab/sdk"
+								]
+							},
+							{
+								"group": "Kubernetes",
+								"pages": [
+									"integrations/prefect-kubernetes/index",
+									"integrations/prefect-kubernetes/sdk"
+								]
+							},
+							{
+								"group": "Ray",
+								"pages": [
+									"integrations/prefect-ray/index",
+									"integrations/prefect-ray/sdk"
+								]
+							},
+							{
+								"group": "Redis",
+								"pages": [
+									"integrations/prefect-redis/index",
+									"integrations/prefect-redis/sdk"
+								]
+							},
+							{
+								"group": "Shell",
+								"pages": [
+									"integrations/prefect-shell/index",
+									"integrations/prefect-shell/sdk"
+								]
+							},
+							{
+								"group": "Slack",
+								"pages": [
+									"integrations/prefect-slack/index",
+									"integrations/prefect-slack/sdk"
+								]
+							},
+							{
+								"group": "Snowflake",
+								"pages": [
+									"integrations/prefect-snowflake/index",
+									"integrations/prefect-snowflake/sdk"
+								]
+							},
+							{
+								"group": "SQLAlchemy",
+								"pages": [
+									"integrations/prefect-sqlalchemy/index",
+									"integrations/prefect-sqlalchemy/sdk"
+								]
+							}
 						]
 					}
 				]
@@ -570,151 +715,6 @@
 									"v3/api-ref/cli/work-pool",
 									"v3/api-ref/cli/work-queue",
 									"v3/api-ref/cli/worker"
-								]
-							}
-						]
-					}
-				]
-			},
-			{
-				"tab": "Examples",
-                "pages": ["v3/examples/index"]
-			},
-			{
-				"tab": "Integrations",
-				"groups": [
-					{
-						"group": "Integrations",
-						"pages": [
-							"integrations/integrations",
-							"integrations/use-integrations",
-							{
-								"group": "AWS",
-								"pages": [
-									"integrations/prefect-aws/index",
-									"integrations/prefect-aws/ecs_guide",
-									"integrations/prefect-aws/sdk"
-								]
-							},
-							{
-								"group": "Azure",
-								"pages": [
-									"integrations/prefect-azure/index",
-									"integrations/prefect-azure/aci_worker",
-									"integrations/prefect-azure/sdk"
-								]
-							},
-							{
-								"group": "Bitbucket",
-								"pages": [
-									"integrations/prefect-bitbucket/index",
-									"integrations/prefect-bitbucket/sdk"
-								]
-							},
-							{
-								"group": "Dask",
-								"pages": [
-									"integrations/prefect-dask/index",
-									"integrations/prefect-dask/sdk"
-								]
-							},
-							{
-								"group": "Databricks",
-								"pages": [
-									"integrations/prefect-databricks/index",
-									"integrations/prefect-databricks/sdk"
-								]
-							},
-							{
-								"group": "dbt",
-								"pages": [
-									"integrations/prefect-dbt/index",
-									"integrations/prefect-dbt/sdk"
-								]
-							},
-							{
-								"group": "Docker",
-								"pages": [
-									"integrations/prefect-docker/index",
-									"integrations/prefect-docker/sdk"
-								]
-							},
-							{
-								"group": "Email",
-								"pages": [
-									"integrations/prefect-email/index",
-									"integrations/prefect-email/sdk"
-								]
-							},
-							{
-								"group": "GCP",
-								"pages": [
-									"integrations/prefect-gcp/index",
-									"integrations/prefect-gcp/gcp-worker-guide",
-									"integrations/prefect-gcp/sdk"
-								]
-							},
-							{
-								"group": "GitHub",
-								"pages": [
-									"integrations/prefect-github/index",
-									"integrations/prefect-github/sdk"
-								]
-							},
-							{
-								"group": "Gitlab",
-								"pages": [
-									"integrations/prefect-gitlab/index",
-									"integrations/prefect-gitlab/sdk"
-								]
-							},
-							{
-								"group": "Kubernetes",
-								"pages": [
-									"integrations/prefect-kubernetes/index",
-									"integrations/prefect-kubernetes/sdk"
-								]
-							},
-							{
-								"group": "Ray",
-								"pages": [
-									"integrations/prefect-ray/index",
-									"integrations/prefect-ray/sdk"
-								]
-							},
-							{
-								"group": "Redis",
-								"pages": [
-									"integrations/prefect-redis/index",
-									"integrations/prefect-redis/sdk"
-								]
-							},
-							{
-								"group": "Shell",
-								"pages": [
-									"integrations/prefect-shell/index",
-									"integrations/prefect-shell/sdk"
-								]
-							},
-							{
-								"group": "Slack",
-								"pages": [
-									"integrations/prefect-slack/index",
-									"integrations/prefect-slack/sdk"
-								]
-							},
-							{
-								"group": "Snowflake",
-								"pages": [
-									"integrations/prefect-snowflake/index",
-									"integrations/prefect-snowflake/sdk"
-								]
-							},
-							{
-								"group": "SQLAlchemy",
-								"pages": [
-									"integrations/prefect-sqlalchemy/index",
-									"integrations/prefect-sqlalchemy/sdk"
 								]
 							}
 						]
