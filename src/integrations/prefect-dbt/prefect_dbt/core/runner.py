@@ -18,13 +18,12 @@ from google.protobuf.json_format import MessageToDict
 from prefect import get_client, get_run_logger
 from prefect._experimental.lineage import emit_external_resource_lineage
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
 from prefect.events import emit_event
 from prefect.events.related import related_resources_from_run_context
 from prefect.events.schemas.events import RelatedResource
 from prefect.exceptions import MissingContextError
-from prefect.task_engine import run_task_sync
 from prefect.tasks import Task, TaskOptions
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_dbt.core.profiles import aresolve_profiles_yml, resolve_profiles_yml
@@ -74,7 +73,7 @@ class TaskState:
         self._task_results: dict[str, Any] = {}
         self._node_status: dict[str, dict[str, Any]] = {}
         self._completion_events: dict[str, threading.Event] = {}
-        self._task_threads: dict[str, threading.Thread] = {}
+        self._task_runner = None
 
     def start_task(self, node_id: str, task: Task[Any, Any]) -> None:
         """Start a task for a node."""
@@ -94,10 +93,7 @@ class TaskState:
         if event := self._completion_events.get(node_id):
             event.set()
 
-        # Clean up thread
-        thread = self._task_threads.pop(node_id, None)
-        if thread and thread.is_alive():
-            thread.join(timeout=1.0)  # Don't wait forever
+        # Task runner handles cleanup automatically
 
     def wait_for_completion(self, node_id: str, timeout: float = 30.0) -> bool:
         """Wait for a node to complete, with timeout."""
@@ -126,12 +122,12 @@ class TaskState:
         """Get the status for a node."""
         return self._node_status.get(node_id)
 
-    def set_task_result(self, node_id: str, result: Any) -> None:
-        """Set the result for a task."""
-        self._task_results[node_id] = result
+    def set_task_future(self, node_id: str, future: Any) -> None:
+        """Set the future for a task."""
+        self._task_results[node_id] = future
 
-    def get_task_result(self, node_id: str) -> Any | None:
-        """Get the result for a task."""
+    def get_task_future(self, node_id: str) -> Any | None:
+        """Get the future for a task."""
         return self._task_results.get(node_id)
 
     def run_task_in_thread(
@@ -144,22 +140,34 @@ class TaskState:
     ) -> None:
         """Run a task in a separate thread."""
 
-        def run_task():
-            try:
-                state = run_task_sync(
-                    task,
-                    parameters=parameters,
-                    context=context,
-                    wait_for=wait_for,
-                    return_type="state",
-                )
-                self.set_task_result(node_id, state.state_details.task_run_id)
-            except Exception as e:
-                get_run_logger().error(f"Task for node {node_id} failed: {e}")
+        # Use ThreadPoolTaskRunner to properly submit tasks and get futures
+        from prefect.task_runners import ThreadPoolTaskRunner
 
-        thread = threading.Thread(target=run_task, daemon=True)
-        self._task_threads[node_id] = thread
-        thread.start()
+        if self._task_runner is None:
+            self._task_runner = ThreadPoolTaskRunner(max_workers=8)
+            self._task_runner.__enter__()
+
+        # Submit the task to get a proper PrefectFuture
+        future = self._task_runner.submit(
+            task,
+            parameters=parameters,
+            wait_for=wait_for,
+        )
+        self.set_task_future(node_id, future)
+
+    def cleanup(self):
+        """Clean up resources and wait for all tasks to complete."""
+        # Wait for all futures to complete
+        for node_id, future in self._task_results.items():
+            if future is not None:
+                try:
+                    future.wait(timeout=30.0)  # Wait up to 30 seconds per task
+                except Exception as e:
+                    get_run_logger().error(f"Error waiting for task {node_id}: {e}")
+
+        if self._task_runner is not None:
+            self._task_runner.__exit__(None, None, None)
+            self._task_runner = None
 
 
 def execute_dbt_node(task_state: TaskState, node_id: str):
@@ -403,15 +411,15 @@ class PrefectDbtRunner:
         # Start the task in a separate thread
         task_state.start_task(manifest_node.unique_id, task)
 
-        wait_for: list[TaskRunInput] = []
+        wait_for: list[Any] = []
         for depends_on_node in self._get_manifest_depends_on_nodes(manifest_node):
             depends_manifest_node = self.manifest.nodes.get(depends_on_node)
             if depends_manifest_node and (
-                upstream_result := task_state.get_task_result(
+                upstream_future := task_state.get_task_future(
                     depends_manifest_node.unique_id
                 )
             ):
-                wait_for.append(TaskRunResult(id=upstream_result))
+                wait_for.append(upstream_future)
 
         task_state.run_task_in_thread(
             manifest_node.unique_id,
@@ -584,6 +592,9 @@ class PrefectDbtRunner:
 
             res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)
 
+            # Clean up the task runner
+            task_state.cleanup()
+
             if not res.success and res.exception:
                 raise ValueError(
                     f"Failed to invoke dbt command '{''.join(args)}': {res.exception}"
@@ -643,6 +654,9 @@ class PrefectDbtRunner:
             ]
 
             res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)
+
+            # Clean up the task runner
+            task_state.cleanup()
 
             if not res.success and res.exception:
                 raise ValueError(
