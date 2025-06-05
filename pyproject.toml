@@ -350,6 +350,9 @@ ignore-words-list = [
 check-hidden = true
 
 
+[tool.uv]
+required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
+
 [tool.uv.sources]
 prefect-aws = { path = "src/integrations/prefect-aws" }
 prefect-azure = { path = "src/integrations/prefect-azure" }

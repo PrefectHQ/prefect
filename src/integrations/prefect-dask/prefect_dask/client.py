@@ -31,8 +31,8 @@ class PrefectDaskClient(Client):
         if isinstance(func, Task):
             run_task_kwargs = {}
             run_task_kwargs["task"] = func
-            run_task_kwargs["task_run_id"] = uuid4()
-            run_task_kwargs["context"] = serialize_context()
+            task_run_id = uuid4()
+            run_task_kwargs["task_run_id"] = task_run_id
 
             passed_dependencies = kwargs.pop("dependencies", None)
             run_task_kwargs["wait_for"] = kwargs.pop("wait_for", None)
@@ -53,6 +53,15 @@ class PrefectDaskClient(Client):
                     for k, v in dependencies.items()
                 }
             run_task_kwargs["dependencies"] = dependencies
+
+            context = serialize_context(
+                asset_ctx_kwargs={
+                    "task": func,
+                    "task_run_id": task_run_id,
+                    "task_inputs": dependencies,
+                }
+            )
+            run_task_kwargs["context"] = context
 
             @wraps(func)
             def wrapper_func(*args, **kwargs):
