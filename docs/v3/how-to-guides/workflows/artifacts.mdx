@@ -1,6 +1,6 @@
 ---
 title: How to produce workflow artifacts
-sidebarTitle: Produce artifacts
+sidebarTitle: Create Artifacts
 ---
 
 ### Create link artifacts
@@ -18,20 +18,20 @@ from prefect.artifacts import create_link_artifact
 
 @task
 def my_first_task():
-        create_link_artifact(
-            key="irregular-data",
-            link="https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data.csv",
-            description="## Highly variable data",
-        )
+    create_link_artifact(
+        key="irregular-data",
+        link="https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data.csv",
+        description="## Highly variable data",
+    )
 
 
 @task
 def my_second_task():
-        create_link_artifact(
-            key="irregular-data",
-            link="https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data.csv",
-            description="# Low prediction accuracy",
-        )
+    create_link_artifact(
+        key="irregular-data",
+        link="https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data.csv",
+        description="# Low prediction accuracy",
+    )
 
 
 @flow
