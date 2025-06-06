@@ -15,12 +15,11 @@ from sqlalchemy.orm import (
     Mapped,
     declared_attr,
     mapped_column,
+    registry,
     relationship,
     synonym,
 )
-from sqlalchemy.orm import (
-    registry as orm_registry,
-)
+from sqlalchemy.orm.decl_api import registry as RegistryType
 from sqlalchemy.sql import roles
 from sqlalchemy.sql.functions import coalesce
 
@@ -61,7 +60,7 @@ class Base(DeclarativeBase):
     and provides ID, created, and updated columns
     """
 
-    registry: sa.orm.registry = orm_registry(
+    registry: ClassVar[RegistryType] = registry(
         metadata=sa.schema.MetaData(
             # define naming conventions for our Base class to use
             # sqlalchemy will use the following templated strings
