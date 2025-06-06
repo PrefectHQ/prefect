@@ -302,8 +302,8 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         self._applied_limits: list[str] = []
@@ -352,8 +352,8 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
 
     async def cleanup(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         for tag in self._applied_limits:
@@ -417,8 +417,8 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
 
     async def before_transition(  # type: ignore
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: FlowOrchestrationContext,
     ) -> None:
         if not context.session or not context.run.deployment_id:
@@ -485,8 +485,8 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
 
     async def cleanup(  # type: ignore
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: FlowOrchestrationContext,
     ) -> None:
         logger = get_logger()
@@ -579,8 +579,8 @@ class CacheInsertion(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if proposed_state is None:
@@ -598,8 +598,8 @@ class CacheInsertion(TaskRunOrchestrationRule):
     async def after_transition(
         self,
         db: PrefectDBInterface,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if not validated_state or not context.session:
@@ -631,8 +631,8 @@ class CacheRetrieval(TaskRunOrchestrationRule):
     async def before_transition(
         self,
         db: PrefectDBInterface,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if not proposed_state:
@@ -679,8 +679,8 @@ class RetryFailedFlows(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -756,8 +756,8 @@ class RetryFailedTasks(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -803,8 +803,8 @@ class EnqueueScheduledTasks(TaskRunOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if not validated_state:
@@ -837,8 +837,8 @@ class RenameReruns(GenericOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[
             orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy
         ],
@@ -869,8 +869,8 @@ class CopyScheduledTime(
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[
             orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy
         ],
@@ -902,8 +902,8 @@ class WaitForScheduledTime(
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[
             orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy
         ],
@@ -940,8 +940,8 @@ class CopyTaskParametersID(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -963,8 +963,8 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if proposed_state is None:
@@ -1010,8 +1010,8 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         updated_policy = context.run.empirical_policy.model_dump()
@@ -1029,8 +1029,8 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -1084,8 +1084,8 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         updated_policy = context.run.empirical_policy.model_dump()
@@ -1103,8 +1103,8 @@ class UpdateFlowRunTrackerOnTasks(TaskRunOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if context.run.flow_run_id is not None:
@@ -1135,8 +1135,8 @@ class HandleTaskTerminalStateTransitions(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -1176,8 +1176,8 @@ class HandleTaskTerminalStateTransitions(TaskRunOrchestrationRule):
 
     async def cleanup(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         # reset run count
@@ -1200,8 +1200,8 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -1255,8 +1255,8 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
 
     async def cleanup(
         self,
-        initial_state: states.State | None,
-        validated_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
@@ -1294,8 +1294,8 @@ class PreventPendingTransitions(GenericOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[
             orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
         ],
@@ -1317,8 +1317,8 @@ class EnsureOnlyScheduledFlowsMarkedLate(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -1346,8 +1346,8 @@ class PreventRunningTasksFromStoppedFlows(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         flow_run = await context.flow_run()
@@ -1390,8 +1390,8 @@ class EnforceCancellingToCancelledTransition(TaskRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         await self.reject_transition(
@@ -1422,8 +1422,8 @@ class BypassCancellingFlowRunsWithNoInfra(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
@@ -1468,8 +1468,8 @@ class PreventDuplicateTransitions(FlowRunOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State | None,
-        proposed_state: states.State | None,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if initial_state is None or proposed_state is None:
