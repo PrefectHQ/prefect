@@ -47,6 +47,9 @@ class Asset(PrefectBaseModel):
     def __repr__(self) -> str:
         return f"Asset(key={self.key!r})"
 
+    def __hash__(self) -> int:
+        return hash(self.key)
+
     def add_metadata(self, metadata: dict[str, Any]) -> None:
         from prefect.context import AssetContext
 

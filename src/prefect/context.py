@@ -400,7 +400,7 @@ class EngineContext(RunContext):
 
     # Tracking information needed to track asset linage between
     # tasks and materialization
-    task_run_assets: dict[UUID, list[Asset]] = Field(default_factory=dict)
+    task_run_assets: dict[UUID, set[Asset]] = Field(default_factory=dict)
 
     # Events worker to emit events
     events: Optional[EventsWorker] = None
@@ -486,9 +486,9 @@ class AssetContext(ContextModel):
         materialization_metadata: Metadata for materialized assets
     """
 
-    direct_asset_dependencies: list[Asset] = Field(default_factory=list)
-    downstream_assets: list[Asset] = Field(default_factory=list)
-    upstream_assets: list[Asset] = Field(default_factory=list)
+    direct_asset_dependencies: set[Asset] = Field(default_factory=set)
+    downstream_assets: set[Asset] = Field(default_factory=set)
+    upstream_assets: set[Asset] = Field(default_factory=set)
     materialized_by: Optional[str] = None
     task_run_id: Optional[UUID] = None
     materialization_metadata: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -516,7 +516,7 @@ class AssetContext(ContextModel):
         from prefect.client.schemas import TaskRunResult
         from prefect.tasks import MaterializingTask
 
-        upstream_assets: list[Asset] = []
+        upstream_assets: set[Asset] = set()
 
         # Get upstream assets from engine context instead of TaskRunResult.assets
         flow_ctx = FlowRunContext.get()
@@ -527,16 +527,16 @@ class AssetContext(ContextModel):
                         # Look up assets in the engine context
                         task_assets = flow_ctx.task_run_assets.get(task_input.id)
                         if task_assets:
-                            upstream_assets.extend(task_assets)
+                            upstream_assets.update(task_assets)
 
         ctx = cls(
-            direct_asset_dependencies=task.asset_deps[:] if task.asset_deps else [],
-            downstream_assets=task.assets[:]
+            direct_asset_dependencies=set(task.asset_deps)
+            if task.asset_deps
+            else set(),
+            downstream_assets=set(task.assets)
             if isinstance(task, MaterializingTask) and task.assets
-            else [],
-            upstream_assets=list(
-                {asset.key: asset for asset in upstream_assets}.values()
-            ),
+            else set(),
+            upstream_assets=upstream_assets,
             materialized_by=task.materialized_by
             if isinstance(task, MaterializingTask)
             else None,
@@ -613,7 +613,7 @@ class AssetContext(ContextModel):
 
         if state.name == "Cached":
             return
-        if state.is_failed():
+        elif state.is_failed():
             event_status = "failed"
         elif state.is_completed():
             event_status = "succeeded"
@@ -625,7 +625,7 @@ class AssetContext(ContextModel):
             return
 
         # Emit reference events for all upstream assets (direct + inherited)
-        all_upstream_assets = self.upstream_assets + self.direct_asset_dependencies
+        all_upstream_assets = self.upstream_assets | self.direct_asset_dependencies
         for asset in all_upstream_assets:
             emit_event(
                 event="prefect.asset.referenced",
@@ -659,11 +659,11 @@ class AssetContext(ContextModel):
 
         if self.downstream_assets:
             # MaterializingTask: propagate the downstream assets (what we create)
-            assets_for_downstream = self.downstream_assets[:]
+            assets_for_downstream = set(self.downstream_assets)
         else:
             # Regular task: propagate upstream assets + direct dependencies
-            assets_for_downstream = (
-                list(self.upstream_assets) + self.direct_asset_dependencies
+            assets_for_downstream = set(
+                self.upstream_assets | self.direct_asset_dependencies
             )
 
         flow_run_context.task_run_assets[self.task_run_id] = assets_for_downstream

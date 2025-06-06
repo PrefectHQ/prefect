@@ -1169,6 +1169,106 @@ def test_materialization_with_by_parameter_and_dependencies(
 
 
 # =============================================================================
+# Duplicate Asset Prevention
+# =============================================================================
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialize_prevents_duplicate_assets(asserting_events_worker: EventsWorker):
+    """Test that @materialize prevents duplicate assets in args and asset_deps."""
+    asset1 = Asset(key="s3://bucket/data1.csv")
+    asset2 = Asset(key="s3://bucket/data2.csv")
+
+    # Test duplicate assets as positional arguments
+    @materialize(asset1, asset1, asset2)  # asset1 appears twice
+    def make_data_with_duplicate_args():
+        return ({"rows": 100}, {"rows": 100}, {"rows": 200})
+
+    # Test duplicate assets in asset_deps
+    @materialize(
+        "s3://bucket/output.csv",
+        asset_deps=[asset1, asset1, asset2],  # asset1 appears twice
+    )
+    def make_data_with_duplicate_deps():
+        return {"rows": 300}
+
+    @flow
+    def pipeline():
+        make_data_with_duplicate_args()
+        make_data_with_duplicate_deps()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
+
+    # Should only have unique materialization events (no duplicates)
+    mat_keys = {evt.resource.id for evt in mat_events}
+    assert mat_keys == {asset1.key, asset2.key, "s3://bucket/output.csv"}
+
+    # Should only have unique reference events (no duplicates)
+    ref_keys = {evt.resource.id for evt in ref_events}
+    assert ref_keys == {asset1.key, asset2.key}
+
+    # Verify exact count - duplicates should be eliminated
+    assert len(mat_events) == 3  # asset1, asset2, output.csv (no duplicate asset1)
+    assert len(ref_events) == 2  # asset1, asset2 (no duplicate asset1)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_task_asset_deps_prevents_duplicates(asserting_events_worker: EventsWorker):
+    """Test that @task asset_deps prevents duplicate assets."""
+    asset1 = Asset(key="postgres://db/table1")
+    asset2 = Asset(key="postgres://db/table2")
+
+    # Test duplicate assets in asset_deps using mix of Asset objects and strings
+    @task(
+        asset_deps=[
+            asset1,
+            "postgres://db/table1",  # Same as asset1 but as string
+            asset2,
+            asset2,  # Direct duplicate
+        ]
+    )
+    def read_data():
+        return {"data": "processed"}
+
+    @materialize("s3://output/result.csv")
+    def save_data(data):
+        return {"rows": 100}
+
+    @flow
+    def pipeline():
+        data = read_data()
+        save_data(data)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    # Should only have unique reference events (duplicates eliminated)
+    ref_keys = {evt.resource.id for evt in ref_events}
+    assert ref_keys == {asset1.key, asset2.key}
+
+    # Should have exactly 2 reference events (no duplicates)
+    assert len(ref_events) == 2
+
+    # Should have 1 materialization event
+    assert len(mat_events) == 1
+    assert mat_events[0].resource.id == "s3://output/result.csv"
+
+    # The materialization should have both unique upstream assets
+    mat_evt = mat_events[0]
+    related_asset_ids = {r.id for r in mat_evt.related if r.role == "asset"}
+    assert related_asset_ids == {asset1.key, asset2.key}
+
+
+# =============================================================================
 # Metadata
 # =============================================================================
 
