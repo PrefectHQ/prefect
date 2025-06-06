@@ -485,6 +485,9 @@ class TestFunctionToSchema:
                 "x": {
                     "title": "x",
                     "position": 0,
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
                 },
             },
             "required": ["x"],
@@ -1370,6 +1373,9 @@ class TestEntrypointToSchema:
                 "x": {
                     "title": "x",
                     "position": 0,
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
                 },
             },
             "required": ["x"],

@@ -223,10 +223,10 @@ def travel_to(dt: Any):
 
 def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import LocalDateTime, ZonedDateTime
+        from whenever import PlainDateTime, ZonedDateTime
 
         if dt.tzinfo is None:
-            wdt = LocalDateTime.from_py_datetime(dt)
+            wdt = PlainDateTime.from_py_datetime(dt)
         else:
             if not isinstance(dt.tzinfo, ZoneInfo):
                 if key := getattr(dt.tzinfo, "key", None):

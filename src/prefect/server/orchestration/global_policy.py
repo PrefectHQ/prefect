@@ -11,7 +11,7 @@ state database, they should be the most deeply nested contexts in orchestration 
 
 from __future__ import annotations
 
-from typing import Union, cast
+from typing import Any, Union, cast
 
 from packaging.version import Version
 
@@ -122,7 +122,9 @@ class SetRunStateType(
     Updates the state type of a run on a state transition.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -140,7 +142,9 @@ class SetRunStateName(
     Updates the state name of a run on a state transition.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -158,7 +162,9 @@ class SetStartTime(
     Records the time a run enters a running state for the first time.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -178,7 +184,9 @@ class SetRunStateTimestamp(
     Records the time a run changes states.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -200,7 +208,9 @@ class SetEndTime(
     leaving a terminal state, the end time will be unset.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -230,7 +240,9 @@ class IncrementRunTime(
     Records the amount of time a run spends in the running state.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -243,7 +255,9 @@ class IncrementRunTime(
                 )
 
 
-class IncrementFlowRunCount(FlowRunUniversalTransform):
+class IncrementFlowRunCount(
+    FlowRunUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+):
     """
     Records the number of times a run enters a running state. For use with retries.
     """
@@ -324,7 +338,9 @@ class SetExpectedStartTime(
     this is set to the time the proposed state was created by Prefect.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -351,7 +367,9 @@ class SetNextScheduledStartTime(
     `run.next_scheduled_start_time` is unset.
     """
 
-    async def before_transition(self, context: GenericOrchestrationContext) -> None:
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
         if self.nullified_transition():
             return
 
