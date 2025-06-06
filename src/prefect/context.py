@@ -553,7 +553,15 @@ class AssetContext(ContextModel):
         Args:
             asset_key: The asset key
             metadata: Metadata dictionary to add
+
+        Raises:
+            ValueError: If asset_key is not in downstream_assets
         """
+        downstream_keys = {asset.key for asset in self.downstream_assets}
+        if asset_key not in downstream_keys:
+            raise ValueError(
+                "Can only add metadata to assets that are arguments to @materialize"
+            )
 
         existing = self.materialization_metadata.get(asset_key, {})
         self.materialization_metadata[asset_key] = existing | metadata

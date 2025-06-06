@@ -1382,3 +1382,62 @@ def test_materialization_metadata_with_task_failure(
     assert event.event == "prefect.asset.materialization.failed"
     assert event.resource.id == "s3://bucket/failed_output.csv"
     assert event.payload == {"attempted_rows": 1000}
+
+
+def test_add_asset_metadata_throws_error_for_invalid_asset_key():
+    """Test that add_asset_metadata throws ValueError for asset keys not in downstream_assets."""
+    from prefect.assets import add_asset_metadata
+
+    # Test case 1: Valid asset key should work
+    valid_asset = Asset(key="s3://bucket/valid_data.csv")
+
+    @materialize(valid_asset)
+    def valid_task():
+        # This should work - asset is in downstream_assets
+        add_asset_metadata("s3://bucket/valid_data.csv", {"rows": 100})
+        return {"success": True}
+
+    @flow
+    def valid_pipeline():
+        valid_task()
+
+    # This should not raise an error
+    valid_pipeline()
+
+    # Test case 2: Invalid asset key should throw error
+    materialized_asset = Asset(key="s3://bucket/materialized.csv")
+
+    @materialize(materialized_asset)
+    def invalid_task():
+        # This should fail - different asset key not in downstream_assets
+        add_asset_metadata("s3://bucket/different_asset.csv", {"rows": 200})
+        return {"success": False}
+
+    @flow
+    def invalid_pipeline():
+        invalid_task()
+
+    # This should raise a ValueError
+    with pytest.raises(
+        ValueError,
+        match="Can only add metadata to assets that are arguments to @materialize",
+    ):
+        invalid_pipeline()
+
+    # Test case 3: Non-materializing task should throw error
+    @task
+    def non_materializing_task():
+        # This should fail - no downstream_assets in a regular task
+        add_asset_metadata("s3://bucket/any_asset.csv", {"rows": 300})
+        return {"success": False}
+
+    @flow
+    def non_materializing_pipeline():
+        non_materializing_task()
+
+    # This should raise a ValueError
+    with pytest.raises(
+        ValueError,
+        match="Can only add metadata to assets that are arguments to @materialize",
+    ):
+        non_materializing_pipeline()
