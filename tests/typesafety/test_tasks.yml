@@ -58,6 +58,21 @@
       prefect.tasks.Task[[bar: builtins.str], builtins.int]\
     \""
 
+- case: prefect_task_decorator_with_async_retry_condition_fn_arg
+  main: |
+    from prefect.tasks import P, R, Task, task
+    from prefect.client.schemas import TaskRun
+    from prefect.states import State
+    async def retry_condition_fn(task: Task[P, R], task_run: TaskRun, state: State) -> bool:
+        return False
+    @task(retry_condition_fn=retry_condition_fn)
+    async def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:9: note: Revealed type is \"\
+      prefect.tasks.Task[[bar: builtins.str], typing.Coroutine[Any, Any, builtins.int]]\
+    \""
+
 - case: prefect_task_call
   main: |
     from prefect import task
