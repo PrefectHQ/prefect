@@ -100,6 +100,26 @@ OneOrManyFutureOrResult: TypeAlias = Union[
 ]
 
 
+class TaskRunNameCallbackWithParameters(Protocol):
+    @classmethod
+    def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
+        sig = inspect.signature(callable)
+        return "parameters" in sig.parameters
+
+    def __call__(self, parameters: dict[str, Any]) -> str: ...
+
+
+StateHookCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
+]
+RetryConditionCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[bool], bool]
+]
+TaskRunNameValueOrCallable: TypeAlias = Union[
+    Callable[[], str], TaskRunNameCallbackWithParameters, str
+]
+
+
 class TaskOptions(TypedDict, total=False):
     """
     A TypedDict representing all available task configuration options.
@@ -134,7 +154,7 @@ class TaskOptions(TypedDict, total=False):
     on_failure: Optional[list[StateHookCallable]]
     on_rollback: Optional[list[Callable[["Transaction"], None]]]
     on_commit: Optional[list[Callable[["Transaction"], None]]]
-    retry_condition_fn: Optional[Callable[["Task[..., Any]", TaskRun, State], bool]]
+    retry_condition_fn: Optional[RetryConditionCallable]
     viz_return_value: Any
     asset_deps: Optional[list[Union[Asset, str]]]
 
@@ -272,23 +292,6 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     return f"{qualname}-{code_hash}"
 
 
-class TaskRunNameCallbackWithParameters(Protocol):
-    @classmethod
-    def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
-        sig = inspect.signature(callable)
-        return "parameters" in sig.parameters
-
-    def __call__(self, parameters: dict[str, Any]) -> str: ...
-
-
-StateHookCallable: TypeAlias = Callable[
-    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
-]
-TaskRunNameValueOrCallable: TypeAlias = Union[
-    Callable[[], str], TaskRunNameCallbackWithParameters, str
-]
-
-
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -400,9 +403,7 @@ class Task(Generic[P, R]):
         on_failure: Optional[list[StateHookCallable]] = None,
         on_rollback: Optional[list[Callable[["Transaction"], None]]] = None,
         on_commit: Optional[list[Callable[["Transaction"], None]]] = None,
-        retry_condition_fn: Optional[
-            Callable[["Task[..., Any]", TaskRun, State], bool]
-        ] = None,
+        retry_condition_fn: Optional[RetryConditionCallable] = None,
         viz_return_value: Optional[Any] = None,
         asset_deps: Optional[list[Union[str, Asset]]] = None,
     ):
@@ -672,9 +673,7 @@ class Task(Generic[P, R]):
         refresh_cache: Union[bool, type[NotSet]] = NotSet,
         on_completion: Optional[list[StateHookCallable]] = None,
         on_failure: Optional[list[StateHookCallable]] = None,
-        retry_condition_fn: Optional[
-            Callable[["Task[..., Any]", TaskRun, State], bool]
-        ] = None,
+        retry_condition_fn: Optional[RetryConditionCallable] = None,
         viz_return_value: Optional[Any] = None,
         asset_deps: Optional[list[Union[str, Asset]]] = None,
     ) -> "Task[P, R]":
@@ -1728,7 +1727,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Literal[None] = None,
+    retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
@@ -1764,7 +1763,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
@@ -1801,7 +1800,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
@@ -1835,7 +1834,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
 ):
