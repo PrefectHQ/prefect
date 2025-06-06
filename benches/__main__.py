@@ -26,6 +26,7 @@ process = subprocess.run(
         "--benchmark-sort=mean",
         "--benchmark-min-rounds=1",
         # Ignore benchmark machine info warnings that occur due to different CI runner CPU frequencies
+        # see https://github.com/ionelmc/pytest-benchmark/issues/255
         "-W",
         "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
     ]
