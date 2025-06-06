@@ -100,6 +100,26 @@ OneOrManyFutureOrResult: TypeAlias = Union[
 ]
 
 
+class TaskRunNameCallbackWithParameters(Protocol):
+    @classmethod
+    def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
+        sig = inspect.signature(callable)
+        return "parameters" in sig.parameters
+
+    def __call__(self, parameters: dict[str, Any]) -> str: ...
+
+
+StateHookCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
+]
+RetryConditionCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[bool], bool]
+]
+TaskRunNameValueOrCallable: TypeAlias = Union[
+    Callable[[], str], TaskRunNameCallbackWithParameters, str
+]
+
+
 class TaskOptions(TypedDict, total=False):
     """
     A TypedDict representing all available task configuration options.
@@ -270,26 +290,6 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     )
 
     return f"{qualname}-{code_hash}"
-
-
-class TaskRunNameCallbackWithParameters(Protocol):
-    @classmethod
-    def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
-        sig = inspect.signature(callable)
-        return "parameters" in sig.parameters
-
-    def __call__(self, parameters: dict[str, Any]) -> str: ...
-
-
-StateHookCallable: TypeAlias = Callable[
-    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
-]
-RetryConditionCallable: TypeAlias = Callable[
-    ["Task[..., Any]", TaskRun, State], Union[Awaitable[bool], bool]
-]
-TaskRunNameValueOrCallable: TypeAlias = Union[
-    Callable[[], str], TaskRunNameCallbackWithParameters, str
-]
 
 
 class Task(Generic[P, R]):
