@@ -285,6 +285,7 @@ filterwarnings = [
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
     "ignore::pluggy.PluggyTeardownRaisedWarning",
+    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
 ]
 
 [tool.mypy]
