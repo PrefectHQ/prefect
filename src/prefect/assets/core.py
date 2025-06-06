@@ -59,7 +59,7 @@ class Asset(PrefectBaseModel):
         asset_ctx.add_asset_metadata(self.key, metadata)
 
 
-def add_asset_metadata(asset_key: str, metadata: dict[str, Any]) -> None:
+def add_asset_metadata(asset: str | Asset, metadata: dict[str, Any]) -> None:
     from prefect.context import AssetContext
 
     asset_ctx = AssetContext.get()
@@ -68,4 +68,5 @@ def add_asset_metadata(asset_key: str, metadata: dict[str, Any]) -> None:
             "Unable to call `add_asset_metadata` when not inside of an AssetContext"
         )
 
+    asset_key = asset if isinstance(asset, str) else asset.key
     asset_ctx.add_asset_metadata(asset_key, metadata)

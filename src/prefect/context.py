@@ -534,7 +534,9 @@ class AssetContext(ContextModel):
             downstream_assets=task.assets[:]
             if isinstance(task, MaterializingTask) and task.assets
             else [],
-            upstream_assets=upstream_assets,
+            upstream_assets=list(
+                {asset.key: asset for asset in upstream_assets}.values()
+            ),
             materialized_by=task.materialized_by
             if isinstance(task, MaterializingTask)
             else None,
@@ -596,7 +598,7 @@ class AssetContext(ContextModel):
 
     def emit_events(self, state: State) -> None:
         """
-        Emit asset reference and materialization events based on task completion.
+        Emit asset events
         """
 
         from prefect.events import emit_event
@@ -610,32 +612,32 @@ class AssetContext(ContextModel):
         else:
             return
 
-        asset_deps_related: list[Asset] = []
+        # If we have no downstream assets, this not a materialization
+        if not self.downstream_assets:
+            return
 
-        # Emit reference events for direct asset dependencies
-        for asset in self.direct_asset_dependencies:
+        # Emit reference events for all upstream assets (direct + inherited)
+        all_upstream_assets = self.upstream_assets + self.direct_asset_dependencies
+        for asset in all_upstream_assets:
             emit_event(
-                event=f"prefect.asset.reference.{event_status}",
+                event="prefect.asset.referenced",
                 resource=self.asset_as_resource(asset),
                 related=[],
             )
-            asset_deps_related.append(self.asset_as_related(asset))
 
         # Emit materialization events for downstream assets
-        if self.downstream_assets:
-            upstream_related = [self.asset_as_related(a) for a in self.upstream_assets]
-            all_related = upstream_related + asset_deps_related
+        upstream_related = [self.asset_as_related(a) for a in all_upstream_assets]
 
-            if self.materialized_by:
-                all_related.append(self.related_materialized_by(self.materialized_by))
+        if self.materialized_by:
+            upstream_related.append(self.related_materialized_by(self.materialized_by))
 
-            for asset in self.downstream_assets:
-                emit_event(
-                    event=f"prefect.asset.materialization.{event_status}",
-                    resource=self.asset_as_resource(asset),
-                    related=all_related,
-                    payload=self.materialization_metadata.get(asset.key),
-                )
+        for asset in self.downstream_assets:
+            emit_event(
+                event=f"prefect.asset.materialization.{event_status}",
+                resource=self.asset_as_resource(asset),
+                related=upstream_related,
+                payload=self.materialization_metadata.get(asset.key),
+            )
 
     def update_tracked_assets(self) -> None:
         """

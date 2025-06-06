@@ -17,6 +17,36 @@ def _first_event(worker: EventsWorker):
     return events[0]
 
 
+def _materialization_events(events):
+    """Filter events to only include asset materialization events."""
+    return [e for e in events if e.event.startswith("prefect.asset.materialization")]
+
+
+def _reference_events(events):
+    """Filter events to only include asset reference events."""
+    return [e for e in events if e.event.startswith("prefect.asset.referenced")]
+
+
+def _event_with_resource_id(events, resource_id: str):
+    for e in events:
+        if e.resource.id == resource_id:
+            return e
+    else:
+        raise ValueError(f"No events with resource_id: {resource_id}")
+
+
+def _has_upstream_asset(event, upstream_asset_key: str) -> bool:
+    return any(
+        r["prefect.resource.id"] == upstream_asset_key
+        and r["prefect.resource.role"] == "asset"
+        for r in event.related
+    )
+
+
+def _has_related_of_role(event, role):
+    return any(r["prefect.resource.role"] == role for r in event.related)
+
+
 # =============================================================================
 # Basic Asset Validation and Utilities
 # =============================================================================
@@ -187,7 +217,7 @@ def test_single_asset_materialization_failure(asserting_events_worker: EventsWor
 def test_single_asset_reference(asserting_events_worker: EventsWorker):
     """Test single asset reference.
 
-    Expected graph: [O: s3://bucket/raw_data.csv]
+    Expected graph: [], without a materialization no reference is emitted
     """
 
     @task(asset_deps=["s3://bucket/raw_data.csv"])
@@ -201,38 +231,8 @@ def test_single_asset_reference(asserting_events_worker: EventsWorker):
     pipeline()
     asserting_events_worker.drain()
 
-    evt = _first_event(asserting_events_worker)
-    assert evt.event == "prefect.asset.reference.succeeded"
-    assert evt.resource.id == "s3://bucket/raw_data.csv"
-
-
-@pytest.mark.usefixtures("reset_worker_events")
-def test_multiple_asset_references(asserting_events_worker: EventsWorker):
-    """Test multiple asset references from single task.
-
-    Expected graph: [O: s3://bucket/raw1.csv], [O: s3://bucket/raw2.csv], [O: s3://bucket/raw3.csv]
-    """
-    deps = ["s3://bucket/raw1.csv", "s3://bucket/raw2.csv", "s3://bucket/raw3.csv"]
-
-    @task(asset_deps=deps)
-    def read_multiple():
-        return {"combined": True}
-
-    @flow
-    def pipeline():
-        read_multiple()
-
-    pipeline()
-    asserting_events_worker.drain()
-
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 3
-
-    ref_keys = {e.resource.id for e in events}
-    assert ref_keys == set(deps)
-
-    for evt in events:
-        assert evt.event == "prefect.asset.reference.succeeded"
+    assert not events
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -299,10 +299,8 @@ def test_mixed_asset_objects_and_string_keys(asserting_events_worker: EventsWork
     events = _asset_events(asserting_events_worker)
     assert len(events) == 4  # 2 references + 2 materializations
 
-    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
-    mat_events = [
-        e for e in events if e.event.startswith("prefect.asset.materialization")
-    ]
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
 
     assert len(ref_events) == 2
     assert len(mat_events) == 2
@@ -354,13 +352,20 @@ def test_materialization_to_materialization_dependency(
     pipeline()
     asserting_events_worker.drain()
 
-    events = sorted(_asset_events(asserting_events_worker), key=lambda e: e.resource.id)
-    assert len(events) == 2
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 3
 
-    up_evt, down_evt = events
-    assert up_evt.resource.id == upstream.key
-    assert down_evt.resource.id == downstream.key
-    assert any(r.id == upstream.key and r.role == "asset" for r in down_evt.related)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    assert len(ref_events) == 1
+    assert len(mat_events) == 2
+
+    assert _event_with_resource_id(ref_events, upstream.key)
+    assert {mat.resource.id for mat in mat_events} == {upstream.key, downstream.key}
+
+    downstream_mat = _event_with_resource_id(mat_events, downstream.key)
+    assert _has_upstream_asset(downstream_mat, upstream.key)
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -391,15 +396,14 @@ def test_reference_to_materialization_dependency(
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    mats = [e for e in events if e.event.startswith("prefect.asset.materialization")]
-    refs = [e for e in events if e.event.startswith("prefect.asset.reference")]
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
 
-    assert len(mats) == 1
-    assert len(refs) == 1
+    assert len(mat_events) == 1
+    assert len(ref_events) == 1
 
-    mat_evt = mats[0]
-    assert mat_evt.resource.id == downstream.key
-    assert any(r.id == upstream.key and r.role == "asset" for r in mat_evt.related)
+    mat_evt = _event_with_resource_id(mat_events, downstream.key)
+    assert _has_upstream_asset(mat_evt, upstream.key)
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -435,18 +439,16 @@ def test_linear_dependency_with_intermediate_task(
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 2
+    assert len(events) == 3
 
-    upstream_events = [e for e in events if e.resource.id == upstream.key]
-    downstream_events = [e for e in events if e.resource.id == downstream.key]
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
 
-    assert len(upstream_events) == 1
-    assert len(downstream_events) == 1
-    downstream_evt = downstream_events[0]
-    assert any(
-        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
-    )
-    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+    assert _event_with_resource_id(ref_events, upstream.key)
+    assert {mat.resource.id for mat in mat_events} == {upstream.key, downstream.key}
+
+    downstream_mat = _event_with_resource_id(mat_events, downstream.key)
+    assert _has_upstream_asset(downstream_mat, upstream.key)
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -471,10 +473,8 @@ def test_materialize_with_explicit_asset_deps(asserting_events_worker: EventsWor
     assert len(events) == 2
 
     # Find reference and materialization events
-    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
-    mat_events = [
-        e for e in events if e.event.startswith("prefect.asset.materialization")
-    ]
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
 
     assert len(ref_events) == 1
     assert len(mat_events) == 1
@@ -483,11 +483,8 @@ def test_materialize_with_explicit_asset_deps(asserting_events_worker: EventsWor
     assert ref_events[0].resource.id == "s3://bucket/raw_data.csv"
 
     # Check materialization
-    assert mat_events[0].resource.id == "s3://bucket/data.csv"
-    assert any(
-        r.id == "s3://bucket/raw_data.csv" and r.role == "asset"
-        for r in mat_events[0].related
-    )
+    mat_evt = _event_with_resource_id(mat_events, "s3://bucket/data.csv")
+    assert _has_upstream_asset(mat_evt, "s3://bucket/raw_data.csv")
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -522,18 +519,30 @@ def test_three_stage_linear_pipeline(asserting_events_worker: EventsWorker):
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 3
+    assert len(events) == 5  # 3 materializations + 2 reference events
 
-    def evt_for(asset):
-        return next(e for e in events if e.resource.id == asset.key)
+    # Get materialization and reference events using helper functions
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
 
-    evt_bronze = evt_for(bronze)
-    evt_silver = evt_for(silver)
-    evt_gold = evt_for(gold)
+    assert len(mat_events) == 3
+    assert len(ref_events) == 2
 
-    assert not any(r.role == "asset" for r in evt_bronze.related)
-    assert {r.id for r in evt_silver.related if r.role == "asset"} == {bronze.key}
-    assert {r.id for r in evt_gold.related if r.role == "asset"} == {silver.key}
+    # Get specific materialization events using helper function
+    evt_bronze = _event_with_resource_id(mat_events, bronze.key)
+    evt_silver = _event_with_resource_id(mat_events, silver.key)
+    evt_gold = _event_with_resource_id(mat_events, gold.key)
+
+    # Bronze has no upstream dependencies
+    assert not _has_related_of_role(evt_bronze, "asset")
+    # Silver has bronze as upstream dependency
+    assert _has_upstream_asset(evt_silver, bronze.key)
+    # Gold has silver as upstream dependency
+    assert _has_upstream_asset(evt_gold, silver.key)
+
+    # Check that reference events are emitted for upstream assets
+    ref_asset_ids = {e.resource.id for e in ref_events}
+    assert ref_asset_ids == {bronze.key, silver.key}
 
     for e in (evt_bronze, evt_silver, evt_gold):
         assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
@@ -584,18 +593,22 @@ def test_fan_in_dependency(asserting_events_worker: EventsWorker):
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 3
+    assert len(events) == 5  # 3 materializations + 2 reference events
 
-    downstream_events = [e for e in events if e.resource.id == user_orders.key]
-    assert len(downstream_events) == 1
-    downstream_evt = downstream_events[0]
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
 
-    assert any(
-        r.id == raw_users.key and r.role == "asset" for r in downstream_evt.related
-    )
-    assert any(
-        r.id == raw_orders.key and r.role == "asset" for r in downstream_evt.related
-    )
+    assert len(mat_events) == 3
+    assert len(ref_events) == 2
+
+    # Check reference events are emitted for upstream assets
+    ref_asset_ids = {e.resource.id for e in ref_events}
+    assert ref_asset_ids == {raw_users.key, raw_orders.key}
+
+    # Check the downstream materialization event
+    downstream_evt = _event_with_resource_id(mat_events, user_orders.key)
+    assert _has_upstream_asset(downstream_evt, raw_users.key)
+    assert _has_upstream_asset(downstream_evt, raw_orders.key)
 
     assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
 
@@ -645,17 +658,29 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker):
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 3
+    assert len(events) == 5  # 3 materializations + 2 reference events
 
-    daily_events = [e for e in events if e.resource.id == events_daily.key]
-    hourly_events = [e for e in events if e.resource.id == events_hourly.key]
-    assert len(daily_events) == 1
-    assert len(hourly_events) == 1
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
 
-    for evt in [daily_events[0], hourly_events[0]]:
-        assert any(r.id == events_raw.key and r.role == "asset" for r in evt.related)
-        # Also check for flow-run context
-        assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
+    assert len(mat_events) == 3
+    assert len(ref_events) == 2
+
+    # Check reference events are emitted for upstream assets (2 events for same asset)
+    ref_asset_ids = {e.resource.id for e in ref_events}
+    assert ref_asset_ids == {events_raw.key}
+    assert len(ref_events) == 2  # Two reference events for the same upstream asset
+
+    # Check the downstream materialization events
+    daily_evt = _event_with_resource_id(mat_events, events_daily.key)
+    hourly_evt = _event_with_resource_id(mat_events, events_hourly.key)
+
+    assert _has_upstream_asset(daily_evt, events_raw.key)
+    assert _has_upstream_asset(hourly_evt, events_raw.key)
+
+    # Also check for flow-run context
+    assert any(r.id.startswith("prefect.flow-run.") for r in daily_evt.related)
+    assert any(r.id.startswith("prefect.flow-run.") for r in hourly_evt.related)
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -689,22 +714,36 @@ def test_fan_in_to_fan_out_dependency(asserting_events_worker: EventsWorker):
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 4
+    assert len(events) == 6  # 4 materializations + 2 reference events
 
-    users_events = [e for e in events if e.resource.id == users_raw.key]
-    orders_events = [e for e in events if e.resource.id == orders_raw.key]
-    per_user_events = [e for e in events if e.resource.id == per_user.key]
-    summary_events = [e for e in events if e.resource.id == summary.key]
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
 
-    assert len(users_events) == 1
-    assert len(orders_events) == 1
-    assert len(per_user_events) == 1
-    assert len(summary_events) == 1
+    assert len(mat_events) == 4
+    assert len(ref_events) == 2
 
-    for evt in [per_user_events[0], summary_events[0]]:
-        assert any(r.id == users_raw.key and r.role == "asset" for r in evt.related)
-        assert any(r.id == orders_raw.key and r.role == "asset" for r in evt.related)
-        # Also check for flow-run context
+    # Check reference events are emitted for upstream assets
+    ref_asset_ids = {e.resource.id for e in ref_events}
+    assert ref_asset_ids == {users_raw.key, orders_raw.key}
+
+    # Check each materialization event
+    users_evt = _event_with_resource_id(mat_events, users_raw.key)
+    orders_evt = _event_with_resource_id(mat_events, orders_raw.key)
+    per_user_evt = _event_with_resource_id(mat_events, per_user.key)
+    summary_evt = _event_with_resource_id(mat_events, summary.key)
+
+    # Raw assets have no upstream dependencies
+    assert not _has_related_of_role(users_evt, "asset")
+    assert not _has_related_of_role(orders_evt, "asset")
+
+    # Downstream assets have both raw assets as upstream dependencies
+    assert _has_upstream_asset(per_user_evt, users_raw.key)
+    assert _has_upstream_asset(per_user_evt, orders_raw.key)
+    assert _has_upstream_asset(summary_evt, users_raw.key)
+    assert _has_upstream_asset(summary_evt, orders_raw.key)
+
+    # Also check for flow-run context
+    for evt in [users_evt, orders_evt, per_user_evt, summary_evt]:
         assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
 
 
@@ -743,10 +782,8 @@ def test_forward_propagation_asset_lineage(asserting_events_worker: EventsWorker
     assert len(events) == 3
 
     # Find all event types
-    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
-    mat_events = [
-        e for e in events if e.event.startswith("prefect.asset.materialization")
-    ]
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
 
     assert len(ref_events) == 2  # Two reference events
     assert len(mat_events) == 1  # One materialization event
@@ -825,35 +862,40 @@ def test_complex_snowflake_aggregation(asserting_events_worker: EventsWorker):
     asserting_events_worker.drain()
 
     events = _asset_events(asserting_events_worker)
-    assert len(events) == 7
+    assert len(events) == 10  # 4 materializations + 6 reference events
+
+    mat_events = _materialization_events(events)
+    ref_events = _reference_events(events)
+
+    assert len(mat_events) == 4
+    assert len(ref_events) == 6
 
     by_id = {e.resource.id: e for e in events}
 
+    # Check reference events for raw assets (direct asset dependencies)
     for raw_key in (
         f"{SNOWFLAKE_SCHEMA}/table-1-raw",
         f"{SNOWFLAKE_SCHEMA}/table-2-raw",
         f"{SNOWFLAKE_SCHEMA}/table-3-raw",
     ):
         evt = by_id[raw_key]
-        assert evt.event == "prefect.asset.reference.succeeded"
-        assert not any(r.role == "asset" for r in evt.related)
+        assert evt.event == "prefect.asset.referenced"
+        assert not _has_related_of_role(evt, "asset")
 
+    # Check materialization events for cleaned assets
     for cleaned_key, raw_key in [
         (table_1_cleaned_asset.key, f"{SNOWFLAKE_SCHEMA}/table-1-raw"),
         (table_2_cleaned_asset.key, f"{SNOWFLAKE_SCHEMA}/table-2-raw"),
         (table_3_cleaned_asset.key, f"{SNOWFLAKE_SCHEMA}/table-3-raw"),
     ]:
-        evt = by_id[cleaned_key]
-        upstream = {r.id for r in evt.related if r.role == "asset"}
-        assert upstream == {raw_key}
+        evt = _event_with_resource_id(mat_events, cleaned_key)
+        assert _has_upstream_asset(evt, raw_key)
 
-    agg_evt = by_id[aggregated_asset.key]
-    upstream_assets = {r.id for r in agg_evt.related if r.role == "asset"}
-    assert upstream_assets == {
-        table_1_cleaned_asset.key,
-        table_2_cleaned_asset.key,
-        table_3_cleaned_asset.key,
-    }
+    # Check aggregated materialization event
+    agg_evt = _event_with_resource_id(mat_events, aggregated_asset.key)
+    assert _has_upstream_asset(agg_evt, table_1_cleaned_asset.key)
+    assert _has_upstream_asset(agg_evt, table_2_cleaned_asset.key)
+    assert _has_upstream_asset(agg_evt, table_3_cleaned_asset.key)
 
     for e in events:
         assert any(r.id.startswith("prefect.flow-run.") for r in e.related)
@@ -954,11 +996,9 @@ def test_linear_dependency_with_submit(asserting_events_worker):
 
     assert len(upstream_events) == 1
     assert len(downstream_events) == 1
-    downstream_evt = downstream_events[0]
-    assert any(
-        r.id == upstream.key and r.role == "asset" for r in downstream_evt.related
-    )
-    assert any(r.id.startswith("prefect.flow-run.") for r in downstream_evt.related)
+    downstream_evt = _event_with_resource_id(events, downstream.key)
+    assert _has_upstream_asset(downstream_evt, upstream.key)
+    assert _has_related_of_role(downstream_evt, "flow-run")
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -966,9 +1006,8 @@ def test_map_with_asset_dependency(asserting_events_worker):
     """Test map operation with asset dependency.
 
     Expected graph:
-                                       --> [M: s3://data/processed] (task 1)
-    [O: s3://data/source_data]        --> [M: s3://data/processed] (task 2)
-                                       --> [M: s3://data/processed] (task 3)
+
+    [O: s3://data/source_data]   --> [M: s3://data/processed] (latest of task 1, 2, 3)
     """
     source_asset = Asset(key="s3://data/source_data")
     destination_asset = Asset(key="s3://data/processed")
@@ -993,19 +1032,18 @@ def test_map_with_asset_dependency(asserting_events_worker):
 
     events = _asset_events(asserting_events_worker)
 
-    assert len(events) == 4
+    assert len(events) == 6
 
     source_events = [e for e in events if e.resource.id == source_asset.key]
-    assert len(source_events) == 1
-    assert source_events[0].event == "prefect.asset.reference.succeeded"
+    assert len(source_events) == 3
 
     destination_events = [e for e in events if e.resource.id == destination_asset.key]
     assert len(destination_events) == 3
 
     for evt in destination_events:
         assert evt.event == "prefect.asset.materialization.succeeded"
-        assert any(r.id == source_asset.key and r.role == "asset" for r in evt.related)
-        assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
+        assert _has_upstream_asset(evt, source_asset.key)
+        assert _has_related_of_role(evt, "flow-run")
 
 
 @pytest.mark.usefixtures("reset_worker_events")
@@ -1043,11 +1081,9 @@ def test_asset_dependency_with_wait_for(asserting_events_worker):
     assert len(source_events) == 1
     assert len(dependent_events) == 1
 
-    dependent_evt = dependent_events[0]
-    assert any(
-        r.id == source_asset.key and r.role == "asset" for r in dependent_evt.related
-    )
-    assert any(r.id.startswith("prefect.flow-run.") for r in dependent_evt.related)
+    dependent_evt = _event_with_resource_id(events, dependent_asset.key)
+    assert _has_upstream_asset(dependent_evt, source_asset.key)
+    assert _has_related_of_role(dependent_evt, "flow-run")
 
 
 # =============================================================================
@@ -1078,6 +1114,7 @@ def test_materialization_with_by_parameter(asserting_events_worker: EventsWorker
     assert evt.event == "prefect.asset.materialization.succeeded"
     assert evt.resource.id == asset.key
 
+    assert _has_related_of_role(evt, "asset-materialized-by")
     materialized_by_resources = [
         r for r in evt.related if r.role == "asset-materialized-by"
     ]
@@ -1116,9 +1153,7 @@ def test_materialization_with_by_parameter_and_dependencies(
     assert len(events) == 2
 
     # Find the materialization event
-    mat_events = [
-        e for e in events if e.event.startswith("prefect.asset.materialization")
-    ]
+    mat_events = _materialization_events(events)
     assert len(mat_events) == 1
     mat_evt = mat_events[0]
 
@@ -1183,26 +1218,24 @@ def test_linear_dependency_with_asset_properties(asserting_events_worker: Events
     events = _asset_events(asserting_events_worker)
     assert len(events) == 2
 
-    ref_events = [e for e in events if e.event.startswith("prefect.asset.reference")]
-    mat_events = [
-        e for e in events if e.event.startswith("prefect.asset.materialization")
-    ]
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
 
     assert len(ref_events) == 1
     assert len(mat_events) == 1
 
     ref_evt = ref_events[0]
     assert ref_evt.resource.id == source_asset.key
-    assert ref_evt.event == "prefect.asset.reference.succeeded"
+    assert ref_evt.event == "prefect.asset.referenced"
 
     mat_evt = mat_events[0]
     assert mat_evt.resource.id == target_asset.key
     assert mat_evt.event == "prefect.asset.materialization.succeeded"
 
-    assert any(r.id == source_asset.key and r.role == "asset" for r in mat_evt.related)
+    assert _has_upstream_asset(mat_evt, source_asset.key)
 
-    assert any(r.id.startswith("prefect.flow-run.") for r in ref_evt.related)
-    assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)
+    assert _has_related_of_role(ref_evt, "flow-run")
+    assert _has_related_of_role(mat_evt, "flow-run")
 
 
 @pytest.mark.usefixtures("reset_worker_events")
