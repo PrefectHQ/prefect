@@ -275,7 +275,7 @@ class FlowOrchestrationContext(
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
-            self.proposed_state: states.State | None = None
+            self.proposed_state: states.State[Any] | None = None
 
             if is_client_retryable_exception(exc):
                 # Do not capture retryable database exceptions, this exception will be

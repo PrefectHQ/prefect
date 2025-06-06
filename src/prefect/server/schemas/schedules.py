@@ -165,13 +165,15 @@ class IntervalSchedule(PrefectBaseModel):
 
         if sys.version_info >= (3, 13):
             # `pendulum` is not supported in Python 3.13, so we use `whenever` instead
-            from whenever import LocalDateTime, ZonedDateTime
+            from whenever import ZonedDateTime
 
             if start is None:
                 start = ZonedDateTime.now("UTC").py_datetime()
 
             if self.anchor_date.tzinfo is None:
-                anchor_zdt = LocalDateTime.from_py_datetime(self.anchor_date).assume_tz(
+                from whenever import PlainDateTime
+
+                anchor_zdt = PlainDateTime.from_py_datetime(self.anchor_date).assume_tz(
                     "UTC"
                 )
             elif isinstance(self.anchor_date.tzinfo, ZoneInfo):
@@ -187,7 +189,7 @@ class IntervalSchedule(PrefectBaseModel):
                 ).to_tz(self.timezone or "UTC")
 
             if start.tzinfo is None:
-                local_start = LocalDateTime.from_py_datetime(start).assume_tz("UTC")
+                local_start = PlainDateTime.from_py_datetime(start).assume_tz("UTC")
             elif isinstance(start.tzinfo, ZoneInfo):
                 local_start = ZonedDateTime.from_py_datetime(start).to_tz(
                     self.timezone or "UTC"

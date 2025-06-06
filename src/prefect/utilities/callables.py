@@ -286,8 +286,10 @@ def process_v1_params(
     docstrings: dict[str, str],
     aliases: dict[str, str],
 ) -> tuple[str, Any, Any]:
+    import pydantic.v1 as pydantic_v1
+
     # Pydantic model creation will fail if names collide with the BaseModel type
-    if hasattr(pydantic.BaseModel, param.name):
+    if hasattr(pydantic_v1.BaseModel, param.name):
         name = param.name + "__"
         aliases[name] = param.name
     else:
@@ -296,10 +298,9 @@ def process_v1_params(
     type_ = Any if param.annotation is inspect.Parameter.empty else param.annotation
 
     with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
-        )
-        field: Any = pydantic.Field(  # type: ignore   # this uses the v1 signature, not v2
+        # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        field: Any = pydantic_v1.Field(
             default=... if param.default is param.empty else param.default,
             title=param.name,
             description=docstrings.get(param.name, None),
@@ -312,18 +313,19 @@ def process_v1_params(
 def create_v1_schema(
     name_: str, model_cfg: type[Any], model_fields: Optional[dict[str, Any]] = None
 ) -> dict[str, Any]:
+    import pydantic.v1 as pydantic_v1
+
     with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
-        )
+        # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
 
         model_fields = model_fields or {}
-        model: type[pydantic.BaseModel] = pydantic.create_model(  # type: ignore   # this uses the v1 signature, not v2
+        model: type[pydantic_v1.BaseModel] = pydantic_v1.create_model(
             name_,
-            __config__=model_cfg,  # type: ignore   # this uses the v1 signature, not v2
+            __config__=model_cfg,
             **model_fields,
         )
-        return model.schema(by_alias=True)  # type: ignore   # this uses the v1 signature, not v2
+        return model.schema(by_alias=True)
 
 
 def parameter_schema(fn: Callable[..., Any]) -> ParameterSchema:
