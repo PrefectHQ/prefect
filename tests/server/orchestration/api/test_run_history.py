@@ -289,7 +289,7 @@ async def test_history_returns_maximum_items(client, route):
     assert len(response.json()) == 500
 
     intervals = [
-        Instant.parse_rfc3339(r["interval_start"]).py_datetime()
+        Instant.parse_common_iso(r["interval_start"]).py_datetime()
         for r in response.json()
     ]
     assert min(intervals) == dt
