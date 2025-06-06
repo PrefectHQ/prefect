@@ -61,7 +61,7 @@ class Base(DeclarativeBase):
     and provides ID, created, and updated columns
     """
 
-    registry = orm_registry(
+    registry: sa.orm.registry = orm_registry(
         metadata=sa.schema.MetaData(
             # define naming conventions for our Base class to use
             # sqlalchemy will use the following templated strings
