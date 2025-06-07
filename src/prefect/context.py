@@ -674,6 +674,7 @@ class AssetContext(ContextModel):
             exclude_unset=True,
             serialize_as_any=True,
             context={"include_secrets": include_secrets},
+            mode="json",
         )
 
 
