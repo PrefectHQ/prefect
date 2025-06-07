@@ -671,6 +671,8 @@ class AssetContext(ContextModel):
     def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
         """Serialize the AssetContext for distributed execution."""
         return self.model_dump(
+            # use json serialization so fields that are
+            # sets of pydantic models are serialized
             mode="json",
             exclude_unset=True,
             serialize_as_any=True,
