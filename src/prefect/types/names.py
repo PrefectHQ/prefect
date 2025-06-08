@@ -137,3 +137,26 @@ VariableName = Annotated[
         examples=["my_variable"],
     ),
 ]
+
+
+# URI validation
+URI_REGEX = re.compile(r"^[a-z0-9]+://")
+
+
+def validate_uri(value: str) -> str:
+    """Validate that a string is a valid URI with lowercase protocol."""
+    if not URI_REGEX.match(value):
+        raise ValueError(
+            "Key must be a valid URI, e.g. storage://bucket/folder/asset.csv"
+        )
+    return value
+
+
+URILike = Annotated[
+    str,
+    AfterValidator(validate_uri),
+    Field(
+        description="A URI-like string with a lowercase protocol",
+        examples=["s3://bucket/folder/data.csv", "postgres://dbtable"],
+    ),
+]

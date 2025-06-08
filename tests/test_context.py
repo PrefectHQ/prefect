@@ -12,10 +12,12 @@ import pytest
 
 import prefect.settings
 from prefect import flow, task
+from prefect.assets import Asset, materialize
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.context import (
     GLOBAL_SETTINGS_CONTEXT,
+    AssetContext,
     ContextModel,
     FlowRunContext,
     SettingsContext,
@@ -385,6 +387,7 @@ class TestSerializeContext:
             "task_run_context": {},
             "tags_context": {},
             "settings_context": SettingsContext.get().serialize(),
+            "asset_context": {},
         }
 
     async def test_with_flow_run_context(self, prefect_client):
@@ -410,6 +413,7 @@ class TestSerializeContext:
                 "task_run_context": {},
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
+                "asset_context": {},
             }
 
     async def test_serialize_from_subprocess_with_flow_run_from_deployment(
@@ -502,6 +506,7 @@ class TestSerializeContext:
                 "task_run_context": task_ctx.serialize(),
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
+                "asset_context": {},
             }
 
     def test_with_tags_context(self):
@@ -512,7 +517,38 @@ class TestSerializeContext:
                 "task_run_context": {},
                 "tags_context": {"current_tags": current_tags},
                 "settings_context": SettingsContext.get().serialize(),
+                "asset_context": {},
             }
+
+    def test_with_asset_context(self):
+        asset = Asset(key="s3://bucket/data.csv")
+
+        @materialize(asset, by="foo")
+        def bar():
+            pass
+
+        task_run_id = uuid.uuid4()
+
+        serialized = serialize_context(
+            asset_ctx_kwargs={
+                "task": bar,
+                "task_run_id": task_run_id,
+                "task_inputs": {},
+            }
+        )
+        assert serialized == {
+            "flow_run_context": {},
+            "task_run_context": {},
+            "tags_context": {},
+            "settings_context": SettingsContext.get().serialize(),
+            "asset_context": AssetContext(
+                task_run_id=task_run_id,
+                downstream_assets={asset},
+                upstream_assets=set(),
+                direct_asset_dependencies=set(),
+                materialized_by="foo",
+            ).serialize(),
+        }
 
     def test_with_multiple_contexts(self):
         with tags("a", "b") as current_tags:
@@ -525,6 +561,7 @@ class TestSerializeContext:
                     "task_run_context": {},
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
+                    "asset_context": {},
                 }
                 assert (
                     serialized["settings_context"]["settings"]["api"]["key"] == "test"
@@ -761,3 +798,97 @@ class TestHydratedContext:
                 and settings.api.key.get_secret_value() == "test"
             )
             assert settings.api.url == "test"
+
+    def test_with_asset_context(self):
+        """Test that AssetContext can be serialized and rehydrated properly with all fields populated."""
+        from prefect.assets import AssetProperties
+
+        # Create assets with properties
+        upstream_asset = Asset(
+            key="s3://bucket/upstream.parquet",
+            properties=AssetProperties(
+                name="Upstream Data",
+                description="Raw upstream data",
+                url="https://example.com/upstream",
+                owners=["data-team@example.com"],
+            ),
+        )
+
+        downstream_asset = Asset(
+            key="s3://bucket/processed.parquet",
+            properties=AssetProperties(
+                name="Processed Data",
+                description="Cleaned and processed data",
+                url="https://example.com/processed",
+                owners=["analytics-team@example.com", "data-team@example.com"],
+            ),
+        )
+
+        dependency_asset = Asset(
+            key="s3://bucket/config.json",
+            properties=AssetProperties(
+                name="Config File",
+                description="Configuration for processing",
+            ),
+        )
+
+        task_run_id = uuid.uuid4()
+
+        # Create context with all fields populated
+        asset_context = AssetContext(
+            direct_asset_dependencies={dependency_asset},
+            downstream_assets={downstream_asset},
+            upstream_assets={upstream_asset},
+            materialized_by="prefect-dbt",
+            task_run_id=task_run_id,
+        )
+
+        # Serialize the context
+        serialized = asset_context.serialize()
+
+        # Verify serialization worked (sets should be converted to lists)
+        assert isinstance(serialized["direct_asset_dependencies"], list)
+        assert isinstance(serialized["downstream_assets"], list)
+        assert isinstance(serialized["upstream_assets"], list)
+        assert len(serialized["direct_asset_dependencies"]) == 1
+        assert len(serialized["downstream_assets"]) == 1
+        assert len(serialized["upstream_assets"]) == 1
+
+        # Rehydrate the context
+        with hydrated_context({"asset_context": serialized}):
+            rehydrated_ctx = AssetContext.get()
+
+            # Verify all fields were properly rehydrated
+            assert rehydrated_ctx is not None
+            assert rehydrated_ctx.task_run_id == task_run_id
+            assert rehydrated_ctx.materialized_by == "prefect-dbt"
+
+            # Check that sets were properly reconstructed
+            assert isinstance(rehydrated_ctx.direct_asset_dependencies, set)
+            assert isinstance(rehydrated_ctx.downstream_assets, set)
+            assert isinstance(rehydrated_ctx.upstream_assets, set)
+
+            # Verify asset contents
+            assert len(rehydrated_ctx.direct_asset_dependencies) == 1
+            assert len(rehydrated_ctx.downstream_assets) == 1
+            assert len(rehydrated_ctx.upstream_assets) == 1
+
+            # Check specific asset details
+            rehydrated_upstream = list(rehydrated_ctx.upstream_assets)[0]
+            assert rehydrated_upstream.key == "s3://bucket/upstream.parquet"
+            assert rehydrated_upstream.properties.name == "Upstream Data"
+            assert rehydrated_upstream.properties.description == "Raw upstream data"
+            assert rehydrated_upstream.properties.url == "https://example.com/upstream"
+            assert rehydrated_upstream.properties.owners == ["data-team@example.com"]
+
+            rehydrated_downstream = list(rehydrated_ctx.downstream_assets)[0]
+            assert rehydrated_downstream.key == "s3://bucket/processed.parquet"
+            assert rehydrated_downstream.properties.name == "Processed Data"
+            assert rehydrated_downstream.properties.owners == [
+                "analytics-team@example.com",
+                "data-team@example.com",
+            ]
+
+            rehydrated_dependency = list(rehydrated_ctx.direct_asset_dependencies)[0]
+            assert rehydrated_dependency.key == "s3://bucket/config.json"
+            assert rehydrated_dependency.properties.name == "Config File"

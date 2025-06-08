@@ -25,6 +25,7 @@ from prefect.server.schemas.states import Paused, Suspended
 from prefect.settings import (
     PREFECT_API_AUTH_STRING,
     PREFECT_SERVER_API_AUTH_STRING,
+    PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     temporary_settings,
 )
 
@@ -100,6 +101,16 @@ async def test_get_client_includes_auth_string_from_context():
     with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "admin:test"}):
         async with OrchestrationClient() as client:
             assert client._http_client.headers["Authorization"].startswith("Basic")
+
+
+@pytest.mark.parametrize("enable_csrf", [True, False])
+async def test_includes_csrf_support(enable_csrf: bool, deployment: "ORMDeployment"):
+    with temporary_settings(
+        updates={PREFECT_SERVER_CSRF_PROTECTION_ENABLED: str(enable_csrf)}
+    ):
+        async with OrchestrationClient() as client:
+            response = await client.pause_deployment(deployment.id)
+            assert response.status_code == 200
 
 
 async def test_read_deployment(

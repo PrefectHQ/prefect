@@ -12,6 +12,8 @@ from prefect_redis.messaging import (
     Consumer,
     Message,
     Publisher,
+    RedisMessagingConsumerSettings,
+    RedisMessagingPublisherSettings,
     StopConsumer,
 )
 from redis.asyncio import Redis
@@ -108,7 +110,7 @@ async def drain_one(consumer: Consumer) -> Optional[Message]:
         captured_messages.append(message)
         raise StopConsumer(ack=False)
 
-    with anyio.move_on_after(0.1):
+    with anyio.move_on_after(1.0):  # Reasonable timeout for tests
         await consumer.run(handler)
 
     return captured_messages[0] if captured_messages else None
@@ -164,8 +166,17 @@ async def test_stopping_consumer_without_acking(
     assert message.data == "hello, world"
     assert message.attributes == {"howdy": "partner"}
 
+    # Create a test consumer with short min_idle_time for faster testing
+    test_consumer = create_consumer(
+        "message-tests", min_idle_time=timedelta(seconds=0.1)
+    )
+
+    # Wait for the message to become "idle" (longer than min_idle_time)
+    await asyncio.sleep(0.2)
+
     # Message should still be available since we didn't ack
-    remaining_message = await drain_one(consumer)
+    remaining_message = await drain_one(test_consumer)
+    assert remaining_message is not None, "Message should be available for reclaiming"
     assert remaining_message == message
 
 
@@ -442,3 +453,64 @@ async def test_can_be_used_as_event_publisher(broker: str, cache: Cache):
         await consumer_task
 
     assert captured_events == [emitted_event]
+
+
+class TestRedisMessagingSettings:
+    """Test the Redis messaging settings."""
+
+    def test_publisher_settings(self):
+        """Test Redis publisher settings."""
+        settings = RedisMessagingPublisherSettings()
+        assert settings.batch_size == 5
+        assert settings.publish_every == timedelta(seconds=10)
+        assert settings.deduplicate_by is None
+
+    def test_consumer_settings(self):
+        """Test Redis consumer settings."""
+        settings = RedisMessagingConsumerSettings()
+        assert settings.block == timedelta(seconds=1)
+        assert settings.min_idle_time == timedelta(seconds=5)
+        assert settings.max_retries == 3
+        assert settings.trim_every == timedelta(seconds=60)
+        assert settings.should_process_pending_messages is True
+        assert settings.starting_message_id == "0"
+        assert settings.automatically_acknowledge is True
+
+    def test_publisher_settings_can_be_overridden(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that Redis publisher settings can be overridden."""
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "10")
+        settings = RedisMessagingPublisherSettings()
+        assert settings.batch_size == 10
+
+    def test_consumer_settings_can_be_overridden(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that Redis consumer settings can be overridden."""
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
+        settings = RedisMessagingConsumerSettings()
+        assert settings.block == timedelta(seconds=10)
+
+
+async def test_trimming_with_no_delivered_messages(redis: Redis):
+    """Test that stream trimming handles the case where no messages have been delivered."""
+    from prefect_redis.messaging import _trim_stream_to_lowest_delivered_id
+
+    stream_name = "test-trim-stream"
+
+    # Create a stream with some messages
+    await redis.xadd(stream_name, {"data": "test1"})
+    await redis.xadd(stream_name, {"data": "test2"})
+
+    # Create consumer groups that haven't consumed anything (last-delivered-id = "0-0")
+    await redis.xgroup_create(stream_name, "group1", id="0", mkstream=True)
+    await redis.xgroup_create(stream_name, "group2", id="0", mkstream=True)
+
+    # This should not raise a ValueError due to min() on empty sequence
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    # Stream should remain unchanged since no messages were delivered
+    length = await redis.xlen(stream_name)
+    assert length == 2
+
+    # Clean up
+    await redis.delete(stream_name)

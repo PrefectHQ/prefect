@@ -43,6 +43,7 @@ from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
+    AssetContext,
     AsyncClientContext,
     FlowRunContext,
     SyncClientContext,
@@ -314,10 +315,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    def can_retry(self, exc: Exception) -> bool:
+    def can_retry(self, exc_or_state: Exception | State[R]) -> bool:
         retry_condition: Optional[
-            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
+            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
+
+        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
+
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -326,8 +330,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f" {self.task.name!r}"
             )
             state = Failed(
-                data=exc,
-                message=f"Task run encountered unexpected exception: {repr(exc)}",
+                data=exc_or_state,
+                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
             if asyncio.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
@@ -449,7 +453,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 result = state.data
 
-            link_state_to_result(state, result)
+            link_state_to_result(new_state, result)
+            if asset_context := AssetContext.get():
+                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -476,7 +482,15 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # otherwise, return the exception
             return self._raised
 
-    def handle_success(self, result: R, transaction: Transaction) -> R:
+    def handle_success(
+        self, result: R, transaction: Transaction
+    ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
+        # Handle the case where the task explicitly returns a failed state, in
+        # which case we should retry the task if it has retries left.
+        if isinstance(result, State) and result.is_failed():
+            if self.handle_retry(result):
+                return None
+
         if self.task.cache_expiration is not None:
             expiration = prefect.types._datetime.now("UTC") + self.task.cache_expiration
         else:
@@ -508,16 +522,16 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._return_value = result
 
         self._telemetry.end_span_on_success()
-        return result
 
-    def handle_retry(self, exc: Exception) -> bool:
+    def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
         - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
         """
-        if self.retries < self.task.retries and self.can_retry(exc):
+        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
+        if self.retries < self.task.retries and self.can_retry(exc_or_state):
             if self.task.retry_delay_seconds:
                 delay = (
                     self.task.retry_delay_seconds[
@@ -535,8 +549,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state = Retrying()
 
             self.logger.info(
-                "Task run failed with exception: %r - Retry %s/%s will start %s",
-                exc,
+                "Task run failed with %s: %r - Retry %s/%s will start %s",
+                failure_type,
+                exc_or_state,
                 self.retries + 1,
                 self.task.retries,
                 str(delay) + " second(s) from now" if delay else "immediately",
@@ -552,7 +567,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 else "No retries configured for this task."
             )
             self.logger.error(
-                f"Task run failed with exception: {exc!r} - {retry_message_suffix}",
+                f"Task run failed with {failure_type}: {exc_or_state!r} - {retry_message_suffix}",
                 exc_info=True,
             )
             return False
@@ -625,6 +640,16 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
+
+            asset_context = AssetContext.get()
+            if not asset_context:
+                asset_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                stack.enter_context(asset_context)
+
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -830,7 +855,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def call_task_fn(
         self, transaction: Transaction
-    ) -> Union[R, Coroutine[Any, Any, R]]:
+    ) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]:
         """
         Convenience method to call the task function. Returns a coroutine if the
         task is async.
@@ -855,10 +880,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise RuntimeError("Engine has not started.")
         return self._client
 
-    async def can_retry(self, exc: Exception) -> bool:
+    async def can_retry(self, exc_or_state: Exception | State[R]) -> bool:
         retry_condition: Optional[
-            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
+            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State[R]], bool]
         ] = self.task.retry_condition_fn
+
+        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
+
         if not self.task_run:
             raise ValueError("Task run is not set")
         try:
@@ -867,8 +895,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 f" {self.task.name!r}"
             )
             state = Failed(
-                data=exc,
-                message=f"Task run encountered unexpected exception: {repr(exc)}",
+                data=exc_or_state,
+                message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
             if asyncio.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
@@ -1004,6 +1032,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = new_state.data
 
             link_state_to_result(new_state, result)
+            if asset_context := AssetContext.get():
+                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1031,7 +1061,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # otherwise, return the exception
             return self._raised
 
-    async def handle_success(self, result: R, transaction: AsyncTransaction) -> R:
+    async def handle_success(
+        self, result: R, transaction: AsyncTransaction
+    ) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]:
+        if isinstance(result, State) and result.is_failed():
+            if await self.handle_retry(result):
+                return None
+
         if self.task.cache_expiration is not None:
             expiration = prefect.types._datetime.now("UTC") + self.task.cache_expiration
         else:
@@ -1059,19 +1095,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(terminal_state)
         await self.set_state(terminal_state)
         self._return_value = result
-
         self._telemetry.end_span_on_success()
 
         return result
 
-    async def handle_retry(self, exc: Exception) -> bool:
+    async def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
 
         - If the task has retries left, and the retry condition is met, set the task to retrying and return True.
         - If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
         - If the task has no retries left, or the retry condition is not met, return False.
         """
-        if self.retries < self.task.retries and await self.can_retry(exc):
+        failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
+
+        if self.retries < self.task.retries and await self.can_retry(exc_or_state):
             if self.task.retry_delay_seconds:
                 delay = (
                     self.task.retry_delay_seconds[
@@ -1089,8 +1126,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state = Retrying()
 
             self.logger.info(
-                "Task run failed with exception: %r - Retry %s/%s will start %s",
-                exc,
+                "Task run failed with %s: %r - Retry %s/%s will start %s",
+                failure_type,
+                exc_or_state,
                 self.retries + 1,
                 self.task.retries,
                 str(delay) + " second(s) from now" if delay else "immediately",
@@ -1106,7 +1144,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 else "No retries configured for this task."
             )
             self.logger.error(
-                f"Task run failed with exception: {exc!r} - {retry_message_suffix}",
+                f"Task run failed with {failure_type}: {exc_or_state!r} - {retry_message_suffix}",
                 exc_info=True,
             )
             return False
@@ -1180,6 +1218,16 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
+
+            asset_context = AssetContext.get()
+            if not asset_context:
+                asset_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                stack.enter_context(asset_context)
+
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1382,7 +1430,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def call_task_fn(
         self, transaction: AsyncTransaction
-    ) -> Union[R, Coroutine[Any, Any, R]]:
+    ) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]:
         """
         Convenience method to call the task function. Returns a coroutine if the
         task is async.

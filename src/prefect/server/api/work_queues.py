@@ -5,7 +5,6 @@ Routes for interacting with work queue objects.
 from typing import List, Optional
 from uuid import UUID
 
-import sqlalchemy as sa
 from fastapi import (
     BackgroundTasks,
     Body,
@@ -15,6 +14,7 @@ from fastapi import (
     Path,
     status,
 )
+from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -54,7 +54,7 @@ async def create_work_queue(
             model = await models.work_queues.create_work_queue(
                 session=session, work_queue=work_queue
             )
-    except sa.exc.IntegrityError:
+    except IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A work queue with this name already exists.",
@@ -184,7 +184,7 @@ async def read_work_queue_runs(
 async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
     """

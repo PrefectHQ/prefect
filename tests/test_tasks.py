@@ -2172,6 +2172,50 @@ class TestTaskCaching:
         assert await s5.result() == 42
         assert await s6.result() == 42
 
+    async def test_disable_caching_setting_disables_caching_regardless_of_cache_policy(
+        self, caplog
+    ):
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
+
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: True}):
+
+            @task(cache_policy=TASK_SOURCE)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == NO_CACHE
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
+
+    async def test_disable_caching_setting_allows_normal_caching_when_false(self):
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
+
+        with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: False}):
+
+            @task(cache_policy=TASK_SOURCE)
+            def foo(x):
+                return x
+
+        assert foo.cache_policy == TASK_SOURCE
+        assert foo.persist_result is True
+
+    @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
+    async def test_does_not_warn_when_false_persist_result_and_none_cache_policy(
+        self, caplog, cache_policy
+    ):
+        @task(persist_result=False, cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        assert foo.cache_policy == cache_policy
+
+        assert (
+            "Ignoring `cache_policy` because `persist_result` is False"
+            not in caplog.text
+        )
+
 
 class TestCacheFunctionBuiltins:
     async def test_task_input_hash_within_flows(
@@ -4328,6 +4372,21 @@ class TestTaskConstructorValidation:
             @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
             async def insanity():
                 raise RuntimeError("try again!")
+
+    def test_task_accepts_fractional_retry_delay_seconds(self):
+        @task(retries=2, retry_delay_seconds=1.5)
+        def task_with_float_delay():
+            return "success"
+
+        @task(retries=3, retry_delay_seconds=[0.5, 1.1, 2.7])
+        def task_with_float_list_delay():
+            return "success"
+
+        assert task_with_float_delay.retries == 2
+        assert task_with_float_delay.retry_delay_seconds == 1.5
+
+        assert task_with_float_list_delay.retries == 3
+        assert task_with_float_list_delay.retry_delay_seconds == [0.5, 1.1, 2.7]
 
 
 async def test_task_run_name_is_set(prefect_client, events_pipeline):

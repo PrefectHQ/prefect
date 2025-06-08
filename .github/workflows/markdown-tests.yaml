@@ -51,7 +51,7 @@ jobs:
         database:
           - "sqlite"
         python-version:
-          - "3.9"
+          - "3.10"
 
       fail-fast: true
 

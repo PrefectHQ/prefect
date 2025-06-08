@@ -1,0 +1,36 @@
+---
+title: How to turn a shell command into a workflow
+sidebarTitle: Turn a shell command into a workflow
+---
+
+### Run a shell command as a workflow
+
+To run a shell command as a Prefect flow, use the `prefect shell watch` command.
+
+```bash
+prefect shell watch "curl http://wttr.in/Chicago?format=3"
+```
+
+Running this command will execute the provided shell command and track execution as a flow run. The output of the shell command is also captured and displayed in the Prefect UI.
+
+
+### Run a shell command on a schedule
+
+To run a shell command on a schedule, use the `prefect shell serve` command.
+
+```bash
+prefect shell serve "curl http://wttr.in/Chicago?format=3" \
+    --flow-name "Chicago Weather Report" \
+    --cron-schedule "0 9 * * *" \
+    --deployment-name "Daily"
+```
+
+This will start a process that will execute the provided shell command at the specified cron schedule and track execution as a flow run.
+
+You can trigger a run manually via the Prefect UI or by running:
+
+```bash
+prefect deployment run "Chicago Weather Report/Daily"
+```
+
+To stop the process and pause the scheduled runs, hit `ctrl` + `c` in your terminal.

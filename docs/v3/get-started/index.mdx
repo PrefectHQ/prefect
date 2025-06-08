@@ -3,9 +3,8 @@ title: Introduction
 sidebarTitle: Welcome
 icon: hand-wave
 ---
-Prefect is an open-source orchestration engine that turns your Python functions into production-grade data pipelines with minimal friction. You can build and schedule workflows in pure Python—no DSLs or complex config files—and run them anywhere. Prefect handles the heavy lifting for you out of the box: automatic state tracking, failure handling, real-time monitoring, and more.
+Prefect is an open-source orchestration engine that turns your Python functions into production-grade data pipelines with minimal friction. You can build and schedule workflows in pure Python—no DSLs or complex config files—and run them anywhere you can run Python. Prefect handles the heavy lifting for you out of the box: automatic state tracking, failure handling, real-time monitoring, and more.
 
-**Why?** In 2018, we set out to solve a problem many of you know too well: orchestrating data workflows shouldn’t feel like pulling teeth (e.g. writing DAGs in YAML). Prefect was designed to handle the challenges that tools like Airflow struggled with: dynamic workflows, modern infrastructure, and the complexity of today’s data pipelines. Since then, it’s become a go-to tool for everyone from startups to Fortune 100 companies. Prefect helps you ship production-ready workflows without the headaches, so you can spend more time building and less time debugging.
 
 ### Essential features
 <div className="t-full-width">
@@ -20,56 +19,62 @@ Prefect is an open-source orchestration engine that turns your Python functions 
 | **CI/CD First** | Test and simulate flows like normal Python code, giving you fast feedback during development. Integrate seamlessly into your existing CI/CD pipeline for automated testing and deployment. |
 </div>
 
-## Get started
+## Quickstart
 
 <CardGroup cols={3}>
-  <Card title="Quickstart" icon="play" href="/v3/get-started/quickstart">
+  <Card title="Quickstart" icon="rocket" href="/v3/get-started/quickstart">
     Quickly create your first deployable workflow tracked by Prefect.
   </Card>
-  <Card title="Prefect Cloud" icon="cloud" href="/v3/manage/cloud/index">
-    Supercharge Prefect with enhanced governance, security, and performance capabilities.
+  <Card title="Install Prefect" icon="download" href="/v3/get-started/install">
+    Install Prefect and get connected to Prefect Cloud or a self-hosted server.
   </Card>
-  <Card title="Upgrade to Prefect 3" icon="sparkles" href="/v3/resources/upgrade-to-prefect-3">
+  <Card title="Upgrade to Prefect 3" icon="sparkles" href="/v3/how-to-guides/migrate/upgrade-to-prefect-3">
     Upgrade from Prefect 2 to Prefect 3 to get the latest features and performance enhancements.
   </Card>
 </CardGroup>
 
-## Tutorials
+## How-to guides
 
 <CardGroup cols={3}>
-  <Card title="Schedule a flow" icon="calendar" href="/v3/tutorials/schedule">
-    Get a workflow off of your laptop and run it on remote infrastructure on a schedule.
+  <Card title="Build workflows" icon="code" href="/v3/how-to-guides/workflows/write-and-run">
+    Learn how to write and customize your Prefect workflows with tasks and flows.
   </Card>
-  <Card title="Build a data pipeline" icon="database" href="/v3/tutorials/pipelines">
-    Build a resilient and performant data pipeline with Prefect's primitives.
+  <Card title="Deploy workflows" icon="rocket" href="/v3/how-to-guides/deployments/create-deployments">
+    Deploy and manage your workflows as Prefect deployments.
   </Card>
-  <Card title="Extract data from websites" icon="globe" href="/v3/tutorials/scraping">
-    Handle data dependencies and use pagination to efficiently extract data from websites.
+  <Card title="Configure infrastructure" icon="city" href="/v3/how-to-guides/deployment_infra/managed">
+    Deploy your workflows to specific infrastructure platforms.
   </Card>
-  <Card title="Set up a platform" icon="code" href="/v3/tutorials/platform">
+  <Card title="Set up automations" icon="robot" href="/v3/how-to-guides/automations/creating-automations">
+    Work with events, triggers, and automations to build reactive workflows.
+  </Card>
+  <Card title="Configure Prefect" icon="gears" href="/v3/how-to-guides/configuration/manage-settings">
+    Configure your Prefect environment, secrets, and variables.
+  </Card>
+  <Card title="Use Prefect Cloud" icon="cloud" href="/v3/how-to-guides/cloud/connect-to-cloud">
+    Set up and manage your Prefect Cloud account.
+  </Card>
+</CardGroup>
+
+
+## Advanced
+
+<CardGroup cols={3}>
+  <Card title="Interactive workflows" icon="terminal" href="/v3/advanced/interactive">
+    Build interactive workflows that can pause and receive input.
+  </Card>
+  <Card title="Platform engineering" icon="building" href="/v3/advanced/infrastructure-as-code">
     Use Prefect as a platform for your teams' data pipelines.
   </Card>
-  <Card title="Debug a data pipeline" icon="bug" href="/v3/tutorials/debug">
-    Learn how to debug flow runs that fail, crash, or hang.
-  </Card>
-  <Card title="Send alerts on failure" icon="bell" href="/v3/tutorials/alerts">
-    Set up an email alert to notify your teams about failures.
+  <Card title="Extend Prefect" icon="puzzle-piece" href="/v3/advanced/api-client">
+    Extend Prefect with custom blocks and API integrations.
   </Card>
 </CardGroup>
 
-## Start building
 
-<CardGroup cols={3}>
-  <Card title="Develop" icon="code" href="/v3/develop/write-flows">
-    Write, run, configure, and observe workflows and their tasks, results, artifacts, and more.
-  </Card>
-  <Card title="Deploy" icon="rocket" href="/v3/deploy/index">
-    Run workflows in local processes or deploy them to dynamically provisioned infrastructure.
-  </Card>
-  <Card title="Automate" icon="robot" href="/v3/automate/events/automations-triggers">
-    Enable workflows to react to their environment with events, automations, and webhooks.
-  </Card>
-</CardGroup>
+## Examples
+
+Check out the gallery of [examples](/v3/examples/index) to see Prefect in action.
 
 ## Mini-history of Prefect
 
