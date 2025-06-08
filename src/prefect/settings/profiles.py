@@ -8,6 +8,7 @@ from typing import (
     ClassVar,
     Iterable,
     Iterator,
+    Optional,
 )
 
 import toml
@@ -62,7 +63,7 @@ class Profile(BaseModel):
     settings: Annotated[dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
         default_factory=dict
     )
-    source: Path | None = None
+    source: Optional[Path] = None
 
     def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
@@ -80,33 +81,29 @@ class Profile(BaseModel):
         if not self.settings:
             return
 
-        # Create a nested dictionary structure using the setting accessors
-        # This follows the same pattern as Settings.copy_with_update
         nested_settings: dict[str, Any] = {}
 
         for setting, value in self.settings.items():
-            # Use the setting's accessor to place the value in the correct nested location
             set_in_dict(nested_settings, setting.accessor, value)
 
-            # Validate using the Settings model - this will catch all field constraints
         try:
             Settings.model_validate(nested_settings)
         except ValidationError as e:
-            # Convert the validation error back to profile-specific errors
             errors: list[tuple[Setting, ValidationError]] = []
 
             for error in e.errors():
-                # Map the error location back to the original setting
                 error_path = ".".join(str(loc) for loc in error["loc"])
 
-                # Find the setting that corresponds to this error path and add error directly
                 for setting in self.settings.keys():
                     if setting.accessor == error_path:
-                        # Create a ValidationError for just this setting
-                        setting_error = ValidationError.from_exception_data(
-                            "ValidationError", [error]
+                        errors.append(
+                            (
+                                setting,
+                                ValidationError.from_exception_data(
+                                    "ValidationError", [error]
+                                ),
+                            )
                         )
-                        errors.append((setting, setting_error))
                         break
 
             if errors:
