@@ -1541,3 +1541,58 @@ def test_add_asset_metadata_throws_error_for_invalid_asset_key():
         match="Can only add metadata to assets that are arguments to @materialize",
     ):
         non_materializing_pipeline()
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_nested_materialize_task_can_add_metadata(
+    asserting_events_worker: EventsWorker,
+):
+    """Test that @materialize tasks can add metadata when called from within other tasks.
+
+    This tests the fix for issue #18254 where MaterializingTasks failed to add metadata
+    when called from within regular tasks due to AssetContext inheritance issues.
+    """
+    asset1 = Asset(key="s3://bucket/asset1.csv")
+    asset2 = Asset(key="s3://bucket/asset2.csv")
+
+    @materialize(asset1)
+    def materialize_asset1():
+        asset1.add_metadata({"rows": 100, "source": "test"})
+        return {"data": "asset1"}
+
+    @materialize(asset2)
+    def materialize_asset2(data):
+        asset2.add_metadata({"rows": 200, "input": data})
+        return {"data": "asset2"}
+
+    @task
+    def orchestration_task():
+        """A regular task that calls materialize tasks."""
+        # This pattern is common for orchestration tasks that handle
+        # retries, error handling, or conditional logic
+        result1 = materialize_asset1()
+        result2 = materialize_asset2(result1)
+        return result2
+
+    @flow
+    def test_flow():
+        return orchestration_task()
+
+    # This should work without raising ValueError
+    result = test_flow()
+    assert result == {"data": "asset2"}
+
+    # Verify the events were properly emitted
+    asserting_events_worker.drain()
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    # Should have 2 materialization events
+    assert len(mat_events) == 2
+
+    # Check metadata was captured
+    asset1_event = _event_with_resource_id(mat_events, asset1.key)
+    assert asset1_event.payload == {"rows": 100, "source": "test"}
+
+    asset2_event = _event_with_resource_id(mat_events, asset2.key)
+    assert asset2_event.payload == {"rows": 200, "input": {"data": "asset1"}}

@@ -81,6 +81,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.tasks import MaterializingTask
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import (
     AsyncTransaction,
@@ -649,6 +650,24 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     task_inputs=self.task_run.task_inputs,
                 )
                 stack.enter_context(asset_context)
+            elif isinstance(self.task, MaterializingTask) and self.task.assets:
+                # If this is a MaterializingTask running within another task's context,
+                # we need to create a new context for proper asset tracking while
+                # preserving the upstream assets from the parent context
+                parent_upstream = asset_context.upstream_assets.copy()
+                parent_direct_deps = asset_context.direct_asset_dependencies.copy()
+
+                # Create a new context for this MaterializingTask
+                new_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                # Merge parent's assets into upstream
+                new_context.upstream_assets.update(parent_upstream)
+                new_context.upstream_assets.update(parent_direct_deps)
+
+                stack.enter_context(new_context)
 
             stack.enter_context(
                 TaskRunContext(
@@ -1227,6 +1246,24 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     task_inputs=self.task_run.task_inputs,
                 )
                 stack.enter_context(asset_context)
+            elif isinstance(self.task, MaterializingTask) and self.task.assets:
+                # If this is a MaterializingTask running within another task's context,
+                # we need to create a new context for proper asset tracking while
+                # preserving the upstream assets from the parent context
+                parent_upstream = asset_context.upstream_assets.copy()
+                parent_direct_deps = asset_context.direct_asset_dependencies.copy()
+
+                # Create a new context for this MaterializingTask
+                new_context = AssetContext.from_task_and_inputs(
+                    task=self.task,
+                    task_run_id=self.task_run.id,
+                    task_inputs=self.task_run.task_inputs,
+                )
+                # Merge parent's assets into upstream
+                new_context.upstream_assets.update(parent_upstream)
+                new_context.upstream_assets.update(parent_direct_deps)
+
+                stack.enter_context(new_context)
 
             stack.enter_context(
                 TaskRunContext(
