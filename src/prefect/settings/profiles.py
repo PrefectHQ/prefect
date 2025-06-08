@@ -6,11 +6,8 @@ from typing import (
     Annotated,
     Any,
     ClassVar,
-    Dict,
     Iterable,
     Iterator,
-    Optional,
-    Union,
 )
 
 import toml
@@ -27,6 +24,7 @@ from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.context import get_current_settings
 from prefect.settings.legacy import Setting, _get_settings_fields
 from prefect.settings.models.root import Settings
+from prefect.utilities.collections import set_in_dict
 
 
 def _cast_settings(
@@ -64,9 +62,9 @@ class Profile(BaseModel):
     settings: Annotated[dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
         default_factory=dict
     )
-    source: Optional[Path] = None
+    source: Path | None = None
 
-    def to_environment_variables(self) -> Dict[str, str]:
+    def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
         return {
             setting.name: str(value)
@@ -85,8 +83,6 @@ class Profile(BaseModel):
         # Create a nested dictionary structure using the setting accessors
         # This follows the same pattern as Settings.copy_with_update
         nested_settings: dict[str, Any] = {}
-
-        from prefect.utilities.collections import set_in_dict
 
         for setting, value in self.settings.items():
             # Use the setting's accessor to place the value in the correct nested location
@@ -126,9 +122,7 @@ class ProfilesCollection:
     The collection may store the name of the active profile.
     """
 
-    def __init__(
-        self, profiles: Iterable[Profile], active: Optional[str] = None
-    ) -> None:
+    def __init__(self, profiles: Iterable[Profile], active: str | None = None) -> None:
         self.profiles_by_name: dict[str, Profile] = {
             profile.name: profile for profile in profiles
         }
@@ -142,7 +136,7 @@ class ProfilesCollection:
         return set(self.profiles_by_name.keys())
 
     @property
-    def active_profile(self) -> Optional[Profile]:
+    def active_profile(self) -> Profile | None:
         """
         Retrieve the active profile in this collection.
         """
@@ -150,7 +144,7 @@ class ProfilesCollection:
             return None
         return self[self.active_name]
 
-    def set_active(self, name: Optional[str], check: bool = True) -> None:
+    def set_active(self, name: str | None, check: bool = True) -> None:
         """
         Set the active profile name in the collection.
 
@@ -165,7 +159,7 @@ class ProfilesCollection:
         self,
         name: str,
         settings: dict[Setting, Any],
-        source: Optional[Path] = None,
+        source: Path | None = None,
     ) -> Profile:
         """
         Add a profile to the collection or update the existing on if the name is already
@@ -221,7 +215,7 @@ class ProfilesCollection:
         """
         self.profiles_by_name.pop(name)
 
-    def without_profile_source(self, path: Optional[Path]) -> "ProfilesCollection":
+    def without_profile_source(self, path: Path | None) -> "ProfilesCollection":
         """
         Remove profiles that were loaded from a given path.
 
@@ -387,7 +381,7 @@ def load_profile(name: str) -> Profile:
 
 
 def update_current_profile(
-    settings: Dict[Union[str, Setting], Any],
+    settings: dict[str | Setting, Any],
 ) -> Profile:
     """
     Update the persisted data for the profile currently in-use.
