@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 import warnings
 from pathlib import Path
 from typing import (
@@ -20,10 +19,8 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
-    TypeAdapter,
     ValidationError,
 )
-from pydantic_settings import BaseSettings
 
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
@@ -78,23 +75,46 @@ class Profile(BaseModel):
         }
 
     def validate_settings(self) -> None:
-        errors: list[tuple[Setting, ValidationError]] = []
-        for setting, value in self.settings.items():
-            try:
-                model_fields = Settings.model_fields
-                annotation = None
-                for section in setting.accessor.split("."):
-                    annotation = model_fields[section].annotation
-                    if inspect.isclass(annotation) and issubclass(
-                        annotation, BaseSettings
-                    ):
-                        model_fields = annotation.model_fields
+        """
+        Validate all settings in this profile by creating a partial Settings object
+        with the nested structure properly constructed using accessor paths.
+        """
+        if not self.settings:
+            return
 
-                TypeAdapter(annotation).validate_python(value)
-            except ValidationError as e:
-                errors.append((setting, e))
-        if errors:
-            raise ProfileSettingsValidationError(errors)
+        # Create a nested dictionary structure using the setting accessors
+        # This follows the same pattern as Settings.copy_with_update
+        nested_settings: dict[str, Any] = {}
+
+        from prefect.utilities.collections import set_in_dict
+
+        for setting, value in self.settings.items():
+            # Use the setting's accessor to place the value in the correct nested location
+            set_in_dict(nested_settings, setting.accessor, value)
+
+            # Validate using the Settings model - this will catch all field constraints
+        try:
+            Settings.model_validate(nested_settings)
+        except ValidationError as e:
+            # Convert the validation error back to profile-specific errors
+            errors: list[tuple[Setting, ValidationError]] = []
+
+            for error in e.errors():
+                # Map the error location back to the original setting
+                error_path = ".".join(str(loc) for loc in error["loc"])
+
+                # Find the setting that corresponds to this error path and add error directly
+                for setting in self.settings.keys():
+                    if setting.accessor == error_path:
+                        # Create a ValidationError for just this setting
+                        setting_error = ValidationError.from_exception_data(
+                            "ValidationError", [error]
+                        )
+                        errors.append((setting, setting_error))
+                        break
+
+            if errors:
+                raise ProfileSettingsValidationError(errors)
 
 
 class ProfilesCollection:
