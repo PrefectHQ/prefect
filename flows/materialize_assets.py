@@ -1,12 +1,5 @@
 """
-Example flow demonstrating nested @materialize tasks within orchestration tasks.
-
-This pattern is common in data pipelines where you have:
-1. Orchestration tasks that handle retries, error handling, or conditional logic
-2. Materialize tasks that do the actual data processing and track assets
-
-Before the fix, calling @materialize tasks from within @task would fail
-when trying to add metadata to assets.
+Demonstrates the use of @materialize to track assets and metadata.
 """
 
 from datetime import datetime
@@ -48,7 +41,7 @@ async def clean_sales_data(raw_data: dict[str, Any]) -> dict[str, Any]:
     """Clean and validate sales data."""
     print(f"Cleaning sales data for {raw_data['date']}")
 
-    cleaned = {
+    cleaned: dict[str, Any] = {
         "date": raw_data["date"],
         "transactions": raw_data["transactions"],
         "revenue": round(raw_data["total_revenue"], 2),
@@ -75,7 +68,7 @@ async def generate_summary(cleaned_data: dict[str, Any]) -> dict[str, Any]:
     """Generate summary report from cleaned data."""
     print(f"Generating summary for {cleaned_data['date']}")
 
-    summary = {
+    summary: dict[str, Any] = {
         "report_date": cleaned_data["date"],
         "key_metrics": {
             "total_revenue": cleaned_data["revenue"],
@@ -126,18 +119,9 @@ async def validate_date_range(start_date: str, end_date: str) -> bool:
 async def sales_pipeline_flow(
     start_date: str = "2024-01-01", end_date: str = "2024-01-01"
 ):
-    """
-    Main flow that processes sales data for a date range.
-
-    This flow demonstrates:
-    1. Orchestration tasks that call materialize tasks
-    2. Asset dependency tracking through the pipeline
-    3. Metadata capture at each stage
-    """
     print(f"Starting sales pipeline for {start_date} to {end_date}")
 
-    is_valid = await validate_date_range(start_date, end_date)
-    if not is_valid:
+    if not await validate_date_range(start_date, end_date):
         print("Invalid date range")
         return
 
