@@ -11,6 +11,9 @@ sdist/
 # Test artifacts
 .coverage*
 .pytest_cache/
+**/integration_tests
+**/.pytest_cache
+**/__pycache__
 
 # Type checking artifacts
 .mypy_cache/
@@ -28,6 +31,9 @@ ipython_config.py
 .venv
 env/
 venv/
+**/.venv
+**/venv
+**/.env
 
 # Documentation artifacts
 site/

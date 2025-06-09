@@ -4,6 +4,7 @@ to act on them based on the automations that users have set up.
 """
 
 import asyncio
+import json
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 from typing import (
@@ -28,6 +29,7 @@ from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import messaging
 from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.models.automations import (
+    AUTOMATION_CHANGES_PG_CHANNEL,
     automations_session,
     read_automation,
 )
@@ -54,7 +56,12 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, MessageHandler
+from prefect.server.utilities.postgres_listener import (
+    get_pg_notify_connection,
+    pg_listen,
+)
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
+from prefect.settings.context import get_current_settings
 
 if TYPE_CHECKING:
     import logging
@@ -1107,6 +1114,86 @@ def causal_ordering() -> CausalOrdering:
     return CausalOrdering(scope="")
 
 
+async def listen_for_automation_changes():
+    """
+    Listens for any changes to automations via PostgreSQL NOTIFY/LISTEN,
+    and applies those changes to the set of loaded automations.
+
+    This is based on Nebula's pattern but adapted for OSS which doesn't have
+    account/workspace sharding.
+    """
+    logger.info("Starting automation change listener")
+
+    while True:
+        conn = None
+        try:
+            conn = await get_pg_notify_connection()
+            if not conn:
+                logger.warning(
+                    "PostgreSQL NOTIFY/LISTEN not available (not using PostgreSQL). "
+                    "Automation changes will not be synchronized across servers."
+                )
+                return  # Exit if not PostgreSQL
+
+            logger.info(
+                f"Listening for automation changes on {AUTOMATION_CHANGES_PG_CHANNEL}"
+            )
+
+            settings = get_current_settings()
+            heartbeat_seconds = (
+                settings.server.services.triggers.pg_notify_heartbeat_interval_seconds
+            )
+
+            async for payload in pg_listen(
+                conn,
+                AUTOMATION_CHANGES_PG_CHANNEL,
+                heartbeat_interval=heartbeat_seconds,
+            ):
+                try:
+                    data = json.loads(payload)
+                    automation_id = UUID(data["automation_id"])
+                    event_type = data["event_type"]
+
+                    logger.info(
+                        f"Received automation change notification: {event_type} for {automation_id}"
+                    )
+
+                    # Map event types to the automation_changed function expectations
+                    event_map = {
+                        "created": "automation__created",
+                        "updated": "automation__updated",
+                        "deleted": "automation__deleted",
+                    }
+
+                    if event_type in event_map:
+                        await automation_changed(automation_id, event_map[event_type])
+                    else:
+                        logger.warning(f"Unknown automation event type: {event_type}")
+
+                except Exception as e:
+                    logger.error(
+                        f"Error processing automation change notification: {e}",
+                        exc_info=True,
+                    )
+
+        except asyncio.CancelledError:
+            logger.info("Automation change listener cancelled")
+            break
+        except Exception as e:
+            settings = get_current_settings()
+            reconnect_seconds = (
+                settings.server.services.triggers.pg_notify_reconnect_interval_seconds
+            )
+            logger.error(
+                f"Error in automation change listener: {e}. Reconnecting in {reconnect_seconds}s...",
+                exc_info=True,
+            )
+            await asyncio.sleep(reconnect_seconds)
+        finally:
+            if conn and not conn.is_closed():
+                await conn.close()
+
+
 @asynccontextmanager
 async def consumer(
     periodic_granularity: timedelta = timedelta(seconds=5),
@@ -1114,6 +1201,9 @@ async def consumer(
     """The `triggers.consumer` processes all Events arriving on the event bus to
     determine if they meet the automation criteria, queuing up a corresponding
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
+    # Start the automation change listener task (following Nebula's pattern)
+    sync_task = asyncio.create_task(listen_for_automation_changes())
+
     async with automations_session() as session:
         await load_automations(session)
 
@@ -1158,7 +1248,10 @@ async def consumer(
         logger.debug("Starting reactive evaluation task")
         yield message_handler
     finally:
+        sync_task.cancel()
         proactive_task.cancel()
+        # Wait for tasks to finish
+        await asyncio.gather(sync_task, proactive_task, return_exceptions=True)
 
 
 async def proactive_evaluation(

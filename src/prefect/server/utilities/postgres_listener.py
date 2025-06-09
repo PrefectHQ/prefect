@@ -3,6 +3,7 @@ from typing import (  # Added Callable, Awaitable for example
     AsyncGenerator,
     Awaitable,
     Callable,
+    Optional,
 )
 
 import asyncpg
@@ -17,7 +18,7 @@ logger = get_logger(__name__)
 NotificationCallback = Callable[[asyncpg.Connection, int, str, str], Awaitable[None]]
 
 
-async def get_pg_notify_connection() -> asyncpg.Connection | None:
+async def get_pg_notify_connection() -> Optional[asyncpg.Connection]:
     """
     Establishes and returns a raw asyncpg connection for LISTEN/NOTIFY.
     Returns None if not a PostgreSQL connection URL.
@@ -78,7 +79,7 @@ async def get_pg_notify_connection() -> asyncpg.Connection | None:
 
 
 async def pg_listen(
-    connection: asyncpg.Connection, channel_name: str
+    connection: asyncpg.Connection, channel_name: str, heartbeat_interval: float = 5.0
 ) -> AsyncGenerator[str, None]:
     """
     Listens to a specific Postgres channel and yields payloads.
@@ -106,7 +107,9 @@ async def pg_listen(
         while True:
             try:
                 # Wait for a notification with a timeout to allow checking if connection is still alive
-                payload: str = await asyncio.wait_for(listen_queue.get(), timeout=5.0)
+                payload: str = await asyncio.wait_for(
+                    listen_queue.get(), timeout=heartbeat_interval
+                )
                 yield payload
                 listen_queue.task_done()  # Acknowledge processing if using Queue for tracking
             except asyncio.TimeoutError:

@@ -448,30 +448,31 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
         ),
     )
 
-
-class ServerServicesAutomationCacheSynchronizerSettings(ServicesBaseSetting):
-    """
-    Settings for controlling the Automation Cache Synchronizer service
-    """
-
-    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "services", "automation_cache_synchronizer")
-    )
-
-    enabled: bool = Field(
-        default=True,
-        description=(
-            "Whether or not to start the Automation Cache Synchronizer service in the server application. "
-            "This service also requires a PostgreSQL database."
-        ),
+    pg_notify_reconnect_interval_seconds: int = Field(
+        default=10,
+        description="""
+        The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN 
+        connection after an error. Only used when using PostgreSQL as the database.
+        Defaults to `10`.
+        """,
         validation_alias=AliasChoices(
-            AliasPath("enabled"),
-            "prefect_server_services_automation_cache_synchronizer_enabled",
-            # Keeping the old API var for a bit for smoother transition if anyone used it, though unlikely for a new service
-            "prefect_api_services_automation_cache_synchronizer_enabled",
+            AliasPath("pg_notify_reconnect_interval_seconds"),
+            "prefect_server_services_triggers_pg_notify_reconnect_interval_seconds",
         ),
     )
-    # Add any other specific settings for this service here in the future, e.g., loop_seconds if it becomes a LoopService.
+
+    pg_notify_heartbeat_interval_seconds: int = Field(
+        default=5,
+        description="""
+        The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN 
+        connection to ensure it's still alive. Only used when using PostgreSQL as the database.
+        Defaults to `5`.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("pg_notify_heartbeat_interval_seconds"),
+            "prefect_server_services_triggers_pg_notify_heartbeat_interval_seconds",
+        ),
+    )
 
 
 class ServerServicesSettings(PrefectBaseSettings):
@@ -518,8 +519,4 @@ class ServerServicesSettings(PrefectBaseSettings):
     triggers: ServerServicesTriggersSettings = Field(
         default_factory=ServerServicesTriggersSettings,
         description="Settings for controlling the triggers service",
-    )
-    automation_cache_synchronizer: ServerServicesAutomationCacheSynchronizerSettings = Field(
-        default_factory=ServerServicesAutomationCacheSynchronizerSettings,
-        description="Settings for controlling the Automation Cache Synchronizer service",
     )
