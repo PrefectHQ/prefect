@@ -785,3 +785,174 @@ class TestDeleteVariableByName:
             "/variables/name/doesntexist",
         )
         assert res.status_code == 404
+
+
+class TestDuplicateVariable:
+    async def test_duplicate_variable_basic(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        duplicate_data = {
+            "name": f"{variable.name}_copy",
+            "value": variable.value,
+            "tags": variable.tags,
+        }
+        res = await client.post(
+            "/variables/",
+            json=duplicate_data,
+        )
+        assert res.status_code == 201
+
+        res_data = res.json()
+        assert res_data["id"] != str(variable.id)
+        assert res_data["name"] == duplicate_data["name"]
+        assert res_data["value"] == duplicate_data["value"]
+        assert res_data["tags"] == duplicate_data["tags"]
+
+    async def test_duplicate_variable_fails_same_name(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        duplicate_data = {
+            "name": variable.name,
+            "value": variable.value,
+            "tags": variable.tags,
+        }
+        res = await client.post(
+            "/variables/",
+            json=duplicate_data,
+        )
+        assert res.status_code == 409
+
+    async def test_duplicate_variable_preserves_original(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        duplicate_data = {
+            "name": f"{variable.name}_copy",
+            "value": variable.value,
+            "tags": variable.tags,
+        }
+        await client.post("/variables/", json=duplicate_data)
+
+        original_res = await client.get(f"/variables/{variable.id}")
+        original_data = original_res.json()
+        assert original_data["id"] == str(variable.id)
+        assert original_data["name"] == variable.name
+        assert original_data["value"] == variable.value
+        assert original_data["tags"] == variable.tags
+
+    async def test_duplicate_variable_multiple_copies(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        copies = []
+        for i in range(3):
+            duplicate_data = {
+                "name": f"{variable.name}_copy_{i}",
+                "value": variable.value,
+                "tags": variable.tags,
+            }
+            res = await client.post(
+                "/variables/",
+                json=duplicate_data,
+            )
+            assert res.status_code == 201
+            copies.append(res.json())
+
+        for i, copy in enumerate(copies):
+            assert copy["name"] == f"{variable.name}_copy_{i}"
+            assert copy["id"] != str(variable.id)
+            for j, other_copy in enumerate(copies):
+                if i != j:
+                    assert copy["id"] != other_copy["id"]
+
+    async def test_duplicate_variable_chain_duplication(
+        self,
+        client: AsyncClient,
+        variable,
+    ):
+        first_duplicate_data = {
+            "name": f"{variable.name}_copy",
+            "value": variable.value,
+            "tags": variable.tags,
+        }
+        first_res = await client.post(
+            "/variables/",
+            json=first_duplicate_data,
+        )
+        assert first_res.status_code == 201
+        first_duplicate = first_res.json()
+
+        second_duplicate_data = {
+            "name": f"{variable.name}_copy_of_copy",
+            "value": first_duplicate["value"],
+            "tags": first_duplicate["tags"],
+        }
+        second_res = await client.post(
+            "/variables/",
+            json=second_duplicate_data,
+        )
+        assert second_res.status_code == 201
+        second_duplicate = second_res.json()
+
+        assert second_duplicate["id"] != first_duplicate["id"]
+        assert second_duplicate["id"] != str(variable.id)
+        assert second_duplicate["name"] == f"{variable.name}_copy_of_copy"
+
+    async def test_duplicate_variable_with_json_value(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        json_value = {"config": {"timeout": 300, "retries": 3}, "enabled": True}
+        await create_variable(
+            session,
+            VariableCreate(name="json_variable", value=json_value, tags=["json"]),
+        )
+        await session.commit()
+
+        duplicate_data = {
+            "name": "json_variable_copy",
+            "value": json_value,
+            "tags": ["json", "duplicated"],
+        }
+        res = await client.post(
+            "/variables/",
+            json=duplicate_data,
+        )
+        assert res.status_code == 201
+
+        res_data = res.json()
+        assert res_data["value"] == json_value
+        assert res_data["tags"] == ["json", "duplicated"]
+
+    async def test_duplicate_variable_with_null_value(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+    ):
+        await create_variable(
+            session,
+            VariableCreate(name="null_variable", value=None, tags=["null"]),
+        )
+        await session.commit()
+
+        duplicate_data = {
+            "name": "null_variable_copy",
+            "value": None,
+            "tags": ["null", "duplicated"],
+        }
+        res = await client.post(
+            "/variables/",
+            json=duplicate_data,
+        )
+        assert res.status_code == 201
+
+        res_data = res.json()
+        assert res_data["value"] is None
+        assert res_data["name"] == "null_variable_copy"
