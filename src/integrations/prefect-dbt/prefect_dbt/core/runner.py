@@ -16,6 +16,7 @@ from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
 from prefect._experimental.lineage import emit_external_resource_lineage
+from prefect.assets import materialize
 from prefect.client.orchestration import PrefectClient
 from prefect.events import emit_event
 from prefect.events.related import related_resources_from_run_context
@@ -386,7 +387,7 @@ class PrefectDbtRunner:
 
     def _submit_collected_tasks(self, task_state: TaskState) -> None:
         """Submit tasks for all collected nodes with proper dependencies."""
-        from prefect.tasks import Task, TaskOptions
+        from prefect.tasks import TaskOptions
 
         all_nodes = task_state.get_all_nodes()
         if not all_nodes:
@@ -407,7 +408,16 @@ class PrefectDbtRunner:
             if not enable_assets:
                 continue
 
-            # Create the task
+            # Collect dependencies - only from nodes that also have tasks
+            wait_for = []
+            upstream_task_results = []  # For asset dependency tracking
+            dependencies = task_state.get_node_dependencies(node_id)
+            for dep_node_id in dependencies:
+                if dep_future := task_state.get_task_future(dep_node_id):
+                    wait_for.append(dep_future)
+                    upstream_task_results.append(dep_future)  # Pass for asset tracking
+
+            # Create the task with materialize decorator
             if manifest_node.resource_type in NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS:
                 task_options = TaskOptions(
                     task_run_name=f"Materialize {manifest_node.resource_type.lower()} {manifest_node.name}",
@@ -419,25 +429,50 @@ class PrefectDbtRunner:
                     cache_policy=None,  # Disable caching due to non-serializable TaskState
                 )
 
-            task = Task(fn=execute_dbt_node, **task_options)
+            # Modified execute_dbt_node to accept upstream_task_results
+            def execute_dbt_node_with_deps(
+                task_state, node_id, upstream_task_results=None
+            ):
+                # upstream_task_results is used only for dependency tracking, not actual execution
+                return execute_dbt_node(task_state, node_id)
 
-            # Collect dependencies - only from nodes that also have tasks
-            wait_for = []
-            dependencies = task_state.get_node_dependencies(node_id)
-            for dep_node_id in dependencies:
-                if dep_future := task_state.get_task_future(dep_node_id):
-                    wait_for.append(dep_future)
+            # Generate asset ID from relation_name or fallback to node name
+            relation_name = manifest_node.relation_name
+            if relation_name:
+                # Extract adapter type from the manifest
+                # The adapter type is available in the manifest's metadata
+                adapter_type = "unknown"
+                if hasattr(self.manifest, "metadata") and hasattr(
+                    self.manifest.metadata, "adapter_type"
+                ):
+                    adapter_type = self.manifest.metadata.adapter_type
 
-            # Submit the task
-            try:
-                future = task.submit(
-                    task_state=task_state,
-                    node_id=node_id,
-                    wait_for=wait_for,
-                )
-                task_state.set_task_future(node_id, future)
-            except Exception as e:
-                get_run_logger().error(f"Failed to submit task for {node_id}: {e}")
+                # Transform relation name: "database"."schema"."table" -> adapter://database/schema/table
+                asset_name = relation_name.replace('"', "").replace(".", "/")
+                asset_id = f"{adapter_type}://{asset_name}"
+            else:
+                # Fallback to node name if no relation_name - still try to get adapter type
+                adapter_type = "unknown"
+                if hasattr(self.manifest, "metadata") and hasattr(
+                    self.manifest.metadata, "adapter_type"
+                ):
+                    adapter_type = self.manifest.metadata.adapter_type
+                asset_id = f"{adapter_type}://{manifest_node.name}"
+
+            materialize_task = materialize(asset_id, **task_options)(
+                execute_dbt_node_with_deps
+            )
+
+            # Submit the task with upstream task results for dependency tracking
+            future = materialize_task.submit(
+                task_state=task_state,
+                node_id=node_id,
+                upstream_task_results=upstream_task_results,  # Pass upstream futures for asset tracking
+                wait_for=wait_for,
+            )
+
+            # Store the future for downstream tasks
+            task_state.set_task_future(node_id, future)
 
     def _create_events_callback(
         self, related_prefect_context: list[RelatedResource]
