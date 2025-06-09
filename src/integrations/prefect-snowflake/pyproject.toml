@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prefect-snowflake"
 dependencies = [
-  "snowflake>=1.2.0",
+  "snowflake>=1.5.0",
   "snowflake-connector-python>=3.0.4",
   "prefect>=3.0.0",
 ]
