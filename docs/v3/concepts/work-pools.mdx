@@ -15,11 +15,13 @@ Other advantages of work pools:
 - Allow platform teams to use work pools to expose opinionated (and enforced) interfaces to the infrastructure that they oversee.
 - Allow work pools to prioritize (or limit) flow runs through the use of [work queues](/v3/deploy/infrastructure-concepts/work-pools/#work-queues).
 
-Work pools have different operational modes, each designed to work with specific infrastructures and work delivery methods:
+Work pools remain a consistent interface for configuring deployment infrastructure, but only some work pool types require you to run a [worker](/v3/concepts/workers).
 
-1. Pull work pools: These require workers to actively poll for flow runs to execute.
-2. [Push work pools](/v3/how-to-guides/deployment_infra/serverless): These submit runs directly to serverless infrastructure providers.
-3. [Managed work pools](/v3/how-to-guides/deployment_infra/managed): These are administered by Prefect and handle both submission and execution of code.
+| Type | Description | You run a worker |
+|------|-------------|---------------------------|
+| [Hybrid](/v3/concepts/workers) | a worker in your infrastructure submits runs to your infrastructure | Yes |
+| [Push](/v3/how-to-guides/deployment_infra/serverless) | runs are automatically submitted to your configured serverless infrastructure provider | No |
+| [Managed](/v3/how-to-guides/deployment_infra/managed) | runs are automatically submitted to Prefect-managed infrastructure | No |
 
 Each type of work pool is optimized for different use cases, allowing you to choose the best fit for your specific infrastructure and workflow requirements. 
 By using work pools, you can efficiently manage the distribution and execution of your Prefect flows across environments and infrastructures.
