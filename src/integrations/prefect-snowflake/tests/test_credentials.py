@@ -438,5 +438,5 @@ def test_snowflake_credentials_encrypted_private_key_parses_correctly():
     # We expect _compose_pem to succeed (no InvalidPemFormat),
     # but load_pem_private_key to fail because the key/passphrase
     # are dummies.
-    with pytest.raises(ValueError, match="Could not deserialize key data"):
+    with pytest.raises(ValueError, match="Unable to load PEM file"):
         creds.resolve_private_key()
