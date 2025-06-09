@@ -36,6 +36,9 @@ def _known_service_modules() -> list[ModuleType]:
         event_persister,
         triggers,
     )
+    from prefect.server.events.services import (
+        automation_cache_synchronizer as automation_cache_sync_service,
+    )
     from prefect.server.services import (
         cancellation_cleanup,
         foreman,
@@ -61,6 +64,7 @@ def _known_service_modules() -> list[ModuleType]:
         triggers,
         actions,
         stream,
+        automation_cache_sync_service,
     ]
 
 

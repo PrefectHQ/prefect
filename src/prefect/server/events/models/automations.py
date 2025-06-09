@@ -1,10 +1,18 @@
+# Imports for generic messaging publisher
+import json
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional, Sequence, Union
+from typing import Any, AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session as SQLAlchemySession
 
+# For type hinting Literal
+from typing_extensions import Literal
+
+from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import filters
 from prefect.server.events.schemas.automations import (
@@ -16,6 +24,11 @@ from prefect.server.events.schemas.automations import (
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
+
+logger = get_logger(__name__)
+
+# Define Postgres NOTIFY channel for automation changes
+AUTOMATION_CHANGES_PG_CHANNEL = "prefect_automation_changes"
 
 
 @asynccontextmanager
@@ -103,12 +116,80 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     sync_session = session.sync_session
 
-    def change_notification(session, **kwargs):
+    # Define the correct Literal type for the event string that automation_changed expects
+    AutomationChangeEvent = Literal[
+        "automation__created", "automation__updated", "automation__deleted"
+    ]
+
+    # Determine the raw string for the event key and ensure it's one of the literal values
+    event_key: AutomationChangeEvent
+    if event == "created":
+        event_key = "automation__created"
+    elif event == "updated":
+        event_key = "automation__updated"
+    elif event == "deleted":
+        event_key = "automation__deleted"
+    else:
+        logger.error(
+            f"Unknown event type '{event}' in _notify for automation {automation.id}"
+        )
+        return
+
+    # The event_key is now guaranteed to be of type AutomationChangeEvent
+    def change_notification(db_session: SQLAlchemySession, **kwargs: dict[str, Any]):
         try:
-            run_coro_as_sync(automation_changed(automation.id, f"automation__{event}"))
-        except Exception:
-            # On exception, do not re-raise, just move on
-            pass
+            run_coro_as_sync(automation_changed(automation.id, event_key))
+
+            # 2. New logic to send a Postgres NOTIFY for other server instances
+            bound_object = db_session.get_bind()
+
+            engine: Optional[sa.engine.Engine] = None
+            if isinstance(bound_object, sa.engine.Engine):
+                engine = bound_object
+            elif hasattr(bound_object, "engine") and isinstance(  # type: ignore
+                bound_object.engine, sa.engine.Engine
+            ):
+                # If bound_object is a Connection, it might have an 'engine' attribute
+                engine = bound_object.engine
+
+            if engine is None:
+                logger.error(
+                    f"Could not obtain a usable database engine from session to send Postgres NOTIFY for automation {automation.id}."
+                )
+                return
+
+            try:
+                payload_dict = {
+                    "automation_id": str(automation.id),
+                    "event_type": event,  # "created", "updated", or "deleted"
+                }
+                payload_json = json.dumps(payload_dict)
+                escaped_payload_json = payload_json.replace("'", "''")
+                notify_statement = sql_text(
+                    f"NOTIFY {AUTOMATION_CHANGES_PG_CHANNEL}, '{escaped_payload_json}'"
+                )
+
+                # Execute the NOTIFY in a new, independent transaction using a connection from the engine
+                with engine.connect() as conn:
+                    with conn.begin():
+                        conn.execute(notify_statement)
+                    # The inner `with conn.begin()` handles commit/rollback for the NOTIFY.
+                    # The outer `with engine.connect()` handles closing the connection.
+
+                logger.debug(
+                    f"Sent Postgres NOTIFY on channel '{AUTOMATION_CHANGES_PG_CHANNEL}' for automation {automation.id}, event: {event}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to send Postgres NOTIFY for automation {automation.id} on channel {AUTOMATION_CHANGES_PG_CHANNEL}: {e}",
+                    exc_info=True,
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Error during automation change notification (in-process or Postgres NOTIFY) for automation {automation.id}: {e}",
+                exc_info=True,
+            )
 
     sa.event.listen(sync_session, "after_commit", change_notification, once=True)
 
@@ -135,12 +216,6 @@ async def update_automation(
     automation_update: Union[AutomationUpdate, AutomationPartialUpdate],
     automation_id: UUID,
 ) -> bool:
-    if not isinstance(automation_update, (AutomationUpdate, AutomationPartialUpdate)):
-        raise TypeError(
-            "automation_update must be an AutomationUpdate or AutomationPartialUpdate, "
-            f"not {type(automation_update)}"
-        )
-
     automation = await read_automation(session, automation_id)
     if not automation:
         return False
