@@ -2041,6 +2041,30 @@ class TestProfile:
         ):
             profile.validate_settings()
 
+    def test_validate_settings_nested_field_constraints(self):
+        """
+        Test that nested field constraints are properly validated.
+        Regression test for issue #18258: PREFECT_RUNNER_HEARTBEAT_FREQUENCY validation.
+        """
+        from prefect.settings import PREFECT_RUNNER_HEARTBEAT_FREQUENCY
+
+        # Test invalid value (< 30)
+        profile = Profile(
+            name="test", settings={PREFECT_RUNNER_HEARTBEAT_FREQUENCY: "5"}
+        )
+        with pytest.raises(
+            ProfileSettingsValidationError,
+            match="Input should be greater than or equal to 30",
+        ):
+            profile.validate_settings()
+
+        # Test valid value (>= 30)
+        profile = Profile(
+            name="test", settings={PREFECT_RUNNER_HEARTBEAT_FREQUENCY: "40"}
+        )
+        # Should not raise
+        profile.validate_settings()
+
 
 class TestProfilesCollection:
     def test_init_stores_single_profile(self):

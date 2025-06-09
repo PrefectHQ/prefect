@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import inspect
 import warnings
 from pathlib import Path
 from typing import (
     Annotated,
     Any,
     ClassVar,
-    Dict,
     Iterable,
     Iterator,
     Optional,
-    Union,
 )
 
 import toml
@@ -20,16 +17,15 @@ from pydantic import (
     BeforeValidator,
     ConfigDict,
     Field,
-    TypeAdapter,
     ValidationError,
 )
-from pydantic_settings import BaseSettings
 
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.context import get_current_settings
 from prefect.settings.legacy import Setting, _get_settings_fields
 from prefect.settings.models.root import Settings
+from prefect.utilities.collections import set_in_dict
 
 
 def _cast_settings(
@@ -69,7 +65,7 @@ class Profile(BaseModel):
     )
     source: Optional[Path] = None
 
-    def to_environment_variables(self) -> Dict[str, str]:
+    def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
         return {
             setting.name: str(value)
@@ -78,23 +74,40 @@ class Profile(BaseModel):
         }
 
     def validate_settings(self) -> None:
-        errors: list[tuple[Setting, ValidationError]] = []
-        for setting, value in self.settings.items():
-            try:
-                model_fields = Settings.model_fields
-                annotation = None
-                for section in setting.accessor.split("."):
-                    annotation = model_fields[section].annotation
-                    if inspect.isclass(annotation) and issubclass(
-                        annotation, BaseSettings
-                    ):
-                        model_fields = annotation.model_fields
+        """
+        Validate all settings in this profile by creating a partial Settings object
+        with the nested structure properly constructed using accessor paths.
+        """
+        if not self.settings:
+            return
 
-                TypeAdapter(annotation).validate_python(value)
-            except ValidationError as e:
-                errors.append((setting, e))
-        if errors:
-            raise ProfileSettingsValidationError(errors)
+        nested_settings: dict[str, Any] = {}
+
+        for setting, value in self.settings.items():
+            set_in_dict(nested_settings, setting.accessor, value)
+
+        try:
+            Settings.model_validate(nested_settings)
+        except ValidationError as e:
+            errors: list[tuple[Setting, ValidationError]] = []
+
+            for error in e.errors():
+                error_path = ".".join(str(loc) for loc in error["loc"])
+
+                for setting in self.settings.keys():
+                    if setting.accessor == error_path:
+                        errors.append(
+                            (
+                                setting,
+                                ValidationError.from_exception_data(
+                                    "ValidationError", [error]
+                                ),
+                            )
+                        )
+                        break
+
+            if errors:
+                raise ProfileSettingsValidationError(errors)
 
 
 class ProfilesCollection:
@@ -106,9 +119,7 @@ class ProfilesCollection:
     The collection may store the name of the active profile.
     """
 
-    def __init__(
-        self, profiles: Iterable[Profile], active: Optional[str] = None
-    ) -> None:
+    def __init__(self, profiles: Iterable[Profile], active: str | None = None) -> None:
         self.profiles_by_name: dict[str, Profile] = {
             profile.name: profile for profile in profiles
         }
@@ -122,7 +133,7 @@ class ProfilesCollection:
         return set(self.profiles_by_name.keys())
 
     @property
-    def active_profile(self) -> Optional[Profile]:
+    def active_profile(self) -> Profile | None:
         """
         Retrieve the active profile in this collection.
         """
@@ -130,7 +141,7 @@ class ProfilesCollection:
             return None
         return self[self.active_name]
 
-    def set_active(self, name: Optional[str], check: bool = True) -> None:
+    def set_active(self, name: str | None, check: bool = True) -> None:
         """
         Set the active profile name in the collection.
 
@@ -145,7 +156,7 @@ class ProfilesCollection:
         self,
         name: str,
         settings: dict[Setting, Any],
-        source: Optional[Path] = None,
+        source: Path | None = None,
     ) -> Profile:
         """
         Add a profile to the collection or update the existing on if the name is already
@@ -201,7 +212,7 @@ class ProfilesCollection:
         """
         self.profiles_by_name.pop(name)
 
-    def without_profile_source(self, path: Optional[Path]) -> "ProfilesCollection":
+    def without_profile_source(self, path: Path | None) -> "ProfilesCollection":
         """
         Remove profiles that were loaded from a given path.
 
@@ -367,7 +378,7 @@ def load_profile(name: str) -> Profile:
 
 
 def update_current_profile(
-    settings: Dict[Union[str, Setting], Any],
+    settings: dict[str | Setting, Any],
 ) -> Profile:
     """
     Update the persisted data for the profile currently in-use.
