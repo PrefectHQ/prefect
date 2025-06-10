@@ -83,6 +83,7 @@
 						"group": "Workflows",
 						"pages": [
 							"v3/how-to-guides/workflows/write-and-run",
+							"v3/how-to-guides/workflows/assets",
 							"v3/how-to-guides/workflows/retries",
 							"v3/how-to-guides/workflows/custom-metadata",
 							"v3/how-to-guides/workflows/pass-inputs",
