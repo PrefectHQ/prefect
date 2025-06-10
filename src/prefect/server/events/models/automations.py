@@ -1,16 +1,14 @@
-# Imports for generic messaging publisher
-import json
+import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
+import orjson
 import sqlalchemy as sa
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session as SQLAlchemySession
-
-# For type hinting Literal
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
@@ -25,9 +23,11 @@ from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
 
-logger = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
-# Define Postgres NOTIFY channel for automation changes
+AutomationChangeEvent: TypeAlias = Literal[
+    "automation__created", "automation__updated", "automation__deleted"
+]
 AUTOMATION_CHANGES_PG_CHANNEL = "prefect_automation_changes"
 
 
@@ -116,11 +116,6 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     sync_session = session.sync_session
 
-    # Define the correct Literal type for the event string that automation_changed expects
-    AutomationChangeEvent = Literal[
-        "automation__created", "automation__updated", "automation__deleted"
-    ]
-
     # Determine the raw string for the event key and ensure it's one of the literal values
     event_key: AutomationChangeEvent
     if event == "created":
@@ -135,12 +130,11 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
         )
         return
 
-    # The event_key is now guaranteed to be of type AutomationChangeEvent
-    def change_notification(db_session: SQLAlchemySession, **kwargs: dict[str, Any]):
+    def change_notification(db_session: SQLAlchemySession, **kwargs: Any):
         try:
             run_coro_as_sync(automation_changed(automation.id, event_key))
 
-            # 2. New logic to send a Postgres NOTIFY for other server instances
+            # send a Postgres NOTIFY for other server instances
             bound_object = db_session.get_bind()
 
             engine: Optional[sa.engine.Engine] = None
@@ -159,11 +153,11 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
                 return
 
             try:
-                payload_dict = {
+                payload_dict: dict[str, str] = {
                     "automation_id": str(automation.id),
                     "event_type": event,  # "created", "updated", or "deleted"
                 }
-                payload_json = json.dumps(payload_dict)
+                payload_json = orjson.dumps(payload_dict)
                 escaped_payload_json = payload_json.replace("'", "''")
                 notify_statement = sql_text(
                     f"NOTIFY {AUTOMATION_CHANGES_PG_CHANNEL}, '{escaped_payload_json}'"
@@ -216,6 +210,12 @@ async def update_automation(
     automation_update: Union[AutomationUpdate, AutomationPartialUpdate],
     automation_id: UUID,
 ) -> bool:
+    if not isinstance(automation_update, (AutomationUpdate, AutomationPartialUpdate)):
+        raise TypeError(
+            "automation_update must be an AutomationUpdate or AutomationPartialUpdate, "
+            f"not {type(automation_update)}"
+        )
+
     automation = await read_automation(session, automation_id)
     if not automation:
         return False
