@@ -260,6 +260,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
                 "task": task,
                 "task_run_id": task_run_id,
                 "task_inputs": task_inputs,
+                "copy_to_child_ctx": True,
             }
         )
 

@@ -303,6 +303,24 @@ class BaseTaskRunEngine(Generic[P, R]):
             follows=self._last_event,
         )
 
+    @contextmanager
+    def asset_context(self):
+        parent_asset_ctx = AssetContext.get()
+
+        if parent_asset_ctx and parent_asset_ctx.copy_to_child_ctx:
+            asset_ctx = parent_asset_ctx.model_copy()
+            asset_ctx.copy_to_child_ctx = False
+        else:
+            asset_ctx = AssetContext.from_task_and_inputs(
+                self.task, self.task_run.id, self.task_run.task_inputs
+            )
+
+        with asset_ctx as ctx:
+            try:
+                yield
+            finally:
+                ctx.emit_events(self.state)
+
 
 @dataclass
 class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
@@ -454,8 +472,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = state.data
 
             link_state_to_result(new_state, result)
-            if asset_context := AssetContext.get():
-                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -640,15 +656,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
-
-            asset_context = AssetContext.get()
-            if not asset_context:
-                asset_context = AssetContext.from_task_and_inputs(
-                    task=self.task,
-                    task_run_id=self.task_run.id,
-                    task_inputs=self.task_run.task_inputs,
-                )
-                stack.enter_context(asset_context)
 
             stack.enter_context(
                 TaskRunContext(
@@ -1032,8 +1039,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = new_state.data
 
             link_state_to_result(new_state, result)
-            if asset_context := AssetContext.get():
-                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1218,15 +1223,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 persist_result = settings.tasks.default_persist_result
             else:
                 persist_result = should_persist_result()
-
-            asset_context = AssetContext.get()
-            if not asset_context:
-                asset_context = AssetContext.from_task_and_inputs(
-                    task=self.task,
-                    task_run_id=self.task_run.id,
-                    task_inputs=self.task_run.task_inputs,
-                )
-                stack.enter_context(asset_context)
 
             stack.enter_context(
                 TaskRunContext(
@@ -1465,8 +1461,9 @@ def run_task_sync(
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             run_coro_as_sync(engine.wait_until_ready())
-            with engine.run_context(), engine.transaction_context() as txn:
-                engine.call_task_fn(txn)
+            with engine.asset_context():
+                with engine.run_context(), engine.transaction_context() as txn:
+                    engine.call_task_fn(txn)
 
     return engine.state if return_type == "state" else engine.result()
 
@@ -1492,8 +1489,9 @@ async def run_task_async(
     async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             await engine.wait_until_ready()
-            async with engine.run_context(), engine.transaction_context() as txn:
-                await engine.call_task_fn(txn)
+            with engine.asset_context():
+                async with engine.run_context(), engine.transaction_context() as txn:
+                    await engine.call_task_fn(txn)
 
     return engine.state if return_type == "state" else await engine.result()
 
@@ -1522,33 +1520,34 @@ def run_generator_task_sync(
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             run_coro_as_sync(engine.wait_until_ready())
-            with engine.run_context(), engine.transaction_context() as txn:
-                # TODO: generators should default to commit_mode=OFF
-                # because they are dynamic by definition
-                # for now we just prevent this branch explicitly
-                if False and txn.is_committed():
-                    txn.read()
-                else:
-                    call_args, call_kwargs = parameters_to_args_kwargs(
-                        task.fn, engine.parameters or {}
-                    )
-                    gen = task.fn(*call_args, **call_kwargs)
-                    try:
-                        while True:
-                            gen_result = next(gen)
-                            # link the current state to the result for dependency tracking
-                            #
-                            # TODO: this could grow the task_run_result
-                            # dictionary in an unbounded way, so finding a
-                            # way to periodically clean it up (using
-                            # weakrefs or similar) would be good
-                            link_state_to_result(engine.state, gen_result)
-                            yield gen_result
-                    except StopIteration as exc:
-                        engine.handle_success(exc.value, transaction=txn)
-                    except GeneratorExit as exc:
-                        engine.handle_success(None, transaction=txn)
-                        gen.throw(exc)
+            with engine.asset_context():
+                with engine.run_context(), engine.transaction_context() as txn:
+                    # TODO: generators should default to commit_mode=OFF
+                    # because they are dynamic by definition
+                    # for now we just prevent this branch explicitly
+                    if False and txn.is_committed():
+                        txn.read()
+                    else:
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            task.fn, engine.parameters or {}
+                        )
+                        gen = task.fn(*call_args, **call_kwargs)
+                        try:
+                            while True:
+                                gen_result = next(gen)
+                                # link the current state to the result for dependency tracking
+                                #
+                                # TODO: this could grow the task_run_result
+                                # dictionary in an unbounded way, so finding a
+                                # way to periodically clean it up (using
+                                # weakrefs or similar) would be good
+                                link_state_to_result(engine.state, gen_result)
+                                yield gen_result
+                        except StopIteration as exc:
+                            engine.handle_success(exc.value, transaction=txn)
+                        except GeneratorExit as exc:
+                            engine.handle_success(None, transaction=txn)
+                            gen.throw(exc)
 
     return engine.result()
 
@@ -1576,33 +1575,34 @@ async def run_generator_task_async(
     async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             await engine.wait_until_ready()
-            async with engine.run_context(), engine.transaction_context() as txn:
-                # TODO: generators should default to commit_mode=OFF
-                # because they are dynamic by definition
-                # for now we just prevent this branch explicitly
-                if False and txn.is_committed():
-                    txn.read()
-                else:
-                    call_args, call_kwargs = parameters_to_args_kwargs(
-                        task.fn, engine.parameters or {}
-                    )
-                    gen = task.fn(*call_args, **call_kwargs)
-                    try:
-                        while True:
-                            # can't use anext in Python < 3.10
-                            gen_result = await gen.__anext__()
-                            # link the current state to the result for dependency tracking
-                            #
-                            # TODO: this could grow the task_run_result
-                            # dictionary in an unbounded way, so finding a
-                            # way to periodically clean it up (using
-                            # weakrefs or similar) would be good
-                            link_state_to_result(engine.state, gen_result)
-                            yield gen_result
-                    except (StopAsyncIteration, GeneratorExit) as exc:
-                        await engine.handle_success(None, transaction=txn)
-                        if isinstance(exc, GeneratorExit):
-                            gen.throw(exc)
+            with engine.asset_context():
+                async with engine.run_context(), engine.transaction_context() as txn:
+                    # TODO: generators should default to commit_mode=OFF
+                    # because they are dynamic by definition
+                    # for now we just prevent this branch explicitly
+                    if False and txn.is_committed():
+                        txn.read()
+                    else:
+                        call_args, call_kwargs = parameters_to_args_kwargs(
+                            task.fn, engine.parameters or {}
+                        )
+                        gen = task.fn(*call_args, **call_kwargs)
+                        try:
+                            while True:
+                                # can't use anext in Python < 3.10
+                                gen_result = await gen.__anext__()
+                                # link the current state to the result for dependency tracking
+                                #
+                                # TODO: this could grow the task_run_result
+                                # dictionary in an unbounded way, so finding a
+                                # way to periodically clean it up (using
+                                # weakrefs or similar) would be good
+                                link_state_to_result(engine.state, gen_result)
+                                yield gen_result
+                        except (StopAsyncIteration, GeneratorExit) as exc:
+                            await engine.handle_success(None, transaction=txn)
+                            if isinstance(exc, GeneratorExit):
+                                gen.throw(exc)
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
