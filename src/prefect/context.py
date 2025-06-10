@@ -492,6 +492,7 @@ class AssetContext(ContextModel):
     materialized_by: Optional[str] = None
     task_run_id: Optional[UUID] = None
     materialization_metadata: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    copy_to_child_ctx: bool = False
 
     __var__: ClassVar[ContextVar[Self]] = ContextVar("asset_context")
 
@@ -501,6 +502,7 @@ class AssetContext(ContextModel):
         task: "Task[Any, Any]",
         task_run_id: UUID,
         task_inputs: Optional[dict[str, set[Any]]] = None,
+        copy_to_child_ctx: bool = False,
     ) -> "AssetContext":
         """
         Create an AssetContext from a task and its resolved inputs.
@@ -509,6 +511,7 @@ class AssetContext(ContextModel):
             task: The task instance
             task_run_id: The task run ID
             task_inputs: The resolved task inputs (TaskRunResult objects)
+            copy_to_child_ctx: Whether this context should be copied on a child AssetContext
 
         Returns:
             Configured AssetContext
@@ -518,13 +521,16 @@ class AssetContext(ContextModel):
 
         upstream_assets: set[Asset] = set()
 
-        # Get upstream assets from engine context instead of TaskRunResult.assets
         flow_ctx = FlowRunContext.get()
         if task_inputs and flow_ctx:
-            for inputs in task_inputs.values():
+            for name, inputs in task_inputs.items():
+                # Parent task runs are not dependencies
+                # that we want to track
+                if name == "__parents__":
+                    continue
+
                 for task_input in inputs:
                     if isinstance(task_input, TaskRunResult):
-                        # Look up assets in the engine context
                         task_assets = flow_ctx.task_run_assets.get(task_input.id)
                         if task_assets:
                             upstream_assets.update(task_assets)
@@ -541,6 +547,7 @@ class AssetContext(ContextModel):
             if isinstance(task, MaterializingTask)
             else None,
             task_run_id=task_run_id,
+            copy_to_child_ctx=copy_to_child_ctx,
         )
         ctx.update_tracked_assets()
 
