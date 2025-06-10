@@ -1,13 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Optional, Sequence, Union
+from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import orjson
 import sqlalchemy as sa
-from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session as SQLAlchemySession
 from typing_extensions import Literal, TypeAlias
 
 from prefect.logging import get_logger
@@ -21,14 +19,13 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.types._datetime import now
-from prefect.utilities.asyncutils import run_coro_as_sync
 
 logger: logging.Logger = get_logger(__name__)
 
 AutomationChangeEvent: TypeAlias = Literal[
     "automation__created", "automation__updated", "automation__deleted"
 ]
-AUTOMATION_CHANGES_PG_CHANNEL = "prefect_automation_changes"
+AUTOMATION_CHANGES_CHANNEL = "prefect_automation_changes"
 
 
 @asynccontextmanager
@@ -114,9 +111,6 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     from prefect.server.events.triggers import automation_changed
 
-    sync_session = session.sync_session
-
-    # Determine the raw string for the event key and ensure it's one of the literal values
     event_key: AutomationChangeEvent
     if event == "created":
         event_key = "automation__created"
@@ -130,62 +124,42 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
         )
         return
 
-    def change_notification(db_session: SQLAlchemySession, **kwargs: Any):
+    # Handle cache updates based on database type
+    bind = session.get_bind()
+    if bind and "postgresql" in str(bind.url):
+        # For PostgreSQL, only send NOTIFY - the listener will update the cache
         try:
-            run_coro_as_sync(automation_changed(automation.id, event_key))
-
-            # send a Postgres NOTIFY for other server instances
-            bound_object = db_session.get_bind()
-
-            engine: Optional[sa.engine.Engine] = None
-            if isinstance(bound_object, sa.engine.Engine):
-                engine = bound_object
-            elif hasattr(bound_object, "engine") and isinstance(  # type: ignore
-                bound_object.engine, sa.engine.Engine
-            ):
-                # If bound_object is a Connection, it might have an 'engine' attribute
-                engine = bound_object.engine
-
-            if engine is None:
-                logger.error(
-                    f"Could not obtain a usable database engine from session to send Postgres NOTIFY for automation {automation.id}."
+            payload_json = (
+                orjson.dumps(
+                    {
+                        "automation_id": str(automation.id),
+                        "event_type": event,
+                    }
                 )
-                return
-
-            try:
-                payload_dict: dict[str, str] = {
-                    "automation_id": str(automation.id),
-                    "event_type": event,  # "created", "updated", or "deleted"
-                }
-                payload_json = orjson.dumps(payload_dict)
-                escaped_payload_json = payload_json.replace("'", "''")
-                notify_statement = sql_text(
-                    f"NOTIFY {AUTOMATION_CHANGES_PG_CHANNEL}, '{escaped_payload_json}'"
-                )
-
-                # Execute the NOTIFY in a new, independent transaction using a connection from the engine
-                with engine.connect() as conn:
-                    with conn.begin():
-                        conn.execute(notify_statement)
-                    # The inner `with conn.begin()` handles commit/rollback for the NOTIFY.
-                    # The outer `with engine.connect()` handles closing the connection.
-
-                logger.debug(
-                    f"Sent Postgres NOTIFY on channel '{AUTOMATION_CHANGES_PG_CHANNEL}' for automation {automation.id}, event: {event}"
-                )
-            except Exception as e:
-                logger.error(
-                    f"Failed to send Postgres NOTIFY for automation {automation.id} on channel {AUTOMATION_CHANGES_PG_CHANNEL}: {e}",
-                    exc_info=True,
-                )
-
-        except Exception as e:
-            logger.error(
-                f"Error during automation change notification (in-process or Postgres NOTIFY) for automation {automation.id}: {e}",
-                exc_info=True,
+                .decode()
+                .replace("'", "''")
+            )
+            await session.execute(
+                sa.text(f"NOTIFY {AUTOMATION_CHANGES_CHANNEL}, '{payload_json}'")
             )
 
-    sa.event.listen(sync_session, "after_commit", change_notification, once=True)
+            logger.debug(
+                f"t Postgres NOTIFY on channel '{AUTOMATION_CHANGES_CHANNEL}' for automation {automation.id}, event: {event}"
+            )
+        except Exception as e:
+            logger.error(
+                f"led to send Postgres NOTIFY for automation {automation.id} on channel {AUTOMATION_CHANGES_CHANNEL}: {e}",
+                exc_info=True,
+            )
+    else:
+        # For non-PostgreSQL (SQLite), update cache directly
+        try:
+            await automation_changed(automation.id, event_key)
+        except Exception as e:
+            logger.error(
+                f"Failed to update in-memory cache for automation {automation.id}, event: {event}: {e}",
+                exc_info=True,
+            )
 
 
 @db_injector

@@ -29,7 +29,7 @@ from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import messaging
 from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.models.automations import (
-    AUTOMATION_CHANGES_PG_CHANNEL,
+    AUTOMATION_CHANGES_CHANNEL,
     AutomationChangeEvent,
     automations_session,
     read_automation,
@@ -1015,25 +1015,20 @@ async def listen_for_automation_changes() -> None:
         try:
             conn = await get_pg_notify_connection()
             if not conn:
-                logger.warning(
+                logger.debug(
                     "PostgreSQL NOTIFY/LISTEN not available (not using PostgreSQL). "
                     "Automation changes will not be synchronized across servers."
                 )
-                return  # Exit if not PostgreSQL
+                return
 
             logger.info(
-                f"Listening for automation changes on {AUTOMATION_CHANGES_PG_CHANNEL}"
-            )
-
-            settings = get_current_settings()
-            heartbeat_seconds = (
-                settings.server.services.triggers.pg_notify_heartbeat_interval_seconds
+                f"Listening for automation changes on {AUTOMATION_CHANGES_CHANNEL}"
             )
 
             async for payload in pg_listen(
                 conn,
-                AUTOMATION_CHANGES_PG_CHANNEL,
-                heartbeat_interval=heartbeat_seconds,
+                AUTOMATION_CHANGES_CHANNEL,
+                heartbeat_interval=get_current_settings().server.services.triggers.pg_notify_heartbeat_interval_seconds,
             ):
                 try:
                     data = orjson.loads(payload)
@@ -1065,10 +1060,7 @@ async def listen_for_automation_changes() -> None:
             logger.info("Automation change listener cancelled")
             break
         except Exception as e:
-            settings = get_current_settings()
-            reconnect_seconds = (
-                settings.server.services.triggers.pg_notify_reconnect_interval_seconds
-            )
+            reconnect_seconds = get_current_settings().server.services.triggers.pg_notify_reconnect_interval_seconds
             logger.error(
                 f"Error in automation change listener: {e}. Reconnecting in {reconnect_seconds}s...",
                 exc_info=True,
