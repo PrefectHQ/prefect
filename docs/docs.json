@@ -30,6 +30,7 @@
 					{
 						"group": "Workflows",
 						"pages": [
+							"v3/concepts/assets",
 							"v3/concepts/flows",
 							"v3/concepts/tasks",
 							"v3/concepts/caching",
@@ -190,6 +191,7 @@
 					{
 						"group": "Workflows",
 						"pages": [
+							"v3/advanced/assets",
 							"v3/advanced/caching",
 							"v3/advanced/logging-customization",
 							"v3/advanced/transactions",
