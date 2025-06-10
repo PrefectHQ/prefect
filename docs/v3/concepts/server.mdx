@@ -193,63 +193,6 @@ To downgrade all migrations, use the `base` revision.
 
 See the [contributing docs](/contribute/dev-contribute) to learn how to create a database migration.
 
-### Migration timeouts for large databases
-
-When running migrations on large databases (especially those with millions of rows in tables like `events`, `flow_runs`, or `task_runs`), 
-the default database timeout of 10 seconds may not be sufficient for creating indexes.
-
-If you encounter a `TimeoutError` during migrations, increase the database timeout before running the migration:
-
-```bash
-# Set timeout to 10 minutes (adjust based on your database size)
-export PREFECT_API_DATABASE_TIMEOUT=600
-
-# Then run the migration
-prefect server database upgrade -y
-```
-
-For Docker deployments:
-
-```bash
-docker run -e PREFECT_API_DATABASE_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
-```
-
-<Note>
-Index creation time scales with table size. A database with millions of events may require 30+ minutes for some migrations.
-If a migration fails due to timeout, you may need to manually clean up any partially created indexes before retrying.
-</Note>
-
-#### Manual recovery from failed migrations
-
-If a migration times out while creating indexes, you may need to manually complete it. For example, if migration `7a73514ca2d6` fails:
-
-1. First, check which indexes were partially created:
-   ```sql
-   SELECT indexname FROM pg_indexes WHERE tablename = 'events' AND indexname LIKE 'ix_events%';
-   ```
-
-2. Manually create the missing indexes using `CONCURRENTLY` to avoid blocking:
-   ```sql
-   -- Drop any partial indexes from the failed migration
-   DROP INDEX IF EXISTS ix_events__event_related_occurred;
-   DROP INDEX IF EXISTS ix_events__related_resource_ids;
-
-   -- Create the new indexes
-   CREATE INDEX CONCURRENTLY ix_events__related_gin ON events USING gin(related);
-   CREATE INDEX CONCURRENTLY ix_events__event_occurred ON events (event, occurred);
-   CREATE INDEX CONCURRENTLY ix_events__related_resource_ids_gin ON events USING gin(related_resource_ids);
-   ```
-
-3. Mark the migration as complete:
-   ```sql
-   UPDATE alembic_version SET version_num = '7a73514ca2d6';
-   ```
-
-<Warning>
-Only use manual recovery if increasing the timeout and retrying the migration doesn't work. 
-Always verify the correct migration version and index definitions from the migration files.
-</Warning>
-
 
 ## Prefect server installation notes
 
@@ -348,4 +291,64 @@ When self-hosting the UI behind a proxy or reverse proxy, there are a few settin
 - `PREFECT_UI_API_URL`: the connection URL for communication from the UI to the API
 - `PREFECT_UI_SERVE_BASE`: the base URL path to serve the UI from
 - `PREFECT_UI_URL`: this is a convenience setting for _clients_ that print or log UI URLs (for example, the Prefect CLI)
+
+
+### Issues with migrations
+
+#### Migration timeouts
+
+When running migrations on large database instances (especially where tables like `events`, `flow_runs`, or `task_runs` can reach millions of rows), 
+the default database timeout of 10 seconds may not be sufficient for creating indexes.
+
+If you encounter a `TimeoutError` during migrations, increase the database timeout before running the migration:
+
+```bash
+# Set timeout to 10 minutes (adjust based on your database size)
+export PREFECT_API_DATABASE_TIMEOUT=600
+
+# Then run the migration
+prefect server database upgrade -y
+```
+
+For Docker deployments:
+
+```bash
+docker run -e PREFECT_API_DATABASE_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
+```
+
+<Note>
+Index creation time scales with table size. A database with millions of events may require 30+ minutes for some migrations.
+If a migration fails due to timeout, you may need to manually clean up any partially created indexes before retrying.
+</Note>
+
+#### Recovering from failed migrations
+
+If a migration times out while creating indexes, you may need to manually complete it. For example, if migration `7a73514ca2d6` fails:
+
+1. First, check which indexes were partially created:
+   ```sql
+   SELECT indexname FROM pg_indexes WHERE tablename = 'events' AND indexname LIKE 'ix_events%';
+   ```
+
+2. Manually create the missing indexes using `CONCURRENTLY` to avoid blocking:
+   ```sql
+   -- Drop any partial indexes from the failed migration
+   DROP INDEX IF EXISTS ix_events__event_related_occurred;
+   DROP INDEX IF EXISTS ix_events__related_resource_ids;
+
+   -- Create the new indexes
+   CREATE INDEX CONCURRENTLY ix_events__related_gin ON events USING gin(related);
+   CREATE INDEX CONCURRENTLY ix_events__event_occurred ON events (event, occurred);
+   CREATE INDEX CONCURRENTLY ix_events__related_resource_ids_gin ON events USING gin(related_resource_ids);
+   ```
+
+3. Mark the migration as complete:
+   ```sql
+   UPDATE alembic_version SET version_num = '7a73514ca2d6';
+   ```
+
+<Warning>
+Only use manual recovery if increasing the timeout and retrying the migration doesn't work. 
+Always verify the correct migration version and index definitions from the migration files.
+</Warning>
 
