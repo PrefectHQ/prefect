@@ -14,7 +14,7 @@ from prefect import flow
 from prefect.assets import materialize
 
 @materialize("s3://my-bucket/processed-data.csv")
-def process_data(data: dict):
+def process_data(data: dict) -> dict:
     # Your data processing logic here
     # save_to_s3(data, "s3://my-bucket/processed-data.csv")
     return data
@@ -40,7 +40,7 @@ from prefect.assets import materialize
 
 
 @materialize("file://my-local-directory/raw-data.csv")
-def extract_data():
+def extract_data() -> str:
     raw_data = "name,age\nchris,21"
     with open("raw-data.csv", "w") as f:
         f.write(raw_data)
