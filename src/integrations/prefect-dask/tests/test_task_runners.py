@@ -557,7 +557,7 @@ class TestDaskTaskRunner:
                 response.raise_for_status()
                 data = response.json()
                 asset_events = data.get("events", [])
-                if asset_events:
+                if len(asset_events) >= 3:
                     break
                 # give a little more time for
                 # server to process events
@@ -565,7 +565,7 @@ class TestDaskTaskRunner:
             else:
                 raise RuntimeError("Unable to get any events from server!")
 
-        assert len(asset_events) == 2
+        assert len(asset_events) == 3
 
         upstream_events = [
             e
@@ -578,15 +578,34 @@ class TestDaskTaskRunner:
             if e.get("resource", {}).get("prefect.resource.id") == downstream.key
         ]
 
-        assert len(upstream_events) == 1
+        # Should have 2 events for upstream (1 materialization, 1 reference)
+        assert len(upstream_events) == 2
         assert len(downstream_events) == 1
 
-        upstream_event = upstream_events[0]
+        # Separate upstream events by type
+        upstream_mat_events = [
+            e
+            for e in upstream_events
+            if e["event"] == "prefect.asset.materialization.succeeded"
+        ]
+        upstream_ref_events = [
+            e for e in upstream_events if e["event"] == "prefect.asset.referenced"
+        ]
+
+        assert len(upstream_mat_events) == 1
+        assert len(upstream_ref_events) == 1
+
+        upstream_mat_event = upstream_mat_events[0]
+        upstream_ref_event = upstream_ref_events[0]
         downstream_event = downstream_events[0]
 
-        # confirm upstream events
-        assert upstream_event["event"] == "prefect.asset.materialization.succeeded"
-        assert upstream_event["resource"]["prefect.resource.id"] == upstream.key
+        # confirm upstream materialization event
+        assert upstream_mat_event["event"] == "prefect.asset.materialization.succeeded"
+        assert upstream_mat_event["resource"]["prefect.resource.id"] == upstream.key
+
+        # confirm upstream reference event
+        assert upstream_ref_event["event"] == "prefect.asset.referenced"
+        assert upstream_ref_event["resource"]["prefect.resource.id"] == upstream.key
 
         # confirm downstream events
         assert downstream_event["event"] == "prefect.asset.materialization.succeeded"

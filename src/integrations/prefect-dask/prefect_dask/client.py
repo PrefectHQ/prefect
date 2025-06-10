@@ -59,6 +59,7 @@ class PrefectDaskClient(Client):
                     "task": func,
                     "task_run_id": task_run_id,
                     "task_inputs": dependencies,
+                    "copy_to_child_ctx": True,
                 }
             )
             run_task_kwargs["context"] = context
