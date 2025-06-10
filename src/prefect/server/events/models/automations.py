@@ -17,8 +17,10 @@ from prefect.server.events.schemas.automations import (
     AutomationSort,
     AutomationUpdate,
 )
+from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.types._datetime import now
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -125,8 +127,10 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
         return
 
     # Handle cache updates based on database type
-    bind = session.get_bind()
-    if bind and "postgresql" in str(bind.url):
+    sync_session = session.sync_session
+    dialect_name = get_dialect(sync_session).name
+
+    if dialect_name == "postgresql":
         # For PostgreSQL, only send NOTIFY - the listener will update the cache
         try:
             payload_json = (
@@ -144,22 +148,24 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
             )
 
             logger.debug(
-                f"t Postgres NOTIFY on channel '{AUTOMATION_CHANGES_CHANNEL}' for automation {automation.id}, event: {event}"
+                f"Sent Postgres NOTIFY on channel '{AUTOMATION_CHANGES_CHANNEL}' for automation {automation.id}, event: {event}"
             )
         except Exception as e:
             logger.error(
-                f"led to send Postgres NOTIFY for automation {automation.id} on channel {AUTOMATION_CHANGES_CHANNEL}: {e}",
+                f"Failed to send Postgres NOTIFY for automation {automation.id} on channel {AUTOMATION_CHANGES_CHANNEL}: {e}",
                 exc_info=True,
             )
     else:
-        # For non-PostgreSQL (SQLite), update cache directly
-        try:
-            await automation_changed(automation.id, event_key)
-        except Exception as e:
-            logger.error(
-                f"Failed to update in-memory cache for automation {automation.id}, event: {event}: {e}",
-                exc_info=True,
-            )
+        # For SQLite, we need to update the cache after commit
+        @sa.event.listens_for(sync_session, "after_commit", once=True)
+        def update_cache_after_commit(session):
+            try:
+                run_coro_as_sync(automation_changed(automation.id, event_key))
+            except Exception as e:
+                logger.error(
+                    f"Failed to update in-memory cache for automation {automation.id}, event: {event}: {e}",
+                    exc_info=True,
+                )
 
 
 @db_injector
