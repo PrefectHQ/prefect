@@ -1598,3 +1598,53 @@ def test_nested_materialization(asserting_events_worker: EventsWorker):
     # Both should have flow-run context
     assert any(r.id.startswith("prefect.flow-run.") for r in outer_evt.related)
     assert any(r.id.startswith("prefect.flow-run.") for r in inner_evt.related)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialization_from_regular_task(asserting_events_worker: EventsWorker):
+    """Test that a @materialize task called from inside a regular @task works correctly.
+
+    Expected behavior: The materialization should emit an event, but no reference event
+    should be emitted since the asset dependency is on the regular task, not the materialization.
+
+    Expected graph: [M: s3://bucket/output.csv] (no reference event)
+    """
+    source_asset = Asset(key="postgres://db/source")
+    output_asset = Asset(key="s3://bucket/output.csv")
+
+    @materialize(output_asset)
+    def materialize_data(data):
+        return {"rows": data["transformed_rows"]}
+
+    @task(asset_deps=[source_asset])
+    def transform_data():
+        transformed = {"transformed_rows": 100}
+        result = materialize_data(transformed)
+        return result
+
+    @flow
+    def pipeline():
+        transform_data()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    # Should have no reference events and 1 materialization event
+    assert len(ref_events) == 0
+    assert len(mat_events) == 1
+
+    # Check materialization event
+    mat_evt = mat_events[0]
+    assert mat_evt.resource.id == output_asset.key
+    assert mat_evt.event == "prefect.asset.materialization.succeeded"
+
+    # The materialization should NOT have the source asset as an upstream dependency
+    # since the dependency was on the regular task, not the materialization
+    assert not _has_upstream_asset(mat_evt, source_asset.key)
+
+    # Should have flow-run context
+    assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)
