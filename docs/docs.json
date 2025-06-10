@@ -190,6 +190,7 @@
 					{
 						"group": "Workflows",
 						"pages": [
+							"v3/advanced/assets",
 							"v3/advanced/caching",
 							"v3/advanced/logging-customization",
 							"v3/advanced/transactions",
