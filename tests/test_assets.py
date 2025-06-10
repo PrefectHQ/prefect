@@ -271,8 +271,8 @@ def test_mixed_asset_objects_and_string_keys(asserting_events_worker: EventsWork
     This comprehensively tests string key conversion in both @materialize and @task(asset_deps).
 
     Expected graph:
-    [O: postgres://db/users] --> [M: s3://bucket/final.parquet]
-    [O: s3://bucket/raw.csv] --> [M: s3://bucket/summary.json]
+    [R: postgres://db/users] --> [M: s3://bucket/final.parquet]
+    [R: s3://bucket/raw.csv] --> [M: s3://bucket/summary.json]
     """
     # Mix Asset object and string in asset_deps
     asset_obj = Asset(key="postgres://db/users")
@@ -374,7 +374,7 @@ def test_reference_to_materialization_dependency(
 ):
     """Test linear dependency from reference to materialization.
 
-    Expected graph: [O: postgres://prod/users] --> [M: postgres://prod/users_clean]
+    Expected graph: [R: postgres://prod/users] --> [M: postgres://prod/users_clean]
     """
     upstream = Asset(key="postgres://prod/users")
     downstream = Asset(key="postgres://prod/users_clean")
@@ -455,7 +455,7 @@ def test_linear_dependency_with_intermediate_task(
 def test_materialize_with_explicit_asset_deps(asserting_events_worker: EventsWorker):
     """Test @materialize with explicit asset_deps parameter.
 
-    Expected graph: [O: s3://bucket/raw_data.csv] --> [M: s3://bucket/data.csv]
+    Expected graph: [R: s3://bucket/raw_data.csv] --> [M: s3://bucket/data.csv]
     """
 
     @materialize("s3://bucket/data.csv", asset_deps=["s3://bucket/raw_data.csv"])
@@ -752,9 +752,9 @@ def test_forward_propagation_asset_lineage(asserting_events_worker: EventsWorker
     """Test that asset lineage flows forward through task graph without backward traversal.
     
     Expected graph:
-    [O: s3://bucket/raw.csv]        \
+    [R: s3://bucket/raw.csv]        \
                                      --> [M: s3://bucket/final.csv]
-    [O: postgres://prod/users]      /
+    [R: postgres://prod/users]      /
     """
 
     @task(asset_deps=["s3://bucket/raw.csv"])
@@ -808,9 +808,9 @@ def test_complex_snowflake_aggregation(asserting_events_worker: EventsWorker):
     """Test complex Snowflake aggregation pattern with multiple references and materializations.
     
     Expected graph:
-    [O: .../table-1-raw] --> [M: .../table-1-cleaned] \
-    [O: .../table-2-raw] --> [M: .../table-2-cleaned]  --> [M: .../aggregated-table]
-    [O: .../table-3-raw] --> [M: .../table-3-cleaned] /
+    [R: .../table-1-raw] --> [M: .../table-1-cleaned] \
+    [R: .../table-2-raw] --> [M: .../table-2-cleaned]  --> [M: .../aggregated-table]
+    [R: .../table-3-raw] --> [M: .../table-3-cleaned] /
     """
     SNOWFLAKE_SCHEMA = "snowflake://my-database/my-schema"
 
@@ -965,7 +965,7 @@ def test_cached_asset_does_not_emit_duplicate_events(
 def test_linear_dependency_with_submit(asserting_events_worker):
     """Test linear dependency using task.submit().
 
-    Expected graph: [O: postgres://prod/users_submit] --> [M: postgres://prod/users_clean_submit]
+    Expected graph: [R: postgres://prod/users_submit] --> [M: postgres://prod/users_clean_submit]
     """
     upstream = Asset(key="postgres://prod/users_submit")
     downstream = Asset(key="postgres://prod/users_clean_submit")
@@ -1007,7 +1007,7 @@ def test_map_with_asset_dependency(asserting_events_worker):
 
     Expected graph:
 
-    [O: s3://data/source_data]   --> [M: s3://data/processed] (latest of task 1, 2, 3)
+    [R: s3://data/source_data]   --> [M: s3://data/processed] (latest of task 1, 2, 3)
     """
     source_asset = Asset(key="s3://data/source_data")
     destination_asset = Asset(key="s3://data/processed")
@@ -1050,7 +1050,7 @@ def test_map_with_asset_dependency(asserting_events_worker):
 def test_asset_dependency_with_wait_for(asserting_events_worker):
     """Test asset dependency using wait_for parameter.
 
-    Expected graph: [O: s3://data/dependencies/source] --> [M: s3://data/dependencies/dependent]
+    Expected graph: [R: s3://data/dependencies/source] --> [M: s3://data/dependencies/dependent]
     """
     source_asset = Asset(key="s3://data/dependencies/source")
     dependent_asset = Asset(key="s3://data/dependencies/dependent")
@@ -1128,7 +1128,7 @@ def test_materialization_with_by_parameter_and_dependencies(
 ):
     """Test materialization with by parameter includes tool alongside asset dependencies.
 
-    Expected graph: [O: postgres://prod/raw_users] --> [M: s3://warehouse/users] (materialized by spark)
+    Expected graph: [R: postgres://prod/raw_users] --> [M: s3://warehouse/users] (materialized by spark)
     """
     source_asset = Asset(key="postgres://prod/raw_users")
     target_asset = Asset(key="s3://warehouse/users")
@@ -1277,7 +1277,7 @@ def test_task_asset_deps_prevents_duplicates(asserting_events_worker: EventsWork
 def test_linear_dependency_with_asset_properties(asserting_events_worker: EventsWorker):
     """Test linear dependency from reference to materialization where both assets have properties.
 
-    Expected graph: [O: s3://lake/raw/customer_data.parquet] --> [M: postgres://warehouse/customers]
+    Expected graph: [R: s3://lake/raw/customer_data.parquet] --> [M: postgres://warehouse/customers]
     """
     source_asset = Asset(
         key="s3://lake/raw/customer_data.parquet",
@@ -1541,3 +1541,110 @@ def test_add_asset_metadata_throws_error_for_invalid_asset_key():
         match="Can only add metadata to assets that are arguments to @materialize",
     ):
         non_materializing_pipeline()
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_nested_materialization(asserting_events_worker: EventsWorker):
+    """Test nested materialization - a materialize task called inside another materialize task.
+
+    Expected behavior: Both materializations should emit events, but there should be
+    no relationship between the two assets.
+
+    Expected graph: [M: s3://bucket/outer.csv], [M: s3://bucket/inner.csv] (no connection)
+    """
+    outer_asset = Asset(key="s3://bucket/outer.csv")
+    inner_asset = Asset(key="s3://bucket/inner.csv")
+
+    @materialize(inner_asset)
+    def inner_task():
+        return {"inner_data": "processed"}
+
+    @materialize(outer_asset)
+    def outer_task():
+        inner_result = inner_task()
+        return {"outer_data": "wrapped", "inner_result": inner_result}
+
+    @flow
+    def pipeline():
+        outer_task()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    # Should have exactly 2 materialization events
+    assert len(mat_events) == 2
+
+    # Get the specific events
+    outer_evt = _event_with_resource_id(mat_events, outer_asset.key)
+    inner_evt = _event_with_resource_id(mat_events, inner_asset.key)
+
+    # Both should be successful materializations
+    assert outer_evt.event == "prefect.asset.materialization.succeeded"
+    assert inner_evt.event == "prefect.asset.materialization.succeeded"
+
+    # Check that neither asset has the other as a related asset
+    outer_related_assets = {r.id for r in outer_evt.related if r.role == "asset"}
+    inner_related_assets = {r.id for r in inner_evt.related if r.role == "asset"}
+
+    # Inner asset should not be in outer's related assets
+    assert inner_asset.key not in outer_related_assets
+
+    # Outer asset should not be in inner's related assets
+    assert outer_asset.key not in inner_related_assets
+
+    # Both should have flow-run context
+    assert any(r.id.startswith("prefect.flow-run.") for r in outer_evt.related)
+    assert any(r.id.startswith("prefect.flow-run.") for r in inner_evt.related)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialization_from_regular_task(asserting_events_worker: EventsWorker):
+    """Test that a @materialize task called from inside a regular @task works correctly.
+
+    Expected behavior: The materialization should emit an event, but no reference event
+    should be emitted since the asset dependency is on the regular task, not the materialization.
+
+    Expected graph: [M: s3://bucket/output.csv] (no reference event)
+    """
+    source_asset = Asset(key="postgres://db/source")
+    output_asset = Asset(key="s3://bucket/output.csv")
+
+    @materialize(output_asset)
+    def materialize_data(data):
+        return {"rows": data["transformed_rows"]}
+
+    @task(asset_deps=[source_asset])
+    def transform_data():
+        transformed = {"transformed_rows": 100}
+        result = materialize_data(transformed)
+        return result
+
+    @flow
+    def pipeline():
+        transform_data()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    # Should have no reference events and 1 materialization event
+    assert len(ref_events) == 0
+    assert len(mat_events) == 1
+
+    # Check materialization event
+    mat_evt = mat_events[0]
+    assert mat_evt.resource.id == output_asset.key
+    assert mat_evt.event == "prefect.asset.materialization.succeeded"
+
+    # The materialization should NOT have the source asset as an upstream dependency
+    # since the dependency was on the regular task, not the materialization
+    assert not _has_upstream_asset(mat_evt, source_asset.key)
+
+    # Should have flow-run context
+    assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)

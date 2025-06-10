@@ -534,6 +534,7 @@ class TestSerializeContext:
                 "task": bar,
                 "task_run_id": task_run_id,
                 "task_inputs": {},
+                "copy_to_child_ctx": True,
             }
         )
         assert serialized == {
@@ -547,6 +548,7 @@ class TestSerializeContext:
                 upstream_assets=set(),
                 direct_asset_dependencies=set(),
                 materialized_by="foo",
+                copy_to_child_ctx=True,
             ).serialize(),
         }
 
