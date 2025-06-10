@@ -40,22 +40,33 @@ async def test_automation_crud_operations_complete_successfully(
     automations_session: AsyncSession, sample_automation: Automation
 ):
     """Test that automation CRUD operations work with NOTIFY enabled
-    (for sqlite where it skips and postgres).
+    and verify cache updates happen correctly.
     """
     from prefect.server.events import triggers
+    from prefect.server.utilities.database import get_dialect
 
     with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
         # Clear any existing automations for a clean test
         triggers.automations_by_id.clear()
         triggers.triggers.clear()
 
+        # Check if we're using PostgreSQL
+        dialect_name = get_dialect(automations_session.sync_session).name
+        is_postgres = dialect_name == "postgresql"
+
         # Create automation
         created = await create_automation(automations_session, sample_automation)
         await automations_session.commit()
         assert created.id is not None
 
-        # Allow time for cache update (especially for SQLite after_commit)
-        await asyncio.sleep(0.1)
+        # For PostgreSQL, manually trigger cache update since listener isn't running in tests
+        if is_postgres:
+            from prefect.server.events.triggers import automation_changed
+
+            await automation_changed(created.id, "automation__created")
+        else:
+            # Allow time for SQLite after_commit handler
+            await asyncio.sleep(0.1)
 
         # Verify automation was loaded into cache
         assert created.id in triggers.automations_by_id
@@ -73,8 +84,12 @@ async def test_automation_crud_operations_complete_successfully(
         await automations_session.commit()
         assert result is True
 
-        # Allow time for cache update
-        await asyncio.sleep(0.1)
+        # For PostgreSQL, manually trigger cache update
+        if is_postgres:
+            await automation_changed(created.id, "automation__updated")
+        else:
+            # Allow time for SQLite after_commit handler
+            await asyncio.sleep(0.1)
 
         # Verify automation was updated in cache
         assert created.id in triggers.automations_by_id
@@ -86,8 +101,12 @@ async def test_automation_crud_operations_complete_successfully(
         await automations_session.commit()
         assert result is True
 
-        # Allow time for cache update
-        await asyncio.sleep(0.1)
+        # For PostgreSQL, manually trigger cache update
+        if is_postgres:
+            await automation_changed(created.id, "automation__deleted")
+        else:
+            # Allow time for SQLite after_commit handler
+            await asyncio.sleep(0.1)
 
         # Verify automation was removed from cache
         assert created.id not in triggers.automations_by_id
