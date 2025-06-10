@@ -16,47 +16,52 @@ depends_on = None
 
 
 def upgrade():
-    with op.get_context().autocommit_block():
-        op.execute("DROP INDEX IF EXISTS ix_events__event_related_occurred")
-        op.execute("DROP INDEX IF EXISTS ix_events__related_resource_ids")
-
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_events__related_gin
-            ON events USING gin(related)
-            """
-        )
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_events__event_occurred
-            ON events (event, occurred)
-            """
-        )
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_events__related_resource_ids_gin
-            ON events USING gin(related_resource_ids)
-            """
-        )
+    op.drop_index("ix_events__event_related_occurred", table_name="events")
+    op.drop_index("ix_events__related_resource_ids", table_name="events")
+    op.create_index(
+        "ix_events__related_gin",
+        "events",
+        ["related"],
+        unique=False,
+        postgresql_using="gin",
+    )
+    op.create_index(
+        "ix_events__event_occurred",
+        "events",
+        ["event", "occurred"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_events__related_resource_ids_gin",
+        "events",
+        ["related_resource_ids"],
+        unique=False,
+        postgresql_using="gin",
+    )
 
 
 def downgrade():
-    with op.get_context().autocommit_block():
-        op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_events__related_gin")
-        op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_events__event_occurred")
-        op.execute(
-            "DROP INDEX CONCURRENTLY IF EXISTS ix_events__related_resource_ids_gin"
-        )
-
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_events__event_related_occurred
-            ON events (event, related, occurred)
-            """
-        )
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_events__related_resource_ids
-            ON events (related_resource_ids)
-            """
-        )
+    op.drop_index(
+        "ix_events__related_gin",
+        table_name="events",
+    )
+    op.drop_index(
+        "ix_events__event_occurred",
+        table_name="events",
+    )
+    op.drop_index(
+        "ix_events__related_resource_ids_gin",
+        table_name="events",
+    )
+    op.create_index(
+        "ix_events__event_related_occurred",
+        "events",
+        ["event", "related", "occurred"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_events__related_resource_ids",
+        "events",
+        ["related_resource_ids"],
+        unique=False,
+    )
