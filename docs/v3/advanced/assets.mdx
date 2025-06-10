@@ -89,10 +89,12 @@ def process_customer_data():
     # Your processing logic here
     pass
 
+
 @materialize(sales_asset)
 def generate_sales_report():
     # Your reporting logic here
     pass
+
 
 @flow
 def analytics_pipeline():
@@ -109,7 +111,7 @@ Beyond static properties, you can add dynamic metadata during task execution. Th
 The preferred approach is to use the `add_metadata()` method on your `Asset` instances. This prevents typos in asset keys and provides better IDE support:
 
 ```python
-from prefect.assets import materialize
+from prefect.assets import Asset, AssetProperties, materialize
 
 customer_data = Asset(
     key="s3://my-bucket/customer-data.csv",
@@ -158,6 +160,7 @@ def process_data():
 
 You can call metadata methods multiple times to accumulate information:
 
+{/* pmd-metadata: notest */}
 ```python
 @materialize(customer_data)
 def comprehensive_processing():
@@ -195,6 +198,10 @@ While Prefect automatically infers dependencies from your task graph, you can ex
 Use `asset_deps` to explicitly declare which assets your materialization depends on. You can reference assets by key string or by full `Asset` instance:
 
 ```python
+from prefect import flow
+from prefect.assets import Asset, AssetProperties, materialize
+
+
 # Define your assets
 raw_data_asset = Asset(key="s3://my-bucket/raw-data.csv")
 config_asset = Asset(key="s3://my-bucket/processing-config.json")
@@ -224,6 +231,8 @@ def explicit_dependencies_flow():
 Use _string keys_ when referencing assets that are materialized by other Prefect workflows. This avoids duplicate metadata definitions and lets the materializing workflow be the source of truth:
 
 ```python
+from prefect.assets import materialize
+
 # Good: Reference by key when another workflow materializes the asset
 @materialize(
     "s3://my-bucket/final-report.csv",
@@ -236,6 +245,9 @@ def create_report():
 Use _full `Asset` instances_ when referencing assets that are completely external to Prefect. This provides metadata about external systems that Prefect wouldn't otherwise know about:
 
 ```python
+from prefect.assets import Asset, materialize
+
+
 # Good: Full Asset for external systems
 external_database = Asset(
     key="postgres://prod-db/public/users",
@@ -260,6 +272,10 @@ def analyze_users():
 You can combine task graph inference with explicit dependencies:
 
 ```python
+from prefect import flow
+from prefect.assets import Asset, materialize
+
+
 upstream_asset = Asset(key="s3://my-bucket/upstream.csv")
 config_asset = Asset(key="s3://my-bucket/config.json")
 downstream_asset = Asset(key="s3://my-bucket/downstream.csv")
@@ -291,6 +307,9 @@ Asset properties should have one source of truth to avoid conflicts. When you ma
 **Important**: Any `Asset` instance with properties will completely replace all existing metadata. Partial updates are not supported - you must provide all the metadata you want to preserve.
 
 ```python
+from prefect.assets import Asset, AssetProperties, materialize
+
+
 # Initial materialization with full properties
 initial_asset = Asset(
     key="s3://my-bucket/evolving-data.csv",
