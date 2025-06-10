@@ -245,7 +245,7 @@ def create_report():
 Use _full `Asset` instances_ when referencing assets that are completely external to Prefect. This provides metadata about external systems that Prefect wouldn't otherwise know about:
 
 ```python
-from prefect.assets import Asset, materialize
+from prefect.assets import Asset, AssetProperties, materialize
 
 
 # Good: Full Asset for external systems
