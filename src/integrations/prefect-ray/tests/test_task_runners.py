@@ -566,7 +566,7 @@ class TestRayTaskRunner:
                 response.raise_for_status()
                 data = response.json()
                 asset_events = data.get("events", [])
-                if asset_events:
+                if len(asset_events) >= 3:
                     break
                 # give a little more time for
                 # server to process events
