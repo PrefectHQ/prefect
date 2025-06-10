@@ -30,6 +30,7 @@
 					{
 						"group": "Workflows",
 						"pages": [
+							"v3/concepts/assets",
 							"v3/concepts/flows",
 							"v3/concepts/tasks",
 							"v3/concepts/caching",
