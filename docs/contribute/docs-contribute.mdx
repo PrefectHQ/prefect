@@ -18,14 +18,36 @@ The 2.x docs are hosted at [docs-2.prefect.io](https://docs-2.prefect.io) and bu
 
 ## Set up your local environment
 
-Make sure you have a recent version of Node.js installed. 
-We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
+We provide a `justfile` with common commands to simplify development. We recommend using [just](https://just.systems/) to run these commands.
+
+<Note>
+**Installing just**
+
+To install just:
+- **macOS**: `brew install just` or `cargo install just`
+- **Linux**: `cargo install just` or check your package manager
+- **Windows**: `scoop install just` or `cargo install just`
+
+For more installation options, see the [just documentation](https://github.com/casey/just#installation).
+</Note>
+
+### Using just (recommended)
 
 1. Clone this repository.
-2. Run `cd docs` to navigate to the docs directory.
-3. Run `nvm use node` to use the correct Node.js version.
-4. Run `npm i -g mintlify` to install Mintlify.
-5. Run `mintlify dev` to start the development server.
+2. Run `just docs` to start the documentation server.
+
+Your docs should now be available at `http://localhost:3000`.
+
+### Manual setup
+
+If you prefer not to use just, you can set up manually:
+
+1. Clone this repository.
+2. Make sure you have a recent version of Node.js installed. We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions.
+3. Run `cd docs` to navigate to the docs directory.
+4. Run `nvm use node` to use the correct Node.js version.
+5. Run `npm i -g mintlify` to install Mintlify.
+6. Run `mintlify dev` to start the development server.
 
 Your docs should now be available at `http://localhost:3000`.
 
