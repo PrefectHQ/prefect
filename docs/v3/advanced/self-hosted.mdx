@@ -1,0 +1,401 @@
+---
+title: How to scale self-hosted Prefect
+sidebarTitle: Scale self-hosted Prefect
+description: Learn how to run multiple Prefect server instances for high availability and load distribution
+---
+
+Running multiple Prefect server instances enables high availability and distributes load across your infrastructure. This guide covers configuration and deployment patterns for scaling self-hosted Prefect.
+
+## Requirements
+
+Multi-server deployments require:
+
+- PostgreSQL database (SQLite does not support multi-server synchronization)
+- Redis for event messaging
+- Load balancer for API traffic distribution
+
+## Architecture
+
+A scaled Prefect deployment typically includes:
+
+- **Multiple API server instances** - Handle UI and API requests
+- **Background services** - Runs the scheduler, automation triggers, and other loop services
+- **[PostgreSQL](https://www.postgresql.org/) database** - Stores all persistent data and synchronizes state across servers
+- **[Redis](https://redis.io/)** - Distributes events between services
+- **Load balancer** - Routes traffic to healthy API instances (e.g. [NGINX](https://www.f5.com/go/product/welcome-to-nginx) or [Traefik](https://doc.traefik.io/traefik/))
+
+```mermaid
+%%{
+  init: {
+    'theme': 'neutral',
+    'flowchart': {
+      'curve' : 'linear',
+      'rankSpacing': 120,
+      'nodeSpacing': 80
+    }
+  }
+}%%
+
+flowchart TB
+    %% Style definitions
+    classDef userClass fill:#ede7f6db,stroke:#4527a0db,stroke-width:2px
+    classDef lbClass fill:#e3f2fddb,stroke:#1565c0db,stroke-width:2px
+    classDef apiClass fill:#1860f2db,stroke:#1860f2db,stroke-width:2px
+    classDef bgClass fill:#7c3aeddb,stroke:#7c3aeddb,stroke-width:2px
+    classDef dataClass fill:#16a34adb,stroke:#16a34adb,stroke-width:2px
+    classDef workerClass fill:#f59e0bdb,stroke:#f59e0bdb,stroke-width:2px
+
+    %% Nodes
+    subgraph clients[Client Side]
+        direction TB
+        Users[Users / UI / API Clients]:::userClass
+        Workers[Workers poll any available API server<br/>Process / K8s / Docker / Serverless]:::workerClass
+    end
+    
+    LB[Load Balancer<br/>NGINX / HAProxy / ALB<br/>Port 4200]:::lbClass
+    
+    subgraph servers[Prefect Server Components]
+        direction TB
+        subgraph api[API Servers - Horizontal Scaling]
+            direction LR
+            API1[API Server 1<br/>--no-services]:::apiClass
+            API2[API Server 2<br/>--no-services]:::apiClass
+            API3[API Server N...<br/>--no-services]:::apiClass
+        end
+        
+        BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
+    end
+    
+    subgraph data[Data Layer]
+        direction LR
+        PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
+        Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
+    end
+    
+    %% Connections
+    Users --> |HTTPS| LB
+    LB --> |Round Robin| api
+    
+    api --> |Read/Write| PG
+    api --> |Publish| Redis
+    
+    BG --> |Read/Write| PG
+    BG --> |Subscribe| Redis
+    
+    Workers -.-> |Poll Work| api
+```
+
+## Configuration
+
+### Database setup
+
+Configure PostgreSQL as your database backend:
+
+```bash
+export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@host:5432/prefect"
+```
+
+<Warning>
+PostgreSQL is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
+</Warning>
+
+### Redis setup
+
+Configure Redis as your message broker:
+
+```bash
+export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
+export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+export PREFECT_REDIS_MESSAGING_HOST="redis-host"
+export PREFECT_REDIS_MESSAGING_PORT="6379"
+export PREFECT_REDIS_MESSAGING_DB="0"
+```
+
+Each server instance automatically generates a unique consumer name to prevent message delivery conflicts.
+
+### Service separation
+
+For optimal performance, run API servers and background services separately:
+
+**API servers** (multiple instances):
+```bash
+prefect server start --host 0.0.0.0 --port 4200 --no-services
+```
+
+**Background services**:
+```bash
+prefect server services start
+```
+
+### Database migrations
+
+Disable automatic migrations in multi-server deployments:
+
+```bash
+export PREFECT_API_DATABASE_MIGRATE_ON_START="false"
+```
+
+Run migrations separately before deployment:
+
+```bash
+prefect server database upgrade -y
+```
+
+### Load balancer configuration
+
+Configure health checks for your load balancer:
+
+- **Health endpoint**: `/api/health`
+- **Expected response**: HTTP 200 with JSON `{"status": "healthy"}`
+- **Check interval**: 5-10 seconds
+
+Example NGINX configuration:
+
+```nginx
+upstream prefect_api {
+    least_conn;
+    server prefect-api-1:4200 max_fails=3 fail_timeout=30s;
+    server prefect-api-2:4200 max_fails=3 fail_timeout=30s;
+    server prefect-api-3:4200 max_fails=3 fail_timeout=30s;
+}
+
+server {
+    listen 4200;
+    
+    location /api/health {
+        proxy_pass http://prefect_api;
+        proxy_connect_timeout 1s;
+        proxy_read_timeout 1s;
+    }
+    
+    location / {
+        proxy_pass http://prefect_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Reverse proxy configuration
+
+When hosting Prefect behind a reverse proxy, ensure proper header forwarding:
+
+```nginx
+server {
+    listen 80;
+    server_name prefect.example.com;
+    
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name prefect.example.com;
+
+    ssl_certificate /path/to/ssl/certificate.pem;
+    ssl_certificate_key /path/to/ssl/certificate_key.pem;
+
+    location /api {
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+        
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Authentication headers
+        proxy_set_header Authorization $http_authorization;
+        proxy_pass_header Authorization;
+        
+        proxy_pass http://prefect_api;
+    }
+
+    location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://prefect_api;
+    }
+}
+```
+
+#### UI proxy settings
+
+When self-hosting the UI behind a proxy:
+
+- `PREFECT_UI_API_URL`: Connection URL from UI to API
+- `PREFECT_UI_SERVE_BASE`: Base URL path to serve the UI
+- `PREFECT_UI_URL`: URL for clients to access the UI
+
+#### SSL certificates
+
+For self-signed certificates:
+
+1. Add certificate to system bundle and set:
+   ```bash
+   export SSL_CERT_FILE=/path/to/certificate.pem
+   ```
+
+2. Or disable verification (testing only):
+   ```bash
+   export PREFECT_API_TLS_INSECURE_SKIP_VERIFY=True
+   ```
+
+#### Environment proxy settings
+
+Prefect respects standard proxy environment variables:
+
+```bash
+export HTTPS_PROXY=http://proxy.example.com:8080
+export HTTP_PROXY=http://proxy.example.com:8080
+export NO_PROXY=localhost,127.0.0.1,.internal
+```
+
+## Deployment examples
+
+### Docker Compose
+
+<Accordion title="3 servers, 1 background service, postgres, redis">
+
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
+  migrate:
+    image: prefecthq/prefect:latest
+    depends_on: [postgres]
+    command: prefect server database upgrade -y
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+
+  prefect-api:
+    image: prefecthq/prefect:latest
+    depends_on: [migrate, postgres, redis]
+    deploy:
+      replicas: 3
+    command: prefect server start --host 0.0.0.0 --no-services
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: "6379"
+    ports:
+      - "4200-4202:4200"  # Maps to different ports for each replica
+
+  prefect-background:
+    image: prefecthq/prefect:latest
+    depends_on: [migrate, postgres, redis]
+    command: prefect server services start
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: "6379"
+
+volumes:
+  postgres_data:
+```
+</Accordion>
+
+<Tip>
+Deploying Prefect self-hosted somehow else? Consider [opening a PR](/contribute/docs-contribute) to add your deployment pattern to this guide.
+</Tip>
+
+## Operations
+
+
+### Migration considerations
+
+#### Handling large databases
+
+When running migrations on large database instances (especially where tables like `events`, `flow_runs`, or `task_runs` can reach millions of rows), the default database timeout of 10 seconds may not be sufficient for creating indexes.
+
+If you encounter a `TimeoutError` during migrations, increase the database timeout:
+
+```bash
+# Set timeout to 10 minutes (adjust based on your database size)
+export PREFECT_API_DATABASE_TIMEOUT=600
+
+# Then run the migration
+prefect server database upgrade -y
+```
+
+For Docker deployments:
+
+```bash
+docker run -e PREFECT_API_DATABASE_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
+```
+
+<Note>
+Index creation time scales with table size. A database with millions of events may require 30+ minutes for some migrations. If a migration fails due to timeout, you may need to manually clean up any partially created indexes before retrying.
+</Note>
+
+#### Recovering from failed migrations
+
+If a migration times out while creating indexes, you may need to manually complete it. For example, if migration `7a73514ca2d6` fails:
+
+1. First, check which indexes were partially created:
+   ```sql
+   SELECT indexname FROM pg_indexes WHERE tablename = 'events' AND indexname LIKE 'ix_events%';
+   ```
+
+2. Manually create the missing indexes using `CONCURRENTLY` to avoid blocking:
+   ```sql
+   -- Drop any partial indexes from the failed migration
+   DROP INDEX IF EXISTS ix_events__event_related_occurred;
+   DROP INDEX IF EXISTS ix_events__related_resource_ids;
+
+   -- Create the new indexes
+   CREATE INDEX CONCURRENTLY ix_events__related_gin ON events USING gin(related);
+   CREATE INDEX CONCURRENTLY ix_events__event_occurred ON events (event, occurred);
+   CREATE INDEX CONCURRENTLY ix_events__related_resource_ids_gin ON events USING gin(related_resource_ids);
+   ```
+
+3. Mark the migration as complete:
+   ```sql
+   UPDATE alembic_version SET version_num = '7a73514ca2d6';
+   ```
+
+<Warning>
+Only use manual recovery if increasing the timeout and retrying the migration doesn't work. Always verify the correct migration version and index definitions from the migration files.
+</Warning>
+
+### Monitoring
+
+Monitor your multi-server deployment:
+
+- **Database connections**: Watch for connection pool exhaustion
+- **Redis memory**: Ensure adequate memory for message queues
+- **API response times**: Track latency across different endpoints
+- **Background service lag**: Monitor time between event creation and processing
+
+### Best practices
+
+1. **Start with 2-3 API instances** and scale based on load
+2. **Use connection pooling** to manage database connections efficiently
+3. **Monitor extensively** before scaling further (e.g. [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/) or [Logfire](https://logfire.pydantic.dev/docs/why/))
+4. **Test failover scenarios** regularly
+
+## Further reading
+
+- [Server concepts](/v3/concepts/server)
+- Deploy [Helm charts](/v3/advanced/server-helm) for Kubernetes
