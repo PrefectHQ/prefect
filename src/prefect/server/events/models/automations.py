@@ -1,10 +1,14 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
+import orjson
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import Literal, TypeAlias
 
+from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import filters
 from prefect.server.events.schemas.automations import (
@@ -13,9 +17,17 @@ from prefect.server.events.schemas.automations import (
     AutomationSort,
     AutomationUpdate,
 )
+from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
+
+logger: logging.Logger = get_logger(__name__)
+
+AutomationChangeEvent: TypeAlias = Literal[
+    "automation__created", "automation__updated", "automation__deleted"
+]
+AUTOMATION_CHANGES_CHANNEL = "prefect_automation_changes"
 
 
 @asynccontextmanager
@@ -101,16 +113,59 @@ async def _notify(session: AsyncSession, automation: Automation, event: str):
 
     from prefect.server.events.triggers import automation_changed
 
+    event_key: AutomationChangeEvent
+    if event == "created":
+        event_key = "automation__created"
+    elif event == "updated":
+        event_key = "automation__updated"
+    elif event == "deleted":
+        event_key = "automation__deleted"
+    else:
+        logger.error(
+            f"Unknown event type '{event}' in _notify for automation {automation.id}"
+        )
+        return
+
+    # Handle cache updates based on database type
     sync_session = session.sync_session
+    dialect_name = get_dialect(sync_session).name
 
-    def change_notification(session, **kwargs):
+    if dialect_name == "postgresql":
+        # For PostgreSQL, only send NOTIFY - the listener will update the cache
         try:
-            run_coro_as_sync(automation_changed(automation.id, f"automation__{event}"))
-        except Exception:
-            # On exception, do not re-raise, just move on
-            pass
+            payload_json = (
+                orjson.dumps(
+                    {
+                        "automation_id": str(automation.id),
+                        "event_type": event,
+                    }
+                )
+                .decode()
+                .replace("'", "''")
+            )
+            await session.execute(
+                sa.text(f"NOTIFY {AUTOMATION_CHANGES_CHANNEL}, '{payload_json}'")
+            )
 
-    sa.event.listen(sync_session, "after_commit", change_notification, once=True)
+            logger.debug(
+                f"Sent Postgres NOTIFY on channel '{AUTOMATION_CHANGES_CHANNEL}' for automation {automation.id}, event: {event}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to send Postgres NOTIFY for automation {automation.id} on channel {AUTOMATION_CHANGES_CHANNEL}: {e}",
+                exc_info=True,
+            )
+    else:
+        # For SQLite, we need to update the cache after commit
+        @sa.event.listens_for(sync_session, "after_commit", once=True)
+        def update_cache_after_commit(session):
+            try:
+                run_coro_as_sync(automation_changed(automation.id, event_key))
+            except Exception as e:
+                logger.error(
+                    f"Failed to update in-memory cache for automation {automation.id}, event: {event}: {e}",
+                    exc_info=True,
+                )
 
 
 @db_injector

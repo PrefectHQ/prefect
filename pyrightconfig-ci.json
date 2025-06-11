@@ -76,6 +76,7 @@
 		"src/prefect/server/services/",
 		"src/prefect/server/utilities/messaging/",
 		"src/prefect/server/utilities/encryption.py",
+		"src/prefect/server/utilities/postgres_listener.py",
 		"src/prefect/server/utilities/server.py",
 		"src/prefect/server/task_queue.py",
 		"src/prefect/telemetry/processors.py",
