@@ -31,7 +31,9 @@ Asset keys must be valid URIs that uniquely identify your workflow outputs. Asse
 **`@materialize` wraps `@task`**: the `@materialize` decorator accepts all keyword arguments and configuration that the `@task` decorator accepts and can be used as a drop-in replacement.
 </Note>
 
-## Asset dependencies through task graphs
+## Asset dependencies 
+
+### Inferred from task graphs
 
 Prefect automatically infers asset dependencies from your task graph. When materialized assets flow through your workflow, downstream materializations inherit these dependencies:
 
@@ -64,25 +66,7 @@ Running this flow produces the following asset graph:
 
 ![Asset Graph in the UI](/v3/img/guides/assets-1.png)
 
-## Multiple asset materialization
-
-Materialize multiple related assets in a single function when they share the same upstream dependencies:
-
-```python
-from prefect.assets import materialize
-
-
-@materialize(
-    "s3://my-bucket/summary.csv",
-    "s3://my-bucket/details.csv"
-)
-def generate_reports():
-    data = fetch_source_data()
-    create_summary_report(data)
-    create_detailed_report(data)
-```
-
-## External and cross-flow asset dependencies
+### External and cross-flow asset dependencies
 
 Use `asset_deps` to reference assets that are external to your current workflow. This creates dependencies on assets that may be materialized by other flows, external systems, or manual processes:
 
@@ -121,3 +105,27 @@ Running this flow produces the following asset graph:
 ![Asset Graph in the UI](/v3/img/guides/assets-2.png)
 
 This approach allows you to model your complete data ecosystem, tracking dependencies even when some assets are managed outside your current workflow or outside Prefect entirely.
+
+## Multiple asset materialization
+
+Materialize multiple related assets in a single function when they share the same upstream dependencies:
+
+```python
+from prefect.assets import materialize
+
+
+@materialize(
+    "s3://my-bucket/summary.csv",
+    "s3://my-bucket/details.csv"
+)
+def generate_reports():
+    data = fetch_source_data()
+    create_summary_report(data)
+    create_detailed_report(data)
+```
+
+
+## Further Reading
+
+- [How to customize asset metadata](/v3/advanced/assets)
+- [Learn about asset health and asset events](/v3/concepts/assets)
