@@ -219,6 +219,7 @@
 					{
 						"group": "Platform",
 						"pages": [
+							"v3/advanced/self-hosted",
 							"v3/advanced/deploy-ci-cd",
 							"v3/advanced/infrastructure-as-code",
 							"v3/advanced/server-helm"
