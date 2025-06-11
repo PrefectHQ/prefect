@@ -8,11 +8,17 @@ from prefect.server.utilities.user_templates import (
     validate_user_template,
 )
 
-router: PrefectRouter = PrefectRouter(prefix="/templates", tags=["Automations"])
+router: PrefectRouter = PrefectRouter(tags=["Automations"])
 
 
+# deprecated and can be removed after the ui removes its dependency on it
+# use /templates/validate instead
 @router.post(
-    "/validate",
+    "/automations/templates/validate",
+    response_class=Response,
+)
+@router.post(
+    "/templates/validate",
     response_class=Response,
 )
 def validate_template(template: str = Body(default="")) -> Response:
