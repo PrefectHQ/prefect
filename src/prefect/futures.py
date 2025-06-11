@@ -272,9 +272,23 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                 self.task_run_id,
             )
             await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+
+            # After the waiter returns, we expect the task to be complete.
+            # However, there may be a small delay before the API reflects the final state
+            # due to eventual consistency between the event system and the API.
+            # We'll read the state and only cache it if it's final.
             task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if task_run.state.is_final():
+            if task_run.state and task_run.state.is_final():
                 self._final_state = task_run.state
+            else:
+                # Don't cache non-final states to avoid persisting stale data.
+                # result_async() will handle reading the state again if needed.
+                logger.debug(
+                    "Task run %s state not yet final after wait (state: %s). "
+                    "State will be re-read when needed.",
+                    self.task_run_id,
+                    task_run.state.type if task_run.state else "Unknown",
+                )
             return
 
     def result(
@@ -294,9 +308,16 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
-                raise TimeoutError(
-                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
-                )
+                # If still no final state, try reading it directly as the
+                # state property does. This handles eventual consistency issues.
+                async with get_client() as client:
+                    task_run = await client.read_task_run(task_run_id=self._task_run_id)
+                    if task_run.state and task_run.state.is_final():
+                        self._final_state = task_run.state
+                    else:
+                        raise TimeoutError(
+                            f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                        )
 
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
