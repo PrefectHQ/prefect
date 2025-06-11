@@ -1,0 +1,129 @@
+---
+title: Assets
+description: Assets represent objects your workflows produce.
+---
+<span class="badge cloud"></span>
+
+
+Assets in Prefect represent any outcome or output of your Prefect workflows. They provide an interface to model all forms of data and model lineage, track dependencies between data transformations, and monitor the health of pipelines at the asset level rather than just the compute level.
+
+## Core concepts
+
+An asset is fundamentally defined by its **key**, a URI that uniquely identifies an asset, often specifying an external storage system in which that asset lives. 
+Asset keys serve as both identifiers and organizational structures—assets are automatically grouped by their URI scheme (e.g., `s3://`, `postgres://`, `snowflake://`) and can be hierarchically organized based on their path structure.
+
+Assets exist in three primary states within Prefect:
+
+- **Materialized**: The asset has been created, updated, or overwritten by a Prefect workflow
+- **Referenced**: The asset is consumed as input by a workflow but not produced by it  
+- **External**: The asset exists outside the Prefect ecosystem but is referenced as a dependency
+
+## Asset lifecycle
+
+### Materializations
+
+A **materialization** occurs when a workflow mutates an asset through creation, updating, or overwriting. Materializations are declared using the `@materialize` decorator, which functions as a specialized task decorator that tracks asset creation intent.
+
+The materialization process operates on an "intent to materialize" model: when a function decorated with `@materialize` executes, Prefect records the materialization attempt. Success or failure of the materialization is determined by the underlying task's execution state.
+
+```python
+from prefect.assets import materialize
+
+@materialize("s3://data-lake/processed/customer-data.csv")
+def process_customer_data():
+    # Asset materialization logic
+    pass
+```
+
+### References
+
+A **reference** occurs when an asset appears as an upstream dependency in another asset's materialization. References are automatically inferred from the task execution graph—when the output of one materialization flows as input to another, the dependency relationship is captured.
+
+References can also be explicitly declared through the `asset_deps` parameter, which is particularly useful for modeling dependencies on external systems or when the task graph alone doesn't fully capture the data dependencies.
+
+### Metadata 
+
+Asset definitions include optional metadata about that asset. These asset properties should have one source of truth to avoid conflicts. When you materialize an asset with properties, those properties perform a complete overwrite of all metadata fields for that asset.
+
+Updates to asset metadata occur at runtime from any workflow that specifies metadata fields.
+
+
+## Dependency modeling
+
+Asset dependencies are determined through two complementary mechanisms:
+
+**Task graph inference**: When materialized assets flow through task parameters, Prefect automatically constructs the dependency graph. Each materialization acts as a dependency accumulation point, gathering all upstream assets and serving as the foundation for downstream materializations.
+
+**Explicit declaration**: The `asset_deps` parameter allows direct specification of asset dependencies, enabling modeling of relationships that aren't captured in the task execution flow.
+
+```python
+from prefect.assets import materialize
+
+
+@materialize(
+    "s3://warehouse/enriched-data.csv",
+    asset_deps=["postgres://db/reference-tables", "s3://external/vendor-data.csv"]
+)
+def enrich_data():
+    # Explicitly depends on external database and vendor data
+    pass
+```
+
+The backend will track these dependencies _across workflow boundaries_, exposing a global view of asset dependencies within your workspace.
+
+## Asset metadata and properties
+
+Assets support rich metadata through the `AssetProperties` class, which provides organizational context and improves discoverability:
+
+- **Name**: Human-readable identifier for the asset
+- **Description**: Detailed documentation supporting Markdown formatting
+- **Owners**: Responsible parties, with special UI treatment for Prefect users and teams
+- **URL**: Web location for accessing or viewing the asset
+
+Additionally, assets support dynamic metadata through the `add_asset_metadata()` function, allowing runtime information like row counts, processing times, and data quality metrics to be attached to materialization events.
+
+## Asset health monitoring
+
+Currently asset health provides a _visual_ indicator of the operational status of data artifacts based on their most recent materialization attempt:
+
+- **Green**: Last materialization succeeded
+- **Red**: Last materialization failed  
+- **Gray**: No materialization recorded, or asset has only been referenced
+
+This health model enables data teams to quickly identify problematic data pipelines at the artifact level, complementing traditional task-level monitoring with data-centric observability. Soon these statuses will be backed by a corresponding event.
+
+## Event emission and integration
+
+Assets integrate deeply with Prefect's event system, automatically emitting structured events that enable downstream automation and monitoring:
+
+### Event types
+
+- **Materialization events**: These events look like `prefect.asset.materialization.{succeeded|failed}` and are emitted when assets are referenced by the `@materialize` decorator, with status determined by the underlying task execution state.
+- **Reference events**: These events look like `prefect.asset.referenced` and are emitted for all upstream assets when a materialization occurs, independent of success or failure.
+
+### Event emission rules
+
+Asset events follow specific emission patterns based on task execution state:
+
+- **Completed states**: Emit `prefect.asset.materialization.succeeded` for downstream assets and `prefect.asset.referenced` for upstream assets
+- **Failed states**: Emit `prefect.asset.materialization.failed` for downstream assets and `prefect.asset.referenced` for upstream assets  
+- **Cached states**: No asset events are emitted, as cached executions don't represent new asset state changes
+
+Reference events are always emitted for upstream assets regardless of materialization success, enabling comprehensive dependency tracking even when downstream processes fail.
+
+### Event payloads
+
+Materialization events include any metadata added during task execution through `add_asset_metadata()`, while reference events contain basic asset identification information. This enables rich event-driven automation based on both asset state changes and associated metadata.
+
+## Asset organization and discovery
+
+Assets are automatically organized in the Prefect UI based on their URI structure:
+
+- **Grouping by scheme**: Assets with the same URI scheme (e.g., `s3://`, `postgres://`) are grouped together
+- **Hierarchical organization**: URI paths create nested organization structures
+- **Search and filtering**: Asset metadata enables discovery through names, descriptions, and ownership information
+
+## Further Reading
+
+- [How to use assets to track workflow outputs](/v3/how-to-guides/workflows/assets)
+- [How to customize asset metadata](/v3/advanced/assets)
