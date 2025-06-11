@@ -226,6 +226,39 @@ def explicit_dependencies_flow():
     process_data()  # Explicitly depends on raw_data_asset and config_asset
 ```
 
+### Mixing inferred and explicit dependencies
+
+You can combine task graph inference with explicit dependencies:
+
+```python
+from prefect import flow
+from prefect.assets import Asset, materialize
+
+
+upstream_asset = Asset(key="s3://my-bucket/upstream.csv")
+config_asset = Asset(key="s3://my-bucket/config.json")
+downstream_asset = Asset(key="s3://my-bucket/downstream.csv")
+
+@materialize(upstream_asset)
+def create_upstream():
+    return "upstream_data"
+
+@materialize(
+    downstream_asset,
+    asset_deps=[config_asset]  # Explicit dependency on config
+)
+def create_downstream(upstream_data):  # Inferred dependency on upstream_asset
+    # This asset depends on:
+    # 1. upstream_asset (inferred from task graph)
+    # 2. config_asset (explicit via asset_deps)
+    pass
+
+@flow
+def mixed_dependencies():
+    data = create_upstream()
+    create_downstream(data)
+```
+
 ### Best practices for `asset_deps` references
 
 Use _string keys_ when referencing assets that are materialized by other Prefect workflows. This avoids duplicate metadata definitions and lets the materializing workflow be the source of truth:
@@ -267,44 +300,16 @@ def analyze_users():
     pass
 ```
 
-### Mixing inferred and explicit dependencies
-
-You can combine task graph inference with explicit dependencies:
-
-```python
-from prefect import flow
-from prefect.assets import Asset, materialize
-
-
-upstream_asset = Asset(key="s3://my-bucket/upstream.csv")
-config_asset = Asset(key="s3://my-bucket/config.json")
-downstream_asset = Asset(key="s3://my-bucket/downstream.csv")
-
-@materialize(upstream_asset)
-def create_upstream():
-    return "upstream_data"
-
-@materialize(
-    downstream_asset,
-    asset_deps=[config_asset]  # Explicit dependency on config
-)
-def create_downstream(upstream_data):  # Inferred dependency on upstream_asset
-    # This asset depends on:
-    # 1. upstream_asset (inferred from task graph)
-    # 2. config_asset (explicit via asset_deps)
-    pass
-
-@flow
-def mixed_dependencies():
-    data = create_upstream()
-    create_downstream(data)
-```
 
 ## Updating asset properties
 
 Asset properties should have one source of truth to avoid conflicts. When you materialize an asset with properties, those properties perform a complete overwrite of all metadata fields for that asset.
 
-**Important**: Any `Asset` instance with properties will completely replace all existing metadata. Partial updates are not supported - you must provide all the metadata you want to preserve.
+<Warning>
+**Important**
+
+Any `Asset` instance with properties will completely replace all existing metadata. Partial updates are not supported - you must provide all the metadata you want to preserve.
+</Warning>
 
 ```python
 from prefect.assets import Asset, AssetProperties, materialize
@@ -347,4 +352,12 @@ def update_dataset():
 # - url: None (lost because not included in update)
 ```
 
-**Best practice**: Designate one workflow as the authoritative source for each asset's metadata. Other workflows that reference the asset should use string keys only to avoid conflicting metadata definitions.
+<Tip>
+**Best practice**
+
+Designate one workflow as the authoritative source for each asset's metadata. Other workflows that reference the asset should use string keys only to avoid conflicting metadata definitions.
+</Tip>
+
+## Further Reading
+
+- [Learn about asset health and asset events](/v3/concepts/assets)
