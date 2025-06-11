@@ -46,29 +46,31 @@ flowchart TB
     classDef workerClass fill:#f59e0bdb,stroke:#f59e0bdb,stroke-width:2px
 
     %% Nodes
-    Users[Users / UI / API Clients]:::userClass
+    subgraph clients[Client Side]
+        direction TB
+        Users[Users / UI / API Clients]:::userClass
+        Workers[Workers poll any available API server<br/>Process / K8s / Docker / Serverless]:::workerClass
+    end
     
     LB[Load Balancer<br/>NGINX / HAProxy / ALB<br/>Port 4200]:::lbClass
     
-    subgraph api[API Servers - Horizontal Scaling]
-        direction LR
-        API1[API Server 1<br/>--no-services]:::apiClass
-        API2[API Server 2<br/>--no-services]:::apiClass
-        API3[API Server N...<br/>--no-services]:::apiClass
-    end
-    
-    subgraph infra[" "]
-        direction LR
-        subgraph core[Core Infrastructure]
-            direction TB
-            PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
-            Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
+    subgraph servers[Prefect Server Components]
+        direction TB
+        subgraph api[API Servers - Horizontal Scaling]
+            direction LR
+            API1[API Server 1<br/>--no-services]:::apiClass
+            API2[API Server 2<br/>--no-services]:::apiClass
+            API3[API Server N...<br/>--no-services]:::apiClass
         end
         
         BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
     end
     
-    Workers[Workers poll any available API server<br/>Process / K8s / Docker / Serverless]:::workerClass
+    subgraph data[Data Layer]
+        direction LR
+        PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
+        Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
+    end
     
     %% Connections
     Users --> |HTTPS| LB
