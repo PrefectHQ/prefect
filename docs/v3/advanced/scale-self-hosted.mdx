@@ -1,0 +1,373 @@
+---
+title: Scale Self-Hosted Prefect
+description: Learn how to run multiple Prefect server instances for high availability and load distribution
+---
+
+Running multiple Prefect server instances enables high availability and distributes load across your infrastructure. This guide covers the configuration and best practices for scaling self-hosted Prefect deployments.
+
+## Prerequisites
+
+Before scaling your Prefect deployment, ensure you have:
+
+- PostgreSQL database (required for multi-server synchronization)
+- Redis instance for event messaging
+- Load balancer (such as Traefik, NGINX, or HAProxy)
+- Docker or Kubernetes for container orchestration
+
+<Note>
+SQLite databases do not support the synchronization features required for multi-server deployments. You must use PostgreSQL.
+</Note>
+
+## Architecture overview
+
+A scaled Prefect deployment consists of:
+
+1. **Multiple API server instances** - Handle UI requests and API calls
+2. **Background services** - Process events, automations, and scheduled tasks (typically run as a single instance)
+3. **Shared PostgreSQL database** - Stores all persistent data
+4. **Redis message broker** - Distributes events between services
+5. **Load balancer** - Routes traffic to healthy API instances
+
+```mermaid
+graph TD
+    LB[Load Balancer] --> API1[API Server 1]
+    LB --> API2[API Server 2]
+    LB --> API3[API Server 3]
+    
+    API1 --> PG[(PostgreSQL)]
+    API2 --> PG
+    API3 --> PG
+    
+    API1 --> Redis[(Redis)]
+    API2 --> Redis
+    API3 --> Redis
+    
+    BG[Background Services] --> PG
+    BG --> Redis
+    
+    Redis --> BG
+```
+
+## Configuration requirements
+
+### Database configuration
+
+PostgreSQL enables critical synchronization features for multi-server deployments:
+
+1. **NOTIFY/LISTEN channels** - Synchronize automation changes across servers
+2. **Transaction isolation** - Ensure consistent state across instances
+3. **Connection pooling** - Handle increased connection load
+
+Configure your PostgreSQL connection:
+
+```bash
+export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@host:5432/prefect"
+```
+
+### Redis configuration
+
+Redis requires specific settings to prevent message loss and duplication:
+
+1. **Unique consumer names** - Each server instance must have a unique identifier
+2. **Appropriate batch sizes** - Balance between latency and throughput
+3. **Message acknowledgment settings** - Prevent message loss during failures
+
+Set Redis connection and consumer configuration:
+
+```bash
+# Redis connection
+export PREFECT_API_SERVICES_LATE_RUNS_REDIS_URL="redis://host:6379/0"
+export PREFECT_API_SERVICES_FLOW_RUN_RECORDER_REDIS_URL="redis://host:6379/1"  
+export PREFECT_API_SERVICES_EVENTS_REDIS_URL="redis://host:6379/2"
+
+# Unique consumer name (use hostname or generate unique ID)
+export PREFECT_API_REDIS_CONSUMER_NAME="prefect-server-$(hostname)"
+
+# Batch size configuration
+export PREFECT_API_SERVICES_TRIGGERS_PUBLISHER_PREFETCH_SECONDS=10
+```
+
+### Load balancer health checks
+
+Configure your load balancer to route traffic only to healthy instances:
+
+- **Health check endpoint**: `/api/health`
+- **Expected response**: HTTP 200 with JSON `{"status": "ok"}`
+- **Check interval**: 5-10 seconds
+- **Failure threshold**: 2-3 consecutive failures
+
+Example Traefik configuration:
+
+```yaml
+services:
+  prefect-api:
+    image: prefecthq/prefect:latest
+    deploy:
+      replicas: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.services.prefect.loadbalancer.healthcheck.path=/api/health"
+        - "traefik.http.services.prefect.loadbalancer.healthcheck.interval=10s"
+```
+
+## Deployment patterns
+
+### Docker Compose
+
+Deploy multiple API servers with Docker Compose:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
+  prefect-api:
+    image: prefecthq/prefect:latest
+    deploy:
+      replicas: 3
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_API_SERVICES_EVENTS_REDIS_URL: redis://redis:6379/0
+      PREFECT_API_REDIS_CONSUMER_NAME: "prefect-api-{{.Task.Slot}}"
+    command: prefect server start --host 0.0.0.0
+    depends_on:
+      - postgres
+      - redis
+
+  prefect-background:
+    image: prefecthq/prefect:latest
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_API_SERVICES_EVENTS_REDIS_URL: redis://redis:6379/0
+      PREFECT_API_REDIS_CONSUMER_NAME: "prefect-background"
+      PREFECT_API_SERVICES_RUN_BACKGROUND_SERVICES: "true"
+      PREFECT_API_SERVICES_UI_ENABLED: "false"
+    command: prefect server start --host 0.0.0.0
+    depends_on:
+      - postgres
+      - redis
+
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:4200"
+    ports:
+      - "4200:4200"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  postgres_data:
+```
+
+### Kubernetes
+
+For Kubernetes deployments, use separate deployments for API and background services:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: prefect-api
+  template:
+    metadata:
+      labels:
+        app: prefect-api
+    spec:
+      containers:
+      - name: prefect
+        image: prefecthq/prefect:latest
+        env:
+        - name: PREFECT_API_DATABASE_CONNECTION_URL
+          valueFrom:
+            secretKeyRef:
+              name: prefect-secrets
+              key: database-url
+        - name: PREFECT_API_REDIS_CONSUMER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command: ["prefect", "server", "start", "--host", "0.0.0.0"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-background
+spec:
+  replicas: 1  # Only run one instance of background services
+  selector:
+    matchLabels:
+      app: prefect-background
+  template:
+    metadata:
+      labels:
+        app: prefect-background
+    spec:
+      containers:
+      - name: prefect
+        image: prefecthq/prefect:latest
+        env:
+        - name: PREFECT_API_DATABASE_CONNECTION_URL
+          valueFrom:
+            secretKeyRef:
+              name: prefect-secrets
+              key: database-url
+        - name: PREFECT_API_SERVICES_RUN_BACKGROUND_SERVICES
+          value: "true"
+        - name: PREFECT_API_SERVICES_UI_ENABLED
+          value: "false"
+        command: ["prefect", "server", "start", "--host", "0.0.0.0"]
+```
+
+## Critical considerations
+
+### Database migrations
+
+In multi-server deployments, database migrations require special handling:
+
+1. **Disable automatic migrations** on application startup
+2. **Run migrations separately** as a one-time job
+3. **Coordinate migrations** with deployment updates
+
+```bash
+# Disable automatic migrations
+export PREFECT_API_DATABASE_MIGRATE_ON_START="false"
+
+# Run migrations manually
+prefect server database migrate
+```
+
+### Automation synchronization
+
+Prefect uses PostgreSQL NOTIFY/LISTEN to synchronize automation changes across servers. This ensures:
+
+- Automation updates take effect immediately on all servers
+- No stale automation data in server caches
+- Consistent automation behavior across instances
+
+This synchronization happens automatically when using PostgreSQL. For SQLite deployments, only single-server configurations are supported.
+
+### Event processing
+
+To prevent duplicate event processing:
+
+1. **Background services should run as a single instance** - Only one instance should process schedules, automations, and maintenance tasks
+2. **API servers can scale horizontally** - Multiple instances can handle UI and API requests
+3. **Use unique Redis consumer names** - Prevents message claiming conflicts
+
+### Connection pooling
+
+With multiple server instances, database connection limits become important:
+
+```sql
+-- Check current connections
+SELECT count(*) FROM pg_stat_activity;
+
+-- Check connection limit
+SHOW max_connections;
+```
+
+Consider using PgBouncer or connection pooling in your application:
+
+```bash
+# Configure connection pool size
+export PREFECT_API_DATABASE_CONNECTION_POOL_SIZE=20
+export PREFECT_API_DATABASE_CONNECTION_MAX_OVERFLOW=10
+```
+
+## Monitoring and troubleshooting
+
+### Health monitoring
+
+Monitor the health of your deployment:
+
+1. **API health checks** - Ensure all instances respond to `/api/health`
+2. **Database connections** - Monitor connection count and pool usage
+3. **Redis memory usage** - Ensure adequate memory for message queues
+4. **Event processing lag** - Monitor time between event creation and processing
+
+### Common issues
+
+**Automations not triggering consistently**
+- Verify PostgreSQL NOTIFY/LISTEN is working
+- Check that all servers connect to the same database
+- Ensure background services are running
+
+**Duplicate events or missed events**
+- Verify unique Redis consumer names
+- Check Redis connection stability
+- Monitor consumer group lag
+
+**Database connection exhaustion**
+- Reduce connection pool size per instance
+- Implement connection pooling (PgBouncer)
+- Scale database resources
+
+**Load balancer routing issues**
+- Verify health check configuration
+- Check instance startup time
+- Monitor failed health checks
+
+## Best practices
+
+1. **Start small** - Begin with 2-3 API instances and monitor behavior
+2. **Monitor extensively** - Set up comprehensive monitoring before scaling
+3. **Test failover** - Regularly test instance failures and recovery
+4. **Plan capacity** - Size database and Redis for peak load
+5. **Document configuration** - Maintain clear documentation of all settings
+
+## Example production configuration
+
+Here's a complete example for a production-ready multi-server deployment:
+
+```bash
+# Database
+export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:secure_password@postgres.internal:5432/prefect"
+export PREFECT_API_DATABASE_CONNECTION_POOL_SIZE=20
+export PREFECT_API_DATABASE_MIGRATE_ON_START="false"
+
+# Redis
+export PREFECT_API_SERVICES_EVENTS_REDIS_URL="redis://redis.internal:6379/0"
+export PREFECT_API_SERVICES_LATE_RUNS_REDIS_URL="redis://redis.internal:6379/1"
+export PREFECT_API_SERVICES_FLOW_RUN_RECORDER_REDIS_URL="redis://redis.internal:6379/2"
+
+# Unique consumer identification
+export PREFECT_API_REDIS_CONSUMER_NAME="prefect-$(hostname)-$(date +%s%N)"
+
+# Performance tuning
+export PREFECT_API_SERVICES_TRIGGERS_PUBLISHER_PREFETCH_SECONDS=10
+export PREFECT_API_SERVICES_TRIGGERS_PG_NOTIFY_HEARTBEAT_INTERVAL_SECONDS=5
+export PREFECT_API_SERVICES_TRIGGERS_PG_NOTIFY_RECONNECT_INTERVAL_SECONDS=10
+
+# Service configuration (API instances)
+export PREFECT_API_SERVICES_RUN_BACKGROUND_SERVICES="false"
+export PREFECT_SERVER_API_HOST="0.0.0.0"
+export PREFECT_SERVER_API_PORT="4200"
+
+# Service configuration (Background instance)
+# export PREFECT_API_SERVICES_RUN_BACKGROUND_SERVICES="true"
+# export PREFECT_API_SERVICES_UI_ENABLED="false"
+```
+
+## Next steps
+
+- Review [infrastructure as code](/v3/advanced/infrastructure-as-code) examples
+- Learn about [Kubernetes deployments](/v3/advanced/server-helm)
+- Explore [monitoring and observability](/v3/concepts/runtime-context) options
