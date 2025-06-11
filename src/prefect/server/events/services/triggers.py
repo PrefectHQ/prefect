@@ -33,6 +33,9 @@ class ReactiveTriggers(RunInAllServers, Service):
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Reactive triggers already started"
         consumer_name = generate_unique_consumer_name("reactive-triggers")
+        logger.info(
+            f"ReactiveTriggers starting with unique consumer name: {consumer_name}"
+        )
         self.consumer: Consumer = create_consumer(
             "events", group="reactive-triggers", name=consumer_name
         )

@@ -448,6 +448,32 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
         ),
     )
 
+    pg_notify_reconnect_interval_seconds: int = Field(
+        default=10,
+        description="""
+        The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN 
+        connection after an error. Only used when using PostgreSQL as the database.
+        Defaults to `10`.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("pg_notify_reconnect_interval_seconds"),
+            "prefect_server_services_triggers_pg_notify_reconnect_interval_seconds",
+        ),
+    )
+
+    pg_notify_heartbeat_interval_seconds: int = Field(
+        default=5,
+        description="""
+        The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN 
+        connection to ensure it's still alive. Only used when using PostgreSQL as the database.
+        Defaults to `5`.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("pg_notify_heartbeat_interval_seconds"),
+            "prefect_server_services_triggers_pg_notify_heartbeat_interval_seconds",
+        ),
+    )
+
 
 class ServerServicesSettings(PrefectBaseSettings):
     """
