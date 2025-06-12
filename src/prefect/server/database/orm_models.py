@@ -1254,6 +1254,7 @@ class Automation(Base):
     description: Mapped[str] = mapped_column(default="")
 
     enabled: Mapped[bool] = mapped_column(server_default="1", default=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
 
     trigger: Mapped[ServerTriggerTypes] = mapped_column(Pydantic(ServerTriggerTypes))
 
