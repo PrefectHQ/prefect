@@ -245,6 +245,29 @@ class TestSnowflakeConnector:
         assert snowflake_connector._connection is connection
         assert caplog.records[0].msg == "Started a new connection to Snowflake."
 
+    def test_get_connection_multiple_calls(
+        self, snowflake_connector: SnowflakeConnector, caplog
+    ):
+        connection1 = snowflake_connector.get_connection()
+        connection2 = snowflake_connector.get_connection()
+
+        assert connection1 is connection2
+        assert caplog.records[0].msg == "Started a new connection to Snowflake."
+        assert len(caplog.records) == 1
+
+    def test_get_connection_context_manager_multiple_calls(
+        self, snowflake_connector: SnowflakeConnector, caplog
+    ):
+        with snowflake_connector.get_connection():
+            pass
+
+        with snowflake_connector.get_connection():
+            pass
+
+        assert len(caplog.records) == 2
+        assert caplog.records[0].msg == "Started a new connection to Snowflake."
+        assert caplog.records[1].msg == "Started a new connection to Snowflake."
+
     def test_reset_cursors(self, snowflake_connector: SnowflakeConnector, caplog):
         mock_cursor = MagicMock()
         snowflake_connector.reset_cursors()

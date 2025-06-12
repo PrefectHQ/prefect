@@ -141,7 +141,7 @@ class SnowflakeConnector(DatabaseBlock):
                 ...
             ```
         """
-        if self._connection is not None:
+        if self._connection is not None and self._connection.is_closed() is False:
             return self._connection
 
         connect_params = {
