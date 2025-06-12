@@ -1,5 +1,7 @@
+from __future__ import annotations  # Ensure this is at the top
+
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
@@ -7,6 +9,8 @@ from pydantic_settings import SettingsConfigDict
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.types import LogLevel
 
+# Import the default function, using .. to go up one directory level
+from .._defaults import calculate_default_memo_store_path
 from .api import ServerAPISettings
 from .database import ServerDatabaseSettings
 from .deployments import ServerDeploymentsSettings
@@ -83,9 +87,9 @@ class ServerSettings(PrefectBaseSettings):
         ),
     )
 
-    memo_store_path: Optional[Path] = Field(
-        default=None,
-        description="The path to the memo store file.",
+    memo_store_path: Path = Field(
+        default_factory=calculate_default_memo_store_path,
+        description="Path to the memo store file. Defaults to <home>/memo_store.toml",
         validation_alias=AliasChoices(
             AliasPath("memo_store_path"),
             "prefect_server_memo_store_path",
