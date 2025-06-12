@@ -168,7 +168,7 @@
 						]
 					},
 					{
-						"group": "Self-hosting",
+						"group": "Prefect Self-hosted",
 						"pages": [
 							"v3/how-to-guides/self-hosted/server-cli",
 							"v3/how-to-guides/self-hosted/server-docker"

@@ -22,9 +22,23 @@ docker run -p 4200:4200 -d --rm prefecthq/prefect:3-latest -- prefect server sta
 The `-d` flag runs the container in detached mode (i.e. in the background) and the `--rm` flag removes the container once it is stopped.
 </Tip>
 
+
+After running this command, verify that your local `prefect` profile is configured to point at your containerized server.
+
+```bash
+prefect config view --show-secrets
+```
+
+Open the dashboard in your browser:
+
+```bash
+prefect dashboard open
+```
+
 For more information, see the Docker topic about [Networking using the host network](https://docs.docker.com/network/network-tutorial-host/).
 
 ## Further reading
 
 - [How to scale self-hosted Prefect](/v3/advanced/self-hosted)
 - [Server concepts](/v3/concepts/server)
+- [How to manage settings](/v3/how-to-guides/configuration/manage-settings) 
