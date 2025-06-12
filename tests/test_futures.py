@@ -454,6 +454,45 @@ class TestPrefectDistributedFuture:
         with pytest.raises(MissingResult):
             future.result()
 
+    async def test_result_async_without_explicit_wait(self, events_pipeline):
+        """Test that result_async() works without calling wait_async() first.
+
+        This tests the fix for issue #18278 where result_async() would timeout
+        when called on a task submitted via delay(), even though the task
+        completed successfully.
+        """
+
+        @task(persist_result=True)
+        def delayed_task():
+            return "delayed_result"
+
+        task_run = await delayed_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        # Run the task (simulating what happens when using delay())
+        state = run_task_sync(
+            task=delayed_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+
+        # Process events so TaskRunWaiter knows the task is complete
+        await events_pipeline.process_events()
+
+        # Create a new future instance (simulating getting the future from delay())
+        fresh_future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        # result_async should work without calling wait_async explicitly
+        result = await fresh_future.result_async(timeout=5)
+        assert result == "delayed_result"
+
+        # Verify that _final_state was properly set
+        assert fresh_future._final_state is not None
+        assert fresh_future._final_state.is_completed()
+
 
 class TestPrefectFlowRunFuture:
     async def test_wait_with_timeout(self, prefect_client: PrefectClient):
