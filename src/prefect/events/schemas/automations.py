@@ -421,6 +421,11 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
         description="A list of tags associated with this automation",
     )
 
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of tags associated with this automation",
+    )
+
     trigger: TriggerTypes = Field(
         default=...,
         description=(
