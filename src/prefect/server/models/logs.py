@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.logs import messaging
 from prefect.server.schemas.actions import LogCreate
 from prefect.utilities.collections import batched_iterable
 
@@ -54,6 +55,10 @@ async def create_logs(
         await session.execute(
             db.queries.insert(db.Log).values([log.model_dump() for log in logs])
         )
+
+        # Publish logs to streaming system after successful database insertion
+        await messaging.publish_logs(logs)
+
     except RuntimeError as exc:
         if "can't create new thread at interpreter shutdown" in str(exc):
             # Background logs sometimes fail to write when the interpreter is shutting down.
