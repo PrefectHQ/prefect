@@ -58,12 +58,49 @@ class AutomationFilterName(PrefectFilterBaseModel):
         return []
 
 
+class AutomationFilterTags(PrefectOperatorFilterBaseModel):
+    """Filter by `Automation.tags`."""
+
+    all_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags. Automations will be returned only if their tags are a superset of the list",
+    )
+    any_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags. Automations will be returned if their tags contain any of the tags in the list",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include automations without tags"
+    )
+
+    def _get_filter_list(
+        self, db: PrefectDBInterface
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        from prefect.server.schemas.filters import _as_array
+
+        filters: list[sa.ColumnElement[bool]] = []
+        if self.all_ is not None:
+            filters.append(db.Automation.tags.has_all(_as_array(self.all_)))
+        if self.any_ is not None:
+            filters.append(db.Automation.tags.has_any(_as_array(self.any_)))
+        if self.is_null_ is not None:
+            filters.append(
+                db.Automation.tags == [] if self.is_null_ else db.Automation.tags != []
+            )
+        return filters
+
+
 class AutomationFilter(PrefectOperatorFilterBaseModel):
     name: Optional[AutomationFilterName] = Field(
         default=None, description="Filter criteria for `Automation.name`"
     )
     created: Optional[AutomationFilterCreated] = Field(
         default=None, description="Filter criteria for `Automation.created`"
+    )
+    tags: Optional[AutomationFilterTags] = Field(
+        default=None, description="Filter criteria for `Automation.tags`"
     )
 
     def _get_filter_list(
@@ -75,6 +112,8 @@ class AutomationFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.name.as_sql_filter())
         if self.created is not None:
             filters.append(self.created.as_sql_filter())
+        if self.tags is not None:
+            filters.append(self.tags.as_sql_filter())
 
         return filters
 

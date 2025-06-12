@@ -485,6 +485,10 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
     enabled: bool = Field(
         default=True, description="Whether this automation will be evaluated"
     )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="A list of tags associated with this automation",
+    )
 
     trigger: ServerTriggerTypes = Field(
         default=...,
