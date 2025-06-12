@@ -1323,10 +1323,9 @@ async def test_update_automation_tags(
     existing_automation: Automation,
 ) -> None:
     """Test updating an automation's tags"""
-    automation_update = AutomationUpdate(
-        **existing_automation.model_dump(exclude={"id", "created", "updated"}),
-        tags=["new", "updated", "tags"],
-    )
+    update_data = existing_automation.model_dump(exclude={"id", "created", "updated"})
+    update_data["tags"] = ["new", "updated", "tags"]
+    automation_update = AutomationUpdate(**update_data)
 
     response = await client.put(
         f"{automations_url}/{existing_automation.id}",
@@ -1349,10 +1348,9 @@ async def test_patch_automation_does_not_affect_tags_when_not_specified(
 ) -> None:
     """Test that partial updates don't affect tags when not specified"""
     # First, set some tags on the automation
-    automation_update = AutomationUpdate(
-        **existing_automation.model_dump(exclude={"id", "created", "updated"}),
-        tags=["original", "tags"],
-    )
+    update_data = existing_automation.model_dump(exclude={"id", "created", "updated"})
+    update_data["tags"] = ["original", "tags"]
+    automation_update = AutomationUpdate(**update_data)
 
     response = await client.put(
         f"{automations_url}/{existing_automation.id}",
