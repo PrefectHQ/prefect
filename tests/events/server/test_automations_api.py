@@ -1261,3 +1261,115 @@ async def test_infrastructure_error_inside_create(
         )
         assert response.status_code == 422, response.content
         assert "Error creating automation: Something is wrong" in response.text
+
+
+async def test_create_automation_with_tags(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Test creating an automation with tags"""
+    automation_to_create.tags = ["test", "db", "critical"]
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.model_validate_json(response.content)
+    assert created_automation.tags == ["test", "db", "critical"]
+
+
+async def test_create_automation_with_empty_tags(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Test creating an automation with empty tags list"""
+    automation_to_create.tags = []
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.model_validate_json(response.content)
+    assert created_automation.tags == []
+
+
+async def test_create_automation_without_tags_defaults_to_empty(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Test creating an automation without specifying tags defaults to empty list"""
+    # Don't set tags - should default to empty list
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.model_validate_json(response.content)
+    assert created_automation.tags == []
+
+
+async def test_update_automation_tags(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    """Test updating an automation's tags"""
+    update_data = existing_automation.model_dump(exclude={"id", "created", "updated"})
+    update_data["tags"] = ["new", "updated", "tags"]
+    automation_update = AutomationUpdate(**update_data)
+
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_update.model_dump(mode="json"),
+    )
+    assert response.status_code == 204, response.content
+
+    # Verify the update
+    response = await client.get(f"{automations_url}/{existing_automation.id}")
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.model_validate_json(response.content)
+    assert updated_automation.tags == ["new", "updated", "tags"]
+
+
+async def test_patch_automation_does_not_affect_tags_when_not_specified(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    """Test that partial updates don't affect tags when not specified"""
+    # First, set some tags on the automation
+    update_data = existing_automation.model_dump(exclude={"id", "created", "updated"})
+    update_data["tags"] = ["original", "tags"]
+    automation_update = AutomationUpdate(**update_data)
+
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_update.model_dump(mode="json"),
+    )
+    assert response.status_code == 204, response.content
+
+    # Now patch only the enabled field
+    patch_data = AutomationPartialUpdate(enabled=False)
+    response = await client.patch(
+        f"{automations_url}/{existing_automation.id}",
+        json=patch_data.model_dump(mode="json"),
+    )
+    assert response.status_code == 204, response.content
+
+    # Verify tags are preserved
+    response = await client.get(f"{automations_url}/{existing_automation.id}")
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.model_validate_json(response.content)
+    assert updated_automation.tags == ["original", "tags"]
+    assert updated_automation.enabled is False
