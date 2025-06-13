@@ -125,7 +125,7 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
             "created": now("UTC"),
         }
 
-        # Single atomic INSERT ... ON CONFLICT DO UPDATE like Cloud does
+        # Single atomic INSERT ... ON CONFLICT DO UPDATE
         await session.execute(
             db.queries.insert(db.TaskRun)
             .values(**all_attributes)
