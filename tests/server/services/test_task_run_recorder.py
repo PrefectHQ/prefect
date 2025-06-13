@@ -757,9 +757,16 @@ async def test_task_run_recorder_handles_concurrent_inserts(
     base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     pending_event.occurred = base_time
     running_event.occurred = base_time + timedelta(minutes=1)
-    barrier = asyncio.Barrier(2)
 
-    async def recorder(event: ReceivedEvent):
+    # Create coordination events (alternative to asyncio.Barrier for Python 3.9/3.10 compatibility)
+    task1_ready = asyncio.Event()
+    task2_ready = asyncio.Event()
+
+    async def recorder(
+        event: ReceivedEvent,
+        ready_event: asyncio.Event,
+        other_ready_event: asyncio.Event,
+    ):
         db = provide_database_interface()
         async with db.session_context() as s:
             task_run = task_run_recorder.task_run_from_event(event)
@@ -774,8 +781,11 @@ async def test_task_run_recorder_handles_concurrent_inserts(
                 },
                 exclude_unset=True,
             )
-            # wait until the peer is at the same point
-            await barrier.wait()
+            # Signal that this task is ready
+            ready_event.set()
+            # Wait for the other task to be ready (coordination point)
+            await other_ready_event.wait()
+
             # speculative INSERT happens here ↓
             await task_run_recorder._insert_task_run(s, task_run, task_run_attributes)
 
@@ -783,8 +793,8 @@ async def test_task_run_recorder_handles_concurrent_inserts(
             await s.commit()
 
     await asyncio.gather(
-        recorder(pending_event),
-        recorder(running_event),
+        recorder(pending_event, task1_ready, task2_ready),
+        recorder(running_event, task2_ready, task1_ready),
     )
 
 
