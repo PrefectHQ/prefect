@@ -51,25 +51,38 @@ class Asset(PrefectBaseModel):
         return hash(self.key)
 
     def add_metadata(self, metadata: dict[str, Any]) -> None:
-        from prefect.context import AssetContext
+        from prefect.context import MaterializingTaskContext
 
-        asset_ctx = AssetContext.get()
+        asset_ctx = MaterializingTaskContext.get()
         if not asset_ctx:
             raise RuntimeError(
-                "Unable add Asset metadata when not inside of an AssetContext"
+                "Asset metadata operations are only available inside @materializing tasks. "
             )
 
         asset_ctx.add_asset_metadata(self.key, metadata)
 
+    def materialize(self) -> None:
+        from prefect.context import MaterializingTaskContext
+
+        asset_ctx = MaterializingTaskContext.get()
+        if not asset_ctx:
+            raise RuntimeError(
+                "Asset materialization is only available inside @materializing tasks. "
+                "Decorate your task with @materialize to use asset operations."
+            )
+
+        asset_ctx.add_downstream_asset(self)
+
 
 def add_asset_metadata(asset: str | Asset, metadata: dict[str, Any]) -> None:
-    from prefect.context import AssetContext
+    """Utility to support adding metadata for an asset key or asset object to the current materialization"""
 
-    asset_ctx = AssetContext.get()
-    if not asset_ctx:
-        raise RuntimeError(
-            "Unable to call `add_asset_metadata` when not inside of an AssetContext"
-        )
+    asset = asset if isinstance(asset, Asset) else Asset(key=asset)
+    asset.add_metadata(metadata)
 
-    asset_key = asset if isinstance(asset, str) else asset.key
-    asset_ctx.add_asset_metadata(asset_key, metadata)
+
+def materialize_asset(asset: str | Asset) -> None:
+    """Utility to add an asset key or asset object to the downstream assets of the current materialization"""
+
+    asset = asset if isinstance(asset, Asset) else Asset(key=asset)
+    asset.materialize()

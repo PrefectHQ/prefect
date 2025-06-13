@@ -43,9 +43,9 @@ from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
-    AssetContext,
     AsyncClientContext,
     FlowRunContext,
+    MaterializingTaskContext,
     SyncClientContext,
     TaskRunContext,
     hydrated_context,
@@ -663,21 +663,43 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def asset_context(self):
-        parent_asset_ctx = AssetContext.get()
+        from prefect.tasks import MaterializingTask
 
-        if parent_asset_ctx and parent_asset_ctx.copy_to_child_ctx:
-            asset_ctx = parent_asset_ctx.model_copy()
-            asset_ctx.copy_to_child_ctx = False
-        else:
-            asset_ctx = AssetContext.from_task_and_inputs(
-                self.task, self.task_run.id, self.task_run.task_inputs
+        upstream_assets = MaterializingTaskContext.extract_upstream_assets(
+            self.task_run.task_inputs
+        )
+        direct_asset_dependencies = (
+            set(self.task.asset_deps) if self.task.asset_deps else set()
+        )
+
+        if isinstance(self.task, MaterializingTask):
+            downstream_assets = set(self.task.assets) if self.task.assets else set()
+            asset_ctx = MaterializingTaskContext(
+                upstream_assets=upstream_assets,
+                direct_asset_dependencies=direct_asset_dependencies,
+                downstream_assets=downstream_assets,
+                materialized_by=self.task.materialized_by,
+                task_run_id=self.task_run.id,
             )
-
-        with asset_ctx as ctx:
+            with asset_ctx as ctx:
+                try:
+                    yield
+                finally:
+                    ctx.emit_events(self.state)
+                    flow_run_context = FlowRunContext.get()
+                    if flow_run_context:
+                        flow_run_context.task_run_assets[self.task_run.id] = (
+                            downstream_assets
+                        )
+        else:
             try:
                 yield
             finally:
-                ctx.emit_events(self.state)
+                flow_run_context = FlowRunContext.get()
+                if flow_run_context:
+                    flow_run_context.task_run_assets[self.task_run.id] = (
+                        upstream_assets | direct_asset_dependencies
+                    )
 
     @contextmanager
     def initialize_run(
@@ -1247,21 +1269,43 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def asset_context(self):
-        parent_asset_ctx = AssetContext.get()
+        from prefect.tasks import MaterializingTask
 
-        if parent_asset_ctx and parent_asset_ctx.copy_to_child_ctx:
-            asset_ctx = parent_asset_ctx.model_copy()
-            asset_ctx.copy_to_child_ctx = False
-        else:
-            asset_ctx = AssetContext.from_task_and_inputs(
-                self.task, self.task_run.id, self.task_run.task_inputs
+        upstream_assets = MaterializingTaskContext.extract_upstream_assets(
+            self.task_run.task_inputs
+        )
+        direct_asset_dependencies = (
+            set(self.task.asset_deps) if self.task.asset_deps else set()
+        )
+
+        if isinstance(self.task, MaterializingTask):
+            downstream_assets = set(self.task.assets) if self.task.assets else set()
+            asset_ctx = MaterializingTaskContext(
+                upstream_assets=upstream_assets,
+                direct_asset_dependencies=direct_asset_dependencies,
+                downstream_assets=downstream_assets,
+                materialized_by=self.task.materialized_by,
+                task_run_id=self.task_run.id,
             )
-
-        with asset_ctx as ctx:
+            with asset_ctx as ctx:
+                try:
+                    yield
+                finally:
+                    ctx.emit_events(self.state)
+                    flow_run_context = FlowRunContext.get()
+                    if flow_run_context:
+                        flow_run_context.task_run_assets[self.task_run.id] = (
+                            downstream_assets
+                        )
+        else:
             try:
                 yield
             finally:
-                ctx.emit_events(self.state)
+                flow_run_context = FlowRunContext.get()
+                if flow_run_context:
+                    flow_run_context.task_run_assets[self.task_run.id] = (
+                        upstream_assets | direct_asset_dependencies
+                    )
 
     @asynccontextmanager
     async def initialize_run(

@@ -79,7 +79,7 @@ def serialize_context(
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
-        "asset_context": AssetContext.from_task_and_inputs(
+        "asset_context": MaterializingTaskContext.from_task_and_inputs(
             **asset_ctx_kwargs
         ).serialize()
         if asset_ctx_kwargs
@@ -136,7 +136,7 @@ def hydrated_context(
                 stack.enter_context(tags(*tags_context["current_tags"]))
             # Set up asset context
             if asset_context := serialized_context.get("asset_context"):
-                stack.enter_context(AssetContext(**asset_context))
+                stack.enter_context(MaterializingTaskContext(**asset_context))
         yield
 
 
@@ -472,7 +472,7 @@ class TaskRunContext(RunContext):
         )
 
 
-class AssetContext(ContextModel):
+class MaterializingTaskContext(ContextModel):
     """
     The asset context for a materializing task run. Contains all asset-related information needed
     for asset event emission and downstream asset dependency propagation.
@@ -492,40 +492,31 @@ class AssetContext(ContextModel):
     materialized_by: Optional[str] = None
     task_run_id: Optional[UUID] = None
     materialization_metadata: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    copy_to_child_ctx: bool = False
 
     __var__: ClassVar[ContextVar[Self]] = ContextVar("asset_context")
 
-    @classmethod
-    def from_task_and_inputs(
-        cls,
-        task: "Task[Any, Any]",
-        task_run_id: UUID,
+    @staticmethod
+    def extract_upstream_assets(
         task_inputs: Optional[dict[str, set[Any]]] = None,
-        copy_to_child_ctx: bool = False,
-    ) -> "AssetContext":
+    ) -> set[Asset]:
         """
-        Create an AssetContext from a task and its resolved inputs.
+        Extract upstream assets from task inputs.
 
         Args:
-            task: The task instance
-            task_run_id: The task run ID
             task_inputs: The resolved task inputs (TaskRunResult objects)
-            copy_to_child_ctx: Whether this context should be copied on a child AssetContext
 
         Returns:
-            Configured AssetContext
+            Set of upstream assets from input task runs
         """
         from prefect.client.schemas import TaskRunResult
-        from prefect.tasks import MaterializingTask
 
         upstream_assets: set[Asset] = set()
 
         flow_ctx = FlowRunContext.get()
         if task_inputs and flow_ctx:
             for name, inputs in task_inputs.items():
-                # Parent task runs are not dependencies
-                # that we want to track
+                # Assets from parent task runs are not considered
+                # dependencies that we want to track
                 if name == "__parents__":
                     continue
 
@@ -535,23 +526,7 @@ class AssetContext(ContextModel):
                         if task_assets:
                             upstream_assets.update(task_assets)
 
-        ctx = cls(
-            direct_asset_dependencies=set(task.asset_deps)
-            if task.asset_deps
-            else set(),
-            downstream_assets=set(task.assets)
-            if isinstance(task, MaterializingTask) and task.assets
-            else set(),
-            upstream_assets=upstream_assets,
-            materialized_by=task.materialized_by
-            if isinstance(task, MaterializingTask)
-            else None,
-            task_run_id=task_run_id,
-            copy_to_child_ctx=copy_to_child_ctx,
-        )
-        ctx.update_tracked_assets()
-
-        return ctx
+        return upstream_assets
 
     def add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None:
         """
@@ -572,6 +547,16 @@ class AssetContext(ContextModel):
 
         existing = self.materialization_metadata.get(asset_key, {})
         self.materialization_metadata[asset_key] = existing | metadata
+
+    def add_downstream_asset(self, asset: Asset) -> None:
+        """
+        Add a downstream asset to the current AssetContext.
+
+        Args:
+            asset: The downstream asset to add
+        """
+
+        self.downstream_assets.add(asset)
 
     @staticmethod
     def asset_as_resource(asset: Asset) -> dict[str, str]:

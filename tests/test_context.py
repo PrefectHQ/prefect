@@ -17,9 +17,9 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.context import (
     GLOBAL_SETTINGS_CONTEXT,
-    AssetContext,
     ContextModel,
     FlowRunContext,
+    MaterializingTaskContext,
     SettingsContext,
     TagsContext,
     TaskRunContext,
@@ -542,7 +542,7 @@ class TestSerializeContext:
             "task_run_context": {},
             "tags_context": {},
             "settings_context": SettingsContext.get().serialize(),
-            "asset_context": AssetContext(
+            "asset_context": MaterializingTaskContext(
                 task_run_id=task_run_id,
                 downstream_assets={asset},
                 upstream_assets=set(),
@@ -837,7 +837,7 @@ class TestHydratedContext:
         task_run_id = uuid.uuid4()
 
         # Create context with all fields populated
-        asset_context = AssetContext(
+        asset_context = MaterializingTaskContext(
             direct_asset_dependencies={dependency_asset},
             downstream_assets={downstream_asset},
             upstream_assets={upstream_asset},
@@ -858,7 +858,7 @@ class TestHydratedContext:
 
         # Rehydrate the context
         with hydrated_context({"asset_context": serialized}):
-            rehydrated_ctx = AssetContext.get()
+            rehydrated_ctx = MaterializingTaskContext.get()
 
             # Verify all fields were properly rehydrated
             assert rehydrated_ctx is not None
