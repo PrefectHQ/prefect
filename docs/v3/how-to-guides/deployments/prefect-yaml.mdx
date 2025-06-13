@@ -518,6 +518,16 @@ The above command deploys:
 `my-deployment`
 - all deployments starting with `dep` and ending in `prod`.
 
+### Non-interactive deployment
+
+For CI/CD pipelines and automated environments, use the `--no-prompt` flag to skip interactive prompts:
+
+```bash
+prefect --no-prompt deploy --name my-deployment
+```
+
+This prevents the command from hanging on prompts and will fail clearly if required information is missing.
+
 <Note>
 **CLI Options When deploying multiple deployments**
 

@@ -30,6 +30,7 @@
 					{
 						"group": "Workflows",
 						"pages": [
+							"v3/concepts/assets",
 							"v3/concepts/flows",
 							"v3/concepts/tasks",
 							"v3/concepts/caching",
@@ -83,6 +84,7 @@
 						"group": "Workflows",
 						"pages": [
 							"v3/how-to-guides/workflows/write-and-run",
+							"v3/how-to-guides/workflows/assets",
 							"v3/how-to-guides/workflows/retries",
 							"v3/how-to-guides/workflows/custom-metadata",
 							"v3/how-to-guides/workflows/pass-inputs",
@@ -189,6 +191,7 @@
 					{
 						"group": "Workflows",
 						"pages": [
+							"v3/advanced/assets",
 							"v3/advanced/caching",
 							"v3/advanced/logging-customization",
 							"v3/advanced/transactions",
@@ -216,6 +219,7 @@
 					{
 						"group": "Platform",
 						"pages": [
+							"v3/advanced/self-hosted",
 							"v3/advanced/deploy-ci-cd",
 							"v3/advanced/infrastructure-as-code",
 							"v3/advanced/server-helm"

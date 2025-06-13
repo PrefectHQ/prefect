@@ -454,8 +454,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = state.data
 
             link_state_to_result(new_state, result)
-            if asset_context := AssetContext.get():
-                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -641,15 +639,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 persist_result = should_persist_result()
 
-            asset_context = AssetContext.get()
-            if not asset_context:
-                asset_context = AssetContext.from_task_and_inputs(
-                    task=self.task,
-                    task_run_id=self.task_run.id,
-                    task_inputs=self.task_run.task_inputs,
-                )
-                stack.enter_context(asset_context)
-
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -671,6 +660,24 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )  # type: ignore
 
             yield
+
+    @contextmanager
+    def asset_context(self):
+        parent_asset_ctx = AssetContext.get()
+
+        if parent_asset_ctx and parent_asset_ctx.copy_to_child_ctx:
+            asset_ctx = parent_asset_ctx.model_copy()
+            asset_ctx.copy_to_child_ctx = False
+        else:
+            asset_ctx = AssetContext.from_task_and_inputs(
+                self.task, self.task_run.id, self.task_run.task_inputs
+            )
+
+        with asset_ctx as ctx:
+            try:
+                yield
+            finally:
+                ctx.emit_events(self.state)
 
     @contextmanager
     def initialize_run(
@@ -1032,8 +1039,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = new_state.data
 
             link_state_to_result(new_state, result)
-            if asset_context := AssetContext.get():
-                asset_context.emit_events(new_state)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1219,15 +1224,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 persist_result = should_persist_result()
 
-            asset_context = AssetContext.get()
-            if not asset_context:
-                asset_context = AssetContext.from_task_and_inputs(
-                    task=self.task,
-                    task_run_id=self.task_run.id,
-                    task_inputs=self.task_run.task_inputs,
-                )
-                stack.enter_context(asset_context)
-
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1248,6 +1244,24 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )  # type: ignore
 
             yield
+
+    @asynccontextmanager
+    async def asset_context(self):
+        parent_asset_ctx = AssetContext.get()
+
+        if parent_asset_ctx and parent_asset_ctx.copy_to_child_ctx:
+            asset_ctx = parent_asset_ctx.model_copy()
+            asset_ctx.copy_to_child_ctx = False
+        else:
+            asset_ctx = AssetContext.from_task_and_inputs(
+                self.task, self.task_run.id, self.task_run.task_inputs
+            )
+
+        with asset_ctx as ctx:
+            try:
+                yield
+            finally:
+                ctx.emit_events(self.state)
 
     @asynccontextmanager
     async def initialize_run(
@@ -1465,7 +1479,11 @@ def run_task_sync(
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             run_coro_as_sync(engine.wait_until_ready())
-            with engine.run_context(), engine.transaction_context() as txn:
+            with (
+                engine.asset_context(),
+                engine.run_context(),
+                engine.transaction_context() as txn,
+            ):
                 engine.call_task_fn(txn)
 
     return engine.state if return_type == "state" else engine.result()
@@ -1492,7 +1510,11 @@ async def run_task_async(
     async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             await engine.wait_until_ready()
-            async with engine.run_context(), engine.transaction_context() as txn:
+            async with (
+                engine.asset_context(),
+                engine.run_context(),
+                engine.transaction_context() as txn,
+            ):
                 await engine.call_task_fn(txn)
 
     return engine.state if return_type == "state" else await engine.result()
@@ -1522,7 +1544,11 @@ def run_generator_task_sync(
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             run_coro_as_sync(engine.wait_until_ready())
-            with engine.run_context(), engine.transaction_context() as txn:
+            with (
+                engine.asset_context(),
+                engine.run_context(),
+                engine.transaction_context() as txn,
+            ):
                 # TODO: generators should default to commit_mode=OFF
                 # because they are dynamic by definition
                 # for now we just prevent this branch explicitly
@@ -1576,7 +1602,11 @@ async def run_generator_task_async(
     async with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
             await engine.wait_until_ready()
-            async with engine.run_context(), engine.transaction_context() as txn:
+            async with (
+                engine.asset_context(),
+                engine.run_context(),
+                engine.transaction_context() as txn,
+            ):
                 # TODO: generators should default to commit_mode=OFF
                 # because they are dynamic by definition
                 # for now we just prevent this branch explicitly
