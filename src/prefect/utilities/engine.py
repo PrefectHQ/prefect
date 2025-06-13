@@ -33,6 +33,9 @@ from prefect.client.schemas.responses import (
     StateWaitDetails,
 )
 from prefect.context import FlowRunContext
+
+if TYPE_CHECKING:
+    from prefect.assets import Asset
 from prefect.events import Event, emit_event
 from prefect.exceptions import (
     Pause,
@@ -820,3 +823,34 @@ def resolve_inputs_sync(
             ) from exc
 
     return resolved_parameters
+
+
+def extract_upstream_assets(
+    task_inputs: Optional[dict[str, set[Any]]] = None,
+) -> set["Asset"]:
+    """
+    Extract upstream assets from task inputs.
+
+    Args:
+        task_inputs: The resolved task inputs (TaskRunResult objects)
+
+    Returns:
+        Set of upstream assets from input task runs
+    """
+    upstream_assets: set["Asset"] = set()
+
+    flow_ctx = FlowRunContext.get()
+    if task_inputs and flow_ctx:
+        for name, inputs in task_inputs.items():
+            # Assets from parent task runs are not considered
+            # dependencies that we want to track
+            if name == "__parents__":
+                continue
+
+            for task_input in inputs:
+                if isinstance(task_input, TaskRunResult):
+                    task_assets = flow_ctx.task_run_assets.get(task_input.id)
+                    if task_assets:
+                        upstream_assets.update(task_assets)
+
+    return upstream_assets

@@ -495,39 +495,6 @@ class MaterializingTaskContext(ContextModel):
 
     __var__: ClassVar[ContextVar[Self]] = ContextVar("asset_context")
 
-    @staticmethod
-    def extract_upstream_assets(
-        task_inputs: Optional[dict[str, set[Any]]] = None,
-    ) -> set[Asset]:
-        """
-        Extract upstream assets from task inputs.
-
-        Args:
-            task_inputs: The resolved task inputs (TaskRunResult objects)
-
-        Returns:
-            Set of upstream assets from input task runs
-        """
-        from prefect.client.schemas import TaskRunResult
-
-        upstream_assets: set[Asset] = set()
-
-        flow_ctx = FlowRunContext.get()
-        if task_inputs and flow_ctx:
-            for name, inputs in task_inputs.items():
-                # Assets from parent task runs are not considered
-                # dependencies that we want to track
-                if name == "__parents__":
-                    continue
-
-                for task_input in inputs:
-                    if isinstance(task_input, TaskRunResult):
-                        task_assets = flow_ctx.task_run_assets.get(task_input.id)
-                        if task_assets:
-                            upstream_assets.update(task_assets)
-
-        return upstream_assets
-
     def add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None:
         """
         Add metadata for a materialized asset.

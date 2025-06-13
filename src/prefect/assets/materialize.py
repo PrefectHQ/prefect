@@ -28,15 +28,6 @@ def materialize(
 ) -> Callable[[Callable[P, R]], MaterializingTask[P, R]]: ...
 
 
-# Overload for using @materialize with only kwargs (no assets)
-@overload
-def materialize(
-    *,
-    by: str | None = None,
-    **task_kwargs: Unpack[TaskOptions],
-) -> Callable[[Callable[P, R]], MaterializingTask[P, R]]: ...
-
-
 def materialize(
     __fn_or_asset: Union[Callable[P, R], str, Asset, None] = None,
     *assets: Union[str, Asset],
