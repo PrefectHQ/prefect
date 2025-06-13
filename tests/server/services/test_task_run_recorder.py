@@ -25,6 +25,37 @@ from prefect.server.utilities.messaging import MessageHandler, create_publisher
 from prefect.server.utilities.messaging.memory import MemoryMessage
 
 
+class SimpleBarrier:
+    """Simple barrier implementation for Python 3.9/3.10 compatibility.
+
+    This mimics the behavior of asyncio.Barrier which was added in Python 3.11.
+    """
+
+    def __init__(self, parties: int):
+        self.parties = parties
+        self.count = 0
+        self.waiting = []
+        self.lock = asyncio.Lock()
+
+    async def wait(self):
+        event = None
+        async with self.lock:
+            self.count += 1
+            if self.count == self.parties:
+                # All parties have arrived, release everyone
+                self.count = 0
+                for evt in self.waiting:
+                    evt.set()
+                self.waiting.clear()
+            else:
+                # Wait for other parties
+                event = asyncio.Event()
+                self.waiting.append(event)
+
+        if event:
+            await event.wait()
+
+
 async def test_start_and_stop_service():
     service = task_run_recorder.TaskRunRecorder()
     service_task = asyncio.create_task(service.start())
@@ -823,32 +854,6 @@ async def test_task_run_recorder_prevents_deadlocks_with_advisory_locks(
     num_recorders = 5
     task_run_ids = [uuid4() for _ in range(num_task_runs)]
     base_time = datetime.now(timezone.utc)
-
-    # Custom barrier implementation for Python 3.9/3.10 compatibility
-    class SimpleBarrier:
-        def __init__(self, parties: int):
-            self.parties = parties
-            self.count = 0
-            self.waiting = []
-            self.lock = asyncio.Lock()
-
-        async def wait(self):
-            event = None
-            async with self.lock:
-                self.count += 1
-                if self.count == self.parties:
-                    # All parties have arrived, release everyone
-                    self.count = 0
-                    for evt in self.waiting:
-                        evt.set()
-                    self.waiting.clear()
-                else:
-                    # Wait for other parties
-                    event = asyncio.Event()
-                    self.waiting.append(event)
-
-            if event:
-                await event.wait()
 
     def create_test_event(
         task_run_id: UUID,
