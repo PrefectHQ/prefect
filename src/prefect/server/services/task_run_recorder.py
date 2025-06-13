@@ -54,32 +54,23 @@ async def _insert_task_run(
 ):
     if TYPE_CHECKING:
         assert task_run.state is not None
-    result = await session.execute(
+    await session.execute(
         db.queries.insert(db.TaskRun)
         .values(
             created=now("UTC"),
             **task_run_attributes,
         )
-        .on_conflict_do_nothing(
+        .on_conflict_do_update(
             index_elements=[
                 "id",
-            ]
+            ],
+            set_={
+                "updated": now("UTC"),
+                **task_run_attributes,
+            },
+            where=db.TaskRun.state_timestamp < task_run.state.timestamp,
         )
     )
-
-    # If the task run already exists, we need to update it
-    if result.rowcount == 0:
-        await session.execute(
-            sa.update(db.TaskRun)
-            .where(
-                db.TaskRun.id == task_run.id,
-            )
-            .where(db.TaskRun.state_timestamp < task_run.state.timestamp)
-            .values(
-                updated=now("UTC"),
-                **task_run_attributes,
-            )
-        )
 
 
 @db_injector
