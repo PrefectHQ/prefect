@@ -758,7 +758,6 @@ async def test_task_run_recorder_handles_concurrent_inserts(
     pending_event.occurred = base_time
     running_event.occurred = base_time + timedelta(minutes=1)
 
-    # Create coordination events (alternative to asyncio.Barrier for Python 3.9/3.10 compatibility)
     task1_ready = asyncio.Event()
     task2_ready = asyncio.Event()
 
