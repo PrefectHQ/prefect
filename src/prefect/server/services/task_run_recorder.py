@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, NoReturn, Optional
 from uuid import UUID
@@ -43,6 +44,21 @@ def causal_ordering() -> CausalOrdering:
     return CausalOrdering(
         "task-run-recorder",
     )
+
+
+def task_run_id_to_lock_id(task_run_id: UUID) -> int:
+    """Convert a task run UUID to a PostgreSQL advisory lock ID.
+
+    PostgreSQL advisory locks use 64-bit integers. We hash the UUID
+    and take the first 8 bytes as a signed 64-bit integer.
+    """
+    hash_bytes = hashlib.sha256(str(task_run_id).encode()).digest()[:8]
+    # Convert to signed 64-bit integer
+    lock_id = int.from_bytes(hash_bytes, byteorder="big", signed=False)
+    # Ensure it fits in PostgreSQL's bigint range
+    if lock_id > 9223372036854775807:  # 2^63 - 1
+        lock_id = lock_id - 18446744073709551616  # 2^64
+    return lock_id
 
 
 @db_injector
@@ -156,6 +172,9 @@ def task_run_from_event(event: ReceivedEvent) -> TaskRun:
 async def record_task_run_event(event: ReceivedEvent) -> None:
     task_run = task_run_from_event(event)
 
+    # Get advisory lock ID for this task run
+    lock_id = task_run_id_to_lock_id(task_run.id)
+
     task_run_attributes = task_run.model_dump_for_orm(
         exclude={
             "state_id",
@@ -178,6 +197,33 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
 
     db = provide_database_interface()
     async with db.session_context() as session:
+        # Try to acquire advisory lock for this task run (PostgreSQL only)
+        # For SQLite, skip the lock since it's single-writer by design
+        lock_acquired = True
+
+        if db.dialect.name == "postgresql":
+            # pg_try_advisory_xact_lock returns true if lock was acquired, false otherwise
+            # The lock is automatically released at transaction end
+            result = await session.execute(
+                sa.text("SELECT pg_try_advisory_xact_lock(:lock_id)").bindparams(
+                    lock_id=lock_id
+                )
+            )
+            lock_acquired = result.scalar()
+
+        if not lock_acquired:
+            # Another process is working on this task run, skip it
+            logger.debug(
+                "Skipping task run update - another process has the lock",
+                extra={
+                    "task_run_id": task_run.id,
+                    "event_id": event.id,
+                    "lock_id": lock_id,
+                },
+            )
+            return
+
+        # We have the lock (or using SQLite), proceed with the update
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(

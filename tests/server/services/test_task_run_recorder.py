@@ -3,9 +3,10 @@ from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 from typing import AsyncGenerator
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import provide_database_interface
@@ -795,6 +796,144 @@ async def test_task_run_recorder_handles_concurrent_inserts(
         recorder(pending_event, task1_ready, task2_ready),
         recorder(running_event, task2_ready, task1_ready),
     )
+
+
+async def test_task_run_recorder_prevents_deadlocks_with_advisory_locks(
+    session: AsyncSession,
+    flow,
+):
+    """Test that advisory locks prevent deadlocks when multiple recorders
+    process the same task runs simultaneously."""
+
+    # Skip test if not using PostgreSQL
+    db = provide_database_interface()
+    if db.dialect.name != "postgresql":
+        pytest.skip("Advisory locks are PostgreSQL-specific")
+
+    # Create test flow run
+    flow_run = await create_flow_run(
+        session=session,
+        flow_run=FlowRun(flow_id=flow.id, name=f"deadlock-test-run-{uuid4()}"),
+    )
+    await session.commit()
+
+    # Create events for concurrent processing
+    num_task_runs = 10
+    num_recorders = 5
+    task_run_ids = [uuid4() for _ in range(num_task_runs)]
+    base_time = datetime.now(timezone.utc)
+
+    def create_test_event(
+        task_run_id: UUID,
+        state_type: str,
+        state_name: str,
+        occurred: datetime,
+    ) -> ReceivedEvent:
+        return ReceivedEvent(
+            occurred=occurred,
+            event=f"prefect.task-run.{state_name}",
+            resource={
+                "prefect.resource.id": f"prefect.task-run.{task_run_id}",
+                "prefect.resource.name": f"test_task_{task_run_id}",
+                "prefect.state-message": "",
+                "prefect.state-type": state_type,
+                "prefect.state-name": state_name,
+                "prefect.state-timestamp": occurred.isoformat(),
+                "prefect.orchestration": "client",
+            },
+            related=[
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                    "prefect.resource.role": "flow-run",
+                }
+            ],
+            payload={
+                "intended": {"from": None, "to": state_type},
+                "initial_state": None,
+                "validated_state": {
+                    "type": state_type,
+                    "name": state_name,
+                    "message": f"Task is {state_name.lower()}",
+                    "state_details": {
+                        "pause_reschedule": False,
+                        "untrackable_result": False,
+                    },
+                },
+                "task_run": {
+                    "task_key": f"test_task_{str(task_run_id)[:8]}",
+                    "dynamic_key": "0",
+                    "empirical_policy": {
+                        "max_retries": 0,
+                        "retries": 0,
+                        "retry_delay": 0,
+                        "retry_delay_seconds": 0.0,
+                    },
+                    "name": f"test_task_{task_run_id}",
+                    "tags": [],
+                    "task_inputs": {},
+                },
+            },
+            received=occurred + timedelta(seconds=0.1),
+            id=uuid4(),
+        )
+
+    # Create coordinated recorder tasks
+    async def recorder_task(recorder_id: int, barrier: asyncio.Barrier):
+        """Simulate a recorder processing events."""
+        deadlock_count = 0
+
+        for task_run_id in task_run_ids:
+            # Create event for this recorder with slight time offset
+            event = create_test_event(
+                task_run_id=task_run_id,
+                state_type="RUNNING",
+                state_name="Running",
+                occurred=base_time + timedelta(seconds=recorder_id * 0.01),
+            )
+
+            try:
+                # Synchronize all recorders to maximize contention
+                await barrier.wait()
+
+                # Process the event
+                await task_run_recorder.record_task_run_event(event)
+
+            except Exception as e:
+                if "deadlock" in str(e).lower():
+                    deadlock_count += 1
+                    raise
+
+        return deadlock_count
+
+    # Run concurrent recorders
+    barrier = asyncio.Barrier(num_recorders)
+    tasks = [recorder_task(i, barrier) for i in range(num_recorders)]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Count deadlocks
+    total_deadlocks = sum(r for r in results if isinstance(r, int))
+
+    # Count exceptions
+    exceptions = [r for r in results if isinstance(r, Exception)]
+    deadlock_exceptions = [e for e in exceptions if "deadlock" in str(e).lower()]
+
+    # Assert no deadlocks occurred
+    assert total_deadlocks == 0, f"Expected 0 deadlocks, got {total_deadlocks}"
+    assert len(deadlock_exceptions) == 0, (
+        f"Got {len(deadlock_exceptions)} deadlock exceptions"
+    )
+
+    # Verify task runs were created successfully
+    result = await session.execute(
+        sa.select(sa.func.count())
+        .select_from(db.TaskRun)
+        .where(db.TaskRun.flow_run_id == flow_run.id)
+    )
+    task_run_count = result.scalar()
+
+    # Should have created all task runs
+    assert task_run_count == num_task_runs
 
 
 async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
