@@ -8,6 +8,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import (
@@ -746,6 +747,45 @@ async def test_task_run_recorder_handles_all_out_of_order_permutations(
 
     state_types = set(state.type for state in states)
     assert state_types == {StateType.PENDING, StateType.RUNNING, StateType.COMPLETED}
+
+
+async def test_task_run_recorder_handles_concurrent_inserts(
+    pending_event: ReceivedEvent,
+    running_event: ReceivedEvent,
+):
+    # Set up event times
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    pending_event.occurred = base_time
+    running_event.occurred = base_time + timedelta(minutes=1)
+    barrier = asyncio.Barrier(2)
+
+    async def recorder(event: ReceivedEvent):
+        db = provide_database_interface()
+        async with db.session_context() as s:
+            task_run = task_run_recorder.task_run_from_event(event)
+
+            task_run_attributes = task_run.model_dump_for_orm(
+                exclude={
+                    "state_id",
+                    "state",
+                    "created",
+                    "estimated_run_time",
+                    "estimated_start_time_delta",
+                },
+                exclude_unset=True,
+            )
+            # wait until the peer is at the same point
+            await barrier.wait()
+            # speculative INSERT happens here ↓
+            await task_run_recorder._insert_task_run(s, task_run, task_run_attributes)
+
+            # commit triggers the UPDATE/unique check that closes the cycle
+            await s.commit()
+
+    await asyncio.gather(
+        recorder(pending_event),
+        recorder(running_event),
+    )
 
 
 async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
