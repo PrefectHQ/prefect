@@ -9,6 +9,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
@@ -800,7 +801,7 @@ async def test_task_run_recorder_handles_concurrent_inserts(
 
 async def test_task_run_recorder_prevents_deadlocks_with_advisory_locks(
     session: AsyncSession,
-    flow,
+    flow: orm_models.Flow,
 ):
     """Test that advisory locks prevent deadlocks when multiple recorders
     process the same task runs simultaneously."""
@@ -822,6 +823,32 @@ async def test_task_run_recorder_prevents_deadlocks_with_advisory_locks(
     num_recorders = 5
     task_run_ids = [uuid4() for _ in range(num_task_runs)]
     base_time = datetime.now(timezone.utc)
+
+    # Custom barrier implementation for Python 3.9/3.10 compatibility
+    class SimpleBarrier:
+        def __init__(self, parties: int):
+            self.parties = parties
+            self.count = 0
+            self.waiting = []
+            self.lock = asyncio.Lock()
+
+        async def wait(self):
+            event = None
+            async with self.lock:
+                self.count += 1
+                if self.count == self.parties:
+                    # All parties have arrived, release everyone
+                    self.count = 0
+                    for evt in self.waiting:
+                        evt.set()
+                    self.waiting.clear()
+                else:
+                    # Wait for other parties
+                    event = asyncio.Event()
+                    self.waiting.append(event)
+
+            if event:
+                await event.wait()
 
     def create_test_event(
         task_run_id: UUID,
@@ -878,7 +905,7 @@ async def test_task_run_recorder_prevents_deadlocks_with_advisory_locks(
         )
 
     # Create coordinated recorder tasks
-    async def recorder_task(recorder_id: int, barrier: asyncio.Barrier):
+    async def recorder_task(recorder_id: int, barrier: SimpleBarrier):
         """Simulate a recorder processing events."""
         deadlock_count = 0
 
@@ -906,7 +933,7 @@ async def test_task_run_recorder_prevents_deadlocks_with_advisory_locks(
         return deadlock_count
 
     # Run concurrent recorders
-    barrier = asyncio.Barrier(num_recorders)
+    barrier = SimpleBarrier(num_recorders)
     tasks = [recorder_task(i, barrier) for i in range(num_recorders)]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
