@@ -351,16 +351,6 @@ async def propose_state(
 
         link_state_to_result(state, result)
 
-        # Encode materialized assets for task runs in terminal states
-        if task_run_id and state.is_final():
-            flow_run_context = FlowRunContext.get()
-            if flow_run_context and task_run_id in flow_run_context.task_run_assets:
-                assets = flow_run_context.task_run_assets[task_run_id]
-                if assets:
-                    encoded_assets = compress_and_encode_assets(assets)
-                    if encoded_assets:
-                        state.state_details.materialized_assets = encoded_assets
-
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
     async def set_state_and_handle_waits(
