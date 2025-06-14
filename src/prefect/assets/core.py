@@ -56,7 +56,7 @@ class Asset(PrefectBaseModel):
         asset_ctx = MaterializingTaskContext.get()
         if not asset_ctx:
             raise RuntimeError(
-                "Asset metadata operations are only available inside @materializing tasks. "
+                "Asset.add_metadata operations are only available inside @materialize-ing tasks. "
             )
 
         asset_ctx.add_asset_metadata(self.key, metadata)
@@ -67,8 +67,7 @@ class Asset(PrefectBaseModel):
         asset_ctx = MaterializingTaskContext.get()
         if not asset_ctx:
             raise RuntimeError(
-                "Asset materialization is only available inside @materializing tasks. "
-                "Decorate your task with @materialize to use asset operations."
+                "Asset.materialize is only available inside @materialize-ing tasks. "
             )
 
         asset_ctx.add_downstream_asset(self)
