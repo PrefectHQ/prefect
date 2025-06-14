@@ -69,17 +69,13 @@ def materialize(
     """
     from prefect.tasks import MaterializingTask
 
-    if (
-        __fn_or_asset is not None
-        and callable(__fn_or_asset)
-        and not isinstance(__fn_or_asset, (str, Asset))
-    ):
-        return MaterializingTask(
-            fn=__fn_or_asset, assets=[], materialized_by=by, **task_kwargs
-        )
-
-    if __fn_or_asset is not None and isinstance(__fn_or_asset, (str, Asset)):
-        assets = (__fn_or_asset,) + assets
+    if __fn_or_asset is not None:
+        if callable(__fn_or_asset):
+            return MaterializingTask(
+                fn=__fn_or_asset, assets=[], materialized_by=by, **task_kwargs
+            )
+        elif isinstance(__fn_or_asset, (str, Asset)):
+            assets = (__fn_or_asset,) + assets
 
     def decorator(fn: Callable[P, R]) -> MaterializingTask[P, R]:
         if not callable(fn):
