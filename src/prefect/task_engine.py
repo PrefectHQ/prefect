@@ -306,7 +306,7 @@ class BaseTaskRunEngine(Generic[P, R]):
             follows=self._last_event,
         )
 
-    def track_assets_for_downstream(self, assets: set["Asset"]):
+    def track_assets_for_downstream(self, assets: set["Asset"]) -> None:
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx and self.task_run:
             flow_run_ctx.task_run_assets[self.task_run.id] = assets
