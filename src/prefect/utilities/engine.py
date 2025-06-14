@@ -857,7 +857,7 @@ def get_dependent_task_run_ids(
     dependent_task_run_ids: set[UUID] = set()
 
     if task_inputs:
-        for name, inputs in task_inputs.items():
+        for inputs in task_inputs.values():
             for task_input in inputs:
                 if isinstance(task_input, TaskRunResult):
                     dependent_task_run_ids.add(task_input.id)
