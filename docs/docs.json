@@ -78,8 +78,8 @@
 			},
 			{
 				"tab": "How-to Guides",
-                "pages": [
-                    "v3/how-to-guides/index",
+				"pages": [
+					"v3/how-to-guides/index",
 					{
 						"group": "Workflows",
 						"pages": [
@@ -197,7 +197,7 @@
 							"v3/advanced/transactions",
 							"v3/advanced/cancel-workflows",
 							"v3/advanced/interactive",
-                            "v3/advanced/form-building",
+							"v3/advanced/form-building",
 							"v3/advanced/results",
 							"v3/advanced/background-tasks"
 						]
@@ -236,7 +236,8 @@
 			},
 			{
 				"tab": "Examples",
-                "pages": ["v3/examples/index",
+				"pages": [
+					"v3/examples/index",
 					{
 						"group": "Examples",
 						"pages": [
@@ -244,10 +245,10 @@
 							"v3/examples/simple-web-scraper",
 							"v3/examples/run-api-sourced-etl",
 							"v3/examples/run-dbt-with-prefect"
-                        ]
-                    }
-                ]
-            },
+						]
+					}
+				]
+			},
 			{
 				"tab": "Integrations",
 				"groups": [
@@ -404,7 +405,9 @@
 									"v3/api-ref/rest-api/index",
 									{
 										"group": "Cloud API",
-										"pages": ["v3/api-ref/rest-api/cloud/index"]
+										"pages": [
+											"v3/api-ref/rest-api/cloud/index"
+										]
 									},
 									{
 										"group": "Server API",
@@ -685,7 +688,8 @@
 													"v3/api-ref/rest-api/server/automations/count-automations",
 													"v3/api-ref/rest-api/server/automations/read-automations-related-to-resource",
 													"v3/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
-													"v3/api-ref/rest-api/server/automations/validate-template"
+													"v3/api-ref/rest-api/server/automations/validate-template",
+													"v3/api-ref/rest-api/server/automations/validate-template-1"
 												]
 											},
 											{

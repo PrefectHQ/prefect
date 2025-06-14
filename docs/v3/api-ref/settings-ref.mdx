@@ -911,6 +911,13 @@ Controls the size of the statement cache for PostgreSQL connections. When set to
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE`
 
+### `tls`
+Settings for controlling SQLAlchemy mTLS behavior
+
+**Type**: [SQLAlchemyTLSSettings](#sqlalchemytlssettings)
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.tls`
+
 ---
 ## SQLAlchemySettings
 Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
@@ -969,6 +976,70 @@ Controls maximum overflow of the connection pool. To prevent overflow, set to -1
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
+
+---
+## SQLAlchemyTLSSettings
+Settings for controlling SQLAlchemy mTLS context when
+using a PostgreSQL database.
+### `enabled`
+Controls whether connected to mTLS enabled PostgreSQL when using a PostgreSQL database with the Prefect backend.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.tls.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_ENABLED`
+
+### `ca_file`
+This configuration settings option specifies the path to PostgreSQL client certificate authority file.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.tls.ca_file`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_CA_FILE`
+
+### `cert_file`
+This configuration settings option specifies the path to PostgreSQL client certificate file.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.tls.cert_file`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_CERT_FILE`
+
+### `key_file`
+This configuration settings option specifies the path to PostgreSQL client key file.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.tls.key_file`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_KEY_FILE`
+
+### `check_hostname`
+This configuration settings option specifies whether to verify PostgreSQL server hostname.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.tls.check_hostname`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_TLS_CHECK_HOSTNAME`
 
 ---
 ## ServerAPISettings
@@ -2025,6 +2096,38 @@ Whether or not to start the triggers service in the server application.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED`, `PREFECT_API_SERVICES_TRIGGERS_ENABLED`
 
+### `pg_notify_reconnect_interval_seconds`
+
+        The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN 
+        connection after an error. Only used when using PostgreSQL as the database.
+        Defaults to `10`.
+        
+
+**Type**: `integer`
+
+**Default**: `10`
+
+**TOML dotted key path**: `server.services.triggers.pg_notify_reconnect_interval_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TRIGGERS_PG_NOTIFY_RECONNECT_INTERVAL_SECONDS`
+
+### `pg_notify_heartbeat_interval_seconds`
+
+        The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN 
+        connection to ensure it's still alive. Only used when using PostgreSQL as the database.
+        Defaults to `5`.
+        
+
+**Type**: `integer`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.triggers.pg_notify_heartbeat_interval_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TRIGGERS_PG_NOTIFY_HEARTBEAT_INTERVAL_SECONDS`
+
 ---
 ## ServerSettings
 Settings for controlling server behavior
@@ -2381,6 +2484,18 @@ If `True`, sets the default cache policy on all tasks to `NO_CACHE`.
 **Supported environment variables**:
 `PREFECT_TASKS_DEFAULT_NO_CACHE`
 
+### `disable_caching`
+If `True`, disables caching on all tasks regardless of cache policy.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `tasks.disable_caching`
+
+**Supported environment variables**:
+`PREFECT_TASKS_DISABLE_CACHING`
+
 ### `default_retries`
 This value sets the default number of retries for all tasks.
 
@@ -2399,7 +2514,7 @@ This value sets the default number of retries for all tasks.
 ### `default_retry_delay_seconds`
 This value sets the default retry delay seconds for all tasks.
 
-**Type**: `integer | number | array`
+**Type**: `string | integer | number | array | None`
 
 **Default**: `0`
 
