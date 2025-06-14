@@ -681,3 +681,43 @@ def test_view_with_pyproject_toml_file_and_profile(tmp_path):
 
         assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
         assert FROM_PYPROJECT_TOML in res.stdout
+
+
+def test_view_with_prefect_toml_file_with_nonhomogeneous_array(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_str = """\
+table = [
+    "string",
+    { inline = "table" },
+]
+
+[client]
+retry_extra_codes = "300"
+        """
+        with open("prefect.toml", "w") as f:
+            f.write(toml_str)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PREFECT_TOML in res.stdout
+
+
+def test_view_with_pyproject_toml_file_with_nonhomogeneous_array(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_str = """\
+table = [
+    "string",
+    { inline = "table" },
+]
+
+[tool.prefect.client]
+retry_extra_codes = "300"
+        """
+        with open("pyproject.toml", "w") as f:
+            f.write(toml_str)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PYPROJECT_TOML in res.stdout
