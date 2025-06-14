@@ -512,6 +512,7 @@ def _memoize_block_auto_registration(
     not changed since the last invocation
     """
     import toml
+    import tomli
 
     import prefect.plugins
     from prefect.blocks.core import Block
@@ -540,9 +541,9 @@ def _memoize_block_auto_registration(
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
         try:
             if memo_store_path.exists():
-                saved_blocks_loading_hash = toml.load(memo_store_path).get(
-                    "block_auto_registration"
-                )
+                saved_blocks_loading_hash = tomli.loads(
+                    memo_store_path.read_text()
+                ).get("block_auto_registration")
                 if (
                     saved_blocks_loading_hash is not None
                     and current_blocks_loading_hash == saved_blocks_loading_hash
