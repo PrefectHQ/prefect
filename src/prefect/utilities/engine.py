@@ -1,8 +1,10 @@
 import asyncio
+import base64
 import contextlib
 import os
 import signal
 import time
+import zlib
 from collections.abc import Awaitable, Callable, Generator
 from functools import partial
 from logging import Logger
@@ -18,12 +20,14 @@ from typing import (
 from uuid import UUID
 
 import anyio
+import orjson
 from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
+from prefect.assets import Asset
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.client.schemas.responses import (
@@ -760,6 +764,22 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
 
     result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 
+    # Extract materialized assets from state details and add to flow context
+    if state.state_details.materialized_assets:
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            decoded_assets = decompress_and_decode_assets(
+                state.state_details.materialized_assets
+            )
+            if decoded_assets and state.state_details.task_run_id:
+                # Add the decoded assets to the flow run context for downstream task dependency tracking
+                existing_assets = flow_run_context.task_run_assets.get(
+                    state.state_details.task_run_id, set()
+                )
+                flow_run_context.task_run_assets[state.state_details.task_run_id] = (
+                    existing_assets | decoded_assets
+                )
+
     if state.state_details.traceparent:
         parameter_context = propagate.extract(
             {"traceparent": state.state_details.traceparent}
@@ -820,3 +840,73 @@ def resolve_inputs_sync(
             ) from exc
 
     return resolved_parameters
+
+
+def get_dependent_task_run_ids(
+    task_inputs: Optional[dict[str, set[Any]]] = None,
+) -> set[UUID]:
+    """
+    Get all task run IDs that the given task inputs depend on.
+
+    Args:
+        task_inputs: The resolved task inputs (TaskRunResult objects)
+
+    Returns:
+        Set of task run IDs that the inputs depend on
+    """
+    dependent_task_run_ids: set[UUID] = set()
+
+    if task_inputs:
+        for inputs in task_inputs.values():
+            for task_input in inputs:
+                if isinstance(task_input, TaskRunResult):
+                    dependent_task_run_ids.add(task_input.id)
+
+    return dependent_task_run_ids
+
+
+def extract_upstream_assets(
+    task_inputs: Optional[dict[str, set[Any]]] = None,
+) -> set["Asset"]:
+    """
+    Extract upstream assets from task inputs.
+
+    Args:
+        task_inputs: The resolved task inputs (TaskRunResult objects)
+
+    Returns:
+        Set of upstream assets from input task runs
+    """
+    upstream_assets: set["Asset"] = set()
+
+    flow_ctx = FlowRunContext.get()
+    if task_inputs and flow_ctx:
+        dependent_task_run_ids = get_dependent_task_run_ids(task_inputs)
+        for task_run_id in dependent_task_run_ids:
+            task_assets = flow_ctx.task_run_assets.get(task_run_id)
+            if task_assets:
+                upstream_assets.update(task_assets)
+
+    return upstream_assets
+
+
+def compress_and_encode_assets(assets: set[Asset]) -> str:
+    asset_keys = [asset.key for asset in assets]
+
+    encoded = base64.b64encode(zlib.compress(orjson.dumps(asset_keys))).decode()
+
+    return encoded
+
+
+def decompress_and_decode_assets(encoded_data: str) -> set[Asset]:
+    if not encoded_data:
+        return set()
+
+    try:
+        asset_keys = orjson.loads(
+            zlib.decompress(base64.b64decode(encoded_data.encode()))
+        )
+        assets = {Asset(key=key) for key in asset_keys}
+        return assets
+    except Exception:
+        return set()

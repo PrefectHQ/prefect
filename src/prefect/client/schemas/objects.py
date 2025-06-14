@@ -181,6 +181,8 @@ class StateDetails(PrefectBaseModel):
     task_parameters_id: Optional[UUID] = None
     # Captures the trace_id and span_id of the span where this state was created
     traceparent: Optional[str] = None
+    # Compressed and base64 encoded materialized assets for distributed asset tracking
+    materialized_assets: Optional[str] = None
 
 
 def data_discriminator(x: Any) -> str:

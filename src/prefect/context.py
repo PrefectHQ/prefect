@@ -59,15 +59,10 @@ if TYPE_CHECKING:
     from prefect.tasks import Task
 
 
-def serialize_context(
-    asset_ctx_kwargs: Union[dict[str, Any], None] = None,
-) -> dict[str, Any]:
+def serialize_context() -> dict[str, Any]:
     """
     Serialize the current context for use in a remote execution environment.
 
-    Optionally provide asset_ctx_kwargs to create new AssetContext, that will be used
-    in the remote execution environment. This is useful for TaskRunners, who rely on creating the
-    task run in the remote environment.
     """
     flow_run_context = EngineContext.get()
     task_run_context = TaskRunContext.get()
@@ -79,11 +74,6 @@ def serialize_context(
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
-        "asset_context": AssetContext.from_task_and_inputs(
-            **asset_ctx_kwargs
-        ).serialize()
-        if asset_ctx_kwargs
-        else {},
     }
 
 
@@ -117,10 +107,30 @@ def hydrated_context(
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
                 task_runner = stack.enter_context(flow.task_runner.duplicate())
+
+                # Restore task_run_assets if present in serialized context
+                task_run_assets = {}
+                if "task_run_assets" in flow_run_context:
+                    from uuid import UUID
+
+                    from prefect.assets import Asset
+
+                    for task_run_id_str, assets_data in flow_run_context[
+                        "task_run_assets"
+                    ].items():
+                        task_run_id = UUID(task_run_id_str)
+                        assets = {Asset(**asset_data) for asset_data in assets_data}
+                        task_run_assets[task_run_id] = assets
+
                 flow_run_context = FlowRunContext(
-                    **flow_run_context,
+                    **{
+                        k: v
+                        for k, v in flow_run_context.items()
+                        if k != "task_run_assets"
+                    },
                     client=client,
                     task_runner=task_runner,
+                    task_run_assets=task_run_assets,
                     detached=True,
                 )
                 stack.enter_context(flow_run_context)
@@ -134,9 +144,6 @@ def hydrated_context(
             # Set up tags context
             if tags_context := serialized_context.get("tags_context"):
                 stack.enter_context(tags(*tags_context["current_tags"]))
-            # Set up asset context
-            if asset_context := serialized_context.get("asset_context"):
-                stack.enter_context(AssetContext(**asset_context))
         yield
 
 
@@ -427,6 +434,13 @@ class EngineContext(RunContext):
                 exclude_unset=True,
                 context={"include_secrets": include_secrets},
             )
+
+        if self.task_run_assets:
+            serialized["task_run_assets"] = {
+                str(task_run_id): [asset.model_dump(mode="json") for asset in assets]
+                for task_run_id, assets in self.task_run_assets.items()
+            }
+
         return serialized
 
 
@@ -472,7 +486,7 @@ class TaskRunContext(RunContext):
         )
 
 
-class AssetContext(ContextModel):
+class MaterializingTaskContext(ContextModel):
     """
     The asset context for a materializing task run. Contains all asset-related information needed
     for asset event emission and downstream asset dependency propagation.
@@ -492,66 +506,8 @@ class AssetContext(ContextModel):
     materialized_by: Optional[str] = None
     task_run_id: Optional[UUID] = None
     materialization_metadata: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    copy_to_child_ctx: bool = False
 
     __var__: ClassVar[ContextVar[Self]] = ContextVar("asset_context")
-
-    @classmethod
-    def from_task_and_inputs(
-        cls,
-        task: "Task[Any, Any]",
-        task_run_id: UUID,
-        task_inputs: Optional[dict[str, set[Any]]] = None,
-        copy_to_child_ctx: bool = False,
-    ) -> "AssetContext":
-        """
-        Create an AssetContext from a task and its resolved inputs.
-
-        Args:
-            task: The task instance
-            task_run_id: The task run ID
-            task_inputs: The resolved task inputs (TaskRunResult objects)
-            copy_to_child_ctx: Whether this context should be copied on a child AssetContext
-
-        Returns:
-            Configured AssetContext
-        """
-        from prefect.client.schemas import TaskRunResult
-        from prefect.tasks import MaterializingTask
-
-        upstream_assets: set[Asset] = set()
-
-        flow_ctx = FlowRunContext.get()
-        if task_inputs and flow_ctx:
-            for name, inputs in task_inputs.items():
-                # Parent task runs are not dependencies
-                # that we want to track
-                if name == "__parents__":
-                    continue
-
-                for task_input in inputs:
-                    if isinstance(task_input, TaskRunResult):
-                        task_assets = flow_ctx.task_run_assets.get(task_input.id)
-                        if task_assets:
-                            upstream_assets.update(task_assets)
-
-        ctx = cls(
-            direct_asset_dependencies=set(task.asset_deps)
-            if task.asset_deps
-            else set(),
-            downstream_assets=set(task.assets)
-            if isinstance(task, MaterializingTask) and task.assets
-            else set(),
-            upstream_assets=upstream_assets,
-            materialized_by=task.materialized_by
-            if isinstance(task, MaterializingTask)
-            else None,
-            task_run_id=task_run_id,
-            copy_to_child_ctx=copy_to_child_ctx,
-        )
-        ctx.update_tracked_assets()
-
-        return ctx
 
     def add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None:
         """
@@ -572,6 +528,16 @@ class AssetContext(ContextModel):
 
         existing = self.materialization_metadata.get(asset_key, {})
         self.materialization_metadata[asset_key] = existing | metadata
+
+    def add_downstream_asset(self, asset: Asset) -> None:
+        """
+        Add a downstream asset to the current AssetContext.
+
+        Args:
+            asset: The downstream asset to add
+        """
+
+        self.downstream_assets.add(asset)
 
     @staticmethod
     def asset_as_resource(asset: Asset) -> dict[str, str]:
