@@ -74,7 +74,7 @@ def materialize(
             return MaterializingTask(
                 fn=__fn_or_asset, assets=[], materialized_by=by, **task_kwargs
             )
-        elif isinstance(__fn_or_asset, (str, Asset)):
+        else:
             assets = (__fn_or_asset,) + assets
 
     def decorator(fn: Callable[P, R]) -> MaterializingTask[P, R]:
