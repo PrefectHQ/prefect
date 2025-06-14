@@ -54,14 +54,7 @@ class PrefectDaskClient(Client):
                 }
             run_task_kwargs["dependencies"] = dependencies
 
-            context = serialize_context(
-                asset_ctx_kwargs={
-                    "task": func,
-                    "task_run_id": task_run_id,
-                    "task_inputs": dependencies,
-                    "copy_to_child_ctx": True,
-                }
-            )
+            context = serialize_context()
             run_task_kwargs["context"] = context
 
             @wraps(func)

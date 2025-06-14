@@ -95,6 +95,7 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
+    compress_and_encode_assets,
     emit_task_run_state_change_event,
     extract_upstream_assets,
     link_state_to_result,
@@ -461,6 +462,17 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = state.data
 
             link_state_to_result(new_state, result)
+
+            flow_run_context = FlowRunContext.get()
+            materializing_task_context = MaterializingTaskContext.get()
+            if (
+                flow_run_context
+                and materializing_task_context
+                and materializing_task_context.downstream_assets
+            ):
+                state.state_details.materialized_assets = compress_and_encode_assets(
+                    materializing_task_context.downstream_assets
+                )
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1064,6 +1076,17 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 result = new_state.data
 
             link_state_to_result(new_state, result)
+
+            flow_run_context = FlowRunContext.get()
+            materializing_task_context = MaterializingTaskContext.get()
+            if (
+                flow_run_context
+                and materializing_task_context
+                and materializing_task_context.downstream_assets
+            ):
+                state.state_details.materialized_assets = compress_and_encode_assets(
+                    materializing_task_context.downstream_assets
+                )
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(

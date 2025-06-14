@@ -59,15 +59,10 @@ if TYPE_CHECKING:
     from prefect.tasks import Task
 
 
-def serialize_context(
-    asset_ctx_kwargs: Union[dict[str, Any], None] = None,
-) -> dict[str, Any]:
+def serialize_context() -> dict[str, Any]:
     """
     Serialize the current context for use in a remote execution environment.
 
-    Optionally provide asset_ctx_kwargs to create new AssetContext, that will be used
-    in the remote execution environment. This is useful for TaskRunners, who rely on creating the
-    task run in the remote environment.
     """
     flow_run_context = EngineContext.get()
     task_run_context = TaskRunContext.get()
@@ -79,11 +74,6 @@ def serialize_context(
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
-        "asset_context": MaterializingTaskContext.from_task_and_inputs(
-            **asset_ctx_kwargs
-        ).serialize()
-        if asset_ctx_kwargs
-        else {},
     }
 
 
@@ -117,10 +107,30 @@ def hydrated_context(
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
                 task_runner = stack.enter_context(flow.task_runner.duplicate())
+
+                # Restore task_run_assets if present in serialized context
+                task_run_assets = {}
+                if "task_run_assets" in flow_run_context:
+                    from uuid import UUID
+
+                    from prefect.assets import Asset
+
+                    for task_run_id_str, assets_data in flow_run_context[
+                        "task_run_assets"
+                    ].items():
+                        task_run_id = UUID(task_run_id_str)
+                        assets = {Asset(**asset_data) for asset_data in assets_data}
+                        task_run_assets[task_run_id] = assets
+
                 flow_run_context = FlowRunContext(
-                    **flow_run_context,
+                    **{
+                        k: v
+                        for k, v in flow_run_context.items()
+                        if k != "task_run_assets"
+                    },
                     client=client,
                     task_runner=task_runner,
+                    task_run_assets=task_run_assets,
                     detached=True,
                 )
                 stack.enter_context(flow_run_context)
@@ -134,9 +144,6 @@ def hydrated_context(
             # Set up tags context
             if tags_context := serialized_context.get("tags_context"):
                 stack.enter_context(tags(*tags_context["current_tags"]))
-            # Set up asset context
-            if asset_context := serialized_context.get("asset_context"):
-                stack.enter_context(MaterializingTaskContext(**asset_context))
         yield
 
 
@@ -427,6 +434,13 @@ class EngineContext(RunContext):
                 exclude_unset=True,
                 context={"include_secrets": include_secrets},
             )
+
+        if self.task_run_assets:
+            serialized["task_run_assets"] = {
+                str(task_run_id): [asset.model_dump(mode="json") for asset in assets]
+                for task_run_id, assets in self.task_run_assets.items()
+            }
+
         return serialized
 
 

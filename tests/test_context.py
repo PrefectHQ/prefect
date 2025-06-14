@@ -12,7 +12,7 @@ import pytest
 
 import prefect.settings
 from prefect import flow, task
-from prefect.assets import Asset, materialize
+from prefect.assets import Asset
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.context import (
@@ -521,35 +521,13 @@ class TestSerializeContext:
             }
 
     def test_with_asset_context(self):
-        asset = Asset(key="s3://bucket/data.csv")
-
-        @materialize(asset, by="foo")
-        def bar():
-            pass
-
-        task_run_id = uuid.uuid4()
-
-        serialized = serialize_context(
-            asset_ctx_kwargs={
-                "task": bar,
-                "task_run_id": task_run_id,
-                "task_inputs": {},
-                "copy_to_child_ctx": True,
-            }
-        )
+        # Test that serialize_context works without asset_ctx_kwargs
+        serialized = serialize_context()
         assert serialized == {
             "flow_run_context": {},
             "task_run_context": {},
             "tags_context": {},
             "settings_context": SettingsContext.get().serialize(),
-            "asset_context": MaterializingTaskContext(
-                task_run_id=task_run_id,
-                downstream_assets={asset},
-                upstream_assets=set(),
-                direct_asset_dependencies=set(),
-                materialized_by="foo",
-                copy_to_child_ctx=True,
-            ).serialize(),
         }
 
     def test_with_multiple_contexts(self):
