@@ -12,6 +12,7 @@ from typing import (
 )
 
 import toml
+import tomli
 from pydantic import (
     BaseModel,
     BeforeValidator,
@@ -276,7 +277,7 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
         <SETTING: str> = <value: Any>
         ```
     """
-    contents = toml.loads(path.read_text())
+    contents = tomli.loads(path.read_text())
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 

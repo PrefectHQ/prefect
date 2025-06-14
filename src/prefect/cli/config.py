@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Any, Union, cast
 
-import toml
+import tomli
 import typer
 from dotenv import dotenv_values
 from typing_extensions import Literal
@@ -273,12 +273,12 @@ def view(
 
     # Process settings from prefect.toml
     if Path("prefect.toml").exists():
-        toml_settings = toml.load(Path("prefect.toml"))
+        toml_settings = tomli.loads(Path("prefect.toml").read_text())
         _process_toml_settings(toml_settings, base_path=[], source="prefect.toml")
 
     # Process settings from pyproject.toml
     if Path("pyproject.toml").exists():
-        pyproject_settings = toml.load(Path("pyproject.toml"))
+        pyproject_settings = tomli.loads(Path("pyproject.toml").read_text())
         pyproject_settings = pyproject_settings.get("tool", {}).get("prefect", {})
         _process_toml_settings(
             pyproject_settings, base_path=[], source="pyproject.toml"
