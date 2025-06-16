@@ -100,12 +100,12 @@ from prefect.utilities.engine import (
     extract_upstream_assets,
     link_state_to_result,
     resolve_to_final_result,
+    track_assets_for_downstream,
 )
 from prefect.utilities.math import clamped_poisson_interval
 from prefect.utilities.timeout import timeout, timeout_async
 
 if TYPE_CHECKING:
-    from prefect.assets.core import Asset
     from prefect.tasks import OneOrManyFutureOrResult, Task
 
 P = ParamSpec("P")
@@ -306,11 +306,6 @@ class BaseTaskRunEngine(Generic[P, R]):
             follows=self._last_event,
         )
 
-    def track_assets_for_downstream(self, assets: set["Asset"]) -> None:
-        flow_run_ctx = FlowRunContext.get()
-        if flow_run_ctx and self.task_run:
-            flow_run_ctx.task_run_assets[self.task_run.id] = assets
-
 
 @dataclass
 class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
@@ -464,14 +459,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             link_state_to_result(new_state, result)
 
             flow_run_context = FlowRunContext.get()
-            materializing_task_context = MaterializingTaskContext.get()
             if (
                 flow_run_context
-                and materializing_task_context
-                and materializing_task_context.downstream_assets
+                and self.task_run.id in flow_run_context.task_run_assets
             ):
-                state.state_details.materialized_assets = compress_and_encode_assets(
-                    materializing_task_context.downstream_assets
+                state.state_details.propagated_assets = compress_and_encode_assets(
+                    flow_run_context.task_run_assets[self.task_run.id]
                 )
 
         # emit a state change event
@@ -690,12 +683,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # If this is just a regular @task we only need to
         # propagate assets for downstream @materialize-ing tasks
         if not isinstance(self.task, MaterializingTask):
-            try:
-                yield
-            finally:
-                self.track_assets_for_downstream(
-                    upstream_assets | direct_asset_dependencies
-                )
+            track_assets_for_downstream(
+                self.task_run.id, upstream_assets | direct_asset_dependencies
+            )
+            yield
             return
 
         # If it's a @materialize-ing task we want to emit
@@ -711,10 +702,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         with asset_ctx as ctx:
             try:
+                track_assets_for_downstream(self.task_run.id, ctx.downstream_assets)
                 yield
             finally:
                 ctx.emit_events(self.state)
-                self.track_assets_for_downstream(ctx.downstream_assets)
 
     @contextmanager
     def initialize_run(
@@ -1078,14 +1069,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             link_state_to_result(new_state, result)
 
             flow_run_context = FlowRunContext.get()
-            materializing_task_context = MaterializingTaskContext.get()
             if (
                 flow_run_context
-                and materializing_task_context
-                and materializing_task_context.downstream_assets
+                and self.task_run.id in flow_run_context.task_run_assets
             ):
-                state.state_details.materialized_assets = compress_and_encode_assets(
-                    materializing_task_context.downstream_assets
+                state.state_details.propagated_assets = compress_and_encode_assets(
+                    flow_run_context.task_run_assets[self.task_run.id]
                 )
 
         # emit a state change event
@@ -1303,12 +1292,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # If this is just a regular @task we only need to
         # propagate assets for downstream @materialize-ing tasks
         if not isinstance(self.task, MaterializingTask):
-            try:
-                yield
-            finally:
-                self.track_assets_for_downstream(
-                    upstream_assets | direct_asset_dependencies
-                )
+            track_assets_for_downstream(
+                self.task_run.id, upstream_assets | direct_asset_dependencies
+            )
+            yield
             return
 
         # If it's a @materialize-ing task we want to emit
@@ -1324,10 +1311,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         with asset_ctx as ctx:
             try:
+                track_assets_for_downstream(self.task_run.id, ctx.downstream_assets)
                 yield
             finally:
                 ctx.emit_events(self.state)
-                self.track_assets_for_downstream(ctx.downstream_assets)
 
     @asynccontextmanager
     async def initialize_run(

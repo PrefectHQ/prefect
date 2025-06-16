@@ -536,8 +536,10 @@ class MaterializingTaskContext(ContextModel):
         Args:
             asset: The downstream asset to add
         """
+        from prefect.utilities.engine import track_assets_for_downstream
 
         self.downstream_assets.add(asset)
+        track_assets_for_downstream(self.task_run.id, asset)
 
     @staticmethod
     def asset_as_resource(asset: Asset) -> dict[str, str]:

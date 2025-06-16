@@ -98,6 +98,8 @@ class StateDetails(PrefectBaseModel):
     task_parameters_id: Optional[UUID] = None
     # Captures the trace_id and span_id of the span where this state was created
     traceparent: Optional[str] = None
+    # Compressed assets for distributed asset tracking
+    propagated_assets: Optional[str] = None
 
 
 class StateBaseModel(TimeSeriesBaseModel):

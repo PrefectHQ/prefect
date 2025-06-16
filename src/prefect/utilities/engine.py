@@ -764,21 +764,18 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
 
     result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 
-    # Extract materialized assets from state details and add to flow context
-    if state.state_details.materialized_assets:
-        flow_run_context = FlowRunContext.get()
-        if flow_run_context:
-            decoded_assets = decompress_and_decode_assets(
-                state.state_details.materialized_assets
-            )
-            if decoded_assets and state.state_details.task_run_id:
-                # Add the decoded assets to the flow run context for downstream task dependency tracking
-                existing_assets = flow_run_context.task_run_assets.get(
-                    state.state_details.task_run_id, set()
-                )
-                flow_run_context.task_run_assets[state.state_details.task_run_id] = (
-                    existing_assets | decoded_assets
-                )
+    flow_run_context = FlowRunContext.get()
+
+    if (
+        flow_run_context
+        and state.state_details.propagated_assets
+        and state.state_details.task_run_id
+    ):
+        decoded_assets = decompress_and_decode_assets(
+            state.state_details.propagated_assets
+        )
+        if decoded_assets:
+            track_assets_for_downstream(state.state_details.task_run_id, decoded_assets)
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(
@@ -842,7 +839,7 @@ def resolve_inputs_sync(
     return resolved_parameters
 
 
-def get_dependent_task_run_ids(
+def get_asset_dependent_task_run_ids(
     task_inputs: Optional[dict[str, set[Any]]] = None,
 ) -> set[UUID]:
     """
@@ -857,7 +854,12 @@ def get_dependent_task_run_ids(
     dependent_task_run_ids: set[UUID] = set()
 
     if task_inputs:
-        for inputs in task_inputs.values():
+        for name, inputs in task_inputs.items():
+            # Parent task runs are not dependencies
+            # that we want to track for assets
+            if name == "__parents__":
+                continue
+
             for task_input in inputs:
                 if isinstance(task_input, TaskRunResult):
                     dependent_task_run_ids.add(task_input.id)
@@ -881,13 +883,28 @@ def extract_upstream_assets(
 
     flow_ctx = FlowRunContext.get()
     if task_inputs and flow_ctx:
-        dependent_task_run_ids = get_dependent_task_run_ids(task_inputs)
+        dependent_task_run_ids = get_asset_dependent_task_run_ids(task_inputs)
         for task_run_id in dependent_task_run_ids:
             task_assets = flow_ctx.task_run_assets.get(task_run_id)
             if task_assets:
                 upstream_assets.update(task_assets)
 
     return upstream_assets
+
+
+def track_assets_for_downstream(
+    task_run_id: UUID, assets: Union["Asset", set["Asset"]]
+) -> None:
+    flow_run_ctx = FlowRunContext.get()
+    if not flow_run_ctx or not assets:
+        return
+
+    assets_set = {assets} if not isinstance(assets, set) else assets
+
+    if task_run_id in flow_run_ctx.task_run_assets:
+        flow_run_ctx.task_run_assets[task_run_id] |= assets_set
+    else:
+        flow_run_ctx.task_run_assets[task_run_id] = assets_set
 
 
 def compress_and_encode_assets(assets: set[Asset]) -> str:

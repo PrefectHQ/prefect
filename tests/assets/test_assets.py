@@ -1428,7 +1428,7 @@ def test_add_asset_metadata_throws_error_for_invalid_asset_key():
     # This should raise a RuntimeError
     with pytest.raises(
         RuntimeError,
-        match="Asset metadata operations are only available inside @materializing tasks",
+        match="Asset.add_metadata operations are only available inside @materialize-ing tasks",
     ):
         non_materializing_pipeline()
 
