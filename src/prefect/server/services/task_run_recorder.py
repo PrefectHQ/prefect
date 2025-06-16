@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, NoReturn, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, NoReturn, Optional
 from uuid import UUID
 
-import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
@@ -46,34 +45,6 @@ def causal_ordering() -> CausalOrdering:
 
 
 @db_injector
-async def _insert_task_run(
-    db: PrefectDBInterface,
-    session: AsyncSession,
-    task_run: TaskRun,
-    task_run_attributes: Dict[str, Any],
-):
-    if TYPE_CHECKING:
-        assert task_run.state is not None
-    await session.execute(
-        db.queries.insert(db.TaskRun)
-        .values(
-            created=now("UTC"),
-            **task_run_attributes,
-        )
-        .on_conflict_do_update(
-            index_elements=[
-                "id",
-            ],
-            set_={
-                "updated": now("UTC"),
-                **task_run_attributes,
-            },
-            where=db.TaskRun.state_timestamp < task_run.state.timestamp,
-        )
-    )
-
-
-@db_injector
 async def _insert_task_run_state(
     db: PrefectDBInterface, session: AsyncSession, task_run: TaskRun
 ):
@@ -91,28 +62,6 @@ async def _insert_task_run_state(
                 "id",
             ]
         )
-    )
-
-
-@db_injector
-async def _update_task_run_with_state(
-    db: PrefectDBInterface,
-    session: AsyncSession,
-    task_run: TaskRun,
-    denormalized_state_attributes: Dict[str, Any],
-):
-    if TYPE_CHECKING:
-        assert task_run.state is not None
-    await session.execute(
-        sa.update(db.TaskRun)
-        .where(
-            db.TaskRun.id == task_run.id,
-            sa.or_(
-                db.TaskRun.state_timestamp.is_(None),
-                db.TaskRun.state_timestamp < task_run.state.timestamp,
-            ),
-        )
-        .values(**denormalized_state_attributes)
     )
 
 
@@ -169,11 +118,31 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
 
     db = provide_database_interface()
     async with db.session_context() as session:
-        await _insert_task_run(session, task_run, task_run_attributes)
-        await _insert_task_run_state(session, task_run)
-        await _update_task_run_with_state(
-            session, task_run, denormalized_state_attributes
+        # Combine all attributes for a single atomic operation
+        all_attributes = {
+            **task_run_attributes,
+            **denormalized_state_attributes,
+            "created": now("UTC"),
+        }
+
+        # Single atomic INSERT ... ON CONFLICT DO UPDATE
+        await session.execute(
+            db.queries.insert(db.TaskRun)
+            .values(**all_attributes)
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "updated": now("UTC"),
+                    **task_run_attributes,
+                    **denormalized_state_attributes,
+                },
+                where=db.TaskRun.state_timestamp < task_run.state.timestamp,
+            )
         )
+
+        # Still need to insert the task_run_state separately
+        await _insert_task_run_state(session, task_run)
+
         await session.commit()
 
     logger.debug(
