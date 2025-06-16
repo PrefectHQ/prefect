@@ -626,3 +626,137 @@ class TestRayTaskRunner:
         ]
         assert len(related_assets) == 1
         assert related_assets[0]["prefect.resource.id"] == upstream.key
+
+    async def test_dynamic_materialization_with_task_runner(self, task_runner):
+        source_data = Asset(key="s3://data/source_data")
+
+        @task(asset_deps=[source_data])
+        async def read_source():
+            return {"rows": 100}
+
+        @materialize()
+        async def process_data(data):
+            # Dynamically materialize assets based on processing logic
+            output1 = Asset(key="s3://data/processed_output1")
+            output2 = Asset(key="s3://data/processed_output2")
+
+            output1.materialize()
+            output2.materialize()
+
+            return {"outputs": [output1.key, output2.key]}
+
+        @materialize()
+        async def finalize_data(processed):
+            # Dynamically create final output
+            final_asset = Asset(key="s3://data/final_result")
+            final_asset.materialize()
+            return {"final": final_asset.key}
+
+        @flow(version="test", task_runner=task_runner)
+        async def dynamic_pipeline():
+            run_context = get_run_context()
+            source = await read_source()
+            processed_future = process_data.submit(source)
+            final_future = finalize_data.submit(processed_future)
+            final_future.wait()
+            return run_context.flow_run.id
+
+        flow_run_id = await dynamic_pipeline()
+
+        async with get_client() as client:
+            for i in range(5):
+                response = await client._client.post(
+                    "/events/filter",
+                    json={
+                        "filter": {
+                            "event": {"prefix": ["prefect.asset."]},
+                            "related": {"id": [f"prefect.flow-run.{flow_run_id}"]},
+                        },
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                asset_events = data.get("events", [])
+                if len(asset_events) >= 6:
+                    break
+                await asyncio.sleep(2)
+            else:
+                raise RuntimeError("Unable to get any events from server!")
+
+        # Should have exactly 6 events: 3 references + 3 materializations
+        assert len(asset_events) == 6
+
+        # Separate events by type
+        ref_events = [
+            e for e in asset_events if e.get("event") == "prefect.asset.referenced"
+        ]
+        mat_events = [
+            e
+            for e in asset_events
+            if e.get("event") == "prefect.asset.materialization.succeeded"
+        ]
+
+        assert len(ref_events) == 3
+        assert len(mat_events) == 3  # 2 processed + 1 final (no source materialization)
+
+        # Check all materialized assets (dynamic ones only)
+        expected_materialized_assets = [
+            "s3://data/processed_output1",
+            "s3://data/processed_output2",
+            "s3://data/final_result",
+        ]
+
+        materialized_asset_keys = {
+            e.get("resource", {}).get("prefect.resource.id") for e in mat_events
+        }
+        assert materialized_asset_keys == set(expected_materialized_assets)
+
+        # Check reference events
+        referenced_asset_keys = {
+            e.get("resource", {}).get("prefect.resource.id") for e in ref_events
+        }
+        # Should reference source_data once + the two processed outputs once each
+        expected_referenced_assets = {
+            source_data.key,
+            "s3://data/processed_output1",
+            "s3://data/processed_output2",
+        }
+        assert referenced_asset_keys == expected_referenced_assets
+
+        # Verify relationships: processed outputs should reference source_data
+        processed_mat_events = [
+            e
+            for e in mat_events
+            if e.get("resource", {}).get("prefect.resource.id")
+            in ["s3://data/processed_output1", "s3://data/processed_output2"]
+        ]
+
+        for evt in processed_mat_events:
+            related_assets = [
+                r
+                for r in evt.get("related", [])
+                if r.get("prefect.resource.role") == "asset"
+            ]
+            assert len(related_assets) == 1
+            assert related_assets[0]["prefect.resource.id"] == source_data.key
+
+        # Verify relationships: final result should reference processed outputs
+        final_mat_events = [
+            e
+            for e in mat_events
+            if e.get("resource", {}).get("prefect.resource.id")
+            == "s3://data/final_result"
+        ]
+
+        assert len(final_mat_events) == 1
+        final_evt = final_mat_events[0]
+        related_assets = [
+            r
+            for r in final_evt.get("related", [])
+            if r.get("prefect.resource.role") == "asset"
+        ]
+
+        # Final should reference the processed outputs
+        related_asset_ids = {r["prefect.resource.id"] for r in related_assets}
+        assert "s3://data/processed_output1" in related_asset_ids
+        assert "s3://data/processed_output2" in related_asset_ids

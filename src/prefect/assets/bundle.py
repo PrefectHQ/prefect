@@ -14,7 +14,9 @@ def encode_assets(assets: set[Asset]) -> dict[str, Any]:
     """
     Encode assets into a versioned bundle dictionary.
     """
-    asset_dicts = [asset.model_dump(exclude_unset=True) for asset in assets]
+    asset_dicts = [asset.model_dump(exclude_unset=True) for asset in assets][
+        :MAX_ASSETS_PER_BUNDLE
+    ]
 
     encoded_data = base64.b64encode(zlib.compress(orjson.dumps(asset_dicts))).decode()
 
