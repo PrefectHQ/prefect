@@ -6,21 +6,29 @@ duplication between events and logs clients.
 """
 
 import os
+import ssl
 from typing import Any, Generator
 from urllib.parse import urlparse
 from urllib.request import proxy_bypass
 
+import certifi
 from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets.asyncio.client import ClientConnection, connect
 
+from prefect.settings import (
+    PREFECT_API_SSL_CERT_FILE,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
+)
+
 
 class WebsocketProxyConnect(connect):
     """
-    WebSocket connection class with proxy support.
+    WebSocket connection class with proxy and SSL support.
 
     Extends the websockets.asyncio.client.connect class to add HTTP/HTTPS
-    proxy support via environment variables and proxy bypass logic.
+    proxy support via environment variables, proxy bypass logic, and SSL
+    certificate verification.
     """
 
     def __init__(self: Self, uri: str, **kwargs: Any):
@@ -54,6 +62,22 @@ class WebsocketProxyConnect(connect):
         self._host = host
         self._port = port
 
+        # Configure SSL context for HTTPS connections
+        if u.scheme == "wss":
+            if PREFECT_API_TLS_INSECURE_SKIP_VERIFY.value():
+                # Create an unverified context for insecure connections
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                self._kwargs.setdefault("ssl", ctx)
+            else:
+                # Create a verified context with the certificate file
+                cert_file = PREFECT_API_SSL_CERT_FILE.value()
+                if not cert_file:
+                    cert_file = certifi.where()
+                ctx = ssl.create_default_context(cafile=cert_file)
+                self._kwargs.setdefault("ssl", ctx)
+
     async def _proxy_connect(self: Self) -> ClientConnection:
         if self._proxy:
             sock = await self._proxy.connect(
@@ -71,5 +95,5 @@ class WebsocketProxyConnect(connect):
 
 
 def websocket_connect(uri: str, **kwargs: Any) -> WebsocketProxyConnect:
-    """Create a WebSocket connection with proxy support."""
+    """Create a WebSocket connection with proxy and SSL support."""
     return WebsocketProxyConnect(uri, **kwargs)

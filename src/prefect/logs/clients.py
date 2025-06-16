@@ -4,6 +4,7 @@ from datetime import timedelta
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
+    Any,
     MutableMapping,
     Optional,
     Tuple,
@@ -201,7 +202,7 @@ class PrefectLogsSubscriber:
 
         # Configure SSL context for the connection
         ssl_context = _create_ssl_context_for_websocket(socket_url)
-        connect_kwargs = {"subprotocols": [Subprotocol("prefect")]}
+        connect_kwargs: dict[str, Any] = {"subprotocols": [Subprotocol("prefect")]}
         if ssl_context:
             connect_kwargs["ssl"] = ssl_context
 
