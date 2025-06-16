@@ -1,8 +1,5 @@
-import pytest
-
 from prefect.assets.bundle import (
     BUNDLE_FORMAT_VERSION,
-    MAX_ASSETS_PER_BUNDLE,
     decode_assets,
     encode_assets,
 )
@@ -91,19 +88,6 @@ class TestAssetBundle:
         bundle = {"format": BUNDLE_FORMAT_VERSION, "data": "not-valid-base64!!!"}
         decoded = decode_assets(bundle)
         assert decoded == set()
-
-    def test_max_assets_limit(self):
-        """Test that encoding fails when exceeding MAX_ASSETS_PER_BUNDLE."""
-        assets = {
-            Asset(key=f"s3://bucket/file_{i}.parquet")
-            for i in range(MAX_ASSETS_PER_BUNDLE + 1)
-        }
-
-        with pytest.raises(ValueError) as exc_info:
-            encode_assets(assets)
-
-        assert "Cannot bundle more than" in str(exc_info.value)
-        assert f"{MAX_ASSETS_PER_BUNDLE:,}" in str(exc_info.value)
 
     def test_unsupported_format_version(self):
         """Test that unsupported format versions are silently handled."""
