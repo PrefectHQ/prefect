@@ -279,10 +279,6 @@ class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
                 if the state is of type `FAILED` and the underlying data is an exception. When flow
                 was run in a different memory space (using `run_deployment`), this will only raise
                 if `fetch` is `True`.
-            fetch: a boolean specifying whether to resolve references to persisted
-                results into data. For synchronous users, this defaults to `True`.
-                For asynchronous users, this defaults to `False` for backwards
-                compatibility.
             retry_result_failure: a boolean specifying whether to retry on failures to
                 load the result from result storage
 
