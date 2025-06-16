@@ -1725,6 +1725,27 @@ class ECSWorker(BaseWorker):
 
             taskdef.setdefault("networkMode", "bridge")
 
+            # Normalize ordering of lists that ECS considers unordered
+            # ECS stores these in unordered data structures, so order shouldn't matter for comparison
+            for container in container_definitions:
+                # Sort environment variables by name for consistent comparison
+                if "environment" in container:
+                    container["environment"] = sorted(
+                        container["environment"], key=lambda x: x.get("name", "")
+                    )
+
+                # Sort secrets by name for consistent comparison
+                if "secrets" in container:
+                    container["secrets"] = sorted(
+                        container["secrets"], key=lambda x: x.get("name", "")
+                    )
+
+                # Sort environmentFiles by value as they don't have names
+                if "environmentFiles" in container:
+                    container["environmentFiles"] = sorted(
+                        container["environmentFiles"], key=lambda x: x.get("value", "")
+                    )
+
         _drop_empty_keys_from_dict(taskdef_1)
         _drop_empty_keys_from_dict(taskdef_2)
 
