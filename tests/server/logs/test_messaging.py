@@ -9,6 +9,10 @@ from prefect.server.logs.messaging import (
     publish_logs,
 )
 from prefect.server.schemas.core import Log
+from prefect.settings import (
+    PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED,
+    temporary_settings,
+)
 from prefect.types._datetime import now
 
 
@@ -59,9 +63,7 @@ async def test_create_log_publisher():
 @pytest.mark.asyncio
 async def test_publish_log_when_disabled(sample_log):
     """Test that publish_log does nothing when streaming is disabled"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = False
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: False}):
         # Should return early without doing anything
         await publish_log(sample_log)
 
@@ -74,9 +76,7 @@ async def test_publish_log_when_disabled(sample_log):
 @pytest.mark.asyncio
 async def test_publish_log_when_enabled(sample_log):
     """Test that publish_log works when streaming is enabled"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = True
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
         with patch("prefect.server.logs.messaging.create_log_publisher") as mock_create:
             mock_publisher = AsyncMock()
             mock_create.return_value.__aenter__.return_value = mock_publisher
@@ -105,9 +105,7 @@ async def test_publish_log_with_id_none_in_message():
         task_run_id=None,
     )
 
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = True
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
         with patch("prefect.server.logs.messaging.create_log_publisher") as mock_create:
             mock_publisher = AsyncMock()
             mock_create.return_value.__aenter__.return_value = mock_publisher
@@ -125,9 +123,7 @@ async def test_publish_log_with_id_none_in_message():
 @pytest.mark.asyncio
 async def test_publish_log_handles_errors(sample_log):
     """Test that publish_log handles errors gracefully"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = True
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
         with patch("prefect.server.logs.messaging.create_log_publisher") as mock_create:
             mock_create.side_effect = Exception("Publisher error")
 
@@ -143,9 +139,7 @@ async def test_publish_log_handles_errors(sample_log):
 @pytest.mark.asyncio
 async def test_publish_logs_when_disabled(sample_logs):
     """Test that publish_logs does nothing when streaming is disabled"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = False
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: False}):
         await publish_logs(sample_logs)
 
         # No publisher should be created
@@ -157,9 +151,7 @@ async def test_publish_logs_when_disabled(sample_logs):
 @pytest.mark.asyncio
 async def test_publish_logs_empty_list():
     """Test that publish_logs handles empty list"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = True
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
         with patch("prefect.server.logs.messaging.create_log_publisher") as mock_create:
             await publish_logs([])
 
@@ -170,9 +162,7 @@ async def test_publish_logs_empty_list():
 @pytest.mark.asyncio
 async def test_publish_logs_when_enabled(sample_logs):
     """Test that publish_logs works when streaming is enabled"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = True
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
         with patch("prefect.server.logs.messaging.create_log_publisher") as mock_create:
             mock_publisher = AsyncMock()
             mock_create.return_value.__aenter__.return_value = mock_publisher
@@ -188,9 +178,7 @@ async def test_publish_logs_when_enabled(sample_logs):
 @pytest.mark.asyncio
 async def test_publish_logs_handles_errors(sample_logs):
     """Test that publish_logs handles errors gracefully"""
-    with patch("prefect.server.logs.messaging.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_publishing_enabled = True
-
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
         with patch("prefect.server.logs.messaging.create_log_publisher") as mock_create:
             mock_create.side_effect = Exception("Publisher error")
 

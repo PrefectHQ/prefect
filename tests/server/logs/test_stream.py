@@ -17,6 +17,7 @@ from prefect.server.schemas.filters import (
     LogFilterTaskRunId,
     LogFilterTimestamp,
 )
+from prefect.settings import PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED, temporary_settings
 from prefect.types._datetime import now
 
 
@@ -348,45 +349,47 @@ async def test_distributor_message_handler_queue_full(sample_log1):
 async def test_start_stop_distributor():
     """Test starting and stopping the distributor"""
     from prefect.server.logs.stream import (
-        _distributor_task,
         start_distributor,
         stop_distributor,
     )
 
-    # Initially should be None
-    assert _distributor_task is None
-
-    # Start distributor
-    await start_distributor()
-
-    from prefect.server.logs.stream import _distributor_task
-
-    assert _distributor_task is not None
-    assert not _distributor_task.done()
-
-    # Stop distributor
+    # Ensure clean initial state
     await stop_distributor()
 
-    from prefect.server.logs.stream import _distributor_task
+    try:
+        # Initially should be None
+        from prefect.server.logs.stream import _distributor_task
 
-    assert _distributor_task is None
+        assert _distributor_task is None
+
+        # Start distributor
+        await start_distributor()
+
+        from prefect.server.logs.stream import _distributor_task
+
+        assert _distributor_task is not None
+        assert not _distributor_task.done()
+
+    finally:
+        # Stop distributor
+        await stop_distributor()
+
+        from prefect.server.logs.stream import _distributor_task
+
+        assert _distributor_task is None
 
 
 @pytest.mark.asyncio
 async def test_log_distributor_service_lifecycle():
     """Test LogDistributor service lifecycle"""
-    from unittest.mock import patch
-
     from prefect.server.logs.stream import LogDistributor
 
     # Test that service is disabled by default
-    with patch("prefect.server.logs.stream.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_out_enabled = False
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED: False}):
         assert not LogDistributor.enabled()
 
     # Test that service can be enabled
-    with patch("prefect.server.logs.stream.get_current_settings") as mock_settings:
-        mock_settings.return_value.server.logs.stream_out_enabled = True
+    with temporary_settings({PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED: True}):
         assert LogDistributor.enabled()
 
 
@@ -412,39 +415,44 @@ def test_log_distributor_service_class_methods():
 async def test_start_distributor_already_started():
     """Test starting distributor when already started"""
     from prefect.server.logs.stream import (
-        _distributor_task,
         start_distributor,
         stop_distributor,
     )
 
-    # Start distributor first time
-    await start_distributor()
-
-    # Get the current task
-    first_task = _distributor_task
-    assert first_task is not None
-
-    # Start again - should not create a new task
-    await start_distributor()
-
-    from prefect.server.logs.stream import _distributor_task
-
-    assert _distributor_task is first_task  # Should be the same task
-
-    # Clean up
+    # Ensure clean state
     await stop_distributor()
+
+    try:
+        # Start distributor first time
+        await start_distributor()
+
+        # Get the current task
+        from prefect.server.logs.stream import _distributor_task
+
+        first_task = _distributor_task
+        assert first_task is not None
+
+        # Start again - should not create a new task
+        await start_distributor()
+
+        from prefect.server.logs.stream import _distributor_task
+
+        assert _distributor_task is first_task  # Should be the same task
+
+    finally:
+        # Clean up
+        await stop_distributor()
 
 
 @pytest.mark.asyncio
 async def test_stop_distributor_not_started():
     """Test stopping distributor when not started"""
-    from prefect.server.logs.stream import _distributor_task, stop_distributor
+    from prefect.server.logs.stream import stop_distributor
 
-    # Ensure nothing is running
-    if _distributor_task:
-        await stop_distributor()
+    # Ensure clean state first
+    await stop_distributor()
 
-    # Should not raise an exception
+    # Should not raise an exception when stopping again
     await stop_distributor()
 
 
