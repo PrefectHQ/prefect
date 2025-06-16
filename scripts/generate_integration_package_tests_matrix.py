@@ -28,8 +28,12 @@ def get_changed_packages(commit_range: str) -> list[str]:
     packages: set[str] = set()
     for file in changed_files:
         parts = file.split("/")
-        if len(parts) > 1 and parts[0] == "src" and parts[1] == "integrations":
-            packages.add(parts[2])
+        if len(parts) > 2 and parts[0] == "src" and parts[1] == "integrations":
+            # Only add if it's a directory (has more parts after the package name)
+            # and starts with "prefect-" which is the pattern for integration packages
+            package_name = parts[2]
+            if package_name.startswith("prefect-"):
+                packages.add(package_name)
     return list(packages)
 
 
