@@ -1,13 +1,20 @@
+import asyncio
 import datetime
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
 
 from prefect.server.logs.stream import (
     LogDistributor,
+    distributor,
+    filters,
     log_matches_filter,
     logs,
+    start_distributor,
+    stop_distributor,
     subscribed,
+    subscribers,
 )
 from prefect.server.schemas.core import Log
 from prefect.server.schemas.filters import (
@@ -171,9 +178,6 @@ async def test_logs_context_manager():
 @pytest.mark.asyncio
 async def test_logs_consume_timeout():
     """Test that the logs consumer yields None on timeout"""
-    import asyncio
-    from unittest.mock import patch
-
     filter = LogFilter()
 
     async with logs(filter) as log_stream:
@@ -187,10 +191,6 @@ async def test_logs_consume_timeout():
 @pytest.fixture
 async def mock_subscriber():
     """Fixture that provides a mock subscriber and cleans up automatically"""
-    import asyncio
-
-    from prefect.server.logs.stream import filters, subscribers
-
     queue = asyncio.Queue()
     filter = LogFilter()
 
@@ -209,10 +209,6 @@ async def mock_subscriber():
 @pytest.mark.asyncio
 async def test_distributor_message_handler(sample_log1, mock_subscriber):
     """Test the distributor message handler"""
-    from unittest.mock import Mock
-
-    from prefect.server.logs.stream import distributor
-
     queue, filter = mock_subscriber
 
     # Create a mock message
@@ -232,10 +228,6 @@ async def test_distributor_message_handler(sample_log1, mock_subscriber):
 @pytest.mark.asyncio
 async def test_distributor_message_handler_no_attributes():
     """Test distributor handles messages without attributes"""
-    from unittest.mock import Mock
-
-    from prefect.server.logs.stream import distributor
-
     # Create a mock message without attributes
     mock_message = Mock()
     mock_message.data = b"test data"
@@ -249,18 +241,12 @@ async def test_distributor_message_handler_no_attributes():
 @pytest.mark.asyncio
 async def test_distributor_message_handler_invalid_json():
     """Test distributor handles invalid JSON gracefully"""
-    from unittest.mock import Mock, patch
-
-    from prefect.server.logs.stream import distributor, subscribers
-
     # Create a mock message with invalid JSON
     mock_message = Mock()
     mock_message.data = b"invalid json"
     mock_message.attributes = {"test": "value"}
 
     # Need at least one subscriber for the parsing to be attempted
-    import asyncio
-
     queue = asyncio.Queue()
     subscribers.add(queue)
 
@@ -280,10 +266,6 @@ async def test_distributor_message_handler_invalid_json():
 @pytest.fixture
 async def mock_subscriber_with_filter():
     """Fixture that provides a mock subscriber with a restrictive filter"""
-    import asyncio
-
-    from prefect.server.logs.stream import filters, subscribers
-
     queue = asyncio.Queue()
     filter = LogFilter(level=LogFilterLevel(ge_=50))  # ERROR level or higher
 
@@ -304,10 +286,6 @@ async def test_distributor_message_handler_filtered_out(
     sample_log1, mock_subscriber_with_filter
 ):
     """Test distributor filters out logs that don't match"""
-    from unittest.mock import Mock
-
-    from prefect.server.logs.stream import distributor
-
     queue, filter = mock_subscriber_with_filter
 
     # Create a mock message
@@ -325,10 +303,6 @@ async def test_distributor_message_handler_filtered_out(
 @pytest.fixture
 async def mock_full_subscriber():
     """Fixture that provides a mock subscriber with a full queue"""
-    import asyncio
-
-    from prefect.server.logs.stream import filters, subscribers
-
     queue = asyncio.Queue(maxsize=1)
     await queue.put("dummy")  # Fill the queue
     filter = LogFilter()
@@ -350,10 +324,6 @@ async def test_distributor_message_handler_queue_full(
     sample_log1, mock_full_subscriber
 ):
     """Test distributor handles full queues gracefully"""
-    from unittest.mock import Mock
-
-    from prefect.server.logs.stream import distributor
-
     queue, filter = mock_full_subscriber
 
     # Create a mock message
@@ -369,42 +339,31 @@ async def test_distributor_message_handler_queue_full(
 @pytest.mark.asyncio
 async def test_start_stop_distributor():
     """Test starting and stopping the distributor"""
-    from prefect.server.logs.stream import (
-        start_distributor,
-        stop_distributor,
-    )
+    from prefect.server.logs import stream
 
     # Ensure clean initial state
     await stop_distributor()
 
     try:
         # Initially should be None
-        from prefect.server.logs.stream import _distributor_task
-
-        assert _distributor_task is None
+        assert stream._distributor_task is None
 
         # Start distributor
         await start_distributor()
 
-        from prefect.server.logs.stream import _distributor_task
-
-        assert _distributor_task is not None
-        assert not _distributor_task.done()
+        assert stream._distributor_task is not None
+        assert not stream._distributor_task.done()
 
     finally:
         # Stop distributor
         await stop_distributor()
 
-        from prefect.server.logs.stream import _distributor_task
-
-        assert _distributor_task is None
+        assert stream._distributor_task is None
 
 
 @pytest.mark.asyncio
 async def test_log_distributor_service_lifecycle():
     """Test LogDistributor service lifecycle"""
-    from prefect.server.logs.stream import LogDistributor
-
     # Test that service is disabled by default
     with temporary_settings({PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED: False}):
         assert not LogDistributor.enabled()
@@ -416,8 +375,6 @@ async def test_log_distributor_service_lifecycle():
 
 def test_log_distributor_service_class_methods():
     """Test LogDistributor service class methods"""
-    from prefect.server.logs.stream import LogDistributor
-
     # Test service name
     assert LogDistributor.name == "LogDistributor"
 
@@ -435,10 +392,7 @@ def test_log_distributor_service_class_methods():
 @pytest.mark.asyncio
 async def test_start_distributor_already_started():
     """Test starting distributor when already started"""
-    from prefect.server.logs.stream import (
-        start_distributor,
-        stop_distributor,
-    )
+    from prefect.server.logs import stream
 
     # Ensure clean state
     await stop_distributor()
@@ -448,17 +402,13 @@ async def test_start_distributor_already_started():
         await start_distributor()
 
         # Get the current task
-        from prefect.server.logs.stream import _distributor_task
-
-        first_task = _distributor_task
+        first_task = stream._distributor_task
         assert first_task is not None
 
         # Start again - should not create a new task
         await start_distributor()
 
-        from prefect.server.logs.stream import _distributor_task
-
-        assert _distributor_task is first_task  # Should be the same task
+        assert stream._distributor_task is first_task  # Should be the same task
 
     finally:
         # Clean up
@@ -468,8 +418,6 @@ async def test_start_distributor_already_started():
 @pytest.mark.asyncio
 async def test_stop_distributor_not_started():
     """Test stopping distributor when not started"""
-    from prefect.server.logs.stream import stop_distributor
-
     # Ensure clean state first
     await stop_distributor()
 
@@ -505,9 +453,6 @@ def test_log_matches_filter_timestamp_after(sample_log1):
 @pytest.mark.asyncio
 async def test_logs_consumer_continue_after_timeout():
     """Test that logs consumer continues after timeout"""
-    import asyncio
-    from unittest.mock import patch
-
     filter = LogFilter()
 
     async with logs(filter) as log_stream:
@@ -566,10 +511,6 @@ def test_log_matches_filter_flow_run_id_none_edge_case():
 @pytest.mark.asyncio
 async def test_distributor_message_handler_no_subscribers(sample_log1):
     """Test distributor early exit when no subscribers"""
-    from unittest.mock import Mock
-
-    from prefect.server.logs.stream import distributor, subscribers
-
     # Ensure no subscribers exist
     subscribers.clear()
 
@@ -587,10 +528,6 @@ async def test_distributor_message_handler_no_subscribers(sample_log1):
 @pytest.mark.asyncio
 async def test_log_distributor_service_stop():
     """Test LogDistributor service stop method"""
-    from unittest.mock import AsyncMock, patch
-
-    from prefect.server.logs.stream import LogDistributor
-
     distributor_service = LogDistributor()
 
     with patch(
