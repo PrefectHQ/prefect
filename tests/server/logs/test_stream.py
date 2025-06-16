@@ -61,7 +61,7 @@ def test_log_distributor_service_properties():
     assert LogDistributor.name == "LogDistributor"
     assert (
         LogDistributor.environment_variable_name()
-        == "PREFECT_API_LOGS_STREAM_OUT_ENABLED"
+        == "PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED"
     )
 
 
@@ -381,7 +381,7 @@ def test_log_distributor_service_class_methods():
     # Test environment variable name
     assert (
         LogDistributor.environment_variable_name()
-        == "PREFECT_API_LOGS_STREAM_OUT_ENABLED"
+        == "PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED"
     )
 
     # Test that service_settings raises NotImplementedError

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from typing import ClassVar
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
@@ -18,19 +20,9 @@ class ServerLogsSettings(PrefectBaseSettings):
     stream_out_enabled: bool = Field(
         default=False,
         description="Whether or not to stream logs out to the API via websockets.",
-        validation_alias=AliasChoices(
-            AliasPath("stream_out_enabled"),
-            "prefect_server_logs_stream_out_enabled",
-            "prefect_api_logs_stream_out_enabled",
-        ),
     )
 
     stream_publishing_enabled: bool = Field(
         default=False,
         description="Whether or not to publish logs to the streaming system.",
-        validation_alias=AliasChoices(
-            AliasPath("stream_publishing_enabled"),
-            "prefect_server_logs_stream_publishing_enabled",
-            "prefect_api_logs_stream_publishing_enabled",
-        ),
     )

@@ -11,10 +11,7 @@ from typing import (
     TYPE_CHECKING,
     AsyncGenerator,
     AsyncIterable,
-    Dict,
     NoReturn,
-    Optional,
-    Set,
 )
 
 from prefect.logging import get_logger
@@ -30,8 +27,8 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger(__name__)
 
-subscribers: Set["Queue[Log]"] = set()
-filters: Dict["Queue[Log]", LogFilter] = {}
+subscribers: set["Queue[Log]"] = set()
+filters: dict["Queue[Log]", LogFilter] = {}
 
 # The maximum number of messages that can be waiting for one subscriber, after which
 # new messages will be dropped
@@ -66,7 +63,7 @@ async def subscribed(
 @asynccontextmanager
 async def logs(
     filter: LogFilter,
-) -> AsyncGenerator[AsyncIterable[Optional[Log]], None]:
+) -> AsyncGenerator[AsyncIterable[Log | None], None]:
     """
     Create a stream of logs matching the given filter.
 
@@ -78,7 +75,7 @@ async def logs(
     """
     async with subscribed(filter) as queue:
 
-        async def consume() -> AsyncGenerator[Optional[Log], None]:
+        async def consume() -> AsyncGenerator[Log | None, None]:
             while True:
                 # Use a brief timeout to allow for cancellation, especially when a
                 # client disconnects. Without a timeout here, a consumer may block
@@ -231,7 +228,7 @@ class LogDistributor(RunInAllServers, Service):
 
     @classmethod
     def environment_variable_name(cls) -> str:
-        return "PREFECT_API_LOGS_STREAM_OUT_ENABLED"
+        return "PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED"
 
     @classmethod
     def enabled(cls) -> bool:
@@ -240,9 +237,8 @@ class LogDistributor(RunInAllServers, Service):
     async def start(self) -> NoReturn:
         await start_distributor()
         try:
-            if TYPE_CHECKING:  # pragma: no cover
-                # start_distributor should have set _distributor_task
-                assert _distributor_task
+            # start_distributor should have set _distributor_task
+            assert _distributor_task is not None
             await _distributor_task
         except asyncio.CancelledError:
             pass

@@ -100,8 +100,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_EVENTS_STREAM_OUT_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_API_KEY": {"test_value": "key"},
     "PREFECT_API_LOG_RETRYABLE_ERRORS": {"test_value": True, "legacy": True},
-    "PREFECT_API_LOGS_STREAM_OUT_ENABLED": {"test_value": True, "legacy": True},
-    "PREFECT_API_LOGS_STREAM_PUBLISHING_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS": {"test_value": 10, "legacy": True},
     "PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES": {"test_value": 100, "legacy": True},
     "PREFECT_API_REQUEST_TIMEOUT": {"test_value": 10.0},

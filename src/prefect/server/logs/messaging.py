@@ -2,8 +2,10 @@
 Log messaging for streaming logs through the messaging system.
 """
 
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, AsyncGenerator, List
+from typing import TYPE_CHECKING, AsyncGenerator
 
 from prefect.logging import get_logger
 from prefect.server.schemas.core import Log
@@ -28,7 +30,7 @@ async def create_log_publisher() -> AsyncGenerator[messaging.Publisher, None]:
         yield publisher
 
 
-async def publish_logs(logs: List[Log]) -> None:
+async def publish_logs(logs: list[Log]) -> None:
     """
     Publishes logs to the messaging system.
 
