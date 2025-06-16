@@ -249,8 +249,8 @@ class PrefectLogsSubscriber:
 
         current_time = now("UTC")
         self._filter.timestamp = LogFilterTimestamp(
-            after_=current_time - timedelta(minutes=1),
-            before_=current_time + timedelta(days=365),
+            after_=current_time - timedelta(minutes=1),  # type: ignore[arg-type]
+            before_=current_time + timedelta(days=365),  # type: ignore[arg-type]
         )
 
         logger.debug("  filtering logs since %s...", self._filter.timestamp.after_)
