@@ -230,14 +230,14 @@ class LogDistributor(RunInAllServers, Service):
         raise NotImplementedError("LogDistributor does not have settings")
 
     @classmethod
-    def environment_variable_name(cls) -> dict[str, str]:
+    def environment_variable_name(cls) -> str:
         return "PREFECT_API_LOGS_STREAM_OUT_ENABLED"
 
     @classmethod
     def enabled(cls) -> bool:
         return get_current_settings().server.logs.stream_out_enabled
 
-    async def start(self) -> None:
+    async def start(self) -> NoReturn:
         await start_distributor()
         try:
             if TYPE_CHECKING:  # pragma: no cover
@@ -246,6 +246,9 @@ class LogDistributor(RunInAllServers, Service):
             await _distributor_task
         except asyncio.CancelledError:
             pass
+
+        # This should never be reached due to the infinite loop above
+        raise RuntimeError("LogDistributor service unexpectedly terminated")
 
     async def stop(self) -> None:
         await stop_distributor()
@@ -263,3 +266,6 @@ async def run_distributor(started: asyncio.Event) -> NoReturn:
             await consumer.run(
                 handler=handler,
             )
+
+    # This should never be reached due to the infinite nature of consumer.run()
+    raise RuntimeError("Log distributor consumer unexpectedly terminated")
