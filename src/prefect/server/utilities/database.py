@@ -8,6 +8,7 @@ allow the Prefect REST API to seamlessly switch between the two.
 from __future__ import annotations
 
 import datetime
+import json
 import operator
 import re
 import uuid
@@ -220,39 +221,6 @@ class UUID(TypeDecorator[uuid.UUID]):
             return value
 
 
-def _replace_special_floats(obj: Any, _seen: Optional[set[int]] = None) -> Any:
-    """Recursively replace NaN, Infinity, and -Infinity with None in nested structures."""
-    if _seen is None:
-        _seen = set()
-
-    obj_id = id(obj)
-    if obj_id in _seen:
-        return obj
-
-    if isinstance(obj, float):
-        if obj != obj or obj == float("inf") or obj == float("-inf"):
-            return None
-        return obj
-    elif isinstance(obj, dict):
-        _seen.add(obj_id)
-        try:
-            return obj.__class__(
-                {k: _replace_special_floats(v, _seen) for k, v in obj.items()}
-            )
-        finally:
-            _seen.discard(obj_id)
-    elif isinstance(obj, list):
-        _seen.add(obj_id)
-        try:
-            return [_replace_special_floats(item, _seen) for item in obj]
-        finally:
-            _seen.discard(obj_id)
-    elif isinstance(obj, tuple):
-        return tuple(_replace_special_floats(item, _seen) for item in obj)
-    else:
-        return obj
-
-
 class JSON(TypeDecorator[Any]):
     """
     JSON type that returns SQLAlchemy's dialect-specific JSON types, where
@@ -290,7 +258,10 @@ class JSON(TypeDecorator[Any]):
         # `NaN`, `-Infinity`, or `Infinity`, but any query that requires SQLite to parse
         # the value (like `json_extract`) will fail.
         #
-        return _replace_special_floats(value)
+        # Replace any `NaN`, `-Infinity`, or `Infinity` values with `None` in the
+        # returned value.  See more about `parse_constant` at
+        # https://docs.python.org/3/library/json.html#json.load.
+        return json.loads(json.dumps(value), parse_constant=lambda c: None)
 
 
 class Pydantic(TypeDecorator[T]):
