@@ -24,7 +24,6 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
-import prefect.types._datetime
 from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
@@ -38,6 +37,8 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.types import DateTime
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -247,9 +248,10 @@ class PrefectLogsSubscriber:
 
         from prefect.client.schemas.filters import LogFilterTimestamp
 
+        current_time = now("UTC")
         self._filter.timestamp = LogFilterTimestamp(
-            after_=prefect.types._datetime.now("UTC") - timedelta(minutes=1),
-            before_=prefect.types._datetime.now("UTC") + timedelta(days=365),
+            after_=DateTime.instance(current_time - timedelta(minutes=1)),
+            before_=DateTime.instance(current_time + timedelta(days=365)),
         )
 
         logger.debug("  filtering logs since %s...", self._filter.timestamp.after_)
