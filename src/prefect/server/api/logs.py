@@ -54,7 +54,7 @@ async def read_logs(
 async def stream_logs_out(
     websocket: WebSocket,
 ) -> None:
-    """Open a WebSocket to stream live logs"""
+    """Serve a WebSocket to stream live logs"""
     websocket = await subscriptions.accept_prefect_socket(
         websocket,
     )

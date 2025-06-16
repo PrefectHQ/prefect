@@ -28,29 +28,9 @@ async def create_log_publisher() -> AsyncGenerator[messaging.Publisher, None]:
         yield publisher
 
 
-async def publish_log(log: Log) -> None:
-    """
-    Publishes a single log to the messaging system.
-
-    Args:
-        log: The log to publish
-    """
-    if not get_current_settings().server.logs.stream_publishing_enabled:
-        return
-
-    try:
-        async with create_log_publisher() as publisher:
-            await publisher.publish_data(
-                data=log.model_dump_json().encode(),
-                attributes={"log_id": str(log.id)} if log.id else {},
-            )
-    except Exception as e:
-        logger.warning(f"Failed to publish log to stream: {e}")
-
-
 async def publish_logs(logs: List[Log]) -> None:
     """
-    Publishes multiple logs to the messaging system.
+    Publishes logs to the messaging system.
 
     Args:
         logs: The logs to publish
@@ -61,12 +41,9 @@ async def publish_logs(logs: List[Log]) -> None:
     if not logs:
         return
 
-    try:
-        async with create_log_publisher() as publisher:
-            for log in logs:
-                await publisher.publish_data(
-                    data=log.model_dump_json().encode(),
-                    attributes={"log_id": str(log.id)} if log.id else {},
-                )
-    except Exception as e:
-        logger.warning(f"Failed to publish logs to stream: {e}")
+    async with create_log_publisher() as publisher:
+        for log in logs:
+            await publisher.publish_data(
+                data=log.model_dump_json().encode(),
+                attributes={"log_id": str(log.id)} if log.id else {},
+            )
