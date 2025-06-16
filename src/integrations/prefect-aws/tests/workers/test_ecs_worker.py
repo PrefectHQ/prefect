@@ -2450,3 +2450,121 @@ async def test_task_definitions_equal_logs_differences(caplog):
             assert "prefecthq/prefect:3-latest" in caplog.text
             assert "256" in caplog.text
             assert "512" in caplog.text
+
+
+async def test_task_definitions_equal_environment_variable_ordering():
+    """Test that task definitions with environment variables in different order are considered equal."""
+    # Simulate task definition created by Prefect
+    taskdef_generated = {
+        "containerDefinitions": [
+            {
+                "name": "prefect",
+                "image": "prefecthq/prefect:2-latest",
+                "cpu": 256,
+                "memory": 512,
+                "essential": True,
+                "environment": [
+                    {"name": "PREFECT_API_URL", "value": "https://api.prefect.cloud"},
+                    {"name": "ENVIRONMENT", "value": "production"},
+                    {"name": "DATABASE_URL", "value": "postgresql://..."},
+                ],
+            }
+        ],
+        "family": "test-family",
+        "networkMode": "bridge",
+    }
+
+    # Simulate task definition retrieved from AWS ECS API (with reordered environment variables)
+    taskdef_from_aws = {
+        "containerDefinitions": [
+            {
+                "name": "prefect",
+                "image": "prefecthq/prefect:2-latest",
+                "cpu": 256,
+                "memory": 512,
+                "essential": True,
+                "environment": [
+                    {"name": "DATABASE_URL", "value": "postgresql://..."},
+                    {"name": "PREFECT_API_URL", "value": "https://api.prefect.cloud"},
+                    {"name": "ENVIRONMENT", "value": "production"},
+                ],
+            }
+        ],
+        "family": "test-family",
+        "networkMode": "bridge",
+    }
+
+    logger = logging.getLogger("prefect.workers.ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        # This should return True since the task definitions are semantically identical
+        result = worker._task_definitions_equal(
+            taskdef_generated, taskdef_from_aws, logger
+        )
+
+        assert result is True, (
+            "Task definitions with reordered environment variables should be considered equal"
+        )
+
+
+async def test_task_definitions_equal_secrets_ordering():
+    """Test that task definitions with secrets in different order are considered equal."""
+    # Task definition with secrets in one order
+    taskdef_1 = {
+        "containerDefinitions": [
+            {
+                "name": "prefect",
+                "image": "prefecthq/prefect:2-latest",
+                "cpu": 256,
+                "memory": 512,
+                "essential": True,
+                "secrets": [
+                    {
+                        "name": "DB_PASSWORD",
+                        "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-pass",
+                    },
+                    {
+                        "name": "API_KEY",
+                        "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-key",
+                    },
+                ],
+            }
+        ],
+        "family": "test-family",
+        "networkMode": "bridge",
+    }
+
+    # Task definition with secrets in different order
+    taskdef_2 = {
+        "containerDefinitions": [
+            {
+                "name": "prefect",
+                "image": "prefecthq/prefect:2-latest",
+                "cpu": 256,
+                "memory": 512,
+                "essential": True,
+                "secrets": [
+                    {
+                        "name": "API_KEY",
+                        "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:api-key",
+                    },
+                    {
+                        "name": "DB_PASSWORD",
+                        "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:db-pass",
+                    },
+                ],
+            }
+        ],
+        "family": "test-family",
+        "networkMode": "bridge",
+    }
+
+    logger = logging.getLogger("prefect.workers.ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        # This should return True since the task definitions are semantically identical
+        result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
+
+        assert result is True, (
+            "Task definitions with reordered secrets should be considered equal"
+        )
