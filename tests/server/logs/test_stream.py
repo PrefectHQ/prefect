@@ -184,44 +184,49 @@ async def test_logs_consume_timeout():
                 break  # Exit after first None
 
 
+@pytest.fixture
+async def mock_subscriber():
+    """Fixture that provides a mock subscriber and cleans up automatically"""
+    import asyncio
+
+    from prefect.server.logs.stream import filters, subscribers
+
+    queue = asyncio.Queue()
+    filter = LogFilter()
+
+    subscribers.add(queue)
+    filters[queue] = filter
+
+    yield queue, filter
+
+    # Cleanup
+    if queue in subscribers:
+        subscribers.remove(queue)
+    if queue in filters:
+        del filters[queue]
+
+
 @pytest.mark.asyncio
-async def test_distributor_message_handler(sample_log1):
+async def test_distributor_message_handler(sample_log1, mock_subscriber):
     """Test the distributor message handler"""
     from unittest.mock import Mock
 
     from prefect.server.logs.stream import distributor
+
+    queue, filter = mock_subscriber
 
     # Create a mock message
     mock_message = Mock()
     mock_message.data = sample_log1.model_dump_json().encode()
     mock_message.attributes = {"log_id": "test"}
 
-    # Create a mock subscriber queue
-    import asyncio
+    async with distributor() as handler:
+        await handler(mock_message)
 
-    queue = asyncio.Queue()
-    filter = LogFilter()
-
-    # Add to global subscribers
-    from prefect.server.logs.stream import filters, subscribers
-
-    subscribers.add(queue)
-    filters[queue] = filter
-
-    try:
-        async with distributor() as handler:
-            await handler(mock_message)
-
-            # Should have put the log in the queue
-            assert not queue.empty()
-            log = await queue.get()
-            assert log.message == "Test message 1"
-    finally:
-        # Clean up
-        if queue in subscribers:
-            subscribers.remove(queue)
-        if queue in filters:
-            del filters[queue]
+        # Should have put the log in the queue
+        assert not queue.empty()
+        log = await queue.get()
+        assert log.message == "Test message 1"
 
 
 @pytest.mark.asyncio
@@ -272,77 +277,93 @@ async def test_distributor_message_handler_invalid_json():
             subscribers.remove(queue)
 
 
-@pytest.mark.asyncio
-async def test_distributor_message_handler_filtered_out(sample_log1):
-    """Test distributor filters out logs that don't match"""
+@pytest.fixture
+async def mock_subscriber_with_filter():
+    """Fixture that provides a mock subscriber with a restrictive filter"""
     import asyncio
-    from unittest.mock import Mock
 
-    from prefect.server.logs.stream import distributor
+    from prefect.server.logs.stream import filters, subscribers
 
-    # Create a mock message
-    mock_message = Mock()
-    mock_message.data = sample_log1.model_dump_json().encode()
-    mock_message.attributes = {"log_id": "test"}
-
-    # Create a filter that won't match (level too high)
     queue = asyncio.Queue()
     filter = LogFilter(level=LogFilterLevel(ge_=50))  # ERROR level or higher
-
-    # Add to global subscribers
-    from prefect.server.logs.stream import filters, subscribers
 
     subscribers.add(queue)
     filters[queue] = filter
 
-    try:
-        async with distributor() as handler:
-            await handler(mock_message)
+    yield queue, filter
 
-            # Queue should be empty because log was filtered out
-            assert queue.empty()
-    finally:
-        # Clean up
-        if queue in subscribers:
-            subscribers.remove(queue)
-        if queue in filters:
-            del filters[queue]
+    # Cleanup
+    if queue in subscribers:
+        subscribers.remove(queue)
+    if queue in filters:
+        del filters[queue]
 
 
 @pytest.mark.asyncio
-async def test_distributor_message_handler_queue_full(sample_log1):
-    """Test distributor handles full queues gracefully"""
-    import asyncio
+async def test_distributor_message_handler_filtered_out(
+    sample_log1, mock_subscriber_with_filter
+):
+    """Test distributor filters out logs that don't match"""
     from unittest.mock import Mock
 
     from prefect.server.logs.stream import distributor
+
+    queue, filter = mock_subscriber_with_filter
 
     # Create a mock message
     mock_message = Mock()
     mock_message.data = sample_log1.model_dump_json().encode()
     mock_message.attributes = {"log_id": "test"}
 
-    # Create a queue and fill it
+    async with distributor() as handler:
+        await handler(mock_message)
+
+        # Queue should be empty because log was filtered out
+        assert queue.empty()
+
+
+@pytest.fixture
+async def mock_full_subscriber():
+    """Fixture that provides a mock subscriber with a full queue"""
+    import asyncio
+
+    from prefect.server.logs.stream import filters, subscribers
+
     queue = asyncio.Queue(maxsize=1)
     await queue.put("dummy")  # Fill the queue
     filter = LogFilter()
 
-    # Add to global subscribers
-    from prefect.server.logs.stream import filters, subscribers
-
     subscribers.add(queue)
     filters[queue] = filter
 
-    try:
-        async with distributor() as handler:
-            # Should not raise an exception even with full queue
-            await handler(mock_message)
-    finally:
-        # Clean up
-        if queue in subscribers:
-            subscribers.remove(queue)
-        if queue in filters:
-            del filters[queue]
+    yield queue, filter
+
+    # Cleanup
+    if queue in subscribers:
+        subscribers.remove(queue)
+    if queue in filters:
+        del filters[queue]
+
+
+@pytest.mark.asyncio
+async def test_distributor_message_handler_queue_full(
+    sample_log1, mock_full_subscriber
+):
+    """Test distributor handles full queues gracefully"""
+    from unittest.mock import Mock
+
+    from prefect.server.logs.stream import distributor
+
+    queue, filter = mock_full_subscriber
+
+    # Create a mock message
+    mock_message = Mock()
+    mock_message.data = sample_log1.model_dump_json().encode()
+    mock_message.attributes = {"log_id": "test"}
+
+    async with distributor() as handler:
+        # Should not raise an exception even with full queue
+        await handler(mock_message)
 
 
 @pytest.mark.asyncio

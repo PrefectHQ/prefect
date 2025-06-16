@@ -15,9 +15,6 @@ class ServerLogsSettings(PrefectBaseSettings):
         ("server", "logs")
     )
 
-    ###########################################################################
-    # Logs streaming settings
-
     stream_out_enabled: bool = Field(
         default=False,
         description="Whether or not to stream logs out to the API via websockets.",
