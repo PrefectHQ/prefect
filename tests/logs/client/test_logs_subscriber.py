@@ -491,7 +491,7 @@ async def test_subscriber_skips_duplicate_logs(
 def test_subscriber_invalid_uri_raises_value_error():
     """Test that invalid URI schemes raise appropriate errors"""
     with pytest.raises(ValueError, match="Invalid URI"):
-        from prefect.logs.clients import WebsocketProxyConnect
+        from prefect._internal.websockets import WebsocketProxyConnect
 
         WebsocketProxyConnect("invalid-uri")
 
@@ -499,7 +499,7 @@ def test_subscriber_invalid_uri_raises_value_error():
 def test_subscriber_unsupported_scheme_raises_value_error():
     """Test that unsupported URI schemes raise appropriate errors"""
     with pytest.raises(ValueError, match="Unsupported scheme"):
-        from prefect.logs.clients import WebsocketProxyConnect
+        from prefect._internal.websockets import WebsocketProxyConnect
 
         WebsocketProxyConnect("ftp://example.com")
 
@@ -568,34 +568,41 @@ def test_subscriber_auth_token_missing_error():
         # The actual connection would fail with ValueError during _reconnect()
 
 
-def test_websocket_proxy_connect_ssl_insecure():
-    """Test SSL configuration for insecure connections"""
-    from prefect.logs.clients import WebsocketProxyConnect
+def test_ssl_context_creation_insecure():
+    """Test SSL context creation for insecure connections"""
+    from prefect.logs.clients import _create_ssl_context_for_websocket
     from prefect.settings import PREFECT_API_TLS_INSECURE_SKIP_VERIFY
 
     with temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
-        connector = WebsocketProxyConnect("wss://example.com")
-        assert "ssl" in connector._kwargs
-        ssl_context = connector._kwargs["ssl"]
+        ssl_context = _create_ssl_context_for_websocket("wss://example.com")
+        assert ssl_context is not None
         assert not ssl_context.check_hostname
         assert ssl_context.verify_mode == ssl.CERT_NONE
 
 
-def test_websocket_proxy_connect_ssl_secure():
-    """Test SSL configuration for secure connections"""
-    from prefect.logs.clients import WebsocketProxyConnect
+def test_ssl_context_creation_secure():
+    """Test SSL context creation for secure connections"""
+    from prefect.logs.clients import _create_ssl_context_for_websocket
     from prefect.settings import PREFECT_API_TLS_INSECURE_SKIP_VERIFY
 
     with temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
-        connector = WebsocketProxyConnect("wss://example.com")
-        assert "ssl" in connector._kwargs
+        ssl_context = _create_ssl_context_for_websocket("wss://example.com")
+        assert ssl_context is not None
+
+
+def test_ssl_context_creation_ws_scheme():
+    """Test SSL context creation returns None for ws:// URLs"""
+    from prefect.logs.clients import _create_ssl_context_for_websocket
+
+    ssl_context = _create_ssl_context_for_websocket("ws://example.com")
+    assert ssl_context is None
 
 
 def test_websocket_proxy_connect_with_proxy():
     """Test proxy configuration"""
     import os
 
-    from prefect.logs.clients import WebsocketProxyConnect
+    from prefect._internal.websockets import WebsocketProxyConnect
 
     # Mock proxy environment
     old_proxy = os.environ.get("HTTPS_PROXY")
@@ -675,7 +682,7 @@ async def test_websocket_proxy_connect_with_proxy_connection():
     import os
     from unittest.mock import AsyncMock, patch
 
-    from prefect.logs.clients import WebsocketProxyConnect
+    from prefect._internal.websockets import WebsocketProxyConnect
 
     # Mock proxy environment
     old_proxy = os.environ.get("HTTPS_PROXY")
@@ -683,7 +690,7 @@ async def test_websocket_proxy_connect_with_proxy_connection():
 
     try:
         # Mock the proxy connection
-        with patch("prefect.logs.clients.Proxy") as mock_proxy_class:
+        with patch("prefect._internal.websockets.Proxy") as mock_proxy_class:
             mock_proxy = AsyncMock()
             mock_proxy.connect.return_value = AsyncMock()
             mock_proxy_class.from_url.return_value = mock_proxy
