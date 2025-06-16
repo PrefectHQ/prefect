@@ -145,10 +145,10 @@ R = TypeVar("R", infer_variance=True)
 T = TypeVar("T")
 
 # Cache for TypeAdapter instances to avoid repeated instantiation
-_TYPE_ADAPTER_CACHE: dict[type, pydantic.TypeAdapter] = {}
+_TYPE_ADAPTER_CACHE: dict[type, pydantic.TypeAdapter[Any]] = {}
 
 
-def _get_type_adapter(type_: type) -> pydantic.TypeAdapter:
+def _get_type_adapter(type_: type) -> pydantic.TypeAdapter[Any]:
     """Get or create a cached TypeAdapter for the given type."""
     if type_ not in _TYPE_ADAPTER_CACHE:
         _TYPE_ADAPTER_CACHE[type_] = pydantic.TypeAdapter(type_)
