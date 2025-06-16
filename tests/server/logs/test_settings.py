@@ -33,9 +33,9 @@ def test_logs_settings_environment_variable_names():
     del os.environ["PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED"]
 
     # Test stream_publishing_enabled aliases
-    os.environ["PREFECT_API_LOGS_STREAM_PUBLISHING_ENABLED"] = "true"
+    os.environ["PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED"] = "true"
     settings = ServerLogsSettings()
     assert settings.stream_publishing_enabled is True
 
     # Clean up
-    del os.environ["PREFECT_API_LOGS_STREAM_PUBLISHING_ENABLED"]
+    del os.environ["PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED"]
