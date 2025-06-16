@@ -34,6 +34,7 @@ from opentelemetry import trace
 from typing_extensions import ParamSpec, Self
 
 import prefect.types._datetime
+from prefect.assets.bundle import encode_assets
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -95,7 +96,6 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
-    compress_and_encode_assets,
     emit_task_run_state_change_event,
     extract_upstream_assets,
     link_state_to_result,
@@ -458,14 +458,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             link_state_to_result(new_state, result)
 
-            flow_run_context = FlowRunContext.get()
-            if (
-                flow_run_context
-                and self.task_run.id in flow_run_context.task_run_assets
-            ):
-                state.state_details.propagated_assets = compress_and_encode_assets(
-                    flow_run_context.task_run_assets[self.task_run.id]
+            if flow_run_context := FlowRunContext.get():
+                assets_to_propagate = flow_run_context.task_run_assets.get(
+                    self.task_run.id
                 )
+                if assets_to_propagate:
+                    state.state_details.propagated_assets = encode_assets(
+                        assets_to_propagate
+                    )
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1068,14 +1068,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             link_state_to_result(new_state, result)
 
-            flow_run_context = FlowRunContext.get()
-            if (
-                flow_run_context
-                and self.task_run.id in flow_run_context.task_run_assets
-            ):
-                state.state_details.propagated_assets = compress_and_encode_assets(
-                    flow_run_context.task_run_assets[self.task_run.id]
+            if flow_run_context := FlowRunContext.get():
+                assets_to_propagate = flow_run_context.task_run_assets.get(
+                    self.task_run.id
                 )
+                if assets_to_propagate:
+                    state.state_details.propagated_assets = encode_assets(
+                        assets_to_propagate
+                    )
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(

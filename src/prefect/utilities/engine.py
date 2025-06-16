@@ -1,10 +1,8 @@
 import asyncio
-import base64
 import contextlib
 import os
 import signal
 import time
-import zlib
 from collections.abc import Awaitable, Callable, Generator
 from functools import partial
 from logging import Logger
@@ -20,14 +18,14 @@ from typing import (
 from uuid import UUID
 
 import anyio
-import orjson
 from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.assets import Asset
+from prefect.assets.bundle import decode_assets
+from prefect.assets.core import Asset
 from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
 from prefect.client.schemas.responses import (
@@ -771,11 +769,10 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
         and state.state_details.propagated_assets
         and state.state_details.task_run_id
     ):
-        decoded_assets = decompress_and_decode_assets(
-            state.state_details.propagated_assets
+        track_assets_for_downstream(
+            state.state_details.task_run_id,
+            decode_assets(state.state_details.propagated_assets),
         )
-        if decoded_assets:
-            track_assets_for_downstream(state.state_details.task_run_id, decoded_assets)
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(
@@ -869,7 +866,7 @@ def get_asset_dependent_task_run_ids(
 
 def extract_upstream_assets(
     task_inputs: Optional[dict[str, set[Any]]] = None,
-) -> set["Asset"]:
+) -> set[Asset]:
     """
     Extract upstream assets from task inputs.
 
@@ -879,7 +876,7 @@ def extract_upstream_assets(
     Returns:
         Set of upstream assets from input task runs
     """
-    upstream_assets: set["Asset"] = set()
+    upstream_assets: set[Asset] = set()
 
     flow_ctx = FlowRunContext.get()
     if task_inputs and flow_ctx:
@@ -893,7 +890,7 @@ def extract_upstream_assets(
 
 
 def track_assets_for_downstream(
-    task_run_id: UUID, assets: Union["Asset", set["Asset"]]
+    task_run_id: UUID, assets: Union[Asset, set[Asset]]
 ) -> None:
     flow_run_ctx = FlowRunContext.get()
     if not flow_run_ctx or not assets:
@@ -905,25 +902,3 @@ def track_assets_for_downstream(
         flow_run_ctx.task_run_assets[task_run_id] |= assets_set
     else:
         flow_run_ctx.task_run_assets[task_run_id] = assets_set
-
-
-def compress_and_encode_assets(assets: set[Asset]) -> str:
-    asset_keys = [asset.key for asset in assets]
-
-    encoded = base64.b64encode(zlib.compress(orjson.dumps(asset_keys))).decode()
-
-    return encoded
-
-
-def decompress_and_decode_assets(encoded_data: str) -> set[Asset]:
-    if not encoded_data:
-        return set()
-
-    try:
-        asset_keys = orjson.loads(
-            zlib.decompress(base64.b64decode(encoded_data.encode()))
-        )
-        assets = {Asset(key=key) for key in asset_keys}
-        return assets
-    except Exception:
-        return set()

@@ -435,6 +435,8 @@ class EngineContext(RunContext):
                 context={"include_secrets": include_secrets},
             )
 
+        # TODO: This can be limited to only be the subset of task run ids
+        #  from task run inputs
         if self.task_run_assets:
             serialized["task_run_assets"] = {
                 str(task_run_id): [asset.model_dump(mode="json") for asset in assets]
