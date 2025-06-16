@@ -368,6 +368,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_FLOW_RUN_GRAPH_MAX_NODES": {"test_value": 100},
     "PREFECT_SERVER_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_SERVER_LOG_RETRYABLE_ERRORS": {"test_value": True},
+    "PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED": {"test_value": True},
     "PREFECT_SERVER_MEMO_STORE_PATH": {"test_value": Path("/path/to/memo")},
     "PREFECT_SERVER_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True},
     "PREFECT_SERVER_METRICS_ENABLED": {"test_value": True},
