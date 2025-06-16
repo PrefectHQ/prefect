@@ -654,7 +654,7 @@ def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str
         and isinstance(func_def.body[0], ast.Expr)
         and isinstance(func_def.body[0].value, ast.Constant)
     ):
-        return func_def.body[0].value.value
+        return str(func_def.body[0].value.value)
     return None
 
 
