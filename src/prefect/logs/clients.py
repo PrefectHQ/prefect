@@ -1,5 +1,4 @@
 import asyncio
-import ssl
 from datetime import timedelta
 from types import TracebackType
 from typing import (
@@ -11,10 +10,8 @@ from typing import (
     Type,
     cast,
 )
-from urllib.parse import urlparse
 from uuid import UUID
 
-import certifi
 import orjson
 from cachetools import TTLCache
 from prometheus_client import Counter
@@ -28,14 +25,15 @@ from websockets.exceptions import (
 )
 
 import prefect.types._datetime
-from prefect._internal.websockets import websocket_connect
+from prefect._internal.websockets import (
+    create_ssl_context_for_websocket,
+    websocket_connect,
+)
 from prefect.client.schemas.objects import Log
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
-    PREFECT_API_SSL_CERT_FILE,
-    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
@@ -72,27 +70,6 @@ def http_to_ws(url: str) -> str:
 
 def logs_out_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/logs/out"
-
-
-def _create_ssl_context_for_websocket(uri: str) -> ssl.SSLContext | None:
-    """Create SSL context for WebSocket connections based on URI scheme."""
-    u = urlparse(uri)
-
-    if u.scheme != "wss":
-        return None
-
-    if PREFECT_API_TLS_INSECURE_SKIP_VERIFY.value():
-        # Create an unverified context for insecure connections
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        return ctx
-    else:
-        # Create a verified context with the certificate file
-        cert_file = PREFECT_API_SSL_CERT_FILE.value()
-        if not cert_file:
-            cert_file = certifi.where()
-        return ssl.create_default_context(cafile=cert_file)
 
 
 def _get_api_url_and_key(
@@ -201,7 +178,7 @@ class PrefectLogsSubscriber:
         logger.debug("Connecting to %s", socket_url)
 
         # Configure SSL context for the connection
-        ssl_context = _create_ssl_context_for_websocket(socket_url)
+        ssl_context = create_ssl_context_for_websocket(socket_url)
         connect_kwargs: dict[str, Any] = {"subprotocols": [Subprotocol("prefect")]}
         if ssl_context:
             connect_kwargs["ssl"] = ssl_context

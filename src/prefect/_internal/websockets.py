@@ -1,8 +1,8 @@
 """
 Internal WebSocket proxy utilities for Prefect client connections.
 
-This module provides shared WebSocket proxy connection logic to avoid
-duplication between events and logs clients.
+This module provides shared WebSocket proxy connection logic and SSL configuration
+to avoid duplication between events and logs clients.
 """
 
 import os
@@ -20,6 +20,27 @@ from prefect.settings import (
     PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
 )
+
+
+def create_ssl_context_for_websocket(uri: str) -> ssl.SSLContext | None:
+    """Create SSL context for WebSocket connections based on URI scheme."""
+    u = urlparse(uri)
+
+    if u.scheme != "wss":
+        return None
+
+    if PREFECT_API_TLS_INSECURE_SKIP_VERIFY.value():
+        # Create an unverified context for insecure connections
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    else:
+        # Create a verified context with the certificate file
+        cert_file = PREFECT_API_SSL_CERT_FILE.value()
+        if not cert_file:
+            cert_file = certifi.where()
+        return ssl.create_default_context(cafile=cert_file)
 
 
 class WebsocketProxyConnect(connect):
@@ -63,20 +84,9 @@ class WebsocketProxyConnect(connect):
         self._port = port
 
         # Configure SSL context for HTTPS connections
-        if u.scheme == "wss":
-            if PREFECT_API_TLS_INSECURE_SKIP_VERIFY.value():
-                # Create an unverified context for insecure connections
-                ctx = ssl.create_default_context()
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
-                self._kwargs.setdefault("ssl", ctx)
-            else:
-                # Create a verified context with the certificate file
-                cert_file = PREFECT_API_SSL_CERT_FILE.value()
-                if not cert_file:
-                    cert_file = certifi.where()
-                ctx = ssl.create_default_context(cafile=cert_file)
-                self._kwargs.setdefault("ssl", ctx)
+        ssl_context = create_ssl_context_for_websocket(uri)
+        if ssl_context:
+            self._kwargs.setdefault("ssl", ssl_context)
 
     async def _proxy_connect(self: Self) -> ClientConnection:
         if self._proxy:
