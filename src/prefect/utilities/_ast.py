@@ -1,6 +1,6 @@
 import ast
 import math
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import anyio
 from typing_extensions import TypeAlias
@@ -17,7 +17,7 @@ OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0
 # this potentially could be a TypedDict, but you
 # need some way to convince the type checker that
 # Literal["flow_name", "task_name"] are being provided
-DecoratedFnMetadata: TypeAlias = dict[str, str]
+DecoratedFnMetadata: TypeAlias = dict[str, Any]
 
 
 async def find_prefect_decorated_functions_in_file(
