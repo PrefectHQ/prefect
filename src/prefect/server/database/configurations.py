@@ -10,6 +10,7 @@ from contextvars import ContextVar
 from functools import partial
 from typing import Any, Optional
 
+import orjson
 import sqlalchemy as sa
 from sqlalchemy import AdaptedConnection, event
 from sqlalchemy.dialects.sqlite import aiosqlite
@@ -52,6 +53,18 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
 
 _EngineCacheKey: TypeAlias = tuple[AbstractEventLoop, str, bool, Optional[float]]
 ENGINES: dict[_EngineCacheKey, AsyncEngine] = {}
+
+
+def orjson_dumps(obj: Any) -> str:
+    """Serialize object to JSON string using orjson with specific options."""
+    return orjson.dumps(
+        obj, option=orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_NAIVE_UTC
+    ).decode()
+
+
+def orjson_loads(data: str | bytes) -> Any:
+    """Deserialize JSON string to object using orjson."""
+    return orjson.loads(data)
 
 
 class ConnectionTracker:
@@ -300,6 +313,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 # that a given connection pulled from the pool will be
                 # usable.
                 pool_use_lifo=True,
+                json_serializer=orjson_dumps,
+                json_deserializer=orjson_loads,
                 **kwargs,
             )
 

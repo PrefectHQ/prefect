@@ -8,7 +8,6 @@ allow the Prefect REST API to seamlessly switch between the two.
 from __future__ import annotations
 
 import datetime
-import json
 import operator
 import re
 import uuid
@@ -221,6 +220,22 @@ class UUID(TypeDecorator[uuid.UUID]):
             return value
 
 
+def replace_special_floats(obj: Any) -> Any:
+    """Recursively replace NaN, Infinity, and -Infinity with None in nested structures."""
+    if isinstance(obj, float):
+        if obj != obj or obj == float("inf") or obj == float("-inf"):  # NaN or infinity
+            return None
+        return obj
+    elif isinstance(obj, dict):
+        return {k: replace_special_floats(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [replace_special_floats(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(replace_special_floats(item) for item in obj)
+    else:
+        return obj
+
+
 class JSON(TypeDecorator[Any]):
     """
     JSON type that returns SQLAlchemy's dialect-specific JSON types, where
@@ -259,9 +274,8 @@ class JSON(TypeDecorator[Any]):
         # the value (like `json_extract`) will fail.
         #
         # Replace any `NaN`, `-Infinity`, or `Infinity` values with `None` in the
-        # returned value.  See more about `parse_constant` at
-        # https://docs.python.org/3/library/json.html#json.load.
-        return json.loads(json.dumps(value), parse_constant=lambda c: None)
+        # returned value using our efficient helper function.
+        return replace_special_floats(value)
 
 
 class Pydantic(TypeDecorator[T]):
