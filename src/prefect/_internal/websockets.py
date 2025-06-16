@@ -7,7 +7,7 @@ to avoid duplication between events and logs clients.
 
 import os
 import ssl
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 from urllib.parse import urlparse
 from urllib.request import proxy_bypass
 
@@ -22,7 +22,7 @@ from prefect.settings import (
 )
 
 
-def create_ssl_context_for_websocket(uri: str) -> ssl.SSLContext | None:
+def create_ssl_context_for_websocket(uri: str) -> Optional[ssl.SSLContext]:
     """Create SSL context for WebSocket connections based on URI scheme."""
     u = urlparse(uri)
 
