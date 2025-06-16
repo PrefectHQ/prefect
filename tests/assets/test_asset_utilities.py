@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.assets import Asset, AssetProperties
-from prefect.context import MaterializingTaskContext
+from prefect.context import TaskAssetContext
 
 
 @pytest.mark.parametrize(
@@ -22,20 +22,20 @@ def test_asset_invalid_uri(invalid_key):
 
 def test_asset_as_resource():
     asset = Asset(key="s3://bucket/data")
-    resource = MaterializingTaskContext.asset_as_resource(asset)
+    resource = TaskAssetContext.asset_as_resource(asset)
     assert resource["prefect.resource.id"] == "s3://bucket/data"
 
 
 def test_asset_as_related():
     asset = Asset(key="postgres://prod/users")
-    related = MaterializingTaskContext.asset_as_related(asset)
+    related = TaskAssetContext.asset_as_related(asset)
     assert related["prefect.resource.id"] == "postgres://prod/users"
     assert related["prefect.resource.role"] == "asset"
 
 
 def test_asset_as_resource_with_no_properties():
     asset = Asset(key="s3://bucket/data")
-    resource = MaterializingTaskContext.asset_as_resource(asset)
+    resource = TaskAssetContext.asset_as_resource(asset)
 
     assert resource == {"prefect.resource.id": "s3://bucket/data"}
     assert "prefect.resource.name" not in resource
@@ -49,7 +49,7 @@ def test_asset_as_resource_with_partial_properties():
         key="postgres://prod/users",
         properties=AssetProperties(name="Users Table", description="Main users table"),
     )
-    resource = MaterializingTaskContext.asset_as_resource(asset)
+    resource = TaskAssetContext.asset_as_resource(asset)
 
     expected = {
         "prefect.resource.id": "postgres://prod/users",
@@ -71,7 +71,7 @@ def test_asset_as_resource_with_all_properties():
             owners=["data-team", "analytics"],
         ),
     )
-    resource = MaterializingTaskContext.asset_as_resource(asset)
+    resource = TaskAssetContext.asset_as_resource(asset)
 
     expected = {
         "prefect.resource.id": "s3://data-lake/enriched/customers.parquet",
@@ -94,7 +94,7 @@ def test_asset_as_resource_excludes_unset_properties():
             owners=["finance-team"],
         ),
     )
-    resource = MaterializingTaskContext.asset_as_resource(asset)
+    resource = TaskAssetContext.asset_as_resource(asset)
 
     # Should only include the fields that were explicitly set
     expected = {

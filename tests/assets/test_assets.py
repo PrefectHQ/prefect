@@ -1409,8 +1409,8 @@ def test_add_asset_metadata_throws_error_for_invalid_asset_key():
 
     # This should raise a ValueError
     with pytest.raises(
-        ValueError,
-        match="Can only add metadata to assets that are arguments to @materialize",
+        RuntimeError,
+        match="Can only add metadata to assets that are expected to be materialized",
     ):
         invalid_pipeline()
 
@@ -1428,7 +1428,7 @@ def test_add_asset_metadata_throws_error_for_invalid_asset_key():
     # This should raise a RuntimeError
     with pytest.raises(
         RuntimeError,
-        match="Asset.add_metadata operations are only available inside @materialize-ing tasks",
+        match="Can only add metadata to assets that are expected to be materialized",
     ):
         non_materializing_pipeline()
 
@@ -1886,3 +1886,265 @@ def test_dynamic_materialization_with_failure(asserting_events_worker: EventsWor
     assert evt.event == "prefect.asset.materialization.failed"
     assert evt.resource.id == "s3://bucket/failed_dynamic.csv"
     assert evt.payload == {"attempted": True, "reason": "processing_error"}
+
+
+# =============================================================================
+# Dynamic Asset Tracking Context Switching
+# =============================================================================
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_replaces_upstream_tracking(
+    asserting_events_worker: EventsWorker,
+):
+    """Test that calling .materialize() during task execution updates tracking context.
+
+    This tests the fix for the asset tracking conundrum where calling .materialize()
+    during a task should update the tracking context to ONLY contain the materialized
+    assets instead of the original upstream assets.
+
+    Expected graph: [R: s3://source/data.csv] --> [M: postgres://db/materialized_table]
+    """
+    from prefect.context import FlowRunContext
+
+    source_asset = Asset(key="s3://source/data.csv")
+    materialized_asset = Asset(key="postgres://db/materialized_table")
+
+    @task(asset_deps=[source_asset])
+    def extract_data():
+        return {"rows": 1000}
+
+    @task
+    def transform_and_materialize(data):
+        """A task that dynamically materializes an asset during execution."""
+        # Initially this task receives upstream data and would track source assets
+        # But when .materialize() is called, it should switch to materialization mode
+        processed_data = {"processed_rows": data["rows"]}
+
+        # This call should update the tracking context to only contain materialized_asset
+        materialized_asset.materialize()
+        materialized_asset.add_metadata(processed_data)
+
+        return processed_data
+
+    @task
+    def downstream_task(processed_data):
+        """This task should only see the materialized asset, not the source asset."""
+        return {"final_rows": processed_data["processed_rows"]}
+
+    @flow
+    def test_pipeline():
+        # Get flow context to inspect asset tracking
+        flow_ctx = FlowRunContext.get()
+
+        raw_data = extract_data()
+        processed_data = transform_and_materialize(raw_data)
+        final_data = downstream_task(processed_data)
+
+        # Verify that the materializing task's tracking was updated correctly
+        # It should track only the materialized asset, not the upstream source asset
+        materializing_task_run_id = None
+        for task_run_id, tracked_assets in flow_ctx.task_run_assets.items():
+            asset_keys = {asset.key for asset in tracked_assets}
+
+            # Find the task that materialized our asset
+            if materialized_asset.key in asset_keys:
+                materializing_task_run_id = task_run_id
+
+                # This should ONLY contain the materialized asset
+                # The source asset should NOT be in the tracking for this task
+                assert asset_keys == {materialized_asset.key}, (
+                    f"Expected only {materialized_asset.key}, but got {asset_keys}. "
+                    "Tracking context was not properly updated when .materialize() was called."
+                )
+                break
+
+        assert materializing_task_run_id is not None, (
+            "Could not find the materializing task in the asset tracking context"
+        )
+
+        return final_data
+
+    test_pipeline()
+    asserting_events_worker.drain()
+
+    # Verify the events are correct too
+    events = _asset_events(asserting_events_worker)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    assert len(ref_events) == 1
+    assert len(mat_events) == 1
+
+    # Source asset should be referenced
+    ref_evt = ref_events[0]
+    assert ref_evt.resource.id == source_asset.key
+
+    # Materialized asset should have the source as upstream
+    mat_evt = mat_events[0]
+    assert mat_evt.resource.id == materialized_asset.key
+    assert _has_upstream_asset(mat_evt, source_asset.key)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_multiple_dynamic_materializations_in_task(
+    asserting_events_worker: EventsWorker,
+):
+    """Test multiple .materialize() calls in a single task update tracking correctly.
+
+    When multiple assets are materialized in one task, the tracking should include
+    all materialized assets, replacing any initial upstream asset tracking.
+
+    Expected graph: [R: s3://input/raw.csv] --> [M: postgres://db/table1]
+                                             --> [M: postgres://db/table2]
+    """
+    from prefect.context import FlowRunContext
+
+    source_asset = Asset(key="s3://input/raw.csv")
+    asset1 = Asset(key="postgres://db/table1")
+    asset2 = Asset(key="postgres://db/table2")
+
+    @task(asset_deps=[source_asset])
+    def extract_data():
+        return {"data": ["record1", "record2"]}
+
+    @task
+    def split_and_materialize(data):
+        """Task that materializes multiple assets dynamically."""
+        # Process the data and materialize into two different assets
+
+        # First materialization - this should switch to materialization mode
+        asset1.materialize()
+        asset1.add_metadata({"records": [data["data"][0]]})
+
+        # Second materialization - this should add to the existing tracking
+        asset2.materialize()
+        asset2.add_metadata({"records": [data["data"][1]]})
+
+        return {"materialized": [asset1, asset2]}
+
+    @flow
+    def test_pipeline():
+        flow_ctx = FlowRunContext.get()
+
+        raw_data = extract_data()
+        result = split_and_materialize(raw_data)
+
+        # Find the materializing task's tracking
+        materializing_task_run_id = None
+        for task_run_id, tracked_assets in flow_ctx.task_run_assets.items():
+            asset_keys = {asset.key for asset in tracked_assets}
+
+            # Find the task that materialized our assets
+            if asset1.key in asset_keys and asset2.key in asset_keys:
+                materializing_task_run_id = task_run_id
+
+                # Should contain both materialized assets, not the source
+                expected_keys = {asset1.key, asset2.key}
+                assert asset_keys == expected_keys, (
+                    f"Expected {expected_keys}, but got {asset_keys}. "
+                    "Multiple materializations not tracked correctly."
+                )
+
+                # Source asset should NOT be in tracking for this task
+                assert source_asset.key not in asset_keys, (
+                    "Source asset should not be tracked when materialization occurs"
+                )
+                break
+
+        assert materializing_task_run_id is not None
+        return result
+
+    test_pipeline()
+    asserting_events_worker.drain()
+
+    # Verify events
+    events = _asset_events(asserting_events_worker)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    assert len(ref_events) == 1  # One reference to source
+    assert len(mat_events) == 2  # Two materializations
+
+    # Both materialized assets should have source as upstream
+    for asset in [asset1, asset2]:
+        mat_evt = _event_with_resource_id(mat_events, asset.key)
+        assert _has_upstream_asset(mat_evt, source_asset.key)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_materialization_with_predefined_and_dynamic_assets(
+    asserting_events_worker: EventsWorker,
+):
+    """Test MaterializingTask with predefined assets that also calls .materialize().
+
+    This tests that a task decorated with @materialize(asset) that also calls
+    .materialize() on additional assets works correctly.
+
+    Expected graph: [R: s3://config/settings.json] --> [M: postgres://db/static_table]
+                                                     --> [M: postgres://db/dynamic_table]
+    """
+    from prefect.context import FlowRunContext
+
+    source_asset = Asset(key="s3://config/settings.json")
+    static_asset = Asset(key="postgres://db/static_table")
+    dynamic_asset = Asset(key="postgres://db/dynamic_table")
+
+    @task(asset_deps=[source_asset])
+    def read_config():
+        return {"static_config": "value1", "dynamic_config": "value2"}
+
+    @materialize(static_asset)  # This task starts with a predefined asset
+    def process_with_mixed_assets(config):
+        """Task with both predefined and dynamic materialization."""
+        # Add metadata to the predefined asset
+        static_asset.add_metadata({"config": config["static_config"]})
+
+        # Also dynamically materialize another asset
+        dynamic_asset.materialize()
+        dynamic_asset.add_metadata({"config": config["dynamic_config"]})
+
+        return {"processed": True}
+
+    @flow
+    def test_pipeline():
+        flow_ctx = FlowRunContext.get()
+
+        config = read_config()
+        result = process_with_mixed_assets(config)
+
+        # Find the materializing task's tracking
+        materializing_task_run_id = None
+        for task_run_id, tracked_assets in flow_ctx.task_run_assets.items():
+            asset_keys = {asset.key for asset in tracked_assets}
+
+            # Find the task that has both assets
+            if static_asset.key in asset_keys and dynamic_asset.key in asset_keys:
+                materializing_task_run_id = task_run_id
+
+                # Should contain both assets (static + dynamic)
+                expected_keys = {static_asset.key, dynamic_asset.key}
+                assert asset_keys == expected_keys, (
+                    f"Expected {expected_keys}, but got {asset_keys}. "
+                    "Mixed static/dynamic materialization not tracked correctly."
+                )
+                break
+
+        assert materializing_task_run_id is not None
+        return result
+
+    test_pipeline()
+    asserting_events_worker.drain()
+
+    # Verify events
+    events = _asset_events(asserting_events_worker)
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    assert len(ref_events) == 1  # One reference to source
+    assert len(mat_events) == 2  # Two materializations
+
+    # Both assets should have source as upstream
+    for asset in [static_asset, dynamic_asset]:
+        mat_evt = _event_with_resource_id(mat_events, asset.key)
+        assert _has_upstream_asset(mat_evt, source_asset.key)

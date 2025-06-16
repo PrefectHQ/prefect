@@ -488,7 +488,7 @@ class TaskRunContext(RunContext):
         )
 
 
-class MaterializingTaskContext(ContextModel):
+class TaskAssetContext(ContextModel):
     """
     The asset context for a materializing task run. Contains all asset-related information needed
     for asset event emission and downstream asset dependency propagation.
@@ -511,6 +511,10 @@ class MaterializingTaskContext(ContextModel):
 
     __var__: ClassVar[ContextVar[Self]] = ContextVar("asset_context")
 
+    @property
+    def materializing_task_run(self) -> bool:
+        return bool(self.downstream_assets)
+
     def add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None:
         """
         Add metadata for a materialized asset.
@@ -524,8 +528,8 @@ class MaterializingTaskContext(ContextModel):
         """
         downstream_keys = {asset.key for asset in self.downstream_assets}
         if asset_key not in downstream_keys:
-            raise ValueError(
-                "Can only add metadata to assets that are arguments to @materialize"
+            raise RuntimeError(
+                "Can only add metadata to assets that are expected to be materialized"
             )
 
         existing = self.materialization_metadata.get(asset_key, {})
@@ -540,8 +544,17 @@ class MaterializingTaskContext(ContextModel):
         """
         from prefect.utilities.engine import track_assets_for_downstream
 
+        is_first_materialization = len(self.downstream_assets) == 0
         self.downstream_assets.add(asset)
-        track_assets_for_downstream(self.task_run_id, asset)
+
+        # When we add the first downstream asset, we're switching to materialization mode
+        # and need to replace the existing tracked assets with only the materialized ones
+        if is_first_materialization:
+            track_assets_for_downstream(
+                self.task_run_id, self.downstream_assets, replace=True
+            )
+        else:
+            track_assets_for_downstream(self.task_run_id, asset)
 
     @staticmethod
     def asset_as_resource(asset: Asset) -> dict[str, str]:
@@ -597,8 +610,8 @@ class MaterializingTaskContext(ContextModel):
         else:
             return
 
-        # If we have no downstream assets, this not a materialization
-        if not self.downstream_assets:
+        # Only emit events if this is a materialization
+        if not self.materializing_task_run:
             return
 
         # Emit reference events for all upstream assets (direct + inherited)
@@ -623,27 +636,6 @@ class MaterializingTaskContext(ContextModel):
                 related=upstream_related,
                 payload=self.materialization_metadata.get(asset.key),
             )
-
-    def update_tracked_assets(self) -> None:
-        """
-        Update the flow run context with assets that should be propagated downstream.
-        """
-        if not (flow_run_context := FlowRunContext.get()):
-            return
-
-        if not self.task_run_id:
-            return
-
-        if self.downstream_assets:
-            # MaterializingTask: propagate the downstream assets (what we create)
-            assets_for_downstream = set(self.downstream_assets)
-        else:
-            # Regular task: propagate upstream assets + direct dependencies
-            assets_for_downstream = set(
-                self.upstream_assets | self.direct_asset_dependencies
-            )
-
-        flow_run_context.task_run_assets[self.task_run_id] = assets_for_downstream
 
     def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
         """Serialize the AssetContext for distributed execution."""

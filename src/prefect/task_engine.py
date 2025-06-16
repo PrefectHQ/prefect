@@ -46,8 +46,8 @@ from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
     AsyncClientContext,
     FlowRunContext,
-    MaterializingTaskContext,
     SyncClientContext,
+    TaskAssetContext,
     TaskRunContext,
     hydrated_context,
 )
@@ -680,30 +680,35 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         upstream_assets = extract_upstream_assets(self.task_run.task_inputs)
         direct_asset_dependencies = set(self.task.asset_deps or [])
 
-        # If this is just a regular @task we only need to
-        # propagate assets for downstream @materialize-ing tasks
-        if not isinstance(self.task, MaterializingTask):
-            track_assets_for_downstream(
-                self.task_run.id, upstream_assets | direct_asset_dependencies
-            )
-            yield
-            return
+        if isinstance(self.task, MaterializingTask):
+            downstream_assets = set(self.task.assets or [])
+            materialized_by = self.task.materialized_by
+        else:
+            downstream_assets = set()
+            materialized_by = None
 
-        # If it's a @materialize-ing task we want to emit
-        # asset events and propagate only the newly materialized
-        # assets downstream for other @materialize-ing tasks
-        asset_ctx = MaterializingTaskContext(
+        asset_ctx = TaskAssetContext(
             upstream_assets=upstream_assets,
             direct_asset_dependencies=direct_asset_dependencies,
-            downstream_assets=set(self.task.assets or []),
-            materialized_by=self.task.materialized_by,
+            downstream_assets=downstream_assets,
+            materialized_by=materialized_by,
             task_run_id=self.task_run.id,
         )
 
         with asset_ctx as ctx:
             try:
-                track_assets_for_downstream(self.task_run.id, ctx.downstream_assets)
+                if ctx.downstream_assets:
+                    # This is a materializing task - track the downstream assets
+                    track_assets_for_downstream(self.task_run.id, ctx.downstream_assets)
+                else:
+                    # Regular task - track upstream assets and direct dependencies
+                    # This will be replaced if materialization occurs via add_downstream_asset
+                    track_assets_for_downstream(
+                        self.task_run.id, upstream_assets | direct_asset_dependencies
+                    )
+
                 yield
+
             finally:
                 ctx.emit_events(self.state)
 
@@ -1289,29 +1294,33 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         upstream_assets = extract_upstream_assets(self.task_run.task_inputs)
         direct_asset_dependencies = set(self.task.asset_deps or [])
 
-        # If this is just a regular @task we only need to
-        # propagate assets for downstream @materialize-ing tasks
-        if not isinstance(self.task, MaterializingTask):
-            track_assets_for_downstream(
-                self.task_run.id, upstream_assets | direct_asset_dependencies
-            )
-            yield
-            return
+        if isinstance(self.task, MaterializingTask):
+            downstream_assets = set(self.task.assets or [])
+            materialized_by = self.task.materialized_by
+        else:
+            downstream_assets = set()
+            materialized_by = None
 
-        # If it's a @materialize-ing task we want to emit
-        # asset events and propagate only the newly materialized
-        # assets downstream for other @materialize-ing tasks
-        asset_ctx = MaterializingTaskContext(
+        asset_ctx = TaskAssetContext(
             upstream_assets=upstream_assets,
             direct_asset_dependencies=direct_asset_dependencies,
-            downstream_assets=set(self.task.assets or []),
-            materialized_by=self.task.materialized_by,
+            downstream_assets=downstream_assets,
+            materialized_by=materialized_by,
             task_run_id=self.task_run.id,
         )
 
         with asset_ctx as ctx:
             try:
-                track_assets_for_downstream(self.task_run.id, ctx.downstream_assets)
+                # Track assets for downstream propagation
+                if ctx.downstream_assets:
+                    # This is a materializing task - track the downstream assets
+                    track_assets_for_downstream(self.task_run.id, ctx.downstream_assets)
+                else:
+                    # Regular task - track upstream assets and direct dependencies
+                    # This will be replaced if materialization occurs via add_downstream_asset
+                    track_assets_for_downstream(
+                        self.task_run.id, upstream_assets | direct_asset_dependencies
+                    )
                 yield
             finally:
                 ctx.emit_events(self.state)

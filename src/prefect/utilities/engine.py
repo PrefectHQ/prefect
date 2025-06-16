@@ -890,7 +890,7 @@ def extract_upstream_assets(
 
 
 def track_assets_for_downstream(
-    task_run_id: UUID, assets: Union[Asset, set[Asset]]
+    task_run_id: UUID, assets: Union[Asset, set[Asset]], replace: bool = False
 ) -> None:
     flow_run_ctx = FlowRunContext.get()
     if not flow_run_ctx or not assets:
@@ -898,7 +898,7 @@ def track_assets_for_downstream(
 
     assets_set = {assets} if not isinstance(assets, set) else assets
 
-    if task_run_id in flow_run_ctx.task_run_assets:
-        flow_run_ctx.task_run_assets[task_run_id] |= assets_set
-    else:
+    if replace or task_run_id not in flow_run_ctx.task_run_assets:
         flow_run_ctx.task_run_assets[task_run_id] = assets_set
+    else:
+        flow_run_ctx.task_run_assets[task_run_id] |= assets_set
