@@ -144,6 +144,16 @@ P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
 T = TypeVar("T")
 
+# Cache for TypeAdapter instances to avoid repeated instantiation
+_TYPE_ADAPTER_CACHE: dict[type, pydantic.TypeAdapter] = {}
+
+
+def _get_type_adapter(type_: type) -> pydantic.TypeAdapter:
+    """Get or create a cached TypeAdapter for the given type."""
+    if type_ not in _TYPE_ADAPTER_CACHE:
+        _TYPE_ADAPTER_CACHE[type_] = pydantic.TypeAdapter(type_)
+    return _TYPE_ADAPTER_CACHE[type_]
+
 
 @overload
 def get_client(
@@ -635,7 +645,7 @@ class PrefectClient(
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
+        return _get_type_adapter(list[FlowRun]).validate_python(response.json())
 
     async def read_work_queue(
         self,
@@ -894,7 +904,7 @@ class PrefectClient(
             "offset": offset,
         }
         response = await self._client.post("/task_runs/filter", json=body)
-        return pydantic.TypeAdapter(list[TaskRun]).validate_python(response.json())
+        return _get_type_adapter(list[TaskRun]).validate_python(response.json())
 
     async def delete_task_run(self, task_run_id: UUID) -> None:
         """
@@ -958,7 +968,7 @@ class PrefectClient(
         response = await self._client.get(
             "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
-        return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
+        return _get_type_adapter(list[prefect.states.State]).validate_python(
             response.json()
         )
 
@@ -1005,7 +1015,7 @@ class PrefectClient(
         else:
             response = await self._client.post("/work_queues/filter", json=json)
 
-        return pydantic.TypeAdapter(list[WorkQueue]).validate_python(response.json())
+        return _get_type_adapter(list[WorkQueue]).validate_python(response.json())
 
     async def read_worker_metadata(self) -> dict[str, Any]:
         """Reads worker metadata stored in Prefect collection registry."""
@@ -1554,7 +1564,7 @@ class SyncPrefectClient(
             "offset": offset,
         }
         response = self._client.post("/task_runs/filter", json=body)
-        return pydantic.TypeAdapter(list[TaskRun]).validate_python(response.json())
+        return _get_type_adapter(list[TaskRun]).validate_python(response.json())
 
     def set_task_run_state(
         self,
@@ -1598,6 +1608,6 @@ class SyncPrefectClient(
         response = self._client.get(
             "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
-        return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
+        return _get_type_adapter(list[prefect.states.State]).validate_python(
             response.json()
         )

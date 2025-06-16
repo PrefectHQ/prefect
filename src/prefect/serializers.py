@@ -39,6 +39,9 @@ from prefect.utilities.pydantic import custom_pydantic_encoder
 D = TypeVar("D", default=Any)
 
 # Cache for TypeAdapter instances to avoid repeated instantiation
+# TypeAdapter instances are thread-safe and immutable after creation.
+# The worst case for concurrent access is creating the same adapter twice,
+# which is harmless since they'll be functionally identical.
 _TYPE_ADAPTER_CACHE: dict[str, TypeAdapter] = {}
 
 

@@ -220,19 +220,48 @@ class UUID(TypeDecorator[uuid.UUID]):
             return value
 
 
-def replace_special_floats(obj: Any) -> Any:
-    """Recursively replace NaN, Infinity, and -Infinity with None in nested structures."""
+def _replace_special_floats(obj: Any, _seen: Optional[set[int]] = None) -> Any:
+    """Recursively replace NaN, Infinity, and -Infinity with None in nested structures.
+
+    Only processes types that are JSON-serializable to maintain compatibility
+    with the original json.dumps/loads approach.
+    """
+    if _seen is None:
+        _seen: set[int] = set()
+
+    # Handle circular references
+    obj_id = id(obj)
+    if obj_id in _seen:
+        # For circular refs, return as-is to match JSON behavior
+        # (JSON would fail, but SQLAlchemy will handle the error)
+        return obj
+
     if isinstance(obj, float):
         if obj != obj or obj == float("inf") or obj == float("-inf"):  # NaN or infinity
             return None
         return obj
     elif isinstance(obj, dict):
-        return {k: replace_special_floats(v) for k, v in obj.items()}
+        _seen.add(obj_id)
+        try:
+            # Handle dict-like objects (including OrderedDict)
+            return obj.__class__(
+                {k: _replace_special_floats(v, _seen) for k, v in obj.items()}
+            )
+        finally:
+            _seen.discard(obj_id)
     elif isinstance(obj, list):
-        return [replace_special_floats(item) for item in obj]
+        _seen.add(obj_id)
+        try:
+            return [_replace_special_floats(item, _seen) for item in obj]
+        finally:
+            _seen.discard(obj_id)
     elif isinstance(obj, tuple):
-        return tuple(replace_special_floats(item) for item in obj)
+        # Tuples are immutable, so no circular reference concern
+        return tuple(_replace_special_floats(item, _seen) for item in obj)
     else:
+        # For other types (including sets, custom objects, etc.),
+        # return as-is. If they contain special floats and aren't
+        # JSON-serializable, SQLAlchemy will handle the error.
         return obj
 
 
@@ -275,7 +304,7 @@ class JSON(TypeDecorator[Any]):
         #
         # Replace any `NaN`, `-Infinity`, or `Infinity` values with `None` in the
         # returned value using our efficient helper function.
-        return replace_special_floats(value)
+        return _replace_special_floats(value)
 
 
 class Pydantic(TypeDecorator[T]):
@@ -311,6 +340,7 @@ class Pydantic(TypeDecorator[T]):
     ) -> None:
         super().__init__()
         self._pydantic_type = pydantic_type
+        self._adapter = pydantic.TypeAdapter(self._pydantic_type)
         if sa_column_type is not None:
             self.impl: type[JSON] | type[TypeEngine[Any]] | TypeEngine[Any] = (
                 sa_column_type
@@ -324,21 +354,20 @@ class Pydantic(TypeDecorator[T]):
 
         # parse the value to ensure it complies with the schema
         # (this will raise validation errors if not)
-        adapter = pydantic.TypeAdapter(self._pydantic_type)
-        value = adapter.validate_python(value)
+        value = self._adapter.validate_python(value)
 
         # sqlalchemy requires the bind parameter's value to be a python-native
         # collection of JSON-compatible objects. we achieve that by dumping the
         # value to a json string using the pydantic JSON encoder and re-parsing
         # it into a python-native form.
-        return adapter.dump_python(value, mode="json")
+        return self._adapter.dump_python(value, mode="json")
 
     def process_result_value(
         self, value: Optional[Any], dialect: sa.Dialect
     ) -> Optional[T]:
         if value is not None:
             # load the json object into a fully hydrated typed object
-            return pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
+            return self._adapter.validate_python(value)
 
 
 def bindparams_from_clause(
