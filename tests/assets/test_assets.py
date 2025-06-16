@@ -1538,3 +1538,351 @@ def test_materialization_from_regular_task(asserting_events_worker: EventsWorker
 
     # Should have flow-run context
     assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)
+
+
+# =============================================================================
+# Dynamic Materialization (@materialize without arguments)
+# =============================================================================
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_no_events(asserting_events_worker: EventsWorker):
+    """Test @materialize without arguments where nothing is materialized.
+
+    When a task decorated with @materialize (no arguments) doesn't materialize
+    any assets, no events should be emitted.
+
+    Expected graph: [] (no events)
+    """
+
+    @materialize
+    def do_nothing():
+        return {"status": "complete"}
+
+    @flow
+    def pipeline():
+        do_nothing()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 0
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_single_asset(asserting_events_worker: EventsWorker):
+    """Test @materialize without arguments where 1 event is dynamically materialized.
+
+    This tests the dynamic materialization feature where assets are determined
+    at runtime rather than at decoration time.
+
+    Expected graph: [M: s3://bucket/dynamic_asset.csv]
+    """
+
+    @materialize
+    def create_dynamic_asset():
+        # Dynamically create and materialize an asset
+        asset = Asset(key="s3://bucket/dynamic_asset.csv")
+        asset.materialize()
+        asset.add_metadata({"rows": 500})
+        return {"asset": asset}
+
+    @flow
+    def pipeline():
+        create_dynamic_asset()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 1
+
+    evt = events[0]
+    assert evt.event == "prefect.asset.materialization.succeeded"
+    assert evt.resource.id == "s3://bucket/dynamic_asset.csv"
+    assert evt.payload == {"rows": 500}
+    assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_multiple_assets(asserting_events_worker: EventsWorker):
+    """Test @materialize without arguments where multiple assets are dynamically materialized.
+
+    This tests dynamically materializing multiple assets within a single task.
+
+    Expected graph: [M: postgres://db/table1], [M: postgres://db/table2], [M: postgres://db/table3]
+    """
+
+    @materialize
+    def create_multiple_dynamic_assets():
+        # Dynamically create multiple assets
+        assets_created = []
+        for i in range(1, 4):
+            asset = Asset(key=f"postgres://db/table{i}")
+            asset.materialize()
+            asset.add_metadata({"table_num": i, "rows": i * 100})
+            assets_created.append(asset)
+        return {"assets": assets_created}
+
+    @flow
+    def pipeline():
+        create_multiple_dynamic_assets()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 3
+
+    # Check all are materialization events
+    mat_events = _materialization_events(events)
+    assert len(mat_events) == 3
+
+    # Verify each asset
+    for i in range(1, 4):
+        evt = _event_with_resource_id(mat_events, f"postgres://db/table{i}")
+        assert evt.event == "prefect.asset.materialization.succeeded"
+        assert evt.payload == {"table_num": i, "rows": i * 100}
+        assert any(r.id.startswith("prefect.flow-run.") for r in evt.related)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_with_dependencies(
+    asserting_events_worker: EventsWorker,
+):
+    """Test dynamic materialization with asset dependencies.
+
+    This tests a @materialize task with no static assets but with asset_deps,
+    allowing for dynamic materialization based on upstream data.
+
+    Expected graph: [R: s3://source/config.json] --> [M: s3://output/result.csv]
+    """
+    source_asset = Asset(key="s3://source/config.json")
+
+    @task(asset_deps=[source_asset])
+    def read_config():
+        return {"output_path": "s3://output/result.csv", "data": {"rows": 1000}}
+
+    @materialize
+    def dynamic_write(config):
+        # Dynamically determine the output asset based on config
+        output_asset = Asset(key=config["output_path"])
+        output_asset.materialize()
+        output_asset.add_metadata(config["data"])
+        return output_asset
+
+    @flow
+    def pipeline():
+        config = read_config()
+        dynamic_write(config)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 2
+
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    assert len(ref_events) == 1
+    assert len(mat_events) == 1
+
+    # Check reference event
+    ref_evt = ref_events[0]
+    assert ref_evt.resource.id == source_asset.key
+
+    # Check materialization event
+    mat_evt = mat_events[0]
+    assert mat_evt.resource.id == "s3://output/result.csv"
+    assert mat_evt.payload == {"rows": 1000}
+    assert _has_upstream_asset(mat_evt, source_asset.key)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_conditional(asserting_events_worker: EventsWorker):
+    """Test dynamic materialization with conditional logic.
+
+    This tests that assets are only materialized when conditions are met,
+    demonstrating the flexibility of dynamic materialization.
+
+    Expected graph: [M: s3://bucket/success.csv] (only if condition is True)
+    """
+
+    @materialize
+    def conditional_materialization(should_materialize: bool):
+        if should_materialize:
+            asset = Asset(key="s3://bucket/success.csv")
+            asset.materialize()
+            asset.add_metadata({"created": True})
+            return {"status": "materialized", "asset": asset}
+        else:
+            return {"status": "skipped"}
+
+    @flow
+    def pipeline(materialize_asset: bool):
+        conditional_materialization(materialize_asset)
+
+    # Run with materialization
+    pipeline(materialize_asset=True)
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 1
+    assert events[0].resource.id == "s3://bucket/success.csv"
+    assert events[0].payload == {"created": True}
+
+    # Reset and run without materialization
+    asserting_events_worker._client.events.clear()
+    pipeline(materialize_asset=False)
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 0
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_fan_out(asserting_events_worker: EventsWorker):
+    """Test dynamic materialization in a fan-out pattern.
+
+    This tests dynamically creating multiple assets based on input data,
+    demonstrating how dynamic materialization can adapt to data-driven workflows.
+
+    Expected graph: [R: s3://source/partitions.json] |-> [M: s3://output/partition_1.csv]
+                                                       |-> [M: s3://output/partition_2.csv]
+                                                        |-> [M: s3://output/partition_3.csv]
+    """
+    source_asset = Asset(key="s3://source/partitions.json")
+
+    @task(asset_deps=[source_asset])
+    def get_partitions():
+        return ["partition_1", "partition_2", "partition_3"]
+
+    @materialize
+    def process_partition(partition_name: str):
+        # Dynamically create asset based on partition
+        asset = Asset(key=f"s3://output/{partition_name}.csv")
+        asset.materialize()
+        asset.add_metadata(
+            {"partition": partition_name, "records": len(partition_name) * 100}
+        )
+        return asset
+
+    @flow
+    def pipeline():
+        partitions = get_partitions()
+        for partition in partitions:
+            process_partition(partition)
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    # 3 references + 3 materializations
+    assert len(events) == 6
+
+    ref_events = _reference_events(events)
+    mat_events = _materialization_events(events)
+
+    assert len(ref_events) == 3
+    assert len(mat_events) == 3
+
+    # Check references - all should be for the same source asset
+    for ref_evt in ref_events:
+        assert ref_evt.resource.id == source_asset.key
+
+    # Check materializations
+    expected_partitions = ["partition_1", "partition_2", "partition_3"]
+    for partition in expected_partitions:
+        evt = _event_with_resource_id(mat_events, f"s3://output/{partition}.csv")
+        assert evt.event == "prefect.asset.materialization.succeeded"
+        assert evt.payload["partition"] == partition
+        assert _has_upstream_asset(evt, source_asset.key)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_mixed_with_static(
+    asserting_events_worker: EventsWorker,
+):
+    """Test mixing static and dynamic materialization.
+
+    This tests a task that has both statically defined assets and dynamically
+    created assets, ensuring both work together correctly.
+
+    Expected graph: [M: s3://bucket/static.csv], [M: s3://bucket/dynamic.csv]
+    """
+    static_asset = Asset(key="s3://bucket/static.csv")
+
+    @materialize(static_asset)
+    def mixed_materialization():
+        # Static asset is automatically tracked
+        static_asset.add_metadata({"type": "static", "rows": 100})
+
+        # Also dynamically create another asset
+        dynamic_asset = Asset(key="s3://bucket/dynamic.csv")
+        dynamic_asset.materialize()
+        dynamic_asset.add_metadata({"type": "dynamic", "rows": 200})
+
+        return {"static": static_asset, "dynamic": dynamic_asset}
+
+    @flow
+    def pipeline():
+        mixed_materialization()
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    # Should have 2 materialization events
+    assert len(mat_events) == 2
+
+    # Check static asset
+    static_evt = _event_with_resource_id(mat_events, "s3://bucket/static.csv")
+    assert static_evt.event == "prefect.asset.materialization.succeeded"
+    assert static_evt.payload == {"type": "static", "rows": 100}
+
+    # Check dynamic asset
+    dynamic_evt = _event_with_resource_id(mat_events, "s3://bucket/dynamic.csv")
+    assert dynamic_evt.event == "prefect.asset.materialization.succeeded"
+    assert dynamic_evt.payload == {"type": "dynamic", "rows": 200}
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_dynamic_materialization_with_failure(asserting_events_worker: EventsWorker):
+    """Test dynamic materialization when task fails after adding metadata.
+
+    This ensures that metadata is captured even when dynamic materialization fails.
+
+    Expected graph: [M: s3://bucket/failed_dynamic.csv] (failed)
+    """
+
+    @materialize
+    def failing_dynamic_task():
+        # Create asset and add metadata
+        asset = Asset(key="s3://bucket/failed_dynamic.csv")
+        asset.materialize()
+        asset.add_metadata({"attempted": True, "reason": "processing_error"})
+
+        # Then fail
+        raise RuntimeError("Dynamic processing failed")
+
+    @flow
+    def pipeline():
+        try:
+            failing_dynamic_task()
+        except RuntimeError:
+            pass
+
+    pipeline()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    assert len(events) == 1
+
+    evt = events[0]
+    assert evt.event == "prefect.asset.materialization.failed"
+    assert evt.resource.id == "s3://bucket/failed_dynamic.csv"
+    assert evt.payload == {"attempted": True, "reason": "processing_error"}
