@@ -6271,7 +6271,7 @@
                     "Task Workers"
                 ],
                 "summary": "Read Task Workers",
-                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://docs.prefect.io/v3/develop/deferred-tasks.",
+                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows-and-tasks#background-tasks.",
                 "operationId": "read_task_workers_task_workers_filter_post",
                 "parameters": [
                     {
@@ -8157,7 +8157,7 @@
                     "Events"
                 ],
                 "summary": "Create Events",
-                "description": "Record a batch of Events.\n\nFor more information, see https://docs.prefect.io/v3/automate/events/events.",
+                "description": "Record a batch of Events.\n\nFor more information, see https://docs.prefect.io/v3/concepts/events.",
                 "operationId": "create_events_events_post",
                 "parameters": [
                     {
@@ -8833,6 +8833,52 @@
                 ],
                 "summary": "Validate Template",
                 "operationId": "validate_template_templates_validate_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "string",
+                                "default": "",
+                                "title": "Template"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/automations/templates/validate": {
+            "post": {
+                "tags": [
+                    "Automations"
+                ],
+                "summary": "Validate Template",
+                "operationId": "validate_template_automations_templates_validate_post",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -10084,6 +10130,14 @@
                         "description": "Whether this automation will be evaluated",
                         "default": true
                     },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags associated with this automation"
+                    },
                     "trigger": {
                         "anyOf": [
                             {
@@ -10329,6 +10383,14 @@
                         "title": "Enabled",
                         "description": "Whether this automation will be evaluated",
                         "default": true
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags associated with this automation"
                     },
                     "trigger": {
                         "anyOf": [
@@ -10658,6 +10720,14 @@
                         "title": "Enabled",
                         "description": "Whether this automation will be evaluated",
                         "default": true
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Tags",
+                        "description": "A list of tags associated with this automation"
                     },
                     "trigger": {
                         "anyOf": [
@@ -13786,7 +13856,14 @@
                         "default": 0
                     },
                     "work_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "integer",
@@ -22989,8 +23066,17 @@
                                 "type": "integer"
                             },
                             {
+                                "type": "number"
+                            },
+                            {
                                 "items": {
                                     "type": "integer"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "type": "number"
                                 },
                                 "type": "array"
                             },

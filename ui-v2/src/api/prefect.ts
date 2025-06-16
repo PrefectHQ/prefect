@@ -1870,7 +1870,7 @@ export interface paths {
          * Read Task Workers
          * @description Read active task workers. Optionally filter by task keys.
          *
-         *     For more information, see https://docs.prefect.io/v3/develop/deferred-tasks.
+         *     For more information, see https://docs.prefect.io/v3/concepts/flows-and-tasks#background-tasks.
          */
         post: operations["read_task_workers_task_workers_filter_post"];
         delete?: never;
@@ -2414,7 +2414,7 @@ export interface paths {
          * Create Events
          * @description Record a batch of Events.
          *
-         *     For more information, see https://docs.prefect.io/v3/automate/events/events.
+         *     For more information, see https://docs.prefect.io/v3/concepts/events.
          */
         post: operations["create_events_events_post"];
         delete?: never;
@@ -2609,6 +2609,23 @@ export interface paths {
         put?: never;
         /** Validate Template */
         post: operations["validate_template_templates_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/automations/templates/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Template */
+        post: operations["validate_template_automations_templates_validate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3289,6 +3306,11 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * Tags
+             * @description A list of tags associated with this automation
+             */
+            tags?: string[];
+            /**
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
@@ -3337,6 +3359,11 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Tags
+             * @description A list of tags associated with this automation
+             */
+            tags?: string[];
             /**
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
@@ -3431,6 +3458,11 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Tags
+             * @description A list of tags associated with this automation
+             */
+            tags?: string[];
             /**
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
@@ -4662,7 +4694,7 @@ export interface components {
              * @default 0
              */
             offset: number;
-            work_queues?: components["schemas"]["WorkQueueFilter"];
+            work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -8895,7 +8927,7 @@ export interface components {
              * Retry Delay
              * @description A delay time or list of delay times between retries, in seconds.
              */
-            retry_delay?: number | number[] | null;
+            retry_delay?: number | number[] | number[] | null;
             /**
              * Retry Jitter Factor
              * @description Determines the amount a retry should jitter
@@ -15463,6 +15495,39 @@ export interface operations {
         };
     };
     validate_template_templates_validate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_template_automations_templates_validate_post: {
         parameters: {
             query?: never;
             header?: {
