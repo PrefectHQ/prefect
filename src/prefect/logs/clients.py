@@ -37,7 +37,6 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
-from prefect.types import DateTime
 from prefect.types._datetime import now
 
 if TYPE_CHECKING:
@@ -250,8 +249,8 @@ class PrefectLogsSubscriber:
 
         current_time = now("UTC")
         self._filter.timestamp = LogFilterTimestamp(
-            after_=DateTime.instance(current_time - timedelta(minutes=1)),
-            before_=DateTime.instance(current_time + timedelta(days=365)),
+            after_=current_time - timedelta(minutes=1),
+            before_=current_time + timedelta(days=365),
         )
 
         logger.debug("  filtering logs since %s...", self._filter.timestamp.after_)
