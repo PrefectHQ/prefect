@@ -16,10 +16,7 @@ from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets.asyncio.client import ClientConnection, connect
 
-from prefect.settings import (
-    PREFECT_API_SSL_CERT_FILE,
-    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
-)
+from prefect.settings import get_current_settings
 
 
 def create_ssl_context_for_websocket(uri: str) -> Optional[ssl.SSLContext]:
@@ -29,7 +26,7 @@ def create_ssl_context_for_websocket(uri: str) -> Optional[ssl.SSLContext]:
     if u.scheme != "wss":
         return None
 
-    if PREFECT_API_TLS_INSECURE_SKIP_VERIFY.value():
+    if get_current_settings().api.tls_insecure_skip_verify:
         # Create an unverified context for insecure connections
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -37,7 +34,7 @@ def create_ssl_context_for_websocket(uri: str) -> Optional[ssl.SSLContext]:
         return ctx
     else:
         # Create a verified context with the certificate file
-        cert_file = PREFECT_API_SSL_CERT_FILE.value()
+        cert_file = get_current_settings().api.ssl_cert_file
         if not cert_file:
             cert_file = certifi.where()
         return ssl.create_default_context(cafile=cert_file)
