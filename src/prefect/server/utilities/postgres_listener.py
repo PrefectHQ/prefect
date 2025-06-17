@@ -4,13 +4,14 @@ import asyncio
 from typing import TYPE_CHECKING, AsyncGenerator
 
 import asyncpg  # type: ignore
+from pydantic import SecretStr
 from sqlalchemy.engine.url import make_url
 
 if TYPE_CHECKING:
     from asyncpg import Connection
 
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.settings import get_current_settings
 
 _logger = get_logger(__name__)
 
@@ -20,9 +21,12 @@ async def get_pg_notify_connection() -> Connection | None:
     Establishes and returns a raw asyncpg connection for LISTEN/NOTIFY.
     Returns None if not a PostgreSQL connection URL.
     """
-    db_url_str = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    db_url_str = get_current_settings().server.database.connection_url
+    if isinstance(db_url_str, SecretStr):
+        db_url_str = db_url_str.get_secret_value()
+
     if not db_url_str:
-        _logger.warning(
+        _logger.debug(
             "Cannot create Postgres LISTEN connection: PREFECT_API_DATABASE_CONNECTION_URL is not set."
         )
         return None
@@ -34,7 +38,7 @@ async def get_pg_notify_connection() -> Connection | None:
         return None
 
     if db_url.drivername.split("+")[0] not in ("postgresql", "postgres"):
-        _logger.warning(
+        _logger.debug(
             "Cannot create Postgres LISTEN connection: PREFECT_API_DATABASE_CONNECTION_URL "
             f"is not a PostgreSQL connection URL (driver: {db_url.drivername})."
         )
