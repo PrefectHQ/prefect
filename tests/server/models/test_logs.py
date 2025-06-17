@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -138,3 +139,38 @@ class TestReadLogs:
 
         assert len(logs) == 1
         assert all([log.task_run_id is not None for log in logs])
+
+
+class TestLogSchemaConversion:
+    """Tests for LogCreate to Log schema conversion - the core issue that was fixed"""
+
+    async def test_create_logs_with_logcreate_publishes_logs_with_ids(self, session):
+        """Test calling create_logs with LogCreate objects results in Log objects with IDs being published"""
+        log_create = LogCreate(
+            name="test.logger",
+            level=20,
+            message="Test message",
+            timestamp=NOW,
+            flow_run_id=uuid4(),
+        )
+
+        # Mock publish_logs to capture what gets passed to messaging
+        with patch("prefect.server.logs.messaging.publish_logs") as mock_publish:
+            await models.logs.create_logs(session=session, logs=[log_create])
+
+            # Verify publish_logs was called with Log objects that have IDs
+            mock_publish.assert_called_once()
+            published_logs = mock_publish.call_args[0][0]
+
+            assert len(published_logs) == 1
+            published_log = published_logs[0]
+
+            # This was the key issue: published logs must have IDs (LogCreate doesn't have IDs)
+            assert isinstance(published_log, Log)
+            assert published_log.id is not None
+
+            # Core fields should match the original LogCreate
+            assert published_log.name == log_create.name
+            assert published_log.level == log_create.level
+            assert published_log.message == log_create.message
+            assert published_log.flow_run_id == log_create.flow_run_id
