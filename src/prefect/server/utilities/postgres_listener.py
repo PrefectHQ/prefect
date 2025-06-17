@@ -22,7 +22,7 @@ async def get_pg_notify_connection() -> Connection | None:
     """
     db_url_str = PREFECT_API_DATABASE_CONNECTION_URL.value()
     if not db_url_str:
-        _logger.warning(
+        _logger.debug(
             "Cannot create Postgres LISTEN connection: PREFECT_API_DATABASE_CONNECTION_URL is not set."
         )
         return None
@@ -34,7 +34,7 @@ async def get_pg_notify_connection() -> Connection | None:
         return None
 
     if db_url.drivername.split("+")[0] not in ("postgresql", "postgres"):
-        _logger.warning(
+        _logger.debug(
             "Cannot create Postgres LISTEN connection: PREFECT_API_DATABASE_CONNECTION_URL "
             f"is not a PostgreSQL connection URL (driver: {db_url.drivername})."
         )
