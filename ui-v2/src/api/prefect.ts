@@ -4604,7 +4604,7 @@ export interface components {
              * @default 0
              */
             offset: number;
-            logs?: components["schemas"]["LogFilter"];
+            logs?: components["schemas"]["LogFilter"] | null;
             /** @default TIMESTAMP_ASC */
             sort: components["schemas"]["LogSort"];
             /**

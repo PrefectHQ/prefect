@@ -13674,7 +13674,14 @@
                         "default": 0
                     },
                     "logs": {
-                        "$ref": "#/components/schemas/LogFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LogFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "sort": {
                         "$ref": "#/components/schemas/LogSort",
