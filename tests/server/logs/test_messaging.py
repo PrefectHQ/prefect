@@ -156,3 +156,35 @@ async def test_publish_logs_when_enabled(sample_logs):
             mock_create.assert_called_once()
             # Should be called once for each log
             assert mock_publisher.publish_data.call_count == len(sample_logs)
+
+
+class TestLogSchemaTypeValidation:
+    """Tests for schema type validation in the messaging system"""
+
+    @pytest.mark.asyncio
+    async def test_publish_logs_uses_log_id_in_attributes(self):
+        """Test that publish_logs uses the Log object's id field in message attributes"""
+        log_full = Log(
+            name="test.logger",
+            level=20,
+            message="Test message",
+            timestamp=now("UTC"),
+            flow_run_id=uuid4(),
+        )
+
+        with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
+            with patch(
+                "prefect.server.logs.messaging.create_log_publisher"
+            ) as mock_create:
+                mock_publisher = AsyncMock()
+                mock_create.return_value.__aenter__.return_value = mock_publisher
+                mock_create.return_value.__aexit__ = AsyncMock(return_value=None)
+
+                await publish_logs([log_full])
+
+                mock_publisher.publish_data.assert_called_once()
+                call_args = mock_publisher.publish_data.call_args
+
+                # This was the key issue: messaging needs the log's ID (only available on Log, not LogCreate)
+                assert call_args[1]["attributes"]["log_id"] == str(log_full.id)
+                assert log_full.id is not None

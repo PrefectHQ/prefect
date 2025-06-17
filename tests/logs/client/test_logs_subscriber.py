@@ -1,8 +1,10 @@
 import json
 import logging
 from typing import Optional, Type
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import orjson
 import pytest
 from websockets.exceptions import ConnectionClosedError
 
@@ -580,10 +582,8 @@ def test_subscriber_sleep_logic():
     assert 2 <= 2  # This would NOT trigger sleep on attempt 2
 
 
-async def test_subscriber_auth_error_during_reconnect():
-    """Test ValueError when auth token is missing during reconnect"""
-    from unittest.mock import AsyncMock
-
+async def test_subscriber_auth_with_none_token():
+    """Test that authentication works when auth token is None (Prefect server)"""
     from prefect.logs.clients import PrefectLogsSubscriber
 
     with temporary_settings({PREFECT_API_AUTH_STRING: None}):
@@ -591,7 +591,7 @@ async def test_subscriber_auth_error_during_reconnect():
         subscriber._api_key = None
         subscriber._auth_token = None
 
-        # Mock the websocket connection to succeed initially
+        # Mock the websocket connection to succeed
         mock_connect = AsyncMock()
         mock_websocket = AsyncMock()
 
@@ -602,9 +602,105 @@ async def test_subscriber_auth_error_during_reconnect():
 
         mock_websocket.ping.return_value = MockPong()
 
+        # Mock auth success response
+        mock_websocket.recv.return_value = orjson.dumps(
+            {"type": "auth_success"}
+        ).decode()
+
         mock_connect.__aenter__.return_value = mock_websocket
         mock_connect.__aexit__ = AsyncMock()
         subscriber._connect = mock_connect
 
-        with pytest.raises(ValueError, match="No API key or auth token"):
+        # Should not raise ValueError - None tokens are valid for Prefect server
+        await subscriber._reconnect()
+
+        # Verify auth message was sent with None token
+        # _reconnect sends two messages: auth first, then filter
+        assert mock_websocket.send.call_count == 2
+        auth_call = mock_websocket.send.call_args_list[0]
+        auth_message = orjson.loads(auth_call[0][0])
+        assert auth_message["type"] == "auth"
+        assert auth_message["token"] is None
+
+
+async def test_subscriber_auth_with_empty_token():
+    """Test that authentication works when auth token is empty string"""
+    from prefect.logs.clients import PrefectLogsSubscriber
+
+    with temporary_settings({PREFECT_API_AUTH_STRING: ""}):
+        subscriber = PrefectLogsSubscriber("http://example.com")
+        subscriber._api_key = None
+        subscriber._auth_token = ""
+
+        # Mock the websocket connection to succeed
+        mock_connect = AsyncMock()
+        mock_websocket = AsyncMock()
+
+        # Create a mock pong that can be awaited
+        class MockPong:
+            def __await__(self):
+                return iter([None])
+
+        mock_websocket.ping.return_value = MockPong()
+
+        # Mock auth success response
+        mock_websocket.recv.return_value = orjson.dumps(
+            {"type": "auth_success"}
+        ).decode()
+
+        mock_connect.__aenter__.return_value = mock_websocket
+        mock_connect.__aexit__ = AsyncMock()
+        subscriber._connect = mock_connect
+
+        # Should not raise ValueError - empty tokens are valid
+        await subscriber._reconnect()
+
+        # Verify auth message was sent with empty token
+        assert mock_websocket.send.call_count == 2
+        auth_call = mock_websocket.send.call_args_list[0]
+        auth_message = orjson.loads(auth_call[0][0])
+        assert auth_message["type"] == "auth"
+        assert auth_message["token"] == ""
+
+
+async def test_subscriber_auth_with_falsy_tokens():
+    """Test authentication with various falsy token values"""
+    from prefect.logs.clients import PrefectLogsSubscriber
+
+    falsy_values = [None, ""]  # Only test string-compatible falsy values
+
+    for falsy_token in falsy_values:
+        with temporary_settings({PREFECT_API_AUTH_STRING: falsy_token}):
+            subscriber = PrefectLogsSubscriber("http://example.com")
+            subscriber._api_key = None
+            subscriber._auth_token = falsy_token
+
+            # Mock the websocket connection to succeed
+            mock_connect = AsyncMock()
+            mock_websocket = AsyncMock()
+
+            # Create a mock pong that can be awaited
+            class MockPong:
+                def __await__(self):
+                    return iter([None])
+
+            mock_websocket.ping.return_value = MockPong()
+
+            # Mock auth success response
+            mock_websocket.recv.return_value = orjson.dumps(
+                {"type": "auth_success"}
+            ).decode()
+
+            mock_connect.__aenter__.return_value = mock_websocket
+            mock_connect.__aexit__ = AsyncMock()
+            subscriber._connect = mock_connect
+
+            # Should not raise ValueError - all falsy tokens should be sent
             await subscriber._reconnect()
+
+            # Verify auth message was sent with the falsy token
+            assert mock_websocket.send.call_count == 2
+            auth_call = mock_websocket.send.call_args_list[0]
+            auth_message = orjson.loads(auth_call[0][0])
+            assert auth_message["type"] == "auth"
+            assert auth_message["token"] == falsy_token

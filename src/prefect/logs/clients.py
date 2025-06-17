@@ -217,13 +217,7 @@ class PrefectLogsSubscriber:
 
         # Send authentication message - logs WebSocket requires auth handshake
         auth_token = self._api_key or self._auth_token
-        if not auth_token:
-            raise ValueError("No API key or auth token available for authentication")
-
-        auth_message = {
-            "type": "auth",
-            "token": auth_token,
-        }
+        auth_message = {"type": "auth", "token": auth_token}
         logger.debug("  authenticating...")
         await self._websocket.send(orjson.dumps(auth_message).decode())
 
