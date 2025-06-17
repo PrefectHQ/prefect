@@ -44,7 +44,6 @@ def sample_logs(sample_log):
     return [sample_log, log2]
 
 
-@pytest.mark.asyncio
 async def test_create_log_publisher():
     """Test creating a log publisher"""
     with patch(
@@ -59,7 +58,6 @@ async def test_create_log_publisher():
         mock_create.assert_called_once_with(topic="logs")
 
 
-@pytest.mark.asyncio
 async def test_publish_logs_when_disabled_single_log(sample_log):
     """Test that publish_logs does nothing when streaming is disabled"""
     with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: False}):
@@ -72,7 +70,6 @@ async def test_publish_logs_when_disabled_single_log(sample_log):
             mock_create.assert_not_called()
 
 
-@pytest.mark.asyncio
 async def test_publish_logs_when_enabled_single_log(sample_log):
     """Test that publish_logs works when streaming is enabled"""
     with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
@@ -92,7 +89,6 @@ async def test_publish_logs_when_enabled_single_log(sample_log):
             assert call_args[1]["attributes"]["log_id"] == str(sample_log.id)
 
 
-@pytest.mark.asyncio
 async def test_publish_logs_with_id_none_in_message():
     """Test the case where log ID gets set to None in the message attributes"""
     log = Log(
@@ -119,7 +115,6 @@ async def test_publish_logs_with_id_none_in_message():
                 assert call_args[1]["attributes"] == {}
 
 
-@pytest.mark.asyncio
 async def test_publish_logs_when_disabled(sample_logs):
     """Test that publish_logs does nothing when streaming is disabled"""
     with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: False}):
@@ -131,7 +126,6 @@ async def test_publish_logs_when_disabled(sample_logs):
             mock_create.assert_not_called()
 
 
-@pytest.mark.asyncio
 async def test_publish_logs_empty_list():
     """Test that publish_logs handles empty list"""
     with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
@@ -142,7 +136,6 @@ async def test_publish_logs_empty_list():
             mock_create.assert_not_called()
 
 
-@pytest.mark.asyncio
 async def test_publish_logs_when_enabled(sample_logs):
     """Test that publish_logs works when streaming is enabled"""
     with temporary_settings({PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED: True}):
@@ -161,7 +154,6 @@ async def test_publish_logs_when_enabled(sample_logs):
 class TestLogSchemaTypeValidation:
     """Tests for schema type validation in the messaging system"""
 
-    @pytest.mark.asyncio
     async def test_publish_logs_uses_log_id_in_attributes(self):
         """Test that publish_logs uses the Log object's id field in message attributes"""
         log_full = Log(
