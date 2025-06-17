@@ -26,8 +26,10 @@ ipython_config.py
 .python-version
 .env
 .venv
+**/.venv/
 env/
 venv/
+**/venv/
 
 # Documentation artifacts
 site/
