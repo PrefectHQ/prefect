@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 import logging
 import os
 import sys
 from pathlib import Path
+from typing import Union
 
 import pytest
 from prefect_shell.commands import ShellOperation, shell_run_command
@@ -45,7 +44,7 @@ async def test_shell_run_command_stream_level(
     echo_msg = "_THIS_ IS WORKING!!!!"
 
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(
             command=f"echo {echo_msg}",
             stream_level=logging.WARNING,
@@ -57,7 +56,7 @@ async def test_shell_run_command_stream_level(
 
 async def test_shell_run_command_helper_command():
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(command="pwd", helper_command="cd $HOME")
 
     assert (await test_flow()) == os.path.expandvars("$HOME")
@@ -65,7 +64,7 @@ async def test_shell_run_command_helper_command():
 
 async def test_shell_run_command_cwd():
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(command="pwd", cwd=Path.home())
 
     assert (await test_flow()) == os.fspath(Path.home())
@@ -73,7 +72,7 @@ async def test_shell_run_command_cwd():
 
 async def test_shell_run_command_return_all():
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(
             command="echo work! && echo yes!", return_all=True
         )
@@ -83,7 +82,7 @@ async def test_shell_run_command_return_all():
 
 async def test_shell_run_command_no_output():
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(command="sleep 1")
 
     assert (await test_flow()) == ""
@@ -91,7 +90,7 @@ async def test_shell_run_command_no_output():
 
 async def test_shell_run_command_uses_current_env():
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(command="echo $HOME")
 
     assert (await test_flow()) == os.environ["HOME"]
@@ -99,7 +98,7 @@ async def test_shell_run_command_uses_current_env():
 
 async def test_shell_run_command_update_current_env():
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(
             command="echo $HOME && echo $TEST_VAR",
             env={"TEST_VAR": "test value"},
@@ -122,7 +121,7 @@ class AsyncIter:
 
 @pytest.mark.parametrize("shell", [None, "bash", "zsh"])
 async def test_shell_run_command_override_shell(
-    shell: str | None, monkeypatch: pytest.MonkeyPatch
+    shell: Union[str, None], monkeypatch: pytest.MonkeyPatch
 ):
     open_process_mock = AsyncMock()
     stdout_mock = AsyncMock()
@@ -135,7 +134,7 @@ async def test_shell_run_command_override_shell(
     monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
 
     @flow
-    async def test_flow() -> list[str] | str:
+    async def test_flow() -> Union[list[str], str]:
         return await shell_run_command(
             command="echo 'testing'",
             shell=shell,
@@ -146,7 +145,9 @@ async def test_shell_run_command_override_shell(
 
 
 class TestShellOperation:
-    async def execute(self, op: ShellOperation, method: str) -> list[str] | str:
+    async def execute(
+        self, op: ShellOperation, method: str
+    ) -> Union[list[str], str, None]:
         if method == "run":
             return await op.run()
         elif method == "trigger":
@@ -220,7 +221,7 @@ class TestShellOperation:
     @pytest.mark.parametrize("method", ["run", "trigger"])
     @pytest.mark.parametrize("shell", [None, "bash", "zsh", "BASH", "ZSH"])
     async def test_updated_shell(
-        self, monkeypatch: pytest.MonkeyPatch, method: str, shell: str | None
+        self, monkeypatch: pytest.MonkeyPatch, method: str, shell: Union[str, None]
     ):
         open_process_mock = AsyncMock(name="open_process")
         stdout_mock = AsyncMock(name="stdout_mock")
