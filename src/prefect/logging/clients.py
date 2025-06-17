@@ -130,7 +130,7 @@ class PrefectLogsSubscriber:
 
     Example:
 
-        from prefect.logs.clients import PrefectLogsSubscriber
+        from prefect.logging.clients import PrefectLogsSubscriber
         from prefect.client.schemas.filters import LogFilter, LogFilterLevel
         import logging
 
