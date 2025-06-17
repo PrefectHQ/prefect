@@ -279,10 +279,6 @@ class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
                 if the state is of type `FAILED` and the underlying data is an exception. When flow
                 was run in a different memory space (using `run_deployment`), this will only raise
                 if `fetch` is `True`.
-            fetch: a boolean specifying whether to resolve references to persisted
-                results into data. For synchronous users, this defaults to `True`.
-                For asynchronous users, this defaults to `False` for backwards
-                compatibility.
             retry_result_failure: a boolean specifying whether to retry on failures to
                 load the result from result storage
 
@@ -698,7 +694,7 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Union[None, int, list[int]] = Field(
+    retry_delay: Union[None, int, float, list[int], list[float]] = Field(
         default=None,
         description="A delay time or list of delay times between retries, in seconds.",
     )
@@ -728,8 +724,8 @@ class TaskRunPolicy(PrefectBaseModel):
     @field_validator("retry_delay")
     @classmethod
     def validate_configured_retry_delays(
-        cls, v: Optional[list[float]]
-    ) -> Optional[list[float]]:
+        cls, v: Optional[int | float | list[int] | list[float]]
+    ) -> Optional[int | float | list[int] | list[float]]:
         return list_length_50_or_less(v)
 
     @field_validator("retry_jitter_factor")

@@ -727,6 +727,219 @@ async def test_read_automations_filter_by_name_mismatch(
     assert response.json() == []
 
 
+@pytest.fixture
+async def automations_with_tags(
+    automations_session: AsyncSession,
+) -> List[Automation]:
+    """Create test automations with various tag combinations for filtering tests"""
+    automation_configs = [
+        {
+            "name": "automation-tag-1",
+            "tags": ["production", "critical"],
+        },
+        {
+            "name": "automation-tag-2",
+            "tags": ["staging", "experimental"],
+        },
+        {
+            "name": "automation-tag-3",
+            "tags": ["production", "monitoring"],
+        },
+        {
+            "name": "automation-tag-4",
+            "tags": ["production", "critical", "monitoring"],
+        },
+        {
+            "name": "automation-no-tags",
+            "tags": [],
+        },
+    ]
+
+    automations = []
+    for config in automation_configs:
+        automation_to_create = AutomationCreate(
+            name=config["name"],
+            description="Test automation for tag filtering",
+            enabled=True,
+            tags=config["tags"],
+            trigger=EventTrigger(
+                match={"prefect.resource.name": "test"},
+                expect={"test.event"},
+                threshold=1,
+                within=timedelta(seconds=30),
+                posture=Posture.Reactive,
+            ),
+            actions=[actions.DoNothing()],
+        )
+
+        automation = await create_automation(
+            automations_session,
+            Automation(**automation_to_create.model_dump()),
+        )
+        automations.append(automation)
+
+    await automations_session.commit()
+    return automations
+
+
+async def test_read_automations_filter_tags_any(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations by tags using any_ filter"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            tags=filters.AutomationFilterTags(any_=["production"])
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+
+    # Should match automations that have "production" tag
+    expected_names = {"automation-tag-1", "automation-tag-3", "automation-tag-4"}
+    actual_names = {a.name for a in automations}
+    assert actual_names == expected_names
+
+
+async def test_read_automations_filter_tags_any_multiple(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations by tags using any_ filter with multiple tags"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            tags=filters.AutomationFilterTags(any_=["critical", "experimental"])
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+
+    # Should match automations that have either "critical" or "experimental" tag
+    expected_names = {"automation-tag-1", "automation-tag-2", "automation-tag-4"}
+    actual_names = {a.name for a in automations}
+    assert actual_names == expected_names
+
+
+async def test_read_automations_filter_tags_all(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations by tags using all_ filter"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            tags=filters.AutomationFilterTags(all_=["production", "critical"])
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+
+    # Should match automations that have both "production" AND "critical" tags
+    expected_names = {"automation-tag-1", "automation-tag-4"}
+    actual_names = {a.name for a in automations}
+    assert actual_names == expected_names
+
+
+async def test_read_automations_filter_tags_all_no_match(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations by tags using all_ filter with no matches"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            tags=filters.AutomationFilterTags(all_=["nonexistent", "missing"])
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+    assert len(automations) == 0
+
+
+async def test_read_automations_filter_tags_is_null_true(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations to only include those without tags"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            tags=filters.AutomationFilterTags(is_null_=True)
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+
+    # Should only match the automation with no tags
+    expected_names = {"automation-no-tags"}
+    actual_names = {a.name for a in automations}
+    assert actual_names == expected_names
+
+
+async def test_read_automations_filter_tags_is_null_false(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations to only include those with tags"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            tags=filters.AutomationFilterTags(is_null_=False)
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+
+    # Should match all automations except the one with no tags
+    expected_names = {
+        "automation-tag-1",
+        "automation-tag-2",
+        "automation-tag-3",
+        "automation-tag-4",
+    }
+    actual_names = {a.name for a in automations}
+    assert actual_names == expected_names
+
+
+async def test_read_automations_filter_tags_combined_with_name(
+    automations_with_tags: List[Automation],
+    client: AsyncClient,
+    automations_url: str,
+) -> None:
+    """Test filtering automations by both tags and name"""
+    automation_filter = dict(
+        automations=filters.AutomationFilter(
+            name=filters.AutomationFilterName(
+                any_=["automation-tag-1", "automation-tag-3"]
+            ),
+            tags=filters.AutomationFilterTags(any_=["production"]),
+        ).model_dump(mode="json")
+    )
+    response = await client.post(f"{automations_url}/filter", json=automation_filter)
+    assert response.status_code == 200, response.content
+
+    automations = [Automation.model_validate(a) for a in response.json()]
+
+    # Should match automations that have name in the list AND have "production" tag
+    expected_names = {"automation-tag-1", "automation-tag-3"}
+    actual_names = {a.name for a in automations}
+    assert actual_names == expected_names
+
+
 async def test_count_automations(
     some_workspace_automations: List[Automation],
     client: AsyncClient,
@@ -1261,3 +1474,115 @@ async def test_infrastructure_error_inside_create(
         )
         assert response.status_code == 422, response.content
         assert "Error creating automation: Something is wrong" in response.text
+
+
+async def test_create_automation_with_tags(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Test creating an automation with tags"""
+    automation_to_create.tags = ["test", "db", "critical"]
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.model_validate_json(response.content)
+    assert created_automation.tags == ["test", "db", "critical"]
+
+
+async def test_create_automation_with_empty_tags(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Test creating an automation with empty tags list"""
+    automation_to_create.tags = []
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.model_validate_json(response.content)
+    assert created_automation.tags == []
+
+
+async def test_create_automation_without_tags_defaults_to_empty(
+    client: AsyncClient,
+    automations_url: str,
+    automation_to_create: AutomationCreate,
+) -> None:
+    """Test creating an automation without specifying tags defaults to empty list"""
+    # Don't set tags - should default to empty list
+
+    response = await client.post(
+        f"{automations_url}/",
+        json=automation_to_create.model_dump(mode="json"),
+    )
+    assert response.status_code == 201, response.content
+
+    created_automation = Automation.model_validate_json(response.content)
+    assert created_automation.tags == []
+
+
+async def test_update_automation_tags(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    """Test updating an automation's tags"""
+    update_data = existing_automation.model_dump(exclude={"id", "created", "updated"})
+    update_data["tags"] = ["new", "updated", "tags"]
+    automation_update = AutomationUpdate(**update_data)
+
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_update.model_dump(mode="json"),
+    )
+    assert response.status_code == 204, response.content
+
+    # Verify the update
+    response = await client.get(f"{automations_url}/{existing_automation.id}")
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.model_validate_json(response.content)
+    assert updated_automation.tags == ["new", "updated", "tags"]
+
+
+async def test_patch_automation_does_not_affect_tags_when_not_specified(
+    client: AsyncClient,
+    automations_url: str,
+    existing_automation: Automation,
+) -> None:
+    """Test that partial updates don't affect tags when not specified"""
+    # First, set some tags on the automation
+    update_data = existing_automation.model_dump(exclude={"id", "created", "updated"})
+    update_data["tags"] = ["original", "tags"]
+    automation_update = AutomationUpdate(**update_data)
+
+    response = await client.put(
+        f"{automations_url}/{existing_automation.id}",
+        json=automation_update.model_dump(mode="json"),
+    )
+    assert response.status_code == 204, response.content
+
+    # Now patch only the enabled field
+    patch_data = AutomationPartialUpdate(enabled=False)
+    response = await client.patch(
+        f"{automations_url}/{existing_automation.id}",
+        json=patch_data.model_dump(mode="json"),
+    )
+    assert response.status_code == 204, response.content
+
+    # Verify tags are preserved
+    response = await client.get(f"{automations_url}/{existing_automation.id}")
+    assert response.status_code == 200, response.content
+
+    updated_automation = Automation.model_validate_json(response.content)
+    assert updated_automation.tags == ["original", "tags"]
+    assert updated_automation.enabled is False

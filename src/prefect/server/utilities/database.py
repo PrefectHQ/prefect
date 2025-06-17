@@ -297,6 +297,7 @@ class Pydantic(TypeDecorator[T]):
     ) -> None:
         super().__init__()
         self._pydantic_type = pydantic_type
+        self._adapter = pydantic.TypeAdapter(self._pydantic_type)
         if sa_column_type is not None:
             self.impl: type[JSON] | type[TypeEngine[Any]] | TypeEngine[Any] = (
                 sa_column_type
@@ -308,23 +309,19 @@ class Pydantic(TypeDecorator[T]):
         if value is None:
             return None
 
-        # parse the value to ensure it complies with the schema
-        # (this will raise validation errors if not)
-        adapter = pydantic.TypeAdapter(self._pydantic_type)
-        value = adapter.validate_python(value)
+        value = self._adapter.validate_python(value)
 
         # sqlalchemy requires the bind parameter's value to be a python-native
         # collection of JSON-compatible objects. we achieve that by dumping the
         # value to a json string using the pydantic JSON encoder and re-parsing
         # it into a python-native form.
-        return adapter.dump_python(value, mode="json")
+        return self._adapter.dump_python(value, mode="json")
 
     def process_result_value(
         self, value: Optional[Any], dialect: sa.Dialect
     ) -> Optional[T]:
         if value is not None:
-            # load the json object into a fully hydrated typed object
-            return pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
+            return self._adapter.validate_python(value)
 
 
 def bindparams_from_clause(

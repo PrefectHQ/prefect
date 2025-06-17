@@ -226,23 +226,17 @@ class State(StateBaseModel):
         )
 
     @overload
-    def result(
-        self, raise_on_failure: Literal[True] = ..., fetch: bool = ...
-    ) -> Any: ...
+    def result(self, raise_on_failure: Literal[True] = ...) -> Any: ...
 
     @overload
     def result(
-        self, raise_on_failure: Literal[False] = False, fetch: bool = ...
+        self, raise_on_failure: Literal[False] = False
     ) -> Union[Any, Exception]: ...
 
     @overload
-    def result(
-        self, raise_on_failure: bool = ..., fetch: bool = ...
-    ) -> Union[Any, Exception]: ...
+    def result(self, raise_on_failure: bool = ...) -> Union[Any, Exception]: ...
 
-    def result(
-        self, raise_on_failure: bool = True, fetch: bool = True
-    ) -> Union[Any, Exception]:
+    def result(self, raise_on_failure: bool = True) -> Union[Any, Exception]:
         # Backwards compatible `result` handling on the server-side schema
         from prefect.states import State
 
@@ -257,7 +251,7 @@ class State(StateBaseModel):
         )
 
         state: State[Any] = objects.State.model_validate(self)
-        return state.result(raise_on_failure=raise_on_failure, fetch=fetch)
+        return state.result(raise_on_failure=raise_on_failure)
 
     def to_state_create(self) -> "StateCreate":
         from prefect.server.schemas.actions import StateCreate

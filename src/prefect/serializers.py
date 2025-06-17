@@ -38,6 +38,8 @@ from prefect.utilities.pydantic import custom_pydantic_encoder
 
 D = TypeVar("D", default=Any)
 
+_TYPE_ADAPTER_CACHE: dict[str, TypeAdapter[Any]] = {}
+
 
 def prefect_json_object_encoder(obj: Any) -> Any:
     """
@@ -68,9 +70,12 @@ def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
     with `prefect_json_object_encoder`
     """
     if "__class__" in result:
-        return TypeAdapter(from_qualified_name(result["__class__"])).validate_python(
-            result["data"]
-        )
+        class_name = result["__class__"]
+        if class_name not in _TYPE_ADAPTER_CACHE:
+            _TYPE_ADAPTER_CACHE[class_name] = TypeAdapter(
+                from_qualified_name(class_name)
+            )
+        return _TYPE_ADAPTER_CACHE[class_name].validate_python(result["data"])
     elif "__exc_type__" in result:
         return from_qualified_name(result["__exc_type__"])(result["message"])
     else:

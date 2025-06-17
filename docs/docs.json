@@ -11,7 +11,7 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
+        "tab": "Getting Started",
         "groups": [
           {
             "group": "Get started",
@@ -20,191 +20,373 @@
               "v3/get-started/install",
               "v3/get-started/quickstart"
             ]
-          },
+          }
+        ]
+      },
+      {
+        "tab": "Concepts",
+        "pages": [
+          "v3/concepts/index",
           {
-            "group": "Tutorials",
+            "group": "Workflows",
             "pages": [
-              {
-                "group": "For data engineers",
-                "pages": [
-                  "v3/tutorials/schedule",
-                  "v3/tutorials/form-building",
-                  "v3/tutorials/pipelines",
-                  "v3/tutorials/scraping",
-                  "v3/tutorials/ml",
-                  "v3/tutorials/s3-motherduck",
-                  "v3/tutorials/resilience-and-deployment"
-                ]
-              },
-              {
-                "group": "For platform engineers",
-                "pages": [
-                  "v3/tutorials/platform",
-                  "v3/tutorials/debug",
-                  "v3/tutorials/alerts"
-                ]
-              }
+              "v3/concepts/assets",
+              "v3/concepts/flows",
+              "v3/concepts/tasks",
+              "v3/concepts/caching",
+              "v3/concepts/states",
+              "v3/concepts/runtime-context",
+              "v3/concepts/artifacts",
+              "v3/concepts/task-runners"
             ]
           },
           {
-            "group": "Develop",
+            "group": "Deployments",
             "pages": [
-              "v3/develop/index",
-              {
-                "group": "Write and run workflows",
-                "pages": [
-                  "v3/develop/write-flows",
-                  "v3/develop/write-tasks",
-                  "v3/develop/deferred-tasks",
-                  "v3/develop/visualize-flow-structure",
-                  "v3/develop/big-data",
-                  "v3/develop/cli-shell",
-                  "v3/develop/secrets"
-                ]
-              },
-              {
-                "group": "Configure runtime behavior",
-                "pages": [
-                  "v3/develop/logging",
-                  "v3/develop/task-caching",
-                  "v3/develop/transactions",
-                  "v3/develop/pause-resume",
-                  "v3/develop/cancel",
-                  "v3/develop/inputs",
-                  "v3/develop/runtime-context"
-                ]
-              },
-              {
-                "group": "Manage state and configuration",
-                "pages": [
-                  "v3/develop/manage-states",
-                  "v3/develop/results",
-                  "v3/develop/artifacts",
-                  "v3/develop/variables",
-                  "v3/develop/blocks"
-                ]
-              },
-              {
-                "group": "Manage concurrency",
-                "pages": [
-                  "v3/develop/task-runners",
-                  "v3/develop/task-run-limits",
-                  "v3/develop/global-concurrency-limits"
-                ]
-              },
-              {
-                "group": "Manage settings",
-                "pages": [
-                  "v3/develop/settings-and-profiles"
-                ]
-              },
-              "v3/develop/interact-with-api",
-              "v3/develop/test-workflows"
+              "v3/concepts/deployments",
+              "v3/concepts/schedules",
+              "v3/concepts/work-pools",
+              "v3/concepts/workers"
             ]
           },
           {
-            "group": "Deploy",
+            "group": "Configuration",
             "pages": [
-              "v3/deploy/index",
-              "v3/deploy/deployment-versioning",
-              "v3/deploy/run-flows-in-local-processes",
-              {
-                "group": "Run flows on dynamic infrastructure",
-                "pages": [
-                  "v3/deploy/infrastructure-concepts/work-pools",
-                  "v3/deploy/infrastructure-concepts/workers",
-                  "v3/deploy/infrastructure-concepts/store-flow-code",
-                  "v3/deploy/infrastructure-concepts/deploy-via-python",
-                  "v3/deploy/infrastructure-concepts/prefect-yaml",
-                  "v3/deploy/infrastructure-concepts/deploy-ci-cd",
-                  "v3/deploy/infrastructure-concepts/customize"
-                ]
-              },
-              "v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
-              {
-                "group": "Dynamic infrastructure examples",
-                "pages": [
-                  "v3/deploy/infrastructure-examples/managed",
-                  "v3/deploy/infrastructure-examples/serverless",
-                  "v3/deploy/infrastructure-examples/docker",
-                  "v3/deploy/infrastructure-examples/kubernetes",
-                  "v3/deploy/infrastructure-examples/coiled"
-                ]
-              },
-              {
-                "group": "Static infrastructure examples",
-                "pages": [
-                  "v3/deploy/static-infrastructure-examples/docker",
-                  "v3/deploy/static-infrastructure-examples/background-tasks"
-                ]
-              },
-              "v3/deploy/daemonize-processes"
+              "v3/concepts/variables",
+              "v3/concepts/blocks",
+              "v3/concepts/settings-and-profiles",
+              "v3/concepts/server"
             ]
           },
           {
-            "group": "Automate",
+            "group": "Automations",
             "pages": [
-              "v3/automate/index",
-              "v3/automate/add-schedules",
-              "v3/automate/events/events",
-              "v3/automate/events/automations-triggers",
-              "v3/automate/events/custom-triggers",
-              "v3/automate/events/webhook-triggers",
-              "v3/automate/events/slas"
+              "v3/concepts/events",
+              "v3/concepts/automations",
+              "v3/concepts/event-triggers"
             ]
           },
           {
-            "group": "Operate",
+            "group": "Prefect Cloud",
             "pages": [
-              "v3/manage/index",
+              "v3/concepts/rate-limits",
+              "v3/concepts/slas",
+              "v3/concepts/webhooks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "How-to Guides",
+        "pages": [
+          "v3/how-to-guides/index",
+          {
+            "group": "Workflows",
+            "pages": [
+              "v3/how-to-guides/workflows/write-and-run",
+              "v3/how-to-guides/workflows/assets",
+              "v3/how-to-guides/workflows/retries",
+              "v3/how-to-guides/workflows/custom-metadata",
+              "v3/how-to-guides/workflows/pass-inputs",
+              "v3/how-to-guides/workflows/add-logging",
+              "v3/how-to-guides/workflows/access-runtime-info",
+              "v3/how-to-guides/workflows/run-work-concurrently",
+              "v3/how-to-guides/workflows/cache-workflow-steps",
+              "v3/how-to-guides/workflows/run-background-tasks",
+              "v3/how-to-guides/workflows/state-change-hooks",
+              "v3/how-to-guides/workflows/artifacts",
+              "v3/how-to-guides/workflows/test-workflows",
+              "v3/how-to-guides/workflows/global-concurrency-limits",
+              "v3/how-to-guides/workflows/tag-based-concurrency-limits"
+            ]
+          },
+          {
+            "group": "Deployments",
+            "pages": [
+              "v3/how-to-guides/deployments/create-deployments",
+              "v3/how-to-guides/deployments/create-schedules",
+              "v3/how-to-guides/deployments/deploy-via-python",
+              "v3/how-to-guides/deployments/prefect-yaml",
+              "v3/how-to-guides/deployments/store-flow-code",
+              "v3/how-to-guides/deployments/versioning",
+              "v3/how-to-guides/deployments/customize-job-variables"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "v3/how-to-guides/configuration/store-secrets",
+              "v3/how-to-guides/configuration/variables",
+              "v3/how-to-guides/configuration/manage-settings"
+            ]
+          },
+          {
+            "group": "Automations",
+            "pages": [
+              "v3/how-to-guides/automations/creating-automations",
+              "v3/how-to-guides/automations/creating-deployment-triggers",
+              "v3/how-to-guides/automations/chaining-deployments-with-events",
+              "v3/how-to-guides/automations/access-parameters-in-templates"
+            ]
+          },
+          {
+            "group": "Workflow Infrastructure",
+            "pages": [
+              "v3/how-to-guides/deployment_infra/manage-work-pools",
+              "v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
+              "v3/how-to-guides/deployment_infra/managed",
+              "v3/how-to-guides/deployment_infra/serverless",
+              "v3/how-to-guides/deployment_infra/docker",
+              "v3/how-to-guides/deployment_infra/serve-flows-docker",
+              "v3/how-to-guides/deployment_infra/kubernetes",
+              "v3/how-to-guides/deployment_infra/modal",
+              "v3/how-to-guides/deployment_infra/coiled"
+            ]
+          },
+          {
+            "group": "Prefect Cloud",
+            "pages": [
+              "v3/how-to-guides/cloud/connect-to-cloud",
               {
-                "group": "Prefect Cloud",
+                "group": "Manage accounts",
                 "pages": [
-                  "v3/manage/cloud/index",
-                  "v3/manage/cloud/connect-to-cloud",
-                  "v3/manage/cloud/workspaces",
-                  {
-                    "group": "Manage accounts",
-                    "pages": [
-                      "v3/manage/cloud/manage-users/index",
-                      "v3/manage/cloud/manage-users/service-accounts",
-                      "v3/manage/cloud/manage-users/manage-teams",
-                      "v3/manage/cloud/manage-users/manage-roles",
-                      "v3/manage/cloud/manage-users/api-keys",
-                      "v3/manage/cloud/manage-users/configure-sso",
-                      "v3/manage/cloud/manage-users/audit-logs",
-                      "v3/manage/cloud/manage-users/object-access-control-lists",
-                      "v3/manage/cloud/manage-users/secure-access-by-ip-address",
-                      "v3/manage/cloud/manage-users/secure-access-by-private-link"
-                    ]
-                  },
-                  "v3/manage/cloud/rate-limits",
-                  "v3/manage/cloud/troubleshoot-cloud"
+                  "v3/how-to-guides/cloud/manage-users/index",
+                  "v3/how-to-guides/cloud/manage-users/service-accounts",
+                  "v3/how-to-guides/cloud/manage-users/manage-teams",
+                  "v3/how-to-guides/cloud/manage-users/manage-roles",
+                  "v3/how-to-guides/cloud/manage-users/api-keys",
+                  "v3/how-to-guides/cloud/manage-users/configure-sso",
+                  "v3/how-to-guides/cloud/manage-users/audit-logs",
+                  "v3/how-to-guides/cloud/manage-users/object-access-control-lists",
+                  "v3/how-to-guides/cloud/manage-users/secure-access-by-ip-address",
+                  "v3/how-to-guides/cloud/manage-users/secure-access-by-private-link"
                 ]
               },
-              {
-                "group": "Prefect server",
-                "pages": [
-                  "v3/manage/server/index",
-                  {
-                    "group": "Self-hosting examples",
-                    "pages": [
-                      "v3/manage/server/examples/cli",
-                      "v3/manage/server/examples/docker",
-                      "v3/manage/server/examples/helm"
-                    ]
-                  }
-                ]
-              },
-              "v3/manage/infrastructure-as-code"
+              "v3/how-to-guides/cloud/workspaces",
+              "v3/how-to-guides/cloud/create-a-webhook",
+              "v3/how-to-guides/cloud/troubleshoot-cloud"
+            ]
+          },
+          {
+            "group": "Prefect Self-hosted",
+            "pages": [
+              "v3/how-to-guides/self-hosted/server-cli",
+              "v3/how-to-guides/self-hosted/server-docker"
             ]
           },
           {
             "group": "Migrate",
             "pages": [
-              "v3/tutorials/airflow",
-              "v3/resources/upgrade-to-prefect-3",
-              "v3/resources/upgrade-agents-to-workers"
+              "v3/how-to-guides/migrate/airflow",
+              "v3/how-to-guides/migrate/upgrade-to-prefect-3",
+              "v3/how-to-guides/migrate/upgrade-agents-to-workers"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced",
+        "pages": [
+          "v3/advanced/index",
+          {
+            "group": "Workflows",
+            "pages": [
+              "v3/advanced/assets",
+              "v3/advanced/caching",
+              "v3/advanced/logging-customization",
+              "v3/advanced/transactions",
+              "v3/advanced/cancel-workflows",
+              "v3/advanced/interactive",
+              "v3/advanced/form-building",
+              "v3/advanced/results",
+              "v3/advanced/background-tasks"
+            ]
+          },
+          {
+            "group": "Automations",
+            "pages": [
+              "v3/advanced/detect-zombie-flows",
+              "v3/advanced/use-custom-event-grammar"
+            ]
+          },
+          {
+            "group": "Workflow Infrastructure",
+            "pages": [
+              "v3/advanced/daemonize-processes",
+              "v3/advanced/submit-flows-directly-to-dynamic-infrastructure"
+            ]
+          },
+          {
+            "group": "Platform",
+            "pages": [
+              "v3/advanced/self-hosted",
+              "v3/advanced/deploy-ci-cd",
+              "v3/advanced/infrastructure-as-code",
+              "v3/advanced/server-helm",
+              "v3/advanced/security-settings"
+            ]
+          },
+          {
+            "group": "Extensibility",
+            "pages": [
+              "v3/advanced/api-client",
+              "v3/advanced/custom-blocks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "pages": [
+          "v3/examples/index",
+          {
+            "group": "Examples",
+            "pages": [
+              "v3/examples/hello-world",
+              "v3/examples/simple-web-scraper",
+              "v3/examples/run-api-sourced-etl",
+              "v3/examples/run-dbt-with-prefect"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Integrations",
+        "groups": [
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/integrations",
+              "integrations/use-integrations",
+              {
+                "group": "AWS",
+                "pages": [
+                  "integrations/prefect-aws/index",
+                  "integrations/prefect-aws/ecs_guide",
+                  "integrations/prefect-aws/sdk"
+                ]
+              },
+              {
+                "group": "Azure",
+                "pages": [
+                  "integrations/prefect-azure/index",
+                  "integrations/prefect-azure/aci_worker",
+                  "integrations/prefect-azure/sdk"
+                ]
+              },
+              {
+                "group": "Bitbucket",
+                "pages": [
+                  "integrations/prefect-bitbucket/index",
+                  "integrations/prefect-bitbucket/sdk"
+                ]
+              },
+              {
+                "group": "Dask",
+                "pages": [
+                  "integrations/prefect-dask/index",
+                  "integrations/prefect-dask/sdk"
+                ]
+              },
+              {
+                "group": "Databricks",
+                "pages": [
+                  "integrations/prefect-databricks/index",
+                  "integrations/prefect-databricks/sdk"
+                ]
+              },
+              {
+                "group": "dbt",
+                "pages": [
+                  "integrations/prefect-dbt/index",
+                  "integrations/prefect-dbt/sdk"
+                ]
+              },
+              {
+                "group": "Docker",
+                "pages": [
+                  "integrations/prefect-docker/index",
+                  "integrations/prefect-docker/sdk"
+                ]
+              },
+              {
+                "group": "Email",
+                "pages": [
+                  "integrations/prefect-email/index",
+                  "integrations/prefect-email/sdk"
+                ]
+              },
+              {
+                "group": "GCP",
+                "pages": [
+                  "integrations/prefect-gcp/index",
+                  "integrations/prefect-gcp/gcp-worker-guide",
+                  "integrations/prefect-gcp/sdk"
+                ]
+              },
+              {
+                "group": "GitHub",
+                "pages": [
+                  "integrations/prefect-github/index",
+                  "integrations/prefect-github/sdk"
+                ]
+              },
+              {
+                "group": "Gitlab",
+                "pages": [
+                  "integrations/prefect-gitlab/index",
+                  "integrations/prefect-gitlab/sdk"
+                ]
+              },
+              {
+                "group": "Kubernetes",
+                "pages": [
+                  "integrations/prefect-kubernetes/index",
+                  "integrations/prefect-kubernetes/sdk"
+                ]
+              },
+              {
+                "group": "Ray",
+                "pages": [
+                  "integrations/prefect-ray/index",
+                  "integrations/prefect-ray/sdk"
+                ]
+              },
+              {
+                "group": "Redis",
+                "pages": [
+                  "integrations/prefect-redis/index",
+                  "integrations/prefect-redis/sdk"
+                ]
+              },
+              {
+                "group": "Shell",
+                "pages": [
+                  "integrations/prefect-shell/index",
+                  "integrations/prefect-shell/sdk"
+                ]
+              },
+              {
+                "group": "Slack",
+                "pages": [
+                  "integrations/prefect-slack/index",
+                  "integrations/prefect-slack/sdk"
+                ]
+              },
+              {
+                "group": "Snowflake",
+                "pages": [
+                  "integrations/prefect-snowflake/index",
+                  "integrations/prefect-snowflake/sdk"
+                ]
+              },
+              {
+                "group": "SQLAlchemy",
+                "pages": [
+                  "integrations/prefect-sqlalchemy/index",
+                  "integrations/prefect-sqlalchemy/sdk"
+                ]
+              }
             ]
           }
         ]
@@ -507,7 +689,8 @@
                           "v3/api-ref/rest-api/server/automations/count-automations",
                           "v3/api-ref/rest-api/server/automations/read-automations-related-to-resource",
                           "v3/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
-                          "v3/api-ref/rest-api/server/automations/validate-template"
+                          "v3/api-ref/rest-api/server/automations/validate-template",
+                          "v3/api-ref/rest-api/server/automations/validate-template-1"
                         ]
                       },
                       {
@@ -551,162 +734,6 @@
                   "v3/api-ref/cli/work-pool",
                   "v3/api-ref/cli/work-queue",
                   "v3/api-ref/cli/worker"
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Examples",
-        "groups": [
-          {
-            "group": "Examples",
-            "pages": [
-              "v3/examples/index",
-              "v3/examples/flows",
-              "v3/examples/deployments",
-              "v3/examples/infrastructure",
-              "v3/examples/scripts"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Integrations",
-        "groups": [
-          {
-            "group": "Integrations",
-            "pages": [
-              "integrations/integrations",
-              "integrations/use-integrations",
-              {
-                "group": "AWS",
-                "pages": [
-                  "integrations/prefect-aws/index",
-                  "integrations/prefect-aws/ecs_guide",
-                  "integrations/prefect-aws/sdk"
-                ]
-              },
-              {
-                "group": "Azure",
-                "pages": [
-                  "integrations/prefect-azure/index",
-                  "integrations/prefect-azure/aci_worker",
-                  "integrations/prefect-azure/sdk"
-                ]
-              },
-              {
-                "group": "Bitbucket",
-                "pages": [
-                  "integrations/prefect-bitbucket/index",
-                  "integrations/prefect-bitbucket/sdk"
-                ]
-              },
-              {
-                "group": "Dask",
-                "pages": [
-                  "integrations/prefect-dask/index",
-                  "integrations/prefect-dask/sdk"
-                ]
-              },
-              {
-                "group": "Databricks",
-                "pages": [
-                  "integrations/prefect-databricks/index",
-                  "integrations/prefect-databricks/sdk"
-                ]
-              },
-              {
-                "group": "dbt",
-                "pages": [
-                  "integrations/prefect-dbt/index",
-                  "integrations/prefect-dbt/sdk"
-                ]
-              },
-              {
-                "group": "Docker",
-                "pages": [
-                  "integrations/prefect-docker/index",
-                  "integrations/prefect-docker/sdk"
-                ]
-              },
-              {
-                "group": "Email",
-                "pages": [
-                  "integrations/prefect-email/index",
-                  "integrations/prefect-email/sdk"
-                ]
-              },
-              {
-                "group": "GCP",
-                "pages": [
-                  "integrations/prefect-gcp/index",
-                  "integrations/prefect-gcp/gcp-worker-guide",
-                  "integrations/prefect-gcp/sdk"
-                ]
-              },
-              {
-                "group": "GitHub",
-                "pages": [
-                  "integrations/prefect-github/index",
-                  "integrations/prefect-github/sdk"
-                ]
-              },
-              {
-                "group": "Gitlab",
-                "pages": [
-                  "integrations/prefect-gitlab/index",
-                  "integrations/prefect-gitlab/sdk"
-                ]
-              },
-              {
-                "group": "Kubernetes",
-                "pages": [
-                  "integrations/prefect-kubernetes/index",
-                  "integrations/prefect-kubernetes/sdk"
-                ]
-              },
-              {
-                "group": "Ray",
-                "pages": [
-                  "integrations/prefect-ray/index",
-                  "integrations/prefect-ray/sdk"
-                ]
-              },
-              {
-                "group": "Redis",
-                "pages": [
-                  "integrations/prefect-redis/index",
-                  "integrations/prefect-redis/sdk"
-                ]
-              },
-              {
-                "group": "Shell",
-                "pages": [
-                  "integrations/prefect-shell/index",
-                  "integrations/prefect-shell/sdk"
-                ]
-              },
-              {
-                "group": "Slack",
-                "pages": [
-                  "integrations/prefect-slack/index",
-                  "integrations/prefect-slack/sdk"
-                ]
-              },
-              {
-                "group": "Snowflake",
-                "pages": [
-                  "integrations/prefect-snowflake/index",
-                  "integrations/prefect-snowflake/sdk"
-                ]
-              },
-              {
-                "group": "SQLAlchemy",
-                "pages": [
-                  "integrations/prefect-sqlalchemy/index",
-                  "integrations/prefect-sqlalchemy/sdk"
                 ]
               }
             ]
@@ -763,11 +790,6 @@
   "integrations": {
     "ga4": {
       "measurementId": "G-8GR5P04T5Y"
-    }
-  },
-  "seo": {
-    "metatags": {
-      "google-site-verification": "GXcfBp1IgL4xhd20xtt9Hrgm9ImU6U2XJhcJf3eMyfk"
     }
   },
   "redirects": [
@@ -941,11 +963,11 @@
     },
     {
       "source": "/latest/guides/webhooks",
-      "destination": "/v3/automate/events/webhook-triggers"
+      "destination": "/v3/concepts/webhooks"
     },
     {
       "source": "/latest/cloud/webhooks",
-      "destination": "/v3/automate/events/webhook-triggers"
+      "destination": "/v3/concepts/webhooks"
     },
     {
       "source": "/latest/concepts/artifacts",
@@ -989,7 +1011,7 @@
     },
     {
       "source": "/latest/guides/ci-cd",
-      "destination": "/v3/deploy/infrastructure-concepts/deploy-ci-cd"
+      "destination": "/v3/advanced/deploy-ci-cd"
     },
     {
       "source": "/latest/concepts/deployments-block-based",
@@ -1033,7 +1055,7 @@
     },
     {
       "source": "/latest/guides/deployment/daemonize",
-      "destination": "/v3/deploy/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     },
     {
       "source": "/latest/cloud/users/api-keys",
@@ -1093,7 +1115,11 @@
     },
     {
       "source": "/latest/cloud/workspaces",
-      "destination": "/v3/manage/cloud/workspaces"
+      "destination": "/v3/how-to-guides/cloud/workspaces"
+    },
+    {
+      "source": "/v3/manage/cloud/workspaces",
+      "destination": "/v3/how-to-guides/cloud/workspaces"
     },
     {
       "source": "/latest/integrations/prefect-aws/ecs_guide",
@@ -1417,7 +1443,7 @@
     },
     {
       "source": "/v3/resources/daemonize-processes",
-      "destination": "/v3/deploy/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes"
     },
     {
       "source": "/v3/resources/interact-with-api",
@@ -1434,6 +1460,10 @@
     {
       "source": "/v3/tutorials/server-and-worker",
       "destination": "/v3/manage/server/examples/helm"
+    },
+    {
+      "source": "/v3/tutorials/form-building",
+      "destination": "v3/advanced/form-building"
     },
     {
       "source": "/latest/api-ref/prefect/:slug*",
@@ -1470,6 +1500,226 @@
     {
       "source": "/v3/deploy/infrastructure-concepts/store-flow-code#cloud-provider-storage",
       "destination": "/v3/deploy/infrastructure-concepts/store-flow-code#blob-storage"
+    },
+    {
+      "source": "/v3/develop/write-flows",
+      "destination": "/v3/how-to-guides/workflows/write-and-run"
+    },
+    {
+      "source": "/v3/develop/write-tasks",
+      "destination": "/v3/how-to-guides/workflows/write-and-run"
+    },
+    {
+      "source": "/v3/automate/events/automations-triggers",
+      "destination": "/v3/concepts/automations"
+    },
+    {
+      "source": "/v3/automate/events/webhook-triggers",
+      "destination": "/v3/concepts/webhooks"
+    },
+    {
+      "source": "/v3/automate/events/events",
+      "destination": "/v3/concepts/events"
+    },
+    {
+      "source": "v3/manage/cloud/connect-to-cloud",
+      "destination": "/v3/how-to-guides/cloud/connect-to-cloud"
+    },
+    {
+      "source": "v3/manage/cloud/rate-limits",
+      "destination": "/v3/concepts/rate-limits"
+    },
+    {
+      "source": "/v3/automate/events/custom-triggers",
+      "destination": "/v3/concepts/event-triggers"
+    },
+    {
+      "source": "/v3/automate/events/slas",
+      "destination": "/v3/concepts/slas"
+    },
+    {
+      "source": "/v3/automate/add-schedules",
+      "destination": "/v3/concepts/schedules"
+    },
+    {
+      "source": "/v3/deploy/run-flows-in-local-processes",
+      "destination": "/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
+    },
+    {
+      "source": "v3/develop/deferred-tasks",
+      "destination": "/v3/how-to-guides/workflows/run-background-tasks"
+    },
+    {
+      "source": "/v3/manage/cloud/manage-users/:slug*",
+      "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
+    },
+    {
+      "source": "/v3/manage/infrastructure-as-code",
+      "destination": "/v3/advanced/infrastructure-as-code"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/work-pools",
+      "destination": "/v3/concepts/work-pools"
+    },
+    {
+      "source": "/v3/develop/big-data",
+      "destination": "/v3/concepts/flows-and-tasks"
+    },
+    {
+      "source": "/v3/develop/secrets",
+      "destination": "/v3/how-to-guides/configuration/store-secrets"
+    },
+    {
+      "source": "/v3/deploy/deployment-versioning",
+      "destination": "/v3/how-to-guides/deployments/versioning"
+    },
+    {
+      "source": "/v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
+      "destination": "/v3/advanced/submit-flows-directly-to-dynamic-infrastructure"
+    },
+    {
+      "source": "/v3/deploy/daemonize-processes",
+      "destination": "/v3/advanced/daemonize-processes"
+    },
+    {
+      "source": "/v3/develop/task-caching",
+      "destination": "/v3/how-to-guides/workflows/cache-workflow-results"
+    },
+    {
+      "source": "/v3/develop/logging",
+      "destination": "/v3/how-to-guides/workflows/add-logging"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/workers",
+      "destination": "/v3/concepts/workers"
+    },
+    {
+      "source": "/v3/develop/transactions",
+      "destination": "/v3/advanced/transactions"
+    },
+    {
+      "source": "/v3/develop/inputs",
+      "destination": "/v3/advanced/interactive"
+    },
+    {
+      "source": "/v3/develop/runtime-context",
+      "destination": "/v3/concepts/workflows/runtime-context"
+    },
+    {
+      "source": "/v3/develop/pause-resume",
+      "destination": "/v3/how-to-guides/advanced/interactive"
+    },
+    {
+      "source": "/v3/develop/cancel",
+      "destination": "/v3/advanced/cancel-workflows"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/customize",
+      "destination": "/v3/how-to-guides/deployments/customize-job-variables"
+    },
+    {
+      "source": "/v3/develop/manage-states",
+      "destination": "/v3/concepts/states"
+    },
+    {
+      "source": "/v3/deploy/static-infrastructure-examples/docker",
+      "destination": "/v3/how-to-guides/deployment_infra/serve-flows-docker"
+    },
+    {
+      "source": "/v3/develop/results",
+      "destination": "/v3/advanced/results"
+    },
+    {
+      "source": "/v3/deploy/static-infrastructure-examples/background-tasks",
+      "destination": "/v3/how-to-guides/applications/background-tasks"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
+      "destination": "/v3/advanced/deploy-ci-cd"
+    },
+    {
+      "source": "/v3/develop/artifacts",
+      "destination": "/v3/how-to-guides/workflows/artifacts"
+    },
+    {
+      "source": "/v3/develop/interact-with-api",
+      "destination": "/v3/advanced/api-client"
+    },
+    {
+      "source": "/v3/develop/variables",
+      "destination": "/v3/how-to-guides/configuration/variables"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-examples/:slug*",
+      "destination": "/v3/how-to-guides/deployment_infra/:slug*"
+    },
+    {
+      "source": "/v3/develop/blocks",
+      "destination": "/v3/advanced/custom-blocks"
+    },
+    {
+      "source": "/v3/develop/settings-and-profiles",
+      "destination": "/v3/how-to-guides/configuration/manage-settings"
+    },
+    {
+      "source": "/v3/develop/test-workflows",
+      "destination": "/v3/how-to-guides/workflows/test-workflows"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/deploy-via-python",
+      "destination": "/v3/how-to-guides/deployments/deploy-via-python"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/prefect-yaml",
+      "destination": "/v3/how-to-guides/deployments/prefect-yaml"
+    },
+    {
+      "source": "/v3/deploy/infrastructure-concepts/store-flow-code",
+      "destination": "/v3/how-to-guides/deployments/store-flow-code"
+    },
+    {
+      "source": "/v3/deploy/index",
+      "destination": "/v3/concepts/deployments"
+    },
+    {
+      "source": "v3/manage/server/index",
+      "destination": "/v3/concepts/server"
+    },
+    {
+      "source": "v3/manage/server/examples/cli",
+      "destination": "/v3/how-to-guides/self-hosted/server-cli"
+    },
+    {
+      "source": "v3/manage/server/examples/docker",
+      "destination": "/v3/how-to-guides/self-hosted/server-docker"
+    },
+    {
+      "source": "v3/manage/server/examples/helm",
+      "destination": "/v3/advanced/server-helm"
+    },
+    {
+      "source": "v3/develop/task-runners",
+      "destination": "/v3/concepts/task-runners"
+    },
+    {
+      "source": "v3/develop/global-concurrency-limits",
+      "destination": "/v3/how-to-guides/workflows/global-concurrency-limits"
+    },
+    {
+      "source": "v3/develop/task-run-limits",
+      "destination": "/v3/how-to-guides/workflows/tag-based-concurrency-limits"
+    },
+    {
+      "source": "v3/tutorials/airflow",
+      "destination": "/v3/how-to-guides/migrate/airflow"
+    },
+    {
+      "source": "v3/resources/upgrade-to-prefect-3",
+      "destination": "/v3/how-to-guides/migrate/upgrade-to-prefect-3"
+    },
+    {
+      "source": "v3/resources/upgrade-agents-to-workers",
+      "destination": "/v3/how-to-guides/migrate/upgrade-agents-to-workers"
     }
   ]
 }

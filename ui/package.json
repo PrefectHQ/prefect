@@ -10,8 +10,8 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "2.14.25",
-    "@prefecthq/prefect-ui-library": "3.12.12",
+    "@prefecthq/prefect-design": "2.15.0",
+    "@prefecthq/prefect-ui-library": "3.12.14",
     "@prefecthq/vue-charts": "2.0.6",
     "@prefecthq/vue-compositions": "1.11.5",
     "@types/lodash.debounce": "4.0.9",
@@ -19,7 +19,7 @@
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
     "tailwindcss": "3.4.16",
-    "vue": "3.5.13",
+    "vue": "3.5.16",
     "vue-router": "4.5.0"
   },
   "devDependencies": {

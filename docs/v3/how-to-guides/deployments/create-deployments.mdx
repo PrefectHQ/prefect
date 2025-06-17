@@ -1,0 +1,108 @@
+---
+title: How to create deployments
+sidebarTitle: Create Deployments
+description: Learn how to create deployments via the CLI, Python, or Terraform.
+---
+
+There are several ways to create deployments, each catering to different organizational needs.
+
+## Create deployments with static infrastructure
+
+### Create a deployment with `serve`
+
+This is the simplest way to get started with deployments:
+
+```python
+from prefect import flow
+
+
+@flow
+def my_flow():
+    print("Hello, Prefect!")
+
+
+if __name__ == "__main__":
+    my_flow.serve(name="my-first-deployment", cron="* * * * *")
+```
+
+The `serve` method creates a deployment from your flow and immediately begins listening for scheduled runs to execute. 
+Providing `cron="* * * * *"` to `.serve` associates a schedule with your flow so it will run every minute of every day.
+
+## Create deployments with dynamic infrastructure
+
+For more configuration, you can create a deployment that uses a work pool.
+Reasons to create a work-pool based deployment include:
+
+- Wanting to run your flow on dynamically provisioned infrastructure
+- Needing more control over the execution environment on a per-flow run basis
+- Creating an infrastructure template to use across deployments
+
+Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization. 
+
+Prefect offers two options for creating deployments with [dynamic infrastructure](/v3/deploy/infrastructure-concepts/work-pools):
+- [Deployments created with the Python SDK](/v3/deploy/infrastructure-concepts/deploy-via-python)
+- [Deployments created with a YAML file](/v3/deploy/infrastructure-concepts/prefect-yaml)
+
+### Create a deployment with `deploy`
+
+To define a deployment with a Python script, use the `flow.deploy` method.
+
+Here's an example of a deployment that uses a work pool and bakes the code into a Docker image.
+
+```python
+from prefect import flow
+
+
+@flow
+def my_flow():
+    print("Hello, Prefect!")
+
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="my-second-deployment",
+        work_pool_name="my-work-pool",
+        image="my-image",
+        push=False,
+        cron="* * * * *",
+    )
+```
+
+To learn more about the `deploy` method, see [Deploy flows with Python](/v3/deploy/infrastructure-concepts/deploy-via-python).
+
+### Create a deployment with a YAML file
+
+If you'd rather take a declarative approach to defining a deployment through a YAML file, use a [`prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml).
+
+Prefect provides an interactive CLI that walks you through creating a `prefect.yaml` file:
+
+```bash
+prefect deploy
+```
+
+The result is a `prefect.yaml` file for deployment creation. 
+The file contains `build`, `push`, and `pull` steps for building a Docker image, pushing code to a Docker registry, and pulling code at runtime.
+Learn more about creating deployments with a YAML file in [Define deployments with YAML](/v3/deploy/infrastructure-concepts/prefect-yaml).
+
+Prefect also provides [CI/CD options](/v3/deploy/infrastructure-concepts/deploy-ci-cd) for automatically creating YAML-based deployments. 
+
+### Create a deployment with Terraform
+
+import { TF } from "/snippets/resource-management/terraform.mdx"
+import { deployments } from "/snippets/resource-management/vars.mdx"
+
+<TF name="deployments" href={deployments.tf} />
+
+### Create a deployment with the API
+
+import { API } from "/snippets/resource-management/api.mdx"
+
+<API name="deployments" href={deployments.api} />
+
+
+<Tip>
+    **Choosing between deployment methods**
+
+    For many cases, `serve` is sufficient for scheduling and orchestration.
+    The work pool / worker paradigm via `.deploy()` or `prefect deploy` can be great for complex infrastructure requirements and isolated flow run environments.
+    You are not locked into one method and can combine approaches as needed.
+</Tip>

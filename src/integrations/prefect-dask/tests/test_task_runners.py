@@ -11,6 +11,9 @@ from prefect_dask import DaskTaskRunner
 from prefect_dask.task_runners import PrefectDaskFuture
 
 from prefect import flow, task
+from prefect.assets import Asset, materialize
+from prefect.client.orchestration import get_client
+from prefect.context import get_run_context
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
 from prefect.states import State
@@ -73,9 +76,8 @@ class TestDaskTaskRunner:
     def task_runner(
         self, request: pytest.FixtureRequest
     ) -> Generator[DaskTaskRunner, None, None]:
-        yield request.getfixturevalue(
-            request.param._pytestfixturefunction.name or request.param.__name__
-        )
+        fixture_name = request.param._fixture_function.__name__
+        yield request.getfixturevalue(fixture_name)
 
     async def test_duplicate(self, task_runner: DaskTaskRunner):
         new = task_runner.duplicate()
@@ -518,3 +520,100 @@ class TestDaskTaskRunner:
         assert report_path.exists()
         report_content = report_path.read_text()
         assert "Dask Performance Report" in report_content
+
+    async def test_assets_with_task_runner(self, task_runner):
+        upstream = Asset(key="s3://data/dask_raw")
+        downstream = Asset(key="s3://data/dask_processed")
+
+        @materialize(upstream)
+        async def extract():
+            return {"rows": 50}
+
+        @materialize(downstream)
+        async def load(d):
+            return {"rows": d["rows"] * 2}
+
+        @flow(version="test", task_runner=task_runner)
+        async def pipeline():
+            run_context = get_run_context()
+            raw_data = extract.submit()
+            processed = load.submit(raw_data)
+            processed.wait()
+            return run_context.flow_run.id
+
+        flow_run_id = await pipeline()
+
+        async with get_client() as client:
+            for i in range(5):
+                response = await client._client.post(
+                    "/events/filter",
+                    json={
+                        "filter": {
+                            "event": {"prefix": ["prefect.asset."]},
+                            "related": {"id": [f"prefect.flow-run.{flow_run_id}"]},
+                        },
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                asset_events = data.get("events", [])
+                if len(asset_events) >= 3:
+                    break
+                # give a little more time for
+                # server to process events
+                await asyncio.sleep(2)
+            else:
+                raise RuntimeError("Unable to get any events from server!")
+
+        assert len(asset_events) == 3
+
+        upstream_events = [
+            e
+            for e in asset_events
+            if e.get("resource", {}).get("prefect.resource.id") == upstream.key
+        ]
+        downstream_events = [
+            e
+            for e in asset_events
+            if e.get("resource", {}).get("prefect.resource.id") == downstream.key
+        ]
+
+        # Should have 2 events for upstream (1 materialization, 1 reference)
+        assert len(upstream_events) == 2
+        assert len(downstream_events) == 1
+
+        # Separate upstream events by type
+        upstream_mat_events = [
+            e
+            for e in upstream_events
+            if e["event"] == "prefect.asset.materialization.succeeded"
+        ]
+        upstream_ref_events = [
+            e for e in upstream_events if e["event"] == "prefect.asset.referenced"
+        ]
+
+        assert len(upstream_mat_events) == 1
+        assert len(upstream_ref_events) == 1
+
+        upstream_mat_event = upstream_mat_events[0]
+        upstream_ref_event = upstream_ref_events[0]
+        downstream_event = downstream_events[0]
+
+        # confirm upstream materialization event
+        assert upstream_mat_event["event"] == "prefect.asset.materialization.succeeded"
+        assert upstream_mat_event["resource"]["prefect.resource.id"] == upstream.key
+
+        # confirm upstream reference event
+        assert upstream_ref_event["event"] == "prefect.asset.referenced"
+        assert upstream_ref_event["resource"]["prefect.resource.id"] == upstream.key
+
+        # confirm downstream events
+        assert downstream_event["event"] == "prefect.asset.materialization.succeeded"
+        assert downstream_event["resource"]["prefect.resource.id"] == downstream.key
+        related_assets = [
+            r
+            for r in downstream_event["related"]
+            if r.get("prefect.resource.role") == "asset"
+        ]
+        assert len(related_assets) == 1
+        assert related_assets[0]["prefect.resource.id"] == upstream.key

@@ -1,0 +1,99 @@
+---
+title: How to run a local Prefect server
+sidebarTitle: Run a local Prefect server
+description: Get started with self-hosting by running Prefect server locally.
+---
+
+The [Prefect CLI](/v3/get-started/install) is the easiest way to start a local instance of Prefect server.
+
+## Start the server
+
+1. Spin up a self-hosted Prefect server instance UI with the `prefect server start` CLI command in the terminal:
+
+```bash
+prefect server start
+```
+
+2. Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser.
+
+![Viewing the dashboard in the Prefect UI.](/v3/img/ui/self-hosted-server-dashboard.png)
+
+3. Shut down the Prefect server with ctrl  +  c in the terminal.
+
+## Configure the server
+
+Go to your terminal session and run this command to set the API URL to point to a self-hosted Prefect server instance:
+
+```bash
+prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
+```
+
+You can save the API server address in a Prefect profile. 
+Whenever that profile is active, the API endpoint is at that address.
+See [Profiles and configuration](/v3/develop/settings-and-profiles/) for more information on profiles and configurable Prefect settings.
+
+## Database configuration
+
+### Use SQLite (default)
+
+By default, Prefect uses a SQLite database stored at `~/.prefect/prefect.db`. No additional configuration is needed for basic use.
+
+### Use PostgreSQL
+
+To use PostgreSQL as your database backend:
+
+1. Set the database connection URL:
+
+```bash
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
+```
+
+2. Start the server:
+
+```bash
+prefect server start
+```
+
+For more database configuration options, see the [database settings reference](/v3/api-ref/settings-ref#database).
+
+## Database management commands
+
+### Reset the database
+
+Clear all data and reapply the schema:
+
+```bash
+prefect server database reset -y
+```
+
+### Manage migrations
+
+Apply database migrations:
+
+```bash
+# Upgrade to the latest version
+prefect server database upgrade -y
+
+# Downgrade to the previous version
+prefect server database downgrade -y -r -1
+
+# Downgrade to a specific revision
+prefect server database downgrade -y -r d20618ce678e
+```
+
+For large databases, you may need to increase the timeout:
+
+```bash
+export PREFECT_API_DATABASE_TIMEOUT=600
+prefect server database upgrade -y
+```
+
+## Advanced configuration
+
+For advanced deployment scenarios including:
+- Running behind a reverse proxy
+- Configuring SSL certificates
+- Multi-server deployments
+- Handling migration issues
+
+See [How to scale self-hosted Prefect](/v3/advanced/self-hosted).
