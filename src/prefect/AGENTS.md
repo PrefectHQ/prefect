@@ -1,38 +1,28 @@
-# Core Prefect Library
+# Core Prefect SDK
 
-This is the core Prefect library containing the fundamental building blocks for workflow orchestration.
+The foundation for building and executing workflows with Python.
 
-## Core Concepts
+## Key Components
 
-- **Flows**: Top-level workflow containers defined with `@flow` decorator
-- **Tasks**: Individual units of work defined with `@task` decorator  
-- **States**: Represent the status of flow/task runs (Pending, Running, Completed, Failed, etc.)
-- **Context**: Runtime information available during flow/task execution
-- **Results**: Persistence layer for task outputs and artifacts
+- **Flows & Tasks**: Workflow definition with `@flow` and `@task` decorators
+- **States**: Execution status tracking (Pending, Running, Completed, Failed)
+- **Context**: Runtime information and dependency injection
+- **Results**: Task output persistence and retrieval
+- **Deployments**: Packaging flows for scheduled/triggered execution
+- **Blocks**: Reusable configuration for external systems
 
-## Key Modules
+## Main Modules
 
-- `flows.py` - Flow definition, execution, and lifecycle management
-- `tasks.py` - Task definition, execution, and dependency resolution
-- `states.py` - State management and transitions
-- `context.py` - Runtime context and dependency injection
+- `flows.py` - Flow lifecycle and execution
+- `tasks.py` - Task definition and dependency resolution
 - `engine.py` - Core execution engine
-- `client/` - Client interfaces for communicating with Prefect server/cloud
-- `runner/` - Process management for running flows
-- `deployments/` - Deployment creation and management
-- `blocks/` - Reusable configuration and infrastructure components
+- `client/` - Server/Cloud API communication
+- `deployments/` - Deployment management
+- `blocks/` - Infrastructure and storage blocks
 
-## Execution Architecture
+## SDK-Specific Notes
 
-Prefect uses an asynchronous execution model:
-- Flows and tasks are async by default but support sync execution
-- Task dependencies are resolved through return value tracking
-- State management handles retries, caching, and failure policies
-- Results are persisted and retrievable across runs
-
-## Development Patterns
-
-- Prefer composition over inheritance for extensibility
-- Use dependency injection through context for runtime services
-- Maintain backward compatibility in public APIs
-- Task and flow definitions are immutable after creation 
+- Async-first execution model with sync support
+- Immutable flow/task definitions after creation
+- State transitions handle retries and caching
+- Backward compatibility required for public APIs

@@ -1,27 +1,72 @@
-# Code Style
-- always use complete and modern python typing (e.g. prefer `list[int]` over `List[int]`, `T | None` over `Optional[T]`)
-- hide implementation details in private methods or modules (e.g. `_private_method`)
-- do not change the public API of any module, class, or function (without explicit approval)
-- prefer explicit over implicit, functional over OOP
+# AGENTS.md
 
-# Tests
-- run `uv run pytest tests/some_file.py -k some_test_substr` to run a single test
-- run `uv run pytest -n4` to run all tests in parallel with 4 processes
+This file provides guidance to AI assistants when working with this repository.
 
-# Working on an issue
-- write repros in a git-excluded directory, name the folder/file by issue number (e.g. `repros/1234.py`)
-- reproduce the issue before making changes to the library
-- once reproduced, change the library and use the repro to verify the issue is fixed
-- if pertinent, find the appropriate place for a unit test and add one
-- open a PR according to the PR style below
+## Project Overview
 
-# PR Style
-- start with "closes #1234" if the PR resolves an issue
-- follow with "this PR {itemized summary of important changes}"
-- put details in a `<details>` tag
-- include markdown links to any relevant issues, discussions, docs, or other resources
+Prefect is a workflow orchestration platform that coordinates and observes any data pipeline. It provides an SDK for building workflows and a server/cloud backend for orchestration.
 
-# Useful commands
-- start a server with prefect 3.4.3 in a container: `docker run -p 4200:4200 --rm -d prefecthq/prefect:3.4.3-python3.12 -- prefect server start --host 0.0.0.0`
-inspect the current profile: `prefect config view`
-- running a script with an extra dependency: `uv run --with pandas some/script.py`
+Components:
+
+- `src/prefect/` (@src/prefect/, @tests/): Core SDK - flows, tasks, states, deployments
+- `src/prefect/engine.py` (@src/prefect/engine.py): Engine - orchestration entrypoint
+- `src/prefect/client/` (@src/prefect/client/, @tests/client/): Client SDK - client, schemas, utilities
+- `src/prefect/server/` (@src/prefect/server/, @tests/server/): Orchestration server - API, database, scheduling
+- `src/integrations/` (@src/integrations/: External service integrations
+
+## Essential Commands
+
+```bash
+uv sync                         # Install dependencies
+uv run --extra aws repros/1234.py  # Run repro related to prefect-aws
+uv run pytest tests/            # Run tests
+uv run pytest -n4              # Run tests in parallel
+uv run pytest tests/some_file.py -k test_name  # Run specific test
+prefect server start           # Start local server
+prefect config view            # Inspect configuration
+```
+
+## Tech Stack
+
+- **FastAPI** for REST APIs
+- **Pydantic v2** for validation
+- **SQLAlchemy 2.0** async ORM
+- **Alembic** for migrations
+- **PostgreSQL/SQLite** databases
+
+## Development Guidelines
+
+### Code Conventions
+
+- Python 3.9+ with modern typing (`list[int]`, `T | None`)
+- Private implementation details (`_private_method`)
+- No public API changes without approval
+- Use `uv` for dependency management, not `pip`
+
+### Testing
+
+- Directory structure mirrors source code
+- Run affected tests after changes: `uv run pytest tests/module/`
+- Tests require deterministic behavior
+- Mock external dependencies
+
+### Working on Issues
+
+- Create repros in `repros/` directory (gitignored)
+- Name files by issue number: `repros/1234.py`
+- Reproduce before fixing
+- Add unit tests for fixes
+
+### PR Style
+
+- Start with "closes #1234" if resolving issue
+- Brief summary: "this PR {changes}"
+- Details in `<details>` tag
+- Include relevant links
+
+## Project Practices
+
+- GitHub issues are used for tracking issues (use the `gh` cli)
+- Pre-commit hooks required (never use `--no-verify`)
+- Dependencies: updates to client-side deps in `@pyproject.toml` require parallel changes ing `@client/pyproject.toml`
+- AGENTS.md always symlinked to CLAUDE.md
