@@ -1,0 +1,45 @@
+---
+title: Prefect server
+description: Self-host your own Prefect server instance.
+---
+
+After installing Prefect, you have a Python SDK client that can communicate with either [Prefect Cloud](/v3/manage/cloud/) or a self-hosted Prefect server, backed by a database and a UI.
+
+Prefect Cloud and self-hosted Prefect server share a common set of capabilities. Prefect Cloud provides the additional features required by organizations such as RBAC, Audit logs, and SSO. See the [Prefect Cloud overview](/v3/manage/cloud/) for more information.
+
+<Warning>
+We recommend using the same version of `prefect` for the client and server.
+Old clients are compatible with new servers, but new clients can be incompatible with old servers as new fields are added to the REST API.
+The server will typically return a 422 status code if any issues occur.
+</Warning>
+
+## The Prefect database
+
+The Prefect database persists data to track the state of your flow runs and related Prefect concepts, including:
+
+- Flow run and task run state
+- Run history
+- Logs
+- Deployments
+- Flow and task run concurrency limits
+- Storage blocks for flow and task results
+- Variables
+- Artifacts
+- Work pool status
+
+Prefect supports the following databases:
+
+- **SQLite** (default): Recommended for lightweight, single-server deployments. SQLite requires essentially no setup.
+- **PostgreSQL**: Best for production use, high availability, and multi-server deployments. Requires additional setup. Prefect uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
+
+## Database migrations
+
+Prefect uses [Alembic](https://alembic.sqlalchemy.org/en/latest/) to manage database migrations. Alembic is a database migration tool that provides a framework for generating and applying schema changes to a database.
+
+When you start a Prefect server, it automatically runs any necessary migrations. You can also manage migrations manually using the CLI.
+
+## How to guides
+
+- [Self-host via CLI](/v3/how-to-guides/self-hosted/server-cli) - Start a local server instance
+- [Self-host via Docker](/v3/how-to-guides/self-hosted/server-docker) - Run server in containers
+- [Scale self-hosted Prefect](/v3/advanced/self-hosted) - Deploy multiple server instances for high availability

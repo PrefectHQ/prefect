@@ -109,6 +109,13 @@ def snowflake_connect_mock(monkeypatch):
     ]
 
     mock_connection = MagicMock(name="connection mock")
+
+    def close_connection(*args, **kwargs):
+        """Mock function to simulate closing the connection."""
+        mock_connection.return_value.is_closed.return_value = True
+
+    mock_connection.return_value.is_closed.return_value = False
+    mock_connection.return_value.__exit__.side_effect = close_connection
     mock_connection.return_value.is_still_running.return_value = False
     mock_connection.return_value.cursor = mock_cursor
 

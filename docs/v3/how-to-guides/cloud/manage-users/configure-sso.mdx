@@ -1,0 +1,51 @@
+---
+title: How to configure single sign-on
+sidebarTitle: Configure single sign-on
+description: Configure single sign-on (SSO) for your Prefect Cloud users.
+---
+
+Prefect Cloud's [Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team's identity provider.
+You can set up SSO integration with any identity provider that supports:
+
+- OIDC
+- SAML 2.0
+
+When using SSO, Prefect Cloud won't store passwords for any accounts managed by your identity provider.
+Members of your Prefect Cloud account will log in and authenticate using your identity provider.
+
+Once your SSO integration is set up, non-admins are required to authenticate through the SSO provider when 
+accessing account resources.
+
+See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users and 
+workspaces, service accounts, and SSO.
+
+## Configure SSO
+
+Within your account, select the **SSO** page to enable SSO for users.
+
+If you haven't enabled SSO for a domain yet, enter the email domains for enabling SSO in Prefect Cloud, and save it.
+
+Under **Enabled Domains**, select the domains from the **Domains** list, then select **Generate Link**. 
+This step creates a link to configure SSO with your identity provider.
+
+
+Using the provided link, navigate to the Identity Provider Configuration dashboard and select your identity provider to continue 
+configuration. If your provider isn't listed, try `SAML` or `Open ID Connect` instead.
+
+![Opening the Identity Provider Configuration dashboard.](/v3/img/ui/cloud-sso-dashboard.png)
+
+Once you complete SSO configuration, your users must authenticate through your identity provider when accessing account resources, giving you full control over application access.
+
+## Directory sync
+
+**Directory sync** automatically provisions and de-provisions users for your account.
+
+Provisioned users are given basic “Member” roles and have access to any resources that role entails.
+
+When a user is unassigned from the Prefect Cloud application in your identity provider, they automatically lose access to 
+Prefect Cloud resources. This allows your IT team to control access to Prefect Cloud without signing into the Prefect UI.
+
+## SCIM Provisioning
+
+Enterprise plans have access to SCIM for user provisioning.
+The SSO tab provides access to enable SCIM provisioning.

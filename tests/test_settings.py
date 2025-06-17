@@ -368,6 +368,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_FLOW_RUN_GRAPH_MAX_NODES": {"test_value": 100},
     "PREFECT_SERVER_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_SERVER_LOG_RETRYABLE_ERRORS": {"test_value": True},
+    "PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED": {"test_value": True},
     "PREFECT_SERVER_MEMO_STORE_PATH": {"test_value": Path("/path/to/memo")},
     "PREFECT_SERVER_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True},
     "PREFECT_SERVER_METRICS_ENABLED": {"test_value": True},
@@ -415,6 +417,12 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_TRIGGERS_PG_NOTIFY_HEARTBEAT_INTERVAL_SECONDS": {
+        "test_value": 5
+    },
+    "PREFECT_SERVER_SERVICES_TRIGGERS_PG_NOTIFY_RECONNECT_INTERVAL_SECONDS": {
+        "test_value": 10
+    },
     "PREFECT_SERVER_TASKS_MAX_CACHE_KEY_LENGTH": {"test_value": 10},
     "PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE": {"test_value": 10},
     "PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE": {"test_value": 10},
@@ -2040,6 +2048,30 @@ class TestProfile:
             ProfileSettingsValidationError, match="should be a valid integer"
         ):
             profile.validate_settings()
+
+    def test_validate_settings_nested_field_constraints(self):
+        """
+        Test that nested field constraints are properly validated.
+        Regression test for issue #18258: PREFECT_RUNNER_HEARTBEAT_FREQUENCY validation.
+        """
+        from prefect.settings import PREFECT_RUNNER_HEARTBEAT_FREQUENCY
+
+        # Test invalid value (< 30)
+        profile = Profile(
+            name="test", settings={PREFECT_RUNNER_HEARTBEAT_FREQUENCY: "5"}
+        )
+        with pytest.raises(
+            ProfileSettingsValidationError,
+            match="Input should be greater than or equal to 30",
+        ):
+            profile.validate_settings()
+
+        # Test valid value (>= 30)
+        profile = Profile(
+            name="test", settings={PREFECT_RUNNER_HEARTBEAT_FREQUENCY: "40"}
+        )
+        # Should not raise
+        profile.validate_settings()
 
 
 class TestProfilesCollection:

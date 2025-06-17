@@ -628,7 +628,7 @@ class PrefectEventSubscriber:
         try:
             await self._reconnect()
         finally:
-            EVENT_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial")
+            EVENT_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial").inc()
         return self
 
     async def _reconnect(self) -> None:
@@ -709,7 +709,7 @@ class PrefectEventSubscriber:
                     finally:
                         EVENT_WEBSOCKET_CONNECTIONS.labels(
                             self.client_name, "out", "reconnect"
-                        )
+                        ).inc()
                     assert self._websocket
 
                 while True:

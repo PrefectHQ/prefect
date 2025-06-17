@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import sqlite3
 import ssl
@@ -427,8 +429,8 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 )
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
-            sa.event.listen(engine.sync_engine, "connect", self.setup_sqlite)
-            sa.event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
+            event.listen(engine.sync_engine, "connect", self.setup_sqlite)
+            event.listen(engine.sync_engine, "begin", self.begin_sqlite_stmt)
 
             if logfire:
                 logfire.instrument_sqlalchemy(engine)  # pyright: ignore

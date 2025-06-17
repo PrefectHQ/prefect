@@ -19,6 +19,7 @@ from sqlalchemy.orm import (
     relationship,
     synonym,
 )
+from sqlalchemy.orm.decl_api import registry as RegistryType
 from sqlalchemy.sql import roles
 from sqlalchemy.sql.functions import coalesce
 
@@ -59,7 +60,7 @@ class Base(DeclarativeBase):
     and provides ID, created, and updated columns
     """
 
-    registry: ClassVar[sa.orm.registry] = registry(
+    registry: ClassVar[RegistryType] = registry(
         metadata=sa.schema.MetaData(
             # define naming conventions for our Base class to use
             # sqlalchemy will use the following templated strings
@@ -671,9 +672,8 @@ class TaskRun(Run):
     tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
     labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(JSON)
 
-    # TODO remove this foreign key for significant delete performance gains
     state_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        sa.ForeignKey("task_run_state.id", ondelete="SET NULL", use_alter=True),
+        UUID,
         index=True,
     )
 
@@ -846,10 +846,8 @@ class Deployment(Base):
     concurrency_limit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
     )
-    global_concurrency_limit: Mapped[Optional["ConcurrencyLimitV2"]] = (
-        sa.orm.relationship(
-            lazy="selectin",
-        )
+    global_concurrency_limit: Mapped[Optional["ConcurrencyLimitV2"]] = relationship(
+        lazy="selectin",
     )
     concurrency_options: Mapped[Optional[schemas.core.ConcurrencyOptions]] = (
         mapped_column(
@@ -1255,6 +1253,7 @@ class Automation(Base):
     description: Mapped[str] = mapped_column(default="")
 
     enabled: Mapped[bool] = mapped_column(server_default="1", default=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
 
     trigger: Mapped[ServerTriggerTypes] = mapped_column(Pydantic(ServerTriggerTypes))
 

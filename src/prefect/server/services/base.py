@@ -36,6 +36,7 @@ def _known_service_modules() -> list[ModuleType]:
         event_persister,
         triggers,
     )
+    from prefect.server.logs import stream as logs_stream
     from prefect.server.services import (
         cancellation_cleanup,
         foreman,
@@ -61,6 +62,8 @@ def _known_service_modules() -> list[ModuleType]:
         triggers,
         actions,
         stream,
+        # Logs services
+        logs_stream,
     ]
 
 

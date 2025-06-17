@@ -985,7 +985,7 @@ async def test_ranges_are_limited(woodchonk_triggered: TriggeredAction):
     assert rendered[0] == (
         "Failed to render template due to the following error: "
         "OverflowError("
-        "'Range too big. The sandbox blocks ranges larger than MAX_RANGE (100).'"
+        "'Range too big. The sandbox blocks ranges larger than MAX_TEMPLATE_RANGE=100.'"
         ")\n"
         "Template source:\n"
         f"{template}"
