@@ -1,7 +1,5 @@
 import abc
 import asyncio
-import os
-import ssl
 from datetime import timedelta
 from types import TracebackType
 from typing import (
@@ -9,7 +7,6 @@ from typing import (
     Any,
     ClassVar,
     Dict,
-    Generator,
     List,
     MutableMapping,
     Optional,
@@ -17,18 +14,14 @@ from typing import (
     Type,
     cast,
 )
-from urllib.parse import urlparse
-from urllib.request import proxy_bypass
 from uuid import UUID
 
-import certifi
 import orjson
 from cachetools import TTLCache
 from prometheus_client import Counter
-from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets import Subprotocol
-from websockets.asyncio.client import ClientConnection, connect
+from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
@@ -36,13 +29,12 @@ from websockets.exceptions import (
 )
 
 import prefect.types._datetime
+from prefect._internal.websockets import websocket_connect
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
-    PREFECT_API_SSL_CERT_FILE,
-    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_DEBUG_MODE,
@@ -92,72 +84,6 @@ def events_in_socket_from_api_url(url: str) -> str:
 
 def events_out_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/events/out"
-
-
-class WebsocketProxyConnect(connect):
-    def __init__(self: Self, uri: str, **kwargs: Any):
-        # super() is intentionally deferred to the _proxy_connect method
-        # to allow for the socket to be established first
-
-        self.uri = uri
-        self._kwargs = kwargs
-
-        u = urlparse(uri)
-        host = u.hostname
-
-        if not host:
-            raise ValueError(f"Invalid URI {uri}, no hostname found")
-
-        if u.scheme == "ws":
-            port = u.port or 80
-            proxy_url = os.environ.get("HTTP_PROXY")
-        elif u.scheme == "wss":
-            port = u.port or 443
-            proxy_url = os.environ.get("HTTPS_PROXY")
-            kwargs["server_hostname"] = host
-        else:
-            raise ValueError(
-                "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
-            )
-
-        self._proxy = (
-            Proxy.from_url(proxy_url) if proxy_url and not proxy_bypass(host) else None
-        )
-        self._host = host
-        self._port = port
-
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY and u.scheme == "wss":
-            # Create an unverified context for insecure connections
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            self._kwargs.setdefault("ssl", ctx)
-        elif u.scheme == "wss":
-            cert_file = PREFECT_API_SSL_CERT_FILE.value()
-            if not cert_file:
-                cert_file = certifi.where()
-            # Create a verified context with the certificate file
-            ctx = ssl.create_default_context(cafile=cert_file)
-            self._kwargs.setdefault("ssl", ctx)
-
-    async def _proxy_connect(self: Self) -> ClientConnection:
-        if self._proxy:
-            sock = await self._proxy.connect(
-                dest_host=self._host,
-                dest_port=self._port,
-            )
-            self._kwargs["sock"] = sock
-
-        super().__init__(self.uri, **self._kwargs)
-        proto = await self.__await_impl__()
-        return proto
-
-    def __await__(self: Self) -> Generator[Any, None, ClientConnection]:
-        return self._proxy_connect().__await__()
-
-
-def websocket_connect(uri: str, **kwargs: Any) -> WebsocketProxyConnect:
-    return WebsocketProxyConnect(uri, **kwargs)
 
 
 def get_events_client(

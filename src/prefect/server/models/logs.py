@@ -3,7 +3,7 @@ Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import TYPE_CHECKING, Generator, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Generator, Optional, Sequence, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,7 @@ logger: "logging.Logger" = get_logger(__name__)
 
 
 def split_logs_into_batches(
-    logs: List[schemas.actions.LogCreate],
+    logs: Sequence[schemas.actions.LogCreate],
 ) -> Generator[Tuple[LogCreate, ...], None, None]:
     for batch in batched_iterable(logs, LOG_BATCH_SIZE):
         yield batch
@@ -39,7 +39,7 @@ def split_logs_into_batches(
 
 @db_injector
 async def create_logs(
-    db: PrefectDBInterface, session: AsyncSession, logs: List[schemas.core.Log]
+    db: PrefectDBInterface, session: AsyncSession, logs: Sequence[LogCreate]
 ) -> None:
     """
     Creates new logs
@@ -52,12 +52,13 @@ async def create_logs(
         None
     """
     try:
+        full_logs = [schemas.core.Log(**log.model_dump()) for log in logs]
         await session.execute(
-            db.queries.insert(db.Log).values([log.model_dump() for log in logs])
+            db.queries.insert(db.Log).values(
+                [log.model_dump(exclude={"created", "updated"}) for log in full_logs]
+            )
         )
-
-        # Publish logs to streaming system after successful database insertion
-        await messaging.publish_logs(logs)
+        await messaging.publish_logs(full_logs)
 
     except RuntimeError as exc:
         if "can't create new thread at interpreter shutdown" in str(exc):
@@ -73,7 +74,7 @@ async def create_logs(
 async def read_logs(
     db: PrefectDBInterface,
     session: AsyncSession,
-    log_filter: schemas.filters.LogFilter,
+    log_filter: Optional[schemas.filters.LogFilter],
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,

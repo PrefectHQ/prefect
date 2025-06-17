@@ -8,6 +8,7 @@ task run ID with a stable order across test machines.
 
 from datetime import timedelta
 from unittest import mock
+from unittest.mock import patch
 from uuid import uuid1
 
 import pytest
@@ -175,3 +176,43 @@ class TestReadLogs:
         api_logs = [Log(**log_data) for log_data in response.json()]
         assert api_logs[0].timestamp > api_logs[1].timestamp
         assert api_logs[0].message == "Black flag ahead, captain!"
+
+
+class TestLogSchemaConversionAPI:
+    """Test the API endpoint converts LogCreate to Log objects for messaging"""
+
+    async def test_post_logs_api_converts_logcreate_to_log_for_messaging(
+        self, client, flow_run_id
+    ):
+        """Test posting LogCreate to API results in Log objects passed to publish_logs"""
+        log_create_data = LogCreate(
+            name="test.api.logger",
+            level=20,
+            message="API test message",
+            timestamp=NOW,
+            flow_run_id=flow_run_id,
+        ).model_dump(mode="json")
+
+        # Mock publish_logs to capture what gets passed to messaging
+        with patch("prefect.server.logs.messaging.publish_logs") as mock_publish:
+            response = await client.post(CREATE_LOGS_URL, json=[log_create_data])
+
+            # API should succeed
+            assert response.status_code == 201
+
+            # Verify publish_logs was called with Log objects that have IDs
+            mock_publish.assert_called_once()
+            published_logs = mock_publish.call_args[0][0]
+
+            assert len(published_logs) == 1
+            published_log = published_logs[0]
+
+            # This was the key issue: API accepts LogCreate but messaging needs Log with ID
+            assert isinstance(published_log, Log)
+            assert published_log.id is not None
+
+            # Core fields should match the original API input
+            assert published_log.name == "test.api.logger"
+            assert published_log.level == 20
+            assert published_log.message == "API test message"
+            assert published_log.flow_run_id == flow_run_id
