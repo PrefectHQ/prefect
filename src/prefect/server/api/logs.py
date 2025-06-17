@@ -10,9 +10,12 @@ from starlette.status import WS_1002_PROTOCOL_ERROR
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
-import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.logs import stream
+from prefect.server.schemas.actions import LogCreate
+from prefect.server.schemas.core import Log
+from prefect.server.schemas.filters import LogFilter
+from prefect.server.schemas.sorting import LogSort
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 
@@ -21,7 +24,7 @@ router: PrefectRouter = PrefectRouter(prefix="/logs", tags=["Logs"])
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_logs(
-    logs: Sequence[schemas.actions.LogCreate],
+    logs: Sequence[LogCreate],
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
@@ -34,17 +37,17 @@ async def create_logs(
             await models.logs.create_logs(session=session, logs=batch)
 
 
-logs_adapter = TypeAdapter(Sequence[schemas.core.Log])
+logs_adapter: TypeAdapter[Sequence[Log]] = TypeAdapter(Sequence[Log])
 
 
 @router.post("/filter")
 async def read_logs(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    logs: Optional[schemas.filters.LogFilter] = None,
-    sort: schemas.sorting.LogSort = Body(schemas.sorting.LogSort.TIMESTAMP_ASC),
+    logs: Optional[LogFilter] = None,
+    sort: LogSort = Body(LogSort.TIMESTAMP_ASC),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> Sequence[schemas.core.Log]:
+) -> Sequence[Log]:
     """
     Query for logs.
     """
@@ -74,7 +77,7 @@ async def stream_logs_out(websocket: WebSocket) -> None:
             )
 
         try:
-            filter = schemas.filters.LogFilter.model_validate(message["filter"])
+            filter = LogFilter.model_validate(message["filter"])
         except Exception as e:
             return await websocket.close(
                 WS_1002_PROTOCOL_ERROR, reason=f"Invalid filter: {e}"
