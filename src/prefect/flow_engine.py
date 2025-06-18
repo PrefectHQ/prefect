@@ -373,6 +373,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
+        link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
 
         return result
@@ -484,7 +485,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if flow_runs:
                 loaded_flow_run = flow_runs[-1]
                 self._return_value = loaded_flow_run.state
-                self._subflow_run_id = loaded_flow_run.id
                 return loaded_flow_run
 
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
@@ -1370,9 +1370,7 @@ def run_flow_sync(
             with engine.run_context():
                 engine.call_flow_fn()
 
-    result = engine.result()
-    link_state_to_flow_run_result(engine.state, result)
-    return engine.state if return_type == "state" else result
+    return engine.state if return_type == "state" else engine.result()
 
 
 async def run_flow_async(
@@ -1396,9 +1394,7 @@ async def run_flow_async(
             async with engine.run_context():
                 await engine.call_flow_fn()
 
-    result = await engine.result()
-    link_state_to_flow_run_result(engine.state, result)
-    return engine.state if return_type == "state" else result
+    return engine.state if return_type == "state" else await engine.result()
 
 
 def run_generator_flow_sync(
