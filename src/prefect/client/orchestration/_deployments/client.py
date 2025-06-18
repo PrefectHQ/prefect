@@ -175,6 +175,56 @@ class DeploymentClient(BaseClient):
             json={"paused": paused},
         )
 
+    def pause_deployment(self, deployment_id: Union[UUID, str]) -> None:
+        """
+        Pause a deployment by ID.
+
+        Args:
+            deployment_id: The deployment ID of interest (can be a UUID or a string).
+
+        Raises:
+            ObjectNotFound: If request returns 404
+            RequestError: If request fails
+        """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
+        try:
+            self.set_deployment_paused_state(deployment_id, paused=True)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    def resume_deployment(self, deployment_id: Union[UUID, str]) -> None:
+        """
+        Resume (unpause) a deployment by ID.
+
+        Args:
+            deployment_id: The deployment ID of interest (can be a UUID or a string).
+
+        Raises:
+            ObjectNotFound: If request returns 404
+            RequestError: If request fails
+        """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
+        try:
+            self.set_deployment_paused_state(deployment_id, paused=False)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     def update_deployment(
         self,
         deployment_id: UUID,
@@ -769,6 +819,56 @@ class DeploymentAsyncClient(BaseAsyncClient):
             path_params={"id": deployment_id},
             json={"paused": paused},
         )
+
+    async def pause_deployment(self, deployment_id: Union[UUID, str]) -> None:
+        """
+        Pause a deployment by ID.
+
+        Args:
+            deployment_id: The deployment ID of interest (can be a UUID or a string).
+
+        Raises:
+            ObjectNotFound: If request returns 404
+            RequestError: If request fails
+        """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
+        try:
+            await self.set_deployment_paused_state(deployment_id, paused=True)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def resume_deployment(self, deployment_id: Union[UUID, str]) -> None:
+        """
+        Resume (unpause) a deployment by ID.
+
+        Args:
+            deployment_id: The deployment ID of interest (can be a UUID or a string).
+
+        Raises:
+            ObjectNotFound: If request returns 404
+            RequestError: If request fails
+        """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
+        try:
+            await self.set_deployment_paused_state(deployment_id, paused=False)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def update_deployment(
         self,

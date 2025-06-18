@@ -1933,6 +1933,35 @@ async def test_update_deployment_paused(
     assert deployment.paused == after_update
 
 
+async def test_pause_and_resume_deployment(prefect_client, flow_run):
+    # Create deployment in unpaused state
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_run.flow_id,
+        name="test-deployment",
+        paused=False,
+    )
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.paused is False
+
+    # Test pause with UUID
+    await prefect_client.pause_deployment(deployment_id)
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.paused is True
+
+    # Test resume with string ID
+    await prefect_client.resume_deployment(str(deployment_id))
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.paused is False
+
+    # Test error cases
+    with pytest.raises(ValueError, match="Invalid deployment ID"):
+        await prefect_client.pause_deployment("not-a-uuid")
+
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.pause_deployment(fake_id)
+
+
 class TestWorkPools:
     async def test_read_work_pools(self, prefect_client):
         # default pool shows up when running the test class or individuals, but not when running
@@ -2820,6 +2849,34 @@ class TestSyncClient:
         version = sync_prefect_client.api_version()
         assert prefect.__version__
         assert version == prefect.__version__
+
+    def test_pause_and_resume_deployment(self, sync_prefect_client, flow):
+        # Create deployment in unpaused state
+        deployment_id = sync_prefect_client.create_deployment(
+            flow_id=flow.id,
+            name="test-deployment",
+            paused=False,
+        )
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+        assert deployment.paused is False
+
+        # Test pause with UUID
+        sync_prefect_client.pause_deployment(deployment_id)
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+        assert deployment.paused is True
+
+        # Test resume with string ID
+        sync_prefect_client.resume_deployment(str(deployment_id))
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+        assert deployment.paused is False
+
+        # Test error cases
+        with pytest.raises(ValueError, match="Invalid deployment ID"):
+            sync_prefect_client.pause_deployment("not-a-uuid")
+
+        fake_id = "00000000-0000-0000-0000-000000000000"
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            sync_prefect_client.pause_deployment(fake_id)
 
 
 class TestSyncClientRaiseForAPIVersionMismatch:
