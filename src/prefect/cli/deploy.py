@@ -397,7 +397,7 @@ async def deploy(
     ),
     keep_ui_params_overrides: bool = typer.Option(
         False,
-        "--keep-ui",
+        "--keep-ui-params-overrides",
         help="Keep params_overrides that were declared in the server UI",
     ),
 ):
@@ -1024,6 +1024,7 @@ def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str
             "work_queue_name": None,
             "job_variables": {},
         },
+        "keep_ui_params_overrides": False,
     }
 
     # merge default and base deploy configs
