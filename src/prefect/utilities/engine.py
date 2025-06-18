@@ -507,12 +507,12 @@ def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
         return flow_run_context.run_results.get(id(obj))
 
 
-def link_state_to_flow_run_result(state: State, result: Any):
+def link_state_to_flow_run_result(state: State, result: Any) -> None:
     """Creates a link between a state and flow run result"""
     link_state_to_result(state, result, RunType.FLOW_RUN)
 
 
-def link_state_to_task_run_result(state: State, result: Any):
+def link_state_to_task_run_result(state: State, result: Any) -> None:
     """Creates a link between a state and task run result"""
     link_state_to_result(state, result, RunType.TASK_RUN)
 
