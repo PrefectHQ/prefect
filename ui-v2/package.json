@@ -114,7 +114,7 @@
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.20",
-		"eslint-plugin-storybook": "^9.0.10",
+		"eslint-plugin-storybook": "^0.12.0",
 		"eslint-plugin-testing-library": "^7.5.3",
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^16.0.0",
