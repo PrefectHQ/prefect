@@ -301,8 +301,8 @@ def _is_result_record(data: Any) -> TypeIs[ResultRecord[Any]]:
 async def propose_state(
     client: "PrefectClient",
     state: State[Any],
+    flow_run_id: UUID,
     force: bool = False,
-    flow_run_id: Optional[UUID] = None,
 ) -> State[Any]:
     """
     Propose a new state for a flow run, invoking Prefect orchestration logic.
@@ -320,24 +320,22 @@ async def propose_state(
     error will be raised.
 
     Args:
-        state: a new state for the task or flow run
+        state: a new state for a flow run
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
         a [State model][prefect.client.schemas.objects.State] representation of the
-            flow or task run state
+            flow run state
 
     Raises:
-        ValueError: if neither task_run_id or flow_run_id is provided
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
 
-    # Determine if working with a task run or flow run
     if not flow_run_id:
-        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+        raise ValueError("You must provide a `flow_run_id`")
 
-    # Handle task and sub-flow tracing
+    # Handle sub-flow tracing
     if state.is_final():
         result: Any
         if _is_result_record(state.data):
@@ -364,14 +362,8 @@ async def propose_state(
             response = await set_state_func()
         return response
 
-    if flow_run_id:
-        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-        response = await set_state_and_handle_waits(set_state)
-    else:
-        raise ValueError(
-            "Neither flow run id or task run id were provided. At least one must "
-            "be given."
-        )
+    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+    response = await set_state_and_handle_waits(set_state)
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
@@ -408,8 +400,8 @@ async def propose_state(
 def propose_state_sync(
     client: "SyncPrefectClient",
     state: State[Any],
+    flow_run_id: UUID,
     force: bool = False,
-    flow_run_id: Optional[UUID] = None,
 ) -> State[Any]:
     """
     Propose a new state for a flow run, invoking Prefect orchestration logic.
@@ -427,24 +419,20 @@ def propose_state_sync(
     error will be raised.
 
     Args:
-        state: a new state for the task or flow run
+        state: a new state for the flow run
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
         a [State model][prefect.client.schemas.objects.State] representation of the
-            flow or task run state
+            flow run state
 
     Raises:
-        ValueError: if neither task_run_id or flow_run_id is provided
+        ValueError: if flow_run_id is not provided
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
 
-    # Determine if working with a task run or flow run
-    if not flow_run_id:
-        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
-
-    # Handle task and sub-flow tracing
+    # Handle sub-flow tracing
     if state.is_final():
         if _is_result_record(state.data):
             result = state.data.result
@@ -471,11 +459,8 @@ def propose_state_sync(
         return response
 
     # Attempt to set the state
-    if flow_run_id:
-        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-        response = set_state_and_handle_waits(set_state)
-    else:
-        raise ValueError("No flow run id provided")
+    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+    response = set_state_and_handle_waits(set_state)
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
