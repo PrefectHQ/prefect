@@ -25,7 +25,11 @@ import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import OrchestrationResult, TaskRun
-from prefect.client.schemas.objects import RunInput, RunType, TaskRunResult
+from prefect.client.schemas.objects import (
+    RunInput,
+    RunType,
+    TaskRunResult,
+)
 from prefect.client.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
@@ -73,7 +77,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunResult] = set()
+    inputs: set[RunInput] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
