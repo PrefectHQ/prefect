@@ -748,7 +748,7 @@ class TaskRunPolicy(PrefectBaseModel):
         return validate_not_negative(v)
 
 
-class TaskRunInput(PrefectBaseModel):
+class RunInput(PrefectBaseModel):
     """
     Base class for classes that represent inputs to task runs, which
     could include, constants, parameters, or other task runs.
@@ -761,26 +761,26 @@ class TaskRunInput(PrefectBaseModel):
         input_type: str
 
 
-class TaskRunResult(TaskRunInput):
+class TaskRunResult(RunInput):
     """Represents a task run result input to another task run."""
 
     input_type: Literal["task_run"] = "task_run"
     id: UUID
 
 
-class FlowRunResult(TaskRunInput):
+class FlowRunResult(RunInput):
     input_type: Literal["flow_run"] = "flow_run"
     id: UUID
 
 
-class Parameter(TaskRunInput):
+class Parameter(RunInput):
     """Represents a parameter input to a task run."""
 
     input_type: Literal["parameter"] = "parameter"
     name: str
 
 
-class Constant(TaskRunInput):
+class Constant(RunInput):
     """Represents constant input value to a task run."""
 
     input_type: Literal["constant"] = "constant"

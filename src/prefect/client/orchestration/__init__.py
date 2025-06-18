@@ -102,6 +102,7 @@ from prefect.client.schemas.filters import (
 )
 from prefect.client.schemas.objects import (
     Constant,
+    FlowRunResult,
     Parameter,
     TaskRunPolicy,
     TaskRunResult,
@@ -780,6 +781,7 @@ class PrefectClient(
                 str,
                 list[
                     Union[
+                        FlowRunResult,
                         TaskRunResult,
                         Parameter,
                         Constant,
@@ -1439,6 +1441,7 @@ class SyncPrefectClient(
                 str,
                 list[
                     Union[
+                        FlowRunResult,
                         TaskRunResult,
                         Parameter,
                         Constant,

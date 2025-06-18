@@ -37,7 +37,7 @@ import prefect.types._datetime
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.client.schemas.objects import RunInput, State
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
@@ -683,7 +683,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[RunInput]]] = None,
     ) -> Generator[Self, Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -777,7 +777,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[RunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
             with (
@@ -1267,7 +1267,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[RunInput]]] = None,
     ) -> AsyncGenerator[Self, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -1359,7 +1359,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[RunInput]]] = None,
     ) -> AsyncGenerator[None, None]:
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
@@ -1465,7 +1465,7 @@ def run_task_sync(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = SyncTaskRunEngine[P, R](
@@ -1496,7 +1496,7 @@ async def run_task_async(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = AsyncTaskRunEngine[P, R](
@@ -1527,7 +1527,7 @@ def run_generator_task_sync(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> Generator[R, None, None]:
     if return_type != "result":
@@ -1586,7 +1586,7 @@ async def run_generator_task_async(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> AsyncGenerator[R, None]:
     if return_type != "result":
@@ -1647,7 +1647,7 @@ def run_task(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state"] = "state",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> State[R]: ...
 
@@ -1660,7 +1660,7 @@ def run_task(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["result"] = "result",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> R: ...
 
@@ -1672,7 +1672,7 @@ def run_task(
     parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    dependencies: Optional[dict[str, set[RunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
     """

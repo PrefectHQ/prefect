@@ -25,7 +25,7 @@ import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import OrchestrationResult, TaskRun
-from prefect.client.schemas.objects import RunType, TaskRunInput, TaskRunResult
+from prefect.client.schemas.objects import RunInput, RunType, TaskRunResult
 from prefect.client.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
@@ -89,8 +89,9 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
-            state, run_type = get_state_for_result(obj)
-            if state:
+            res = get_state_for_result(obj)
+            if res:
+                state, run_type = res
                 run_result = state.state_details.to_run_result(run_type)
                 if run_result:
                     inputs.add(run_result)
@@ -107,7 +108,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
 
 def collect_task_run_inputs_sync(
     expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
-) -> set[TaskRunInput]:
+) -> set[RunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -120,7 +121,7 @@ def collect_task_run_inputs_sync(
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunInput] = set()
+    inputs: set[RunInput] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
@@ -140,8 +141,9 @@ def collect_task_run_inputs_sync(
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
-            state, run_type = get_state_for_result(obj)
-            if state:
+            res = get_state_for_result(obj)
+            if res:
+                state, run_type = res
                 run_result = state.state_details.to_run_result(run_type)
                 if run_result:
                     inputs.add(run_result)
@@ -494,7 +496,7 @@ def propose_state_sync(
         )
 
 
-def get_state_for_result(obj: Any) -> Optional[tuple[State, str]]:
+def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
     """
     Get the state related to a result object.
 

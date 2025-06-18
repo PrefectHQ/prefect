@@ -500,6 +500,7 @@ class TaskRunCreate(ActionBaseModel):
         str,
         List[
             Union[
+                schemas.core.FlowRunResult,
                 schemas.core.TaskRunResult,
                 schemas.core.Parameter,
                 schemas.core.Constant,
