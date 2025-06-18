@@ -1709,10 +1709,10 @@ async def test_mixed_task_and_flow_run_inputs(
         state_type=StateType.COMPLETED,
         state_name="Completed",
         expected_start_time=base_time
-        + datetime.timedelta(seconds=13)
+        + datetime.timedelta(seconds=15)
         - datetime.timedelta(microseconds=1),
-        start_time=base_time + datetime.timedelta(seconds=13),
-        end_time=base_time + datetime.timedelta(seconds=14),
+        start_time=base_time + datetime.timedelta(seconds=15),
+        end_time=base_time + datetime.timedelta(seconds=16),
         task_inputs={
             "task_param": [{"id": upstream_task.id, "input_type": "task_run"}],
             "flow_param": [{"id": subflow_run.id, "input_type": "flow_run"}],
