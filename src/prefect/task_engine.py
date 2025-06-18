@@ -96,7 +96,7 @@ from prefect.utilities.callables import call_with_parameters, parameters_to_args
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     emit_task_run_state_change_event,
-    link_state_to_result,
+    link_state_to_task_run_result,
     resolve_to_final_result,
 )
 from prefect.utilities.math import clamped_poisson_interval
@@ -453,7 +453,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 result = state.data
 
-            link_state_to_result(new_state, result)
+            link_state_to_task_run_result(new_state, result)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1038,7 +1038,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 result = new_state.data
 
-            link_state_to_result(new_state, result)
+            link_state_to_task_run_result(new_state, result)
 
         # emit a state change event
         self._last_event = emit_task_run_state_change_event(
@@ -1568,7 +1568,7 @@ def run_generator_task_sync(
                             # dictionary in an unbounded way, so finding a
                             # way to periodically clean it up (using
                             # weakrefs or similar) would be good
-                            link_state_to_result(engine.state, gen_result)
+                            link_state_to_task_run_result(engine.state, gen_result)
                             yield gen_result
                     except StopIteration as exc:
                         engine.handle_success(exc.value, transaction=txn)
@@ -1627,7 +1627,7 @@ async def run_generator_task_async(
                             # dictionary in an unbounded way, so finding a
                             # way to periodically clean it up (using
                             # weakrefs or similar) would be good
-                            link_state_to_result(engine.state, gen_result)
+                            link_state_to_task_run_result(engine.state, gen_result)
                             yield gen_result
                     except (StopAsyncIteration, GeneratorExit) as exc:
                         await engine.handle_success(None, transaction=txn)

@@ -249,7 +249,7 @@ def _infer_parent_task_runs(
             elif isinstance(v, PrefectFuture):
                 upstream_state = v.state
             else:
-                upstream_state = flow_run_context.task_run_results.get(id(v))
+                upstream_state, _ = flow_run_context.run_results.get(id(v))
             if upstream_state and upstream_state.is_running():
                 parents.append(
                     TaskRunResult(id=upstream_state.state_details.task_run_id)
@@ -1030,6 +1030,7 @@ class Task(Generic[P, R]):
                 state_details=StateDetails(
                     task_run_id=task_run_id,
                     flow_run_id=flow_run_id,
+                    run_type="task_run",
                 )
             )
             task_run = TaskRun(

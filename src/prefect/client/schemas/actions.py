@@ -442,6 +442,7 @@ class TaskRunCreate(ActionBaseModel):
         str,
         list[
             Union[
+                objects.FlowRunResult,
                 objects.TaskRunResult,
                 objects.Parameter,
                 objects.Constant,
