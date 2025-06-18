@@ -89,9 +89,11 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
-            state = get_state_for_result(obj)
-            if state and state.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+            state, run_type = get_state_for_result(obj)
+            if state:
+                run_result = state.state_details.to_run_result(run_type)
+                if run_result:
+                    inputs.add(run_result)
 
     visit_collection(
         expr,

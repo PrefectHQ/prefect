@@ -1030,7 +1030,6 @@ class Task(Generic[P, R]):
                 state_details=StateDetails(
                     task_run_id=task_run_id,
                     flow_run_id=flow_run_id,
-                    run_type="task_run",
                 )
             )
             task_run = TaskRun(
